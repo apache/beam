@@ -28,7 +28,9 @@ import threading
 import time
 import traceback
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import List
+from typing import Mapping
 from typing import Optional
 
 import grpc
@@ -43,6 +45,7 @@ from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import beam_provision_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import abstract_job_service
@@ -51,11 +54,11 @@ from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.runners.portability.fn_api_runner import worker_handlers
 from apache_beam.runners.worker.log_handler import LOGENTRY_TO_LOG_LEVEL_MAP
+from apache_beam.transforms import environments
 from apache_beam.utils import thread_pool_executor
 
 if TYPE_CHECKING:
   from google.protobuf import struct_pb2  # pylint: disable=ungrouped-imports
-  from apache_beam.portability.api import beam_runner_api_pb2
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -96,10 +99,8 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     # type: (...) -> BeamJob
     self._artifact_service.register_job(
         staging_token=preparation_id,
-        dependency_sets={
-            id: env.dependencies
-            for (id, env) in pipeline.components.environments.items()
-        })
+        dependency_sets=_extract_dependency_sets(
+            pipeline.components.environments))
     provision_info = fn_runner.ExtendedProvisionInfo(
         beam_provision_api_pb2.ProvisionInfo(pipeline_options=options),
         self._staging_dir,
@@ -321,12 +322,9 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
 
   def _update_dependencies(self):
     try:
-      for env_id, deps in self._artifact_service.resolved_deps(
-          self._job_id, timeout=0).items():
-        # Slice assignment not supported for repeated fields.
-        env = self._pipeline_proto.components.environments[env_id]
-        del env.dependencies[:]
-        env.dependencies.extend(deps)
+      _update_dependency_sets(
+          self._pipeline_proto.components.environments,
+          self._artifact_service.resolved_deps(self._job_id, timeout=0))
       self._provision_info.provision_info.ClearField('retrieval_token')
     except concurrent.futures.TimeoutError:
       # TODO(https://github.com/apache/beam/issues/20267): Require this once
@@ -457,3 +455,42 @@ class JobLogHandler(logging.Handler):
 
       # Inform all message consumers.
       self._log_queues.put(msg)
+
+
+def _extract_dependency_sets(
+    envs: Mapping[str, beam_runner_api_pb2.Environment]
+) -> Mapping[Any, List[beam_runner_api_pb2.ArtifactInformation]]:
+  """Expands the set of environments into a mapping of (opaque) keys to
+  dependency sets.  This is not 1:1 in the case of AnyOf environments.
+
+  The values can then be resolved and the mapping passed back to
+  _update_dependency_sets to update the dependencies in the original protos.
+  """
+  def dependencies_iter():
+    for env_id, env in envs.items():
+      for ix, sub_env in enumerate(environments.expand_anyof_environments(env)):
+        yield (env_id, ix), sub_env.dependencies
+
+  return dict(dependencies_iter())
+
+
+def _update_dependency_sets(
+    envs: Mapping[str, beam_runner_api_pb2.Environment],
+    resolved_deps: Mapping[Any, List[beam_runner_api_pb2.ArtifactInformation]]):
+  """Takes the mapping of beam Environments (originally passed to
+  `_extract_dependency_sets`) and a set of (key-wise) updated dependencies,
+  and updates the original environment protos to contain the updated
+  dependencies.
+  """
+  for env_id, env in envs.items():
+    new_envs = []
+    for ix, sub_env in enumerate(environments.expand_anyof_environments(env)):
+      # Slice assignment not supported for repeated fields.
+      del sub_env.dependencies[:]
+      sub_env.dependencies.extend(resolved_deps[env_id, ix])
+      new_envs.append(sub_env)
+    if len(new_envs) == 1:
+      envs[env_id].CopyFrom(new_envs[0])
+    else:
+      envs[env_id].CopyFrom(
+          environments.AnyOfEnvironment.create_proto(new_envs))

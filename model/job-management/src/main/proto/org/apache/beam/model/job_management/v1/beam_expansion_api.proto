@@ -94,6 +94,12 @@ message SchemaTransformConfig {
 
   // Names of output PCollections
   repeated string output_pcollection_names = 3;
+
+  // Description of this transform and usage used for documentation.
+  // May be markdown formatted.
+  // Note that configuration parameters may also have documentation attached
+  // as part of the config_schema.
+  string description = 4;
 }
 
 message DiscoverSchemaTransformResponse {

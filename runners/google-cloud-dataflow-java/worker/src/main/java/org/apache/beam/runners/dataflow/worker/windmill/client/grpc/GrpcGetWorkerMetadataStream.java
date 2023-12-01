@@ -36,7 +36,7 @@ import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class GrpcGetWorkerMetadataStream
+public final class GrpcGetWorkerMetadataStream
     extends AbstractWindmillStream<WorkerMetadataRequest, WorkerMetadataResponse>
     implements GetWorkerMetadataStream {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcGetWorkerMetadataStream.class);
@@ -100,6 +100,7 @@ final class GrpcGetWorkerMetadataStream
             metadataVersion,
             getWorkerMetadataThrottleTimer,
             serverMappingUpdater);
+    LOG.info("Started GetWorkerMetadataStream. {}", getWorkerMetadataStream);
     getWorkerMetadataStream.startStream();
     return getWorkerMetadataStream;
   }
