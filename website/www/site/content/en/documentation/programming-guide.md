@@ -8118,16 +8118,16 @@ The Transform service has several primary use cases.
 ### 15.1 Using the transform service to upgrade transforms {#transform-service-usage-upgrade}
 
 Transform service can be used to upgrade (or downgrade) the Beam SDK versions of supported individual transforms used by Beam pipelines without changing the Beam version of the pipelines.
-This feature is currently only available for Beam Java SDK 2.53.0 and later. Currently following transforms are available for upgrading.
+This feature is currently only available for Beam Java SDK 2.53.0 and later. Currently, the following transforms are available for upgrading:
 
 * BigQuery read transform (URN: _beam:transform:org.apache.beam:bigquery_read:v1_)
 * BigQuery write transform (URN: _beam:transform:org.apache.beam:bigquery_write:v1_)
 * Kafka read transform (URN: _beam:transform:org.apache.beam:kafka_read_with_metadata:v2_)
 * Kafka write transform (URN: _beam:transform:org.apache.beam:kafka_write:v2_)
 
-To use this feature, you can simply execute a Java pipeline with additional pipeline options that specifies the URNs of the transforms you would like to upgrade and the Beam version you would like to upgrade the transforms to. Alll transforms in the pipeline with matching URNs will be upgraded.
+To use this feature, you can simply execute a Java pipeline with additional pipeline options that specify the URNs of the transforms you would like to upgrade and the Beam version you would like to upgrade the transforms to. All transforms in the pipeline with matching URNs will be upgraded.
 
-For example, to upgrade the BigQuery read transform for a piepline run using Beam `2.53.0` to a future Beam version `2.xy.z`, you can specify following additional pipelines options.
+For example, to upgrade the BigQuery read transform for a pipeline run using Beam `2.53.0` to a future Beam version `2.xy.z`, you can specify the following additional pipelines options.
 
 {{< highlight java >}}
 --transformsToOverride=beam:transform:org.apache.beam:bigquery_read:v1 --transformServiceBeamVersion=2.xy.z
@@ -8141,28 +8141,28 @@ This feature is currently not available for Python SDK.
 This feature is currently not available for Go SDK.
 {{< /highlight >}}
 
-Note that the framework will automatically download the relavent Docker containers and startup the transform service for you.
+Note that the framework will automatically download the relevant Docker containers and startup the transform service for you.
 
 Please see [here](https://cwiki.apache.org/confluence/display/BEAM/Transform+Service#TransformService-Upgradetransformswithoutupgradingthepipeline) for a full example that uses this feature to upgrade BigQuery read and write transforms.
 
 ### 15.2 Using the Transform service for multi-language pipelines {#transform-service-usage-multi-language}
 
-Transform service implements the Beam expansion API. This allows Beam multi-language pipelines to use the transform service when expanding transforms available withn the transform service.
+Transform service implements the Beam expansion API. This allows Beam multi-language pipelines to use the transform service when expanding transforms available within the transform service.
 The main advantage here is that multi-language pipelines will be able to operate without installing support for additional language runtimes. For example, Beam Python pipelines that use Java transforms such as
 `KafkaIO` can operate without installing Java locally during job submission as long as Docker is available in the system.
 
-In some cases, Apache Beam SDKs automatically start the Transform service.
+In some cases, Apache Beam SDKs can automatically start the Transform service.
 
 * The Java [`PythonExternalTransform` API](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/PythonExternalTransform.java) automatically
 starts the Transform service when a Python runtime isn't available locally, but Docker is.
 
 * The Apache Beam Python multi-language wrappers might automatically start the Transform service when you're using Java transforms, a Java language runtime isn't available locally, and Docker is available locally.
 
-Beam users also have the option to [manually start](/documentation/programming-guide/#transform-service-usage-muanual) a stransform service and use that as the expansion service used by multi-language pipelines.
+Beam users also have the option to [manually start](/documentation/programming-guide/#transform-service-usage-muanual) a transform service and use that as the expansion service used by multi-language pipelines.
 
 ### 15.3 Manually starting the transform service {#transform-service-usage-muanual}
 
-A Beam Transform service instance can be manually started by by using utilities provided with Apache Beam SDKs.
+A Beam Transform service instance can be manually started by using utilities provided with Apache Beam SDKs.
 
 {{< highlight java >}}
 java -jar beam-sdks-java-transform-service-launcher-<Beam version for the jar>.jar --port <port> --beam_version <Beam version for the transform service> --project_name <a unique ID for the transform service> --command up
@@ -8194,7 +8194,7 @@ This feature is currently in development.
 
 Beam Transform service includes a number of transforms implemented in the Apache Beam Java and Python SDKs.
 
-Currently, following transforms are included in the Transform service:
+Currently, the following transforms are included in the Transform service:
 
 * Java transforms: Google Cloud I/O connectors, the Kafka I/O connector, and the JDBC I/O connector
 
