@@ -53,7 +53,7 @@ class UserCodeTimeoutException(UserCodeExecutionException):
 class Caller(contextlib.AbstractContextManager, abc.ABC):
   """Interface for user custom code intended for API calls.
   For setup and teardown of clients when applicable, implement the
-  ``__enter__`` and ``__exit__`` methods"""
+  ``__enter__`` and ``__exit__`` methods respectively."""
   @abc.abstractmethod
   def __call__(self, request: RequestT, *args, **kwargs) -> ResponseT:
     """Calls a Web API with the ``RequestT``  and returns a
@@ -62,6 +62,12 @@ class Caller(contextlib.AbstractContextManager, abc.ABC):
     ``UserCodeQuotaException``, or ``UserCodeTimeoutException``.
     """
     pass
+
+  def __enter__(self):
+    return self
+
+  def __exit__(self, exc_type, exc_val, exc_tb):
+    return None
 
 
 class ShouldBackOff(abc.ABC):
