@@ -32,6 +32,7 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
@@ -229,7 +230,9 @@ final class ActiveWorkState {
                     .setKey(shardedKey.key())
                     .setShardingKey(shardedKey.shardingKey())
                     .setWorkToken(work.getWorkItem().getWorkToken())
-                    .addAllLatencyAttribution(work.getLatencyAttributions())
+                    // TODO(clairemccarthy): plumb real values.
+                    .addAllLatencyAttribution(work.getLatencyAttributions(true, "",
+                        DataflowExecutionStateSampler.instance()))
                     .build());
   }
 

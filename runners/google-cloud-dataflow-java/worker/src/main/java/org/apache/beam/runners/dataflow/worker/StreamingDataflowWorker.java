@@ -1163,7 +1163,8 @@ public class StreamingDataflowWorker {
 
       // Add the output to the commit queue.
       work.setState(State.COMMIT_QUEUED);
-      outputBuilder.addAllPerWorkItemLatencyAttributions(work.getLatencyAttributions());
+      outputBuilder.addAllPerWorkItemLatencyAttributions(
+          work.getLatencyAttributions(false, constructWorkId(workItem), sampler));
 
       WorkItemCommitRequest commitRequest = outputBuilder.build();
       int byteLimit = maxWorkItemCommitBytes;
