@@ -480,6 +480,11 @@ import org.slf4j.LoggerFactory;
  *      // or you can also set a custom timestamp with a function.
  *      .withPublishTimestampFunction((elem, elemTs) -> ...)
  *
+ *      // Optionally, records that fail to serialize can be sent to an error handler
+ *      // See {@link ErrorHandler} for details of for details of configuring a bad record error
+ *      // handler
+ *      .withBadRecordErrorHandler(errorHandler)
+ *
  *      // Optionally enable exactly-once sink (on supported runners). See JavaDoc for withEOS().
  *      .withEOS(20, "eos-sink-group-id");
  *   );
@@ -619,6 +624,7 @@ public class KafkaIO {
         .setNumShards(0)
         .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
         .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
+        .setBadRecordErrorHandler(new DefaultErrorHandler<>())
         .build();
   }
 
@@ -698,7 +704,7 @@ public class KafkaIO {
     public abstract @Nullable CheckStopReadingFn getCheckStopReadingFn();
 
     @Pure
-    abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
+    public abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
     abstract Builder<K, V> toBuilder();
 
@@ -748,13 +754,13 @@ public class KafkaIO {
 
       abstract Builder<K, V> setCheckStopReadingFn(@Nullable CheckStopReadingFn checkStopReadingFn);
 
+      abstract Builder<K, V> setBadRecordErrorHandler(
+          @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
+
       Builder<K, V> setCheckStopReadingFn(
           @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
         return setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn));
       }
-
-      abstract Builder<K, V> setBadRecordErrorHandler(
-          ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
       abstract Read<K, V> build();
 
@@ -2562,8 +2568,6 @@ public class KafkaIO {
     // we shouldn't have to duplicate the same API for similar transforms like {@link Write} and
     // {@link WriteRecords}. See example at {@link PubsubIO.Write}.
 
-    transient ErrorHandler<BadRecord, ?> badRecordErrorHandler = new DefaultErrorHandler<>();
-
     @Pure
     public abstract @Nullable String getTopic();
 
@@ -2601,6 +2605,9 @@ public class KafkaIO {
     @Pure
     public abstract BadRecordRouter getBadRecordRouter();
 
+    @Pure
+    public abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
+
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
@@ -2629,6 +2636,9 @@ public class KafkaIO {
           SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> fn);
 
       abstract Builder<K, V> setBadRecordRouter(BadRecordRouter router);
+
+      abstract Builder<K, V> setBadRecordErrorHandler(
+          ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
       abstract WriteRecords<K, V> build();
     }
@@ -2778,10 +2788,10 @@ public class KafkaIO {
 
     public WriteRecords<K, V> withBadRecordErrorHandler(
         ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
-      WriteRecords<K, V> writeRecords =
-          toBuilder().setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER).build();
-      writeRecords.badRecordErrorHandler = badRecordErrorHandler;
-      return writeRecords;
+      return toBuilder()
+          .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER)
+          .setBadRecordErrorHandler(badRecordErrorHandler)
+          .build();
     }
 
     @Override
@@ -2796,7 +2806,7 @@ public class KafkaIO {
       if (isEOS()) {
         checkArgument(getTopic() != null, "withTopic() is required when isEOS() is true");
         checkArgument(
-            badRecordErrorHandler instanceof DefaultErrorHandler,
+            getBadRecordErrorHandler() instanceof DefaultErrorHandler,
             "BadRecordErrorHandling isn't supported with Kafka Exactly Once writing");
         KafkaExactlyOnceSink.ensureEOSSupport();
 
@@ -2816,10 +2826,11 @@ public class KafkaIO {
                 ParDo.of(new KafkaWriter<>(this))
                     .withOutputTags(
                         new TupleTag<Void>(), TupleTagList.of(BadRecordRouter.BAD_RECORD_TAG)));
-        badRecordErrorHandler.addErrorCollection(
-            pCollectionTuple
-                .get(BadRecordRouter.BAD_RECORD_TAG)
-                .setCoder(BadRecord.getCoder(input.getPipeline())));
+        getBadRecordErrorHandler()
+            .addErrorCollection(
+                pCollectionTuple
+                    .get(BadRecordRouter.BAD_RECORD_TAG)
+                    .setCoder(BadRecord.getCoder(input.getPipeline())));
       }
       return PDone.in(input.getPipeline());
     }

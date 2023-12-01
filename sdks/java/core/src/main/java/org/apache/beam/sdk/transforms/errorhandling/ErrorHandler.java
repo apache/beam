@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.errorhandling;
 
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -63,8 +64,11 @@ import org.slf4j.LoggerFactory;
  * }
  * results.apply(SomeOtherTransform);
  * }</pre>
+ *
+ * This is marked as serializable despite never being needed on the runner, to enable it to be a
+ * parameter of an Autovalue configured PTransform.
  */
-public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoCloseable {
+public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoCloseable, Serializable {
 
   void addErrorCollection(PCollection<ErrorT> errorCollection);
 
@@ -79,13 +83,16 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
     private static final Logger LOG = LoggerFactory.getLogger(PTransformErrorHandler.class);
     private final PTransform<PCollection<ErrorT>, OutputT> sinkTransform;
 
-    private final Pipeline pipeline;
+    //transient as Pipelines are not serializable
+    transient private final Pipeline pipeline;
 
     private final Coder<ErrorT> coder;
 
-    private final List<PCollection<ErrorT>> errorCollections = new ArrayList<>();
+    //transient as PCollections are not serializable
+    transient private final List<PCollection<ErrorT>> errorCollections = new ArrayList<>();
 
-    private @Nullable OutputT sinkOutput = null;
+    //transient as PCollections are not serializable
+    transient private @Nullable OutputT sinkOutput = null;
 
     private boolean closed = false;
 

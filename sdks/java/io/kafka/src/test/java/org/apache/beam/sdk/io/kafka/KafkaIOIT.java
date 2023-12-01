@@ -359,6 +359,17 @@ public class KafkaIOIT {
     }
   }
 
+  private static class ErrorSinkTransform
+      extends PTransform<PCollection<BadRecord>, PCollection<Long>> {
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized PCollection<Long> expand(
+        PCollection<BadRecord> input) {
+      return input
+          .apply("Window", Window.into(CalendarWindows.years(1)))
+          .apply("Combine", Combine.globally(Count.<BadRecord>combineFn()).withoutDefaults());
+    }
+  }
   // This test verifies that bad data from Kafka is properly sent to the error handler
   @Test
   public void testKafkaIOSDFReadWithErrorHandler() throws IOException {
@@ -376,19 +387,8 @@ public class KafkaIOIT {
     PipelineResult.State writeState = writeResult.waitUntilFinish();
     assertNotEquals(PipelineResult.State.FAILED, writeState);
 
-    PTransform<PCollection<BadRecord>, PCollection<Long>> sinkTransform =
-        new PTransform<PCollection<BadRecord>, PCollection<Long>>() {
-          @Override
-          public @UnknownKeyFor @NonNull @Initialized PCollection<Long> expand(
-              PCollection<BadRecord> input) {
-            return input
-                .apply("Window", Window.into(CalendarWindows.years(1)))
-                .apply("Combine", Combine.globally(Count.<BadRecord>combineFn()).withoutDefaults());
-          }
-        };
-
     BadRecordErrorHandler<PCollection<Long>> eh =
-        sdfReadPipeline.registerBadRecordErrorHandler(sinkTransform);
+        sdfReadPipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
     sdfReadPipeline.apply(
         KafkaIO.<String, String>read()
             .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
@@ -410,19 +410,9 @@ public class KafkaIOIT {
 
   @Test
   public void testKafkaIOWriteWithErrorHandler() throws IOException {
-    PTransform<PCollection<BadRecord>, PCollection<Long>> sinkTransform =
-        new PTransform<PCollection<BadRecord>, PCollection<Long>>() {
-          @Override
-          public @UnknownKeyFor @NonNull @Initialized PCollection<Long> expand(
-              PCollection<BadRecord> input) {
-            return input
-                .apply("Window", Window.into(CalendarWindows.years(1)))
-                .apply("Combine", Combine.globally(Count.<BadRecord>combineFn()).withoutDefaults());
-          }
-        };
 
     BadRecordErrorHandler<PCollection<Long>> eh =
-        writePipeline.registerBadRecordErrorHandler(sinkTransform);
+        writePipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
     writePipeline
         .apply("Create single KV", Create.of(KV.of("key", 4L)))
         .apply(
