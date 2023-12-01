@@ -136,6 +136,22 @@ public class Work implements Runnable {
 
   private static LatencyAttribution.Builder addActiveLatencyBreakdownToBuilder(Boolean isHeartbeat,
       LatencyAttribution.Builder builder, String workId, DataflowExecutionStateSampler sampler) {
+    if (isHeartbeat) {
+      ActiveLatencyBreakdown.Builder stepBuilder = ActiveLatencyBreakdown.newBuilder();
+      ActiveMessageMetadata activeMessage = sampler.getActiveMessageMetadataForWorkId(
+          workId);
+      if (activeMessage == null) {
+        return builder;
+      }
+      stepBuilder.setUserStepName(activeMessage.userStepName);
+      ActiveElementMetadata.Builder activeElementBuilder = ActiveElementMetadata.newBuilder();
+      activeElementBuilder.setProcessingTimeMillis(
+          System.currentTimeMillis() - activeMessage.startTime);
+      stepBuilder.setActiveMessageMetadata(activeElementBuilder);
+      builder.addActiveLatencyBreakdown(stepBuilder.build());
+      return builder;
+    }
+    
     Map<String, IntSummaryStatistics> processingDistributions = sampler.getProcessingDistributionsForWorkId(
         workId);
     if (processingDistributions == null) {

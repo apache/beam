@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
+import static org.apache.beam.runners.dataflow.worker.StreamingDataflowWorker.constructWorkId;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 
 import java.io.PrintWriter;
@@ -211,14 +212,16 @@ final class ActiveWorkState {
     return stuckCommits.build();
   }
 
-  synchronized ImmutableList<KeyedGetDataRequest> getKeysToRefresh(Instant refreshDeadline) {
+  synchronized ImmutableList<KeyedGetDataRequest> getKeysToRefresh(Instant refreshDeadline,
+      DataflowExecutionStateSampler sampler) {
     return activeWork.entrySet().stream()
-        .flatMap(entry -> toKeyedGetDataRequestStream(entry, refreshDeadline))
+        .flatMap(entry -> toKeyedGetDataRequestStream(entry, refreshDeadline, sampler))
         .collect(toImmutableList());
   }
 
   private static Stream<KeyedGetDataRequest> toKeyedGetDataRequestStream(
-      Entry<ShardedKey, Deque<Work>> shardedKeyAndWorkQueue, Instant refreshDeadline) {
+      Entry<ShardedKey, Deque<Work>> shardedKeyAndWorkQueue, Instant refreshDeadline,
+      DataflowExecutionStateSampler sampler) {
     ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
     Deque<Work> workQueue = shardedKeyAndWorkQueue.getValue();
 
@@ -230,9 +233,9 @@ final class ActiveWorkState {
                     .setKey(shardedKey.key())
                     .setShardingKey(shardedKey.shardingKey())
                     .setWorkToken(work.getWorkItem().getWorkToken())
-                    // TODO(clairemccarthy): plumb real values.
-                    .addAllLatencyAttribution(work.getLatencyAttributions(true, "",
-                        DataflowExecutionStateSampler.instance()))
+                    .addAllLatencyAttribution(
+                        work.getLatencyAttributions(true, constructWorkId(work.getWorkItem()),
+                            sampler))
                     .build());
   }
 

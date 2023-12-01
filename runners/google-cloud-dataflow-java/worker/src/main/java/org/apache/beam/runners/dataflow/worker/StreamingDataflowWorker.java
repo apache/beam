@@ -1877,7 +1877,7 @@ public class StreamingDataflowWorker {
         clock.get().minus(Duration.millis(options.getActiveWorkRefreshPeriodMillis()));
 
     for (Map.Entry<String, ComputationState> entry : computationMap.entrySet()) {
-      active.put(entry.getKey(), entry.getValue().getKeysToRefresh(refreshDeadline));
+      active.put(entry.getKey(), entry.getValue().getKeysToRefresh(refreshDeadline, sampler));
     }
 
     metricTrackingWindmillServer.refreshActiveWork(active);
@@ -1891,7 +1891,7 @@ public class StreamingDataflowWorker {
     }
   }
 
-  private static String constructWorkId(Windmill.WorkItem workItem) {
+  public static String constructWorkId(Windmill.WorkItem workItem) {
     StringBuilder workIdBuilder = new StringBuilder(33);
     workIdBuilder.append(Long.toHexString(workItem.getShardingKey()));
     workIdBuilder.append('-');

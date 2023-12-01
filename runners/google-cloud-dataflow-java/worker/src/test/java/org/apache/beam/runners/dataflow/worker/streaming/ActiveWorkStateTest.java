@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.ActivateWorkResult;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
@@ -251,7 +252,8 @@ public class ActiveWorkStateTest {
     activeWorkState.activateWorkForKey(shardedKey1, freshWork);
     activeWorkState.activateWorkForKey(shardedKey2, refreshableWork2);
 
-    ImmutableList<KeyedGetDataRequest> requests = activeWorkState.getKeysToRefresh(refreshDeadline);
+    ImmutableList<KeyedGetDataRequest> requests = activeWorkState.getKeysToRefresh(refreshDeadline,
+        DataflowExecutionStateSampler.instance());
 
     ImmutableList<GetDataRequestKeyShardingKeyAndWorkToken> expected =
         ImmutableList.of(

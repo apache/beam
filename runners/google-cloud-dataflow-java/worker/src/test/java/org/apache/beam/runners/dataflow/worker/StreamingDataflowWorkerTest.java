@@ -3548,6 +3548,41 @@ public class StreamingDataflowWorkerTest {
   }
 
   @Test
+  public void testDoFnActiveMessageMetadataReportedOnHeartbeat() throws Exception {
+    if (!streamingEngine) {
+      return;
+    }
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(StringUtf8Coder.of()),
+            makeDoFnInstruction(new SlowDoFn(), 0, StringUtf8Coder.of()),
+            makeSinkInstruction(StringUtf8Coder.of(), 0));
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    options.setActiveWorkRefreshPeriodMillis(10);
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
+    worker.start();
+
+    server.whenGetWorkCalled().thenReturn(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0)));
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+
+    assertThat(server.numGetDataRequests(), greaterThan(0));
+    Windmill.GetDataRequest heartbeat = server.getGetDataRequests().get(2);
+
+    for (LatencyAttribution la : heartbeat.getRequests(0).getRequests(0)
+        .getLatencyAttributionList()) {
+      if (la.getState() == State.ACTIVE) {
+        assertTrue(la.getActiveLatencyBreakdownCount() > 0);
+        assertTrue(la.getActiveLatencyBreakdown(0).hasActiveMessageMetadata());
+      }
+    }
+
+    worker.stop();
+  }
+
+  @Test
   public void testLimitOnOutputBundleSize() throws Exception {
     // This verifies that ReadOperation, StreamingModeExecutionContext, and windmill sinks
     // coordinate to limit size of an output bundle.
