@@ -42,7 +42,7 @@ class WrapperProviderTest(unittest.TestCase):
     generate_sequence = wrapper_provider.get('GenerateSequence')
 
     config_schema = generate_sequence.configuration_schema
-    for param in {'start', 'end', 'rate'}:
+    for param in ['start', 'end', 'rate']:
       self.assertTrue(param in config_schema)
 
   def test_run_generate_sequence(self):
