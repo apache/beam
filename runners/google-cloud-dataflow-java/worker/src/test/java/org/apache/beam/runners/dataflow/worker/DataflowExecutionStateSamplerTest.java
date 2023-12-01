@@ -1,8 +1,23 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.anEmptyMap;
-import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -31,8 +46,9 @@ public class DataflowExecutionStateSamplerTest {
     sampler = DataflowExecutionStateSampler.newForTest(clock);
   }
 
-  private final TestOperationContext.TestDataflowExecutionState step1act1 = new TestOperationContext.TestDataflowExecutionState(
-      createNameContext("test-stage1"), "activity1");
+  private final TestOperationContext.TestDataflowExecutionState step1act1 =
+      new TestOperationContext.TestDataflowExecutionState(
+          createNameContext("test-stage1"), "activity1");
 
   private NameContext createNameContext(String userName) {
     return NameContext.create("", "", "", userName);
@@ -41,15 +57,13 @@ public class DataflowExecutionStateSamplerTest {
   @Test
   public void testAddTrackerRemoveTrackerActiveMessageMetadataGetsUpdated() {
     String workId = "work-item-id1";
-    ActiveMessageMetadata testMetadata = new ActiveMessageMetadata(
-        step1act1.getStepName().userName(),
-        clock.getMillis());
+    ActiveMessageMetadata testMetadata =
+        new ActiveMessageMetadata(step1act1.getStepName().userName(), clock.getMillis());
     DataflowExecutionStateTracker trackerMock = createMockTracker(workId);
     when(trackerMock.getActiveMessageMetadata()).thenReturn(testMetadata);
 
     sampler.addTracker(trackerMock);
-    assertThat(sampler.getActiveMessageMetadataForWorkId(workId),
-        equalTo(testMetadata));
+    assertThat(sampler.getActiveMessageMetadataForWorkId(workId), equalTo(testMetadata));
 
     sampler.removeTracker(trackerMock);
     Assert.assertNull(sampler.getActiveMessageMetadataForWorkId(workId));
@@ -66,8 +80,8 @@ public class DataflowExecutionStateSamplerTest {
     sampler.addTracker(trackerMock);
     sampler.removeTracker(trackerMock);
 
-    assertThat(sampler.getProcessingDistributionsForWorkId(workId),
-        equalTo(testCompletedProcessingTimes));
+    assertThat(
+        sampler.getProcessingDistributionsForWorkId(workId), equalTo(testCompletedProcessingTimes));
   }
 
   @Test
@@ -79,19 +93,17 @@ public class DataflowExecutionStateSamplerTest {
     testSummaryStats.accept(3);
     testSummaryStats.accept(5);
     testCompletedProcessingTimes.put("some-step", testSummaryStats);
-    ActiveMessageMetadata testMetadata = new ActiveMessageMetadata(
-        step1act1.getStepName().userName(),
-        clock.getMillis());
+    ActiveMessageMetadata testMetadata =
+        new ActiveMessageMetadata(step1act1.getStepName().userName(), clock.getMillis());
     DataflowExecutionStateTracker trackerMock = createMockTracker(workId);
     when(trackerMock.getActiveMessageMetadata()).thenReturn(testMetadata);
     when(trackerMock.getProcessingTimesByStep()).thenReturn(testCompletedProcessingTimes);
 
     sampler.addTracker(trackerMock);
 
-    assertThat(sampler.getActiveMessageMetadataForWorkId(workId),
-        equalTo(testMetadata));
-    assertThat(sampler.getProcessingDistributionsForWorkId(workId),
-        equalTo(testCompletedProcessingTimes));
+    assertThat(sampler.getActiveMessageMetadataForWorkId(workId), equalTo(testMetadata));
+    assertThat(
+        sampler.getProcessingDistributionsForWorkId(workId), equalTo(testCompletedProcessingTimes));
   }
 
   @Test
@@ -104,20 +116,25 @@ public class DataflowExecutionStateSamplerTest {
     sampler.addTracker(tracker1Mock);
     sampler.addTracker(tracker2Mock);
 
-    assertThat(sampler.getActiveMessageMetadataForWorkId(workId1),
+    assertThat(
+        sampler.getActiveMessageMetadataForWorkId(workId1),
         equalTo(tracker1Mock.getActiveMessageMetadata()));
-    assertThat(sampler.getProcessingDistributionsForWorkId(workId1),
+    assertThat(
+        sampler.getProcessingDistributionsForWorkId(workId1),
         equalTo(tracker1Mock.getProcessingTimesByStep()));
-    assertThat(sampler.getActiveMessageMetadataForWorkId(workId2),
+    assertThat(
+        sampler.getActiveMessageMetadataForWorkId(workId2),
         equalTo(tracker2Mock.getActiveMessageMetadata()));
-    assertThat(sampler.getProcessingDistributionsForWorkId(workId2),
+    assertThat(
+        sampler.getProcessingDistributionsForWorkId(workId2),
         equalTo(tracker2Mock.getProcessingTimesByStep()));
 
     sampler.removeTracker(tracker1Mock);
     sampler.removeTracker(tracker2Mock);
     sampler.resetForWorkId(workId2);
 
-    assertThat(sampler.getProcessingDistributionsForWorkId(workId1),
+    assertThat(
+        sampler.getProcessingDistributionsForWorkId(workId1),
         equalTo(tracker1Mock.getProcessingTimesByStep()));
     Assert.assertNull(sampler.getProcessingDistributionsForWorkId(workId2));
   }

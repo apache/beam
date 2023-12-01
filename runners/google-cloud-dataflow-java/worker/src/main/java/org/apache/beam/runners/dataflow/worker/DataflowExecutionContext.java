@@ -315,8 +315,8 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
           if (this.activeMessageMetadata != null) {
             recordActiveMessageInProcessingTimesMap();
           }
-          this.activeMessageMetadata = new ActiveMessageMetadata(
-              newDFState.getStepName().userName(), clock.getMillis());
+          this.activeMessageMetadata =
+              new ActiveMessageMetadata(newDFState.getStepName().userName(), clock.getMillis());
         }
         elementExecutionTracker.enter(newDFState.getStepName());
       }
@@ -343,7 +343,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     public Map<String, IntSummaryStatistics> getProcessingTimesByStep() {
       return processingTimesByStep;
     }
-    
+
     /**
      * Transitions the metadata for the currently active message to an entry in the completed
      * processing times map. Sets the activeMessageMetadata to null after the entry has been
@@ -354,12 +354,12 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         return;
       }
       this.processingTimesByStep.compute(
-          this.activeMessageMetadata.userStepName, (k, v) -> {
+          this.activeMessageMetadata.userStepName,
+          (k, v) -> {
             if (v == null) {
               v = new IntSummaryStatistics();
             }
-            v.accept(
-                (int) (System.currentTimeMillis() - this.activeMessageMetadata.startTime));
+            v.accept((int) (System.currentTimeMillis() - this.activeMessageMetadata.startTime));
             return v;
           });
       this.activeMessageMetadata = null;

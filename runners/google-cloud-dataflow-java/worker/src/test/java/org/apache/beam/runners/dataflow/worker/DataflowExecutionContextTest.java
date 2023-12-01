@@ -25,18 +25,13 @@ import com.google.auto.service.AutoService;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IntSummaryStatistics;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
-import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionState;
-import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
-import org.apache.beam.runners.dataflow.worker.streaming.ExecutionState;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Assert;
 import org.junit.Test;
@@ -130,28 +125,27 @@ public class DataflowExecutionContextTest {
   public void testDataflowExecutionStateTrackerRecordsActiveMessageMetadata() throws IOException {
     DataflowExecutionContext.DataflowExecutionStateTracker tracker =
         new DataflowExecutionContext.DataflowExecutionStateTracker(
-            ExecutionStateSampler.instance(),
+            ExecutionStateSampler.instance(), null, null, PipelineOptionsFactory.create(), "");
+    StreamingModeExecutionState state =
+        new StreamingModeExecutionState(
+            NameContextsForTests.nameContextForTest(),
+            PROCESS_STATE_NAME,
             null,
-            null,
-            PipelineOptionsFactory.create(),
-            "");
-    StreamingModeExecutionState state = new StreamingModeExecutionState(
-        NameContextsForTests.nameContextForTest(), PROCESS_STATE_NAME, null, NoopProfileScope.NOOP,
-        null);
+            NoopProfileScope.NOOP,
+            null);
 
     Closeable closure = tracker.enterState(state);
 
     // After entering a process state, we should have an active message tracked.
-    ActiveMessageMetadata expectedMetadata = new ActiveMessageMetadata(
-        NameContextsForTests.nameContextForTest().userName(), 1l);
-    Assert.assertEquals(expectedMetadata.userStepName,
-        tracker.getActiveMessageMetadata().userStepName);
+    ActiveMessageMetadata expectedMetadata =
+        new ActiveMessageMetadata(NameContextsForTests.nameContextForTest().userName(), 1l);
+    Assert.assertEquals(
+        expectedMetadata.userStepName, tracker.getActiveMessageMetadata().userStepName);
 
     closure.close();
 
     // Once the state closes, the active message should get cleared.
-    Assert.assertEquals(null,
-        tracker.getActiveMessageMetadata());
+    Assert.assertEquals(null, tracker.getActiveMessageMetadata());
   }
 
   @Test
@@ -159,21 +153,25 @@ public class DataflowExecutionContextTest {
       throws IOException {
     DataflowExecutionContext.DataflowExecutionStateTracker tracker =
         new DataflowExecutionContext.DataflowExecutionStateTracker(
-            ExecutionStateSampler.instance(),
-            null,
-            null,
-            PipelineOptionsFactory.create(),
-            "");
+            ExecutionStateSampler.instance(), null, null, PipelineOptionsFactory.create(), "");
 
     // Enter a processing state
-    StreamingModeExecutionState state = new StreamingModeExecutionState(
-        NameContextsForTests.nameContextForTest(), PROCESS_STATE_NAME, null, NoopProfileScope.NOOP,
-        null);
+    StreamingModeExecutionState state =
+        new StreamingModeExecutionState(
+            NameContextsForTests.nameContextForTest(),
+            PROCESS_STATE_NAME,
+            null,
+            NoopProfileScope.NOOP,
+            null);
     tracker.enterState(state);
     // Enter a new processing state
-    StreamingModeExecutionState newState = new StreamingModeExecutionState(
-        NameContextsForTests.nameContextForTest(), PROCESS_STATE_NAME, null, NoopProfileScope.NOOP,
-        null);
+    StreamingModeExecutionState newState =
+        new StreamingModeExecutionState(
+            NameContextsForTests.nameContextForTest(),
+            PROCESS_STATE_NAME,
+            null,
+            NoopProfileScope.NOOP,
+            null);
     tracker.enterState(newState);
 
     // The first completed state should be recorded and the new state should be active.
@@ -182,9 +180,9 @@ public class DataflowExecutionContextTest {
     Assert.assertEquals(
         new HashSet<>(Arrays.asList(NameContextsForTests.nameContextForTest().userName())),
         gotProcessingTimes.keySet());
-    ActiveMessageMetadata expectedMetadata = new ActiveMessageMetadata(
-        NameContextsForTests.nameContextForTest().userName(), 1l);
-    Assert.assertEquals(expectedMetadata.userStepName,
-        tracker.getActiveMessageMetadata().userStepName);
+    ActiveMessageMetadata expectedMetadata =
+        new ActiveMessageMetadata(NameContextsForTests.nameContextForTest().userName(), 1l);
+    Assert.assertEquals(
+        expectedMetadata.userStepName, tracker.getActiveMessageMetadata().userStepName);
   }
 }

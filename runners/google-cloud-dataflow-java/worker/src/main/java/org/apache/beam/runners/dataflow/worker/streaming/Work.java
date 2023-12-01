@@ -109,8 +109,8 @@ public class Work implements Runnable {
     }
   }
 
-  public Collection<Windmill.LatencyAttribution> getLatencyAttributions(Boolean isHeartbeat,
-      String workId, DataflowExecutionStateSampler sampler) {
+  public Collection<Windmill.LatencyAttribution> getLatencyAttributions(
+      Boolean isHeartbeat, String workId, DataflowExecutionStateSampler sampler) {
     List<Windmill.LatencyAttribution> list = new ArrayList<>();
     for (Windmill.LatencyAttribution.State state : Windmill.LatencyAttribution.State.values()) {
       Duration duration = totalDurationPerState.getOrDefault(state, Duration.ZERO);
@@ -122,24 +122,23 @@ public class Work implements Runnable {
       }
       LatencyAttribution.Builder laBuilder = Windmill.LatencyAttribution.newBuilder();
       if (state == LatencyAttribution.State.ACTIVE) {
-        laBuilder = addActiveLatencyBreakdownToBuilder(isHeartbeat, laBuilder,
-            workId, sampler);
+        laBuilder = addActiveLatencyBreakdownToBuilder(isHeartbeat, laBuilder, workId, sampler);
       }
-      Windmill.LatencyAttribution la = laBuilder
-          .setState(state)
-          .setTotalDurationMillis(duration.getMillis())
-          .build();
+      Windmill.LatencyAttribution la =
+          laBuilder.setState(state).setTotalDurationMillis(duration.getMillis()).build();
       list.add(la);
     }
     return list;
   }
 
-  private static LatencyAttribution.Builder addActiveLatencyBreakdownToBuilder(Boolean isHeartbeat,
-      LatencyAttribution.Builder builder, String workId, DataflowExecutionStateSampler sampler) {
+  private static LatencyAttribution.Builder addActiveLatencyBreakdownToBuilder(
+      Boolean isHeartbeat,
+      LatencyAttribution.Builder builder,
+      String workId,
+      DataflowExecutionStateSampler sampler) {
     if (isHeartbeat) {
       ActiveLatencyBreakdown.Builder stepBuilder = ActiveLatencyBreakdown.newBuilder();
-      ActiveMessageMetadata activeMessage = sampler.getActiveMessageMetadataForWorkId(
-          workId);
+      ActiveMessageMetadata activeMessage = sampler.getActiveMessageMetadataForWorkId(workId);
       if (activeMessage == null) {
         return builder;
       }
@@ -151,20 +150,22 @@ public class Work implements Runnable {
       builder.addActiveLatencyBreakdown(stepBuilder.build());
       return builder;
     }
-    
-    Map<String, IntSummaryStatistics> processingDistributions = sampler.getProcessingDistributionsForWorkId(
-        workId);
+
+    Map<String, IntSummaryStatistics> processingDistributions =
+        sampler.getProcessingDistributionsForWorkId(workId);
     if (processingDistributions == null) {
       return builder;
     }
     for (Entry<String, IntSummaryStatistics> entry : processingDistributions.entrySet()) {
       ActiveLatencyBreakdown.Builder stepBuilder = ActiveLatencyBreakdown.newBuilder();
       stepBuilder.setUserStepName(entry.getKey());
-      Distribution.Builder distributionBuilder = Distribution.newBuilder()
-          .setCount(entry.getValue().getCount())
-          .setMin(entry.getValue().getMin()).setMax(entry.getValue()
-              .getMax()).setMean((long) entry.getValue().getAverage())
-          .setSum(entry.getValue().getSum());
+      Distribution.Builder distributionBuilder =
+          Distribution.newBuilder()
+              .setCount(entry.getValue().getCount())
+              .setMin(entry.getValue().getMin())
+              .setMax(entry.getValue().getMax())
+              .setMean((long) entry.getValue().getAverage())
+              .setSum(entry.getValue().getSum());
       stepBuilder.setProcessingTimesDistribution(distributionBuilder.build());
       builder.addActiveLatencyBreakdown(stepBuilder.build());
     }

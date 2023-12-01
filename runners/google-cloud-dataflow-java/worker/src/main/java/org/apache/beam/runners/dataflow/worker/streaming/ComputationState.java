@@ -120,11 +120,9 @@ public class ComputationState implements AutoCloseable {
     executor.forceExecute(work, work.getWorkItem().getSerializedSize());
   }
 
-  /**
-   * Adds any work started before the refreshDeadline to the GetDataRequest builder.
-   */
-  public List<Windmill.KeyedGetDataRequest> getKeysToRefresh(Instant refreshDeadline,
-      DataflowExecutionStateSampler sampler) {
+  /** Adds any work started before the refreshDeadline to the GetDataRequest builder. */
+  public List<Windmill.KeyedGetDataRequest> getKeysToRefresh(
+      Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
     return activeWorkState.getKeysToRefresh(refreshDeadline, sampler);
   }
 

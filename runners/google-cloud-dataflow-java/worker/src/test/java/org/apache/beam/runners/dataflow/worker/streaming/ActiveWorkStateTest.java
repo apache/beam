@@ -252,8 +252,8 @@ public class ActiveWorkStateTest {
     activeWorkState.activateWorkForKey(shardedKey1, freshWork);
     activeWorkState.activateWorkForKey(shardedKey2, refreshableWork2);
 
-    ImmutableList<KeyedGetDataRequest> requests = activeWorkState.getKeysToRefresh(refreshDeadline,
-        DataflowExecutionStateSampler.instance());
+    ImmutableList<KeyedGetDataRequest> requests =
+        activeWorkState.getKeysToRefresh(refreshDeadline, DataflowExecutionStateSampler.instance());
 
     ImmutableList<GetDataRequestKeyShardingKeyAndWorkToken> expected =
         ImmutableList.of(

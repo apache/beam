@@ -212,15 +212,16 @@ final class ActiveWorkState {
     return stuckCommits.build();
   }
 
-  synchronized ImmutableList<KeyedGetDataRequest> getKeysToRefresh(Instant refreshDeadline,
-      DataflowExecutionStateSampler sampler) {
+  synchronized ImmutableList<KeyedGetDataRequest> getKeysToRefresh(
+      Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
     return activeWork.entrySet().stream()
         .flatMap(entry -> toKeyedGetDataRequestStream(entry, refreshDeadline, sampler))
         .collect(toImmutableList());
   }
 
   private static Stream<KeyedGetDataRequest> toKeyedGetDataRequestStream(
-      Entry<ShardedKey, Deque<Work>> shardedKeyAndWorkQueue, Instant refreshDeadline,
+      Entry<ShardedKey, Deque<Work>> shardedKeyAndWorkQueue,
+      Instant refreshDeadline,
       DataflowExecutionStateSampler sampler) {
     ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
     Deque<Work> workQueue = shardedKeyAndWorkQueue.getValue();
@@ -234,8 +235,8 @@ final class ActiveWorkState {
                     .setShardingKey(shardedKey.shardingKey())
                     .setWorkToken(work.getWorkItem().getWorkToken())
                     .addAllLatencyAttribution(
-                        work.getLatencyAttributions(true, constructWorkId(work.getWorkItem()),
-                            sampler))
+                        work.getLatencyAttributions(
+                            true, constructWorkId(work.getWorkItem()), sampler))
                     .build());
   }
 
