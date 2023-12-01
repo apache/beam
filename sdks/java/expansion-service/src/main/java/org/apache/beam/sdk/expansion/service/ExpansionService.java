@@ -30,6 +30,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -82,6 +83,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
@@ -457,6 +459,22 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           i++;
         }
         return indexToPCollection.build();
+      } else if (output instanceof POutput) {
+        // This is needed to support custom output types.
+        Map<TupleTag<?>, PValue> values = output.expand();
+        Map<String, PCollection<?>> returnMap = new HashMap<>();
+        for (Map.Entry<TupleTag<?>, PValue> entry : values.entrySet()) {
+          if (!(entry.getValue() instanceof PCollection)) {
+            throw new UnsupportedOperationException(
+                "Unable to parse the output type "
+                    + output.getClass()
+                    + " due to key "
+                    + entry.getKey()
+                    + " not mapping to a PCollection");
+          }
+          returnMap.put(entry.getKey().getId(), (PCollection<?>) entry.getValue());
+        }
+        return returnMap;
       } else {
         throw new UnsupportedOperationException("Unknown output type: " + output.getClass());
       }
