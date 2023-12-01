@@ -879,6 +879,18 @@ class WorkerHandlerManager(object):
       environment_id = next(iter(self._environments.keys()))
     environment = self._environments[environment_id]
 
+    if environment.urn == common_urns.environments.ANYOF.urn:
+      payload = beam_runner_api_pb2.AnyOfEnvironmentPayload.FromString(
+          environment.payload)
+      env_rankings = {
+          python_urns.EMBEDDED_PYTHON: 10,
+          common_urns.environments.EXTERNAL.urn: 5,
+          common_urns.environments.DOCKER.urn: 1,
+      }
+      environment = sorted(
+          payload.environments,
+          key=lambda env: env_rankings.get(env.urn, -1))[-1]
+
     # assume all environments except EMBEDDED_PYTHON use gRPC.
     if environment.urn == python_urns.EMBEDDED_PYTHON:
       # special case for EmbeddedWorkerHandler: there's no need for a gRPC

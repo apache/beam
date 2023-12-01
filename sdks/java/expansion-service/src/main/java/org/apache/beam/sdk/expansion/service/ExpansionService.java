@@ -36,6 +36,7 @@ import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.apache.beam.fn.harness.ExternalWorkerService;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.expansion.v1.ExpansionApi.DiscoverSchemaTransformRequest;
 import org.apache.beam.model.expansion.v1.ExpansionApi.DiscoverSchemaTransformResponse;
@@ -514,6 +515,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
   private @MonotonicNonNull Map<String, TransformProvider> registeredTransforms;
   private final PipelineOptions pipelineOptions;
+  private final @Nullable String loopbackAddress;
 
   public ExpansionService() {
     this(new String[] {});
@@ -524,7 +526,12 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   public ExpansionService(PipelineOptions opts) {
+    this(opts, null);
+  }
+
+  public ExpansionService(PipelineOptions opts, @Nullable String loopbackAddress) {
     this.pipelineOptions = opts;
+    this.loopbackAddress = loopbackAddress;
   }
 
   private Map<String, TransformProvider> getRegisteredTransforms() {
@@ -628,9 +635,19 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         rehydratedComponents
             .getSdkComponents(request.getRequirementsList())
             .withNewIdPrefix(request.getNamespace());
-    sdkComponents.registerEnvironment(
+    RunnerApi.Environment defaultEnvironment =
         Environments.createOrGetDefaultEnvironment(
-            pipeline.getOptions().as(PortablePipelineOptions.class)));
+            pipeline.getOptions().as(PortablePipelineOptions.class));
+    if (pipelineOptions.as(ExpansionServiceOptions.class).getAlsoStartLoopbackWorker()) {
+      PortablePipelineOptions externalOptions =
+          PipelineOptionsFactory.create().as(PortablePipelineOptions.class);
+      externalOptions.setDefaultEnvironmentType(Environments.ENVIRONMENT_EXTERNAL);
+      externalOptions.setDefaultEnvironmentConfig(loopbackAddress);
+      defaultEnvironment =
+          Environments.createAnyOfEnvironment(
+              defaultEnvironment, Environments.createOrGetDefaultEnvironment(externalOptions));
+    }
+    sdkComponents.registerEnvironment(defaultEnvironment);
     Map<String, String> outputMap =
         outputs.entrySet().stream()
             .collect(
@@ -759,9 +776,12 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
     // Register the options class used by the expansion service.
     PipelineOptionsFactory.register(ExpansionServiceOptions.class);
+    @SuppressWarnings({"nullness"})
+    PipelineOptions options =
+        PipelineOptionsFactory.fromArgs(Arrays.copyOfRange(args, 1, args.length)).create();
 
     @SuppressWarnings("nullness")
-    ExpansionService service = new ExpansionService(Arrays.copyOfRange(args, 1, args.length));
+    ExpansionService service = new ExpansionService(options, "localhost:" + port);
 
     StringBuilder registeredTransformsLog = new StringBuilder();
     boolean registeredTransformsFound = false;
@@ -794,11 +814,12 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       System.out.println("\nDid not find any registered transforms or SchemaTransforms.\n");
     }
 
-    Server server =
-        ServerBuilder.forPort(port)
-            .addService(service)
-            .addService(new ArtifactRetrievalService())
-            .build();
+    ServerBuilder serverBuilder =
+        ServerBuilder.forPort(port).addService(service).addService(new ArtifactRetrievalService());
+    if (options.as(ExpansionServiceOptions.class).getAlsoStartLoopbackWorker()) {
+      serverBuilder.addService(new ExternalWorkerService(options));
+    }
+    Server server = serverBuilder.build();
     server.start();
     server.awaitTermination();
   }
