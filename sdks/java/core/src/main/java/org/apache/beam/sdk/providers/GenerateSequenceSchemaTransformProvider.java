@@ -72,7 +72,6 @@ public class GenerateSequenceSchemaTransformProvider
     return new GenerateSequenceSchemaTransform(configuration);
   }
 
-  /** Configuration for writing to BigQuery with Storage Write API. */
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   public abstract static class GenerateSequenceConfiguration {

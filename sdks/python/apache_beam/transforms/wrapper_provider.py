@@ -127,26 +127,25 @@ class WrapperProvider:
     # by the order of services in the list
     identifiers = set()
     for service in self.expansion_services:
+      target = service
+      if isinstance(service, BeamJarExpansionService):
+        target = service.gradle_target
       try:
         schematransform_configs = SchemaAwareExternalTransform.discover(service)
       except Exception as e:
-        target = service
-        if isinstance(service, BeamJarExpansionService):
-          target = service.gradle_target
-        logging.exception("Encountered an error while discovering expansion service %s:\n%s",
-                          target, e)
+        logging.exception(
+            "Encountered an error while discovering expansion service %s:\n%s",
+            target,
+            e)
         continue
-
+      skipped_urns = []
       for config in schematransform_configs:
         if config.identifier not in identifiers:
           identifiers.add(config.identifier)
           identifier_components = config.identifier.split(':')
           # We expect URNs like `beam:schematransform:org.apache.beam:my_transform:v1`
           if len(identifier_components) != 5:
-            logging.warning(
-                "Skipping unexpected URN %s, please follow the standard in "
-                "https://beam.apache.org/documentation/programming-guide/#1314-defining-a-urn",
-                config.identifier)
+            skipped_urns.append(config.identifier)
             continue
           name = snake_case_to_upper_camel_case(identifier_components[3])
 
@@ -164,11 +163,17 @@ class WrapperProvider:
                   configuration_schema=get_config_with_descriptions(config)))
           self.urn_to_wrapper_name[config.identifier] = name
 
+      logging.debug(
+          "Skipped URN(s) in %s that don't follow the standard in "
+          "https://beam.apache.org/documentation/programming-guide/#1314-defining-a-urn: %s",
+          target,
+          skipped_urns)
+
     for name, wrapper in self.wrappers.items():
       setattr(self, name, wrapper)
 
   def get_available(self) -> typing.Set[str]:
-    """Get a set of all available wrappers (by name)"""
+    """Get a set of all available wrapper names"""
     self._maybe_create_wrappers()
     return set(self.wrappers.keys())
 
