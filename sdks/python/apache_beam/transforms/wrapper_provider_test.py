@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-import logging
 import os
 import pytest
 import unittest
@@ -28,7 +27,6 @@ from apache_beam.transforms.wrapper_provider import WrapperProvider
 
 
 @pytest.mark.uses_core_java_expansion_service
-@pytest.mark.uses_transform_service
 @unittest.skipUnless(
     os.environ.get('EXPANSION_PORT'),
     "EXPANSION_PORT environment var is not provided.")
@@ -44,8 +42,8 @@ class WrapperProviderTest(unittest.TestCase):
     generate_sequence = wrapper_provider.get('GenerateSequence')
 
     config_schema = generate_sequence.configuration_schema
-    self.assertTrue(
-        param in config_schema for param in {'start', 'end', 'rate'})
+    for param in {'start', 'end', 'rate'}:
+      self.assertTrue(param in config_schema)
 
   def test_run_generate_sequence(self):
     wrapper_provider = WrapperProvider(
