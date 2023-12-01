@@ -66,13 +66,6 @@ def get_config_with_descriptions(schematransform: SchemaTransformsConfig):
   return fields_with_descriptions
 
 
-STANDARD_EXPANSION_SERVICES = [
-    BeamJarExpansionService(
-        'sdks:java:io:google-cloud-platform:expansion-service:build'),
-    BeamJarExpansionService('sdks:java:io:expansion-service:build')
-]
-
-
 class Wrapper(PTransform):
   """Template for a SchemaTransform Python wrappeer"""
 
@@ -82,8 +75,10 @@ class Wrapper(PTransform):
 
   def __init__(self, expansion_service=None, **kwargs):
     self._kwargs = kwargs
-    self._expansion_service = expansion_service or self.default_expansion_service
-    self.schematransform: SchemaTransformsConfig = SchemaAwareExternalTransform.discover_config(
+    self._expansion_service = \
+        expansion_service or self.default_expansion_service
+    self.schematransform: SchemaTransformsConfig = \
+      SchemaAwareExternalTransform.discover_config(
         self._expansion_service, self.identifier)
 
   def expand(self, input):
@@ -107,24 +102,21 @@ class Wrapper(PTransform):
 
 
 class WrapperProvider:
-  def __init__(self, additional_services=None):
+  def __init__(self, expansion_services=None):
     self.wrappers = {}
     self.urn_to_wrapper_name = {}
 
-    if additional_services is None:
-      additional_services = []
-    if isinstance(additional_services, set):
-      additional_services = list(additional_services)
-    if not isinstance(additional_services, list):
-      additional_services = [additional_services]
-
-    # use standard and add additional expansion services
-    self.expansion_services = list(
-        set(STANDARD_EXPANSION_SERVICES + additional_services))
+    if expansion_services is None:
+      expansion_services = []
+    if isinstance(expansion_services, set):
+      expansion_services = list(expansion_services)
+    if not isinstance(expansion_services, list):
+      expansion_services = [expansion_services]
+    self.expansion_services = expansion_services
 
   def _create_wrappers(self):
-    # multiple services can overlap and include the same URNs. If this happens, we prioritize
-    # by the order of services in the list
+    # multiple services can overlap and include the same URNs. If this happens,
+    # we prioritize by the order of services in the list
     identifiers = set()
     for service in self.expansion_services:
       target = service
@@ -143,7 +135,8 @@ class WrapperProvider:
         if config.identifier not in identifiers:
           identifiers.add(config.identifier)
           identifier_components = config.identifier.split(':')
-          # We expect URNs like `beam:schematransform:org.apache.beam:my_transform:v1`
+          # We expect URNs like
+          # `beam:schematransform:org.apache.beam:my_transform:v1`
           if len(identifier_components) != 5:
             skipped_urns.append(config.identifier)
             continue
@@ -165,7 +158,8 @@ class WrapperProvider:
 
       logging.debug(
           "Skipped URN(s) in %s that don't follow the standard in "
-          "https://beam.apache.org/documentation/programming-guide/#1314-defining-a-urn: %s",
+          "https://beam.apache.org/documentation/"
+          "programming-guide/#1314-defining-a-urn: %s",
           target,
           skipped_urns)
 
