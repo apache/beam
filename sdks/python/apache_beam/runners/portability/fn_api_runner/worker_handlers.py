@@ -945,6 +945,15 @@ class WorkerHandlerManager(object):
 
 class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
                     sdk_worker.StateHandler):
+  _SUPPORTED_STATE_TYPES = frozenset([
+      'runner',
+      'multimap_side_input',
+      'multimap_keys_values_side_input',
+      'iterable_side_input',
+      'bag_user_state',
+      'multimap_user_state'
+  ])
+
   class CopyOnWriteState(object):
     def __init__(self, underlying):
       # type: (DefaultDict[bytes, Buffer]) -> None
@@ -1037,6 +1046,11 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
       state_key,  # type: beam_fn_api_pb2.StateKey
       continuation_token=None  # type: Optional[bytes]
               ):
+
+    if state_key.WhichOneof('type') not in self._SUPPORTED_STATE_TYPES:
+      raise NotImplementedError(
+          'Unknown state type: ' + state_key.WhichOneof('type'))
+
     # type: (...) -> Tuple[bytes, Optional[bytes]]
     with self._lock:
       full_state = self._state[self._to_key(state_key)]
@@ -1104,24 +1118,27 @@ class GrpcStateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer):
     # Note that this eagerly mutates state, assuming any failures are fatal.
     # Thus it is safe to ignore instruction_id.
     for request in request_stream:
-      request_type = request.WhichOneof('request')
-      if request_type == 'get':
-        data, continuation_token = self._state.get_raw(
-            request.state_key, request.get.continuation_token)
-        yield beam_fn_api_pb2.StateResponse(
-            id=request.id,
-            get=beam_fn_api_pb2.StateGetResponse(
-                data=data, continuation_token=continuation_token))
-      elif request_type == 'append':
-        self._state.append_raw(request.state_key, request.append.data)
-        yield beam_fn_api_pb2.StateResponse(
-            id=request.id, append=beam_fn_api_pb2.StateAppendResponse())
-      elif request_type == 'clear':
-        self._state.clear(request.state_key)
-        yield beam_fn_api_pb2.StateResponse(
-            id=request.id, clear=beam_fn_api_pb2.StateClearResponse())
-      else:
-        raise NotImplementedError('Unknown state request: %s' % request_type)
+      try:
+        request_type = request.WhichOneof('request')
+        if request_type == 'get':
+          data, continuation_token = self._state.get_raw(
+              request.state_key, request.get.continuation_token)
+          yield beam_fn_api_pb2.StateResponse(
+              id=request.id,
+              get=beam_fn_api_pb2.StateGetResponse(
+                  data=data, continuation_token=continuation_token))
+        elif request_type == 'append':
+          self._state.append_raw(request.state_key, request.append.data)
+          yield beam_fn_api_pb2.StateResponse(
+              id=request.id, append=beam_fn_api_pb2.StateAppendResponse())
+        elif request_type == 'clear':
+          self._state.clear(request.state_key)
+          yield beam_fn_api_pb2.StateResponse(
+              id=request.id, clear=beam_fn_api_pb2.StateClearResponse())
+        else:
+          raise NotImplementedError('Unknown state request: %s' % request_type)
+      except Exception as exn:
+        yield beam_fn_api_pb2.StateResponse(id=request.id, error=str(exn))
 
 
 class SingletonStateHandlerFactory(sdk_worker.StateHandlerFactory):

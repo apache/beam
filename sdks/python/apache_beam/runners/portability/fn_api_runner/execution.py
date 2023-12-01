@@ -23,6 +23,7 @@ import collections
 import copy
 import itertools
 import logging
+import struct
 import typing
 import uuid
 import weakref
@@ -360,7 +361,7 @@ class WindowGroupingBuffer(object):
       output_stream = create_OutputStream()
       for value in values:
         value_coder_impl.encode_to_stream(value, output_stream, True)
-      yield encoded_key, encoded_window, output_stream.get()
+      yield encoded_key, encoded_window, output_stream.get(), len(values)
 
 
 class GenericNonMergingWindowFn(window.NonMergingWindowFn):
@@ -979,7 +980,7 @@ class FnApiRunnerExecutionContext(object):
         elements_by_window.append(element_data)
 
       if func_spec.urn == common_urns.side_inputs.ITERABLE.urn:
-        for _, window, elements_data in elements_by_window.encoded_items():
+        for _, window, elements_data, _ in elements_by_window.encoded_items():
           state_key = beam_fn_api_pb2.StateKey(
               iterable_side_input=beam_fn_api_pb2.StateKey.IterableSideInput(
                   transform_id=consuming_transform_id,
@@ -987,7 +988,8 @@ class FnApiRunnerExecutionContext(object):
                   window=window))
           self.state_servicer.append_raw(state_key, elements_data)
       elif func_spec.urn == common_urns.side_inputs.MULTIMAP.urn:
-        for key, window, elements_data in elements_by_window.encoded_items():
+        for (key, window, elements_data,
+             elements_count) in elements_by_window.encoded_items():
           state_key = beam_fn_api_pb2.StateKey(
               multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
                   transform_id=consuming_transform_id,
@@ -995,6 +997,17 @@ class FnApiRunnerExecutionContext(object):
                   window=window,
                   key=key))
           self.state_servicer.append_raw(state_key, elements_data)
+
+          kv_iter_state_key = beam_fn_api_pb2.StateKey(
+              multimap_keys_values_side_input=beam_fn_api_pb2.StateKey.
+              MultimapKeysValuesSideInput(
+                  transform_id=consuming_transform_id,
+                  side_input_id=tag,
+                  window=window))
+          self.state_servicer.append_raw(
+              kv_iter_state_key,
+              # KV<K, Iterable<V>> encoding.
+              key + struct.pack('>i', elements_count) + elements_data)
       else:
         raise ValueError("Unknown access pattern: '%s'" % func_spec.urn)
 
