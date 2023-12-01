@@ -1046,12 +1046,12 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
       state_key,  # type: beam_fn_api_pb2.StateKey
       continuation_token=None  # type: Optional[bytes]
               ):
+    # type: (...) -> Tuple[bytes, Optional[bytes]]
 
     if state_key.WhichOneof('type') not in self._SUPPORTED_STATE_TYPES:
       raise NotImplementedError(
           'Unknown state type: ' + state_key.WhichOneof('type'))
 
-    # type: (...) -> Tuple[bytes, Optional[bytes]]
     with self._lock:
       full_state = self._state[self._to_key(state_key)]
       if self._use_continuation_tokens:

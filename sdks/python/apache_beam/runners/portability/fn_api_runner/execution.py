@@ -352,7 +352,7 @@ class WindowGroupingBuffer(object):
         self._values_by_window[key, window].append(value)
 
   def encoded_items(self):
-    # type: () -> Iterator[Tuple[bytes, bytes, bytes]]
+    # type: () -> Iterator[Tuple[bytes, bytes, bytes, int]]
     value_coder_impl = self._value_coder.get_impl()
     key_coder_impl = self._key_coder.get_impl()
     for (key, window), values in self._values_by_window.items():

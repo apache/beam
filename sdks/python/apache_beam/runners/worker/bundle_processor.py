@@ -445,7 +445,6 @@ class StateBackedSideInputMap(object):
                     # Attempt to bulk read the key-values over the iterable
                     # protocol which, if supported, can be much more efficient
                     # than point lookups if it fits into memory.
-                    full_map = collections.defaultdict(list)
                     for ix, (k, vs) in enumerate(_StateBackedIterable(
                         state_handler,
                         kv_iter_state_key,
