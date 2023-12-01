@@ -127,7 +127,15 @@ class WrapperProvider:
     # by the order of services in the list
     identifiers = set()
     for service in self.expansion_services:
-      schematransform_configs = SchemaAwareExternalTransform.discover(service)
+      try:
+        schematransform_configs = SchemaAwareExternalTransform.discover(service)
+      except Exception as e:
+        target = service
+        if isinstance(service, BeamJarExpansionService):
+          target = service.gradle_target
+        logging.exception("Encountered an error while discovering expansion service %s:\n%s",
+                          target, e)
+        continue
 
       for config in schematransform_configs:
         if config.identifier not in identifiers:

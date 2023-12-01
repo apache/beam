@@ -46,7 +46,6 @@ class WrapperProviderTest(unittest.TestCase):
     config_schema = generate_sequence.configuration_schema
     self.assertTrue(
         param in config_schema for param in {'start', 'end', 'rate'})
-    logging.warning(generate_sequence.configuration_schema)
 
   def test_run_generate_sequence(self):
     wrapper_provider = WrapperProvider(
