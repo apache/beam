@@ -31,7 +31,7 @@ should handle this. (&lt;a href="https://github.com/apache/beam/issues/25252">#2
 &lt;li>Add &lt;code>UseDataStreamForBatch&lt;/code> pipeline option to the Flink runner. When it is set to true, Flink runner will run batch
 jobs using the DataStream API. By default the option is set to false, so the batch jobs are still executed
 using the DataSet API.&lt;/li>
-&lt;li>&lt;code>upload_graph&lt;/code> as one of the Experiments options for DataflowRunner is no longer required when the graph is larger than 10MB for Java SDK (&lt;a href="https://github.com/apache/beam/pull/28621">PR#28621&lt;/a>.&lt;/li>
+&lt;li>&lt;code>upload_graph&lt;/code> as one of the Experiments options for DataflowRunner is no longer required when the graph is larger than 10MB for Java SDK (&lt;a href="https://github.com/apache/beam/pull/28621">PR#28621&lt;/a>).&lt;/li>
 &lt;li>state amd side input cache has been enabled to a default of 100 MB. Use &lt;code>--max_cache_memory_usage_mb=X&lt;/code> to provide cache size for the user state API and side inputs. (Python) (&lt;a href="https://github.com/apache/beam/issues/28770">#28770&lt;/a>).&lt;/li>
 &lt;li>Beam YAML stable release. Beam pipelines can now be written using YAML and leverage the Beam YAML framework which includes a preliminary set of IO&amp;rsquo;s and turnkey transforms. More information can be found in the YAML root folder and in the &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/README.md">README&lt;/a>.&lt;/li>
 &lt;/ul>
@@ -57,73 +57,73 @@ as a workaround, a copy of &amp;ldquo;old&amp;rdquo; &lt;code>CountingSource&lt;
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.52.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmed Abualsaud
-Ahmet Altay
-Aleksandr Dudko
-Alexey Romanenko
-Anand Inguva
-Andrei Gurau
-Andrey Devyatkin
-BjornPrime
-Bruno Volpato
-Bulat
-Chamikara Jayalath
-Damon
-Danny McCormick
-Devansh Modi
-Dominik Dębowczyk
-Ferran Fernández Garrido
-Hai Joey Tran
-Israel Herraiz
-Jack McCluskey
-Jan Lukavský
-JayajP
-Jeff Kinard
-Jeffrey Kinard
-Jiangjie Qin
-Jing
-Joar Wandborg
-Johanna Öjeling
-Julien Tournay
-Kanishk Karanawat
-Kenneth Knowles
-Kerry Donny-Clark
-Luís Bianchin
-Minbo Bae
-Pranav Bhandari
-Rebecca Szper
-Reuven Lax
-Ritesh Ghorse
-Robert Bradshaw
-Robert Burke
-RyuSA
-Shunping Huang
-Steven van Rossum
-Svetak Sundhar
-Tony Tang
-Vitaly Terentyev
-Vivek Sumanth
-Vlado Djerek
-Yi Hu
-aku019
-brucearctor
-caneff
-damccorm
-ddebowczyk92
-dependabot[bot]
-dpcollins-google
-edman124
-gabry.wu
-illoise
-johnjcasey
-jonathan-lemos
-kennknowles
-liferoad
-magicgoody
-martin trieu
-nancyxu123
-pablo rodriguez defino
-tvalentyn&lt;/p></description></item><item><title>Blog: Contributor Spotlight: Johanna Öjeling</title><link>/blog/contributor-spotlight-johanna-ojeling/</link><pubDate>Sat, 11 Nov 2023 15:00:00 -0800</pubDate><guid>/blog/contributor-spotlight-johanna-ojeling/</guid><description>
+&lt;p>Ahmed Abualsaud&lt;/p>
+&lt;p>Ahmet Altay&lt;/p>
+&lt;p>Aleksandr Dudko&lt;/p>
+&lt;p>Alexey Romanenko&lt;/p>
+&lt;p>Anand Inguva&lt;/p>
+&lt;p>Andrei Gurau&lt;/p>
+&lt;p>Andrey Devyatkin&lt;/p>
+&lt;p>BjornPrime&lt;/p>
+&lt;p>Bruno Volpato&lt;/p>
+&lt;p>Bulat&lt;/p>
+&lt;p>Chamikara Jayalath&lt;/p>
+&lt;p>Damon&lt;/p>
+&lt;p>Danny McCormick&lt;/p>
+&lt;p>Devansh Modi&lt;/p>
+&lt;p>Dominik Dębowczyk&lt;/p>
+&lt;p>Ferran Fernández Garrido&lt;/p>
+&lt;p>Hai Joey Tran&lt;/p>
+&lt;p>Israel Herraiz&lt;/p>
+&lt;p>Jack McCluskey&lt;/p>
+&lt;p>Jan Lukavský&lt;/p>
+&lt;p>JayajP&lt;/p>
+&lt;p>Jeff Kinard&lt;/p>
+&lt;p>Jeffrey Kinard&lt;/p>
+&lt;p>Jiangjie Qin&lt;/p>
+&lt;p>Jing&lt;/p>
+&lt;p>Joar Wandborg&lt;/p>
+&lt;p>Johanna Öjeling&lt;/p>
+&lt;p>Julien Tournay&lt;/p>
+&lt;p>Kanishk Karanawat&lt;/p>
+&lt;p>Kenneth Knowles&lt;/p>
+&lt;p>Kerry Donny-Clark&lt;/p>
+&lt;p>Luís Bianchin&lt;/p>
+&lt;p>Minbo Bae&lt;/p>
+&lt;p>Pranav Bhandari&lt;/p>
+&lt;p>Rebecca Szper&lt;/p>
+&lt;p>Reuven Lax&lt;/p>
+&lt;p>Ritesh Ghorse&lt;/p>
+&lt;p>Robert Bradshaw&lt;/p>
+&lt;p>Robert Burke&lt;/p>
+&lt;p>RyuSA&lt;/p>
+&lt;p>Shunping Huang&lt;/p>
+&lt;p>Steven van Rossum&lt;/p>
+&lt;p>Svetak Sundhar&lt;/p>
+&lt;p>Tony Tang&lt;/p>
+&lt;p>Vitaly Terentyev&lt;/p>
+&lt;p>Vivek Sumanth&lt;/p>
+&lt;p>Vlado Djerek&lt;/p>
+&lt;p>Yi Hu&lt;/p>
+&lt;p>aku019&lt;/p>
+&lt;p>brucearctor&lt;/p>
+&lt;p>caneff&lt;/p>
+&lt;p>damccorm&lt;/p>
+&lt;p>ddebowczyk92&lt;/p>
+&lt;p>dependabot[bot]&lt;/p>
+&lt;p>dpcollins-google&lt;/p>
+&lt;p>edman124&lt;/p>
+&lt;p>gabry.wu&lt;/p>
+&lt;p>illoise&lt;/p>
+&lt;p>johnjcasey&lt;/p>
+&lt;p>jonathan-lemos&lt;/p>
+&lt;p>kennknowles&lt;/p>
+&lt;p>liferoad&lt;/p>
+&lt;p>magicgoody&lt;/p>
+&lt;p>martin trieu&lt;/p>
+&lt;p>nancyxu123&lt;/p>
+&lt;p>pablo rodriguez defino&lt;/p>
+&lt;p>tvalentyn&lt;/p></description></item><item><title>Blog: Contributor Spotlight: Johanna Öjeling</title><link>/blog/contributor-spotlight-johanna-ojeling/</link><pubDate>Sat, 11 Nov 2023 15:00:00 -0800</pubDate><guid>/blog/contributor-spotlight-johanna-ojeling/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
