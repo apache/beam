@@ -127,7 +127,9 @@ class BigtableServiceImpl implements BigtableService {
         projectId,
         instanceId,
         writeOptions.getTableId().get(),
-        writeOptions.getCloseWaitTimeout());
+        writeOptions.getCloseWaitTimeout() != null
+            ? writeOptions.getCloseWaitTimeout()
+            : Duration.ZERO);
   }
 
   @VisibleForTesting
