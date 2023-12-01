@@ -1080,7 +1080,7 @@ def ptransform_fn(fn):
 
   # The signature of this PTransform constructor is that of fn minus the first
   # argument (which is where the pvalue is passed during expand).
-  callable_ptransform_factory.__signature__ = inspect.signature(
+  callable_ptransform_factory.__signature__ = inspect.signature(  # type: ignore
       functools.partial(fn, None))
 
   return callable_ptransform_factory
