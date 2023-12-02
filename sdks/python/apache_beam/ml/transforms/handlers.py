@@ -131,18 +131,18 @@ class _ComputeAndAttachUniqueID(beam.DoFn):
   Only for internal use. No backwards compatibility guarantees.
   """
   def process(self, element):
-    # UUID1 should be machine-specific and have a counter. As long as not too
+    # UUID1 includes machine-specific bits and has a counter. As long as not too
     # many are generated at the same time, they should be unique.
     # UUID4 generation should be unique in practice as long as underlying random
     # number generation is not compromised.
-    # A combintation of both should avoid the of the anecdotal pitfalls where
-    # replacing one with the other has helped users.
+    # A combintation of both should avoid the anecdotal pitfalls where
+    # replacing one with the other has helped some users.
     # UUID collision will result in data loss, but we can detect that and fail.
 
     # TODO(https://github.com/apache/beam/issues/29593): Evaluate MLTransform
     # implementation without CoGBK.
-    unique_suffix = uuid.uuid1().bytes + uuid.uuid4().bytes
-    yield (unique_suffix, element)
+    unique_key = uuid.uuid1().bytes + uuid.uuid4().bytes
+    yield (unique_key, element)
 
 
 class _GetMissingColumnsPColl(beam.DoFn):
