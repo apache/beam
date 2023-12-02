@@ -82,7 +82,7 @@ tft_process_handler_input_type = typing.Union[typing.NamedTuple,
 tft_process_handler_output_type = typing.Union[beam.Row, Dict[str, np.ndarray]]
 
 
-class ConvertScalarValuesToListValues(beam.DoFn):
+class _ConvertScalarValuesToListValues(beam.DoFn):
   def process(
       self,
       element,
@@ -98,7 +98,7 @@ class ConvertScalarValuesToListValues(beam.DoFn):
     yield (hash_key, new_dict)
 
 
-class ConvertNamedTupleToDict(
+class _ConvertNamedTupleToDict(
     beam.PTransform[beam.PCollection[typing.Union[beam.Row, typing.NamedTuple]],
                     beam.PCollection[Dict[str,
                                           common_types.InstanceDictType]]]):
@@ -123,7 +123,7 @@ class ConvertNamedTupleToDict(
       return pcoll | beam.Map(lambda x: x._asdict())
 
 
-class ComputeAndAttachUniqueID(beam.DoFn):
+class _ComputeAndAttachUniqueID(beam.DoFn):
   """
   Computes and attaches a unique id to each element in the PCollection.
   unique id is computed by hashing the element and adding a unique suffix
@@ -145,7 +145,7 @@ class ComputeAndAttachUniqueID(beam.DoFn):
     yield (unique_suffix, element)
 
 
-class GetMissingColumnsPColl(beam.DoFn):
+class _GetMissingColumnsPColl(beam.DoFn):
   """
   Returns data containing only the columns that are not
   present in the schema. This is needed since TFT only outputs
@@ -165,7 +165,7 @@ class GetMissingColumnsPColl(beam.DoFn):
     yield (hash_key, new_dict)
 
 
-class MakeHashKeyAsColumn(beam.DoFn):
+class _MakeHashKeyAsColumn(beam.DoFn):
   """
   Extracts the hash key from the element and adds it as a column.
 
@@ -177,7 +177,7 @@ class MakeHashKeyAsColumn(beam.DoFn):
     yield element
 
 
-class ExtractHashAndKeyPColl(beam.DoFn):
+class _ExtractHashAndKeyPColl(beam.DoFn):
   """
   Extracts the hash key and return hashkey and element as a tuple.
 
@@ -189,7 +189,7 @@ class ExtractHashAndKeyPColl(beam.DoFn):
     yield (hashkey, element)
 
 
-class MergeDicts(beam.DoFn):
+class _MergeDicts(beam.DoFn):
   """
   Merges the dictionaries in the PCollection.
 
@@ -427,7 +427,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
         # convert Row or NamedTuple to Dict
         raw_data = (
             raw_data
-            | ConvertNamedTupleToDict().with_output_types(
+            | _ConvertNamedTupleToDict().with_output_types(
                 Dict[str, typing.Union[tuple(column_type_mapping.values())]]))  # type: ignore
         # AnalyzeAndTransformDataset raise type hint since this is
         # schema'd PCollection and the current output type would be a
@@ -455,19 +455,19 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       raw_data_metadata = metadata_io.read_metadata(
           os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
 
-    keyed_raw_data = (raw_data | beam.ParDo(ComputeAndAttachUniqueID()))
+    keyed_raw_data = (raw_data | beam.ParDo(_ComputeAndAttachUniqueID()))
 
     feature_set = [feature.name for feature in raw_data_metadata.schema.feature]
     columns_not_in_schema_with_hash = (
         keyed_raw_data
-        | beam.ParDo(GetMissingColumnsPColl(feature_set)))
+        | beam.ParDo(_GetMissingColumnsPColl(feature_set)))
 
     # To maintain consistency by outputting numpy array all the time,
     # whether a scalar value or list or np array is passed as input,
     #  we will convert scalar values to list values and TFT will ouput
     # numpy array all the time.
     keyed_raw_data = keyed_raw_data | beam.ParDo(
-        ConvertScalarValuesToListValues())
+        _ConvertScalarValuesToListValues())
 
     raw_data_list = (keyed_raw_data | beam.ParDo(MakeHashKeyAsColumn()))
 
@@ -509,7 +509,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       # not have that column. So we will join the missing columns from the
       # raw_data to the transformed_dataset.
       transformed_dataset = (
-          transformed_dataset | beam.ParDo(ExtractHashAndKeyPColl()))
+          transformed_dataset | beam.ParDo(_ExtractHashAndKeyPColl()))
 
       # The grouping is needed here since tensorflow transform only outputs
       # columns that are transformed by any of the transforms. So we will
@@ -518,7 +518,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       transformed_dataset = (
           (transformed_dataset, columns_not_in_schema_with_hash)
           | beam.CoGroupByKey()
-          | beam.ParDo(MergeDicts()))
+          | beam.ParDo(_MergeDicts()))
 
       # The schema only contains the columns that are transformed.
       transformed_dataset = (
