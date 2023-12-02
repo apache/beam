@@ -199,8 +199,8 @@ class _MergeDicts(beam.DoFn):
     _, element = element
     new_dict = {}
     # Assertion could fail due to UUID collision.
-    assert len(element) == 2, f"Expected 2 elements, got: {len(element)}."
     for d in element:
+      assert len(d) == 1, f"Expected 1 element, got: {len(d)}."
       new_dict.update(d[0])
     yield new_dict
 
@@ -469,7 +469,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     keyed_raw_data = keyed_raw_data | beam.ParDo(
         _ConvertScalarValuesToListValues())
 
-    raw_data_list = (keyed_raw_data | beam.ParDo(MakeHashKeyAsColumn()))
+    raw_data_list = (keyed_raw_data | beam.ParDo(_MakeHashKeyAsColumn()))
 
     with tft_beam.Context(temp_dir=self.artifact_location):
       data = (raw_data_list, raw_data_metadata)
