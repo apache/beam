@@ -141,7 +141,7 @@ except ImportError:
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ['']
-if sys.platform == 'win32' or sys.platform == 'cygwin':
+elif sys.platform == 'win32' or sys.platform == 'cygwin':
   # https://github.com/apache/beam/issues/28410 - pyarrow>=13 seeing issues
   # on windows with error
   # C:\arrow\cpp\src\arrow\filesystem\s3fs.cc:2904:  arrow::fs::FinalizeS3 was
