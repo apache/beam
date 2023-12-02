@@ -17,7 +17,6 @@
 # pytype: skip-file
 
 import collections
-import hashlib
 import os
 import typing
 import uuid
@@ -132,20 +131,18 @@ class ComputeAndAttachUniqueID(beam.DoFn):
   Only for internal use. No backwards compatibility guarantees.
   """
   def process(self, element):
-    hash_object = hashlib.sha256()
-    for _, value in element.items():
-      # handle the case where value is a list or numpy array
-      if isinstance(value, (list, np.ndarray)):
-        hash_object.update(str(list(value)).encode())
-      else:  # assume value is a primitive that can be turned into str
-        hash_object.update(str(value).encode())
-    unique_suffix = uuid.uuid1().bytes
-    # over multpile docker containers, the uuid might generate
-    # same uuid. So we will add the process id to the hash key
-    # along with the unique suffix to avoid possible collisions.
-    yield (
-        hash_object.digest() + unique_suffix + str(os.getpid()).encode(),
-        element)
+    # UUID1 should be machine-specific and have a counter. As long as not too
+    # many are generated at the same time, they should be unique.
+    # UUID4 generation should be unique in practice as long as underlying random
+    # number generation is not compromised.
+    # A combintation of both should avoid the of the anecdotal pitfalls where
+    # replacing one with the other has helped users.
+    # UUID collision will result in data loss, but we can detect that and fail.
+
+    # TODO(https://github.com/apache/beam/issues/29593): Evaluate MLTransform
+    # implementation without CoGBK.
+    unique_suffix = uuid.uuid1().bytes + uuid.uuid4().bytes
+    yield (unique_suffix, element)
 
 
 class GetMissingColumnsPColl(beam.DoFn):
@@ -201,6 +198,8 @@ class MergeDicts(beam.DoFn):
   def process(self, element):
     _, element = element
     new_dict = {}
+    # Assertion could fail due to UUID collision.
+    assert len(element) == 2, f"Expected 2 elements, got: {len(element)}."
     for d in element:
       new_dict.update(d[0])
     yield new_dict
