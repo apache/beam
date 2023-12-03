@@ -140,9 +140,21 @@ except ImportError:
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ['']
+elif sys.platform == 'win32' or sys.platform == 'cygwin':
+  # https://github.com/apache/beam/issues/28410 - pyarrow>=13 seeing issues
+  # on windows with error
+  # C:\arrow\cpp\src\arrow\filesystem\s3fs.cc:2904:  arrow::fs::FinalizeS3 was
+  # not called even though S3 was initialized.  This could lead to a
+  # segmentation fault at exit. Keep pyarrow<13 until this is resolved.
+  pyarrow_dependency = [
+        'pyarrow>=3.0.0,<12.0.0',
+        # NOTE: We can remove this once Beam increases the pyarrow lower bound
+        # to a version that fixes CVE.
+        'pyarrow-hotfix<1'
+    ]
 else:
   pyarrow_dependency = [
-      'pyarrow>=3.0.0,<12.0.0',
+      'pyarrow>=3.0.0,<15.0.0',
       # NOTE(https://github.com/apache/beam/issues/29392): We can remove this
       # once Beam increases the pyarrow lower bound to a version that fixes CVE.
       'pyarrow-hotfix<1'
