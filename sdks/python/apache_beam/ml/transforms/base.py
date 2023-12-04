@@ -46,7 +46,7 @@ _ATTRIBUTE_FILE_NAME = 'attributes.json'
 __all__ = [
     'MLTransform',
     'ProcessHandler',
-    'PTransformProvider',
+    'MLTransformProvider',
     'BaseOperation',
     'EmbeddingsManager'
 ]
@@ -88,10 +88,10 @@ class ArtifactMode(object):
   CONSUME = 'consume'
 
 
-class PTransformProvider:
+class MLTransformProvider:
   """
   Data processing transforms that are intended to be used with MLTransform
-  should subclass PTransformProvider and implement the following methods:
+  should subclass MLTransformProvider and implement the following methods:
   1. get_ptransform_for_processing()
 
   get_ptransform_for_processing() method should return a PTransform that can be
@@ -113,7 +113,7 @@ class PTransformProvider:
 
 
 class BaseOperation(Generic[OperationInputT, OperationOutputT],
-                    PTransformProvider,
+                    MLTransformProvider,
                     abc.ABC):
   def __init__(self, columns: List[str]) -> None:
     """
@@ -158,7 +158,7 @@ class ProcessHandler(beam.PTransform[beam.PCollection[ExampleT],
 
 
 # TODO: Add support for inference_fn
-class EmbeddingsManager(PTransformProvider):
+class EmbeddingsManager(MLTransformProvider):
   def __init__(
       self,
       columns: List[str],
@@ -326,13 +326,13 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     return self
 
   def _validate_transform(self, transform):
-    # every data processing transform should subclass PTransformProvider. Raise
-    # an error if the transform does not subclass PTransformProvider since the
+    # every data processing transform should subclass MLTransformProvider. Raise
+    # an error if the transform does not subclass MLTransformProvider since the
     # downstream code expects the transform to be a subclass of
-    # PTransformProvider.
-    if not isinstance(transform, PTransformProvider):
+    # MLTransformProvider.
+    if not isinstance(transform, MLTransformProvider):
       raise TypeError(
-          'transform must be a subclass of PTransformProvider and implement '
+          'transform must be a subclass of MLTransformProvider and implement '
           'get_ptransform_for_processing() method.'
           'Got: %s instead.' % type(transform))
 
@@ -471,9 +471,9 @@ class _MLTransformToPTransformMapper:
     current_ptransform = None
     ptransform_list = []
     for transform in self.transforms:
-      if not isinstance(transform, PTransformProvider):
+      if not isinstance(transform, MLTransformProvider):
         raise RuntimeError(
-            'Transforms must be instances of PTransformProvider and '
+            'Transforms must be instances of MLTransformProvider and '
             'implement get_ptransform_for_processing() method.')
       # for each instance of PTransform, create a new artifact location
       current_ptransform = transform.get_ptransform_for_processing(
@@ -481,7 +481,8 @@ class _MLTransformToPTransformMapper:
               self._parent_artifact_location, uuid.uuid4().hex[:6]),
           artifact_mode=self.artifact_mode)
       append_transform = hasattr(current_ptransform, 'append_transform')
-      if (type(current_ptransform) != previous_ptransform_type) or not append_transform:
+      if (type(current_ptransform) !=
+          previous_ptransform_type) or not append_transform:
         ptransform_list.append(current_ptransform)
         previous_ptransform_type = type(current_ptransform)
       # If different PTransform is appended to the list and the PTransform

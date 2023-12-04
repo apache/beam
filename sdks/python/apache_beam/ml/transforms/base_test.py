@@ -287,7 +287,7 @@ class BaseMLTransformTest(unittest.TestCase):
         return x + 1
 
     with self.assertRaisesRegex(
-        TypeError, 'transform must be a subclass of PTransformProvider'):
+        TypeError, 'transform must be a subclass of MLTransformProvider'):
       with beam.Pipeline() as p:
         _ = (
             p
