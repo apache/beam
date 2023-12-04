@@ -36,6 +36,8 @@ public interface SchemaTransformProvider {
   /** Returns an id that uniquely represents this transform. */
   String identifier();
 
+  // TODO(ahmedbu98): remove default when all existing SchemaTransformProviders implement this
+  // method
   /**
    * Returns a description which will be used to generate documentation for remote SDKs. This is
    * reserved for how to build and use this SchemaTransform without getting into the specifics of
