@@ -20,10 +20,11 @@ Pub/Sub is currently supported only in streaming pipelines.
 
 
 Pub/Sub is supported in the following Beam SDKs:
-* [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.html)
-* [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.pubsub.html)
-* [Go](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/pubsubio)
-* [Typescript](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/io/pubsub.ts) via X-language
+* [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigtable/BigtableIO.html)
+* [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html)
+* [Via xlang](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html)
+* [Go](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigtableio)
+* [Go](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/bigtableio)
 
 [Dataflow-cookbook repository](https://github.com/GoogleCloudPlatform/dataflow-cookbook) will help you to get started with Pub/Sub and Apache Beam. See here for [read](https://github.com/GoogleCloudPlatform/dataflow-cookbook/blob/main/Python/pubsub/read_pubsub_multiple.py) and [write](https://github.com/GoogleCloudPlatform/dataflow-cookbook/blob/main/Python/pubsub/write_pubsub.py) examples in Python.
 
@@ -37,3 +38,6 @@ from apache_beam.io import WriteToPubSub
 ```
 
 
+
+
+https://beam.apache.org/performance/bigtable
