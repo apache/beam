@@ -124,6 +124,11 @@ class TimestampBoundMode(Enum):
   STRONG = auto()
 
 
+class FailureMode(Enum):
+  FAIL_FAST = auto()
+  REPORT_FAILURES = auto()
+
+
 class ReadFromSpannerSchema(NamedTuple):
   instance_id: str
   database_id: str
@@ -282,6 +287,7 @@ class WriteToSpannerSchema(NamedTuple):
   emulator_host: Optional[str]
   commit_deadline: Optional[int]
   max_cumulative_backoff: Optional[int]
+  failure_mode: Optional[str]
 
 
 _CLASS_DOC = \
@@ -346,6 +352,11 @@ _INIT_DOC = \
       (15min). If the mutations still have not been written after this time,
       they are treated as a failure, and handled according to the setting of
       failure_mode. Pass seconds as value.
+  :param failure_mode: Specifies the behavior for mutations that fail to be
+      written to Spanner. Default is FAIL_FAST. When FAIL_FAST is set,
+      an exception will be thrown for any failed mutation. When REPORT_FAILURES
+      is set, processing will continue instead of throwing an exception. Note
+      that REPORT_FAILURES can cause data loss if used incorrectly.
   :param expansion_service: The address (host:port) of the ExpansionService.
   """
 
@@ -392,6 +403,7 @@ class SpannerDelete(ExternalTransform):
       emulator_host=None,
       commit_deadline=None,
       max_cumulative_backoff=None,
+      failure_mode=None,
       expansion_service=None,
   ):
     max_cumulative_backoff = int(
@@ -413,6 +425,7 @@ class SpannerDelete(ExternalTransform):
                 emulator_host=emulator_host,
                 commit_deadline=commit_deadline,
                 max_cumulative_backoff=max_cumulative_backoff,
+                failure_mode=_get_enum_name(failure_mode),
             ),
         ),
         expansion_service=expansion_service or default_io_expansion_service(),
@@ -445,6 +458,7 @@ class SpannerInsert(ExternalTransform):
       commit_deadline=None,
       max_cumulative_backoff=None,
       expansion_service=None,
+      failure_mode=None,
   ):
     max_cumulative_backoff = int(
         max_cumulative_backoff) if max_cumulative_backoff else None
@@ -465,6 +479,7 @@ class SpannerInsert(ExternalTransform):
                 emulator_host=emulator_host,
                 commit_deadline=commit_deadline,
                 max_cumulative_backoff=max_cumulative_backoff,
+                failure_mode=_get_enum_name(failure_mode),
             ),
         ),
         expansion_service=expansion_service or default_io_expansion_service(),
@@ -497,6 +512,7 @@ class SpannerReplace(ExternalTransform):
       commit_deadline=None,
       max_cumulative_backoff=None,
       expansion_service=None,
+      failure_mode=None,
   ):
     max_cumulative_backoff = int(
         max_cumulative_backoff) if max_cumulative_backoff else None
@@ -517,6 +533,7 @@ class SpannerReplace(ExternalTransform):
                 emulator_host=emulator_host,
                 commit_deadline=commit_deadline,
                 max_cumulative_backoff=max_cumulative_backoff,
+                failure_mode=_get_enum_name(failure_mode),
             ),
         ),
         expansion_service=expansion_service or default_io_expansion_service(),
@@ -548,6 +565,7 @@ class SpannerInsertOrUpdate(ExternalTransform):
       emulator_host=None,
       commit_deadline=None,
       max_cumulative_backoff=None,
+      failure_mode=None,
       expansion_service=None,
   ):
     max_cumulative_backoff = int(
@@ -569,6 +587,7 @@ class SpannerInsertOrUpdate(ExternalTransform):
                 emulator_host=emulator_host,
                 commit_deadline=commit_deadline,
                 max_cumulative_backoff=max_cumulative_backoff,
+                failure_mode=_get_enum_name(failure_mode),
             ),
         ),
         expansion_service=expansion_service or default_io_expansion_service(),
@@ -600,6 +619,7 @@ class SpannerUpdate(ExternalTransform):
       emulator_host=None,
       commit_deadline=None,
       max_cumulative_backoff=None,
+      failure_mode=None,
       expansion_service=None,
   ):
     max_cumulative_backoff = int(
@@ -621,6 +641,7 @@ class SpannerUpdate(ExternalTransform):
                 emulator_host=emulator_host,
                 commit_deadline=commit_deadline,
                 max_cumulative_backoff=max_cumulative_backoff,
+                failure_mode=_get_enum_name(failure_mode),
             ),
         ),
         expansion_service=expansion_service or default_io_expansion_service(),

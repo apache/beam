@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PostCommit Website Publish
+name: Publish Website
 
 on:
   schedule:
@@ -47,13 +47,13 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_PostCommit_Website_Publish:
+  beam_Publish_Website:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 30
-    name: beam_PostCommit_Website_Publish
+    name: beam_Publish_Website
     steps:
       - uses: actions/checkout@v4
       - name: Setup environment

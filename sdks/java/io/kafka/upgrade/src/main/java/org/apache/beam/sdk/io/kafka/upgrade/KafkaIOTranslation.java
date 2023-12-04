@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.io.kafka.upgrade;
 
+import static org.apache.beam.runners.core.construction.TransformUpgrader.fromByteArray;
+import static org.apache.beam.runners.core.construction.TransformUpgrader.toByteArray;
+
 import com.google.auto.service.AutoService;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -72,25 +71,6 @@ public class KafkaIOTranslation {
       "beam:transform:org.apache.beam:kafka_read_with_metadata:v2";
   public static final String KAFKA_WRITE_TRANSFORM_URN_V2 =
       "beam:transform:org.apache.beam:kafka_write:v2";
-
-  private static byte[] toByteArray(Object object) {
-    try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        ObjectOutputStream out = new ObjectOutputStream(bos)) {
-      out.writeObject(object);
-      return bos.toByteArray();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  private static Object fromByteArray(byte[] bytes) {
-    try (ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
-        ObjectInputStream in = new ObjectInputStream(bis)) {
-      return in.readObject();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
 
   static class KafkaIOReadWithMetadataTranslator implements TransformPayloadTranslator<Read<?, ?>> {
 

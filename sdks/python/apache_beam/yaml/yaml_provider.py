@@ -109,9 +109,9 @@ class Provider:
     # E.g. we could look at the the expected environments themselves.
     # Possibly, we could provide multiple expansions and have the runner itself
     # choose the actual implementation based on fusion (and other) criteria.
-    return (
-        self.underlying_provider()._affinity(other) +
-        other.underlying_provider()._affinity(self))
+    a = self.underlying_provider()
+    b = other.underlying_provider()
+    return a._affinity(b) + b._affinity(a)
 
   def _affinity(self, other: "Provider"):
     if self is other or self == other:
