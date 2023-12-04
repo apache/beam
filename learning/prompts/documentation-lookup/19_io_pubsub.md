@@ -13,6 +13,8 @@ Pub/Sub is supported in the following Beam SDKs:
 
 [Dataflow-cookbook repository](https://github.com/GoogleCloudPlatform/dataflow-cookbook) will help you to get started with Pub/Sub and Apache Beam. See here for [read](https://github.com/GoogleCloudPlatform/dataflow-cookbook/blob/main/Python/pubsub/read_pubsub_multiple.py) and [write](https://github.com/GoogleCloudPlatform/dataflow-cookbook/blob/main/Python/pubsub/write_pubsub.py) examples in Python.
 
+Apache Beam pipeline code for reading data from Pub/Sub topic and writing it back to another topic might look like the following example:
+
 ```python
 from apache_beam.io import ReadFromPubSub
 from apache_beam.io import WriteToPubSub
