@@ -389,6 +389,18 @@ func TestElementChan(t *testing.T) {
 				return elms
 			},
 			wantSum: 0, wantCount: 0,
+		}, {
+			name: "SomeTimersAndADataThenReaderThenCleanup",
+			sequenceFn: func(ctx context.Context, t *testing.T, client *fakeChanClient, c *DataChannel) <-chan exec.Elements {
+				client.Send(&fnpb.Elements{
+					Timers: []*fnpb.Elements_Timers{timerElm(1, false), timerElm(2, true)},
+					Data:   []*fnpb.Elements_Data{dataElm(3, true)},
+				})
+				elms := openChan(ctx, t, c, timerID)
+				c.removeInstruction(instID)
+				return elms
+			},
+			wantSum: 6, wantCount: 3,
 		},
 	}
 	for _, test := range tests {
