@@ -496,7 +496,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       # is not transformed by any of the transforms, then the output will
       # not have that column. So we will join the missing columns from the
       # raw_data to the transformed_dataset.
-      transformed_dataset = (
+      keyed_transformed_dataset = (
           transformed_dataset | beam.ParDo(_ExtractIdAndKeyPColl()))
 
       # The grouping is needed here since tensorflow transform only outputs
@@ -504,7 +504,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       # join the missing columns from the raw_data to the transformed_dataset
       # using the id.
       transformed_dataset = (
-          (transformed_dataset, keyed_columns_not_in_schema)
+          (keyed_transformed_dataset, keyed_columns_not_in_schema)
           | beam.CoGroupByKey()
           | beam.ParDo(_MergeDicts()))
 
