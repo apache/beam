@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+import logging
 import os
 import unittest
 
@@ -60,3 +60,8 @@ class WrapperProviderTest(unittest.TestCase):
           start=0, end=10) | beam.Map(lambda row: row.value)
 
       assert_that(numbers, equal_to([i for i in range(10)]))
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
