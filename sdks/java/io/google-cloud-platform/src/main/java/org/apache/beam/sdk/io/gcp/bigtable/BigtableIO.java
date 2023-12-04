@@ -1166,22 +1166,13 @@ public class BigtableIO {
       PipelineOptions pipelineOptions = input.getPipeline().getOptions();
       String closeWaitTimeoutStr =
           ExperimentalOptions.getExperimentValue(pipelineOptions, BIGTABLE_WRITER_WAIT_TIMEOUT_MS);
-      Duration closeWaitTimeout = Duration.ZERO;
+      Duration closeWaitTimeout = null;
       if (closeWaitTimeoutStr != null) {
-        try {
-          long closeWaitTimeoutMs = Long.parseLong(closeWaitTimeoutStr);
-          if (closeWaitTimeoutMs < 0) {
-            LOG.warn(
-                "Invalid close wait timeout {}, will not set a wait timeout on close",
-                closeWaitTimeoutMs);
-          } else {
-            closeWaitTimeout = Duration.millis(closeWaitTimeoutMs);
-          }
-        } catch (NumberFormatException e) {
-          LOG.warn(
-              "Failed to parse close wait timeout {}, will not set a wait timeout on close",
-              closeWaitTimeoutStr,
-              e);
+        long closeWaitTimeoutMs = Long.parseLong(closeWaitTimeoutStr);
+        if (closeWaitTimeoutMs < 0) {
+          throw new RuntimeException("Close wait timeout must be positive " + closeWaitTimeoutMs);
+        } else {
+          closeWaitTimeout = Duration.millis(closeWaitTimeoutMs);
         }
       }
 
@@ -1246,7 +1237,7 @@ public class BigtableIO {
       this.writeOptions = writeOptions;
       this.failures = new ConcurrentLinkedQueue<>();
       this.id = factory.newId();
-      LOG.info("Created Bigtable Write Fn with writeOptions {} ", writeOptions);
+      LOG.debug("Created Bigtable Write Fn with writeOptions {} ", writeOptions);
     }
 
     @StartBundle

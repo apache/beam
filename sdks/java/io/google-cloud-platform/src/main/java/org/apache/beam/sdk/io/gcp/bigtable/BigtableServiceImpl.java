@@ -127,9 +127,7 @@ class BigtableServiceImpl implements BigtableService {
         projectId,
         instanceId,
         writeOptions.getTableId().get(),
-        writeOptions.getCloseWaitTimeout() != null
-            ? writeOptions.getCloseWaitTimeout()
-            : Duration.ZERO);
+        writeOptions.getCloseWaitTimeout());
   }
 
   @VisibleForTesting
@@ -506,7 +504,7 @@ class BigtableServiceImpl implements BigtableService {
           // If the experimental close wait timeout flag is set,
           // set a timeout waiting for the future.
           ApiFuture<Void> future = bulkMutation.closeAsync();
-          if (closeWaitTimeout.isLongerThan(Duration.ZERO)) {
+          if (Duration.ZERO.isShorterThan(closeWaitTimeout)) {
             future.get(closeWaitTimeout.getMillis(), TimeUnit.MILLISECONDS);
           } else {
             future.get();
@@ -515,11 +513,11 @@ class BigtableServiceImpl implements BigtableService {
           outstandingMutations = 0;
           stopwatch.stop();
           latency.update(stopwatch.elapsed(TimeUnit.MILLISECONDS));
-        } catch (TimeoutException | ExecutionException e) {
+        } catch (TimeoutException e) {
           // We fail because future.get() timed out
-          String errorMsg = "BulkMutation took too long to close";
-          LOG.warn(errorMsg, e);
-          throw new IOException(errorMsg, e);
+          throw new IOException("BulkMutation took too long to close", e);
+        } catch (ExecutionException e) {
+          throw new IOException("ExecutionException when closing the BulkMutation", e.getCause());
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           // We fail since close() operation was interrupted.
