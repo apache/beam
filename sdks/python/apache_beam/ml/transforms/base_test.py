@@ -425,5 +425,33 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
       )
 
 
+class TestUtilFunctions(unittest.TestCase):
+  def test_list_of_dicts_to_dict_of_lists_normal(self):
+    input_list = [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]
+    expected_output = {'a': [1, 3], 'b': [2, 4]}
+    self.assertEqual(
+        base._convert_list_of_dicts_to_dict_of_lists(input_list),
+        expected_output)
+
+  def test_list_of_dicts_to_dict_of_lists_on_list_inputs(self):
+    input_list = [{'a': [1, 2, 10], 'b': 3}, {'a': [1], 'b': 5}]
+    expected_output = {'a': [[1, 2, 10], [1]], 'b': [3, 5]}
+    self.assertEqual(
+        base._convert_list_of_dicts_to_dict_of_lists(input_list),
+        expected_output)
+
+  def test_dict_of_lists_to_lists_of_dict_normal(self):
+    input_dict = {'a': [1, 3], 'b': [2, 4]}
+    expected_output = [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]
+    self.assertEqual(
+        base._convert_dict_of_lists_to_lists_of_dict(input_dict),
+        expected_output)
+
+  def test_dict_of_lists_to_lists_of_dict_unequal_length(self):
+    input_dict = {'a': [1, 3], 'b': [2]}
+    with self.assertRaises(AssertionError):
+      base._convert_dict_of_lists_to_lists_of_dict(input_dict)
+
+
 if __name__ == '__main__':
   unittest.main()

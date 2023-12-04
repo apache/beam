@@ -74,10 +74,16 @@ def _convert_list_of_dicts_to_dict_of_lists(
 
 
 def _convert_dict_of_lists_to_lists_of_dict(
-    dict_of_lists: Dict[str, List[Any]],
-    batch_length: int) -> List[Dict[str, Any]]:
+    dict_of_lists: Dict[str, List[Any]]) -> List[Dict[str, Any]]:
+
+  batch_length = len(next(iter(dict_of_lists.values())))
   result: List[Dict[str, Any]] = [{} for _ in range(batch_length)]
+  # all the values in the dict_of_lists should have same length
   for key, values in dict_of_lists.items():
+    assert len(values) == batch_length, (
+        "This function expects all the values "
+        "in the dict_of_lists to have same length."
+        )
     for i in range(len(values)):
       result[i][key] = values[i]
   return result
@@ -578,11 +584,11 @@ class _TextEmbeddingHandler(ModelHandler):
     should be of the same size for a single key across the batch.
     """
     self._validate_batch(batch)
-    batch_len = len(batch)
     dict_batch = _convert_list_of_dicts_to_dict_of_lists(list_of_dicts=batch)
     transformed_batch = self._process_batch(dict_batch, model, inference_args)
     return _convert_dict_of_lists_to_lists_of_dict(
-        dict_of_lists=transformed_batch, batch_length=batch_len)
+        dict_of_lists=transformed_batch,
+    )
 
   def get_metrics_namespace(self) -> str:
     return (
