@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 # pytype: skip-file
-# pylint: skip-file
 
 import collections
 import hashlib
@@ -218,9 +217,6 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
   def append_transform(self, transform):
     self.transforms.append(transform)
 
-  def get_transforms(self):
-    return self.transforms
-
   def _map_column_names_to_types(self, row_type):
     """
     Return a dictionary of column names and types.
@@ -323,7 +319,6 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
           f"Please provide a valid type from the following: "
           f"{_default_type_to_tensor_type_map.keys()}")
     return tf.io.VarLenFeature(_default_type_to_tensor_type_map[dtype])
-    # return tf.io.VarLenFeature()
 
   def get_raw_data_metadata(
       self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
