@@ -56,6 +56,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StreamAppendClient;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.WriteStreamService;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.RetryType;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.MessageConverter;
 import org.apache.beam.sdk.metrics.Counter;
@@ -271,7 +272,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private long currentOffset = 0;
       private List<ByteString> pendingMessages;
       private List<org.joda.time.Instant> pendingTimestamps;
-      private transient @Nullable DatasetService maybeDatasetService;
+      private transient @Nullable WriteStreamService maybeWriteStreamService;
       private final Counter recordsAppended =
           Metrics.counter(WriteRecordsDoFn.class, "recordsAppended");
       private final Counter appendFailures =
@@ -298,7 +299,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           String tableUrn,
           String shortTableUrn,
           MessageConverter<ElementT> messageConverter,
-          DatasetService datasetService,
+          WriteStreamService writeStreamService,
           boolean useDefaultStream,
           int streamAppendClientCount,
           boolean usingMultiplexing,
@@ -310,7 +311,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         this.shortTableUrn = shortTableUrn;
         this.pendingMessages = Lists.newArrayList();
         this.pendingTimestamps = Lists.newArrayList();
-        this.maybeDatasetService = datasetService;
+        this.maybeWriteStreamService = writeStreamService;
         this.useDefaultStream = useDefaultStream;
         this.initialTableSchema = messageConverter.getTableSchema();
         this.initialDescriptor = messageConverter.getDescriptor(includeCdcColumns);
@@ -356,7 +357,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               () -> {
                 if (!useDefaultStream) {
                   this.streamName =
-                      Preconditions.checkStateNotNull(maybeDatasetService)
+                      Preconditions.checkStateNotNull(maybeWriteStreamService)
                           .createWriteStream(tableUrn, Type.PENDING)
                           .getName();
                   this.currentOffset = 0;
@@ -397,7 +398,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   appendClientInfo
                       .get()
                       .withAppendClient(
-                          Preconditions.checkStateNotNull(maybeDatasetService),
+                          Preconditions.checkStateNotNull(maybeWriteStreamService),
                           () -> streamName,
                           usingMultiplexing,
                           defaultMissingValueInterpretation));
@@ -438,7 +439,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               if (autoUpdateSchema) {
                 @Nullable
                 WriteStream writeStream =
-                    Preconditions.checkStateNotNull(maybeDatasetService).getWriteStream(streamName);
+                    Preconditions.checkStateNotNull(maybeWriteStreamService)
+                        .getWriteStream(streamName);
                 if (writeStream != null && writeStream.hasTableSchema()) {
                   TableSchema updatedFromStream = writeStream.getTableSchema();
                   currentSchema.set(updatedFromStream);
@@ -870,6 +872,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private @Nullable Map<DestinationT, DestinationState> destinations = Maps.newHashMap();
     private final TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
     private transient @Nullable DatasetService maybeDatasetService;
+    private transient @Nullable WriteStreamService maybeWriteStreamService;
     private int numPendingRecords = 0;
     private int numPendingRecordBytes = 0;
     private final int flushThresholdBytes;
@@ -977,6 +980,14 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       return maybeDatasetService;
     }
 
+    private WriteStreamService initializeWriteStreamService(PipelineOptions pipelineOptions) {
+      if (maybeWriteStreamService == null) {
+        maybeWriteStreamService =
+            bqServices.getWriteStreamService(pipelineOptions.as(BigQueryOptions.class));
+      }
+      return maybeWriteStreamService;
+    }
+
     @StartBundle
     public void startBundle() throws IOException {
       destinations = Maps.newHashMap();
@@ -989,6 +1000,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         DestinationT destination,
         boolean useCdc,
         DatasetService datasetService,
+        WriteStreamService writeStreamService,
         BigQueryOptions bigQueryOptions) {
       TableDestination tableDestination1 = dynamicDestinations.getTable(destination);
       checkArgument(
@@ -1019,7 +1031,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             tableDestination1.getTableUrn(bigQueryOptions),
             tableDestination1.getShortTableUrn(),
             messageConverter,
-            datasetService,
+            writeStreamService,
             useDefaultStream,
             streamAppendClientCount,
             bigQueryOptions.getUseStorageApiConnectionPool(),
@@ -1040,6 +1052,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         MultiOutputReceiver o)
         throws Exception {
       DatasetService initializedDatasetService = initializeDatasetService(pipelineOptions);
+      WriteStreamService initializedWriteStreamService =
+          initializeWriteStreamService(pipelineOptions);
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
       DestinationState state =
           Preconditions.checkStateNotNull(destinations)
@@ -1051,6 +1065,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                           destination,
                           usesCdc,
                           initializedDatasetService,
+                          initializedWriteStreamService,
                           pipelineOptions.as(BigQueryOptions.class)));
 
       OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver = o.get(failedRowsTag);
@@ -1116,9 +1131,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     public void teardown() {
       destinations = null;
       try {
-        if (maybeDatasetService != null) {
-          maybeDatasetService.close();
-          maybeDatasetService = null;
+        if (maybeWriteStreamService != null) {
+          maybeWriteStreamService.close();
+          maybeWriteStreamService = null;
         }
       } catch (Exception e) {
         throw new RuntimeException(e);
