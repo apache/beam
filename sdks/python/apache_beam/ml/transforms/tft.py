@@ -114,9 +114,6 @@ class TFTOperation(BaseOperation[common_types.TensorType,
       params['artifact_mode'] = artifact_mode
     return TFTProcessHandler(artifact_location=artifact_location, **params)
 
-  def requires_chaining(self):
-    return True
-
   @tf.function
   def _split_string_with_delimiter(self, data, delimiter):
     """
