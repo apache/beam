@@ -877,7 +877,8 @@ pull request, just correct it on the spot and the vote can continue as-is.
 ### Run validation tests
 
 The community is responsible for performing validation, but as release manager
-you are expected to contribute as well.
+you are expected to contribute as well. Please see the [RC Testing Guide](https://github.com/apache/beam/blob/master/contributor-docs/rc-testing-guide.md)
+for ideas on helping validate testing on downstream projects.
 
 Before accepting an RC, as a community we try to exercise most (if not all) of
 the tests listed in this
