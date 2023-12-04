@@ -75,7 +75,6 @@ def _convert_list_of_dicts_to_dict_of_lists(
 
 def _convert_dict_of_lists_to_lists_of_dict(
     dict_of_lists: Dict[str, List[Any]]) -> List[Dict[str, Any]]:
-
   batch_length = len(next(iter(dict_of_lists.values())))
   result: List[Dict[str, Any]] = [{} for _ in range(batch_length)]
   # all the values in the dict_of_lists should have same length
@@ -203,8 +202,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       *,
       write_artifact_location: Optional[str] = None,
       read_artifact_location: Optional[str] = None,
-      transforms: Optional[List[Union[BaseOperation,
-                                      EmbeddingsManager]]] = None):
+      transforms: Optional[MLTransformProvider] = None):
     """
     MLTransform is a Beam PTransform that can be used to apply
     transformations to the data. MLTransform is used to wrap the
@@ -317,7 +315,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
         | "MLTransformMetricsUsage" >> MLTransformMetricsUsage(self))
     return pcoll  # type: ignore[return-value]
 
-  def with_transform(self, transform: BaseOperation):
+  def with_transform(self, transform: MLTransformProvider):
     """
     Add a transform to the MLTransform pipeline.
     Args:
@@ -325,9 +323,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     Returns:
       A MLTransform instance.
     """
-    # self._validate_transform(transform)
-    # avoid circular import
-    # pylint: disable=wrong-import-order, wrong-import-position
+    self._validate_transform(transform)
     self.transforms.append(transform)
     return self
 
@@ -457,7 +453,7 @@ class _MLTransformToPTransformMapper:
   """
   def __init__(
       self,
-      transforms: List[Union[BaseOperation, EmbeddingsManager]],
+      transforms: List[MLTransformProvider],
       artifact_location: str,
       artifact_mode: str,
       pipeline_options: Optional[PipelineOptions] = None,
