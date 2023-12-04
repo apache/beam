@@ -1,6 +1,20 @@
 Prompt:
-Is Apache Kafka supported in Apache Beam?
+Is Google BigTable supported in Apache Beam?
 Response:
+BigTable is a Google Cloud service that provides a NoSQL database. Apache Beam provides a BigTableIO connector that allows you to read and write data from and to BigTable.
+
+
+
+
+
+
+
+
+
+
+
+
+-----------------------------------------------
 [PubSub](https://cloud.google.com/pubsub) is a[ Google Cloud](https://cloud.google.com/) service that provides a simple, reliable, scalable, and secure real-time messaging service for sending and receiving messages between independent applications. Apache Beam provides a PubSubIO connector that allows you to read and write messages from and to Pub/Sub.
 Pub/Sub is currently supported only in streaming pipelines.
 

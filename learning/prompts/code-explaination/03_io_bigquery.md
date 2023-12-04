@@ -1,34 +1,40 @@
 Prompt:
 What does this code do?
 ```python
-pipeline_options = PipelineOptions(pipeline_args)
-
+class BigQueryReadTableOptions(PipelineOptions):
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+      "--table",
+      default="bigquery-public-data:samples.github_timeline",
+      help="BigQuery table to read data from")
+      
+options = BigQueryReadTableOptions()
 with beam.Pipeline(options=options) as p:
-    (p | "Read" >> ReadFromPubSub(subscription=input_subscription)
-       | "Process" >> ParDo(ProcessMessage())
-       | "Write" >> WriteToPubSub(topic=output_topic))
+  output = (p | "Read table" >> ReadFromBigQuery(table=options.table)
+  | "Log data" >> Map(logging.info)
+  )
 ```
 
 Response:
-This code reads messages from a [PubSub](https://cloud.google.com/pubsub) subscription `input_subscription` using the `ReadFromPubSub`, processes them, and writes the resulting collection to a PubSub topic `output_topic` using the `WriteToPubSub` transform.
+This code uses Apache Beam [BigQueryIO](https://beam.apache.org/documentation/io/built-in/google-bigquery/) connector to read data from a [BigQuery](https://cloud.google.com/bigquery/docs) table `table`.
 
-PubSub is currently supported only in streaming pipelines.
-
-Reading messages directly from a topic is also supported. In this case a temporary subscription will be created automatically.
-
-`ReadFromPubSub` produces a `PCollection` of `PubsubMessage` objects or a `PCollection` of byte sequences. Behavior is controlled by the `with_attributes` parameter with byte sequences being the default.
-For more on PCollections see the [Beam Programming Guide](https://beam.apache.org/documentation/basics/#pcollection).
-
-Processing of the messages is done by the `ProcessMessage` class. This class is a subclass of the `DoFn` class.
-Simplest implementation of ProcessMesageclass could be something like:
+The BigQueryIO connector supports reading from BigQuery tables, executing queries, and reading from BigQuery Storage API (beta). The BigQueryIO connector supports writing to BigQuery tables in batch and streaming modes.
 
 ```python
-class ProcessMessage(beam.DoFn):
-    def process(self, element):
-        yield element
+output = (p | "Read table" >> ReadFromBigQuery(table=options.table))
 ```
-More on `DoFn` class can be found [here](https://beam.apache.org/documentation/programming-guide/#dofn).
+The `ReadFromBigQuery` transform uses a BigQuery export job to take a snapshot of the table on GCS, and then reads from each produced file. File format is Avro by default.
 
-See [PubSub IO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.pubsub.html) transform documentation for more details.
+Another option would be to use a query to read data from BigQuery.
 
-For a common pattern for configuring pipeline options see here [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/).
+```python
+output = (p | "Read table" >> ReadFromBigQuery(query="SELECT * FROM table"))
+```
+For more information on how to use BigQueryIO connector with Apache Beam Python SDK see [here](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigquery.html).
+
+This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) for a requred `table` argument. The `table` argument is used to specify the BigQuery table to read data from.
+
+For performance metrics of BigQueryIO connector, see [BigQueryIO Performance](https://beam.apache.org/performance/bigquery/).
+
+
