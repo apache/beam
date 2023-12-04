@@ -10,7 +10,7 @@ Transforms have the following key characteristics:
 3. Parallel execution: Designed for distributed processing, allowing simultaneous execution across multiple workers.
 4. Scalability: Able to handle extensive data and suitable for both batch and streaming data.
 
-The Beam SDKs contain different transforms that you can apply to your pipeline’s PCollections. The following list includes common transform types:
+The Beam SDKs contain different transforms that you can apply to your pipeline’s `PCollection` objects. The following list includes common transform types:
  - [Source transforms](https://beam.apache.org/documentation/programming-guide/#pipeline-io) such as `TextIO.Read` and `Create`. A source transform conceptually has no input.
  - [Processing and conversion operations](https://beam.apache.org/documentation/programming-guide/#core-beam-transforms) such as `ParDo`, `GroupByKey`, `CoGroupByKey`, `Combine`, and `Count`.
  - [Outputting transforms](https://beam.apache.org/documentation/programming-guide/#pipeline-io) such as `TextIO.Write`.
@@ -19,7 +19,7 @@ The Beam SDKs contain different transforms that you can apply to your pipeline�
 Transform processing logic is provided in the form of a function object, colloquially referred to as “user code.” This code is applied to each element of the input `PCollection` (or more than one `PCollection`). The `PCollection` objects can be linked together to create complex data processing sequences.
 User code for transforms must satisfy the [requirements of the Beam model](https://beam.apache.org/documentation/programming-guide/#requirements-for-writing-user-code-for-beam-transforms).
 
-Example below shows how to apply custom user code to a `PCollection` using the `ParDo` transform:
+The following example shows how to apply custom user code to a `PCollection` using the `ParDo` transform:
 
 ```python
 import apache_beam as beam
