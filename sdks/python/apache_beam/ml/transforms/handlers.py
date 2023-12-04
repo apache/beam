@@ -154,7 +154,8 @@ class _GetMissingColumns(beam.DoFn):
   def process(self, element):
     id, row_dict = element
     new_dict = {
-        k:v for k, v in row_dict.items() if k not in self.existing_columns
+        k: v
+        for k, v in row_dict.items() if k not in self.existing_columns
     }
     yield (id, new_dict)
 
