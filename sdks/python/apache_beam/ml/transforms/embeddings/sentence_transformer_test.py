@@ -18,8 +18,12 @@ import shutil
 import tempfile
 import unittest
 
+from parameterized import parameterized
+
 import apache_beam as beam
 from apache_beam.ml.transforms.base import MLTransform
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 # pylint: disable=ungrouped-imports
 try:
@@ -37,6 +41,39 @@ except ImportError:
 test_query = "This is a test"
 test_query_column = "feature_1"
 DEFAULT_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
+_parameterized_inputs = [
+    ([{
+        test_query_column: '样例数据-1'
+    }, {
+        test_query_column: '样例数据-2'
+    }, {
+        test_query_column: '样例数据-3'
+    }, {
+        test_query_column: '样例数据-4'
+    }],
+     'BAAI/bge-base-en-v1.5', [0.1091, 0.122, 0.104, 0.1093]),
+    ([{
+        test_query_column: test_query,
+    }], DEFAULT_MODEL_NAME, [0.1342]),
+    (
+        [{
+            test_query_column: 'query: how much protein should a female eat',
+        },
+         {
+             test_query_column: (
+                 "passage: As a general guideline, the CDC's "
+                 "average requirement of protein for women "
+                 "ages 19 to 70 is 46 grams per day. But, "
+                 "as you can see from this chart, you'll need "
+                 "to increase that if you're expecting or training"
+                 " for a marathon. Check out the chart below "
+                 "to see how much protein "
+                 "you should be eating each day.")
+         }],
+        'intfloat/e5-base-v2',
+        # this model requires inputs to be specified as query: and passage:
+        [0.0982, 0.1033]),
+]
 
 
 def get_pipeline_wth_embedding_config(
@@ -99,60 +136,36 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
 
       _ = (transformed_pcoll | beam.Map(assert_element))
 
-  def pipeline_with_configurable_artifact_location(
-      self,
-      pipeline,
-      embedding_config=None,
-      read_artifact_location=None,
-      write_artifact_location=None):
-    if write_artifact_location:
-      return (
-          pipeline
-          | MLTransform(write_artifact_location=write_artifact_location).
-          with_transform(embedding_config))
-    elif read_artifact_location:
-      return (
-          pipeline
-          | MLTransform(read_artifact_location=read_artifact_location))
-    else:
-      raise NotImplementedError
+  @parameterized.expand(_parameterized_inputs)
+  def test_embeddings_with_read_artifact_location(
+      self, inputs, model_name, output):
+    embedding_config = SentenceTransformerEmbeddings(
+        model_name=model_name, columns=[test_query_column])
 
-  def test_embeddings_with_read_artifact_location(self):
     with beam.Pipeline() as p:
-      model_name = DEFAULT_MODEL_NAME
-      embedding_config = SentenceTransformerEmbeddings(
-          model_name=model_name, columns=[test_query_column])
+      result_pcoll = (
+          p
+          | "CreateData" >> beam.Create(inputs)
+          | "MLTransform" >> MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  embedding_config))
+      max_ele_pcoll = (
+          result_pcoll
+          | beam.Map(lambda x: round(max(x[test_query_column]), 4)))
 
-      with beam.Pipeline() as p:
-        data = (
-            p
-            | "CreateData" >> beam.Create([{
-                test_query_column: test_query
-            }]))
-        _ = self.pipeline_with_configurable_artifact_location(
-            pipeline=data,
-            embedding_config=embedding_config,
-            write_artifact_location=self.artifact_location)
+      assert_that(max_ele_pcoll, equal_to(output))
 
-      with beam.Pipeline() as p:
-        data = (
-            p
-            | "CreateData" >> beam.Create([{
-                test_query_column: test_query
-            }, {
-                test_query_column: test_query
-            }]))
-        result_pcoll = self.pipeline_with_configurable_artifact_location(
-            pipeline=data, read_artifact_location=self.artifact_location)
+    with beam.Pipeline() as p:
+      result_pcoll = (
+          p
+          | "CreateData" >> beam.Create(inputs)
+          | "MLTransform" >>
+          MLTransform(read_artifact_location=self.artifact_location))
+      max_ele_pcoll = (
+          result_pcoll
+          | beam.Map(lambda x: round(max(x[test_query_column]), 4)))
 
-        def assert_element(element):
-          assert round(element, 2) == 0.13
-
-        _ = (
-            result_pcoll
-            | beam.Map(lambda x: max(x[test_query_column]))
-            #  0.1342099905014038
-            | beam.Map(assert_element))
+      assert_that(max_ele_pcoll, equal_to(output))
 
   def test_sentence_transformer_with_int_data_types(self):
     model_name = DEFAULT_MODEL_NAME
@@ -169,43 +182,36 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
                 write_artifact_location=self.artifact_location).with_transform(
                     embedding_config))
 
-  def test_with_gcs_artifact_location(self):
+  @parameterized.expand(_parameterized_inputs)
+  def test_with_gcs_artifact_location(self, inputs, model_name, output):
     artifact_location = ('gs://apache-beam-ml/testing/sentence_transformers')
+    embedding_config = SentenceTransformerEmbeddings(
+        model_name=model_name, columns=[test_query_column])
+
     with beam.Pipeline() as p:
-      model_name = DEFAULT_MODEL_NAME
-      embedding_config = SentenceTransformerEmbeddings(
-          model_name=model_name, columns=[test_query_column])
+      result_pcoll = (
+          p
+          | "CreateData" >> beam.Create(inputs)
+          | "MLTransform" >>
+          MLTransform(write_artifact_location=artifact_location).with_transform(
+              embedding_config))
+      max_ele_pcoll = (
+          result_pcoll
+          | beam.Map(lambda x: round(max(x[test_query_column]), 4)))
 
-      with beam.Pipeline() as p:
-        data = (
-            p
-            | "CreateData" >> beam.Create([{
-                test_query_column: test_query
-            }]))
-        _ = self.pipeline_with_configurable_artifact_location(
-            pipeline=data,
-            embedding_config=embedding_config,
-            write_artifact_location=artifact_location)
+      assert_that(max_ele_pcoll, equal_to(output))
 
-      with beam.Pipeline() as p:
-        data = (
-            p
-            | "CreateData" >> beam.Create([{
-                test_query_column: test_query
-            }, {
-                test_query_column: test_query
-            }]))
-        result_pcoll = self.pipeline_with_configurable_artifact_location(
-            pipeline=data, read_artifact_location=artifact_location)
+    with beam.Pipeline() as p:
+      result_pcoll = (
+          p
+          | "CreateData" >> beam.Create(inputs)
+          | "MLTransform" >>
+          MLTransform(read_artifact_location=artifact_location))
+      max_ele_pcoll = (
+          result_pcoll
+          | beam.Map(lambda x: round(max(x[test_query_column]), 4)))
 
-        def assert_element(element):
-          assert round(element, 2) == 0.13
-
-        _ = (
-            result_pcoll
-            | beam.Map(lambda x: max(x[test_query_column]))
-            #  0.1342099905014038
-            | beam.Map(assert_element))
+      assert_that(max_ele_pcoll, equal_to(output))
 
 
 if __name__ == '__main__':
