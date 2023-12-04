@@ -446,7 +446,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     keyed_raw_data = (raw_data | beam.ParDo(_ComputeAndAttachUniqueID()))
 
     feature_set = [feature.name for feature in raw_data_metadata.schema.feature]
-    columns_not_in_schema_with_hash = (
+    keyed_columns_not_in_schema = (
         keyed_raw_data
         | beam.ParDo(_GetMissingColumns(feature_set)))
 
@@ -504,7 +504,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       # join the missing columns from the raw_data to the transformed_dataset
       # using the hash key.
       transformed_dataset = (
-          (transformed_dataset, columns_not_in_schema_with_hash)
+          (transformed_dataset, keyed_columns_not_in_schema)
           | beam.CoGroupByKey()
           | beam.ParDo(_MergeDicts()))
 
