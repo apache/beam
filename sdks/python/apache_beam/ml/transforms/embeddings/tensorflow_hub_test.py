@@ -21,7 +21,7 @@ import unittest
 import apache_beam as beam
 from apache_beam.ml.transforms.base import MLTransform
 
-hub_url = 'https://tfhub.dev/google/LEALLA/LEALLA-small/1'
+hub_url = 'https://tfhub.dev/google/nnlm-en-dim128/2'
 test_query_column = 'test_query'
 test_query = 'This is a test query'
 
@@ -134,12 +134,12 @@ class TFHubEmbeddingsTest(unittest.TestCase):
             pipeline=data, read_artifact_location=self.artifact_location)
 
         def assert_element(element):
-          assert round(element, 2) == 0.21
+          #  0.29836970567703247
+          assert round(element, 2) == 0.3
 
         _ = (
             result_pcoll
             | beam.Map(lambda x: max(x[test_query_column]))
-            #  0.14797046780586243
             | beam.Map(assert_element))
 
   def test_with_int_data_types(self):
@@ -185,12 +185,12 @@ class TFHubEmbeddingsTest(unittest.TestCase):
             pipeline=data, read_artifact_location=artifact_location)
 
         def assert_element(element):
-          assert round(element, 2) == 0.21
+          # 0.29836970567703247
+          assert round(element, 2) == 0.3
 
         _ = (
             result_pcoll
             | beam.Map(lambda x: max(x[test_query_column]))
-            #  0.14797046780586243
             | beam.Map(assert_element))
 
 

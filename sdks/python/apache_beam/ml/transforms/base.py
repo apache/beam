@@ -93,26 +93,15 @@ class PTransformProvider:
   Data processing transforms that are intended to be used with MLTransform
   should subclass PTransformProvider and implement the following methods:
   1. get_ptransform_for_processing()
-  2. requires_chaining()
 
   get_ptransform_for_processing() method should return a PTransform that can be
   used to process the data.
 
-  requires_chaining() method should return True if the data processing
-  transforms needs to be chained sequentially with compatible data processing
-  transforms.
   """
   @abc.abstractmethod
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     """
     Returns a PTransform that can be used to process the data.
-    """
-
-  @abc.abstractmethod
-  def requires_chaining(self):
-    """
-    Returns True if the data processing transforms needs to be chained
-    sequentially with compatible data processing transforms.
     """
 
   def get_counter(self):
@@ -195,10 +184,6 @@ class EmbeddingsManager(PTransformProvider):
     """
     Return framework specific model handler.
     """
-
-  def requires_chaining(self):
-    # each embedding config requires a separate PTransform. so no chaining.
-    return False
 
   def get_columns_to_apply(self):
     return self.columns
@@ -495,15 +480,14 @@ class _MLTransformToPTransformMapper:
           artifact_location=os.path.join(
               self._parent_artifact_location, uuid.uuid4().hex[:6]),
           artifact_mode=self.artifact_mode)
-      # Determine if a new ptransform should be added to the list
-      is_different_type = (type(current_ptransform) != previous_ptransform_type)
-      if is_different_type or not transform.requires_chaining():
+      append_transform = hasattr(current_ptransform, 'append_transform')
+      if (type(current_ptransform) != previous_ptransform_type) or not append_transform:
         ptransform_list.append(current_ptransform)
         previous_ptransform_type = type(current_ptransform)
-
-      if hasattr(ptransform_list[-1], 'append_transform'):
+      # If different PTransform is appended to the list and the PTransform
+      # supports append_transform, append the transform to the PTransform.
+      if append_transform:
         ptransform_list[-1].append_transform(transform)
-
     return ptransform_list
 
   def save_transforms_in_artifact_location(self, ptransform_list):

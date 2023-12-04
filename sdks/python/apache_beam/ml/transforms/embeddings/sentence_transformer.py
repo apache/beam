@@ -123,6 +123,3 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
     # wrap the model handler in a _TextEmbeddingHandler since
     # the SentenceTransformerEmbeddings works on text input data.
     return (RunInference(model_handler=_TextEmbeddingHandler(self)))
-
-  def requires_chaining(self):
-    return False

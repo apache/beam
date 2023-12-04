@@ -45,7 +45,7 @@ class _TensorflowHubModelHandler(TFModelHandlerTensor):
   def load_model(self):
     # unable to load the models with tf.keras.models.load_model so
     # using hub.KerasLayer instead
-    model = hub.KerasLayer(self._model_uri)
+    model = hub.KerasLayer(self._model_uri, )
     return model
 
   def _convert_prediction_result_to_list(
