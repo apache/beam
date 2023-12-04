@@ -181,13 +181,15 @@ class _ExtractIdAndKeyPColl(beam.DoFn):
 
 class _MergeDicts(beam.DoFn):
   """
-  Merges the dictionaries in the PCollection.
+  Merges processed and unprocessed columns from CoGBK result into a single row.
   """
   def process(self, element):
-    _, element = element
+    unused_row_id, row_dicts_tuple = element
     new_dict = {}
-    # Assertion could fail due to UUID collision.
-    for d in element:
+    for d in row_dicts_tuple:
+      # After CoGBK, dicts with processed and unprocessed portions of each row
+      # are wrapped in 1-element lists, since all rows have a unique id.
+      # Assertion could fail due to UUID collision.
       assert len(d) == 1, f"Expected 1 element, got: {len(d)}."
       new_dict.update(d[0])
     yield new_dict
