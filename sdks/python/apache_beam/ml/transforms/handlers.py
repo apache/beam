@@ -126,9 +126,6 @@ class _ConvertNamedTupleToDict(
 class _ComputeAndAttachUniqueID(beam.DoFn):
   """
   Computes and attaches a unique id to each element in the PCollection.
-  unique id is computed by hashing the element and adding a unique suffix
-  to the hash key to avoid possible collisions.
-  Only for internal use. No backwards compatibility guarantees.
   """
   def process(self, element):
     # UUID1 includes machine-specific bits and has a counter. As long as not too
@@ -150,8 +147,6 @@ class _GetMissingColumnsPColl(beam.DoFn):
   Returns data containing only the columns that are not
   present in the schema. This is needed since TFT only outputs
   columns that are transformed by any of the data processing transforms.
-
-  Only for internal use. No backwards compatibility guarantees.
   """
   def __init__(self, existing_columns):
     self.existing_columns = existing_columns
@@ -168,8 +163,6 @@ class _GetMissingColumnsPColl(beam.DoFn):
 class _MakeHashKeyAsColumn(beam.DoFn):
   """
   Extracts the hash key from the element and adds it as a column.
-
-  Only for internal use. No backwards compatibility guarantees.
   """
   def process(self, element):
     hash_key, element = element
@@ -180,8 +173,6 @@ class _MakeHashKeyAsColumn(beam.DoFn):
 class _ExtractHashAndKeyPColl(beam.DoFn):
   """
   Extracts the hash key and return hashkey and element as a tuple.
-
-  Only for internal use. No backwards compatibility guarantees.
   """
   def process(self, element):
     hashkey = element[_HASH_KEY][0]
@@ -192,8 +183,6 @@ class _ExtractHashAndKeyPColl(beam.DoFn):
 class _MergeDicts(beam.DoFn):
   """
   Merges the dictionaries in the PCollection.
-
-  Only for internal use. No backwards compatibility guarantees.
   """
   def process(self, element):
     _, element = element
