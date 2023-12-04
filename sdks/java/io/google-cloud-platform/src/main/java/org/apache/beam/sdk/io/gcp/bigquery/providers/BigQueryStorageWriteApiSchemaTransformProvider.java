@@ -99,6 +99,15 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
   }
 
   @Override
+  public String description() {
+    return String.format(
+        "Writes data to BigQuery using the new Storage Write API.\n\nThis expects a single PCollection of Beam Rows "
+            + "and outputs two dead-letter queues (DLQ) that contain failed rows. The first DLQ has tag [%s] and contains "
+            + "the failed rows. The second DLQ has tag [%s] and contains failed rows and along with their respective errors.",
+        FAILED_ROWS_TAG, FAILED_ROWS_WITH_ERRORS_TAG);
+  }
+
+  @Override
   public List<String> inputCollectionNames() {
     return Collections.singletonList(INPUT_ROWS_TAG);
   }

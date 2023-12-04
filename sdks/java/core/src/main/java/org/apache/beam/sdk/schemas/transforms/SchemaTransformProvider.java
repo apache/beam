@@ -37,6 +37,19 @@ public interface SchemaTransformProvider {
   String identifier();
 
   /**
+   * Returns a description which will be used to generate documentation for remote SDKs. This is
+   * reserved for how to build and use this SchemaTransform without getting into the specifics of
+   * each configuration field (that can go in the {@link
+   * org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription} annotations). Potentially
+   * include what the transform does, what the expected input/output PCollections look like, and any
+   * interesting use-cases. Please keep the language generic (i.e. not specific to any programming
+   * language). May be markdown formatted.
+   */
+  default String description() {
+    return "";
+  }
+
+  /**
    * Returns the expected schema of the configuration object. Note this is distinct from the schema
    * of the transform itself.
    */
