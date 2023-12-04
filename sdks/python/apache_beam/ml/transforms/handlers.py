@@ -49,7 +49,7 @@ __all__ = [
     'TFTProcessHandler',
 ]
 
-_HASH_KEY = 'hash_key'
+_ID_COLUMN = 'tmp_uuid'  # Name for a temporary column.
 
 RAW_DATA_METADATA_DIR = 'raw_data_metadata'
 SCHEMA_FILE = 'schema.pbtxt'
@@ -160,13 +160,13 @@ class _GetMissingColumnsPColl(beam.DoFn):
     yield (hash_key, new_dict)
 
 
-class _MakeHashKeyAsColumn(beam.DoFn):
+class _MakeIdAsColumn(beam.DoFn):
   """
-  Extracts the hash key from the element and adds it as a column.
+  Extracts the id from the element and adds it as a column instead.
   """
   def process(self, element):
-    hash_key, element = element
-    element[_HASH_KEY] = hash_key
+    id, element = element
+    element[_ID_COLUMN] = id
     yield element
 
 
@@ -175,8 +175,8 @@ class _ExtractHashAndKeyPColl(beam.DoFn):
   Extracts the hash key and return hashkey and element as a tuple.
   """
   def process(self, element):
-    hashkey = element[_HASH_KEY][0]
-    del element[_HASH_KEY]
+    hashkey = element[_ID_COLUMN][0]
+    del element[_ID_COLUMN]
     yield (hashkey, element)
 
 
@@ -322,7 +322,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
   def get_raw_data_metadata(
       self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
     raw_data_feature_spec = self.get_raw_data_feature_spec(input_types)
-    raw_data_feature_spec[_HASH_KEY] = tf.io.VarLenFeature(dtype=tf.string)
+    raw_data_feature_spec[_ID_COLUMN] = tf.io.VarLenFeature(dtype=tf.string)
     return self.convert_raw_data_feature_spec_to_dataset_metadata(
         raw_data_feature_spec)
 
@@ -458,7 +458,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     keyed_raw_data = keyed_raw_data | beam.ParDo(
         _ConvertScalarValuesToListValues())
 
-    raw_data_list = (keyed_raw_data | beam.ParDo(_MakeHashKeyAsColumn()))
+    raw_data_list = (keyed_raw_data | beam.ParDo(_MakeIdAsColumn()))
 
     with tft_beam.Context(temp_dir=self.artifact_location):
       data = (raw_data_list, raw_data_metadata)
@@ -489,7 +489,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       # So we will use a RowTypeConstraint to create a schema'd PCollection.
       # this is needed since new columns are included in the
       # transformed_dataset.
-      del self.transformed_schema[_HASH_KEY]
+      del self.transformed_schema[_ID_COLUMN]
       row_type = RowTypeConstraint.from_fields(
           list(self.transformed_schema.items()))
 
