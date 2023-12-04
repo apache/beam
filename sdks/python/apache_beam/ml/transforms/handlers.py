@@ -142,7 +142,7 @@ class _ComputeAndAttachUniqueID(beam.DoFn):
     yield (unique_key, element)
 
 
-class _GetMissingColumnsPColl(beam.DoFn):
+class _GetMissingColumns(beam.DoFn):
   """
   Returns data containing only the columns that are not
   present in the schema. This is needed since TFT only outputs
@@ -152,12 +152,11 @@ class _GetMissingColumnsPColl(beam.DoFn):
     self.existing_columns = existing_columns
 
   def process(self, element):
-    new_dict = {}
-    hash_key, element = element
-    for key, value in element.items():
-      if key not in self.existing_columns:
-        new_dict[key] = value
-    yield (hash_key, new_dict)
+    id, row_dict = element
+    new_dict = {
+        k:v for k, v in row_dict.items() if k not in self.existing_columns
+    }
+    yield (id, new_dict)
 
 
 class _MakeIdAsColumn(beam.DoFn):
@@ -449,7 +448,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     feature_set = [feature.name for feature in raw_data_metadata.schema.feature]
     columns_not_in_schema_with_hash = (
         keyed_raw_data
-        | beam.ParDo(_GetMissingColumnsPColl(feature_set)))
+        | beam.ParDo(_GetMissingColumns(feature_set)))
 
     # To maintain consistency by outputting numpy array all the time,
     # whether a scalar value or list or np array is passed as input,
