@@ -62,7 +62,7 @@ public final class DataflowExecutionStateSampler extends ExecutionStateSampler {
     this.activeTrackersByWorkId.put(dfTracker.getWorkItemId(), dfTracker);
   }
 
-  private Map<String, IntSummaryStatistics> mergeStepStatsMaps(
+  private static Map<String, IntSummaryStatistics> mergeStepStatsMaps(
       Map<String, IntSummaryStatistics> map1, Map<String, IntSummaryStatistics> map2) {
     for (Entry<String, IntSummaryStatistics> steps : map2.entrySet()) {
       map1.compute(
