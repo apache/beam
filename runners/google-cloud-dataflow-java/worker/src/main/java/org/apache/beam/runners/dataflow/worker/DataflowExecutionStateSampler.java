@@ -38,8 +38,8 @@ public final class DataflowExecutionStateSampler extends ExecutionStateSampler {
 
   private final ConcurrentHashMap<String, DataflowExecutionStateTracker> activeTrackersByWorkId =
       new ConcurrentHashMap<>();
-  private final ConcurrentHashMap<String, Map<String, IntSummaryStatistics>> completedProcessingMetrics =
-      new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, Map<String, IntSummaryStatistics>>
+      completedProcessingMetrics = new ConcurrentHashMap<>();
 
   public static DataflowExecutionStateSampler instance() {
     return INSTANCE;
