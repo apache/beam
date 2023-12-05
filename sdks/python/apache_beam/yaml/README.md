@@ -44,9 +44,6 @@ or consumption (e.g. a lineage analysis tool) and expect it to be more
 easily manipulated and semantically meaningful than the Beam protos
 themselves (which concern themselves more with execution).
 
-It should be noted that everything here is still EXPERIMENTAL and subject
-to change. Feedback is welcome at dev@apache.beam.org.
-
 ## Example pipelines
 
 Here is a simple pipeline that reads some data from csv files and
