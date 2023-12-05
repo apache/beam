@@ -163,11 +163,11 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Reads by default use the <a
  * href="https://cloud.google.com/spanner/docs/reads#read_data_in_parallel">PartitionQuery API</a>
- * which enforces some limitations on the type of queries that can be used so that the data can
- * be read in parallel. If the query is not supported by the PartitionQuery API, then you can
- * specify a non-partitioned read by setting {@link Read#withBatching(boolean) withBatching(false)}.
- * If the amount of data being read by a non-partitioned read is very large, it may be useful to add
- * a {@link Reshuffle#viaRandomKey()} transform on the output so that the downstream transforms can
+ * which enforces some limitations on the type of queries that can be used so that the data can be
+ * read in parallel. If the query is not supported by the PartitionQuery API, then you can specify a
+ * non-partitioned read by setting {@link Read#withBatching(boolean) withBatching(false)}. If the
+ * amount of data being read by a non-partitioned read is very large, it may be useful to add a
+ * {@link Reshuffle#viaRandomKey()} transform on the output so that the downstream transforms can
  * run in parallel.
  *
  * <p>To read an entire <strong>Table</strong>, use {@link Read#withTable(String)} and optionally
@@ -237,7 +237,7 @@ import org.slf4j.LoggerFactory;
  * partitioned read on each of them using the same Read Only Transaction for consistent results.
  *
  * <p>Note that this transform should <strong>not</strong> be used in Streaming pipelines. This is
- * because the same Read Only Transaction, which is created once when the pipeline id first
+ * because the same Read Only Transaction, which is created once when the pipeline is first
  * executed, will be used for all reads. The data being read will therefore become stale, and if no
  * reads are made for more than 1 hour, the transaction will automatically timeout and be closed by
  * the Spanner server, meaning that any subsequent reads will fail.
