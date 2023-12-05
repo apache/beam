@@ -45,7 +45,7 @@ class _TensorflowHubModelHandler(TFModelHandlerTensor):
   def load_model(self):
     # unable to load the models with tf.keras.models.load_model so
     # using hub.KerasLayer instead
-    model = hub.KerasLayer(self._model_uri, )
+    model = hub.KerasLayer(self._model_uri, **self._load_model_args)
     return model
 
   def _convert_prediction_result_to_list(
@@ -121,4 +121,8 @@ class TensorflowHubTextEmbeddings(EmbeddingsManager):
     )
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
-    return (RunInference(model_handler=_TextEmbeddingHandler(self)))
+    return (
+        RunInference(
+            model_handler=_TextEmbeddingHandler(self),
+            inference_args=self.inference_args,
+        ))

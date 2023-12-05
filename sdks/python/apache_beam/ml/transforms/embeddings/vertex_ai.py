@@ -155,4 +155,7 @@ class VertexAITextEmbeddings(EmbeddingsManager):
     )
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
-    return (RunInference(model_handler=_TextEmbeddingHandler(self)))
+    return (
+        RunInference(
+            model_handler=_TextEmbeddingHandler(self),
+            inference_args=self.inference_args))
