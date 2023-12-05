@@ -1169,11 +1169,8 @@ public class BigtableIO {
       Duration closeWaitTimeout = null;
       if (closeWaitTimeoutStr != null) {
         long closeWaitTimeoutMs = Long.parseLong(closeWaitTimeoutStr);
-        if (closeWaitTimeoutMs < 0) {
-          throw new RuntimeException("Close wait timeout must be positive " + closeWaitTimeoutMs);
-        } else {
-          closeWaitTimeout = Duration.millis(closeWaitTimeoutMs);
-        }
+        checkState(closeWaitTimeoutMs > 0, "Close wait timeout must be positive");
+        closeWaitTimeout = Duration.millis(closeWaitTimeoutMs);
       }
 
       return input.apply(
@@ -1284,10 +1281,7 @@ public class BigtableIO {
             entry.getKey().maxTimestamp(),
             entry.getKey());
       }
-    }
 
-    @Teardown
-    public void tearDown() throws Exception {
       if (serviceEntry != null) {
         serviceEntry.close();
         serviceEntry = null;

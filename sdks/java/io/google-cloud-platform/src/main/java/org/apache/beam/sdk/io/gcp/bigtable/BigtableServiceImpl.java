@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.co
 
 import com.google.api.core.ApiFuture;
 import com.google.api.gax.batching.Batcher;
+import com.google.api.gax.batching.BatchingException;
 import com.google.api.gax.grpc.GrpcCallContext;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.ResponseObserver;
@@ -491,8 +492,8 @@ class BigtableServiceImpl implements BigtableService {
       this.projectId = projectId;
       this.instanceId = instanceId;
       this.tableId = tableId;
-      this.bulkMutation = client.newBulkMutationBatcher(tableId);
       this.closeWaitTimeout = closeWaitTimeout;
+      this.bulkMutation = client.newBulkMutationBatcher(tableId);
     }
 
     @Override
@@ -513,11 +514,16 @@ class BigtableServiceImpl implements BigtableService {
           outstandingMutations = 0;
           stopwatch.stop();
           latency.update(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        } catch (BatchingException e) {
+          // Ignore batching failures because element failures are tracked as is in
+          // BigtableIOWriteFn.
+          // TODO: Bigtable client already tracks BatchingExceptions, use BatchingExceptions
+          // instead of tracking them separately in BigtableIOWriteFn.
         } catch (TimeoutException e) {
           // We fail because future.get() timed out
           throw new IOException("BulkMutation took too long to close", e);
         } catch (ExecutionException e) {
-          throw new IOException("ExecutionException when closing the BulkMutation", e.getCause());
+          throw new IOException("Failed to close batch", e.getCause());
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           // We fail since close() operation was interrupted.
