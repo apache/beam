@@ -323,17 +323,15 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     Returns:
       A MLTransform instance.
     """
-    # every data processing transform should subclass MLTransformProvider. Raise
-    # an error if the transform does not subclass MLTransformProvider since the
-    # downstream code expects the transform to be a subclass of
-    # MLTransformProvider.
-    if not isinstance(transform, MLTransformProvider):
-      raise TypeError(
-          'transform must be a subclass of MLTransformProvider and implement '
-          'get_ptransform_for_processing() method.'
-          'Got: %s instead.' % type(transform))
+    self._validate_transform(transform)
     self.transforms.append(transform)
     return self
+
+  def _validate_transform(self, transform):
+    if not isinstance(transform, MLTransformProvider):
+      raise TypeError(
+          'transform must be a subclass of BaseOperation. '
+          'Got: %s instead.' % type(transform))
 
 
 class MLTransformMetricsUsage(beam.PTransform):
@@ -536,7 +534,9 @@ class _TextEmbeddingHandler(ModelHandler):
 
   def _validate_column_data(self, batch):
     if not isinstance(batch[0], (str, bytes)):
-      raise TypeError('Embeddings can only be generated on text columns.')
+      raise TypeError(
+          'Embeddings can only be generated on Dict[str, str].'
+          f'Got Dict[str, {type(batch[0])}] instead.')
 
   def _validate_batch(self, batch: Sequence[Dict[str, List[str]]]):
     if not batch or not isinstance(batch[0], dict):
