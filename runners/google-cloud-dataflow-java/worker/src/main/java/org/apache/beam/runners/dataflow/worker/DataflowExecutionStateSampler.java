@@ -19,10 +19,10 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.HashMap;
 import java.util.IntSummaryStatistics;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
@@ -36,10 +36,10 @@ public final class DataflowExecutionStateSampler extends ExecutionStateSampler {
   private static final DataflowExecutionStateSampler INSTANCE =
       new DataflowExecutionStateSampler(SYSTEM_MILLIS_PROVIDER);
 
-  private final HashMap<String, DataflowExecutionStateTracker> activeTrackersByWorkId =
-      new HashMap<>();
-  private final HashMap<String, Map<String, IntSummaryStatistics>> completedProcessingMetrics =
-      new HashMap<>();
+  private final ConcurrentHashMap<String, DataflowExecutionStateTracker> activeTrackersByWorkId =
+      new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, Map<String, IntSummaryStatistics>> completedProcessingMetrics =
+      new ConcurrentHashMap<>();
 
   public static DataflowExecutionStateSampler instance() {
     return INSTANCE;
@@ -125,11 +125,11 @@ public final class DataflowExecutionStateSampler extends ExecutionStateSampler {
     }
     DataflowExecutionStateTracker tracker = activeTrackersByWorkId.get(workId);
     return mergeStepStatsMaps(
-        completedProcessingMetrics.getOrDefault(workId, new HashMap<>()),
+        completedProcessingMetrics.getOrDefault(workId, new ConcurrentHashMap<>()),
         tracker.getProcessingTimesByStep());
   }
 
-  public synchronized void resetForWorkId(String workId) {
+  public void resetForWorkId(String workId) {
     completedProcessingMetrics.remove(workId);
   }
 }
