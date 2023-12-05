@@ -39,7 +39,8 @@ from vertexai.language_models import TextEmbeddingModel
 
 __all__ = ["VertexAITextEmbeddings"]
 
-TASK_TYPE = "RETRIEVAL_DOCUMENT"
+DEFAULT_TASK_TYPE = "RETRIEVAL_DOCUMENT"
+# TODO: Can this list be automatically pulled from Vertex SDK?
 TASK_TYPE_INPUTS = [
     "RETRIEVAL_DOCUMENT",
     "RETRIEVAL_QUERY",
@@ -47,6 +48,7 @@ TASK_TYPE_INPUTS = [
     "CLASSIFICATION",
     "CLUSTERING"
 ]
+_BATCH_SIZE = 5  # Vertex AI limits requests to 5 at a time.
 
 
 class _VertexAITextEmbeddingHandler(ModelHandler):
@@ -57,7 +59,7 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
       self,
       model_name: str,
       title: Optional[str] = None,
-      task_type: str = TASK_TYPE,
+      task_type: str = DEFAULT_TASK_TYPE,
       project: Optional[str] = None,
       location: Optional[str] = None,
       credentials: Optional[Credentials] = None,
@@ -77,7 +79,7 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
       inference_args: Optional[Dict[str, Any]] = None,
   ) -> Iterable:
     embeddings = []
-    batch_size = 5  # Vertex AI limits requests to 5 at a time.
+    batch_size = _BATCH_SIZE
     for i in range(0, len(batch), batch_size):
       text_batch = batch[i:i + batch_size]
       text_batch = [
@@ -100,7 +102,7 @@ class VertexAITextEmbeddings(EmbeddingsManager):
       model_name: str,
       columns: List[str],
       title: Optional[str] = None,
-      task_type: str = TASK_TYPE,
+      task_type: str = DEFAULT_TASK_TYPE,
       project: Optional[str] = None,
       location: Optional[str] = None,
       credentials: Optional[Credentials] = None,
