@@ -74,6 +74,7 @@
 * Running multi-language pipelines locally no longer requires Docker.
   Instead, the same (generally auto-started) subprocess used to perform the
   expansion can also be used as the cross-language worker.
+* Framework for adding Error Handlers to composite transforms added in Java ([#29164](https://github.com/apache/beam/pull/29164))
 
 ## Breaking Changes
 
