@@ -833,7 +833,7 @@ template; please adjust as you see fit.
     Reviewers are encouraged to test their own use cases with the release candidate, and vote +1 if
     no issues are found. Only PMC member votes will count towards the final vote, but votes from all
     community members is encouraged and helpful for finding regressions; you can either test your own
-    use cases or use cases from the validation sheet [10].
+    use cases [13] or use cases from the validation sheet [10].
 
     The complete staging area is available for your review, which includes:
     * GitHub Release notes [1],
@@ -850,7 +850,7 @@ template; please adjust as you see fit.
 
     The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
-    For guidelines on how to try the release in your projects, check out our blog post at /blog/validate-beam-release/.
+    For guidelines on how to try the release in your projects, check out our RC testing guide [13].
 
     Thanks,
     Release Manager
@@ -867,6 +867,7 @@ template; please adjust as you see fit.
     [10] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
     [11] https://hub.docker.com/search?q=apache%2Fbeam&type=image
     [12] https://github.com/apache/beam/pull/...
+    [13] https://github.com/apache/beam/blob/master/contributor-docs/release-guide.md
 
 If there are any issues found in the release candidate, reply on the vote
 thread to cancel the vote.  There’s no need to wait 72 hours. Go back to

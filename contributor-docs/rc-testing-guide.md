@@ -48,7 +48,7 @@ _Note: Do the following in a dev-like environment._
 - If you are a Java SDK user that utilizes Maven or Gradle in your workflow, in your `pom.xml` file, modify the `beam.version` to reflect the newest RC, and modify the `<url>` tag under `<repository>`, to point to the repository given in the vote email. [Example Changes](https://github.com/GoogleCloudPlatform/DataflowTemplates/pull/1090/files).
 
 
-##Ideas for Go SDK Validators
+## Ideas for Go SDK Validators
 _Note: Do the following in a dev-like environment._
 - If you utilize the Go SDK, use `go-get` to use the desired RC, for example, `go get -d github.com/apache/beam/sdks/v2@v2.xx.0-RC1`
 - Utilize the `--environment_config`, to point to the new release, for example, `--environment_config=apache/beam_go_sdk:2.44.0rc1`
