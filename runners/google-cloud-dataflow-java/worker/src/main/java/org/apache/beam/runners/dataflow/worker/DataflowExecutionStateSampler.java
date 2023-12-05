@@ -36,8 +36,8 @@ public final class DataflowExecutionStateSampler extends ExecutionStateSampler {
   private static final DataflowExecutionStateSampler INSTANCE =
       new DataflowExecutionStateSampler(SYSTEM_MILLIS_PROVIDER);
 
-  private HashMap<String, DataflowExecutionStateTracker> activeTrackersByWorkId = new HashMap<>();
-  private HashMap<String, Map<String, IntSummaryStatistics>> completedProcessingMetrics =
+  private final HashMap<String, DataflowExecutionStateTracker> activeTrackersByWorkId = new HashMap<>();
+  private final HashMap<String, Map<String, IntSummaryStatistics>> completedProcessingMetrics =
       new HashMap<>();
 
   public static DataflowExecutionStateSampler instance() {
