@@ -138,9 +138,9 @@ public class DataflowExecutionContextTest {
 
     // After entering a process state, we should have an active message tracked.
     ActiveMessageMetadata expectedMetadata =
-        new ActiveMessageMetadata(NameContextsForTests.nameContextForTest().userName(), 1l);
+        ActiveMessageMetadata.create(NameContextsForTests.nameContextForTest().userName(), 1l);
     Assert.assertEquals(
-        expectedMetadata.userStepName, tracker.getActiveMessageMetadata().userStepName);
+        expectedMetadata.userStepName(), tracker.getActiveMessageMetadata().userStepName());
 
     closure.close();
 
@@ -181,8 +181,8 @@ public class DataflowExecutionContextTest {
         new HashSet<>(Arrays.asList(NameContextsForTests.nameContextForTest().userName())),
         gotProcessingTimes.keySet());
     ActiveMessageMetadata expectedMetadata =
-        new ActiveMessageMetadata(NameContextsForTests.nameContextForTest().userName(), 1l);
+        ActiveMessageMetadata.create(NameContextsForTests.nameContextForTest().userName(), 1l);
     Assert.assertEquals(
-        expectedMetadata.userStepName, tracker.getActiveMessageMetadata().userStepName);
+        expectedMetadata.userStepName(), tracker.getActiveMessageMetadata().userStepName());
   }
 }

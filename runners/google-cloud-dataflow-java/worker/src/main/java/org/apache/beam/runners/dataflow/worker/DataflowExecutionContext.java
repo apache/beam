@@ -316,7 +316,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
             recordActiveMessageInProcessingTimesMap();
           }
           this.activeMessageMetadata =
-              new ActiveMessageMetadata(newDFState.getStepName().userName(), clock.getMillis());
+              ActiveMessageMetadata.create(newDFState.getStepName().userName(), clock.getMillis());
         }
         elementExecutionTracker.enter(newDFState.getStepName());
       }
@@ -354,12 +354,12 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         return;
       }
       this.processingTimesByStep.compute(
-          this.activeMessageMetadata.userStepName,
+          this.activeMessageMetadata.userStepName(),
           (k, v) -> {
             if (v == null) {
               v = new IntSummaryStatistics();
             }
-            v.accept((int) (System.currentTimeMillis() - this.activeMessageMetadata.startTime));
+            v.accept((int) (System.currentTimeMillis() - this.activeMessageMetadata.startTime()));
             return v;
           });
       this.activeMessageMetadata = null;

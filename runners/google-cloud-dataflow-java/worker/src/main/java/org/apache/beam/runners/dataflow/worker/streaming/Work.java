@@ -110,7 +110,7 @@ public class Work implements Runnable {
   }
 
   public Collection<Windmill.LatencyAttribution> getLatencyAttributions(
-      Boolean isHeartbeat, String workId, DataflowExecutionStateSampler sampler) {
+      boolean isHeartbeat, String workId, DataflowExecutionStateSampler sampler) {
     List<Windmill.LatencyAttribution> list = new ArrayList<>();
     for (Windmill.LatencyAttribution.State state : Windmill.LatencyAttribution.State.values()) {
       Duration duration = totalDurationPerState.getOrDefault(state, Duration.ZERO);
@@ -132,7 +132,7 @@ public class Work implements Runnable {
   }
 
   private static LatencyAttribution.Builder addActiveLatencyBreakdownToBuilder(
-      Boolean isHeartbeat,
+      boolean isHeartbeat,
       LatencyAttribution.Builder builder,
       String workId,
       DataflowExecutionStateSampler sampler) {
@@ -142,10 +142,10 @@ public class Work implements Runnable {
       if (activeMessage == null) {
         return builder;
       }
-      stepBuilder.setUserStepName(activeMessage.userStepName);
+      stepBuilder.setUserStepName(activeMessage.userStepName());
       ActiveElementMetadata.Builder activeElementBuilder = ActiveElementMetadata.newBuilder();
       activeElementBuilder.setProcessingTimeMillis(
-          System.currentTimeMillis() - activeMessage.startTime);
+          System.currentTimeMillis() - activeMessage.startTime());
       stepBuilder.setActiveMessageMetadata(activeElementBuilder);
       builder.addActiveLatencyBreakdown(stepBuilder.build());
       return builder;

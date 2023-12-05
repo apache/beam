@@ -17,13 +17,16 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-public class ActiveMessageMetadata {
+import com.google.auto.value.AutoValue;
 
-  public String userStepName;
-  public Long startTime;
+@AutoValue
+public abstract class ActiveMessageMetadata {
 
-  public ActiveMessageMetadata(String userStepName, Long startTime) {
-    this.userStepName = userStepName;
-    this.startTime = startTime;
+  public abstract String userStepName();
+
+  public abstract Long startTime();
+
+  static ActiveMessageMetadata create(String userStepName, Long startTime) {
+    return new AutoValue_ActiveMessageMetadata(userStepName, startTime);
   }
 }

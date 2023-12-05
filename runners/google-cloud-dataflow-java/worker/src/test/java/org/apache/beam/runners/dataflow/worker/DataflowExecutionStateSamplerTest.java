@@ -58,7 +58,7 @@ public class DataflowExecutionStateSamplerTest {
   public void testAddTrackerRemoveTrackerActiveMessageMetadataGetsUpdated() {
     String workId = "work-item-id1";
     ActiveMessageMetadata testMetadata =
-        new ActiveMessageMetadata(step1act1.getStepName().userName(), clock.getMillis());
+        ActiveMessageMetadata.create(step1act1.getStepName().userName(), clock.getMillis());
     DataflowExecutionStateTracker trackerMock = createMockTracker(workId);
     when(trackerMock.getActiveMessageMetadata()).thenReturn(testMetadata);
 
@@ -94,7 +94,7 @@ public class DataflowExecutionStateSamplerTest {
     testSummaryStats.accept(5);
     testCompletedProcessingTimes.put("some-step", testSummaryStats);
     ActiveMessageMetadata testMetadata =
-        new ActiveMessageMetadata(step1act1.getStepName().userName(), clock.getMillis());
+        ActiveMessageMetadata.create(step1act1.getStepName().userName(), clock.getMillis());
     DataflowExecutionStateTracker trackerMock = createMockTracker(workId);
     when(trackerMock.getActiveMessageMetadata()).thenReturn(testMetadata);
     when(trackerMock.getProcessingTimesByStep()).thenReturn(testCompletedProcessingTimes);
