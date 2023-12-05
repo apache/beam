@@ -53,6 +53,7 @@ public interface BadRecordRouter extends Serializable {
       if (exception != null) {
         throw exception;
       } else {
+        Preconditions.checkArgumentNotNull(record);
         String encodedRecord =
             BadRecord.Record.builder()
                 .addHumanReadableJson(record)
