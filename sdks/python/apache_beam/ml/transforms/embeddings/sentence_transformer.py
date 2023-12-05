@@ -32,7 +32,8 @@ from apache_beam.ml.transforms.base import _TextEmbeddingHandler
 from sentence_transformers import SentenceTransformer
 
 
-# TODO: Use HuggingFaceModelHandlerTensor once the import issue is fixed.
+# TODO: https://github.com/apache/beam/issues/29621
+# Use HuggingFaceModelHandlerTensor once the import issue is fixed.
 # Right now, the hugging face model handler import torch and tensorflow
 # at the same time, which adds too much weigth to the container unnecessarily.
 class _SentenceTransformerModelHandler(ModelHandler):
