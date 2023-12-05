@@ -30,6 +30,16 @@
 # You will need Python interpreters for all versions supported by Beam, see:
 # https://s.apache.org/beam-python-dev-wiki
 
+if ! [[ "$(expr substr $(uname -s) 1 5)" == "Linux" ]]; then
+  echo This script needs to be executed in a Linux environment.
+  exit 1
+fi
+
+if ! dpkg -s libsnappy-dev >/dev/null ; then
+  echo You must install libsnappy-dev to run this script. Run:
+  echo sudo apt install libsnappy-dev
+fi
+
 if [[ $# -lt 2 ]]; then
   printf "Example usage: \n$> ./sdks/python/container/run_generate_requirements.sh 3.8 <sdk_tarball>"
   printf "\n\where 3.8 is the Python major.minor version."
