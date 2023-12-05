@@ -77,8 +77,6 @@ public interface BadRecordRouter extends Serializable {
         @Nullable Exception exception,
         String description)
         throws Exception {
-      Preconditions.checkArgumentNotNull(record);
-
       outputReceiver
           .get(BAD_RECORD_TAG)
           .output(BadRecord.fromExceptionInformation(record, coder, exception, description));

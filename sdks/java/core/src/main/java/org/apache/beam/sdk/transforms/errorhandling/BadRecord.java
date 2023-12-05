@@ -32,6 +32,7 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -73,6 +74,8 @@ public abstract class BadRecord implements Serializable {
       @Nullable Exception exception,
       String description)
       throws IOException {
+    Preconditions.checkArgumentNotNull(record);
+
     // Build up record information
     BadRecord.Record.Builder recordBuilder = Record.builder();
     recordBuilder.addHumanReadableJson(record).addCoderAndEncodedRecord(coder, record);
