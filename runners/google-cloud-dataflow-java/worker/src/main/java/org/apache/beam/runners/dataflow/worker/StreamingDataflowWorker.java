@@ -513,9 +513,11 @@ public class StreamingDataflowWorker {
     Uninterruptibles.sleepUninterruptibly(millis, TimeUnit.MILLISECONDS);
   }
 
-  /** Sets the stage name and workId of the current Thread for logging. */
-  private static void setUpWorkLoggingContext(Windmill.WorkItem workItem, String computationId) {
-    DataflowWorkerLoggingMDC.setWorkId(constructWorkId(workItem));
+  /**
+   * Sets the stage name and workId of the current Thread for logging.
+   */
+  private static void setUpWorkLoggingContext(String workId, String computationId) {
+    DataflowWorkerLoggingMDC.setWorkId(workId);
     DataflowWorkerLoggingMDC.setStageName(computationId);
   }
 
@@ -948,7 +950,7 @@ public class StreamingDataflowWorker {
     final ByteString key = workItem.getKey();
     work.setState(State.PROCESSING);
 
-    setUpWorkLoggingContext(workItem, computationId);
+    setUpWorkLoggingContext(work.getLatencyTrackingId(), computationId);
 
     LOG.debug("Starting processing for {}:\n{}", computationId, work);
 
@@ -1004,7 +1006,7 @@ public class StreamingDataflowWorker {
                         ScopedProfiler.INSTANCE.emptyScope()),
                 stageInfo.deltaCounters(),
                 options,
-                constructWorkId(workItem));
+                work.getLatencyTrackingId());
         StreamingModeExecutionContext context =
             new StreamingModeExecutionContext(
                 pendingDeltaCounters,
@@ -1164,7 +1166,7 @@ public class StreamingDataflowWorker {
       // Add the output to the commit queue.
       work.setState(State.COMMIT_QUEUED);
       outputBuilder.addAllPerWorkItemLatencyAttributions(
-          work.getLatencyAttributions(false, constructWorkId(workItem), sampler));
+          work.getLatencyAttributions(false, work.getLatencyTrackingId(), sampler));
 
       WorkItemCommitRequest commitRequest = outputBuilder.build();
       int byteLimit = maxWorkItemCommitBytes;
@@ -1294,7 +1296,7 @@ public class StreamingDataflowWorker {
         stageInfo.timerProcessingMsecs().addValue(processingTimeMsecs);
       }
 
-      sampler.resetForWorkId(constructWorkId(work.getWorkItem()));
+      sampler.resetForWorkId(work.getLatencyTrackingId());
       DataflowWorkerLoggingMDC.setWorkId(null);
       DataflowWorkerLoggingMDC.setStageName(null);
     }
@@ -1889,14 +1891,6 @@ public class StreamingDataflowWorker {
     for (Map.Entry<String, ComputationState> entry : computationMap.entrySet()) {
       entry.getValue().invalidateStuckCommits(stuckCommitDeadline);
     }
-  }
-
-  public static String constructWorkId(Windmill.WorkItem workItem) {
-    StringBuilder workIdBuilder = new StringBuilder(33);
-    workIdBuilder.append(Long.toHexString(workItem.getShardingKey()));
-    workIdBuilder.append('-');
-    workIdBuilder.append(Long.toHexString(workItem.getWorkToken()));
-    return workIdBuilder.toString();
   }
 
   private class HarnessDataProvider implements StatusDataProvider {

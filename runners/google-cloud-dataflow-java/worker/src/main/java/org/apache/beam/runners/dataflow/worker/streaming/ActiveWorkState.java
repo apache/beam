@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
-import static org.apache.beam.runners.dataflow.worker.StreamingDataflowWorker.constructWorkId;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 
 import java.io.PrintWriter;
@@ -236,7 +235,7 @@ final class ActiveWorkState {
                     .setWorkToken(work.getWorkItem().getWorkToken())
                     .addAllLatencyAttribution(
                         work.getLatencyAttributions(
-                            true, constructWorkId(work.getWorkItem()), sampler))
+                            true, work.getLatencyTrackingId(), sampler))
                     .build());
   }
 

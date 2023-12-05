@@ -101,6 +101,14 @@ public class Work implements Runnable {
     return currentState.startTime();
   }
 
+  public String getLatencyTrackingId() {
+    StringBuilder workIdBuilder = new StringBuilder(33);
+    workIdBuilder.append(Long.toHexString(workItem.getShardingKey()));
+    workIdBuilder.append('-');
+    workIdBuilder.append(Long.toHexString(workItem.getWorkToken()));
+    return workIdBuilder.toString();
+  }
+
   private void recordGetWorkStreamLatencies(
       Collection<Windmill.LatencyAttribution> getWorkStreamLatencies) {
     for (Windmill.LatencyAttribution latency : getWorkStreamLatencies) {
