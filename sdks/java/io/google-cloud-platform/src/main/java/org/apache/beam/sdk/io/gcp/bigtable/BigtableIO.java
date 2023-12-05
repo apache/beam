@@ -1267,24 +1267,26 @@ public class BigtableIO {
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
-      if (bigtableWriter != null) {
-        bigtableWriter.close();
-        bigtableWriter = null;
-      }
+      try {
+        if (bigtableWriter != null) {
+          bigtableWriter.close();
+          bigtableWriter = null;
+        }
 
-      checkForFailures();
-      LOG.debug("Wrote {} records", recordsWritten);
+        checkForFailures();
+        LOG.debug("Wrote {} records", recordsWritten);
 
-      for (Map.Entry<BoundedWindow, Long> entry : seenWindows.entrySet()) {
-        c.output(
-            BigtableWriteResult.create(entry.getValue()),
-            entry.getKey().maxTimestamp(),
-            entry.getKey());
-      }
-
-      if (serviceEntry != null) {
-        serviceEntry.close();
-        serviceEntry = null;
+        for (Map.Entry<BoundedWindow, Long> entry : seenWindows.entrySet()) {
+          c.output(
+              BigtableWriteResult.create(entry.getValue()),
+              entry.getKey().maxTimestamp(),
+              entry.getKey());
+        }
+      } finally {
+        if (serviceEntry != null) {
+          serviceEntry.close();
+          serviceEntry = null;
+        }
       }
     }
 
