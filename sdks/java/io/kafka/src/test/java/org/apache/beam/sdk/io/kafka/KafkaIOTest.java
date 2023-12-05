@@ -1446,19 +1446,7 @@ public class KafkaIOTest {
 
       String topic = "test";
 
-      PTransform<PCollection<BadRecord>, PCollection<Long>> sinkTransform =
-          new PTransform<PCollection<BadRecord>, PCollection<Long>>() {
-            @Override
-            public @UnknownKeyFor @NonNull @Initialized PCollection<Long> expand(
-                PCollection<BadRecord> input) {
-              return input
-                  .apply("Window", Window.into(CalendarWindows.years(1)))
-                  .apply(
-                      "Combine", Combine.globally(Count.<BadRecord>combineFn()).withoutDefaults());
-            }
-          };
-
-      BadRecordErrorHandler<PCollection<Long>> eh = p.registerBadRecordErrorHandler(sinkTransform);
+      BadRecordErrorHandler<PCollection<Long>> eh = p.registerBadRecordErrorHandler(new ErrorSinkTransform());
 
       p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
           .apply(
@@ -1480,6 +1468,18 @@ public class KafkaIOTest {
       completionThread.shutdown();
 
       verifyProducerRecords(producerWrapper.mockProducer, topic, 0, false, true);
+    }
+  }
+
+  public static class ErrorSinkTransform
+      extends PTransform<PCollection<BadRecord>, PCollection<Long>> {
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized PCollection<Long> expand(
+        PCollection<BadRecord> input) {
+      return input
+          .apply("Window", Window.into(CalendarWindows.years(1)))
+          .apply("Combine", Combine.globally(Count.<BadRecord>combineFn()).withoutDefaults());
     }
   }
 

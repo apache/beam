@@ -44,6 +44,7 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.common.IOITHelper;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
+import org.apache.beam.sdk.io.kafka.KafkaIOTest.ErrorSinkTransform;
 import org.apache.beam.sdk.io.kafka.KafkaIOTest.FailingLongSerializer;
 import org.apache.beam.sdk.io.kafka.ReadFromKafkaDoFnTest.FailingDeserializer;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
@@ -359,17 +360,6 @@ public class KafkaIOIT {
     }
   }
 
-  private static class ErrorSinkTransform
-      extends PTransform<PCollection<BadRecord>, PCollection<Long>> {
-
-    @Override
-    public @UnknownKeyFor @NonNull @Initialized PCollection<Long> expand(
-        PCollection<BadRecord> input) {
-      return input
-          .apply("Window", Window.into(CalendarWindows.years(1)))
-          .apply("Combine", Combine.globally(Count.<BadRecord>combineFn()).withoutDefaults());
-    }
-  }
   // This test verifies that bad data from Kafka is properly sent to the error handler
   @Test
   public void testKafkaIOSDFReadWithErrorHandler() throws IOException {
