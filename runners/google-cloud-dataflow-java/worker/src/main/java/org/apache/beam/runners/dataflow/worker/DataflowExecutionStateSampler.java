@@ -109,7 +109,7 @@ public final class DataflowExecutionStateSampler extends ExecutionStateSampler {
   @Nullable
   public ActiveMessageMetadata getActiveMessageMetadataForWorkId(String workId) {
     if (activeTrackersByWorkId.containsKey(workId)) {
-      return activeTrackersByWorkId.get(workId).getActiveMessageMetadata();
+      return activeTrackersByWorkId.get(workId).getActiveMessageMetadata().orElse(null);
     }
     return null;
   }

@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 import java.util.HashMap;
 import java.util.IntSummaryStatistics;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.joda.time.DateTimeUtils.MillisProvider;
@@ -60,7 +61,7 @@ public class DataflowExecutionStateSamplerTest {
     ActiveMessageMetadata testMetadata =
         ActiveMessageMetadata.create(step1act1.getStepName().userName(), clock.getMillis());
     DataflowExecutionStateTracker trackerMock = createMockTracker(workId);
-    when(trackerMock.getActiveMessageMetadata()).thenReturn(testMetadata);
+    when(trackerMock.getActiveMessageMetadata()).thenReturn(Optional.of(testMetadata));
 
     sampler.addTracker(trackerMock);
     assertThat(sampler.getActiveMessageMetadataForWorkId(workId), equalTo(testMetadata));
@@ -96,7 +97,7 @@ public class DataflowExecutionStateSamplerTest {
     ActiveMessageMetadata testMetadata =
         ActiveMessageMetadata.create(step1act1.getStepName().userName(), clock.getMillis());
     DataflowExecutionStateTracker trackerMock = createMockTracker(workId);
-    when(trackerMock.getActiveMessageMetadata()).thenReturn(testMetadata);
+    when(trackerMock.getActiveMessageMetadata()).thenReturn(Optional.of(testMetadata));
     when(trackerMock.getProcessingTimesByStep()).thenReturn(testCompletedProcessingTimes);
 
     sampler.addTracker(trackerMock);
@@ -118,13 +119,13 @@ public class DataflowExecutionStateSamplerTest {
 
     assertThat(
         sampler.getActiveMessageMetadataForWorkId(workId1),
-        equalTo(tracker1Mock.getActiveMessageMetadata()));
+        equalTo(tracker1Mock.getActiveMessageMetadata().orElse(null)));
     assertThat(
         sampler.getProcessingDistributionsForWorkId(workId1),
         equalTo(tracker1Mock.getProcessingTimesByStep()));
     assertThat(
         sampler.getActiveMessageMetadataForWorkId(workId2),
-        equalTo(tracker2Mock.getActiveMessageMetadata()));
+        equalTo(tracker2Mock.getActiveMessageMetadata().orElse(null)));
     assertThat(
         sampler.getProcessingDistributionsForWorkId(workId2),
         equalTo(tracker2Mock.getProcessingTimesByStep()));

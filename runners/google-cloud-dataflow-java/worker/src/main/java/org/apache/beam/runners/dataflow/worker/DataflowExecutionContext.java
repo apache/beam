@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -252,6 +253,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
      * Metadata on the message whose processing is currently being managed by this tracker. If no
      * message is actively being processed, activeMessageMetadata will be null.
      */
+    @Nullable
     private ActiveMessageMetadata activeMessageMetadata = null;
 
     private MillisProvider clock = System::currentTimeMillis;
@@ -336,8 +338,8 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       return this.workItemId;
     }
 
-    public ActiveMessageMetadata getActiveMessageMetadata() {
-      return activeMessageMetadata;
+    public Optional<ActiveMessageMetadata> getActiveMessageMetadata() {
+      return Optional.ofNullable(activeMessageMetadata);
     }
 
     public Map<String, IntSummaryStatistics> getProcessingTimesByStep() {
