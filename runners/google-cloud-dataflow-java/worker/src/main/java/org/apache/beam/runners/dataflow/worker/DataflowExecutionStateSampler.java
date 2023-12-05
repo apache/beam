@@ -30,7 +30,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.Dataflow
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.DateTimeUtils.MillisProvider;
 
-public class DataflowExecutionStateSampler extends ExecutionStateSampler {
+public final class DataflowExecutionStateSampler extends ExecutionStateSampler {
 
   private static final MillisProvider SYSTEM_MILLIS_PROVIDER = System::currentTimeMillis;
   private static final DataflowExecutionStateSampler INSTANCE =
