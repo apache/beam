@@ -30,14 +30,18 @@
 # You will need Python interpreters for all versions supported by Beam, see:
 # https://s.apache.org/beam-python-dev-wiki
 
-if ! [[ "$(expr substr $(uname -s) 1 5)" == "Linux" ]]; then
-  echo This script needs to be executed in a Linux environment.
-  exit 1
-fi
-
-if ! dpkg -s libsnappy-dev >/dev/null ; then
-  echo You must install libsnappy-dev to run this script. Run:
-  echo sudo apt install libsnappy-dev
+if [[ "$(expr substr $(uname -s) 1 5)" == "Linux" ]]; then
+  if ! dpkg -s libsnappy-dev >/dev/null ; then
+    echo You must install libsnappy-dev to run this script. Run:
+    echo sudo apt install libsnappy-dev
+    exit 1
+  fi
+elif [[ "$(expr substr $(uname -s) 1 6)" == "Darwin" ]]; then
+  if ! brew list snappy >/dev/null ; then
+    echo You must install snappy to run this script. Run:
+    echo brew install snappy
+    exit 1
+  fi
 fi
 
 if [[ $# -lt 2 ]]; then
