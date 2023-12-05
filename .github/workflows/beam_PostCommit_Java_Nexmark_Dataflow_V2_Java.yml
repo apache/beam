@@ -20,6 +20,8 @@ name: PostCommit Java Nexmark Dataflow V2 Java
 on:
   schedule:
     - cron: '0 4/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_Nexmark_Dataflow_V2_Java.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -86,7 +88,8 @@ jobs:
         java_version: ['11','17']
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       (contains(github.event.comment.body, 'Run Dataflow Runner V2 Java') &&
          contains(github.event.comment.body, 'Nexmark Tests'))
     steps:

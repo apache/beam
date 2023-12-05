@@ -514,7 +514,7 @@ public class ParDoTest implements Serializable {
       DoFn<String, String> fn =
           new DoFn<String, String>() {
             @ProcessElement
-            public void proccessElement(ProcessContext c) {}
+            public void processElement(ProcessContext c) {}
 
             @Override
             public void populateDisplayData(DisplayData.Builder builder) {
@@ -542,7 +542,7 @@ public class ParDoTest implements Serializable {
             final StateSpec<MapState<String, SerializableClass>> mapState = StateSpecs.map();
 
             @ProcessElement
-            public void proccessElement(ProcessContext c) {}
+            public void processElement(ProcessContext c) {}
           };
 
       SingleOutput<KV<String, String>, String> parDo = ParDo.of(fn);
@@ -1569,7 +1569,7 @@ public class ParDoTest implements Serializable {
       DoFn<String, String> fn =
           new DoFn<String, String>() {
             @ProcessElement
-            public void proccessElement(ProcessContext c) {}
+            public void processElement(ProcessContext c) {}
 
             @Override
             public void populateDisplayData(DisplayData.Builder builder) {
@@ -5734,7 +5734,7 @@ public class ParDoTest implements Serializable {
     @Test
     @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
     public void testRelativeTimerWithOutputTimestamp() {
-      DoFn<KV<Void, String>, String> buffferFn =
+      DoFn<KV<Void, String>, String> bufferFn =
           new DoFn<KV<Void, String>, String>() {
 
             @TimerId("timer")
@@ -5798,7 +5798,7 @@ public class ParDoTest implements Serializable {
                   .addElements(TimestampedValue.of(KV.of(null, "foo"), new Instant(1)))
                   .addElements(TimestampedValue.of(KV.of(null, "bar"), new Instant(2)))
                   .advanceWatermarkToInfinity());
-      PCollection<String> result = input.apply(ParDo.of(buffferFn));
+      PCollection<String> result = input.apply(ParDo.of(bufferFn));
       PAssert.that(result).containsInAnyOrder("foo", "bar");
       pipeline.run();
     }

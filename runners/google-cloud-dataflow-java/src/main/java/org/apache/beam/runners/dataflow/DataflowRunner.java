@@ -19,6 +19,8 @@ package org.apache.beam.runners.dataflow;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SINK;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SOURCE;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
@@ -549,13 +551,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 new SplittableParDoOverrides.SplittableParDoOverrideFactory()));
 
     if (streaming) {
-      if (!hasExperiment(options, "enable_custom_pubsub_source")) {
+      if (!hasExperiment(options, ENABLE_CUSTOM_PUBSUB_SOURCE)) {
         overridesBuilder.add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(PubsubUnboundedSource.class),
                 new StreamingPubsubIOReadOverrideFactory()));
       }
-      if (!hasExperiment(options, "enable_custom_pubsub_sink")) {
+      if (!hasExperiment(options, ENABLE_CUSTOM_PUBSUB_SINK)) {
         overridesBuilder.add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(PubsubUnboundedSink.class),
@@ -875,6 +877,21 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
+  private RunnerApi.Pipeline resolveAnyOfEnvironments(RunnerApi.Pipeline pipeline) {
+    RunnerApi.Pipeline.Builder pipelineBuilder = pipeline.toBuilder();
+    RunnerApi.Components.Builder componentsBuilder = pipelineBuilder.getComponentsBuilder();
+    componentsBuilder.clearEnvironments();
+    for (Map.Entry<String, RunnerApi.Environment> entry :
+        pipeline.getComponents().getEnvironmentsMap().entrySet()) {
+      componentsBuilder.putEnvironments(
+          entry.getKey(),
+          Environments.resolveAnyOfEnvironment(
+              entry.getValue(),
+              BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER)));
+    }
+    return pipelineBuilder.build();
+  }
+
   protected RunnerApi.Pipeline applySdkEnvironmentOverrides(
       RunnerApi.Pipeline pipeline, DataflowPipelineOptions options) {
     String sdkHarnessContainerImageOverrides = options.getSdkHarnessContainerImageOverrides();
@@ -1171,6 +1188,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         PipelineTranslation.toProto(pipeline, portableComponents, false);
     // Note that `stageArtifacts` has to be called before `resolveArtifact` because
     // `resolveArtifact` updates local paths to staged paths in pipeline proto.
+    portablePipelineProto = resolveAnyOfEnvironments(portablePipelineProto);
     List<DataflowPackage> packages = stageArtifacts(portablePipelineProto);
     portablePipelineProto = resolveArtifacts(portablePipelineProto);
     portablePipelineProto = applySdkEnvironmentOverrides(portablePipelineProto, options);
@@ -1337,9 +1355,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     int jobGraphByteSize = jobGraphBytes.length;
     if (jobGraphByteSize >= CREATE_JOB_REQUEST_LIMIT_BYTES
         && !hasExperiment(options, "upload_graph")) {
-      List<String> experiments = firstNonNull(options.getExperiments(), new ArrayList<>());
-      experiments.add("upload_graph");
-      options.setExperiments(ImmutableList.copyOf(experiments));
+      List<String> experiments = firstNonNull(options.getExperiments(), Collections.emptyList());
+      options.setExperiments(
+          ImmutableList.<String>builder().addAll(experiments).add("upload_graph").build());
       LOG.info(
           "The job graph size ({} in bytes) is larger than {}. Automatically add "
               + "the upload_graph option to experiments.",
@@ -1742,7 +1760,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /**
-   * Returns true if the passed in {@link PCollection} needs to be materialiazed using an indexed
+   * Returns true if the passed in {@link PCollection} needs to be materialized using an indexed
    * format.
    */
   boolean doesPCollectionRequireIndexedFormat(PCollection<?> pcol) {

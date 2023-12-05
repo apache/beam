@@ -512,7 +512,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
             'postprocessing functions defined into a keyed model handler. All '
             'pre/postprocessing functions must be defined on the outer model'
             'handler.')
-      self._env_vars = unkeyed._env_vars
+      self._env_vars = getattr(unkeyed, '_env_vars', {})
       self._unkeyed = unkeyed
       return
 
@@ -553,7 +553,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
             'overriding the KeyedModelHandler.batch_elements_kwargs() method.',
             hints,
             batch_kwargs)
-      env_vars = mh._env_vars
+      env_vars = getattr(mh, '_env_vars', {})
       if len(env_vars) > 0:
         logging.warning(
             'mh %s defines the following _env_vars which will be ignored %s. '
@@ -816,7 +816,7 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
           'pre/postprocessing functions must be defined on the outer model'
           'handler.')
     self._unkeyed = unkeyed
-    self._env_vars = unkeyed._env_vars
+    self._env_vars = getattr(unkeyed, '_env_vars', {})
 
   def load_model(self) -> ModelT:
     return self._unkeyed.load_model()
@@ -895,7 +895,7 @@ class _PreProcessingModelHandler(Generic[ExampleT,
       preprocess_fn: the preprocessing function to use.
     """
     self._base = base
-    self._env_vars = base._env_vars
+    self._env_vars = getattr(base, '_env_vars', {})
     self._preprocess_fn = preprocess_fn
 
   def load_model(self) -> ModelT:
@@ -951,7 +951,7 @@ class _PostProcessingModelHandler(Generic[ExampleT,
       postprocess_fn: the preprocessing function to use.
     """
     self._base = base
-    self._env_vars = base._env_vars
+    self._env_vars = getattr(base, '_env_vars', {})
     self._postprocess_fn = postprocess_fn
 
   def load_model(self) -> ModelT:
@@ -1432,7 +1432,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       self._side_input_path = si_model_metadata.model_id
       self._metrics_collector = self.get_metrics_collector(
           prefix=si_model_metadata.model_name)
-      with threading.Lock():
+      lock = threading.Lock()
+      with lock:
         self.update_model(si_model_metadata.model_id)
         return self._run_inference(batch, inference_args)
 

@@ -20,6 +20,8 @@ name: PostCommit Java ValidatesRunner Spark Java11
 on:
   schedule:
     - cron: '45 4/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_ValidatesRunner_Spark_Java11.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -59,7 +61,8 @@ jobs:
         job_phrase: [Run Spark ValidatesRunner Java 11]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       startswith(github.event.comment.body, 'Run Spark ValidatesRunner Java 11')
     steps:
       - uses: actions/checkout@v4

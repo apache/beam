@@ -22,9 +22,11 @@ import static org.junit.Assert.assertEquals;
 import com.google.api.core.ApiFutures;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.Operation;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.Operation.Context;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.RetryType;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.joda.time.Duration;
@@ -44,8 +46,10 @@ public class RetryManagerTest {
   @Test
   public void testNoFailures() throws Exception {
     List<Context> contexts = Lists.newArrayList();
+    MetricName metricName = MetricName.named("TEST_NAMESPACE", "THROTTLED_COUNTER");
+    CounterCell throttleTimeCounter = new CounterCell(metricName);
     RetryManager<String, RetryManagerTest.Context> retryManager =
-        new RetryManager<>(Duration.millis(1), Duration.millis(1), 5);
+        new RetryManager<>(Duration.millis(1), Duration.millis(1), 5, throttleTimeCounter);
     for (int i = 0; i < 5; ++i) {
       Context context = new Context();
       contexts.add(context);
@@ -74,6 +78,8 @@ public class RetryManagerTest {
           assertEquals(1, c.numSucceeded);
           assertEquals(0, c.numFailed);
         });
+
+    assertEquals(0L, (long) throttleTimeCounter.getCumulative());
   }
 
   @Test
@@ -82,8 +88,11 @@ public class RetryManagerTest {
     Map<String, Integer> expectedStarts = Maps.newHashMap();
     Map<String, Integer> expectedFailures = Maps.newHashMap();
 
+    MetricName metricName = MetricName.named("TEST_NAMESPACE", "THROTTLED_COUNTER");
+    CounterCell throttleTimeCounter = new CounterCell(metricName);
+
     RetryManager<String, RetryManagerTest.Context> retryManager =
-        new RetryManager<>(Duration.millis(1), Duration.millis(1), 50);
+        new RetryManager<>(Duration.millis(1), Duration.millis(1), 50, throttleTimeCounter);
     for (int i = 0; i < 5; ++i) {
       final int index = i;
       String value = "yes " + i;
@@ -129,14 +138,18 @@ public class RetryManagerTest {
               assertEquals(1, e.getValue().numSucceeded);
               assertEquals((int) expectedFailures.get(e.getKey()), e.getValue().numFailed);
             });
+    // Each operation backsoff once and each backoff is 1ms.
+    assertEquals(5L, (long) throttleTimeCounter.getCumulative());
   }
 
   @Test
   public void testDontRetry() throws Exception {
     List<Context> contexts = Lists.newArrayList();
+    MetricName metricName = MetricName.named("TEST_NAMESPACE", "THROTTLED_COUNTER");
+    CounterCell throttleTimeCounter = new CounterCell(metricName);
 
     RetryManager<String, RetryManagerTest.Context> retryManager =
-        new RetryManager<>(Duration.millis(1), Duration.millis(1), 50);
+        new RetryManager<>(Duration.millis(1), Duration.millis(1), 50, throttleTimeCounter);
     for (int i = 0; i < 5; ++i) {
       Context context = new Context();
       contexts.add(context);
@@ -172,6 +185,8 @@ public class RetryManagerTest {
           assertEquals(0, c.numSucceeded);
           assertEquals(1, c.numFailed);
         });
+
+    assertEquals(0L, (long) throttleTimeCounter.getCumulative());
   }
 
   @Test

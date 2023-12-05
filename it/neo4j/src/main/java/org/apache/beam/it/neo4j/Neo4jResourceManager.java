@@ -66,7 +66,7 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
 
   private final String adminPassword;
 
-  private Neo4jResourceManager(Neo4jResourceManager.Builder builder) {
+  private Neo4jResourceManager(Builder builder) {
     this(
         builder.driver,
         new Neo4jContainer<>(
@@ -79,10 +79,7 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
 
   @VisibleForTesting
   @SuppressWarnings("nullness")
-  Neo4jResourceManager(
-      @Nullable Driver neo4jDriver,
-      Neo4jContainer<?> container,
-      Neo4jResourceManager.Builder builder) {
+  Neo4jResourceManager(@Nullable Driver neo4jDriver, Neo4jContainer<?> container, Builder builder) {
     super(container, builder);
 
     this.adminPassword = builder.adminPassword;
@@ -101,8 +98,8 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
     }
   }
 
-  public static Neo4jResourceManager.Builder builder(String testId) {
-    return new Neo4jResourceManager.Builder(testId);
+  public static Builder builder(String testId) {
+    return new Builder(testId);
   }
 
   /** Returns the URI connection string to the Neo4j Database. */

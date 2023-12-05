@@ -49,6 +49,13 @@ except ImportError as e:
   HttpError = None
 
 
+def instance_prefix(instance):
+  datestr = "".join(filter(str.isdigit, str(datetime.utcnow().date())))
+  instance_id = '%s-%s-%s' % (instance, datestr, secrets.token_hex(4))
+  assert len(instance_id) < 34, "instance id length needs to be within [6, 33]"
+  return instance_id
+
+
 @pytest.mark.uses_gcp_java_expansion_service
 @pytest.mark.uses_transform_service
 @unittest.skipUnless(
@@ -65,8 +72,7 @@ class TestReadFromBigTableIT(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
     self.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
-    instance_id = '%s-%s-%s' % (
-        self.INSTANCE, str(int(time.time())), secrets.token_hex(3))
+    instance_id = instance_prefix(self.INSTANCE)
 
     self.client = client.Client(admin=True, project=self.project)
     # create cluster and instance
@@ -96,7 +102,7 @@ class TestReadFromBigTableIT(unittest.TestCase):
       self.table.delete()
       self.instance.delete()
     except HttpError:
-      _LOGGER.debug(
+      _LOGGER.warning(
           "Failed to clean up table [%s] and instance [%s]",
           self.table.table_id,
           self.instance.instance_id)
@@ -160,8 +166,7 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     cls.args = cls.test_pipeline.get_full_options_as_args()
     cls.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
-    instance_id = '%s-%s-%s' % (
-        cls.INSTANCE, str(int(time.time())), secrets.token_hex(3))
+    instance_id = instance_prefix(cls.INSTANCE)
 
     cls.client = client.Client(admin=True, project=cls.project)
     # create cluster and instance
@@ -190,7 +195,7 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
       _LOGGER.info("Deleting table [%s]", self.table.table_id)
       self.table.delete()
     except HttpError:
-      _LOGGER.debug("Failed to clean up table [%s]", self.table.table_id)
+      _LOGGER.warning("Failed to clean up table [%s]", self.table.table_id)
 
   @classmethod
   def tearDownClass(cls):
@@ -198,7 +203,7 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
       _LOGGER.info("Deleting instance [%s]", cls.instance.instance_id)
       cls.instance.delete()
     except HttpError:
-      _LOGGER.debug(
+      _LOGGER.warning(
           "Failed to clean up instance [%s]", cls.instance.instance_id)
 
   def run_pipeline(self, rows):

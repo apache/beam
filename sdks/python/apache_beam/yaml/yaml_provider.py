@@ -28,7 +28,6 @@ import os
 import subprocess
 import sys
 import urllib.parse
-import uuid
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -110,9 +109,9 @@ class Provider:
     # E.g. we could look at the the expected environments themselves.
     # Possibly, we could provide multiple expansions and have the runner itself
     # choose the actual implementation based on fusion (and other) criteria.
-    return (
-        self.underlying_provider()._affinity(other) +
-        other.underlying_provider()._affinity(self))
+    a = self.underlying_provider()
+    b = other.underlying_provider()
+    return a._affinity(b) + b._affinity(a)
 
   def _affinity(self, other: "Provider"):
     if self is other or self == other:
@@ -453,6 +452,45 @@ class MetaInlineProvider(InlineProvider):
     return self._transform_factories[type](yaml_create_transform, **args)
 
 
+class SqlBackedProvider(Provider):
+  def __init__(
+      self,
+      transforms: Mapping[str, Callable[..., beam.PTransform]],
+      sql_provider: Optional[Provider] = None):
+    self._transforms = transforms
+    if sql_provider is None:
+      sql_provider = beam_jar(
+          urns={'Sql': 'beam:external:java:sql:v1'},
+          gradle_target='sdks:java:extensions:sql:expansion-service:shadowJar')
+    self._sql_provider = sql_provider
+
+  def sql_provider(self):
+    return self._sql_provider
+
+  def provided_transforms(self):
+    return self._transforms.keys()
+
+  def available(self):
+    return self.sql_provider().available()
+
+  def cache_artifacts(self):
+    return self.sql_provider().cache_artifacts()
+
+  def underlying_provider(self):
+    return self.sql_provider()
+
+  def to_json(self):
+    return {'type': "SqlBackedProvider"}
+
+  def create_transform(
+      self, typ: str, args: Mapping[str, Any],
+      yaml_create_transform: Any) -> beam.PTransform:
+    return self._transforms[typ](
+        lambda query: self.sql_provider().create_transform(
+            'Sql', {'query': query}, yaml_create_transform),
+        **args)
+
+
 PRIMITIVE_NAMES_TO_ATOMIC_TYPE = {
     py_type.__name__: schema_type
     for (py_type, schema_type) in schemas.PRIMITIVE_TO_ATOMIC_TYPE.items()
@@ -495,46 +533,6 @@ def create_builtin_provider():
             than one element in the collection. Defaults to True.
     """
     return beam.Create([element_to_rows(e) for e in elements], reshuffle)
-
-  def with_schema(**args):
-    # TODO: This is preliminary.
-    def parse_type(spec):
-      if spec in PRIMITIVE_NAMES_TO_ATOMIC_TYPE:
-        return schema_pb2.FieldType(
-            atomic_type=PRIMITIVE_NAMES_TO_ATOMIC_TYPE[spec])
-      elif isinstance(spec, list):
-        if len(spec) != 1:
-          raise ValueError("Use single-element lists to denote list types.")
-        else:
-          return schema_pb2.FieldType(
-              iterable_type=schema_pb2.IterableType(
-                  element_type=parse_type(spec[0])))
-      elif isinstance(spec, dict):
-        return schema_pb2.FieldType(
-            iterable_type=schema_pb2.RowType(schema=parse_schema(spec[0])))
-      else:
-        raise ValueError("Unknown schema type: {spec}")
-
-    def parse_schema(spec):
-      return schema_pb2.Schema(
-          fields=[
-              schema_pb2.Field(name=key, type=parse_type(value), id=ix)
-              for (ix, (key, value)) in enumerate(spec.items())
-          ],
-          id=str(uuid.uuid4()))
-
-    named_tuple = schemas.named_tuple_from_schema(parse_schema(args))
-    names = list(args.keys())
-
-    def extract_field(x, name):
-      if isinstance(x, dict):
-        return x[name]
-      else:
-        return getattr(x, name)
-
-    return 'WithSchema(%s)' % ', '.join(names) >> beam.Map(
-        lambda x: named_tuple(*[extract_field(x, name) for name in names])
-    ).with_output_types(named_tuple)
 
   # Or should this be posargs, args?
   # pylint: disable=dangerous-default-value
@@ -596,7 +594,6 @@ def create_builtin_provider():
       'Create': create,
       'LogForTesting': lambda: beam.Map(log_and_return),
       'PyTransform': fully_qualified_named_transform,
-      'WithSchemaExperimental': with_schema,
       'Flatten': Flatten,
       'WindowInto': WindowInto,
   },
@@ -700,8 +697,24 @@ class RenamingProvider(Provider):
     for transform in transforms.keys():
       if transform not in mappings:
         raise ValueError(f'Missing transform {transform} in mappings.')
-    self._mappings = mappings
+    self._mappings = self.expand_mappings(mappings)
     self._defaults = defaults or {}
+
+  @staticmethod
+  def expand_mappings(mappings):
+    if not isinstance(mappings, dict):
+      raise ValueError(
+          "RenamingProvider mappings must be dict of transform "
+          "mappings.")
+    for key, value in mappings.items():
+      if isinstance(value, str):
+        if value not in mappings.keys():
+          raise ValueError(
+              "RenamingProvider transform mappings must be dict or "
+              "specify transform that has mappings within same "
+              "provider.")
+        mappings[key] = mappings[value]
+    return mappings
 
   def available(self) -> bool:
     return self._underlying_provider.available()
@@ -752,6 +765,9 @@ class RenamingProvider(Provider):
   def underlying_provider(self):
     return self._underlying_provider.underlying_provider()
 
+  def cache_artifacts(self):
+    self._underlying_provider.cache_artifacts()
+
 
 def parse_providers(provider_specs):
   providers = collections.defaultdict(list)
@@ -781,6 +797,7 @@ def merge_providers(*provider_sets):
 
 
 def standard_providers():
+  from apache_beam.yaml.yaml_combine import create_combine_providers
   from apache_beam.yaml.yaml_mapping import create_mapping_providers
   from apache_beam.yaml.yaml_io import io_providers
   with open(os.path.join(os.path.dirname(__file__),
@@ -790,6 +807,7 @@ def standard_providers():
   return merge_providers(
       create_builtin_provider(),
       create_mapping_providers(),
+      create_combine_providers(),
       io_providers(),
       parse_providers(standard_providers))
 

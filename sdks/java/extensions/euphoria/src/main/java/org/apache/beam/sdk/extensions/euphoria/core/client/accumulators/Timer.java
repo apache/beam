@@ -24,8 +24,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 /**
  * Timer provides convenience API very similar to {@link Histogram} but extended by time unit
  * support.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
+@Deprecated
 public interface Timer extends Accumulator {
 
   /**

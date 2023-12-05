@@ -22,7 +22,7 @@ on:
     paths: ['.github/**/*.yml']
   pull_request_target:
     branches: ['master', 'release-*' ]
-    paths: ['.github/**/*.yml', 'release/trigger_all_tests.json']
+    paths: ['.github/**/*.yml', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_GHA.json']
   issue_comment:
     types: [created]
   schedule:
@@ -67,7 +67,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run GHA PreCommit'
     steps:

@@ -177,6 +177,7 @@ def run(argv=None, save_main_session=True):
       (user, score) = user_score
       return 'user: %s, total_score: %s' % (user, score)
 
+
     (  # pylint: disable=expression-not-assigned
         p
         | 'ReadInputText' >> beam.io.ReadFromText(args.input)

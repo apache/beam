@@ -36,6 +36,7 @@ on:
       - 'examples/kotlin/**'
       - '.test-infra/jenkins/'
       - 'release/trigger_all_tests.json'
+      - '.github/trigger_files/beam_PreCommit_Spotless.json'
   issue_comment:
     types: [created]
   schedule:
@@ -81,7 +82,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Spotless PreCommit'
     steps:
@@ -97,7 +98,7 @@ jobs:
       - name: run Spotless PreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: spotlessCheck checkStyleMain checkStyleTest
+          gradle-command: spotlessCheck checkStyleMain checkStyleTest :buildSrc:spotlessCheck
       - name: Upload test report
         uses: actions/upload-artifact@v3
         with:

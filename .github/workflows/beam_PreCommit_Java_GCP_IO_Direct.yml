@@ -37,6 +37,7 @@ on:
       - "runners/core-construction-java/**"
       - "runners/core-java/**"
       - 'release/trigger_all_tests.json'
+      - '.github/trigger_files/beam_PreCommit_Java_GCP_IO_Direct.json'
       - "sdks/java/core/src/main/**"
       - "sdks/java/extensions/arrow/**"
       - "sdks/java/extensions/google-cloud-platform-core/**"
@@ -88,7 +89,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java_GCP_IO_Direct PreCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]

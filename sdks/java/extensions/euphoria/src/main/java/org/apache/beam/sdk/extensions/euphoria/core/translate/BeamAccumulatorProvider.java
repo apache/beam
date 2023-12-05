@@ -33,6 +33,8 @@ import org.slf4j.LoggerFactory;
  * Translation of accumulators to {@link Metrics}. Metric's namespace is taken from operator name.
  * So for better orientation in metrics it's recommended specify operator name with method .named().
  */
+/** @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release. */
+@Deprecated
 public class BeamAccumulatorProvider implements AccumulatorProvider {
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamAccumulatorProvider.class);

@@ -20,6 +20,8 @@ name: PostCommit Java Examples Dataflow Java
 on:
   schedule:
     - cron: '45 3/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_Examples_Dataflow_Java.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -58,10 +60,11 @@ jobs:
       matrix:
         job_name: [beam_PostCommit_Java_Examples_Dataflow_Java]
         job_phrase: [Run Java examples on Dataflow Java]
-        java_version: ['11','17']
+        java_version: ['11','17','21']
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       startswith(github.event.comment.body, 'Run Java examples on Dataflow Java')
     steps:
       - uses: actions/checkout@v4

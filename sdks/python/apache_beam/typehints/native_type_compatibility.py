@@ -48,6 +48,7 @@ _BUILTINS_TO_TYPING = {
 _CONVERTED_COLLECTIONS = [
     collections.abc.Set,
     collections.abc.MutableSet,
+    collections.abc.Collection,
 ]
 
 
@@ -116,6 +117,10 @@ def _match_is_exactly_iterable(user_type):
   else:
     expected_origin = collections.abc.Iterable
   return getattr(user_type, '__origin__', None) is expected_origin
+
+
+def _match_is_exactly_collection(user_type):
+  return getattr(user_type, '__origin__', None) is collections.abc.Collection
 
 
 def match_is_named_tuple(user_type):
@@ -322,6 +327,10 @@ def convert_to_beam_type(typ):
           match=_match_issubclass(typing.Iterator),
           arity=1,
           beam_type=typehints.Iterator),
+      _TypeMapEntry(
+          match=_match_is_exactly_collection,
+          arity=1,
+          beam_type=typehints.Collection),
   ]
 
   # Find the first matching entry.

@@ -61,6 +61,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
@@ -554,7 +555,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
     private static final FluentBackoff INSERT_BACKOFF_FACTORY =
         FluentBackoff.DEFAULT.withInitialBackoff(Duration.millis(200)).withMaxRetries(5);
 
-    // A backoff for rate limit exceeded errors. Only retry upto approximately 2 minutes
+    // A backoff for rate limit exceeded errors. Only retry up to approximately 2 minutes
     // and propagate errors afterward. Otherwise, Dataflow UI cannot display rate limit
     // errors since they are silently retried in Callable threads.
     private static final FluentBackoff RATE_LIMIT_BACKOFF_FACTORY =
@@ -658,10 +659,18 @@ public class BigQueryServicesImpl implements BigQueryServices {
         BackOff backoff,
         Sleeper sleeper)
         throws IOException, InterruptedException {
+      TableReference updatedRef = ref.clone();
+      if (updatedRef.getProjectId() == null) {
+        BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+        updatedRef.setProjectId(
+            bqOptions.getBigQueryProject() == null
+                ? bqOptions.getProject()
+                : bqOptions.getBigQueryProject());
+      }
       Tables.Get get =
           client
               .tables()
-              .get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId())
+              .get(updatedRef.getProjectId(), updatedRef.getDatasetId(), updatedRef.getTableId())
               .setPrettyPrint(false);
       if (!selectedFields.isEmpty()) {
         get.setSelectedFields(String.join(",", selectedFields));
@@ -674,7 +683,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
             get,
             String.format(
                 "Unable to get table: %s, aborting after %d retries.",
-                ref.getTableId(), MAX_RPC_RETRIES),
+                updatedRef.getTableId(), MAX_RPC_RETRIES),
             sleeper,
             backoff,
             DONT_RETRY_NOT_FOUND);
@@ -1058,7 +1067,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
         List<ValueInSingleWindow<T>> failedInserts,
         ErrorContainer<T> errorContainer,
         boolean skipInvalidRows,
-        boolean ignoreUnkownValues,
+        boolean ignoreUnknownValues,
         boolean ignoreInsertIds,
         List<ValueInSingleWindow<TableRow>> successfulRows)
         throws IOException, InterruptedException {
@@ -1152,7 +1161,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                     new InsertBatchofRowsCallable(
                         ref,
                         skipInvalidRows,
-                        ignoreUnkownValues,
+                        ignoreUnknownValues,
                         client,
                         rateLimitBackoffFactory,
                         rows,
@@ -1182,7 +1191,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                   new InsertBatchofRowsCallable(
                       ref,
                       skipInvalidRows,
-                      ignoreUnkownValues,
+                      ignoreUnknownValues,
                       client,
                       rateLimitBackoffFactory,
                       rows,
@@ -1352,7 +1361,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
 
     @Override
     public StreamAppendClient getStreamAppendClient(
-        String streamName, DescriptorProtos.DescriptorProto descriptor, boolean useConnectionPool)
+        String streamName,
+        DescriptorProtos.DescriptorProto descriptor,
+        boolean useConnectionPool,
+        AppendRowsRequest.MissingValueInterpretation missingValueInterpretation)
         throws Exception {
       ProtoSchema protoSchema = ProtoSchema.newBuilder().setProtoDescriptor(descriptor).build();
 
@@ -1384,6 +1396,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
               .setMaxInflightRequests(storageWriteMaxInflightRequests)
               .setMaxInflightBytes(storageWriteMaxInflightBytes)
               .setTraceId(traceId)
+              .setDefaultMissingValueInterpretation(missingValueInterpretation)
               .build();
       return new StreamAppendClient() {
         private int pins = 0;

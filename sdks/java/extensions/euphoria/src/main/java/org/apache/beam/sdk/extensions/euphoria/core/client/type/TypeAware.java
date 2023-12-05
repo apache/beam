@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.type;
 
 import java.util.Optional;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -29,6 +28,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * are chained together and type of input(s) equals to types of previous transform output(s). Source
  * transforms needs to know which type of elements are producing explicitly.
  */
+/** @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release. */
+@Deprecated
 public class TypeAware {
 
   /** Returns {@link TypeDescriptor} of this operator output type. */

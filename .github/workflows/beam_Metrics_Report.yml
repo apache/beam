@@ -54,11 +54,13 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
     if: |
-      (github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch') &&
-      github.repository == 'apache/beam'
+      (
+        (github.event_name == 'schedule' && github.repository == 'apache/beam')
+        || github.event_name == 'workflow_dispatch'
+      )
+     
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:

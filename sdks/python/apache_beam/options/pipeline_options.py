@@ -64,7 +64,7 @@ _FLAG_THAT_SETS_FALSE_VALUE = {'use_public_ips': 'no_use_public_ips'}
 
 
 def _static_value_provider_of(value_type):
-  """"Helper function to plug a ValueProvider into argparse.
+  """Helper function to plug a ValueProvider into argparse.
 
   Args:
     value_type: the type of the value. Since the type param of argparse's
@@ -334,6 +334,10 @@ class PipelineOptions(HasDisplayData):
 
     known_args, unknown_args = parser.parse_known_args(self._flags)
     if retain_unknown_options:
+      if unknown_args:
+        _LOGGER.warning(
+            'Unknown pipeline options received: %s. Ignore if flags are '
+            'used for internal purposes.' % (','.join(unknown_args)))
       i = 0
       while i < len(unknown_args):
         # Treat all unary flags as booleans, and all binary argument values as
@@ -1135,6 +1139,22 @@ class WorkerOptions(PipelineOptions):
         dest='min_cpu_platform',
         type=str,
         help='GCE minimum CPU platform. Default is determined by GCP.')
+    parser.add_argument(
+        '--max_cache_memory_usage_mb',
+        dest='max_cache_memory_usage_mb',
+        type=int,
+        default=100,
+        help=(
+            'Size of the SDK Harness cache to store user state and side '
+            'inputs in MB. Default is 100MB. If the cache is full, least '
+            'recently used elements will be evicted. This cache is per '
+            'each SDK Harness instance. SDK Harness is a component '
+            'responsible for executing the user code and communicating with '
+            'the runner. Depending on the runner, there may be more than one '
+            'SDK Harness process running on the same worker node. Increasing '
+            'cache size might improve performance of some pipelines, but can '
+            'lead to an increase in memory consumption and OOM errors if '
+            'workers are not appropriately provisioned.'))
 
   def validate(self, validator):
     errors = []

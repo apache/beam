@@ -20,6 +20,8 @@ name: PostCommit Java
 on:
   schedule:
     - cron: '0 5/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -59,7 +61,8 @@ jobs:
         job_phrase: [Run Java PostCommit]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Java PostCommit'
     steps:
       - uses: actions/checkout@v4

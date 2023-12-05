@@ -24,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import redis.clients.jedis.JedisPooled;
 import redis.clients.jedis.exceptions.JedisException;
@@ -56,6 +57,15 @@ class RedisClient implements SetupTeardown {
   long decr(String key) throws UserCodeExecutionException {
     try {
       return getSafeClient().decr(key);
+    } catch (JedisException e) {
+      throw new UserCodeExecutionException(e);
+    }
+  }
+
+  /** Get a byte array associated with a byte array key. Returns null if key does not exist. */
+  byte @Nullable [] getBytes(byte[] key) throws UserCodeExecutionException {
+    try {
+      return getSafeClient().get(key);
     } catch (JedisException e) {
       throw new UserCodeExecutionException(e);
     }
