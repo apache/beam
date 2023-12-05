@@ -256,9 +256,9 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     @Nullable
     private ActiveMessageMetadata activeMessageMetadata = null;
 
-    private MillisProvider clock = System::currentTimeMillis;
+    private final MillisProvider clock = System::currentTimeMillis;
 
-    private Map<String, IntSummaryStatistics> processingTimesByStep = new HashMap<>();
+    private final Map<String, IntSummaryStatistics> processingTimesByStep = new HashMap<>();
 
     public DataflowExecutionStateTracker(
         ExecutionStateSampler sampler,
