@@ -32,9 +32,13 @@ class ArtifactsFetcher():
   def __init__(self, artifact_location):
     files = os.listdir(artifact_location)
     files.remove(base._ATTRIBUTE_FILE_NAME)
+    # TODO: Integrate ArtifactFetcher into MLTransform.
     if len(files) > 1:
       raise NotImplementedError(
-          'Multiple files in artifact location not supported yet.')
+          "MLTransform may have been utilized alongside transforms written "
+          "in TensorFlow Transform, in conjunction with those from different "
+          "frameworks. Currently, retrieving artifacts from this "
+          "multi-framework setup is not supported.")
     self._artifact_location = os.path.join(artifact_location, files[0])
     self.transform_output = tft.TFTransformOutput(self._artifact_location)
 
