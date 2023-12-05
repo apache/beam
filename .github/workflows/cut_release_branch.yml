@@ -139,4 +139,4 @@ jobs:
     steps:
       - name: Trigger snapshot build
         run: |
-          echo "Working in progress. Please trigger "Release Nightly Snapshot" GHA workflow manually."
+          echo "Working in progress. Please trigger 'Release Nightly Snapshot' GHA workflow manually."
