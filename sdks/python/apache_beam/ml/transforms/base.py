@@ -323,11 +323,6 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     Returns:
       A MLTransform instance.
     """
-    self._validate_transform(transform)
-    self.transforms.append(transform)
-    return self
-
-  def _validate_transform(self, transform):
     # every data processing transform should subclass MLTransformProvider. Raise
     # an error if the transform does not subclass MLTransformProvider since the
     # downstream code expects the transform to be a subclass of
@@ -337,6 +332,8 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
           'transform must be a subclass of MLTransformProvider and implement '
           'get_ptransform_for_processing() method.'
           'Got: %s instead.' % type(transform))
+    self.transforms.append(transform)
+    return self
 
 
 class MLTransformMetricsUsage(beam.PTransform):
@@ -404,13 +401,6 @@ class _JsonPickleTransformAttributeManager(_TransformAttributeManager):
       **kwargs,
   ):
     if _JsonPickleTransformAttributeManager._is_remote_path(artifact_location):
-      try:
-        options = kwargs.get('options')
-      except KeyError:
-        raise RuntimeError(
-            'pipeline options are required to save the attributes.'
-            'in the artifact location %s' % artifact_location)
-
       temp_dir = tempfile.mkdtemp()
       temp_json_file = os.path.join(temp_dir, _ATTRIBUTE_FILE_NAME)
       with open(temp_json_file, 'w+') as f:
@@ -418,6 +408,12 @@ class _JsonPickleTransformAttributeManager(_TransformAttributeManager):
       with open(temp_json_file, 'rb') as f:
         from apache_beam.runners.dataflow.internal import apiclient
         _LOGGER.info('Creating artifact location: %s', artifact_location)
+        # pipeline options required to for the client to configure project.
+        options = kwargs.get('options')
+        if not options:
+          raise RuntimeError(
+              'pipeline options are required to save the attributes.'
+              'in the artifact location %s' % artifact_location)
         apiclient.DataflowApplicationClient(options=options).stage_file(
             gcs_or_local_path=artifact_location,
             file_name=_ATTRIBUTE_FILE_NAME,
