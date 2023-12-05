@@ -154,7 +154,6 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 		return nil, err
 	}
 
-	opts.Options.Options["experiments"] = strings.Join(opts.Experiments, ",")
 	job := &df.Job{
 		ProjectId: opts.Project,
 		Name:      opts.Name,
@@ -181,7 +180,8 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 					Experiments:  opts.Experiments,
 					TempLocation: opts.TempLocation,
 				},
-				GoOptions: opts.Options,
+				GoOptions:   opts.Options,
+				Experiments: opts.Experiments,
 			}),
 			ServiceOptions:    opts.DataflowServiceOptions,
 			ServiceKmsKeyName: opts.KmsKey,

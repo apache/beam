@@ -40,6 +40,7 @@ type pipelineOptions struct {
 	DisplayData []*displayData     `json:"display_data,omitempty"`
 	Options     any                `json:"options,omitempty"`
 	GoOptions   runtime.RawOptions `json:"beam:option:go_options:v1,omitempty"`
+	Experiments []string           `json:"beam:option:experiments:v1,omitempty"`
 }
 
 // NOTE(herohde) 2/9/2017: most of the v1b3 messages are weakly-typed json

@@ -94,11 +94,7 @@ func hook() {
 		}
 		runtime.GlobalOptions.Import(opt.Options)
 
-		var experiments []string
-		if e, ok := opt.Options.Options["experiments"]; ok {
-			experiments = strings.Split(e, ",")
-		}
-		if slices.Contains(experiments, "enable_data_sampling") {
+		if slices.Contains(opt.Experiments, "enable_data_sampling") {
 			enableDataSampling = true
 		}
 	}
