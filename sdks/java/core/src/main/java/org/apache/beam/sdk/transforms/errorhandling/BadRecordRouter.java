@@ -20,8 +20,6 @@ package org.apache.beam.sdk.transforms.errorhandling;
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
-import org.apache.beam.sdk.transforms.errorhandling.BadRecord.Failure;
-import org.apache.beam.sdk.transforms.errorhandling.BadRecord.Record;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.TupleTag;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -55,7 +53,16 @@ public interface BadRecordRouter extends Serializable {
       if (exception != null) {
         throw exception;
       } else {
-        throw new RuntimeException("Throwing default exception from Throwing Bad Record Router");
+        Preconditions.checkArgumentNotNull(record);
+        String encodedRecord =
+            BadRecord.Record.builder()
+                .addHumanReadableJson(record)
+                .build()
+                .getHumanReadableJsonRecord();
+        if (encodedRecord == null) {
+          encodedRecord = "Unable to serialize bad record";
+        }
+        throw new RuntimeException("Encountered Bad Record: " + encodedRecord);
       }
     }
   }
@@ -70,27 +77,9 @@ public interface BadRecordRouter extends Serializable {
         @Nullable Exception exception,
         String description)
         throws Exception {
-      Preconditions.checkArgumentNotNull(record);
-
-      // Build up record information
-      BadRecord.Record.Builder recordBuilder = Record.builder();
-      recordBuilder.addHumanReadableJson(record).addCoderAndEncodedRecord(coder, record);
-
-      // Build up failure information
-      BadRecord.Failure.Builder failureBuilder = Failure.builder().setDescription(description);
-
-      // It's possible for us to want to handle an error scenario where no actual exception object
-      // exists
-      if (exception != null) {
-        failureBuilder.setException(exception.toString()).addExceptionStackTrace(exception);
-      }
-
-      BadRecord badRecord =
-          BadRecord.builder()
-              .setRecord(recordBuilder.build())
-              .setFailure(failureBuilder.build())
-              .build();
-      outputReceiver.get(BAD_RECORD_TAG).output(badRecord);
+      outputReceiver
+          .get(BAD_RECORD_TAG)
+          .output(BadRecord.fromExceptionInformation(record, coder, exception, description));
     }
   }
 }

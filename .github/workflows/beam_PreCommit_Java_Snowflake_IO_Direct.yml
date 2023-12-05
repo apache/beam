@@ -31,6 +31,7 @@ on:
       - "sdks/java/extensions/google-cloud-platform-core/**"
       - "sdks/java/testing/test-utils/**"
       - 'release/trigger_all_tests.json'
+      - '.github/trigger_files/beam_PreCommit_Java_Snowflake_IO_Direct.json'
   issue_comment:
     types: [created]
   schedule:

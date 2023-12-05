@@ -256,6 +256,13 @@ class BigtableConfigTranslator {
           Duration.ofMillis(readOptions.getOperationTimeout().getMillis()));
     }
 
+    if (readOptions.getWaitTimeout() != null) {
+      settings
+          .stubSettings()
+          .readRowsSettings()
+          .setWaitTimeout(Duration.ofMillis(readOptions.getWaitTimeout().getMillis()));
+    }
+
     settings.stubSettings().readRowsSettings().setRetrySettings(retrySettings.build());
 
     return settings.build();

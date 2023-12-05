@@ -43,7 +43,7 @@ import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class GrpcCommitWorkStream
+public final class GrpcCommitWorkStream
     extends AbstractWindmillStream<StreamingCommitWorkRequest, StreamingCommitResponse>
     implements CommitWorkStream {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcCommitWorkStream.class);
@@ -82,7 +82,7 @@ final class GrpcCommitWorkStream
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
   }
 
-  static GrpcCommitWorkStream create(
+  public static GrpcCommitWorkStream create(
       Function<StreamObserver<StreamingCommitResponse>, StreamObserver<StreamingCommitWorkRequest>>
           startCommitWorkRpcFn,
       BackOff backoff,

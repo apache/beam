@@ -37,6 +37,7 @@ on:
       - 'runners/flink/**'
       - 'runners/java-fn-execution/**'
       - 'release/trigger_all_tests.json'
+      - '.github/trigger_files/beam_PreCommit_Java_PVR_Flink_Docker.json'
   issue_comment:
     types: [created]
   schedule:

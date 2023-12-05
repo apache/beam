@@ -48,6 +48,7 @@ Typical usage::
 # mypy: disallow-untyped-defs
 
 import abc
+import contextlib
 import logging
 import os
 import re
@@ -590,9 +591,12 @@ class Pipeline(HasDisplayData):
 
   def __enter__(self):
     # type: () -> Pipeline
-    self._extra_context = subprocess_server.JavaJarServer.beam_services(
-        self._options.view_as(CrossLanguageOptions).beam_services)
-    self._extra_context.__enter__()
+    self._extra_context = contextlib.ExitStack()
+    self._extra_context.enter_context(
+        subprocess_server.JavaJarServer.beam_services(
+            self._options.view_as(CrossLanguageOptions).beam_services))
+    self._extra_context.enter_context(
+        subprocess_server.SubprocessServer.cache_subprocesses())
     return self
 
   def __exit__(

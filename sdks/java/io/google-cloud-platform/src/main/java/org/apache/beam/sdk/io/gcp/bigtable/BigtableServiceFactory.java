@@ -128,12 +128,7 @@ class BigtableServiceFactory implements Serializable {
         BigtableDataSettings.enableBuiltinMetrics();
       }
 
-      BigtableService service;
-      if (opts.getWaitTimeout() != null) {
-        service = new BigtableServiceImpl(settings, opts.getWaitTimeout());
-      } else {
-        service = new BigtableServiceImpl(settings);
-      }
+      BigtableService service = new BigtableServiceImpl(settings);
       entry = BigtableServiceEntry.create(configId, service);
       entries.put(configId.id(), entry);
       refCounts.put(configId.id(), new AtomicInteger(1));
