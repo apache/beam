@@ -163,7 +163,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Reads by default use the <a
  * href="https://cloud.google.com/spanner/docs/reads#read_data_in_parallel">PartitionQuery API</a>
- * which enforces some limitations on the the type of queries that can be used so that the data can
+ * which enforces some limitations on the type of queries that can be used so that the data can
  * be read in parallel. If the query is not supported by the PartitionQuery API, then you can
  * specify a non-partitioned read by setting {@link Read#withBatching(boolean) withBatching(false)}.
  * If the amount of data being read by a non-partitioned read is very large, it may be useful to add
