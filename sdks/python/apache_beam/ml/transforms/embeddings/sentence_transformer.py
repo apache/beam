@@ -68,7 +68,7 @@ class _SentenceTransformerModelHandler(ModelHandler):
     return model.encode(batch, **inference_args)
 
   def load_model(self):
-    model = self._model_class(self._model_uri)
+    model = self._model_class(self._model_uri, **self._load_model_args)
     if self._max_seq_length:
       model.max_seq_length = self._max_seq_length
     return model
@@ -122,4 +122,8 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     # wrap the model handler in a _TextEmbeddingHandler since
     # the SentenceTransformerEmbeddings works on text input data.
-    return (RunInference(model_handler=_TextEmbeddingHandler(self)))
+    return (
+        RunInference(
+            model_handler=_TextEmbeddingHandler(self),
+            inference_args=self.inference_args,
+        ))

@@ -28,6 +28,7 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=ungrouped-imports
 try:
   from apache_beam.ml.transforms.embeddings.sentence_transformer import SentenceTransformerEmbeddings
+  import torch
 except ImportError:
   SentenceTransformerEmbeddings = None  # type: ignore
 
@@ -76,18 +77,6 @@ _parameterized_inputs = [
 ]
 
 
-def get_pipeline_wth_embedding_config(
-    pipeline: beam.Pipeline, embedding_config, artifact_location):
-  transformed_pcoll = (
-      pipeline
-      | "CreateData" >> beam.Create([{
-          test_query_column: test_query
-      }])
-      | "MLTransform" >> MLTransform(write_artifact_location=artifact_location).
-      with_transform(embedding_config))
-  return transformed_pcoll
-
-
 @unittest.skipIf(
     SentenceTransformerEmbeddings is None,
     'sentence-transformers is not installed.')
@@ -103,10 +92,14 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
     embedding_config = SentenceTransformerEmbeddings(
         model_name=model_name, columns=[test_query_column])
     with beam.Pipeline() as pipeline:
-      result_pcoll = get_pipeline_wth_embedding_config(
-          pipeline=pipeline,
-          embedding_config=embedding_config,
-          artifact_location=self.artifact_location)
+      result_pcoll = (
+          pipeline
+          | "CreateData" >> beam.Create([{
+              test_query_column: test_query
+          }])
+          | "MLTransform" >> MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  embedding_config))
 
       def assert_element(element):
         assert len(element[test_query_column]) == 768
@@ -212,6 +205,32 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
           | beam.Map(lambda x: round(max(x[test_query_column]), 4)))
 
       assert_that(max_ele_pcoll, equal_to(output))
+
+  def test_embeddings_with_inference_args(self):
+    model_name = DEFAULT_MODEL_NAME
+
+    inference_args = {'convert_to_numpy': False}
+    embedding_config = SentenceTransformerEmbeddings(
+        model_name=model_name,
+        columns=[test_query_column],
+        inference_args=inference_args)
+    with beam.Pipeline() as pipeline:
+      result_pcoll = (
+          pipeline
+          | "CreateData" >> beam.Create([{
+              test_query_column: test_query
+          }])
+          | "MLTransform" >> MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  embedding_config))
+
+      def assert_element(element):
+        assert type(element) == torch.Tensor
+
+      _ = (
+          result_pcoll
+          | beam.Map(lambda x: x[test_query_column])
+          | beam.Map(assert_element))
 
 
 if __name__ == '__main__':

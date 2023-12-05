@@ -179,6 +179,7 @@ class EmbeddingsManager(MLTransformProvider):
     self.max_batch_size = max_batch_size
     self.large_model = large_model
     self.columns = columns
+    self.inference_args = kwargs.pop('inference_args', {})
 
     if kwargs:
       _LOGGER.warning("Ignoring the following arguments: %s", kwargs.keys())
@@ -300,9 +301,8 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
           _MLTransformToPTransformMapper.load_transforms_from_artifact_location(
               self._parent_artifact_location))
 
-    # the saved transforms has artifact mode set to PRODUCE.
-    # set the artifact mode to CONSUME.
-    if self._artifact_mode == ArtifactMode.CONSUME:
+      # the saved transforms has artifact mode set to PRODUCE.
+      # set the artifact mode to CONSUME.
       for i in range(len(ptransform_list)):
         if hasattr(ptransform_list[i], 'artifact_mode'):
           ptransform_list[i].artifact_mode = self._artifact_mode
@@ -598,3 +598,6 @@ class _TextEmbeddingHandler(ModelHandler):
     if self.embedding_config.min_batch_size:
       batch_sizes_map['min_batch_size'] = self.embedding_config.min_batch_size
     return (self._underlying.batch_elements_kwargs() or batch_sizes_map)
+
+  def validate_inference_args(self, _):
+    pass
