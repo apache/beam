@@ -16,6 +16,7 @@
 #
 # pytype: skip-file
 
+import os
 import shutil
 import tempfile
 import typing
@@ -41,6 +42,7 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from apache_beam.ml.transforms import tft
+  from apache_beam.ml.transforms.handlers import TFTProcessHandler
   from apache_beam.ml.transforms.tft import TFTOperation
 except ImportError:
   tft = None  # type: ignore
@@ -424,6 +426,21 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
           equal_to(expected_data),
       )
 
+  def test_handler_with_list_data(self):
+    data = [{
+        'x': ['Hello world', 'Apache Beam'],
+    }, {
+        'x': ['Apache Beam', 'Hello world'],
+    }]
+    with self.assertRaises(TypeError):
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create(data)
+            | base.MLTransform(
+                write_artifact_location=self.artifact_location).with_transform(
+                    self.embedding_conig))
+
 
 class TestUtilFunctions(unittest.TestCase):
   def test_list_of_dicts_to_dict_of_lists_normal(self):
@@ -451,6 +468,90 @@ class TestUtilFunctions(unittest.TestCase):
     input_dict = {'a': [1, 3], 'b': [2]}
     with self.assertRaises(AssertionError):
       base._convert_dict_of_lists_to_lists_of_dict(input_dict)
+
+
+class TestJsonPickleTransformAttributeManager(unittest.TestCase):
+  def setUp(self):
+    self.attribute_manager = base._transform_attribute_manager
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
+  @unittest.skipIf(tft is None, 'tft module is not installed.')
+  def test_save_tft_process_handler(self):
+    transforms = [
+        tft.ScaleTo01(columns=['x']),
+        tft.ComputeAndApplyVocabulary(columns=['y'])
+    ]
+    process_handler = TFTProcessHandler(
+        transforms=transforms,
+        artifact_location=self.artifact_location,
+    )
+    self.attribute_manager.save_attributes(
+        ptransform_list=[process_handler],
+        artifact_location=self.artifact_location,
+    )
+
+    files = os.listdir(self.artifact_location)
+    self.assertTrue(len(files) == 1)
+    self.assertTrue(files[0] == base._ATTRIBUTE_FILE_NAME)
+
+  def test_save_run_inference(self):
+    self.attribute_manager.save_attributes(
+        ptransform_list=[RunInference(model_handler=FakeModelHandler())],
+        artifact_location=self.artifact_location,
+    )
+    files = os.listdir(self.artifact_location)
+    self.assertTrue(len(files) == 1)
+    self.assertTrue(files[0] == base._ATTRIBUTE_FILE_NAME)
+
+  def test_save_and_load_run_inference(self):
+    ptransform_list = [RunInference(model_handler=FakeModelHandler())]
+    self.attribute_manager.save_attributes(
+        ptransform_list=ptransform_list,
+        artifact_location=self.artifact_location,
+    )
+    loaded_ptransform_list = self.attribute_manager.load_attributes(
+        artifact_location=self.artifact_location,
+    )
+
+    self.assertTrue(len(loaded_ptransform_list) == len(ptransform_list))
+    self.assertListEqual(
+        list(loaded_ptransform_list[0].__dict__.keys()),
+        list(ptransform_list[0].__dict__.keys()))
+
+    get_keys = lambda x: list(x.__dict__.keys())
+    for i, transform in enumerate(ptransform_list):
+      self.assertListEqual(
+          get_keys(transform), get_keys(loaded_ptransform_list[i]))
+      if hasattr(transform, 'model_handler'):
+        model_handler = transform.model_handler
+        loaded_model_handler = loaded_ptransform_list[i].model_handler
+        self.assertListEqual(
+            get_keys(model_handler), get_keys(loaded_model_handler))
+
+  def test_mltransform_to_ptransform_wrapper(self):
+    transforms = [
+        FakeEmbeddingsManager(columns=['x']),
+        FakeEmbeddingsManager(columns=['y', 'z']),
+    ]
+    ptransform_mapper = base._MLTransformToPTransformMapper(
+        transforms=transforms,
+        artifact_location=self.artifact_location,
+        artifact_mode=None)
+
+    ptransform_list = ptransform_mapper.create_ptransform_list()
+    self.assertTrue(len(ptransform_list) == 2)
+
+    self.assertEqual(type(ptransform_list[0]), RunInference)
+    expected_columns = [['x'], ['y', 'z']]
+    for i in range(len(ptransform_list)):
+      self.assertEqual(type(ptransform_list[i]), RunInference)
+      self.assertEqual(
+          type(ptransform_list[i]._model_handler), base._TextEmbeddingHandler)
+      self.assertEqual(
+          ptransform_list[i]._model_handler.columns, expected_columns[i])
 
 
 if __name__ == '__main__':

@@ -19,6 +19,8 @@ import tempfile
 import unittest
 
 import apache_beam as beam
+from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.transforms import base
 from apache_beam.ml.transforms.base import MLTransform
 
 try:
@@ -191,6 +193,53 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
             | beam.Map(lambda x: max(x[test_query_column]))
             #  0.14797046780586243
             | beam.Map(assert_element))
+
+  def test_mltransform_to_ptransform_with_vertex(self):
+    model_name = 'textembedding-gecko@002'
+    transforms = [
+        VertexAITextEmbeddings(
+            columns=['x'],
+            model_name=model_name,
+            task_type='RETRIEVAL_DOCUMENT'),
+        VertexAITextEmbeddings(
+            columns=['y', 'z'], model_name=model_name, task_type='CLUSTERING')
+    ]
+    ptransform_mapper = base._MLTransformToPTransformMapper(
+        transforms=transforms,
+        artifact_location=self.artifact_location,
+        artifact_mode=None)
+
+    ptransform_list = ptransform_mapper.create_and_save_ptransform_list()
+    self.assertTrue(len(ptransform_list) == 2)
+
+    self.assertEqual(type(ptransform_list[0]), RunInference)
+    expected_columns = [['x'], ['y', 'z']]
+    expected_task_type = ['RETRIEVAL_DOCUMENT', 'CLUSTERING']
+    for i in range(len(ptransform_list)):
+      self.assertEqual(type(ptransform_list[i]), RunInference)
+      self.assertEqual(
+          type(ptransform_list[i]._model_handler), base._TextEmbeddingHandler)
+      self.assertEqual(
+          ptransform_list[i]._model_handler.columns, expected_columns[i])
+      self.assertEqual(
+          ptransform_list[i]._model_handler._underlying.task_type,
+          expected_task_type[i])
+      self.assertEqual(
+          ptransform_list[i]._model_handler._underlying.model_name, model_name)
+    ptransform_list = (
+        base._MLTransformToPTransformMapper.
+        load_transforms_from_artifact_location(self.artifact_location))
+    for i in range(len(ptransform_list)):
+      self.assertEqual(type(ptransform_list[i]), RunInference)
+      self.assertEqual(
+          type(ptransform_list[i]._model_handler), base._TextEmbeddingHandler)
+      self.assertEqual(
+          ptransform_list[i]._model_handler.columns, expected_columns[i])
+      self.assertEqual(
+          ptransform_list[i]._model_handler._underlying.task_type,
+          expected_task_type[i])
+      self.assertEqual(
+          ptransform_list[i]._model_handler._underlying.model_name, model_name)
 
 
 if __name__ == '__main__':

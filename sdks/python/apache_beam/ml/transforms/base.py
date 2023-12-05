@@ -449,7 +449,7 @@ class _MLTransformToPTransformMapper:
       self,
       transforms: List[MLTransformProvider],
       artifact_location: str,
-      artifact_mode: str,
+      artifact_mode: str = ArtifactMode.PRODUCE,
       pipeline_options: Optional[PipelineOptions] = None,
   ):
     self.transforms = transforms
