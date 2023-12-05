@@ -569,6 +569,52 @@ class TFTProcessHandlerTest(unittest.TestCase):
           equal_to(expected_test_data_z, equals_fn=np.array_equal),
           label='unused column: z')
 
+  def test_handler_with_same_input_elements(self):
+    with beam.Pipeline() as p:
+      data = [
+          {
+              'x': 'I'
+          },
+          {
+              'x': 'love'
+          },
+          {
+              'x': 'Beam'
+          },
+          {
+              'x': 'Beam'
+          },
+          {
+              'x': 'is'
+          },
+          {
+              'x': 'awesome'
+          },
+      ]
+      raw_data = (p | beam.Create(data))
+      process_handler = handlers.TFTProcessHandler(
+          transforms=[tft.ComputeAndApplyVocabulary(columns=['x'])],
+          artifact_location=self.artifact_location,
+      )
+      transformed_data = process_handler.process_data(raw_data)
+
+      expected_data = [
+          beam.Row(x=np.array([4])),
+          beam.Row(x=np.array([1])),
+          beam.Row(x=np.array([0])),
+          beam.Row(x=np.array([0])),
+          beam.Row(x=np.array([2])),
+          beam.Row(x=np.array([3])),
+      ]
+
+      expected_data_x = [row.x for row in expected_data]
+      actual_data_x = transformed_data | beam.Map(lambda x: x.x)
+
+      assert_that(
+          actual_data_x,
+          equal_to(expected_data_x, equals_fn=np.array_equal),
+          label='transformed data')
+
 
 if __name__ == '__main__':
   unittest.main()
