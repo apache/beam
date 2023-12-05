@@ -288,18 +288,14 @@ diagram:
 
 This should be accomplished by the
 [cut_release_branch](https://github.com/apache/beam/actions/workflows/cut_release_branch.yml)
-workflow. This workflow will also update
-[mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py)
-to contain all of the active Jenkins jobs.
+workflow.
 
 The following must be manually done or confirmed:
 
 - [ ] The `master` branch has the SNAPSHOT/dev version incremented.
 - [ ] The release branch has the SNAPSHOT/dev version to be released.
 - [ ] The Dataflow container image should be modified to the version to be released.
-- [ ] Due to a bug/limitation in the workflow, you must navigate to the pull
-      request found in the logs and comment `Run Gradle Publish`.
-- [ ] After publish, close the PR.
+- [ ] Due to current limitation in the workflow, you must navigate to https://github.com/apache/beam/actions/workflows/beam_Release_NightlySnapshot.yml and click "Run workflow" and select the branch just created (release-2.xx.0) to build a snapshot.
 - [ ] Manually update `CHANGES.md` on `master` by adding a new section for the
   next release
   ([example](https://github.com/apache/beam/commit/96ab1fb3fe07acf7f7dc9d8c829ae36890d1535c)).
