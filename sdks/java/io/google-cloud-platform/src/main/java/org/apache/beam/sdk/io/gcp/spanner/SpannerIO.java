@@ -237,10 +237,10 @@ import org.slf4j.LoggerFactory;
  * partitioned read on each of them using the same Read Only Transaction for consistent results.
  *
  * <p>Note that this transform should <strong>not</strong> be used in Streaming pipelines. This is
- * because the same Read Only Transaction, which is created on pipeline startup will be used for all
- * reads. The data being read will therefore become stale, and if no reads are made for more than 1
- * hour, the transaction will automatically timeout and be closed by the Spanner server, and any
- * subsequent reads will fail.
+ * because the same Read Only Transaction, which is created once when the pipeline id first
+ * executed, will be used for all reads. The data being read will therefore become stale, and if no
+ * reads are made for more than 1 hour, the transaction will automatically timeout and be closed by
+ * the Spanner server, meaning that any subsequent reads will fail.
  *
  * <pre>{@code
  * // Build a collection of ReadOperations.
