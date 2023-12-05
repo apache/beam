@@ -350,7 +350,7 @@ public class KafkaStreaming {
   // Intentionally failing deserializer to simulate bad data from Kafka
   public static class IntermittentlyFailingIntegerDeserializer implements Deserializer<Integer> {
 
-    public static final IntegerDeserializer integerDeserializer = new IntegerDeserializer();
+    public static final IntegerDeserializer INTEGER_DESERIALIZER = new IntegerDeserializer();
     public int deserializeCount = 0;
 
     public IntermittentlyFailingIntegerDeserializer() {}
@@ -361,7 +361,7 @@ public class KafkaStreaming {
       if (deserializeCount % 10 == 0) {
         throw new SerializationException("Expected Serialization Exception");
       }
-      return integerDeserializer.deserialize(topic, data);
+      return INTEGER_DESERIALIZER.deserialize(topic, data);
     }
   }
 }
