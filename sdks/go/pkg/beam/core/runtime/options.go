@@ -65,22 +65,16 @@ type RawOptions struct {
 // TODO(herohde) 3/12/2018: remove the extra options wrapper and the bogus
 // fields current required by the Java runners.
 
-// AdditionalOptions contains options in addition to those listed in RawOptions
-type AdditionalOptions struct {
-	Experiments []string `json:"experiments"`
-}
-
 // RawOptionsWrapper wraps RawOptions to the form expected by the
 // harness. The extra layer is currently needed due to Dataflow
 // expectations about this representation. Subject to change.
 type RawOptionsWrapper struct {
-	Options           RawOptions        `json:"beam:option:go_options:v1"`
-	Runner            string            `json:"beam:option:runner:v1"`
-	AppName           string            `json:"beam:option:app_name:v1"`
-	Experiments       []string          `json:"beam:option:experiments:v1"`
-	RetainDocker      bool              `json:"beam:option:retain_docker_containers:v1"`
-	Parallelism       int               `json:"beam:option:parallelism:v1"`
-	AdditionalOptions AdditionalOptions `json:"options"`
+	Options      RawOptions `json:"beam:option:go_options:v1"`
+	Runner       string     `json:"beam:option:runner:v1"`
+	AppName      string     `json:"beam:option:app_name:v1"`
+	Experiments  []string   `json:"beam:option:experiments:v1"`
+	RetainDocker bool       `json:"beam:option:retain_docker_containers:v1"`
+	Parallelism  int        `json:"beam:option:parallelism:v1"`
 }
 
 // Import imports the options from previously exported data and makes the
