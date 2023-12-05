@@ -513,9 +513,7 @@ public class StreamingDataflowWorker {
     Uninterruptibles.sleepUninterruptibly(millis, TimeUnit.MILLISECONDS);
   }
 
-  /**
-   * Sets the stage name and workId of the current Thread for logging.
-   */
+  /** Sets the stage name and workId of the current Thread for logging. */
   private static void setUpWorkLoggingContext(String workId, String computationId) {
     DataflowWorkerLoggingMDC.setWorkId(workId);
     DataflowWorkerLoggingMDC.setStageName(computationId);

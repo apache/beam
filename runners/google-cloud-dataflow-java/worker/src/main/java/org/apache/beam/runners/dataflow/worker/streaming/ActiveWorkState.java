@@ -234,8 +234,7 @@ final class ActiveWorkState {
                     .setShardingKey(shardedKey.shardingKey())
                     .setWorkToken(work.getWorkItem().getWorkToken())
                     .addAllLatencyAttribution(
-                        work.getLatencyAttributions(
-                            true, work.getLatencyTrackingId(), sampler))
+                        work.getLatencyAttributions(true, work.getLatencyTrackingId(), sampler))
                     .build());
   }
 

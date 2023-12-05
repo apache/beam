@@ -22,13 +22,13 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Optional;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.IntSummaryStatistics;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
@@ -253,8 +253,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
      * Metadata on the message whose processing is currently being managed by this tracker. If no
      * message is actively being processed, activeMessageMetadata will be null.
      */
-    @Nullable
-    private ActiveMessageMetadata activeMessageMetadata = null;
+    @Nullable private ActiveMessageMetadata activeMessageMetadata = null;
 
     private final MillisProvider clock = System::currentTimeMillis;
 
