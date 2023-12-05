@@ -286,7 +286,7 @@ public class StreamingDataflowWorker {
   // Possibly overridden by streaming engine config.
   private int maxWorkItemCommitBytes = Integer.MAX_VALUE;
 
-  private DataflowExecutionStateSampler sampler = DataflowExecutionStateSampler.instance();
+  private final DataflowExecutionStateSampler sampler = DataflowExecutionStateSampler.instance();
 
   @VisibleForTesting
   StreamingDataflowWorker(
