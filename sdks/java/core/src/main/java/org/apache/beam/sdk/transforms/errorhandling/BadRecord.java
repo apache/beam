@@ -67,6 +67,31 @@ public abstract class BadRecord implements Serializable {
     }
   }
 
+  public static <RecordT> BadRecord fromExceptionInformation(
+      RecordT record,
+      @Nullable Coder<RecordT> coder,
+      @Nullable Exception exception,
+      String description)
+      throws IOException {
+    // Build up record information
+    BadRecord.Record.Builder recordBuilder = Record.builder();
+    recordBuilder.addHumanReadableJson(record).addCoderAndEncodedRecord(coder, record);
+
+    // Build up failure information
+    BadRecord.Failure.Builder failureBuilder = Failure.builder().setDescription(description);
+
+    // It's possible for us to want to handle an error scenario where no actual exception object
+    // exists
+    if (exception != null) {
+      failureBuilder.setException(exception.toString()).addExceptionStackTrace(exception);
+    }
+
+    return BadRecord.builder()
+        .setRecord(recordBuilder.build())
+        .setFailure(failureBuilder.build())
+        .build();
+  }
+
   @AutoValue.Builder
   public abstract static class Builder {
 
