@@ -35,9 +35,9 @@ runs:
     - name: Run Gradle Command
       shell: bash
       run: |
-        # This step is a workaround to avoid a decryption issue of Beam's
-        # net.linguica.gradle.maven.settings plugin and github's provided maven
-        # settings.xml file
+        # Removing settings.xml is a workaround to avoid a decryption issue
+        # of Beam's gradle-command-action plugin and github's provided
+        # maven settings.xml file
         if [ -f ~/.m2/settings.xml ]; then
           rm ~/.m2/settings.xml
         fi
