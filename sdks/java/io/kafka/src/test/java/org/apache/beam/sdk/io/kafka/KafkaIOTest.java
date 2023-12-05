@@ -1446,7 +1446,8 @@ public class KafkaIOTest {
 
       String topic = "test";
 
-      BadRecordErrorHandler<PCollection<Long>> eh = p.registerBadRecordErrorHandler(new ErrorSinkTransform());
+      BadRecordErrorHandler<PCollection<Long>> eh =
+          p.registerBadRecordErrorHandler(new ErrorSinkTransform());
 
       p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
           .apply(
