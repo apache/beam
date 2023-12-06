@@ -32,8 +32,10 @@ import yaml
 from yaml.loader import SafeLoader
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml.yaml_combine import normalize_combine
 
 __all__ = ["YamlTransform"]
 
@@ -225,6 +227,8 @@ class Scope(LightweightScope):
       outputs = self.get_outputs(transform)
       if output in outputs:
         return outputs[output]
+      elif len(outputs) == 1 and outputs[next(iter(outputs))].tag == output:
+        return outputs[next(iter(outputs))]
       else:
         raise ValueError(
             f'Unknown output {repr(output)} '
@@ -522,7 +526,7 @@ def chain_as_composite(spec):
     raise TypeError(
         f"Chain at {identify_object(spec)} missing transforms property.")
   has_explicit_outputs = 'output' in spec
-  composite_spec = normalize_inputs_outputs(spec)
+  composite_spec = normalize_inputs_outputs(tag_explicit_inputs(spec))
   new_transforms = []
   for ix, transform in enumerate(composite_spec['transforms']):
     if any(io in transform for io in ('input', 'output')):
@@ -539,6 +543,8 @@ def chain_as_composite(spec):
         pass
       elif is_explicitly_empty(composite_spec['input']):
         transform['input'] = composite_spec['input']
+      elif is_empty(composite_spec['input']):
+        del composite_spec['input']
       else:
         transform['input'] = {
             key: key
@@ -883,7 +889,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
     return spec
 
   def preprocess_langauges(spec):
-    if spec['type'] in ('Filter', 'MapToFields'):
+    if spec['type'] in ('Filter', 'MapToFields', 'Combine'):
       language = spec.get('config', {}).get('language', 'generic')
       new_type = spec['type'] + '-' + language
       if known_transforms and new_type not in known_transforms:
@@ -898,6 +904,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
 
   for phase in [
       ensure_transforms_have_types,
+      normalize_combine,
       preprocess_langauges,
       ensure_transforms_have_providers,
       preprocess_source_sink,
@@ -931,24 +938,43 @@ class YamlTransform(beam.PTransform):
     self._providers = yaml_provider.merge_providers(
         providers, yaml_provider.standard_providers())
     self._spec = preprocess(spec, known_transforms=self._providers.keys())
+    self._was_chain = spec['type'] == 'chain'
 
   def expand(self, pcolls):
     if isinstance(pcolls, beam.pvalue.PBegin):
       root = pcolls
+      pipeline = root.pipeline
       pcolls = {}
     elif isinstance(pcolls, beam.PCollection):
       root = pcolls.pipeline
+      pipeline = root
       pcolls = {'input': pcolls}
+      if not self._spec['input']:
+        self._spec['input'] = {'input': 'input'}
+        if self._was_chain and self._spec['transforms']:
+          # This should have been copied as part of the composite-to-chain.
+          self._spec['transforms'][0]['input'] = self._spec['input']
     else:
       root = next(iter(pcolls.values())).pipeline
+      pipeline = root
+      if not self._spec['input']:
+        self._spec['input'] = {name: name for name in pcolls.keys()}
+    python_provider = yaml_provider.InlineProvider({})
+
+    options = pipeline.options.view_as(GoogleCloudOptions)
+    options.labels = ["yaml=true"]
+
     result = expand_transform(
         self._spec,
         Scope(
             root,
             pcolls,
-            transforms=[],
+            transforms=[self._spec],
             providers=self._providers,
-            input_providers={}))
+            input_providers={
+                pcoll: python_provider
+                for pcoll in pcolls.values()
+            }))
     if len(result) == 1:
       return only_element(result.values())
     else:

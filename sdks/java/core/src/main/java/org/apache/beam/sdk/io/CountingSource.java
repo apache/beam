@@ -20,13 +20,19 @@ package org.apache.beam.sdk.io;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.metrics.Counter;
@@ -354,7 +360,7 @@ public class CountingSource {
 
     @Override
     public Coder<CountingSource.CounterMark> getCheckpointMarkCoder() {
-      return AvroCoder.of(CountingSource.CounterMark.class);
+      return new CounterMarkCoder();
     }
 
     @Override
@@ -485,7 +491,7 @@ public class CountingSource {
    * The checkpoint for an unbounded {@link CountingSource} is simply the last value produced. The
    * associated source object encapsulates the information needed to produce the next value.
    */
-  @DefaultCoder(AvroCoder.class)
+  @DefaultCoder(CounterMarkCoder.class)
   public static class CounterMark implements UnboundedSource.CheckpointMark {
     /** The last value emitted. */
     private final long lastEmitted;
@@ -518,5 +524,23 @@ public class CountingSource {
 
     @Override
     public void finalizeCheckpoint() throws IOException {}
+  }
+
+  /** A custom coder for {@code CounterMark}. */
+  public static class CounterMarkCoder extends CustomCoder<CounterMark> {
+    @Override
+    public void encode(CounterMark value, OutputStream outStream) throws IOException {
+      DataOutputStream stream = new DataOutputStream(outStream);
+      BigEndianLongCoder.of().encode(value.lastEmitted, stream);
+      InstantCoder.of().encode(value.startTime, stream);
+    }
+
+    @Override
+    public CounterMark decode(InputStream inStream) throws IOException {
+      DataInputStream stream = new DataInputStream(inStream);
+      long lastEmitted = BigEndianLongCoder.of().decode(stream);
+      Instant startTime = InstantCoder.of().decode(stream);
+      return new CounterMark(lastEmitted, startTime);
+    }
   }
 }

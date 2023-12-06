@@ -39,6 +39,8 @@ import org.joda.time.Instant;
  * @param <InputT> type of input
  * @param <OutputT> type of output
  */
+/** @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release. */
+@Deprecated
 public class FlatMapTranslator<InputT, OutputT>
     implements OperatorTranslator<InputT, OutputT, FlatMap<InputT, OutputT>> {
 

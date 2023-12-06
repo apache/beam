@@ -33,6 +33,7 @@ dependencies {
     implementation library.java.vendored_grpc_1_54_0
 
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+    testImplementation library.java.commons_compress
     testImplementation library.java.guava_testlib
     testImplementation library.java.junit
     testImplementation library.java.hamcrest

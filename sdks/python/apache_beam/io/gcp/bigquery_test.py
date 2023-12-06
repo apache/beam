@@ -49,14 +49,12 @@ from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
-from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
 from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
-from apache_beam.io.gcp.internal.clients.bigquery import bigquery_v2_client
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
 from apache_beam.io.gcp.tests import utils
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
@@ -82,6 +80,7 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 # pylint: disable=wrong-import-order, wrong-import-position
 
 try:
+  from apache_beam.io.gcp.internal.clients.bigquery import bigquery_v2_client
   from apitools.base.py.exceptions import HttpError
   from google.cloud import bigquery as gcp_bigquery
   from google.api_core import exceptions
@@ -92,6 +91,42 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
+
+_ELEMENTS = [
+    {
+        'name': 'beam', 'language': 'py'
+    },
+    {
+        'name': 'beam', 'language': 'java'
+    },
+    {
+        'name': 'beam', 'language': 'go'
+    },
+    {
+        'name': 'flink', 'language': 'java'
+    },
+    {
+        'name': 'flink', 'language': 'scala'
+    },
+    {
+        'name': 'spark', 'language': 'scala'
+    },
+    {
+        'name': 'spark', 'language': 'py'
+    },
+    {
+        'name': 'spark', 'language': 'scala'
+    },
+    {
+        'name': 'beam', 'foundation': 'apache'
+    },
+    {
+        'name': 'flink', 'foundation': 'apache'
+    },
+    {
+        'name': 'spark', 'foundation': 'apache'
+    },
+]
 
 
 def _load_or_default(filename):

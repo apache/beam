@@ -68,13 +68,14 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.io.AvroGeneratedUser;
+import org.apache.beam.sdk.extensions.avro.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.KafkaIO.Read.FakeFlinkPipelineOptions;
 import org.apache.beam.sdk.io.kafka.KafkaMocks.PositionErrorConsumerFactory;
 import org.apache.beam.sdk.io.kafka.KafkaMocks.SendErrorProducerFactory;
+import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -1872,6 +1873,67 @@ public class KafkaIOTest {
         .apply(Values.create());
 
     p.run();
+  }
+
+  @Test
+  public void testUnboundedSourceRawSizeMetric() {
+    final String readStep = "readFromKafka";
+    final int numElements = 1000;
+    final int numPartitionsPerTopic = 10;
+    final int recordSize = 12; // The size of key and value is defined in ConsumerFactoryFn.
+
+    List<String> topics = ImmutableList.of("test");
+
+    KafkaIO.Read<byte[], Long> reader =
+        KafkaIO.<byte[], Long>read()
+            .withBootstrapServers("none")
+            .withTopicPartitions(
+                ImmutableList.of(new TopicPartition("test", 5), new TopicPartition("test", 8)))
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(
+                    topics, numPartitionsPerTopic, numElements, OffsetResetStrategy.EARLIEST))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .withMaxNumRecords(numElements / numPartitionsPerTopic * 2); // 2 is the # of partitions
+
+    p.apply(readStep, reader.withoutMetadata()).apply(Values.create());
+
+    PipelineResult result = p.run();
+
+    MetricQueryResults metrics =
+        result
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(
+                        MetricNameFilter.inNamespace(KafkaUnboundedReader.METRIC_NAMESPACE))
+                    .build());
+
+    assertThat(
+        metrics.getDistributions(),
+        hasItem(
+            attemptedMetricsResult(
+                KafkaUnboundedReader.METRIC_NAMESPACE,
+                KafkaUnboundedReader.RAW_SIZE_METRIC_PREFIX + "test-5",
+                readStep,
+                DistributionResult.create(
+                    recordSize * numElements / numPartitionsPerTopic,
+                    numElements / numPartitionsPerTopic,
+                    recordSize,
+                    recordSize))));
+
+    assertThat(
+        metrics.getDistributions(),
+        hasItem(
+            attemptedMetricsResult(
+                KafkaUnboundedReader.METRIC_NAMESPACE,
+                KafkaUnboundedReader.RAW_SIZE_METRIC_PREFIX + "test-8",
+                readStep,
+                DistributionResult.create(
+                    recordSize * numElements / numPartitionsPerTopic,
+                    numElements / numPartitionsPerTopic,
+                    recordSize,
+                    recordSize))));
   }
 
   @Test

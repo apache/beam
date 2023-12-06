@@ -143,6 +143,9 @@ public class ClickHouseWriter {
           writeValue(stream, columnType.arrayElementType(), arrayValue);
         }
         break;
+      case BOOL:
+        BinaryStreamUtils.writeBoolean(stream, (Boolean) value);
+        break;
     }
   }
 

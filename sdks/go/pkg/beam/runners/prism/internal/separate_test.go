@@ -141,6 +141,7 @@ func TestSeparation(t *testing.T) {
 				count := 10
 				imp := beam.Impulse(s)
 				ints := beam.ParDo(s, emitTenFn, imp)
+				ints = beam.Reshuffle(s, ints)
 				out := beam.ParDo(s, &sepHarness{
 					Base: sepHarnessBase{
 						WatcherID:         ws.newWatcher(3),
@@ -379,7 +380,7 @@ func (fn *sepHarnessBase) setup() error {
 	sepWaitMap[fn.WatcherID] = c
 	go func(id int, c chan struct{}) {
 		for {
-			time.Sleep(time.Second * 1) // Check counts every second.
+			time.Sleep(time.Millisecond * 50) // Check counts every second.
 			sepClientMu.Lock()
 			var unblock bool
 			err := sepClient.Call("Watchers.Check", &Args{WatcherID: id}, &unblock)

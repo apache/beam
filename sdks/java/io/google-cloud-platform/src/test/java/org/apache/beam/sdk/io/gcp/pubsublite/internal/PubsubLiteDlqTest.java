@@ -17,15 +17,26 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
+import static org.apache.beam.sdk.io.gcp.pubsublite.PubsubLiteReadSchemaTransformProvider.getRawBytesToRowFunction;
+import static org.apache.beam.sdk.io.gcp.pubsublite.PubsubLiteReadSchemaTransformProvider.getUuidFromMessage;
+
+import com.google.cloud.pubsublite.proto.AttributeValues;
 import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.protobuf.ByteString;
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import org.apache.beam.sdk.io.gcp.pubsublite.PubsubLiteIO;
 import org.apache.beam.sdk.io.gcp.pubsublite.PubsubLiteReadSchemaTransformProvider;
 import org.apache.beam.sdk.io.gcp.pubsublite.PubsubLiteReadSchemaTransformProvider.ErrorFn;
+import org.apache.beam.sdk.io.gcp.pubsublite.UuidDeduplicationOptions;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -46,18 +57,131 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class PubsubLiteDlqTest {
 
-  private static final TupleTag<Row> OUTPUTTAG = PubsubLiteReadSchemaTransformProvider.OUTPUT_TAG;
-  private static final TupleTag<Row> ERRORTAG = PubsubLiteReadSchemaTransformProvider.ERROR_TAG;
+  private static final TupleTag<Row> OUTPUT_TAG = PubsubLiteReadSchemaTransformProvider.OUTPUT_TAG;
+  private static final TupleTag<Row> ERROR_TAG = PubsubLiteReadSchemaTransformProvider.ERROR_TAG;
 
-  private static final Schema BEAMSCHEMA =
+  private static final Schema BEAM_RAW_SCHEMA =
+      Schema.builder().addField("payload", Schema.FieldType.BYTES).build();
+  private static final Schema BEAM_SCHEMA =
       Schema.of(Schema.Field.of("name", Schema.FieldType.STRING));
-  private static final Schema ERRORSCHEMA = PubsubLiteReadSchemaTransformProvider.ERROR_SCHEMA;
+
+  private static final Schema BEAM_SCHEMA_ATTRIBUTES =
+      Schema.of(
+          Schema.Field.of("name", Schema.FieldType.STRING),
+          Schema.Field.of("key1", Schema.FieldType.STRING),
+          Schema.Field.of("key2", Schema.FieldType.STRING));
+
+  private static final Schema BEAM_SCHEMA_ATTRIBUTES_AND_MAP =
+      Schema.of(
+          Schema.Field.of("name", Schema.FieldType.STRING),
+          Schema.Field.of("key1", Schema.FieldType.STRING),
+          Schema.Field.of("key2", Schema.FieldType.STRING),
+          Schema.Field.of(
+              "attrs", Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.STRING)));
+
+  private static final Schema BEAM_SCHEMA_ATTRIBUTES_MAP =
+      Schema.of(
+          Schema.Field.of("name", Schema.FieldType.STRING),
+          Schema.Field.of(
+              "attrs", Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.STRING)));
+
+  private static final Map<String, String> STATIC_MAP;
+
+  static {
+    Map<String, String> tempMap = new HashMap<>();
+    tempMap.put("key1", "first_key");
+    tempMap.put("key2", "second_key");
+    STATIC_MAP = Collections.unmodifiableMap(tempMap);
+  }
+
+  private static final List<Row> RAW_ROWS;
+
+  static {
+    try {
+      RAW_ROWS =
+          Arrays.asList(
+              Row.withSchema(BEAM_RAW_SCHEMA)
+                  .withFieldValue("payload", "a".getBytes("UTF-8"))
+                  .build(),
+              Row.withSchema(BEAM_RAW_SCHEMA)
+                  .withFieldValue("payload", "b".getBytes("UTF-8"))
+                  .build(),
+              Row.withSchema(BEAM_RAW_SCHEMA)
+                  .withFieldValue("payload", "c".getBytes("UTF-8"))
+                  .build());
+    } catch (UnsupportedEncodingException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static final List<Row> ROWS_WITH_ATTRIBUTES =
+      Arrays.asList(
+          Row.withSchema(BEAM_SCHEMA_ATTRIBUTES)
+              .withFieldValue("name", "a")
+              .withFieldValue("key1", "first_key")
+              .withFieldValue("key2", "second_key")
+              .build(),
+          Row.withSchema(BEAM_SCHEMA_ATTRIBUTES)
+              .withFieldValue("name", "b")
+              .withFieldValue("key1", "first_key")
+              .withFieldValue("key2", "second_key")
+              .build(),
+          Row.withSchema(BEAM_SCHEMA_ATTRIBUTES)
+              .withFieldValue("name", "c")
+              .withFieldValue("key1", "first_key")
+              .withFieldValue("key2", "second_key")
+              .build());
+  private static final List<Row> ROWS_WITH_ATTRIBUTES_MAP =
+      Arrays.asList(
+          Row.withSchema(BEAM_SCHEMA_ATTRIBUTES_MAP)
+              .withFieldValue("name", "a")
+              .withFieldValue("attrs", STATIC_MAP)
+              .build(),
+          Row.withSchema(BEAM_SCHEMA_ATTRIBUTES_MAP)
+              .withFieldValue("name", "b")
+              .withFieldValue("attrs", STATIC_MAP)
+              .build(),
+          Row.withSchema(BEAM_SCHEMA_ATTRIBUTES_MAP)
+              .withFieldValue("name", "c")
+              .withFieldValue("attrs", STATIC_MAP)
+              .build());
+  private static final List<Row> ROWS_WITH_ATTRIBUTES_AND_MAP =
+      Arrays.asList(
+          Row.withSchema(BEAM_SCHEMA_ATTRIBUTES_AND_MAP)
+              .withFieldValue("name", "a")
+              .withFieldValue("key1", "first_key")
+              .withFieldValue("key2", "second_key")
+              .withFieldValue("attrs", STATIC_MAP)
+              .build(),
+          Row.withSchema(BEAM_SCHEMA_ATTRIBUTES_AND_MAP)
+              .withFieldValue("name", "b")
+              .withFieldValue("key1", "first_key")
+              .withFieldValue("key2", "second_key")
+              .withFieldValue("attrs", STATIC_MAP)
+              .build(),
+          Row.withSchema(BEAM_SCHEMA_ATTRIBUTES_AND_MAP)
+              .withFieldValue("name", "c")
+              .withFieldValue("key1", "first_key")
+              .withFieldValue("key2", "second_key")
+              .withFieldValue("attrs", STATIC_MAP)
+              .build());
 
   private static final List<Row> ROWS =
       Arrays.asList(
-          Row.withSchema(BEAMSCHEMA).withFieldValue("name", "a").build(),
-          Row.withSchema(BEAMSCHEMA).withFieldValue("name", "b").build(),
-          Row.withSchema(BEAMSCHEMA).withFieldValue("name", "c").build());
+          Row.withSchema(BEAM_SCHEMA).withFieldValue("name", "a").build(),
+          Row.withSchema(BEAM_SCHEMA).withFieldValue("name", "b").build(),
+          Row.withSchema(BEAM_SCHEMA).withFieldValue("name", "c").build());
+
+  private static final Map<String, AttributeValues> ATTRIBUTE_VALUES_MAP = new HashMap<>();
+
+  static {
+    ATTRIBUTE_VALUES_MAP.put(
+        "key1",
+        AttributeValues.newBuilder().addValues(ByteString.copyFromUtf8("first_key")).build());
+    ATTRIBUTE_VALUES_MAP.put(
+        "key2",
+        AttributeValues.newBuilder().addValues(ByteString.copyFromUtf8("second_key")).build());
+  }
 
   private static final List<SequencedMessage> MESSAGES =
       Arrays.asList(
@@ -65,18 +189,45 @@ public class PubsubLiteDlqTest {
               .setMessage(
                   PubSubMessage.newBuilder()
                       .setData(ByteString.copyFromUtf8("{\"name\":\"a\"}"))
+                      .putAllAttributes(ATTRIBUTE_VALUES_MAP)
                       .build())
               .build(),
           SequencedMessage.newBuilder()
               .setMessage(
                   PubSubMessage.newBuilder()
                       .setData(ByteString.copyFromUtf8("{\"name\":\"b\"}"))
+                      .putAllAttributes(ATTRIBUTE_VALUES_MAP)
                       .build())
               .build(),
           SequencedMessage.newBuilder()
               .setMessage(
                   PubSubMessage.newBuilder()
                       .setData(ByteString.copyFromUtf8("{\"name\":\"c\"}"))
+                      .putAllAttributes(ATTRIBUTE_VALUES_MAP)
+                      .build())
+              .build());
+
+  private static final List<SequencedMessage> RAW_MESSAGES =
+      Arrays.asList(
+          SequencedMessage.newBuilder()
+              .setMessage(
+                  PubSubMessage.newBuilder()
+                      .setData(ByteString.copyFromUtf8("a"))
+                      .putAllAttributes(ATTRIBUTE_VALUES_MAP)
+                      .build())
+              .build(),
+          SequencedMessage.newBuilder()
+              .setMessage(
+                  PubSubMessage.newBuilder()
+                      .setData(ByteString.copyFromUtf8("b"))
+                      .putAllAttributes(ATTRIBUTE_VALUES_MAP)
+                      .build())
+              .build(),
+          SequencedMessage.newBuilder()
+              .setMessage(
+                  PubSubMessage.newBuilder()
+                      .setData(ByteString.copyFromUtf8("c"))
+                      .putAllAttributes(ATTRIBUTE_VALUES_MAP)
                       .build())
               .build());
 
@@ -102,39 +253,221 @@ public class PubsubLiteDlqTest {
               .build());
 
   final SerializableFunction<byte[], Row> valueMapper =
-      JsonUtils.getJsonBytesToRowFunction(BEAMSCHEMA);
+      JsonUtils.getJsonBytesToRowFunction(BEAM_SCHEMA);
 
   @Rule public transient TestPipeline p = TestPipeline.create();
 
   @Test
-  public void testPubsubLiteErrorFnSuccess() throws Exception {
+  public void testPubsubLiteErrorFnSuccess() {
+    Schema errorSchema = ErrorHandling.errorSchemaBytes();
     PCollection<SequencedMessage> input = p.apply(Create.of(MESSAGES));
     PCollectionTuple output =
         input.apply(
-            ParDo.of(new ErrorFn("Read-Error-Counter", valueMapper))
-                .withOutputTags(OUTPUTTAG, TupleTagList.of(ERRORTAG)));
+            ParDo.of(new ErrorFn("Read-Error-Counter", valueMapper, errorSchema, Boolean.TRUE))
+                .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-    output.get(OUTPUTTAG).setRowSchema(BEAMSCHEMA);
-    output.get(ERRORTAG).setRowSchema(ERRORSCHEMA);
+    output.get(OUTPUT_TAG).setRowSchema(BEAM_SCHEMA);
+    output.get(ERROR_TAG).setRowSchema(errorSchema);
 
-    PAssert.that(output.get(OUTPUTTAG)).containsInAnyOrder(ROWS);
+    PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(ROWS);
     p.run().waitUntilFinish();
   }
 
   @Test
-  public void testPubsubLiteErrorFnFailure() throws Exception {
+  public void testPubsubLiteErrorFnFailure() {
+    Schema errorSchema = ErrorHandling.errorSchemaBytes();
     PCollection<SequencedMessage> input = p.apply(Create.of(MESSAGESWITHERROR));
     PCollectionTuple output =
         input.apply(
-            ParDo.of(new ErrorFn("Read-Error-Counter", valueMapper))
-                .withOutputTags(OUTPUTTAG, TupleTagList.of(ERRORTAG)));
+            ParDo.of(new ErrorFn("Read-Error-Counter", valueMapper, errorSchema, Boolean.TRUE))
+                .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-    output.get(OUTPUTTAG).setRowSchema(BEAMSCHEMA);
-    output.get(ERRORTAG).setRowSchema(ERRORSCHEMA);
+    output.get(OUTPUT_TAG).setRowSchema(BEAM_SCHEMA);
+    output.get(ERROR_TAG).setRowSchema(errorSchema);
 
-    PCollection<Long> count = output.get(ERRORTAG).apply("error_count", Count.globally());
+    PCollection<Long> count = output.get(ERROR_TAG).apply("error_count", Count.globally());
 
     PAssert.that(count).containsInAnyOrder(Collections.singletonList(3L));
+
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testPubsubLiteErrorFnRawSuccess() {
+    Schema errorSchema = ErrorHandling.errorSchemaBytes();
+
+    List<String> attributes = new ArrayList<>();
+    String attributesMap = "";
+    Schema beamAttributeSchema =
+        PubsubLiteReadSchemaTransformProvider.buildSchemaWithAttributes(
+            BEAM_RAW_SCHEMA, attributes, attributesMap);
+    SerializableFunction<byte[], Row> rawValueMapper = getRawBytesToRowFunction(BEAM_RAW_SCHEMA);
+    PCollection<SequencedMessage> input = p.apply(Create.of(RAW_MESSAGES));
+    PCollectionTuple output =
+        input.apply(
+            ParDo.of(new ErrorFn("Read-Error-Counter", rawValueMapper, errorSchema, Boolean.TRUE))
+                .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+    output.get(OUTPUT_TAG).setRowSchema(beamAttributeSchema);
+    output.get(ERROR_TAG).setRowSchema(errorSchema);
+
+    PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(RAW_ROWS);
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testPubsubLiteErrorFnWithAttributesSuccess() {
+    Schema errorSchema = ErrorHandling.errorSchemaBytes();
+    List<String> attributes = new ArrayList<>();
+    attributes.add("key1");
+    attributes.add("key2");
+    String attributeMap = "";
+    Schema beamAttributeSchema =
+        PubsubLiteReadSchemaTransformProvider.buildSchemaWithAttributes(
+            BEAM_SCHEMA, attributes, attributeMap);
+
+    PCollection<SequencedMessage> input = p.apply(Create.of(MESSAGES));
+    PCollectionTuple output =
+        input.apply(
+            ParDo.of(
+                    new ErrorFn(
+                        "Read-Error-Counter",
+                        valueMapper,
+                        errorSchema,
+                        attributes,
+                        attributeMap,
+                        beamAttributeSchema,
+                        Boolean.TRUE))
+                .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+    output.get(OUTPUT_TAG).setRowSchema(beamAttributeSchema);
+    output.get(ERROR_TAG).setRowSchema(errorSchema);
+
+    PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(ROWS_WITH_ATTRIBUTES);
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testPubsubLiteErrorFnWithAttributeMapSuccess() {
+    Schema errorSchema = ErrorHandling.errorSchemaBytes();
+    // empty list of attributes
+    List<String> attributes = new ArrayList<>();
+    String attributeMap = "attrs";
+    Schema beamAttributeSchema =
+        PubsubLiteReadSchemaTransformProvider.buildSchemaWithAttributes(
+            BEAM_SCHEMA, attributes, attributeMap);
+
+    PCollection<SequencedMessage> input = p.apply(Create.of(MESSAGES));
+    PCollectionTuple output =
+        input.apply(
+            ParDo.of(
+                    new ErrorFn(
+                        "Read-Error-Counter",
+                        valueMapper,
+                        errorSchema,
+                        attributes,
+                        attributeMap,
+                        beamAttributeSchema,
+                        Boolean.TRUE))
+                .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+    output.get(OUTPUT_TAG).setRowSchema(beamAttributeSchema);
+    output.get(ERROR_TAG).setRowSchema(errorSchema);
+
+    output.get(OUTPUT_TAG).setRowSchema(beamAttributeSchema);
+    PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(ROWS_WITH_ATTRIBUTES_MAP);
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testPubsubLiteErrorFnWithAttributesAndAttributeMapSuccess() {
+    Schema errorSchema = ErrorHandling.errorSchemaBytes();
+    List<String> attributes = new ArrayList<>();
+    attributes.add("key1");
+    attributes.add("key2");
+    String attributeMap = "attrs";
+    Schema beamAttributeSchema =
+        PubsubLiteReadSchemaTransformProvider.buildSchemaWithAttributes(
+            BEAM_SCHEMA, attributes, attributeMap);
+
+    PCollection<SequencedMessage> input = p.apply(Create.of(MESSAGES));
+    PCollectionTuple output =
+        input.apply(
+            ParDo.of(
+                    new ErrorFn(
+                        "Read-Error-Counter",
+                        valueMapper,
+                        errorSchema,
+                        attributes,
+                        attributeMap,
+                        beamAttributeSchema,
+                        Boolean.TRUE))
+                .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+    output.get(OUTPUT_TAG).setRowSchema(beamAttributeSchema);
+    output.get(ERROR_TAG).setRowSchema(errorSchema);
+
+    output.get(OUTPUT_TAG).setRowSchema(beamAttributeSchema);
+    PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(ROWS_WITH_ATTRIBUTES_AND_MAP);
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testPubsubLiteErrorFnWithAttributesFailure() {
+    Schema errorSchema = ErrorHandling.errorSchemaBytes();
+    List<String> attributes = new ArrayList<>();
+    attributes.add("randomKey1");
+    attributes.add("randomKey2");
+    String attributeMap = "";
+    Schema beamAttributeSchema =
+        PubsubLiteReadSchemaTransformProvider.buildSchemaWithAttributes(
+            BEAM_SCHEMA, attributes, attributeMap);
+
+    PCollection<SequencedMessage> input = p.apply(Create.of(MESSAGES));
+    PCollectionTuple output =
+        input.apply(
+            ParDo.of(
+                    new ErrorFn(
+                        "Read-Error-Counter",
+                        valueMapper,
+                        errorSchema,
+                        attributes,
+                        attributeMap,
+                        beamAttributeSchema,
+                        Boolean.TRUE))
+                .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+    output.get(OUTPUT_TAG).setRowSchema(beamAttributeSchema);
+    output.get(ERROR_TAG).setRowSchema(errorSchema);
+
+    PCollection<Long> count = output.get(ERROR_TAG).apply("error_count", Count.globally());
+
+    PAssert.that(count).containsInAnyOrder(Collections.singletonList(3L));
+
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testPubsubLiteErrorFnWithDedupingSuccess() {
+    Schema errorSchema = ErrorHandling.errorSchemaBytes();
+
+    PCollection<SequencedMessage> input = p.apply(Create.of(MESSAGES));
+    UuidDeduplicationOptions.Builder uuidExtractor =
+        UuidDeduplicationOptions.newBuilder().setUuidExtractor(getUuidFromMessage("key1"));
+    PCollectionTuple output =
+        input
+            .apply(PubsubLiteIO.deduplicate(uuidExtractor.build()))
+            .apply(
+                ParDo.of(new ErrorFn("Read-Error-Counter", valueMapper, errorSchema, Boolean.TRUE))
+                    .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+    output.get(OUTPUT_TAG).setRowSchema(BEAM_SCHEMA);
+    output.get(ERROR_TAG).setRowSchema(errorSchema);
+
+    PCollection<Long> count = output.get(OUTPUT_TAG).apply("error_count", Count.globally());
+
+    // We are deduping so we should only have 1 value
+    PAssert.that(count).containsInAnyOrder(Collections.singletonList(1L));
 
     p.run().waitUntilFinish();
   }

@@ -22,6 +22,7 @@
 import traceback
 
 from apache_beam import pipeline as beam_pipeline
+from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
@@ -33,11 +34,18 @@ from apache_beam.transforms import ptransform
 
 class ExpansionServiceServicer(
     beam_expansion_api_pb2_grpc.ExpansionServiceServicer):
-  def __init__(self, options=None):
+  def __init__(self, options=None, loopback_address=None):
     self._options = options or beam_pipeline.PipelineOptions(
         environment_type=python_urns.EMBEDDED_PYTHON, sdk_location='container')
-    self._default_environment = (
-        environments.Environment.from_options(self._options))
+    default_environment = (environments.Environment.from_options(self._options))
+    if loopback_address:
+      loopback_environment = environments.Environment.from_options(
+          beam_pipeline.PipelineOptions(
+              environment_type=common_urns.environments.EXTERNAL.urn,
+              environment_config=loopback_address))
+      default_environment = environments.AnyOfEnvironment(
+          [default_environment, loopback_environment])
+    self._default_environment = default_environment
 
   def Expand(self, request, context=None):
     try:
@@ -54,7 +62,8 @@ class ExpansionServiceServicer(
       context = pipeline_context.PipelineContext(
           request.components,
           default_environment=self._default_environment,
-          namespace=request.namespace)
+          namespace=request.namespace,
+          requirements=request.requirements)
       producers = {
           pcoll_id: (context.transforms.get_by_id(t_id), pcoll_tag)
           for t_id,

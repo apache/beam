@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
 import com.google.auto.value.extension.memoized.Memoized;
+import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos;
@@ -32,7 +33,7 @@ import javax.annotation.Nullable;
 
 /**
  * Container class used by {@link StorageApiWritesShardedRecords} and {@link
- * StorageApiWritesShardedRecords} to enapsulate a destination {@link TableSchema} along with a
+ * StorageApiWritesShardedRecords} to encapsulate a destination {@link TableSchema} along with a
  * {@link BigQueryServices.StreamAppendClient} and other objects needed to write records.
  */
 @AutoValue
@@ -106,7 +107,8 @@ abstract class AppendClientInfo {
   public AppendClientInfo withAppendClient(
       BigQueryServices.DatasetService datasetService,
       Supplier<String> getStreamName,
-      boolean useConnectionPool)
+      boolean useConnectionPool,
+      AppendRowsRequest.MissingValueInterpretation missingValueInterpretation)
       throws Exception {
     if (getStreamAppendClient() != null) {
       return this;
@@ -115,7 +117,8 @@ abstract class AppendClientInfo {
       return toBuilder()
           .setStreamName(streamName)
           .setStreamAppendClient(
-              datasetService.getStreamAppendClient(streamName, getDescriptor(), useConnectionPool))
+              datasetService.getStreamAppendClient(
+                  streamName, getDescriptor(), useConnectionPool, missingValueInterpretation))
           .build();
     }
   }

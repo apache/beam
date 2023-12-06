@@ -52,10 +52,12 @@ on:
       - "sdks/java/testing/test-utils/**"
       - "sdks/java/io/hadoop-common/**"
       - "sdks/java/io/hadoop-format/**"
+      - 'release/trigger_all_tests.json'
+      - '.github/trigger_files/beam_PreCommit_Java_Hadoop_IO_Direct.json'
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '45 1/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -76,7 +78,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -95,7 +97,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java_Hadoop_IO_Direct PreCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
@@ -107,6 +109,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: run Hadoop IO build script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -143,6 +147,13 @@ jobs:
           files: '**/build/test-results/**/*.xml'
       - name: Archive SpotBugs Results
         uses: actions/upload-artifact@v3
+        if: always()
         with:
           name: SpotBugs Results
-          path: "**/build/reports/spotbugs/*.html"
+          path: '**/build/reports/spotbugs/*.html'
+      - name: Publish SpotBugs Results
+        uses: jwgmeligmeyling/spotbugs-github-action@v1.2
+        if: always()
+        with:
+          name: Publish SpotBugs
+          path: '**/build/reports/spotbugs/*.html'

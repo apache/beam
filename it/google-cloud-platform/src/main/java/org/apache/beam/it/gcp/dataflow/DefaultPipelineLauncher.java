@@ -99,7 +99,7 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
           .put(PipelineResult.State.UNRECOGNIZED, JobState.UNKNOWN)
           .build();
 
-  private DefaultPipelineLauncher(DefaultPipelineLauncher.Builder builder) {
+  private DefaultPipelineLauncher(Builder builder) {
     super(
         new Dataflow(
             Utils.getDefaultTransport(),
@@ -109,8 +109,8 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
                 : new HttpCredentialsAdapter(builder.getCredentials())));
   }
 
-  public static DefaultPipelineLauncher.Builder builder(Credentials credentials) {
-    return new DefaultPipelineLauncher.Builder(credentials);
+  public static Builder builder(Credentials credentials) {
+    return new Builder(credentials);
   }
 
   @Override
@@ -360,11 +360,22 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
             options.executable() != null,
             "Cannot launch a dataflow job "
                 + "without executable specified. Please specify executable and try again!");
+        if (options.requirementsFile() != null) {
+          // install requirements
+          cmd.add(
+              "virtualenv . && source ./bin/activate && pip3 install -r "
+                  + options.requirementsFile());
+          cmd.add("&&");
+        }
         LOG.info("Using the executable at {}", options.executable());
         cmd.add("python3");
         cmd.add(options.executable());
         cmd.addAll(extractOptions(project, region, options));
-        jobId = executeCommandAndParseResponse(cmd);
+        if (options.requirementsFile() != null) {
+          cmd.add("&&");
+          cmd.add("deactivate");
+        }
+        jobId = executeCommandAndParseResponse(String.join(" ", cmd));
         break;
       case GO:
         checkState(
@@ -376,7 +387,7 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
         cmd.add("run");
         cmd.add(options.executable());
         cmd.addAll(extractOptions(project, region, options));
-        jobId = executeCommandAndParseResponse(cmd);
+        jobId = executeCommandAndParseResponse(String.join(" ", cmd));
         break;
       default:
         throw new RuntimeException(
@@ -441,10 +452,13 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
   }
 
   /** Executes the specified command and parses the response to get the Job ID. */
-  private String executeCommandAndParseResponse(List<String> cmd) throws IOException {
-    Process process = new ProcessBuilder().command(cmd).redirectErrorStream(true).start();
+  private String executeCommandAndParseResponse(String cmd) throws IOException {
+    LOG.info("Running command: {}", cmd);
+    Process process =
+        new ProcessBuilder().command("/bin/bash", "-c", cmd).redirectErrorStream(true).start();
     String output =
         new String(ByteStreams.toByteArray(process.getInputStream()), StandardCharsets.UTF_8);
+    LOG.info(output);
     Matcher m = JOB_ID_PATTERN.matcher(output);
     if (!m.find()) {
       throw new RuntimeException(

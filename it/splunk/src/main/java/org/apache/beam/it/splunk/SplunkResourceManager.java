@@ -85,7 +85,7 @@ public class SplunkResourceManager extends TestContainerResourceManager<SplunkCo
   private final SplunkClientFactory clientFactory;
 
   @SuppressWarnings("resource")
-  private SplunkResourceManager(SplunkResourceManager.Builder builder) {
+  private SplunkResourceManager(Builder builder) {
     this(
         new SplunkClientFactory(),
         new SplunkContainer(
@@ -98,9 +98,7 @@ public class SplunkResourceManager extends TestContainerResourceManager<SplunkCo
   @VisibleForTesting
   @SuppressWarnings("nullness")
   SplunkResourceManager(
-      SplunkClientFactory clientFactory,
-      SplunkContainer container,
-      SplunkResourceManager.Builder builder) {
+      SplunkClientFactory clientFactory, SplunkContainer container, Builder builder) {
     super(setup(container, builder), builder);
 
     String username = DEFAULT_SPLUNK_USERNAME;
@@ -169,8 +167,8 @@ public class SplunkResourceManager extends TestContainerResourceManager<SplunkCo
         .withPassword(builder.password);
   }
 
-  public static SplunkResourceManager.Builder builder(String testId) {
-    return new SplunkResourceManager.Builder(testId);
+  public static Builder builder(String testId) {
+    return new Builder(testId);
   }
 
   /**

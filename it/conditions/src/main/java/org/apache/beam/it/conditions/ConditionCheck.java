@@ -42,7 +42,7 @@ public abstract class ConditionCheck implements Supplier<Boolean> {
 
     CheckResult result = check();
     if (!result.success) {
-      LOG.info("[✗] Condition '{}' failed! {}", getDescription(), result.message);
+      LOG.info("[✗] Condition '{}' not met! {}", getDescription(), result.message);
       return false;
     }
 
@@ -75,6 +75,14 @@ public abstract class ConditionCheck implements Supplier<Boolean> {
     public CheckResult(boolean success, String message) {
       this.success = success;
       this.message = message;
+    }
+
+    public boolean isSuccess() {
+      return success;
+    }
+
+    public String getMessage() {
+      return message;
     }
 
     @Override

@@ -1611,7 +1611,7 @@ def get_table_schema_from_string(schema):
 bigquery_v2_messages.TableSchema` instance.
 
   Args:
-    schema (str): The sting schema to be used if the BigQuery table to write
+    schema (str): The string schema to be used if the BigQuery table to write
       has to be created.
 
   Returns:

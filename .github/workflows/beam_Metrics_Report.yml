@@ -1,0 +1,96 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Beam Metrics Report
+
+on:
+  schedule:
+    - cron: '0 11 * * 2'
+  workflow_dispatch:
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  cancel-in-progress: true
+
+env:
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+
+#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+jobs:
+  beam_Metrics_Report:
+    name: beam_Metrics_Report
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 100
+    if: |
+      (
+        (github.event_name == 'schedule' && github.repository == 'apache/beam')
+        || github.event_name == 'workflow_dispatch'
+      )
+     
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: 3.8
+      - name: Run Metrics Report
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :beam-test-jenkins:generateMetricsReport
+          arguments: --info -PinfluxDb=beam_test_metrics  -PinfluxHost='10.128.0.96' -PinfluxPort=8086
+        env:
+          INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+          INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
+      - name: Archive Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: Metrics Report
+          path: "${{ github.workspace }}/.test-infra/jenkins/metrics_report/beam-metrics_report.html"
+      - name: Generate Date
+        run: |
+          date=$(date -u +"%Y-%m-%d")
+          echo "date=$date" >> $GITHUB_ENV
+      - name: Send mail
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_ADDRESS }}
+          password: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_PASSWORD }}
+          subject: Beam Metrics Report ${{ env.date }}
+          to: dev@beam.apache.org
+          from: beamactions@gmail.com
+          html_body: file://${{ github.workspace }}/.test-infra/jenkins/metrics_report/beam-metrics_report.html

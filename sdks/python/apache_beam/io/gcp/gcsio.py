@@ -41,6 +41,7 @@ from google.cloud.storage.fileio import BlobReader
 from google.cloud.storage.fileio import BlobWriter
 
 from apache_beam.internal.gcp import auth
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
@@ -53,7 +54,7 @@ DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
 
 # Maximum number of operations permitted in GcsIO.copy_batch() and
 # GcsIO.delete_batch().
-MAX_BATCH_OPERATION_SIZE = 1000
+MAX_BATCH_OPERATION_SIZE = 100
 
 
 def parse_gcs_path(gcs_path, object_optional=False):
@@ -109,7 +110,8 @@ class GcsIO(object):
       credentials = auth.get_service_credentials(pipeline_options)
       if credentials:
         storage_client = storage.Client(
-            credentials=credentials.get_google_auth_credentials())
+            credentials=credentials.get_google_auth_credentials(),
+            project=pipeline_options.view_as(GoogleCloudOptions).project)
       else:
         storage_client = storage.Client.create_anonymous_client()
     self.client = storage_client

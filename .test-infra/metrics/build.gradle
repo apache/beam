@@ -106,7 +106,7 @@ task deploy {
       standardOutput = stdout
     }
 
-    // All images have the same tag, it doesn't matter which we choose.
+    // All images have the same tag, it doesn't matter which we choose.
     String image = (stdout.toString().split(' ') as List)[0]
     String currentImageTag = (image.split(':') as List)[1]
     println "Current image tag: ${currentImageTag}"

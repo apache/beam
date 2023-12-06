@@ -28,7 +28,7 @@ If you're interested in contributing to the Apache Beam Go codebase, see the [Co
 The Beam SDK for Go requires `go` version 1.20 or newer. It can be downloaded [here](https://golang.org/). Check what go version you have by running:
 
 {{< highlight >}}
-$ go version
+go version
 {{< /highlight >}}
 
 If you are unfamiliar with Go, see the [Get Started With Go Tutorial](https://go.dev/doc/tutorial/getting-started).
@@ -43,12 +43,12 @@ required arguments described in the examples.
 For example, to run `wordcount`, run:
 
 {{< runner direct >}}
-$ go run github.com/apache/beam/sdks/v2/go/examples/wordcount@latest --input "gs://apache-beam-samples/shakespeare/kinglear.txt" --output counts
-$ less counts
+go run github.com/apache/beam/sdks/v2/go/examples/wordcount@latest --input "gs://apache-beam-samples/shakespeare/kinglear.txt" --output counts
+less counts
 {{< /runner >}}
 
 {{< runner dataflow >}}
-$ go run github.com/apache/beam/sdks/v2/go/examples/wordcount@latest --input gs://dataflow-samples/shakespeare/kinglear.txt \
+go run github.com/apache/beam/sdks/v2/go/examples/wordcount@latest --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --output gs://<your-gcs-bucket>/counts \
             --runner dataflow \
             --project your-gcp-project \
@@ -60,10 +60,10 @@ $ go run github.com/apache/beam/sdks/v2/go/examples/wordcount@latest --input gs:
 {{< runner spark >}}
 # Build and run the Spark job server from Beam source.
 # -PsparkMasterUrl is optional. If it is unset the job will be run inside an embedded Spark cluster.
-$ ./gradlew :runners:spark:3:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077
+./gradlew :runners:spark:3:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077
 
 # In a separate terminal, run:
-$ go run github.com/apache/beam/sdks/v2/go/examples/wordcount@latest --input <PATH_TO_INPUT_FILE> \
+go run github.com/apache/beam/sdks/v2/go/examples/wordcount@latest --input <PATH_TO_INPUT_FILE> \
             --output counts \
             --runner spark \
             --endpoint localhost:8099

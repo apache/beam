@@ -71,7 +71,6 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.windowing.CalendarWindows;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -483,14 +482,14 @@ public class KafkaIOIT {
 
   @Test
   public void testKafkaWithStopReadingFunction() {
-    CheckStopReadingFn checkStopReadingFn = new CheckStopReadingFn();
+    AlwaysStopCheckStopReadingFn checkStopReadingFn = new AlwaysStopCheckStopReadingFn();
 
     PipelineResult readResult = runWithStopReadingFn(checkStopReadingFn, "stop-reading");
 
     assertEquals(-1, readElementMetric(readResult, NAMESPACE, READ_ELEMENT_METRIC_NAME));
   }
 
-  private static class CheckStopReadingFn implements SerializableFunction<TopicPartition, Boolean> {
+  private static class AlwaysStopCheckStopReadingFn implements CheckStopReadingFn {
     @Override
     public Boolean apply(TopicPartition input) {
       return true;
@@ -640,8 +639,7 @@ public class KafkaIOIT {
     assertEquals(PipelineResult.State.DONE, readResult.getState());
   }
 
-  private static class DelayedCheckStopReadingFn
-      implements SerializableFunction<TopicPartition, Boolean> {
+  private static class DelayedCheckStopReadingFn implements CheckStopReadingFn {
     int checkCount = 0;
 
     @Override
@@ -654,8 +652,7 @@ public class KafkaIOIT {
     }
   }
 
-  private PipelineResult runWithStopReadingFn(
-      SerializableFunction<TopicPartition, Boolean> function, String topicSuffix) {
+  private PipelineResult runWithStopReadingFn(CheckStopReadingFn function, String topicSuffix) {
     writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))

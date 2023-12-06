@@ -776,6 +776,9 @@ public class WorkerCustomSources {
 
   private static class UnboundedReaderIterator<T>
       extends NativeReader.NativeReaderIterator<WindowedValue<ValueWithRecordId<T>>> {
+    // Do not close reader. The reader is cached in StreamingModeExecutionContext.readerCache, and
+    // will be reused until the cache is evicted, expired or invalidated.
+    // See UnboundedReader#iterator().
     private final UnboundedSource.UnboundedReader<T> reader;
     private final StreamingModeExecutionContext context;
     private final boolean started;
@@ -862,7 +865,9 @@ public class WorkerCustomSources {
     }
 
     @Override
-    public void close() {}
+    public void close() {
+      // Don't close reader.
+    }
 
     @Override
     public NativeReader.Progress getProgress() {

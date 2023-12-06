@@ -168,7 +168,7 @@ public class TestStreamTranslation {
   /** A translator registered to translate {@link TestStream} objects to protobuf representation. */
   static class TestStreamTranslator implements TransformPayloadTranslator<TestStream<?>> {
     @Override
-    public String getUrn(TestStream<?> transform) {
+    public String getUrn() {
       return TEST_STREAM_TRANSFORM_URN;
     }
 

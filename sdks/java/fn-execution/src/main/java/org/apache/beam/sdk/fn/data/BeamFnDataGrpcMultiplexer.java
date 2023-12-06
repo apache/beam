@@ -257,7 +257,7 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
 
     @Override
     public void onCompleted() {
-      LOG.warn(
+      LOG.info(
           "Hanged up for {}.",
           apiServiceDescriptor == null ? "unknown endpoint" : apiServiceDescriptor);
     }

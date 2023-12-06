@@ -19,15 +19,18 @@ package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.Environments.JAVA_SDK_HARNESS_CONTAINER_URL;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -291,6 +294,8 @@ public class EnvironmentsTest implements Serializable {
     assertEquals("java11", JavaVersion.java11.legacyName());
     assertEquals(JavaVersion.java17, JavaVersion.forSpecification("17"));
     assertEquals("java17", JavaVersion.java17.legacyName());
+    assertEquals(JavaVersion.java21, JavaVersion.forSpecification("21"));
+    assertEquals("java21", JavaVersion.java21.legacyName());
   }
 
   @Test
@@ -303,7 +308,9 @@ public class EnvironmentsTest implements Serializable {
     assertEquals(JavaVersion.java17, JavaVersion.forSpecification("15"));
     assertEquals(JavaVersion.java17, JavaVersion.forSpecification("16"));
     assertEquals(JavaVersion.java17, JavaVersion.forSpecification("18"));
-    assertEquals(JavaVersion.java17, JavaVersion.forSpecification("19"));
+    assertEquals(JavaVersion.java21, JavaVersion.forSpecification("19"));
+    assertEquals(JavaVersion.java21, JavaVersion.forSpecification("20"));
+    assertEquals(JavaVersion.java21, JavaVersion.forSpecification("21"));
   }
 
   @Test(expected = UnsupportedOperationException.class)
@@ -348,5 +355,43 @@ public class EnvironmentsTest implements Serializable {
 
     assertThat(artifacts, hasSize(1));
     expectedLogs.verifyWarn("name 'file_name' was not found");
+  }
+
+  @Test
+  public void testExpandAnyOfEnvironmentsOnOrdinaryEnvironment() {
+    Environment env = Environments.createDockerEnvironment("java");
+    assertThat(Environments.expandAnyOfEnvironments(env), contains(env));
+  }
+
+  @Test
+  public void testExpandAnyOfEnvironmentsOnNestedEnvironment() {
+    Environment envA = Environments.createDockerEnvironment("A");
+    Environment envB = Environments.createDockerEnvironment("B");
+    Environment envC = Environments.createDockerEnvironment("C");
+    Environment env =
+        Environments.createAnyOfEnvironment(envA, Environments.createAnyOfEnvironment(envB, envC));
+    assertThat(Environments.expandAnyOfEnvironments(env), contains(envA, envB, envC));
+  }
+
+  @Test
+  public void testResolveAnyOfEnvironment() {
+    Environment dockerEnv = Environments.createDockerEnvironment("A");
+    Environment processEnv =
+        Environments.createProcessEnvironment("os", "arch", "cmd", new HashMap<>());
+    Environment env =
+        Environments.createAnyOfEnvironment(
+            dockerEnv, Environments.createAnyOfEnvironment(processEnv));
+    assertThat(
+        Environments.resolveAnyOfEnvironment(
+            env, BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER)),
+        equalTo(dockerEnv));
+    assertThat(
+        Environments.resolveAnyOfEnvironment(
+            env, BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS)),
+        equalTo(processEnv));
+    assertThat(
+        Environments.resolveAnyOfEnvironment(
+            env, BeamUrns.getUrn(StandardEnvironments.Environments.EXTERNAL)),
+        notNullValue());
   }
 }

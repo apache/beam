@@ -19,6 +19,8 @@ package org.apache.beam.runners.dataflow;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SINK;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SOURCE;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
@@ -168,7 +170,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Utf8;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -398,18 +399,20 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     // Adding the Java version to the SDK name for user's and support convenience.
     String agentJavaVer = "(JRE 8 environment)";
-    if (Environments.getJavaVersion() == Environments.JavaVersion.java17) {
-      agentJavaVer = "(JRE 17 environment)";
-    } else if (Environments.getJavaVersion() == Environments.JavaVersion.java11) {
-      agentJavaVer = "(JRE 11 environment)";
+    if (Environments.getJavaVersion() != Environments.JavaVersion.java8) {
+      agentJavaVer =
+          String.format("(JRE %s environment)", Environments.getJavaVersion().specification());
     }
 
     DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
+    String userAgentName = dataflowRunnerInfo.getName();
+    Preconditions.checkArgument(
+        !userAgentName.equals(""), "Dataflow runner's `name` property cannot be empty.");
+    String userAgentVersion = dataflowRunnerInfo.getVersion();
+    Preconditions.checkArgument(
+        !userAgentVersion.equals(""), "Dataflow runner's `version` property cannot be empty.");
     String userAgent =
-        String.format(
-                "%s/%s%s",
-                dataflowRunnerInfo.getName(), dataflowRunnerInfo.getVersion(), agentJavaVer)
-            .replace(" ", "_");
+        String.format("%s/%s%s", userAgentName, userAgentVersion, agentJavaVer).replace(" ", "_");
     dataflowOptions.setUserAgent(userAgent);
 
     return new DataflowRunner(dataflowOptions);
@@ -548,13 +551,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 new SplittableParDoOverrides.SplittableParDoOverrideFactory()));
 
     if (streaming) {
-      if (!hasExperiment(options, "enable_custom_pubsub_source")) {
+      if (!hasExperiment(options, ENABLE_CUSTOM_PUBSUB_SOURCE)) {
         overridesBuilder.add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(PubsubUnboundedSource.class),
                 new StreamingPubsubIOReadOverrideFactory()));
       }
-      if (!hasExperiment(options, "enable_custom_pubsub_sink")) {
+      if (!hasExperiment(options, ENABLE_CUSTOM_PUBSUB_SINK)) {
         overridesBuilder.add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(PubsubUnboundedSink.class),
@@ -874,6 +877,21 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
+  private RunnerApi.Pipeline resolveAnyOfEnvironments(RunnerApi.Pipeline pipeline) {
+    RunnerApi.Pipeline.Builder pipelineBuilder = pipeline.toBuilder();
+    RunnerApi.Components.Builder componentsBuilder = pipelineBuilder.getComponentsBuilder();
+    componentsBuilder.clearEnvironments();
+    for (Map.Entry<String, RunnerApi.Environment> entry :
+        pipeline.getComponents().getEnvironmentsMap().entrySet()) {
+      componentsBuilder.putEnvironments(
+          entry.getKey(),
+          Environments.resolveAnyOfEnvironment(
+              entry.getValue(),
+              BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER)));
+    }
+    return pipelineBuilder.build();
+  }
+
   protected RunnerApi.Pipeline applySdkEnvironmentOverrides(
       RunnerApi.Pipeline pipeline, DataflowPipelineOptions options) {
     String sdkHarnessContainerImageOverrides = options.getSdkHarnessContainerImageOverrides();
@@ -1170,6 +1188,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         PipelineTranslation.toProto(pipeline, portableComponents, false);
     // Note that `stageArtifacts` has to be called before `resolveArtifact` because
     // `resolveArtifact` updates local paths to staged paths in pipeline proto.
+    portablePipelineProto = resolveAnyOfEnvironments(portablePipelineProto);
     List<DataflowPackage> packages = stageArtifacts(portablePipelineProto);
     portablePipelineProto = resolveArtifacts(portablePipelineProto);
     portablePipelineProto = applySdkEnvironmentOverrides(portablePipelineProto, options);
@@ -1331,15 +1350,26 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       hooks.modifyEnvironmentBeforeSubmission(newJob.getEnvironment());
     }
 
+    // enable upload_graph when the graph is too large
+    byte[] jobGraphBytes = DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8);
+    int jobGraphByteSize = jobGraphBytes.length;
+    if (jobGraphByteSize >= CREATE_JOB_REQUEST_LIMIT_BYTES
+        && !hasExperiment(options, "upload_graph")) {
+      List<String> experiments = firstNonNull(options.getExperiments(), Collections.emptyList());
+      options.setExperiments(
+          ImmutableList.<String>builder().addAll(experiments).add("upload_graph").build());
+      LOG.info(
+          "The job graph size ({} in bytes) is larger than {}. Automatically add "
+              + "the upload_graph option to experiments.",
+          jobGraphByteSize,
+          CREATE_JOB_REQUEST_LIMIT_BYTES);
+    }
+
     // Upload the job to GCS and remove the graph object from the API call.  The graph
     // will be downloaded from GCS by the service.
     if (hasExperiment(options, "upload_graph")) {
       DataflowPackage stagedGraph =
-          options
-              .getStager()
-              .stageToFile(
-                  DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8),
-                  DATAFLOW_GRAPH_FILE_NAME);
+          options.getStager().stageToFile(jobGraphBytes, DATAFLOW_GRAPH_FILE_NAME);
       newJob.getSteps().clear();
       newJob.setStepsLocation(stagedGraph.getLocation());
     }
@@ -1399,7 +1429,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     } catch (GoogleJsonResponseException e) {
       String errorMessages = "Unexpected errors";
       if (e.getDetails() != null) {
-        if (Utf8.encodedLength(newJob.toString()) >= CREATE_JOB_REQUEST_LIMIT_BYTES) {
+        if (jobGraphByteSize >= CREATE_JOB_REQUEST_LIMIT_BYTES) {
           errorMessages =
               "The size of the serialized JSON representation of the pipeline "
                   + "exceeds the allowable limit. "
@@ -1730,7 +1760,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /**
-   * Returns true if the passed in {@link PCollection} needs to be materialiazed using an indexed
+   * Returns true if the passed in {@link PCollection} needs to be materialized using an indexed
    * format.
    */
   boolean doesPCollectionRequireIndexedFormat(PCollection<?> pcol) {
@@ -2570,6 +2600,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public String getUrn(PTransform transform) {
       return "dataflow_stub:" + transform.getClass().getName();
+    }
+
+    @Override
+    public String getUrn() {
+      throw new UnsupportedOperationException(
+          "URN of DataflowPayloadTranslator depends on the transform. Please use 'getUrn(PTransform transform)' instead.");
     }
 
     @Override

@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-$schema: 'http://json-schema.org/schema#'
+$schema: 'http://json-schema.org/draft-07/schema#'
 $id: https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/pipeline.schema.yaml
 
 $defs:
@@ -115,6 +115,23 @@ $defs:
             - $ref: '#/$defs/nestedTransform'
             - $ref: '#/$defs/implicitInputOutputs'
 
+      - if:
+          not:
+            anyOf:
+              - properties: { type: { const: composite }}
+              - properties: { type: { const: chain }}
+        then:
+          properties:
+            type: {}
+            name: {}
+            input: {}
+            output: {}
+            windowing: {}
+            config: { type: object }
+            __line__: {}
+            __uuid__: {}
+          additionalProperties: false
+
   windowing: {}  # TODO
 
   provider:
@@ -128,27 +145,43 @@ $defs:
         properties: { __line__: {}}
         additionalProperties:
           type: string
+      config: { type: object }
+      __line__: {}
+      __uuid__: {}
+    additionalProperties: false
     required:
       - type
       - transforms
+      - config
 
 type: object
 properties:
   pipeline:
-    anyOf:
-      - type: array
-        items:
-          $ref: '#/$defs/transform'
-      - $ref: '#/$defs/transform'
+    allOf:
+      # These are the only top-level properties defined in pipeline.
       - type: object
         properties:
-          transforms:
-            type: array
-            items:
-              $ref: '#/$defs/transform'
+          type:
+            oneOf:
+              - { const: composite }
+              - { const: chain }
+          windowing:
+            $ref: '#/$defs/windowing'
+          transforms: {}
+          extra_transforms: {}
+          sink: {}
+          source: {}
           __line__: {}
           __uuid__: {}
         additionalProperties: false
+      # This defines the allowable contents of the attributes above.
+      - $ref: '#/$defs/nestedTransform'
+      # A chain-type transform, like a chain composite, must have implicit io.
+      - if:
+          properties: { type: { const: chain }}
+          required: [type]
+        then:
+          $ref: '#/$defs/implicitInputOutputs'
   providers:
     type: array
     items:

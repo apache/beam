@@ -109,6 +109,8 @@ public abstract class TableSchema implements Serializable {
       case ENUM8:
       case ENUM16:
         return Schema.FieldType.STRING;
+      case BOOL:
+        return Schema.FieldType.BOOLEAN;
     }
 
     // not possible, errorprone checks for exhaustive switch
@@ -163,8 +165,10 @@ public abstract class TableSchema implements Serializable {
     UINT16,
     UINT32,
     UINT64,
-    // Composite types
-    ARRAY
+    // Composite type
+    ARRAY,
+    // Primitive type
+    BOOL
   }
 
   /**
@@ -203,6 +207,7 @@ public abstract class TableSchema implements Serializable {
     public static final ColumnType UINT16 = ColumnType.of(TypeName.UINT16);
     public static final ColumnType UINT32 = ColumnType.of(TypeName.UINT32);
     public static final ColumnType UINT64 = ColumnType.of(TypeName.UINT64);
+    public static final ColumnType BOOL = ColumnType.of(TypeName.BOOL);
 
     // ClickHouse doesn't allow nested nullables, so boolean flag is enough
     public abstract boolean nullable();
@@ -308,6 +313,8 @@ public abstract class TableSchema implements Serializable {
           return Long.valueOf(value);
         case UINT64:
           return Long.valueOf(value);
+        case BOOL:
+          return Boolean.valueOf(value);
         default:
           throw new UnsupportedOperationException("Unsupported type: " + columnType);
       }

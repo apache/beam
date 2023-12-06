@@ -509,7 +509,12 @@ class DataflowApplicationClient(object):
         http=http_client,
         response_encoding=get_response_encoding())
     if storage_credentials:
-      self._storage_client = storage.Client(credentials=storage_credentials)
+      # Here we explicitly set the project to the value specified in pipeline
+      # options, so the new storage client will be consistent with the previous
+      # client in terms of which GCP project to use.
+      self._storage_client = storage.Client(
+          credentials=storage_credentials,
+          project=self.google_cloud_options.project)
     else:
       self._storage_client = storage.Client.create_anonymous_client()
     self._sdk_image_overrides = self._get_sdk_image_overrides(options)

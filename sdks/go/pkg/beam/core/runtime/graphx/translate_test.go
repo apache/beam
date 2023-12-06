@@ -28,6 +28,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/contextreg"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
@@ -165,8 +166,8 @@ func TestMarshal(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(edges) != test.edges {
-				t.Fatal("expected a single edge")
+			if got, want := len(edges), test.edges; got != want {
+				t.Fatalf("got %v edges, want %v", got, want)
 			}
 
 			payload, err := proto.Marshal(&pipepb.DockerPayload{ContainerImage: "foo"})
@@ -187,6 +188,79 @@ func TestMarshal(t *testing.T) {
 			}
 			if got, want := p.GetRequirements(), test.requirements; !cmp.Equal(got, want, cmpopts.SortSlices(func(a, b string) bool { return a < b })) {
 				t.Errorf("incorrect requirements: got %v, want %v : %v", got, want, proto.MarshalTextString(p))
+			}
+		})
+	}
+}
+
+func TestMarshal_PTransformAnnotations(t *testing.T) {
+	var creg contextreg.Registry
+
+	const annotationKey = "myAnnotation"
+
+	// A misused ptransform extractor that, if a context is attached to a scope will add an annotation to those transforms.
+	creg.TransformExtractor(func(ctx context.Context) contextreg.TransformMetadata {
+		return contextreg.TransformMetadata{
+			Annotations: map[string][]byte{
+				annotationKey: {42, 42, 42},
+			},
+		}
+	})
+
+	tests := []struct {
+		name      string
+		makeGraph func(t *testing.T, g *graph.Graph)
+
+		transforms int
+	}{
+		{
+			name: "AnnotationSetOnComposite",
+			makeGraph: func(t *testing.T, g *graph.Graph) {
+				in := newIntInput(g)
+				side := newIntInput(g)
+				s := g.NewScope(g.Root(), "sub")
+				s.Context = context.Background() // Allow the default annotation to trigger.
+				addDoFn(t, g, pickSideFn, s, []*graph.Node{in, side}, []*coder.Coder{intCoder(), intCoder()}, nil)
+			},
+			transforms: 2,
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			g := graph.New()
+			test.makeGraph(t, g)
+
+			edges, _, err := g.Build()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			payload, err := proto.Marshal(&pipepb.DockerPayload{ContainerImage: "foo"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			p, err := graphx.Marshal(edges,
+				&graphx.Options{Environment: &pipepb.Environment{Urn: "beam:env:docker:v1", Payload: payload}, ContextReg: &creg})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			pts := p.GetComponents().GetTransforms()
+			if got, want := len(pts), test.transforms; got != want {
+				t.Errorf("got %d transforms, want %d : %v", got, want, proto.MarshalTextString(p))
+			}
+			for _, pt := range pts {
+				// Context annotations only apply to composites, and are not duplicated to leaves.
+				if len(pt.GetSubtransforms()) == 0 {
+					if _, ok := pt.GetAnnotations()[annotationKey]; ok {
+						t.Errorf("unexpected annotation %v on leaf transform: %v", annotationKey, pt.GetAnnotations())
+					}
+					continue
+				}
+				if _, ok := pt.GetAnnotations()[annotationKey]; !ok {
+					t.Errorf("expected %q annotation, but wasn't present: %v", annotationKey, pt.GetAnnotations())
+				}
 			}
 		})
 	}

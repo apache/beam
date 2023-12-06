@@ -29,6 +29,8 @@ import org.apache.beam.sdk.coders.DelegateCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
@@ -198,6 +200,10 @@ public class TestCountingSource
    */
   public class CountingSourceReader extends UnboundedReader<KV<Integer, Integer>>
       implements TestReader {
+    public static final String ADVANCE_COUNTER_NAMESPACE = "testNameSpace";
+    public static final String ADVANCE_COUNTER_NAME = "advanceCounter";
+    private final Counter advanceCounter =
+        Metrics.counter(ADVANCE_COUNTER_NAMESPACE, ADVANCE_COUNTER_NAME);
     private int current;
     private boolean closed;
 
@@ -213,6 +219,7 @@ public class TestCountingSource
 
     @Override
     public boolean advance() {
+      advanceCounter.inc();
       if (current >= numMessagesPerShard - 1 || haltEmission) {
         return false;
       }

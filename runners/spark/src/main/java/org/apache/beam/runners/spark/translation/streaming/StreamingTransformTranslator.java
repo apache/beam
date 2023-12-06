@@ -636,7 +636,7 @@ public final class StreamingTransformTranslator {
           ConsoleIO.Write.Unbound<?>> {
 
     @Override
-    public String getUrn(ConsoleIO.Write.Unbound<?> transform) {
+    public String getUrn() {
       return ConsoleIO.Write.Unbound.TRANSFORM_URN;
     }
   }
@@ -645,7 +645,7 @@ public final class StreamingTransformTranslator {
       extends PTransformTranslation.TransformPayloadTranslator.NotSerializable<CreateStream<?>> {
 
     @Override
-    public String getUrn(CreateStream<?> transform) {
+    public String getUrn() {
       return CreateStream.TRANSFORM_URN;
     }
   }

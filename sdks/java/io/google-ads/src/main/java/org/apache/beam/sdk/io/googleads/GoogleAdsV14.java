@@ -645,11 +645,11 @@ public class GoogleAdsV14 {
   public static class SimpleRateLimitPolicy implements RateLimitPolicy {
     private final RateLimiter rateLimiter;
 
-    SimpleRateLimitPolicy(double permitsPerSecond) {
+    public SimpleRateLimitPolicy(double permitsPerSecond) {
       rateLimiter = RateLimiter.create(permitsPerSecond);
     }
 
-    SimpleRateLimitPolicy(double permitsPerSecond, long warmupPeriod, TimeUnit unit) {
+    public SimpleRateLimitPolicy(double permitsPerSecond, long warmupPeriod, TimeUnit unit) {
       rateLimiter = RateLimiter.create(permitsPerSecond, warmupPeriod, unit);
     }
 

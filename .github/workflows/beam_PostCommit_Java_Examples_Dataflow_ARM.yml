@@ -18,26 +18,17 @@
 name: PostCommit Java Examples Dataflow ARM
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths:
-      - 'model/**'
-      - 'sdks/java/**'
-      - 'runners/google-cloud-dataflow-java/**'
-      - 'examples/java/**'
-      - 'examples/kotlin/**'
-      - 'release/**'
-      - '.github/workflows/beam_PostCommit_Java_Examples_Dataflow_ARM.yml'
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '45 3/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_Examples_Dataflow_ARM.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -63,7 +54,7 @@ permissions:
 
 jobs:
   beam_PostCommit_Java_Examples__Dataflow_ARM:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{matrix.java_version}}) 
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.java_version }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 120
     strategy:
@@ -71,20 +62,21 @@ jobs:
       matrix: 
         job_name: [beam_PostCommit_Java_Examples__Dataflow_ARM]
         job_phrase: [Run Java_Examples_Dataflow_ARM PostCommit]
-        java_version: ['8','11','17']
+        java_version: ['8','11','17','21']
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
-      github. event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request_target' ||
       startswith(github.event.comment.body, 'Run Java_Examples_Dataflow_ARM PostCommit')
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase }} ${{matrix.java_version}}
+          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.java_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{matrix.java_version}})
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.java_version }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -109,8 +101,9 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
             gradle-command: :runners:google-cloud-dataflow-java:arm:examplesJavaRunnerV2IntegrationTestARM
+            max-workers: 12
             arguments: |
-                -PcompileAndRunTestsWithJava${{ matrix.java_version }} \
+                -PtestJavaVersion=${{ matrix.java_version }} \
                 -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
                 -Pcontainer-architecture-list=arm64,amd64 \
                 -Ppush-containers \

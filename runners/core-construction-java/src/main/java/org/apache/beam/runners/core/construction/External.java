@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -295,7 +296,7 @@ public class External {
           response
               .getComponents()
               .toBuilder()
-              .putAllEnvironments(resolveArtifacts(newEnvironmentsWithDependencies))
+              .putAllEnvironments(resolveArtifacts(newEnvironmentsWithDependencies, endpoint))
               .build();
       expandedTransform = response.getTransform();
       expandedRequirements = response.getRequirementsList();
@@ -338,8 +339,8 @@ public class External {
       return toOutputCollection(outputMapBuilder.build());
     }
 
-    private Map<String, RunnerApi.Environment> resolveArtifacts(
-        Map<String, RunnerApi.Environment> environments) {
+    static Map<String, RunnerApi.Environment> resolveArtifacts(
+        Map<String, RunnerApi.Environment> environments, Endpoints.ApiServiceDescriptor endpoint) {
       if (environments.size() == 0) {
         return environments;
       }
@@ -367,7 +368,7 @@ public class External {
       }
     }
 
-    private RunnerApi.Environment resolveArtifacts(
+    private static RunnerApi.Environment resolveArtifacts(
         ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub,
         RunnerApi.Environment environment)
         throws IOException {
@@ -378,7 +379,7 @@ public class External {
           .build();
     }
 
-    private List<RunnerApi.ArtifactInformation> resolveArtifacts(
+    private static List<RunnerApi.ArtifactInformation> resolveArtifacts(
         ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub,
         List<RunnerApi.ArtifactInformation> artifacts)
         throws IOException {
@@ -391,7 +392,8 @@ public class External {
                       .build())
               .getReplacementsList()) {
         Path path = Files.createTempFile("beam-artifact", "");
-        try (FileOutputStream fout = new FileOutputStream(path.toFile())) {
+        File artifactFile = path.toFile();
+        try (FileOutputStream fout = new FileOutputStream(artifactFile)) {
           for (Iterator<ArtifactApi.GetArtifactResponse> it =
                   retrievalStub.getArtifact(
                       ArtifactApi.GetArtifactRequest.newBuilder().setArtifact(artifact).build());
@@ -409,6 +411,8 @@ public class External {
                         .build()
                         .toByteString())
                 .build());
+        // Delete beam-artifact temp File on program exit
+        artifactFile.deleteOnExit();
       }
       return resolved;
     }
