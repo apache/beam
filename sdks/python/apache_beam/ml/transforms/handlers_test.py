@@ -596,7 +596,7 @@ class TFTProcessHandlerTest(unittest.TestCase):
           transforms=[tft.ComputeAndApplyVocabulary(columns=['x'])],
           artifact_location=self.artifact_location,
       )
-      transformed_data = process_handler.process_data(raw_data)
+      transformed_data = raw_data | process_handler
 
       expected_data = [
           beam.Row(x=np.array([4])),
