@@ -115,7 +115,7 @@ public class ThrottleWithExternalResourceIT {
         URI.create(String.format("redis://%s:%d", redis.getHost(), redis.getFirstMappedPort()));
     pipeline.getOptions().as(TestPipelineOptions.class).setBlockOnRun(false);
 
-    Call.Result<EchoRequest> throttleResult =
+    Result<EchoRequest> throttleResult =
         createRequestStream()
             .apply(
                 "throttle",
@@ -148,7 +148,7 @@ public class ThrottleWithExternalResourceIT {
         .containsInAnyOrder(QUOTA_ID);
 
     // Call the Echo service with throttled requests.
-    Call.Result<EchoResponse> echoResult =
+    Result<EchoResponse> echoResult =
         throttleResult
             .getResponses()
             .apply("call", Call.ofCallerAndSetupTeardown(client, RESPONSE_CODER));

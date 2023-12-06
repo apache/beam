@@ -45,7 +45,7 @@ final class Cache {
           @Nullable ResponseT,
           CallerSetupTeardownT extends
               Caller<RequestT, KV<RequestT, @Nullable ResponseT>> & SetupTeardown>
-      PTransform<PCollection<RequestT>, Call.Result<KV<RequestT, @Nullable ResponseT>>> read(
+      PTransform<PCollection<RequestT>, Result<KV<RequestT, @Nullable ResponseT>>> read(
           CallerSetupTeardownT implementsCallerSetupTeardown,
           Coder<RequestT> requestTCoder,
           Coder<@Nullable ResponseT> responseTCoder) {
@@ -66,12 +66,11 @@ final class Cache {
    * considerations when using this method to achieve cache reads.
    */
   static <RequestT, @Nullable ResponseT>
-      PTransform<PCollection<RequestT>, Call.Result<KV<RequestT, @Nullable ResponseT>>>
-          readUsingRedis(
-              RedisClient client,
-              Coder<RequestT> requestTCoder,
-              Coder<@Nullable ResponseT> responseTCoder)
-              throws NonDeterministicException {
+      PTransform<PCollection<RequestT>, Result<KV<RequestT, @Nullable ResponseT>>> readUsingRedis(
+          RedisClient client,
+          Coder<RequestT> requestTCoder,
+          Coder<@Nullable ResponseT> responseTCoder)
+          throws NonDeterministicException {
     return read(
         new UsingRedis<>(requestTCoder, responseTCoder, client).read(),
         requestTCoder,
@@ -88,7 +87,7 @@ final class Cache {
           ResponseT,
           CallerSetupTeardownT extends
               Caller<KV<RequestT, ResponseT>, KV<RequestT, ResponseT>> & SetupTeardown>
-      PTransform<PCollection<KV<RequestT, ResponseT>>, Call.Result<KV<RequestT, ResponseT>>> write(
+      PTransform<PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>> write(
           CallerSetupTeardownT implementsCallerSetupTeardown,
           KvCoder<RequestT, ResponseT> kvCoder) {
     return Call.ofCallerAndSetupTeardown(implementsCallerSetupTeardown, kvCoder);
@@ -107,7 +106,7 @@ final class Cache {
    * considerations when using this method to achieve cache writes.
    */
   static <RequestT, ResponseT>
-      PTransform<PCollection<KV<RequestT, ResponseT>>, Call.Result<KV<RequestT, ResponseT>>>
+      PTransform<PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>>
           writeUsingRedis(
               Duration expiry,
               RedisClient client,

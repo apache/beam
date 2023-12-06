@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -31,8 +30,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import org.apache.beam.io.requestresponse.Call.Result;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -40,12 +37,8 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Duration;
@@ -268,64 +261,6 @@ class Call<RequestT, ResponseT>
         return autoBuild();
       }
     }
-  }
-
-  /**
-   * The {@link Result} of processing request {@link PCollection} into response {@link PCollection}.
-   */
-  static class Result<ResponseT> implements POutput {
-
-    static <ResponseT> Result<ResponseT> of(
-        Coder<ResponseT> responseTCoder,
-        TupleTag<ResponseT> responseTag,
-        TupleTag<ApiIOError> failureTag,
-        PCollectionTuple pct) {
-      return new Result<>(responseTCoder, responseTag, pct, failureTag);
-    }
-
-    private final Pipeline pipeline;
-    private final TupleTag<ResponseT> responseTag;
-    private final TupleTag<ApiIOError> failureTag;
-    private final PCollection<ResponseT> responses;
-    private final PCollection<ApiIOError> failures;
-
-    private Result(
-        Coder<ResponseT> responseTCoder,
-        TupleTag<ResponseT> responseTag,
-        PCollectionTuple pct,
-        TupleTag<ApiIOError> failureTag) {
-      this.pipeline = pct.getPipeline();
-      this.responseTag = responseTag;
-      this.failureTag = failureTag;
-      this.responses = pct.get(responseTag).setCoder(responseTCoder);
-      this.failures = pct.get(this.failureTag);
-    }
-
-    public PCollection<ResponseT> getResponses() {
-      return responses;
-    }
-
-    public PCollection<ApiIOError> getFailures() {
-      return failures;
-    }
-
-    @Override
-    public @NonNull Pipeline getPipeline() {
-      return this.pipeline;
-    }
-
-    @Override
-    public @NonNull Map<TupleTag<?>, PValue> expand() {
-      return ImmutableMap.of(
-          responseTag, responses,
-          failureTag, failures);
-    }
-
-    @Override
-    public void finishSpecifyingOutput(
-        @NonNull String transformName,
-        @NonNull PInput input,
-        @NonNull PTransform<?, ?> transform) {}
   }
 
   private static class NoopSetupTeardown implements SetupTeardown {

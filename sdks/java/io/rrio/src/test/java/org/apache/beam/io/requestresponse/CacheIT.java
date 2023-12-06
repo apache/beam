@@ -104,7 +104,7 @@ public class CacheIT {
     PCollection<Request> requests =
         readPipeline.apply(Create.of(toRead)).setCoder(CallTest.DETERMINISTIC_REQUEST_CODER);
 
-    Call.Result<KV<Request, Response>> gotKVsResult =
+    Result<KV<Request, Response>> gotKVsResult =
         requests.apply(
             Cache.readUsingRedis(
                 externalClients.getActualClient(),
