@@ -30,6 +30,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -50,7 +51,6 @@ const URNMonitoringInfoShortID = "beam:protocol:monitoring_info_short_ids:v1"
 type Options struct {
 	RunnerCapabilities []string // URNs for what runners are able to understand over the FnAPI.
 	StatusEndpoint     string   // Endpoint for worker status reporting.
-	EnableDataSampling bool     // Enable data sampling feature
 }
 
 // Main is the main entrypoint for the Go harness. It runs at "runtime" -- not
@@ -159,7 +159,7 @@ func MainWithOptions(ctx context.Context, loggingEndpoint, controlEndpoint strin
 		runnerCapabilities:   rcMap,
 	}
 
-	if opts.EnableDataSampling {
+	if enabled, ok := rcMap[graphx.URNDataSampling]; ok && enabled { {
 		ctrl.dataSampler = exec.NewDataSampler(ctx)
 		go ctrl.dataSampler.Process()
 	}

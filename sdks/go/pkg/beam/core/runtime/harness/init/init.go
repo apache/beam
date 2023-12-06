@@ -32,6 +32,7 @@ import (
 	"runtime/debug"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness"
 
 	// Import gcs filesystem so that it can be used to upload heap dumps.
@@ -79,13 +80,19 @@ func hook() {
 		return
 	}
 
+	// Extract environment variables. These are optional runner supported capabilities.
+	// Expected env variables:
+	// RUNNER_CAPABILITIES : list of runner supported capability urn.
+	// STATUS_ENDPOINT : Endpoint to connect to status server used for worker status reporting.
+	statusEndpoint := os.Getenv("STATUS_ENDPOINT")
+	runnerCapabilities := strings.Split(os.Getenv("RUNNER_CAPABILITIES"), " ")
+
 	// Initialization logging
 	//
 	// We use direct output to stderr here, because it is expected that logging
 	// will be captured by the framework -- which may not be functional if
 	// harness.Main returns. We want to be sure any error makes it out.
 
-	var enableDataSampling = false
 	if *options != "" {
 		var opt runtime.RawOptionsWrapper
 		if err := json.Unmarshal([]byte(*options), &opt); err != nil {
@@ -98,7 +105,7 @@ func hook() {
 			experiments = strings.Split(e, ",")
 		}
 		if slices.Contains(experiments, "enable_data_sampling") {
-			enableDataSampling = true
+			runnerCapabilities = append(runnerCapabilities, graphx.URNDataSampling)
 		}
 	}
 
@@ -129,16 +136,9 @@ func hook() {
 		fmt.Println("Error Setting Rlimit ", err)
 	}
 
-	// Extract environment variables. These are optional runner supported capabilities.
-	// Expected env variables:
-	// RUNNER_CAPABILITIES : list of runner supported capability urn.
-	// STATUS_ENDPOINT : Endpoint to connect to status server used for worker status reporting.
-	statusEndpoint := os.Getenv("STATUS_ENDPOINT")
-	runnerCapabilities := strings.Split(os.Getenv("RUNNER_CAPABILITIES"), " ")
 	options := harness.Options{
 		StatusEndpoint:     statusEndpoint,
 		RunnerCapabilities: runnerCapabilities,
-		EnableDataSampling: enableDataSampling,
 	}
 	if err := harness.MainWithOptions(ctx, *loggingEndpoint, *controlEndpoint, options); err != nil {
 		fmt.Fprintf(os.Stderr, "Worker failed: %v\n", err)

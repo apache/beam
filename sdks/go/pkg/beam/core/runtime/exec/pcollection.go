@@ -99,14 +99,17 @@ func (p *PCollection) ProcessElement(ctx context.Context, elm *FullValue, values
 		} else {
 			p.nextSampleIdx = cur + p.r.Int63n(cur/10+2) + 1
 		}
-		var w byteCounter
-		p.elementCoder.Encode(elm, &w)
-		p.addSize(int64(w.count))
 
-		if p.dataSampler != nil {
+		if p.dataSampler == nil {
+			var w byteCounter
+			p.elementCoder.Encode(elm, &w)
+			p.addSize(int64(w.count))
+		} else {
 			var buf bytes.Buffer
 			EncodeWindowedValueHeader(p.windowCoder, elm.Windows, elm.Timestamp, elm.Pane, &buf)
+			winSize := buf.Len()
 			p.elementCoder.Encode(elm, &buf)
+			p.addSize(int64(buf.Len() - winSize))
 			p.dataSampler.SendSample(p.PColID, buf.Bytes(), time.Now())
 		}
 	}
