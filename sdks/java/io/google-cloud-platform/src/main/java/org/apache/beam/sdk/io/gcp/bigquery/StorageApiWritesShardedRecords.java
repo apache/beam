@@ -414,6 +414,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           writeStreamServiceInternal.close();
           writeStreamServiceInternal = null;
         }
+        if (datasetServiceInternal != null) {
+          datasetServiceInternal.close();
+          datasetServiceInternal = null;
+        }
       } catch (Exception e) {
         throw new RuntimeException(e);
       }

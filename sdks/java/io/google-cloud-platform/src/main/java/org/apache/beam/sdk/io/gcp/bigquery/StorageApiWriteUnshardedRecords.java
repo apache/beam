@@ -1135,6 +1135,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           maybeWriteStreamService.close();
           maybeWriteStreamService = null;
         }
+        if (maybeDatasetService != null) {
+          maybeDatasetService.close();
+          maybeDatasetService = null;
+        }
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
