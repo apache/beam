@@ -27,9 +27,8 @@
 #      Instructions: https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line
 #   2. Please set RELEASE_BUILD_CONFIGS in script.config before running this
 #      script.
-#   3. Please manually comment trigger phrases to the created PR to start
-#      Gradle release build and all PostCommit jobs, or run mass_comment.py
-#      to do so. Phrases are listed in COMMENTS_TO_ADD in mass_comment.py.
+#   3. Please manually start "Release Nightly Snapshot" GHA workflow on the
+#      release branch to start Gradle release build.
 
 
 . script.config
@@ -144,9 +143,9 @@ if [[ ! -z `which hub` ]]; then
 
   hub pull-request -b apache:${RELEASE_BRANCH} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch
 
-  You can run many tests automatically using release/src/main/scripts/mass_comment.py."
+  Tests run on GHA should be queued shortly."
 
   echo ""
-  echo "[NOTE]: Please make sure all test targets (GHA and Jenkins) have been invoked."
+  echo "[NOTE]: Please make sure all test targets (GHA) have been invoked."
   echo "Please check the test results. If there is any failure, follow the policy in release guide."
 fi
