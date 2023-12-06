@@ -31,20 +31,22 @@ import java.io.OutputStream;
  */
 public class VarInt {
 
-  private static long convertIntToLongNoSignExtend(int v) {
-    return v & 0xFFFFFFFFL;
-  }
-
   /** Encodes the given value onto the stream. */
   public static void encode(int v, OutputStream stream) throws IOException {
-    encode(convertIntToLongNoSignExtend(v), stream);
+    do {
+      // Encode next 7 bits + terminator bit
+      long bits = v & 0x7F;
+      v >>>= 7;
+      byte b = (byte) (bits | ((v != 0) ? 0x80 : 0));
+      stream.write(b);
+    } while (v != 0);
   }
 
   /** Encodes the given value onto the stream. */
   public static void encode(long v, OutputStream stream) throws IOException {
-    // Write 1 byte
-    if ((v & ~0x7F) == 0) {
-      stream.write((byte) v);
+    // Write 1-5 bytes
+    if ((v & ~0xFFFFFFFFL) == 0) {
+      encode((int) v, stream);
       return;
     }
 
@@ -53,12 +55,14 @@ public class VarInt {
     final byte[] buf = new byte[sz];
     int pos = 0;
 
-    // Write 2-10 bytes
+    // Write 6-10 bytes
     do {
-      buf[pos++] = (byte) (v | 0x80);
+      // Encode next 7 bits + terminator bit
+      long bits = v & 0x7F;
       v >>>= 7;
-    } while ((v & ~0x7F) != 0);
-    buf[pos++] = (byte) v;
+      byte b = (byte) (bits | ((v != 0) ? 0x80 : 0));
+      buf[pos++] = b;
+    } while (v != 0);
 
     stream.write(buf, 0, pos);
   }
