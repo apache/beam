@@ -421,12 +421,14 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 
 func logSubmissionEnvDependencies(ctx context.Context, logger *tools.Logger, dir string) error {
 	logger.Printf(ctx, "Logging submission environment dependencies:")
-	filename := filepath.Join(dir, "submission_environment_dependencies.txt")
-	content, err := os.ReadFile(filename)
-	if err != nil {
-		return err
-	}
-	logger.Printf(ctx, string(content))
+// 	filename := filepath.Join(dir, "submission_environment_dependencies.txt")
+// 	content, err := os.ReadFile(filename)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	logger.Printf(ctx, string(content))
+    dependencies = os.Getenv("SUBMISSION_DEPENDENCIES")
+    logger.Printf(ctx, dependencies)
 	return nil
 }
 
