@@ -145,6 +145,7 @@ public class LyftFlinkStreamingPortableTranslations {
       throw new RuntimeException("Could not parse KafkaConsumer properties.", e);
     }
 
+    LOG.info("Parsed KafkaInput params: {}", params);
     List<String> topics = (List) params.get("topics");
     Preconditions.checkNotNull(topics);
     Preconditions.checkArgument(topics.size() > 0, "'topics' need to be set");
