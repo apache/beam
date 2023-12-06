@@ -59,6 +59,11 @@ try:
 except:  # pylint: disable=bare-except
   pass
 
+try:
+  from apache_beam.runners.dataflow.internal import apiclient
+except ImportError:
+  apiclient = None  # type: ignore
+
 
 class BaseMLTransformTest(unittest.TestCase):
   def setUp(self) -> None:
@@ -552,6 +557,7 @@ class TestJsonPickleTransformAttributeManager(unittest.TestCase):
       self.assertEqual(
           ptransform_list[i]._model_handler.columns, expected_columns[i])
 
+  @unittest.skipIf(apiclient is None, 'apache_beam[gcp] is not installed.')
   def test_with_gcs_location_with_none_options(self):
     path = 'gs://fake_path'
     with self.assertRaises(RuntimeError):
