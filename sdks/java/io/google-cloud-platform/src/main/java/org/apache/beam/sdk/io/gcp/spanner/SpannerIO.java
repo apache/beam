@@ -852,6 +852,11 @@ public class SpannerIO {
       return withReadOperation(getReadOperation().withIndex(index));
     }
 
+    /**
+     * Note that {@link PartitionOptions} are currently ignored. See <a
+     * href="https://cloud.google.com/spanner/docs/reference/rpc/google.spanner.v1#google.spanner.v1.PartitionOptions">
+     * PartitionOptions in RPC documents</a>
+     */
     public Read withPartitionOptions(PartitionOptions partitionOptions) {
       return withReadOperation(getReadOperation().withPartitionOptions(partitionOptions));
     }
@@ -2165,6 +2170,7 @@ public class SpannerIO {
           // fall through and retry individual mutationGroups.
         } else if (failureMode == FailureMode.FAIL_FAST) {
           mutationGroupsWriteFail.inc(mutations.size());
+          LOG.error("Failed to write a batch of mutation groups", e);
           throw e;
         } else {
           throw new IllegalArgumentException("Unknown failure mode " + failureMode);
