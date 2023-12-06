@@ -76,7 +76,7 @@ _parameterized_inputs = [
          }],
         'intfloat/e5-base-v2',
         # this model requires inputs to be specified as query: and passage:
-        [0.1, 0.1]),
+        [0.12, 0.13]),
 ]
 
 
