@@ -25,13 +25,13 @@ import (
 func TestDataSampler(t *testing.T) {
 	tests := []struct {
 		name    string
-		samples []DataSample
+		samples []dataSample
 		pids    []string
 		want    int
 	}{
 		{
 			name: "GetAllSamples",
-			samples: []DataSample{
+			samples: []dataSample{
 				{PCollectionID: "pid1", Element: []byte("element1"), Timestamp: time.Now()},
 				{PCollectionID: "pid2", Element: []byte("element2"), Timestamp: time.Now()},
 			},
@@ -40,7 +40,7 @@ func TestDataSampler(t *testing.T) {
 		},
 		{
 			name: "GetSamplesForPCollections",
-			samples: []DataSample{
+			samples: []dataSample{
 				{PCollectionID: "pid1", Element: []byte("element1"), Timestamp: time.Now()},
 				{PCollectionID: "pid2", Element: []byte("element2"), Timestamp: time.Now()},
 			},
@@ -49,7 +49,7 @@ func TestDataSampler(t *testing.T) {
 		},
 		{
 			name: "GetSamplesForPCollectionsWithNoResult",
-			samples: []DataSample{
+			samples: []dataSample{
 				{PCollectionID: "pid1", Element: []byte("element1"), Timestamp: time.Now()},
 				{PCollectionID: "pid2", Element: []byte("element2"), Timestamp: time.Now()},
 			},
