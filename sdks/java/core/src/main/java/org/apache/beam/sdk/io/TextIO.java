@@ -125,7 +125,7 @@ import org.joda.time.Duration;
  * // read from a data source.
  * PCollection<String> filenames = ...;
  *
- * // Read all files in the collection.
+ * // Read data on all files in the collection, including the file name on each read line.
  * PCollection<KV<String, String>> linesWithFileName =
  *     filenames
  *         .apply(FileIO.matchAll())
