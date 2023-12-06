@@ -45,7 +45,7 @@ easily manipulated and semantically meaningful than the Beam protos
 themselves (which concern themselves more with execution).
 
 It should be noted that everything here is still under development, but any
-features already included are considered stable. Feedback is welcome at 
+features already included are considered stable. Feedback is welcome at
 dev@apache.beam.org.
 
 ## Example pipelines
