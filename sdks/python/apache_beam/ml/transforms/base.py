@@ -408,15 +408,19 @@ class _JsonPickleTransformAttributeManager(_TransformAttributeManager):
         _LOGGER.info('Creating artifact location: %s', artifact_location)
         # pipeline options required to for the client to configure project.
         options = kwargs.get('options')
-        if not options:
-          raise RuntimeError(
-              'pipeline options are required to save the attributes.'
-              'in the artifact location %s' % artifact_location)
-        apiclient.DataflowApplicationClient(options=options).stage_file(
-            gcs_or_local_path=artifact_location,
-            file_name=_ATTRIBUTE_FILE_NAME,
-            stream=f,
-            mime_type='application/json')
+        try:
+          apiclient.DataflowApplicationClient(options=options).stage_file(
+              gcs_or_local_path=artifact_location,
+              file_name=_ATTRIBUTE_FILE_NAME,
+              stream=f,
+              mime_type='application/json')
+        except Exception as exc:
+          if not options:
+            raise RuntimeError(
+                "Failed to create Dataflow client. "
+                "Pipeline options are required to save the attributes."
+                "in the artifact location %s" % artifact_location) from exc
+          raise
     else:
       if not FileSystems.exists(artifact_location):
         FileSystems.mkdirs(artifact_location)

@@ -552,6 +552,15 @@ class TestJsonPickleTransformAttributeManager(unittest.TestCase):
       self.assertEqual(
           ptransform_list[i]._model_handler.columns, expected_columns[i])
 
+  def test_with_gcs_location_with_none_options(self):
+    path = 'gs://fake_path'
+    with self.assertRaises(RuntimeError):
+      self.attribute_manager.save_attributes(
+          ptransform_list=[], artifact_location=path, options=None)
+    with self.assertRaises(RuntimeError):
+      self.attribute_manager.save_attributes(
+          ptransform_list=[], artifact_location=path)
+
 
 if __name__ == '__main__':
   unittest.main()
