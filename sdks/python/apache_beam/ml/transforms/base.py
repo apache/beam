@@ -203,7 +203,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       *,
       write_artifact_location: Optional[str] = None,
       read_artifact_location: Optional[str] = None,
-      transforms: Optional[MLTransformProvider] = None):
+      transforms: Optional[List[MLTransformProvider]] = None):
     """
     MLTransform is a Beam PTransform that can be used to apply
     transformations to the data. MLTransform is used to wrap the

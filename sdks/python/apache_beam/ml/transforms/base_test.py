@@ -288,8 +288,7 @@ class BaseMLTransformTest(unittest.TestCase):
       def __call__(self, x):
         return x + 1
 
-    with self.assertRaisesRegex(
-        TypeError, 'transform must be a subclass of MLTransformProvider'):
+    with self.assertRaisesRegex(TypeError, 'transform must be a subclass of'):
       with beam.Pipeline() as p:
         _ = (
             p
