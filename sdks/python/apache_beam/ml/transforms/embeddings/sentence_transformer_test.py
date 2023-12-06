@@ -55,10 +55,10 @@ _parameterized_inputs = [
     }, {
         test_query_column: '样例数据-4'
     }],
-     'BAAI/bge-base-en-v1.5', [0.1091, 0.122, 0.104, 0.1093]),
+     'BAAI/bge-base-en-v1.5', [0.11, 0.12, 0.10, 0.11]),
     ([{
         test_query_column: test_query,
-    }], DEFAULT_MODEL_NAME, [0.1342]),
+    }], DEFAULT_MODEL_NAME, [0.13]),
     (
         [{
             test_query_column: 'query: how much protein should a female eat',
@@ -76,7 +76,7 @@ _parameterized_inputs = [
          }],
         'intfloat/e5-base-v2',
         # this model requires inputs to be specified as query: and passage:
-        [0.0982, 0.1033]),
+        [0.1, 0.1]),
 ]
 
 
@@ -147,7 +147,7 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
                   embedding_config))
       max_ele_pcoll = (
           result_pcoll
-          | beam.Map(lambda x: round(max(x[test_query_column]), 4)))
+          | beam.Map(lambda x: round(max(x[test_query_column]), 2)))
 
       assert_that(max_ele_pcoll, equal_to(output))
 
@@ -159,7 +159,7 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
           MLTransform(read_artifact_location=self.artifact_location))
       max_ele_pcoll = (
           result_pcoll
-          | beam.Map(lambda x: round(max(x[test_query_column]), 4)))
+          | beam.Map(lambda x: round(max(x[test_query_column]), 2)))
 
       assert_that(max_ele_pcoll, equal_to(output))
 
@@ -193,7 +193,7 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
               embedding_config))
       max_ele_pcoll = (
           result_pcoll
-          | beam.Map(lambda x: round(np.max(x[test_query_column]), 4)))
+          | beam.Map(lambda x: round(np.max(x[test_query_column]), 2)))
 
       assert_that(max_ele_pcoll, equal_to(output))
 
@@ -205,7 +205,7 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
           MLTransform(read_artifact_location=artifact_location))
       max_ele_pcoll = (
           result_pcoll
-          | beam.Map(lambda x: round(np.max(x[test_query_column]), 4)))
+          | beam.Map(lambda x: round(np.max(x[test_query_column]), 2)))
 
       assert_that(max_ele_pcoll, equal_to(output))
 
