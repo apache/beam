@@ -18,17 +18,9 @@
 package org.apache.beam.io.requestresponse;
 
 import com.google.auto.value.AutoValue;
-import java.util.Map;
-import org.apache.beam.io.requestresponse.RequestResponseIO.Result;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * {@link PTransform} for reading from and writing to Web APIs.
@@ -63,7 +55,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 public class RequestResponseIO<RequestT, ResponseT>
     extends PTransform<PCollection<RequestT>, Result<ResponseT>> {
 
-  private static final TupleTag<ApiIOError> FAILURE_TAG = new TupleTag<ApiIOError>() {};
+  private final TupleTag<ResponseT> responseTag = new TupleTag<ResponseT>() {};
+  private final TupleTag<ApiIOError> failureTag = new TupleTag<ApiIOError>() {};
 
   // TODO(damondouglas): remove when utilized.
   @SuppressWarnings({"unused"})
@@ -106,55 +99,6 @@ public class RequestResponseIO<RequestT, ResponseT>
 
   @Override
   public Result<ResponseT> expand(PCollection<RequestT> input) {
-    // TODO(damondouglas; https://github.com/apache/beam/issues?q=is%3Aissue+is%3Aopen+%5BRRIO%5D):
-    //  expand pipeline as more dependencies develop.
-    return Result.of(new TupleTag<ResponseT>() {}, PCollectionTuple.empty(input.getPipeline()));
-  }
-
-  /**
-   * The {@link Result} of processing request {@link PCollection} into response {@link PCollection}
-   * using custom {@link Caller} code.
-   */
-  public static class Result<ResponseT> implements POutput {
-
-    static <ResponseT> Result<ResponseT> of(TupleTag<ResponseT> responseTag, PCollectionTuple pct) {
-      return new Result<>(responseTag, pct);
-    }
-
-    private final Pipeline pipeline;
-    private final TupleTag<ResponseT> responseTag;
-    private final PCollection<ResponseT> responses;
-    private final PCollection<ApiIOError> failures;
-
-    private Result(TupleTag<ResponseT> responseTag, PCollectionTuple pct) {
-      this.pipeline = pct.getPipeline();
-      this.responseTag = responseTag;
-      this.responses = pct.get(responseTag);
-      this.failures = pct.get(FAILURE_TAG);
-    }
-
-    public PCollection<ResponseT> getResponses() {
-      return responses;
-    }
-
-    public PCollection<ApiIOError> getFailures() {
-      return failures;
-    }
-
-    @Override
-    public Pipeline getPipeline() {
-      return this.pipeline;
-    }
-
-    @Override
-    public Map<TupleTag<?>, PValue> expand() {
-      return ImmutableMap.of(
-          responseTag, responses,
-          FAILURE_TAG, failures);
-    }
-
-    @Override
-    public void finishSpecifyingOutput(
-        String transformName, PInput input, PTransform<?, ?> transform) {}
+    return null;
   }
 }
