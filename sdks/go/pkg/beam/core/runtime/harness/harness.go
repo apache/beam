@@ -159,7 +159,7 @@ func MainWithOptions(ctx context.Context, loggingEndpoint, controlEndpoint strin
 		runnerCapabilities:   rcMap,
 	}
 
-	if enabled, ok := rcMap[graphx.URNDataSampling]; ok && enabled { {
+	if enabled, ok := rcMap[graphx.URNDataSampling]; ok && enabled {
 		ctrl.dataSampler = exec.NewDataSampler(ctx)
 		go ctrl.dataSampler.Process()
 	}
