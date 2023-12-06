@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.errorhandling;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -88,7 +90,7 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
     private final Coder<ErrorT> coder;
 
     // transient as PCollections are not serializable
-    private final transient List<PCollection<ErrorT>> errorCollections = new ArrayList<>();
+    private transient List<PCollection<ErrorT>> errorCollections = new ArrayList<>();
 
     // transient as PCollections are not serializable
     private transient @Nullable OutputT sinkOutput = null;
@@ -107,6 +109,12 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
       this.sinkTransform = sinkTransform;
       this.pipeline = pipeline;
       this.coder = coder;
+    }
+
+    private void readObject(ObjectInputStream aInputStream)
+        throws ClassNotFoundException, IOException {
+      aInputStream.defaultReadObject();
+      errorCollections = new ArrayList<>();
     }
 
     @Override
