@@ -18,6 +18,7 @@ import shutil
 import tempfile
 import unittest
 
+import numpy as np
 from parameterized import parameterized
 
 import apache_beam as beam
@@ -192,7 +193,7 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
               embedding_config))
       max_ele_pcoll = (
           result_pcoll
-          | beam.Map(lambda x: round(max(x[test_query_column]), 4)))
+          | beam.Map(lambda x: round(np.max(x[test_query_column]), 4)))
 
       assert_that(max_ele_pcoll, equal_to(output))
 
@@ -204,7 +205,7 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
           MLTransform(read_artifact_location=artifact_location))
       max_ele_pcoll = (
           result_pcoll
-          | beam.Map(lambda x: round(max(x[test_query_column]), 4)))
+          | beam.Map(lambda x: round(np.max(x[test_query_column]), 4)))
 
       assert_that(max_ele_pcoll, equal_to(output))
 
