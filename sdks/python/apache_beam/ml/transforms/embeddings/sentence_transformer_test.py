@@ -21,6 +21,8 @@ import unittest
 from parameterized import parameterized
 
 import apache_beam as beam
+from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.transforms import base
 from apache_beam.ml.transforms.base import MLTransform
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -231,6 +233,43 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
           result_pcoll
           | beam.Map(lambda x: x[test_query_column])
           | beam.Map(assert_element))
+
+  def test_mltransform_to_ptransform_with_vertex(self):
+    model_name = ''
+    transforms = [
+        SentenceTransformerEmbeddings(columns=['x'], model_name=model_name),
+        SentenceTransformerEmbeddings(
+            columns=['y', 'z'], model_name=model_name)
+    ]
+    ptransform_mapper = base._MLTransformToPTransformMapper(
+        transforms=transforms,
+        artifact_location=self.artifact_location,
+        artifact_mode=None)
+
+    ptransform_list = ptransform_mapper.create_and_save_ptransform_list()
+    self.assertTrue(len(ptransform_list) == 2)
+
+    self.assertEqual(type(ptransform_list[0]), RunInference)
+    expected_columns = [['x'], ['y', 'z']]
+    for i in range(len(ptransform_list)):
+      self.assertEqual(type(ptransform_list[i]), RunInference)
+      self.assertEqual(
+          type(ptransform_list[i]._model_handler), base._TextEmbeddingHandler)
+      self.assertEqual(
+          ptransform_list[i]._model_handler.columns, expected_columns[i])
+      self.assertEqual(
+          ptransform_list[i]._model_handler._underlying.model_name, model_name)
+    ptransform_list = (
+        base._MLTransformToPTransformMapper.
+        load_transforms_from_artifact_location(self.artifact_location))
+    for i in range(len(ptransform_list)):
+      self.assertEqual(type(ptransform_list[i]), RunInference)
+      self.assertEqual(
+          type(ptransform_list[i]._model_handler), base._TextEmbeddingHandler)
+      self.assertEqual(
+          ptransform_list[i]._model_handler.columns, expected_columns[i])
+      self.assertEqual(
+          ptransform_list[i]._model_handler._underlying.model_name, model_name)
 
 
 if __name__ == '__main__':

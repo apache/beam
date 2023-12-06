@@ -51,7 +51,7 @@ class _SentenceTransformerModelHandler(ModelHandler):
       large_model: bool = False,
       **kwargs):
     self._max_seq_length = max_seq_length
-    self._model_uri = model_name
+    self.model_name = model_name
     self._model_class = model_class
     self._load_model_args = load_model_args
     self._min_batch_size = min_batch_size
@@ -69,7 +69,7 @@ class _SentenceTransformerModelHandler(ModelHandler):
     return model.encode(batch, **inference_args)
 
   def load_model(self):
-    model = self._model_class(self._model_uri, **self._load_model_args)
+    model = self._model_class(self.model_name, **self._load_model_args)
     if self._max_seq_length:
       model.max_seq_length = self._max_seq_length
     return model
