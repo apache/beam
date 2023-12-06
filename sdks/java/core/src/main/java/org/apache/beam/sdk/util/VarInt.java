@@ -42,13 +42,25 @@ public class VarInt {
 
   /** Encodes the given value onto the stream. */
   public static void encode(long v, OutputStream stream) throws IOException {
+    // Write 1 byte
+    if ((v & ~0x7F) == 0) {
+      stream.write((byte) v);
+      return;
+    }
+
+    // Overshoots exact length by 1 byte max, but improves throughput
+    final int sz = (80 - Long.numberOfLeadingZeros(v)) >> 3;
+    final byte[] buf = new byte[sz];
+    int pos = 0;
+
+    // Write 2-10 bytes
     do {
-      // Encode next 7 bits + terminator bit
-      long bits = v & 0x7F;
+      buf[pos++] = (byte) (v | 0x80);
       v >>>= 7;
-      byte b = (byte) (bits | ((v != 0) ? 0x80 : 0));
-      stream.write(b);
-    } while (v != 0);
+    } while ((v & ~0x7F) != 0);
+    buf[pos++] = (byte) v;
+
+    stream.write(buf, 0, pos);
   }
 
   /** Decodes an integer value from the given stream. */
