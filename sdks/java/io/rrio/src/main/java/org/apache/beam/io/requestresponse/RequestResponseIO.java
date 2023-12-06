@@ -51,7 +51,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  *    }
  * }}</pre>
  *
- * <p>Then provide {@link RequestResponseIO}'s {@link #create} method your {@link Caller}
+ * <p>Then provide {@link RequestResponseIO}'s {@link #of} method your {@link Caller}
  * implementation.
  *
  * <pre>{@code  PCollection<SomeRequest> requests = ...
