@@ -28,6 +28,7 @@ needed right now use a @retry.no_retries decorator.
 # pytype: skip-file
 
 import functools
+import json
 import logging
 import random
 import sys
@@ -179,11 +180,11 @@ def retry_on_server_errors_timeout_or_quota_issues_filter(exception):
     if exception.status_code == 403:
       try:
         # attempt to extract the reason and check if it's retryable
-        return exception.content["error"]["errors"][0][
-            "reason"] in _RETRYABLE_REASONS
+        content = json.loads(exception.content)
+        return content["error"]["errors"][0]["reason"] in _RETRYABLE_REASONS
       except (KeyError, IndexError, TypeError):
-        _LOGGER.debug(
-            "Could not determine if HttpError is non-transient. "
+        _LOGGER.warning(
+            "Could not determine if HttpError is transient. "
             "Will not retry: %s",
             exception)
       return False
