@@ -110,6 +110,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       inference_fn: TensorInferenceFn = default_numpy_inference_fn,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
+      max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
       **kwargs):
     """Implementation of the ModelHandler interface for Tensorflow.
@@ -154,6 +155,8 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       self._batching_kwargs['min_batch_size'] = min_batch_size
     if max_batch_size is not None:
       self._batching_kwargs['max_batch_size'] = max_batch_size
+    if max_batch_duration_secs is not None:
+      self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
     self._large_model = large_model
 
   def load_model(self) -> tf.Module:
@@ -235,6 +238,7 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       inference_fn: TensorInferenceFn = default_tensor_inference_fn,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
+      max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
       **kwargs):
     """Implementation of the ModelHandler interface for Tensorflow.
@@ -258,6 +262,10 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
           once the model is loaded.
         inference_fn: inference function to use during RunInference.
           Defaults to default_numpy_inference_fn.
+        min_batch_size: the minimum batch size to use when batching inputs.
+        max_batch_size: the maximum batch size to use when batching inputs.
+        max_batch_duration_secs: the maximum amount of time to buffer a batch
+          before emitting; used in streaming contexts.
         large_model: set to true if your model is large enough to run into
           memory pressure if you load multiple copies. Given a model that
           consumes N memory and a machine with W cores and M memory, you should
@@ -280,6 +288,8 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       self._batching_kwargs['min_batch_size'] = min_batch_size
     if max_batch_size is not None:
       self._batching_kwargs['max_batch_size'] = max_batch_size
+    if max_batch_duration_secs is not None:
+      self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
     self._large_model = large_model
 
   def load_model(self) -> tf.Module:

@@ -230,6 +230,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       *,
       inference_fn: TensorRTInferenceFn = _default_tensorRT_inference_fn,
       large_model: bool = False,
+      max_batch_duration_secs: Optional[int] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for TensorRT.
 
@@ -253,6 +254,8 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
         memory pressure if you load multiple copies. Given a model that
         consumes N memory and a machine with W cores and M memory, you should
         set this to True if N*W > M.
+      max_batch_duration_secs: the maximum amount of time to buffer 
+        a batch before emitting; used in streaming contexts.
       kwargs: Additional arguments like 'engine_path' and 'onnx_path' are
         currently supported. 'env_vars' can be used to set environment variables
         before loading the model.
@@ -262,6 +265,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     """
     self.min_batch_size = min_batch_size
     self.max_batch_size = max_batch_size
+    self.max_batch_duration_secs = max_batch_duration_secs
     self.inference_fn = inference_fn
     if 'engine_path' in kwargs:
       self.engine_path = kwargs.get('engine_path')
@@ -274,7 +278,8 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     """Sets min_batch_size and max_batch_size of a TensorRT engine."""
     return {
         'min_batch_size': self.min_batch_size,
-        'max_batch_size': self.max_batch_size
+        'max_batch_size': self.max_batch_size,
+        'max_batch_duration_secs': self.max_batch_duration_secs
     }
 
   def load_model(self) -> TensorRTEngine:
