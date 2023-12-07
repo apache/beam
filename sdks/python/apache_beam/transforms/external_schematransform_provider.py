@@ -136,7 +136,7 @@ class ExternalSchemaTransformProvider:
   and any documentation that the underlying SchemaTransform may provide
   >>> provider.BigqueryStorageRead.configuration_schema
   {'query': ParamInfo(type=typing.Optional[str], description='The SQL query to
-   be executed to read from the BigQuery table.', original_name='query'),
+  be executed to read from the BigQuery table.', original_name='query'),
   'row_restriction': ParamInfo(type=typing.Optional[str]...}
 
   The retrieved external transform can be used as a normal PTransform like so::
