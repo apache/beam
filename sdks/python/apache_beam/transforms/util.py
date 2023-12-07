@@ -769,7 +769,7 @@ class WithSharedKey(DoFn):
     self.shared_handle = shared.Shared()
 
   def setup(self):
-    self.key = self.shared_handle.acquire(load_shared_key).key
+    self.key = self.shared_handle.acquire(load_shared_key, "WithSharedKey").key
 
   def process(self, element):
     yield (self.key, element)
