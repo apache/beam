@@ -152,6 +152,9 @@ def _create_parser(
   elif format == 'avro':
     beam_schema = avroio.avro_schema_to_beam_schema(schema)
     covert_to_row = avroio.avro_dict_to_beam_row(schema, beam_schema)
+    # pylint: disable=call-arg
+    # TODO(https://github.com/apache/beam/issues/29665): remove the pylint
+    # disable call.
     return (
         beam_schema,
         lambda record: covert_to_row(
