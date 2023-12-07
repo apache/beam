@@ -36,6 +36,11 @@ public interface SchemaTransformProvider {
   /** Returns an id that uniquely represents this transform. */
   String identifier();
 
+  /** Returns a description of this transform to be used for documentation. */
+  default String description() {
+    return "";
+  }
+
   /**
    * Returns the expected schema of the configuration object. Note this is distinct from the schema
    * of the transform itself.

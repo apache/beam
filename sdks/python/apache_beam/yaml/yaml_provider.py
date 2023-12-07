@@ -46,6 +46,7 @@ import apache_beam.io
 import apache_beam.transforms.util
 from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms import external
+from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 from apache_beam.typehints import native_type_compatibility
@@ -547,7 +548,7 @@ def dicts_to_rows(o):
 
 
 def create_builtin_provider():
-  def create(elements: Iterable[Any], reshuffle: bool = True):
+  def create(elements: Iterable[Any], reshuffle: Optional[bool] = True):
     """Creates a collection containing a specified set of elements.
 
     YAML/JSON-style mappings will be interpreted as Beam rows. For example::
@@ -561,17 +562,48 @@ def create_builtin_provider():
     Args:
         elements: The set of elements that should belong to the PCollection.
             YAML/JSON-style mappings will be interpreted as Beam rows.
-        reshuffle (optional): Whether to introduce a reshuffle if there is more
-            than one element in the collection. Defaults to True.
+        reshuffle (optional): Whether to introduce a reshuffle (to possibly
+            redistribute the work) if there is more than one element in the
+            collection. Defaults to True.
     """
-    return beam.Create([element_to_rows(e) for e in elements], reshuffle)
+    return beam.Create([element_to_rows(e) for e in elements],
+                       reshuffle=reshuffle is not False)
 
   # Or should this be posargs, args?
   # pylint: disable=dangerous-default-value
   def fully_qualified_named_transform(
       constructor: str,
-      args: Iterable[Any] = (),
-      kwargs: Mapping[str, Any] = {}):
+      args: Optional[Iterable[Any]] = (),
+      kwargs: Optional[Mapping[str, Any]] = {}):
+    """A Python PTransform identified by fully qualified name.
+
+    This allows one to import, construct, and apply any Beam Python transform.
+    This can be useful for using transforms that have not yet been exposed
+    via a YAML interface. Note, however, that conversion may be required if this
+    transform does not accept or produce Beam Rows.
+
+    For example,
+
+        type: PyTransform
+        config:
+          constructor: apache_beam.pkg.mod.SomeClass
+          args: [1, 'foo']
+          kwargs:
+             baz: 3
+
+    can be used to access the transform
+    `apache_beam.pkg.mod.SomeClass(1, 'foo', baz=3)`.
+
+    Args:
+        constructor: Fully qualified name of a callable used to construct the
+            transform.  Often this is a class such as
+            `apache_beam.pkg.mod.SomeClass` but it can also be a function or
+            any other callable that returns a PTransform.
+        args: A list of parameters to pass to the callable as positional
+            arguments.
+        kwargs: A list of parameters to pass to the callable as keyword
+            arguments.
+    """
     with FullyQualifiedNamedTransform.with_filter('*'):
       return constructor >> FullyQualifiedNamedTransform(
           constructor, args, kwargs)
@@ -580,6 +612,18 @@ def create_builtin_provider():
   # exactly zero or one PCollection in yaml (as they would be interpreted as
   # PBegin and the PCollection itself respectively).
   class Flatten(beam.PTransform):
+    """Flattens multiple PCollections into a single PCollection.
+
+    The elements of the resulting PCollection will be the (disjoint) union of
+    all the elements of all the inputs.
+
+    Note that in YAML transforms can always take a list of inputs which will
+    be implicitly flattened.
+    """
+    def __init__(self):
+      # Suppress the "label" argument from the superclass for better docs.
+      super(self).__init__()
+
     def expand(self, pcolls):
       if isinstance(pcolls, beam.PCollection):
         pipeline_arg = {}
@@ -593,6 +637,22 @@ def create_builtin_provider():
       return pcolls | beam.Flatten(**pipeline_arg)
 
   class WindowInto(beam.PTransform):
+    """A window transform assigning windows to each element of a PCollection.
+
+    The assigned windows will affect all downstream aggregating operations,
+    which will aggregate by window as well as by key.
+
+    See [the Beam documentation on windowing](https://beam.apache.org/documentation/programming-guide/#windowing)
+    for more details.
+
+    Note that any Yaml transform can have a
+    [windowing parameter](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/README.md#windowing),
+    which is applied to its inputs (if any) or outputs (if there are no inputs)
+    which means that explicit WindowInto operations are not typically needed.
+
+    Args:
+      windowing: the type and parameters of the windowing to perform
+    """
     def __init__(self, windowing):
       self._window_transform = self._parse_window_spec(windowing)
 
@@ -618,13 +678,21 @@ def create_builtin_provider():
       # TODO: Triggering, etc.
       return beam.WindowInto(window_fn)
 
-  def log_and_return(x):
-    logging.info(x)
-    return x
+  def LogForTesting():
+    """Logs each element of its input PCollection.
+
+    The output of this transform is a copy of its input for ease of use in
+    chain-style pipelines.
+    """
+    def log_and_return(x):
+      logging.info(x)
+      return x
+
+    return beam.Map(log_and_return)
 
   return InlineProvider({
       'Create': create,
-      'LogForTesting': lambda: beam.Map(log_and_return),
+      'LogForTesting': LogForTesting,
       'PyTransform': fully_qualified_named_transform,
       'Flatten': Flatten,
       'WindowInto': WindowInto,
