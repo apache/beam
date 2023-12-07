@@ -48,8 +48,6 @@ from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_mapping
 from apache_beam.yaml import yaml_provider
 
-# mypy: ignore-errors
-# TODO(https://github.com/apache/beam/issues/29665): re-enable mypy
 
 def read_from_text(path: str):
   # TODO(yaml): Consider passing the filename and offset, possibly even
@@ -154,10 +152,11 @@ def _create_parser(
   elif format == 'avro':
     beam_schema = avroio.avro_schema_to_beam_schema(schema)
     covert_to_row = avroio.avro_dict_to_beam_row(schema, beam_schema)
+    # pylint: disable=line-too-long
     return (
         beam_schema,
         lambda record: covert_to_row(
-            fastavro.schemaless_reader(io.BytesIO(record), schema)))
+            fastavro.schemaless_reader(io.BytesIO(record), schema)))  # type: ignore[call-arg]
   else:
     raise ValueError(f'Unknown format: {format}')
 
