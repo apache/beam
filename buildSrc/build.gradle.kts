@@ -32,7 +32,7 @@ repositories {
     content { includeGroup("io.spring.gradle") }
   }
   maven {
-    url uri("https://repo.spring.io/plugins-snapshot")
+    url = uri("https://repo.spring.io/plugins-snapshot")
     content { includeGroup("io.spring.gradle") }
   }
 }
