@@ -118,25 +118,14 @@ class VertexAITextEmbeddings(EmbeddingsManager):
     Args:
       model_name: The name of the Vertex AI Text Embedding model.
       columns: The columns containing the text to be embedded.
-      task_type: The name of the downstream task the embeddings will be used for.
-        Valid values are listed below.
-        RETRIEVAL_QUERY
-            Specifies the given text is a query in a search/retrieval setting.
-        RETRIEVAL_DOCUMENT
-            Specifies the given text is a document from the corpus being searched.
-        SEMANTIC_SIMILARITY
-            Specifies the given text will be used for STS.
-        CLASSIFICATION
-            Specifies that the given text will be classified.
-        CLUSTERING
-          Specifies that the embeddings will be used for clustering.
-      title: Optional identifier of the text content.
-      project: The default GCP project to make Vertex API calls.
-      location: The default location to use when making API calls.
-      credentials: The default custom
-        credentials to use when making API calls. If not provided credentials
-        will be ascertained from the environment.
-
+      task_type: The downstream task for the embeddings.
+        Valid values: RETRIEVAL_QUERY, RETRIEVAL_DOCUMENT,
+        SEMANTIC_SIMILARITY, CLASSIFICATION, CLUSTERING.
+      title: Identifier of the text content.
+      project: The default GCP project for API calls.
+      location: The default location for API calls.
+      credentials: Custom credentials for API calls.
+        Defaults to environment credentials.
     """
     self.model_name = model_name
     self.project = project
