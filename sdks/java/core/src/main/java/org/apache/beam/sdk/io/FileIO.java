@@ -61,6 +61,8 @@ import org.apache.beam.sdk.transforms.Watch.Growth.PollFn;
 import org.apache.beam.sdk.transforms.Watch.Growth.TerminationCondition;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -1016,6 +1018,10 @@ public class FileIO {
 
     abstract boolean getNoSpilling();
 
+    abstract @Nullable ErrorHandler<BadRecord,?> getBadRecordErrorHandler();
+
+    abstract @Nullable SerializableFunction<Exception, Boolean> getBadRecordMatcher();
+
     abstract Builder<DestinationT, UserT> toBuilder();
 
     @AutoValue.Builder
@@ -1061,6 +1067,12 @@ public class FileIO {
       abstract Builder<DestinationT, UserT> setIgnoreWindowing(boolean ignoreWindowing);
 
       abstract Builder<DestinationT, UserT> setNoSpilling(boolean noSpilling);
+
+      abstract Builder<DestinationT, UserT> setBadRecordErrorHandler(
+          @Nullable ErrorHandler<BadRecord,?> badRecordErrorHandler);
+
+      abstract Builder<DestinationT, UserT> setBadRecordMatcher(
+          @Nullable SerializableFunction<Exception,Boolean> badRecordMatcher);
 
       abstract Write<DestinationT, UserT> build();
     }
@@ -1288,6 +1300,11 @@ public class FileIO {
       return toBuilder().setNoSpilling(true).build();
     }
 
+    /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. */
+    public Write<DestinationT, UserT> withBadRecordErrorHandler(ErrorHandler<BadRecord,?> errorHandler, SerializableFunction<Exception, Boolean> badRecordMatcher) {
+      return toBuilder().setBadRecordErrorHandler(errorHandler).setBadRecordMatcher(badRecordMatcher).build();
+    }
+
     @VisibleForTesting
     Contextful<Fn<DestinationT, FileNaming>> resolveFileNamingFn() {
       if (getDynamic()) {
@@ -1390,6 +1407,9 @@ public class FileIO {
       }
       if (getNoSpilling()) {
         writeFiles = writeFiles.withNoSpilling();
+      }
+      if (getBadRecordErrorHandler() != null) {
+        writeFiles = writeFiles.withBadRecordErrorHandler(getBadRecordErrorHandler(),getBadRecordMatcher());
       }
       return input.apply(writeFiles);
     }
