@@ -47,15 +47,11 @@ test_query_column = "feature_1"
 DEFAULT_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
 _parameterized_inputs = [
     ([{
-        test_query_column: '样例数据-1'
+        test_query_column: 'That is a happy person'
     }, {
-        test_query_column: '样例数据-2'
-    }, {
-        test_query_column: '样例数据-3'
-    }, {
-        test_query_column: '样例数据-4'
+        test_query_column: 'That is a very happy person'
     }],
-     'BAAI/bge-base-en-v1.5', [0.11, 0.12, 0.10, 0.11]),
+     'thenlper/gte-base', [0.11, 0.11]),
     ([{
         test_query_column: test_query,
     }], DEFAULT_MODEL_NAME, [0.13]),
