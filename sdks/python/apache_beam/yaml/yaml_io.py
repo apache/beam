@@ -152,10 +152,11 @@ def _create_parser(
   elif format == 'avro':
     beam_schema = avroio.avro_schema_to_beam_schema(schema)
     covert_to_row = avroio.avro_dict_to_beam_row(schema, beam_schema)
+    # pylint: disable=line-too-long
     return (
         beam_schema,
         lambda record: covert_to_row(
-            fastavro.schemaless_reader(io.BytesIO(record), schema)))
+            fastavro.schemaless_reader(io.BytesIO(record), schema)))  # type: ignore[call-arg]
   else:
     raise ValueError(f'Unknown format: {format}')
 
