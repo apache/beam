@@ -181,6 +181,7 @@ dependencies {
   runtimeOnly project(":sdks:java:harness")
 
   if (flink_version.startsWith('1.13')) {
+    // no op: rebuild with 2.2.1-SNAPSHOT
     compile "org.apache.flink:flink-connector-kafka_2.11:1.13-lyft20210804"
     compile "com.amazonaws:aws-java-sdk-s3:1.10.6"
     compile "org.apache.hadoop:hadoop-aws:2.8.3"
