@@ -155,7 +155,6 @@ env:
 jobs:
   beam_PreCommit_Java:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    timeout-minutes: 360
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       fail-fast: false
