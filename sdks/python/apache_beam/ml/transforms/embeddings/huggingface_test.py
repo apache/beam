@@ -30,7 +30,7 @@ from apache_beam.testing.util import equal_to
 
 # pylint: disable=ungrouped-imports
 try:
-  from apache_beam.ml.transforms.embeddings.sentence_transformer import SentenceTransformerEmbeddings
+  from apache_beam.ml.transforms.embeddings.huggingface import SentenceTransformerEmbeddings
   import torch
 except ImportError:
   SentenceTransformerEmbeddings = None  # type: ignore
