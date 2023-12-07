@@ -119,7 +119,7 @@ class VertexAITextEmbeddings(EmbeddingsManager):
       model_name: The name of the Vertex AI Text Embedding model.
       columns: The columns containing the text to be embedded.
       task_type: The name of the downstream task the embeddings will be used for.
-        Valid values:
+        Valid values are listed below.
         RETRIEVAL_QUERY
             Specifies the given text is a query in a search/retrieval setting.
         RETRIEVAL_DOCUMENT
@@ -129,7 +129,7 @@ class VertexAITextEmbeddings(EmbeddingsManager):
         CLASSIFICATION
             Specifies that the given text will be classified.
         CLUSTERING
-            Specifies that the embeddings will be used for clustering.
+          Specifies that the embeddings will be used for clustering.
       title: Optional identifier of the text content.
       project: The default GCP project to make Vertex API calls.
       location: The default location to use when making API calls.
