@@ -31,7 +31,7 @@ from apache_beam.pvalue import PCollection
 RequestT = TypeVar('RequestT')
 ResponseT = TypeVar('ResponseT')
 
-DEFAULT_TIMEOUT = 30  # seconds
+DEFAULT_TIMEOUT_SECS = 30  # seconds
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -157,9 +157,9 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
    of the input PCollection.
 
   This PTransform uses a `Caller` object to invoke the actual API calls,
-  and employs a `SetupTeardown` object to manage setup and teardown of clients
-  when applicable. Additionally, a timeout value is specified to regulate the
-  duration of each call, defaults to 30 seconds.
+  and uses ``__enter__`` and ``__exit__`` to manage setup and teardown of
+  clients when applicable. Additionally, a timeout value is specified to
+  regulate the duration of each call, defaults to 30 seconds.
 
   Args:
       caller (:class:`apache_beam.io.requestresponseio.Caller`): a callable
