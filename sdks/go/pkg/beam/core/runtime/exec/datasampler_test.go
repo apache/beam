@@ -17,44 +17,82 @@ package exec
 
 import (
 	"context"
+	"reflect"
+	"sort"
 	"testing"
 	"time"
 )
 
 // TestDataSampler verifies that the DataSampler works correctly.
 func TestDataSampler(t *testing.T) {
+	timestamp := time.Now()
 	tests := []struct {
 		name    string
 		samples []dataSample
 		pids    []string
-		want    int
+		want    map[string][]*dataSample
 	}{
 		{
 			name: "GetAllSamples",
 			samples: []dataSample{
-				{PCollectionID: "pid1", Element: []byte("element1"), Timestamp: time.Now()},
-				{PCollectionID: "pid2", Element: []byte("element2"), Timestamp: time.Now()},
+				{PCollectionID: "pid1", Element: []byte("element1"), Timestamp: timestamp},
+				{PCollectionID: "pid2", Element: []byte("element2"), Timestamp: timestamp},
 			},
 			pids: []string{},
-			want: 2,
+			want: map[string][]*dataSample{
+				"pid1": {{PCollectionID: "pid1", Element: []byte("element1"), Timestamp: timestamp}},
+				"pid2": {{PCollectionID: "pid2", Element: []byte("element2"), Timestamp: timestamp}},
+			},
 		},
 		{
 			name: "GetSamplesForPCollections",
 			samples: []dataSample{
-				{PCollectionID: "pid1", Element: []byte("element1"), Timestamp: time.Now()},
-				{PCollectionID: "pid2", Element: []byte("element2"), Timestamp: time.Now()},
+				{PCollectionID: "pid1", Element: []byte("element1"), Timestamp: timestamp},
+				{PCollectionID: "pid2", Element: []byte("element2"), Timestamp: timestamp},
 			},
 			pids: []string{"pid1"},
-			want: 1,
+			want: map[string][]*dataSample{
+				"pid1": {{PCollectionID: "pid1", Element: []byte("element1"), Timestamp: timestamp}},
+			},
 		},
 		{
 			name: "GetSamplesForPCollectionsWithNoResult",
 			samples: []dataSample{
-				{PCollectionID: "pid1", Element: []byte("element1"), Timestamp: time.Now()},
-				{PCollectionID: "pid2", Element: []byte("element2"), Timestamp: time.Now()},
+				{PCollectionID: "pid1", Element: []byte("element1"), Timestamp: timestamp},
+				{PCollectionID: "pid2", Element: []byte("element2"), Timestamp: timestamp},
 			},
 			pids: []string{"pid3"},
-			want: 0,
+			want: map[string][]*dataSample{},
+		},
+		{
+			name: "GetSamplesForPCollectionsTooManySamples",
+			samples: []dataSample{
+				{PCollectionID: "pid1", Element: []byte("element1"), Timestamp: timestamp},
+				{PCollectionID: "pid1", Element: []byte("element2"), Timestamp: timestamp},
+				{PCollectionID: "pid1", Element: []byte("element3"), Timestamp: timestamp},
+				{PCollectionID: "pid1", Element: []byte("element4"), Timestamp: timestamp},
+				{PCollectionID: "pid1", Element: []byte("element5"), Timestamp: timestamp},
+				{PCollectionID: "pid1", Element: []byte("element6"), Timestamp: timestamp},
+				{PCollectionID: "pid1", Element: []byte("element7"), Timestamp: timestamp},
+				{PCollectionID: "pid1", Element: []byte("element8"), Timestamp: timestamp},
+				{PCollectionID: "pid1", Element: []byte("element9"), Timestamp: timestamp},
+				{PCollectionID: "pid1", Element: []byte("element10"), Timestamp: timestamp},
+				{PCollectionID: "pid1", Element: []byte("element11"), Timestamp: timestamp},
+			},
+			pids: []string{"pid1"},
+			want: map[string][]*dataSample{
+				"pid1": {
+					{PCollectionID: "pid1", Element: []byte("element2"), Timestamp: timestamp},
+					{PCollectionID: "pid1", Element: []byte("element3"), Timestamp: timestamp},
+					{PCollectionID: "pid1", Element: []byte("element4"), Timestamp: timestamp},
+					{PCollectionID: "pid1", Element: []byte("element5"), Timestamp: timestamp},
+					{PCollectionID: "pid1", Element: []byte("element6"), Timestamp: timestamp},
+					{PCollectionID: "pid1", Element: []byte("element7"), Timestamp: timestamp},
+					{PCollectionID: "pid1", Element: []byte("element8"), Timestamp: timestamp},
+					{PCollectionID: "pid1", Element: []byte("element9"), Timestamp: timestamp},
+					{PCollectionID: "pid1", Element: []byte("element10"), Timestamp: timestamp},
+					{PCollectionID: "pid1", Element: []byte("element11"), Timestamp: timestamp},
+				}},
 		},
 	}
 	for _, test := range tests {
@@ -67,18 +105,44 @@ func TestDataSampler(t *testing.T) {
 				dataSampler.SendSample(sample.PCollectionID, sample.Element, sample.Timestamp)
 			}
 			var samplesCount = -1
+			var samples map[string][]*dataSample
 			for i := 0; i < 5; i++ {
-				samples := dataSampler.GetSamples(test.pids)
-				if len(samples) == test.want {
+				samples = dataSampler.GetSamples(test.pids)
+				if len(samples) == len(test.want) {
 					samplesCount = len(samples)
 					break
 				}
 				time.Sleep(time.Second)
 			}
 			cancel()
-			if samplesCount != test.want {
-				t.Errorf("got an unexpected number of sampled elements: %v, want: %v", samplesCount, test.want)
+			if samplesCount != len(test.want) {
+				t.Errorf("got an unexpected number of sampled elements: %v, want: %v", samplesCount, len(test.want))
+			}
+			if !verifySampledElements(samples, test.want) {
+				t.Errorf("got an unexpected sampled elements: %v, want: %v", samples, test.want)
 			}
 		})
 	}
+}
+
+func verifySampledElements(samples, want map[string][]*dataSample) bool {
+	if len(samples) != len(want) {
+		return false
+	}
+	for pid, samples := range samples {
+		expected, ok := want[pid]
+		if !ok {
+			return false
+		}
+		sort.SliceStable(samples, func(i, j int) bool {
+			return string(samples[i].Element) < string(samples[j].Element)
+		})
+		sort.SliceStable(expected, func(i, j int) bool {
+			return string(expected[i].Element) < string(expected[j].Element)
+		})
+		if !reflect.DeepEqual(samples, expected) {
+			return false
+		}
+	}
+	return true
 }

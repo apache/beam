@@ -101,7 +101,7 @@ func (d *DataSampler) getSamplesForPCollections(pids []string) map[string][]*dat
 func (d *DataSampler) addSample(sample *dataSample) {
 	p, ok := d.samplesMap.Load(sample.PCollectionID)
 	if !ok {
-		p = &outputSamples{maxElements: 10, numSamples: 0, sampleIndex: 0}
+		p = &outputSamples{maxElements: 10, sampleIndex: 0}
 		d.samplesMap.Store(sample.PCollectionID, p)
 	}
 	outputSamples := p.(*outputSamples)
@@ -121,7 +121,6 @@ type outputSamples struct {
 	elements    []*dataSample
 	mu          sync.Mutex
 	maxElements int
-	numSamples  int
 	sampleIndex int
 }
 
@@ -129,8 +128,7 @@ func (o *outputSamples) addSample(element *dataSample) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	if o.numSamples < o.maxElements {
-		o.numSamples++
+	if len(o.elements) < o.maxElements {
 		o.elements = append(o.elements, element)
 	} else {
 		o.elements[o.sampleIndex] = element
@@ -141,13 +139,12 @@ func (o *outputSamples) addSample(element *dataSample) {
 func (o *outputSamples) getSamples() []*dataSample {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	if o.numSamples == 0 {
+	if len(o.elements) == 0 {
 		return nil
 	}
 	samples := o.elements
 
-	// Reset index and number of samples
-	o.numSamples = 0
+	// Reset index and samples
 	o.sampleIndex = 0
 	// Release memory since samples are only returned once based on best efforts
 	o.elements = nil
