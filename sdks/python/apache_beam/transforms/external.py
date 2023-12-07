@@ -723,7 +723,8 @@ class ExternalTransform(ptransform.PTransform):
         components=components,
         namespace=self._external_namespace,
         transform=transform_proto,
-        output_coder_requests=output_coders)
+        output_coder_requests=output_coders,
+        pipeline_options=pipeline._options.to_runner_api())
 
     expansion_service = _maybe_use_transform_service(
         self._expansion_service, pipeline.options)
