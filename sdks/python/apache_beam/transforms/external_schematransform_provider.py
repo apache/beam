@@ -29,6 +29,8 @@ from apache_beam.transforms.external import SchemaTransformsConfig
 from apache_beam.typehints.schemas import named_tuple_to_schema
 from apache_beam.typehints.schemas import typing_from_runner_api
 
+__all__ = ['ExternalSchemaTransform', 'ExternalSchemaTransformProvider']
+
 
 def snake_case_to_upper_camel_case(string):
   """Convert snake_case to UpperCamelCase"""
@@ -71,7 +73,10 @@ def get_config_with_descriptions(
 
 
 class ExternalSchemaTransform(PTransform):
-  """Template for a wrapper class of an external SchemaTransform"""
+  """Template for a wrapper class of an external SchemaTransform
+
+  This is a superclass for dynamically generated SchemaTransform wrappers and
+  is not meant to be manually instantiated."""
 
   # These attributes need to be set when
   # creating an ExternalSchemaTransform type
