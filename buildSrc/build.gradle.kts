@@ -31,6 +31,10 @@ repositories {
     url = uri("https://repo.spring.io/plugins-release/")
     content { includeGroup("io.spring.gradle") }
   }
+  maven {
+    url "https://repo.spring.io/plugins-snapshot"
+    content { includeGroup("io.spring.gradle") }
+  }
 }
 
 // Dependencies on other plugins used when this plugin is invoked
