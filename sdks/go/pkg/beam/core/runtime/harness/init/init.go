@@ -104,6 +104,7 @@ func hook() {
 		if e, ok := opt.Options.Options["experiments"]; ok {
 			experiments = strings.Split(e, ",")
 		}
+		// TODO(zechenj18) 2023-12-07: Remove once the data sampling URN is properly sent in via the capabilities
 		if slices.Contains(experiments, "enable_data_sampling") {
 			runnerCapabilities = append(runnerCapabilities, graphx.URNDataSampling)
 		}
