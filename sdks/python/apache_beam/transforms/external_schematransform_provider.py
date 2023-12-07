@@ -81,8 +81,8 @@ class ExternalSchemaTransform(PTransform):
   # These attributes need to be set when
   # creating an ExternalSchemaTransform type
   default_expansion_service = None
-  identifier: str = None
-  configuration_schema: Dict[str, ParamInfo] = None
+  identifier: str = ""
+  configuration_schema: Dict[str, ParamInfo] = {}
 
   def __init__(self, expansion_service=None, **kwargs):
     self._kwargs = kwargs
