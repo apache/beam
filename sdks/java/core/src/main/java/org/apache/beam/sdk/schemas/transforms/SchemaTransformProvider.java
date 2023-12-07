@@ -36,16 +36,10 @@ public interface SchemaTransformProvider {
   /** Returns an id that uniquely represents this transform. */
   String identifier();
 
-  // TODO(ahmedbu98): remove default when all existing SchemaTransformProviders implement this
-  // method
   /**
-   * Returns a description which will be used to generate documentation for remote SDKs. This is
-   * reserved for how to build and use this SchemaTransform without getting into the specifics of
-   * each configuration field (that can go in the {@link
-   * org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription} annotations). Potentially
-   * include what the transform does, what the expected input/output PCollections look like, and any
-   * interesting use-cases. Please keep the language generic (i.e. not specific to any programming
-   * language). May be markdown formatted.
+   * Returns a description regarding the {@link SchemaTransform} represented by this {@link
+   * SchemaTransformProvider}. Please keep the language generic (i.e. not specific to any
+   * programming language). May be markdown formatted.
    */
   default String description() {
     return "";
