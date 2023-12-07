@@ -82,7 +82,7 @@ jobs:
           gradle-command: :runners:direct:examplesIntegrationTest
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
-        if: failure()
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

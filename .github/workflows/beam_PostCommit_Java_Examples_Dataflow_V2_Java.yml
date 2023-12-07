@@ -95,7 +95,7 @@ jobs:
             -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
-        if: failure()
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"
