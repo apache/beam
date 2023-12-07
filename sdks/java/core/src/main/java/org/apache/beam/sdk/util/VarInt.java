@@ -59,7 +59,7 @@ public class VarInt {
     final byte[] buf = new byte[sz];
     int pos = 0;
 
-    // Write 6-10 bytes
+    // Write 5-10 bytes
     do {
       // Encode next 7 bits + terminator bit
       long bits = v & 0x7F;
