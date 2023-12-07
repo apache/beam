@@ -60,21 +60,13 @@ def gcpXlangCommon = new CrossLanguageTaskCommon().tap {
 def ioXlangCommon = new CrossLanguageTaskCommon().tap {
     name = "ioCrossLanguage"
     expansionProjectPath = project.project(':sdks:java:io:expansion-service').getPath()
-    collectMarker = "uses_io_expansion_service"
+    collectMarker = "uses_io_java_expansion_service"
     startJobServer = setupTask
     cleanupJobServer = cleanupTask
     //See .test-infra/kafka/bitnami/README.md for setup instructions
     additionalEnvs = ["KAFKA_BOOTSTRAP_SERVER":project.findProperty('kafkaBootstrapServer')]
 }
 
-def coreXlangCommon = new CrossLanguageTaskCommon().tap {
-    name = "coreCrossLanguage"
-    expansionProjectPath = project.project(':sdks:java:core:expansion-service').getPath()
-    collectMarker = "uses_core_java_expansion_service"
-    startJobServer = setupTask
-    cleanupJobServer = cleanupTask
-}
-
-xlangTasks.addAll(gcpXlangCommon, ioXlangCommon, coreXlangCommon)
+xlangTasks.addAll(gcpXlangCommon, ioXlangCommon)
 
 ext.xlangTasks = xlangTasks
