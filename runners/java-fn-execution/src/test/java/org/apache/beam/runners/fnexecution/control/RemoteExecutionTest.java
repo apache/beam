@@ -932,11 +932,11 @@ public class RemoteExecutionTest implements Serializable {
             .setTransformId(transformId)
             .build());
     assertEquals(
-            stateRequestHandler.receivedRequests.get(2).getStateKey().getMultimapKeysValuesSideInput(),
-            BeamFnApi.StateKey.MultimapKeysValuesSideInput.newBuilder()
-                    .setSideInputId(multimapView.getTagInternal().getId())
-                    .setTransformId(transformId)
-                    .build());
+        stateRequestHandler.receivedRequests.get(2).getStateKey().getMultimapKeysValuesSideInput(),
+        BeamFnApi.StateKey.MultimapKeysValuesSideInput.newBuilder()
+            .setSideInputId(multimapView.getTagInternal().getId())
+            .setTransformId(transformId)
+            .build());
     assertEquals(
         stateRequestHandler.receivedRequests.get(3).getStateKey().getMultimapSideInput(),
         BeamFnApi.StateKey.MultimapSideInput.newBuilder()
