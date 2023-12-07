@@ -248,7 +248,7 @@ jobs:
           distribution: 'temurin'
           java-version: '11'
       - name: Install Python 3.8
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.8'
       - run: echo $JAVA_HOME
@@ -298,7 +298,7 @@ jobs:
           token: ${{ github.event.inputs.BEAM_SITE_TOKEN }}
           ref: release-docs
       - name: Install Python 3.8
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.8'
       - name: Install node
