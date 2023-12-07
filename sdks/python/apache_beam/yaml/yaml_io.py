@@ -304,7 +304,7 @@ def write_to_pubsub(
     attributes_map: Optional[str] = None,
     id_attribute: Optional[str] = None,
     timestamp_attribute: Optional[str] = None):
-  """Writes messages from Cloud Pub/Sub.
+  """Writes messages to Cloud Pub/Sub.
 
   Args:
     topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
