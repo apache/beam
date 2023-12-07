@@ -25,38 +25,36 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.external import BeamJarExpansionService
-from apache_beam.transforms.wrapper_provider import WrapperProvider
+from apache_beam.transforms.external_schematransform_provider import ExternalSchemaTransformProvider
 
 
 @pytest.mark.uses_core_java_expansion_service
 @unittest.skipUnless(
     os.environ.get('EXPANSION_PORT'),
     "EXPANSION_PORT environment var is not provided.")
-class WrapperProviderTest(unittest.TestCase):
+class ExternalSchemaTransformProviderTest(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
 
   def test_generate_sequence_config_schema(self):
-    wrapper_provider = WrapperProvider(
-        BeamJarExpansionService(":sdks:java:core:expansion-service:shadowJar"))
+    provider = ExternalSchemaTransformProvider(
+        BeamJarExpansionService(":sdks:java:io:expansion-service:shadowJar"))
 
-    self.assertTrue('GenerateSequence' in wrapper_provider.get_available())
-    generate_sequence = wrapper_provider.get('GenerateSequence')
+    self.assertTrue((
+        'GenerateSequence',
+        'beam:schematransform:org.apache.beam:generate_sequence:v1'
+    ) in provider.get_available())
 
-    config_schema = generate_sequence.configuration_schema
+    config_schema = provider.get('GenerateSequence').configuration_schema
     for param in ['start', 'end', 'rate']:
       self.assertTrue(param in config_schema)
 
   def test_run_generate_sequence(self):
-    wrapper_provider = WrapperProvider(
-        BeamJarExpansionService(":sdks:java:core:expansion-service:shadowJar"))
-
-    self.assertTrue('GenerateSequence' in wrapper_provider.get_available())
-
-    generate_sequence = wrapper_provider.get('GenerateSequence')
+    provider = ExternalSchemaTransformProvider(
+        BeamJarExpansionService(":sdks:java:io:expansion-service:shadowJar"))
 
     with beam.Pipeline() as p:
-      numbers = p | generate_sequence(
+      numbers = p | provider.GenerateSequence(
           start=0, end=10) | beam.Map(lambda row: row.value)
 
       assert_that(numbers, equal_to([i for i in range(10)]))
