@@ -21,7 +21,7 @@ on:
   schedule:
     - cron: '0 4/6 * * *'
   pull_request_target:
-    paths: ['release/trigger_all_tests.json']
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_InfluxDbIO_IT.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -65,7 +65,7 @@ jobs:
       github.event_name == 'pull_request_target' ||
       github.event.comment.body == 'Run Java InfluxDbIO_IT'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

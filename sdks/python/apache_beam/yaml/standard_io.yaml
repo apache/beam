@@ -80,6 +80,36 @@
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
 
+- type: renaming
+  transforms:
+    'ReadFromPubSubLite': 'ReadFromPubSubLite'
+    'WriteToPubSubLite': 'WriteToPubSubLite'
+  config:
+    mappings:
+      'ReadFromPubSubLite':
+        'project': 'project'
+        'schema': 'schema'
+        'format': 'format'
+        'subscription_name': 'subscriptionName'
+        'location': 'location'
+        'attributes': 'attributes'
+        'attribute_map': 'attributeMap'
+        'attribute_id': 'attributeId'
+      'WriteToPubSubLite':
+        'project': 'project'
+        'format': 'format'
+        'topic_name': 'topicName'
+        'location': 'location'
+        'attributes': 'attributes'
+        'attribute_id': 'attributeId'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromPubSubLite': 'beam:schematransform:org.apache.beam:pubsublite_read:v1'
+        'WriteToPubSubLite': 'beam:schematransform:org.apache.beam:pubsublite_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
+
 - type: python
   transforms:
     'ReadFromBigQuery': 'apache_beam.yaml.yaml_io.read_from_bigquery'

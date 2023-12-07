@@ -17,7 +17,11 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -25,6 +29,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -32,8 +38,9 @@ import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
+import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transformservice.launcher.TransformServiceLauncher;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -41,6 +48,7 @@ import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannelBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A utility class that allows upgrading transforms of a given pipeline using the Beam Transform
@@ -100,6 +108,15 @@ public class TransformUpgrader implements AutoCloseable {
                 })
             .collect(Collectors.toList());
 
+    if (!urnsToOverride.isEmpty() && transformsToOverride.isEmpty()) {
+      throw new IllegalArgumentException(
+          "A list of URNs for overriding transforms was provided but the pipeline did not contain "
+              + "any matching transforms. Either make sure to include at least one matching "
+              + "transform in the pipeline or avoid setting the 'transformsToOverride' "
+              + "PipelineOption. Provided list of URNs: "
+              + urnsToOverride);
+    }
+
     String serviceAddress;
     TransformServiceLauncher service = null;
 
@@ -145,7 +162,7 @@ public class TransformUpgrader implements AutoCloseable {
           String transformId,
           Endpoints.ApiServiceDescriptor transformServiceEndpoint)
           throws IOException {
-    PTransform transformToUpgrade =
+    RunnerApi.PTransform transformToUpgrade =
         runnerAPIpipeline.getComponents().getTransformsMap().get(transformId);
     if (transformToUpgrade == null) {
       throw new IllegalArgumentException("Could not find a transform with the ID " + transformId);
@@ -228,11 +245,11 @@ public class TransformUpgrader implements AutoCloseable {
           expandedTransform.getOutputsMap().values().iterator().next());
     } else {
       for (Map.Entry<String, String> entry : transformToUpgrade.getOutputsMap().entrySet()) {
-        if (expandedTransform.getOutputsMap().keySet().contains(entry.getKey())) {
+        if (!expandedTransform.getOutputsMap().keySet().contains(entry.getKey())) {
           throw new IllegalArgumentException(
-              "Original transform did not have an output with tag "
+              "Original transform had an output with tag "
                   + entry.getKey()
-                  + " but upgraded transform did.");
+                  + " but upgraded transform did not.");
         }
         String newOutput = expandedTransform.getOutputsMap().get(entry.getKey());
         if (newOutput == null) {
@@ -252,7 +269,7 @@ public class TransformUpgrader implements AutoCloseable {
     recursivelyFindSubTransforms(
         transformId, runnerAPIpipeline.getComponents(), transformsToRemove);
 
-    Map<String, PTransform> updatedExpandedTransformMap =
+    Map<String, RunnerApi.PTransform> updatedExpandedTransformMap =
         expandedComponents.getTransformsMap().entrySet().stream()
             .filter(
                 entry -> {
@@ -265,7 +282,7 @@ public class TransformUpgrader implements AutoCloseable {
                     entry -> {
                       // Fix inputs
                       Map<String, String> inputsMap = entry.getValue().getInputsMap();
-                      PTransform.Builder transformBuilder = entry.getValue().toBuilder();
+                      RunnerApi.PTransform.Builder transformBuilder = entry.getValue().toBuilder();
                       if (!Collections.disjoint(inputsMap.values(), inputReplacements.keySet())) {
                         Map<String, String> updatedInputsMap = new HashMap<>();
                         for (Map.Entry<String, String> inputEntry : inputsMap.entrySet()) {
@@ -297,7 +314,7 @@ public class TransformUpgrader implements AutoCloseable {
   private static void recursivelyFindSubTransforms(
       String transformId, RunnerApi.Components components, List<String> results) {
     results.add(transformId);
-    PTransform transform = components.getTransformsMap().get(transformId);
+    RunnerApi.PTransform transform = components.getTransformsMap().get(transformId);
     if (transform == null) {
       throw new IllegalArgumentException("Could not find a transform with id " + transformId);
     }
@@ -327,5 +344,73 @@ public class TransformUpgrader implements AutoCloseable {
   @Override
   public void close() throws Exception {
     clientFactory.close();
+  }
+
+  /**
+   * A utility to find the registered URN for a given transform.
+   *
+   * <p>This URN can be used to upgrade this transform to a new Beam version without upgrading the
+   * rest of the pipeline. Please see <a
+   * href="https://beam.apache.org/documentation/programming-guide/#transform-service">Beam
+   * Transform Service documentation</a> for more details.
+   *
+   * <p>For this lookup to work, the a {@link TransformPayloadTranslatorRegistrar} for the transform
+   * has to be available in the classpath.
+   *
+   * @param transform transform to lookup.
+   * @return a URN if discovered. Returns {@code null} otherwise.
+   */
+  @SuppressWarnings({
+    "rawtypes",
+    "EqualsIncompatibleType",
+  })
+  public static @Nullable String findUpgradeURN(PTransform transform) {
+    for (TransformPayloadTranslatorRegistrar registrar :
+        ServiceLoader.load(TransformPayloadTranslatorRegistrar.class)) {
+
+      for (Entry<
+              ? extends Class<? extends org.apache.beam.sdk.transforms.PTransform>,
+              ? extends TransformPayloadTranslator>
+          entry : registrar.getTransformPayloadTranslators().entrySet()) {
+        if (entry.getKey().equals(transform.getClass())) {
+          return entry.getValue().getUrn();
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * A utility method that converts an arbitrary serializable object into a byte array.
+   *
+   * @param object an instance of type {@code Serializable}
+   * @return {@code object} converted into a byte array.
+   */
+  public static byte[] toByteArray(Object object) {
+    try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        ObjectOutputStream out = new ObjectOutputStream(bos)) {
+      out.writeObject(object);
+      return bos.toByteArray();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * A utility method that converts a byte array obtained by invoking {@link #toByteArray(Object)}
+   * back to a Java object.
+   *
+   * @param bytes a {@code byte} array generated by invoking the {@link #toByteArray(Object)}
+   *     method.
+   * @return re-generated object.
+   */
+  public static Object fromByteArray(byte[] bytes) {
+    try (ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
+        ObjectInputStream in = new ObjectInputStream(bis)) {
+      return in.readObject();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }

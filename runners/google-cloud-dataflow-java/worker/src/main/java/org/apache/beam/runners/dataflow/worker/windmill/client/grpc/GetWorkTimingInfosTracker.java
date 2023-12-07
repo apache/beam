@@ -35,8 +35,7 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class GetWorkTimingInfosTracker {
-
+final class GetWorkTimingInfosTracker {
   private static final Logger LOG = LoggerFactory.getLogger(GetWorkTimingInfosTracker.class);
 
   private final Map<State, SumAndMaxDurations> aggregatedGetWorkStreamLatencies;
@@ -53,7 +52,7 @@ class GetWorkTimingInfosTracker {
     workItemCreationLatency = null;
   }
 
-  public void addTimingInfo(Collection<GetWorkStreamTimingInfo> infos) {
+  void addTimingInfo(Collection<GetWorkStreamTimingInfo> infos) {
     // We want to record duration for each stage and also be reflective on total work item
     // processing time. It can be tricky because timings of different
     // StreamingGetWorkResponseChunks can be interleaved. Current strategy is to record the
@@ -170,7 +169,7 @@ class GetWorkTimingInfosTracker {
     return latencyAttributions;
   }
 
-  public void reset() {
+  void reset() {
     this.aggregatedGetWorkStreamLatencies.clear();
     this.workItemCreationEndTime = Instant.EPOCH;
     this.workItemLastChunkReceivedByWorkerTime = Instant.EPOCH;
@@ -178,11 +177,10 @@ class GetWorkTimingInfosTracker {
   }
 
   private static class SumAndMaxDurations {
-
     private Duration sum;
     private Duration max;
 
-    public SumAndMaxDurations(Duration sum, Duration max) {
+    private SumAndMaxDurations(Duration sum, Duration max) {
       this.sum = sum;
       this.max = max;
     }

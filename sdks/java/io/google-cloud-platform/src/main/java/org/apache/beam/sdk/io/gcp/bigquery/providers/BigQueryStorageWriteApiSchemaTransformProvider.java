@@ -177,7 +177,9 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
             invalidConfigMessage + "Output must not be empty if error handling specified.");
       }
 
-      if (this.getAutoSharding() != null && this.getAutoSharding()) {
+      if (this.getAutoSharding() != null
+          && this.getAutoSharding()
+          && this.getNumStreams() != null) {
         checkArgument(
             this.getNumStreams() == 0,
             invalidConfigMessage
@@ -336,9 +338,13 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       if (inputRows.isBounded() == IsBounded.UNBOUNDED) {
         Long triggeringFrequency = configuration.getTriggeringFrequencySeconds();
         Boolean autoSharding = configuration.getAutoSharding();
-        Integer numStreams = configuration.getNumStreams();
+        int numStreams = configuration.getNumStreams() == null ? 0 : configuration.getNumStreams();
+        boolean useAtLeastOnceSemantics =
+            configuration.getUseAtLeastOnceSemantics() == null
+                ? false
+                : configuration.getUseAtLeastOnceSemantics();
         // Triggering frequency is only applicable for exactly-once
-        if (!configuration.getUseAtLeastOnceSemantics()) {
+        if (!useAtLeastOnceSemantics) {
           write =
               write.withTriggeringFrequency(
                   (triggeringFrequency == null || triggeringFrequency <= 0)

@@ -19,7 +19,7 @@ on:
   schedule:
     - cron: '30 4/6 * * *'
   pull_request_target:
-    paths: ['release/trigger_all_tests.json']
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_Tpcds_Flink.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -85,7 +85,7 @@ jobs:
         job_name: ["beam_PostCommit_Java_Tpcds_Flink"]
         job_phrase: ["Run Flink Runner Tpcds Tests"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

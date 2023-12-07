@@ -607,7 +607,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
-    def grpc_version = "1.56.1"
+    def grpc_version = "1.58.0"
     def guava_version = "32.1.2-jre"
     def hadoop_version = "2.10.2"
     def hamcrest_version = "2.1"
@@ -731,7 +731,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // Keep version consistent with the version in google_cloud_resourcemanager, managed by google_cloud_platform_libraries_bom
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20230806-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20220920-$google_clients_version",
-        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20231003-$google_clients_version",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20231101-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         // Keep version consistent with the version in google_cloud_nio, managed by google_cloud_platform_libraries_bom
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20230907-$google_clients_version",
@@ -1126,6 +1126,11 @@ class BeamModulePlugin implements Plugin<Project> {
         'unchecked',
         'varargs',
       ]
+      // Java21 introduced new lint "this-escape", violated by generated srcs
+      // TODO(yathu) remove this once generated code (antlr) no longer trigger this warning
+      if (JavaVersion.current().compareTo(JavaVersion.VERSION_21) >= 0) {
+        defaultLintSuppressions += ['this-escape']
+      }
 
       project.tasks.withType(JavaCompile).configureEach {
         options.encoding = "UTF-8"

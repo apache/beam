@@ -57,6 +57,7 @@ import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StreamAppendClient;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.WriteStreamService;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.RetryType;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiFlushAndFinalizeDoFn.Operation;
 import org.apache.beam.sdk.metrics.Counter;
@@ -319,6 +320,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
     private transient @Nullable DatasetService datasetServiceInternal = null;
 
+    private transient @Nullable WriteStreamService writeStreamServiceInternal = null;
+
     // Stores the current stream for this key.
     @StateId("streamName")
     private final StateSpec<ValueState<String>> streamNameSpec = StateSpecs.value();
@@ -358,7 +361,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         ValueState<String> streamName,
         ValueState<Long> streamOffset,
         Timer streamIdleTimer,
-        DatasetService datasetService,
+        WriteStreamService writeStreamService,
         Callable<Boolean> tryCreateTable) {
       try {
         final @Nullable String streamValue = streamName.read();
@@ -367,7 +370,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           // In a buffered stream, data is only visible up to the offset to which it was flushed.
           CreateTableHelpers.createTableWrapper(
               () -> {
-                stream.set(datasetService.createWriteStream(tableId, Type.BUFFERED).getName());
+                stream.set(writeStreamService.createWriteStream(tableId, Type.BUFFERED).getName());
                 return null;
               },
               tryCreateTable);
@@ -395,9 +398,22 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       return datasetServiceInternal;
     }
 
+    private WriteStreamService getWriteStreamService(PipelineOptions pipelineOptions)
+        throws IOException {
+      if (writeStreamServiceInternal == null) {
+        writeStreamServiceInternal =
+            bqServices.getWriteStreamService(pipelineOptions.as(BigQueryOptions.class));
+      }
+      return writeStreamServiceInternal;
+    }
+
     @Teardown
     public void onTeardown() {
       try {
+        if (writeStreamServiceInternal != null) {
+          writeStreamServiceInternal.close();
+          writeStreamServiceInternal = null;
+        }
         if (datasetServiceInternal != null) {
           datasetServiceInternal.close();
           datasetServiceInternal = null;
@@ -440,7 +456,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 return tableDestination1;
               });
       final String tableId = tableDestination.getTableUrn(bigQueryOptions);
+      final String shortTableId = tableDestination.getShortTableUrn();
       final DatasetService datasetService = getDatasetService(pipelineOptions);
+      final WriteStreamService writeStreamService = getWriteStreamService(pipelineOptions);
 
       Coder<DestinationT> destinationCoder = dynamicDestinations.getDestinationCoder();
       Callable<Boolean> tryCreateTable =
@@ -461,7 +479,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       Supplier<String> getOrCreateStream =
           () ->
               getOrCreateStream(
-                  tableId, streamName, streamOffset, idleTimer, datasetService, tryCreateTable);
+                  tableId, streamName, streamOffset, idleTimer, writeStreamService, tryCreateTable);
       Callable<AppendClientInfo> getAppendClientInfo =
           () -> {
             @Nullable TableSchema tableSchema;
@@ -499,7 +517,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                                   client.close();
                                 }))
                     .withAppendClient(
-                        datasetService,
+                        writeStreamService,
                         getOrCreateStream,
                         false,
                         defaultMissingValueInterpretation);
@@ -545,6 +563,11 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                         new BigQueryStorageApiInsertError(failedRow.getValue(), errorMessage),
                         failedRow.getTimestamp());
                 rowsSentToFailedRowsCollection.inc();
+                BigQuerySinkMetrics.appendRowsRowStatusCounter(
+                        BigQuerySinkMetrics.RowStatus.FAILED,
+                        BigQuerySinkMetrics.PAYLOAD_TOO_LARGE,
+                        shortTableId)
+                    .inc(1);
               },
               autoUpdateSchema,
               ignoreUnknownValues,
@@ -563,7 +586,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                   appendClientInfo
                       .get()
                       .withAppendClient(
-                          datasetService,
+                          writeStreamService,
                           getOrCreateStream,
                           false,
                           defaultMissingValueInterpretation));
@@ -612,7 +635,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                   appendClientInfo
                       .get()
                       .withAppendClient(
-                          datasetService,
+                          writeStreamService,
                           getOrCreateStream,
                           false,
                           defaultMissingValueInterpretation));
@@ -628,6 +651,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             // The first context is always the one that fails.
             AppendRowsContext failedContext =
                 Preconditions.checkStateNotNull(Iterables.getFirst(failedContexts, null));
+            BigQuerySinkMetrics.reportFailedRPCMetrics(
+                failedContext, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS);
+            String errorCode =
+                BigQuerySinkMetrics.throwableToGRPCCodeString(failedContext.getError());
 
             // AppendSerializationError means that BigQuery detected errors on individual rows, e.g.
             // a row not conforming
@@ -639,6 +666,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               Exceptions.AppendSerializtionError error =
                   Preconditions.checkArgumentNotNull(
                       (Exceptions.AppendSerializtionError) failedContext.getError());
+
               Set<Integer> failedRowIndices = error.getRowIndexToErrorMessage().keySet();
               for (int failedIndex : failedRowIndices) {
                 // Convert the message to a TableRow and send it to the failedRows collection.
@@ -651,7 +679,11 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                             failedRow, error.getRowIndexToErrorMessage().get(failedIndex)),
                         timestamp);
               }
-              rowsSentToFailedRowsCollection.inc(failedRowIndices.size());
+              int failedRows = failedRowIndices.size();
+              rowsSentToFailedRowsCollection.inc(failedRows);
+              BigQuerySinkMetrics.appendRowsRowStatusCounter(
+                      BigQuerySinkMetrics.RowStatus.FAILED, errorCode, shortTableId)
+                  .inc(failedRows);
 
               // Remove the failed row from the payload, so we retry the batch without the failed
               // rows.
@@ -666,6 +698,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               }
               failedContext.protoRows = retryRows.build();
               failedContext.timestamps = timestamps;
+              int retriedRows = failedContext.protoRows.getSerializedRowsCount();
+              BigQuerySinkMetrics.appendRowsRowStatusCounter(
+                      BigQuerySinkMetrics.RowStatus.RETRIED, errorCode, shortTableId)
+                  .inc(retriedRows);
 
               // Since we removed rows, we need to update the insert offsets for all remaining rows.
               long offset = failedContext.offset;
@@ -679,6 +715,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
             Throwable error = Preconditions.checkStateNotNull(failedContext.getError());
             Status.Code statusCode = Status.fromThrowable(error).getCode();
+
             // This means that the offset we have stored does not match the current end of
             // the stream in the Storage API. Usually this happens because a crash or a bundle
             // failure
@@ -711,6 +748,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               clearClients.accept(failedContexts);
             }
             appendFailures.inc();
+            int retriedRows = failedContext.protoRows.getSerializedRowsCount();
+            BigQuerySinkMetrics.appendRowsRowStatusCounter(
+                    BigQuerySinkMetrics.RowStatus.RETRIED, errorCode, shortTableId)
+                .inc(retriedRows);
 
             boolean explicitStreamFinalized =
                 failedContext.getError() instanceof StreamFinalizedException;
@@ -755,7 +796,12 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                         new Operation(
                             context.offset + context.protoRows.getSerializedRowsCount() - 1,
                             false)));
-            flushesScheduled.inc(context.protoRows.getSerializedRowsCount());
+            int flushedRows = context.protoRows.getSerializedRowsCount();
+            flushesScheduled.inc(flushedRows);
+            BigQuerySinkMetrics.reportSuccessfulRpcMetrics(
+                context, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, shortTableId);
+            BigQuerySinkMetrics.appendRowsRowStatusCounter(
+                BigQuerySinkMetrics.RowStatus.SUCCESSFUL, BigQuerySinkMetrics.OK, shortTableId);
 
             if (successfulRowsTag != null) {
               for (int i = 0; i < context.protoRows.getSerializedRowsCount(); ++i) {
@@ -769,7 +815,11 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       Instant now = Instant.now();
       List<AppendRowsContext> contexts = Lists.newArrayList();
       RetryManager<AppendRowsResponse, AppendRowsContext> retryManager =
-          new RetryManager<>(Duration.standardSeconds(1), Duration.standardSeconds(10), 1000);
+          new RetryManager<>(
+              Duration.standardSeconds(1),
+              Duration.standardSeconds(10),
+              1000,
+              BigQuerySinkMetrics.throttledTimeCounter(BigQuerySinkMetrics.RpcMethod.APPEND_ROWS));
       int numAppends = 0;
       for (SplittingIterable.Value splitValue : messages) {
         // Handle the case of a row that is too large.
@@ -794,7 +844,13 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                         failedRow, "Row payload too large. Maximum size " + maxRequestSize),
                     timestamp);
           }
-          rowsSentToFailedRowsCollection.inc(splitValue.getProtoRows().getSerializedRowsCount());
+          int numRowsFailed = splitValue.getProtoRows().getSerializedRowsCount();
+          rowsSentToFailedRowsCollection.inc(numRowsFailed);
+          BigQuerySinkMetrics.appendRowsRowStatusCounter(
+                  BigQuerySinkMetrics.RowStatus.FAILED,
+                  BigQuerySinkMetrics.PAYLOAD_TOO_LARGE,
+                  shortTableId)
+              .inc(numRowsFailed);
         } else {
           ++numAppends;
           // RetryManager

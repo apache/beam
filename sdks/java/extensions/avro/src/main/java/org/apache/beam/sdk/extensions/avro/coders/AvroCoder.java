@@ -214,7 +214,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
   public static <T> AvroCoder<T> of(Class<T> type, boolean useReflectApi) {
     if (GenericRecord.class.equals(type)) {
       throw new IllegalArgumentException("AvroCoder for GenericRecord requires a schema");
-    } else if (SpecificRecord.class.isAssignableFrom(type) && useReflectApi) {
+    } else if (SpecificRecord.class.isAssignableFrom(type) && !useReflectApi) {
       return specific(type);
     } else {
       return reflect(type);

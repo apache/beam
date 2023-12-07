@@ -2799,7 +2799,7 @@ public class BigQueryIO {
     }
 
     /**
-     * Specfies a policy for handling failed inserts.
+     * Specifies a policy for handling failed inserts.
      *
      * <p>Currently this only is allowed when writing an unbounded collection to BigQuery. Bounded
      * collections are written using batch load jobs, so we don't get per-element failures.
@@ -2847,7 +2847,7 @@ public class BigQueryIO {
     /*
     When using {@link Write.Method#STORAGE_API} or {@link Write.Method#STORAGE_API_AT_LEAST_ONCE} along with
     {@link BigQueryIO.writeProtos}, the sink will try to write the protos directly to BigQuery without modification.
-    In some cases this is not supported or BigQuery cannot directly interpet the proto. In these cases, the direct
+    In some cases this is not supported or BigQuery cannot directly interpret the proto. In these cases, the direct
     proto write
      */
     public Write<T> withDirectWriteProtos(boolean directWriteProtos) {

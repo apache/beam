@@ -79,12 +79,15 @@ import org.joda.time.Duration;
  *       using {@link ExtractEventTime}
  *   <li>{@code output ...................} build output dataset
  * </ol>
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @Basic(state = StateComplexity.ZERO, repartitions = 0)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class FlatMap<InputT, OutputT> extends Operator<OutputT>
     implements TypeAware.Output<OutputT> {
 

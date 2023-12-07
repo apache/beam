@@ -32,7 +32,7 @@ limitations under the License.
 
 
 Use `MLTransform` to apply common machine learning (ML) processing tasks on keyed data. Apache Beam provides ML data processing transformations that you can use with `MLTransform`. For the full list of available data
-processing transformations, see the [tft.py file](https://github.com/apache/beam/blob/ab93fb1988051baac6c3b9dd1031f4d68bd9a149/sdks/python/apache_beam/ml/transforms/tft.py#L52) in GitHub.
+processing transformations, see the [tft.py file](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/ml/transforms/tft.py#L52) in GitHub.
 
 
 To define a data processing transformation by using `MLTransform`, create instances of data processing transforms with `columns` as input parameters. The data in the specified `columns` is transformed and outputted to the `beam.Row` object.

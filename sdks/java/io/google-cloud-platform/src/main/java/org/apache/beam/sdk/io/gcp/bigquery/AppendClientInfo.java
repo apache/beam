@@ -33,7 +33,7 @@ import javax.annotation.Nullable;
 
 /**
  * Container class used by {@link StorageApiWritesShardedRecords} and {@link
- * StorageApiWritesShardedRecords} to enapsulate a destination {@link TableSchema} along with a
+ * StorageApiWritesShardedRecords} to encapsulate a destination {@link TableSchema} along with a
  * {@link BigQueryServices.StreamAppendClient} and other objects needed to write records.
  */
 @AutoValue
@@ -105,7 +105,7 @@ abstract class AppendClientInfo {
   }
 
   public AppendClientInfo withAppendClient(
-      BigQueryServices.DatasetService datasetService,
+      BigQueryServices.WriteStreamService writeStreamService,
       Supplier<String> getStreamName,
       boolean useConnectionPool,
       AppendRowsRequest.MissingValueInterpretation missingValueInterpretation)
@@ -117,7 +117,7 @@ abstract class AppendClientInfo {
       return toBuilder()
           .setStreamName(streamName)
           .setStreamAppendClient(
-              datasetService.getStreamAppendClient(
+              writeStreamService.getStreamAppendClient(
                   streamName, getDescriptor(), useConnectionPool, missingValueInterpretation))
           .build();
     }

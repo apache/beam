@@ -30,10 +30,12 @@ import org.apache.beam.sdk.values.PCollectionList;
  * @param <InputT> input type
  * @param <OutputT> output type
  * @param <OperatorT> operator type
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
+@Deprecated
 public class CompositeOperatorTranslator<InputT, OutputT, OperatorT extends Operator>
     implements OperatorTranslator<InputT, OutputT, OperatorT> {
 

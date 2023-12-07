@@ -39,6 +39,7 @@ on:
       - 'examples/kotlin/**'
       - 'release/**'
       - 'release/trigger_all_tests.json'
+      - '.github/trigger_files/beam_PreCommit_Kotlin_Examples.json'
   issue_comment:
     types: [created]
   schedule:

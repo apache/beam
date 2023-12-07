@@ -145,13 +145,16 @@ public class BigtableChangeStreamIT {
 
   @Test
   public void testReadBigtableChangeStream() throws InterruptedException {
+    // Sleep to ensure clock discrepancy between client and server don't affect the start time.
+    Thread.sleep(500);
     Instant startTime = Instant.now();
+    Thread.sleep(500);
     String rowKey = "rowKeySetCell";
     RowMutationEntry setCellEntry =
         RowMutationEntry.create(rowKey).setCell(COLUMN_FAMILY1, COLUMN_QUALIFIER, "cell value 1");
     mutationBatcher.add(setCellEntry);
     mutationBatcher.flush();
-    Instant endTime = Instant.now().plus(Duration.standardSeconds(1));
+    Instant endTime = Instant.now().plus(Duration.standardSeconds(10));
 
     PCollection<MutateRowsRequest.Entry> changeStream = buildPipeline(startTime, endTime);
     PAssert.that(changeStream).containsInAnyOrder(setCellEntry.toProto());
@@ -160,7 +163,10 @@ public class BigtableChangeStreamIT {
 
   @Test
   public void testDeleteRow() throws InterruptedException {
+    // Sleep to ensure clock discrepancy between client and server don't affect the start time.
+    Thread.sleep(500);
     Instant startTime = Instant.now();
+    Thread.sleep(500);
     String rowKeyToDelete = "rowKeyToDelete";
     RowMutationEntry setCellMutationToDelete =
         RowMutationEntry.create(rowKeyToDelete)
@@ -170,7 +176,7 @@ public class BigtableChangeStreamIT {
     mutationBatcher.flush();
     mutationBatcher.add(deleteRowMutation);
     mutationBatcher.flush();
-    Instant endTime = Instant.now().plus(Duration.standardSeconds(1));
+    Instant endTime = Instant.now().plus(Duration.standardSeconds(10));
 
     PCollection<MutateRowsRequest.Entry> changeStream = buildPipeline(startTime, endTime);
     PAssert.that(changeStream)
@@ -186,7 +192,10 @@ public class BigtableChangeStreamIT {
 
   @Test
   public void testDeleteColumnFamily() throws InterruptedException {
+    // Sleep to ensure clock discrepancy between client and server don't affect the start time.
+    Thread.sleep(500);
     Instant startTime = Instant.now();
+    Thread.sleep(500);
     String cellValue = "cell value 1";
     String rowKeyMultiFamily = "rowKeyMultiFamily";
     RowMutationEntry setCells =
@@ -199,7 +208,7 @@ public class BigtableChangeStreamIT {
         RowMutationEntry.create(rowKeyMultiFamily).deleteFamily(COLUMN_FAMILY2);
     mutationBatcher.add(deleteCF2);
     mutationBatcher.flush();
-    Instant endTime = Instant.now().plus(Duration.standardSeconds(1));
+    Instant endTime = Instant.now().plus(Duration.standardSeconds(10));
 
     PCollection<MutateRowsRequest.Entry> changeStream = buildPipeline(startTime, endTime);
     PAssert.that(changeStream).containsInAnyOrder(setCells.toProto(), deleteCF2.toProto());
@@ -208,7 +217,10 @@ public class BigtableChangeStreamIT {
 
   @Test
   public void testDeleteCell() throws InterruptedException {
+    // Sleep to ensure clock discrepancy between client and server don't affect the start time.
+    Thread.sleep(500);
     Instant startTime = Instant.now();
+    Thread.sleep(500);
     String cellValue = "cell value 1";
     String rowKeyMultiCell = "rowKeyMultiCell";
     RowMutationEntry setCells =
@@ -228,7 +240,7 @@ public class BigtableChangeStreamIT {
                     startTime.plus(Duration.standardMinutes(2)).getMillis() * 1000));
     mutationBatcher.add(deleteCQ2);
     mutationBatcher.flush();
-    Instant endTime = Instant.now().plus(Duration.standardSeconds(1));
+    Instant endTime = Instant.now().plus(Duration.standardSeconds(10));
 
     PCollection<MutateRowsRequest.Entry> changeStream = buildPipeline(startTime, endTime);
     PAssert.that(changeStream).containsInAnyOrder(setCells.toProto(), deleteCQ2.toProto());
@@ -237,7 +249,10 @@ public class BigtableChangeStreamIT {
 
   @Test
   public void testComplexMutation() throws InterruptedException {
+    // Sleep to ensure clock discrepancy between client and server don't affect the start time.
+    Thread.sleep(500);
     Instant startTime = Instant.now();
+    Thread.sleep(500);
     String rowKey = "rowKeyComplex";
     // We'll delete this in the next mutation
     RowMutationEntry setCell =
@@ -257,7 +272,7 @@ public class BigtableChangeStreamIT {
                     startTime.plus(Duration.standardMinutes(2)).getMillis() * 1000));
     mutationBatcher.add(complexMutation);
     mutationBatcher.flush();
-    Instant endTime = Instant.now().plus(Duration.standardSeconds(1));
+    Instant endTime = Instant.now().plus(Duration.standardSeconds(10));
 
     PCollection<MutateRowsRequest.Entry> changeStream = buildPipeline(startTime, endTime);
     PAssert.that(changeStream).containsInAnyOrder(setCell.toProto(), complexMutation.toProto());
@@ -266,7 +281,10 @@ public class BigtableChangeStreamIT {
 
   @Test
   public void testLargeMutation() throws InterruptedException {
+    // Sleep to ensure clock discrepancy between client and server don't affect the start time.
+    Thread.sleep(500);
     Instant startTime = Instant.now();
+    Thread.sleep(500);
     // test set cell w size > 1MB so it triggers chunking
     char[] chars = new char[1024 * 1500];
     Arrays.fill(chars, '\u200B'); // zero-width space
@@ -277,7 +295,7 @@ public class BigtableChangeStreamIT {
             .setCell(COLUMN_FAMILY1, COLUMN_QUALIFIER, largeString);
     mutationBatcher.add(setLargeCell);
     mutationBatcher.flush();
-    Instant endTime = Instant.now().plus(Duration.standardSeconds(1));
+    Instant endTime = Instant.now().plus(Duration.standardSeconds(10));
 
     PCollection<MutateRowsRequest.Entry> changeStream = buildPipeline(startTime, endTime);
     PAssert.that(changeStream).containsInAnyOrder(setLargeCell.toProto());
@@ -286,7 +304,10 @@ public class BigtableChangeStreamIT {
 
   @Test
   public void testManyMutations() throws InterruptedException {
+    // Sleep to ensure clock discrepancy between client and server don't affect the start time.
+    Thread.sleep(500);
     Instant startTime = Instant.now();
+    Thread.sleep(500);
     // test set cell w size > 1MB so it triggers chunking
     char[] chars = new char[1024 * 3];
     Arrays.fill(chars, '\u200B'); // zero-width space
@@ -323,7 +344,7 @@ public class BigtableChangeStreamIT {
       mutationBatcher.add(deleteCells);
       mutationBatcher.flush();
     }
-    Instant endTime = Instant.now().plus(Duration.standardSeconds(1));
+    Instant endTime = Instant.now().plus(Duration.standardSeconds(10));
 
     PCollection<MutateRowsRequest.Entry> changeStream = buildPipeline(startTime, endTime);
     PAssert.that(changeStream)
