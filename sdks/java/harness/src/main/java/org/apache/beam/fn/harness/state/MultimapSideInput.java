@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.function.Function;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
@@ -52,8 +53,7 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
   private final StateRequest keysRequest;
   private final Coder<K> keyCoder;
   private final Coder<V> valueCoder;
-  private volatile Map<ByteString, Iterable<V>> bulkRead;
-  private boolean bulkReadIsComplete = false;
+  private volatile Function<ByteString, Iterable<V>> bulkReadResult;
 
   public MultimapSideInput(
       Cache<?, ?> cache,
@@ -84,10 +84,10 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
   public Iterable<V> get(K k) {
     ByteString encodedKey = encodeKey(k);
 
-    if (bulkRead == null) {
+    if (bulkReadResult == null) {
       synchronized (this) {
-        if (bulkRead == null) {
-          bulkRead = new HashMap<>();
+        if (bulkReadResult == null) {
+          Map<ByteString, Iterable<V>> bulkRead = new HashMap<>();
           StateKey bulkReadStateKey =
               StateKey.newBuilder()
                   .setMultimapKeysValuesSideInput(
@@ -114,18 +114,32 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
               KV<K, Iterable<V>> entry = entries.next();
               bulkRead.put(encodeKey(entry.getKey()), entry.getValue());
             }
-            bulkReadIsComplete = !entries.hasNext();
+            if (entries.hasNext()) {
+              bulkReadResult = bulkRead::get;
+            } else {
+              bulkReadResult =
+                  key -> {
+                    Iterable<V> result = bulkRead.get(key);
+                    if (result == null) {
+                      // As we read the entire set of values, we don't have to do a lookup to know
+                      // this key doesn't exist.
+                      // Missing keys are treated as empty iterables in this multimap.
+                      return Collections.emptyList();
+                    } else {
+                      return result;
+                    }
+                  };
+            }
           } catch (Exception exn) {
-            bulkReadIsComplete = false;
+            bulkReadResult = bulkRead::get;
           }
         }
       }
     }
 
-    if (bulkRead.containsKey(encodedKey)) {
-      return bulkRead.get(encodedKey);
-    } else if (bulkReadIsComplete) {
-      return Collections.emptyList();
+    Iterable<V> bulkReadValues = bulkReadResult.apply(encodedKey);
+    if (bulkReadValues != null) {
+      return bulkReadValues;
     }
 
     StateKey stateKey =

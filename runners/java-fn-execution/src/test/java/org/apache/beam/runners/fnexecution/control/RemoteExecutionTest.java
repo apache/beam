@@ -915,9 +915,10 @@ public class RemoteExecutionTest implements Serializable {
     // Expect the following requests for the first bundle:
     //   * one to read iterable side input
     //   * one to read keys from multimap side input
+    //   * one to attempt multimap side input bulk read
     //   * one to read key1 iterable from multimap side input
     //   * one to read key2 iterable from multimap side input
-    assertEquals(4, stateRequestHandler.receivedRequests.size());
+    assertEquals(5, stateRequestHandler.receivedRequests.size());
     assertEquals(
         stateRequestHandler.receivedRequests.get(0).getStateKey().getIterableSideInput(),
         BeamFnApi.StateKey.IterableSideInput.newBuilder()
@@ -931,14 +932,20 @@ public class RemoteExecutionTest implements Serializable {
             .setTransformId(transformId)
             .build());
     assertEquals(
-        stateRequestHandler.receivedRequests.get(2).getStateKey().getMultimapSideInput(),
+            stateRequestHandler.receivedRequests.get(2).getStateKey().getMultimapKeysValuesSideInput(),
+            BeamFnApi.StateKey.MultimapKeysValuesSideInput.newBuilder()
+                    .setSideInputId(multimapView.getTagInternal().getId())
+                    .setTransformId(transformId)
+                    .build());
+    assertEquals(
+        stateRequestHandler.receivedRequests.get(3).getStateKey().getMultimapSideInput(),
         BeamFnApi.StateKey.MultimapSideInput.newBuilder()
             .setSideInputId(multimapView.getTagInternal().getId())
             .setTransformId(transformId)
             .setKey(encode("key1"))
             .build());
     assertEquals(
-        stateRequestHandler.receivedRequests.get(3).getStateKey().getMultimapSideInput(),
+        stateRequestHandler.receivedRequests.get(4).getStateKey().getMultimapSideInput(),
         BeamFnApi.StateKey.MultimapSideInput.newBuilder()
             .setSideInputId(multimapView.getTagInternal().getId())
             .setTransformId(transformId)
