@@ -20,9 +20,9 @@ import re
 
 import yaml
 
-from apache_beam.yaml import yaml_provider
 from apache_beam.portability.api import schema_pb2
 from apache_beam.utils import subprocess_server
+from apache_beam.yaml import yaml_provider
 
 
 def _fake_value(name, beam_type):
