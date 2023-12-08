@@ -331,6 +331,9 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public boolean advance() throws IOException {
+      if (future != null && future.isDone()) {
+        waitReadRowsFuture();
+      }
       if (buffer.size() < refillSegmentWaterMark && future == null) {
         future = fetchNextSegment();
       }
