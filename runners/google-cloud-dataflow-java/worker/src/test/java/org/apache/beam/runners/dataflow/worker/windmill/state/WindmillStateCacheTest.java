@@ -35,14 +35,16 @@ import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache}. */
 @RunWith(JUnit4.class)
 public class WindmillStateCacheTest {
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final String COMPUTATION = "computation";
   private static final long SHARDING_KEY = 123;
   private static final WindmillComputationKey COMPUTATION_KEY =
