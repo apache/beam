@@ -79,9 +79,7 @@ import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
-import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.ErrorSinkTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -639,7 +637,6 @@ public class WriteFilesTest {
     }
   }
 
-
   // Test FailingDynamicDestinations class. Expects user values to be string-encoded integers.
   // Throws exceptions when trying to format records or get destinations based on the mod
   // of the element
@@ -684,24 +681,25 @@ public class WriteFilesTest {
   @Test
   @Category(NeedsRunner.class)
   public void testFailingDynamicDestinationsBounded() throws Exception {
-    testFailingDynamicDestinationsHelper(true,false);
+    testFailingDynamicDestinationsHelper(true, false);
   }
 
   @Test
   @Category({NeedsRunner.class, UsesUnboundedPCollections.class})
   public void testFailingDynamicDestinationsUnbounded() throws Exception {
-    testFailingDynamicDestinationsHelper(false,false);
+    testFailingDynamicDestinationsHelper(false, false);
   }
 
   @Test
   @Category({NeedsRunner.class, UsesUnboundedPCollections.class})
   public void testFailingDynamicDestinationsAutosharding() throws Exception {
-    testFailingDynamicDestinationsHelper(false,true);
+    testFailingDynamicDestinationsHelper(false, true);
   }
 
   private void testFailingDynamicDestinationsHelper(boolean bounded, boolean autosharding)
       throws IOException {
-    FailingTestDestinations dynamicDestinations = new FailingTestDestinations(getBaseOutputDirectory());
+    FailingTestDestinations dynamicDestinations =
+        new FailingTestDestinations(getBaseOutputDirectory());
     SimpleSink<Integer> sink =
         new SimpleSink<>(getBaseOutputDirectory(), dynamicDestinations, Compression.UNCOMPRESSED);
 
@@ -715,7 +713,7 @@ public class WriteFilesTest {
     List<String> inputs = Lists.newArrayList();
     for (int i = 0; i < numInputs; ++i) {
       inputs.add(Integer.toString(i));
-      if(i % 2 != 0 && i % 3 != 0){
+      if (i % 2 != 0 && i % 3 != 0) {
         expectedFailures++;
       }
     }
@@ -725,9 +723,13 @@ public class WriteFilesTest {
       timestamps.add(i + 1);
     }
 
-    BadRecordErrorHandler<PCollection<Long>> errorHandler = p.registerBadRecordErrorHandler(new ErrorSinkTransform());
+    BadRecordErrorHandler<PCollection<Long>> errorHandler =
+        p.registerBadRecordErrorHandler(new ErrorSinkTransform());
     int numShards = autosharding ? 0 : 2;
-    WriteFiles<String, Integer, String> writeFiles = WriteFiles.to(sink).withNumShards(numShards).withBadRecordErrorHandler(errorHandler, (e) -> true);
+    WriteFiles<String, Integer, String> writeFiles =
+        WriteFiles.to(sink)
+            .withNumShards(numShards)
+            .withBadRecordErrorHandler(errorHandler, (e) -> true);
     errorHandler.close();
 
     PAssert.thatSingleton(errorHandler.getOutput()).isEqualTo(expectedFailures);
@@ -757,7 +759,6 @@ public class WriteFilesTest {
           Optional.of(numShards),
           bounded /* expectRemovedTempDirectory */);
     }
-
   }
 
   @Test

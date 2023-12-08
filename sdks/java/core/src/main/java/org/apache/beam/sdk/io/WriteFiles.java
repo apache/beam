@@ -199,7 +199,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   public abstract @Nullable ShardingFunction<UserT, DestinationT> getShardingFunction();
 
-  public abstract ErrorHandler<BadRecord,?> getBadRecordErrorHandler();
+  public abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
   public abstract BadRecordRouter getBadRecordRouter();
 
@@ -232,13 +232,13 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         @Nullable ShardingFunction<UserT, DestinationT> shardingFunction);
 
     abstract Builder<UserT, DestinationT, OutputT> setBadRecordErrorHandler(
-        ErrorHandler<BadRecord,?> badRecordErrorHandler);
+        ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
     abstract Builder<UserT, DestinationT, OutputT> setBadRecordRouter(
         BadRecordRouter badRecordRouter);
 
     abstract Builder<UserT, DestinationT, OutputT> setBadRecordMatcher(
-        SerializableFunction<Exception,Boolean> badRecordMatcher);
+        SerializableFunction<Exception, Boolean> badRecordMatcher);
 
     abstract WriteFiles<UserT, DestinationT, OutputT> build();
   }
@@ -355,8 +355,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     return toBuilder().setSkipIfEmpty(true).build();
   }
 
-  public WriteFiles<UserT, DestinationT, OutputT> withBadRecordErrorHandler(ErrorHandler<BadRecord,?> errorHandler, SerializableFunction<Exception, Boolean> badRecordMatcher) {
-    return toBuilder().setBadRecordErrorHandler(errorHandler).setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER).setBadRecordMatcher(badRecordMatcher).build();
+  public WriteFiles<UserT, DestinationT, OutputT> withBadRecordErrorHandler(
+      ErrorHandler<BadRecord, ?> errorHandler,
+      SerializableFunction<Exception, Boolean> badRecordMatcher) {
+    return toBuilder()
+        .setBadRecordErrorHandler(errorHandler)
+        .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER)
+        .setBadRecordMatcher(badRecordMatcher)
+        .build();
   }
 
   @Override
@@ -525,15 +531,18 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     @Override
     public PCollection<FileResult<DestinationT>> expand(PCollection<UserT> input) {
       TupleTag<FileResult<DestinationT>> writtenRecordsTag = new TupleTag<>("writtenRecords");
-      TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag = new TupleTag<>("unwrittenRecords");
+      TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag =
+          new TupleTag<>("unwrittenRecords");
       Coder<UserT> inputCoder = input.getCoder();
       if (getMaxNumWritersPerBundle() < 0) {
-        PCollectionTuple writeTuple = input
-            .apply(
+        PCollectionTuple writeTuple =
+            input.apply(
                 "WritedUnshardedBundles",
                 ParDo.of(new WriteUnshardedTempFilesFn(null, destinationCoder, inputCoder))
                     .withSideInputs(getSideInputs())
-                    .withOutputTags(writtenRecordsTag, TupleTagList.of(ImmutableList.of(unwrittenRecordsTag, BAD_RECORD_TAG))));
+                    .withOutputTags(
+                        writtenRecordsTag,
+                        TupleTagList.of(ImmutableList.of(unwrittenRecordsTag, BAD_RECORD_TAG))));
         addErrorCollection(writeTuple);
         return writeTuple.get(writtenRecordsTag).setCoder(fileResultCoder);
       }
@@ -541,9 +550,13 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       PCollectionTuple writeTuple =
           input.apply(
               "WriteUnshardedBundles",
-              ParDo.of(new WriteUnshardedTempFilesFn(unwrittenRecordsTag, destinationCoder, inputCoder))
+              ParDo.of(
+                      new WriteUnshardedTempFilesFn(
+                          unwrittenRecordsTag, destinationCoder, inputCoder))
                   .withSideInputs(getSideInputs())
-                  .withOutputTags(writtenRecordsTag, TupleTagList.of(ImmutableList.of(unwrittenRecordsTag, BAD_RECORD_TAG))));
+                  .withOutputTags(
+                      writtenRecordsTag,
+                      TupleTagList.of(ImmutableList.of(unwrittenRecordsTag, BAD_RECORD_TAG))));
       addErrorCollection(writeTuple);
 
       PCollection<FileResult<DestinationT>> writtenBundleFiles =
@@ -563,11 +576,15 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               .apply("GroupUnwritten", GroupByKey.create())
               .apply(
                   "WriteUnwritten",
-                  ParDo.of(new WriteShardsIntoTempFilesFn(input.getCoder())).withSideInputs(getSideInputs()).withOutputTags(writtenRecordsTag, TupleTagList.of(BAD_RECORD_TAG)));
+                  ParDo.of(new WriteShardsIntoTempFilesFn(input.getCoder()))
+                      .withSideInputs(getSideInputs())
+                      .withOutputTags(writtenRecordsTag, TupleTagList.of(BAD_RECORD_TAG)));
 
       addErrorCollection(spilledWriteTuple);
 
-      PCollection<FileResult<DestinationT>> writtenSpilledFiles = spilledWriteTuple.get(writtenRecordsTag)
+      PCollection<FileResult<DestinationT>> writtenSpilledFiles =
+          spilledWriteTuple
+              .get(writtenRecordsTag)
               .setCoder(fileResultCoder)
               .apply(
                   "DropShardNum",
@@ -617,7 +634,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c, BoundedWindow window, MultiOutputReceiver outputReceiver) throws Exception {
+    public void processElement(
+        ProcessContext c, BoundedWindow window, MultiOutputReceiver outputReceiver)
+        throws Exception {
       getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
       PaneInfo paneInfo = c.pane();
       // If we are doing windowed writes, we need to ensure that we have separate files for
@@ -625,10 +644,12 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       // destinations go to different writers.
       // In the case of unwindowed writes, the window and the pane will always be the same, and
       // the map will only have a single element.
-      DestinationT destination = getDestinationWithErrorHandling(c.element(), outputReceiver, inputCoder);
-      if (destination == null) {
+      MaybeDestination<DestinationT> maybeDestination =
+          getDestinationWithErrorHandling(c.element(), outputReceiver, inputCoder);
+      if (!maybeDestination.isValid) {
         return;
       }
+      DestinationT destination = maybeDestination.destination;
       WriterKey<DestinationT> key = new WriterKey<>(window, c.pane(), destination);
       Writer<DestinationT, OutputT> writer = writers.get(key);
       if (writer == null) {
@@ -652,15 +673,19 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           } else {
             spilledShardNum = (spilledShardNum + 1) % SPILLED_RECORD_SHARDING_FACTOR;
           }
-          outputReceiver.get(unwrittenRecordsTag).output(
-              KV.of(
-                  ShardedKey.of(hashDestination(destination, destinationCoder), spilledShardNum),
-                  c.element()));
+          outputReceiver
+              .get(unwrittenRecordsTag)
+              .output(
+                  KV.of(
+                      ShardedKey.of(
+                          hashDestination(destination, destinationCoder), spilledShardNum),
+                      c.element()));
           return;
         }
       }
-      OutputT formattedRecord = formatRecordWithErrorHandling(c.element(),outputReceiver,inputCoder);
-      if (formattedRecord == null){
+      OutputT formattedRecord =
+          formatRecordWithErrorHandling(c.element(), outputReceiver, inputCoder);
+      if (formattedRecord == null) {
         return;
       }
       writeOrClose(writer, formattedRecord);
@@ -749,38 +774,62 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .asInt();
   }
 
+  private static class MaybeDestination<DestinationT> {
+    final DestinationT destination;
+    final boolean isValid;
+
+    MaybeDestination(DestinationT destination, boolean isValid) {
+      this.destination = destination;
+      this.isValid = true;
+    }
+  }
   // Utility method to get the dynamic destination based on a record. If the operation fails, and is
-  // output to the bad record router, this returns null
-  private @Nullable DestinationT getDestinationWithErrorHandling(UserT input, MultiOutputReceiver outputReceiver, Coder<UserT> inputCoder) throws Exception{
+  // output to the bad record router, this returns null. Returns a MaybeDestination because some
+  // implementations of dynamic destinations return null, despite this being prohibited by the
+  // interface
+  private MaybeDestination<DestinationT> getDestinationWithErrorHandling(
+      UserT input, MultiOutputReceiver outputReceiver, Coder<UserT> inputCoder) throws Exception {
     try {
-      return getDynamicDestinations().getDestination(input);
+      return new MaybeDestination<>(getDynamicDestinations().getDestination(input), true);
     } catch (Exception e) {
-      if (getBadRecordMatcher().apply(e)){
-        getBadRecordRouter().route(outputReceiver,input,inputCoder,e,"Unable to get dynamic destination for record");
-        return null;
+      if (getBadRecordMatcher().apply(e)) {
+        getBadRecordRouter()
+            .route(
+                outputReceiver,
+                input,
+                inputCoder,
+                e,
+                "Unable to get dynamic destination for record");
+        return new MaybeDestination<>(null, false);
       } else {
         throw e;
       }
     }
   }
 
-  private void addErrorCollection(PCollectionTuple sourceTuple){
+  private void addErrorCollection(PCollectionTuple sourceTuple) {
     getBadRecordErrorHandler()
         .addErrorCollection(
             sourceTuple
                 .get(BAD_RECORD_TAG)
                 .setCoder(BadRecord.getCoder(sourceTuple.getPipeline())));
-
   }
 
   // Utility method to format a record based on the dynamic destination. If the operation fails, and
   // is output to the bad record router, this returns null
-  private @Nullable OutputT formatRecordWithErrorHandling(UserT input, MultiOutputReceiver outputReceiver, Coder<UserT> inputCoder) throws Exception{
+  private @Nullable OutputT formatRecordWithErrorHandling(
+      UserT input, MultiOutputReceiver outputReceiver, Coder<UserT> inputCoder) throws Exception {
     try {
       return getDynamicDestinations().formatRecord(input);
     } catch (Exception e) {
-      if (getBadRecordMatcher().apply(e)){
-        getBadRecordRouter().route(outputReceiver,input,inputCoder,e,"Unable to format record for Dynamic Destination");
+      if (getBadRecordMatcher().apply(e)) {
+        getBadRecordRouter()
+            .route(
+                outputReceiver,
+                input,
+                inputCoder,
+                e,
+                "Unable to format record for Dynamic Destination");
         return null;
       } else {
         throw e;
@@ -818,19 +867,26 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       TupleTag<KV<ShardedKey<Integer>, UserT>> shardedRecords = new TupleTag<>("shardedRecords");
       TupleTag<FileResult<DestinationT>> writtenRecordsTag = new TupleTag<>("writtenRecords");
 
-      PCollectionTuple shardedFiles = input
-          .apply(
+      PCollectionTuple shardedFiles =
+          input.apply(
               "ApplyShardingKey",
-              ParDo.of(new ApplyShardingFunctionFn(shardingFunction, numShardsView, input.getCoder()))
-                  .withSideInputs(shardingSideInputs).withOutputTags(shardedRecords, TupleTagList.of(BAD_RECORD_TAG)));
+              ParDo.of(
+                      new ApplyShardingFunctionFn(
+                          shardingFunction, numShardsView, input.getCoder()))
+                  .withSideInputs(shardingSideInputs)
+                  .withOutputTags(shardedRecords, TupleTagList.of(BAD_RECORD_TAG)));
       addErrorCollection(shardedFiles);
 
-      PCollectionTuple writtenFiles =  shardedFiles.get(shardedRecords)
-          .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
-          .apply("GroupIntoShards", GroupByKey.create())
-          .apply(
-              "WriteShardsIntoTempFiles",
-              ParDo.of(new WriteShardsIntoTempFilesFn(input.getCoder())).withSideInputs(getSideInputs()).withOutputTags(writtenRecordsTag, TupleTagList.of(BAD_RECORD_TAG)));
+      PCollectionTuple writtenFiles =
+          shardedFiles
+              .get(shardedRecords)
+              .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
+              .apply("GroupIntoShards", GroupByKey.create())
+              .apply(
+                  "WriteShardsIntoTempFiles",
+                  ParDo.of(new WriteShardsIntoTempFilesFn(input.getCoder()))
+                      .withSideInputs(getSideInputs())
+                      .withOutputTags(writtenRecordsTag, TupleTagList.of(BAD_RECORD_TAG)));
       addErrorCollection(writtenFiles);
 
       return writtenFiles.get(writtenRecordsTag).setCoder(fileResultCoder);
@@ -858,30 +914,37 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       //
       // TODO(https://github.com/apache/beam/issues/20928): The implementation doesn't currently
       // work with merging windows.
-      TupleTag<KV<Integer,UserT>> shardTag = new TupleTag<>("shardTag");
+      TupleTag<KV<Integer, UserT>> shardTag = new TupleTag<>("shardTag");
 
       PCollectionTuple shardedElements =
-          input
-              .apply(
-                  "KeyedByDestinationHash",
-                  ParDo.of(
+          input.apply(
+              "KeyedByDestinationHash",
+              ParDo.of(
                       new DoFn<UserT, KV<Integer, UserT>>() {
                         @ProcessElement
-                        public void processElement(@Element UserT element, ProcessContext context, MultiOutputReceiver outputReceiver)
+                        public void processElement(
+                            @Element UserT element,
+                            ProcessContext context,
+                            MultiOutputReceiver outputReceiver)
                             throws Exception {
                           getDynamicDestinations().setSideInputAccessorFromProcessContext(context);
-                          DestinationT destination = getDestinationWithErrorHandling(context.element(), outputReceiver, input.getCoder());
-                          if (destination == null) {
+                          MaybeDestination<DestinationT> maybeDestination =
+                              getDestinationWithErrorHandling(
+                                  context.element(), outputReceiver, input.getCoder());
+                          if (!maybeDestination.isValid) {
                             return;
                           }
+                          DestinationT destination = maybeDestination.destination;
                           context.output(
                               KV.of(hashDestination(destination, destinationCoder), element));
                         }
-                      }).withOutputTags(shardTag, TupleTagList.of(BAD_RECORD_TAG)));
+                      })
+                  .withOutputTags(shardTag, TupleTagList.of(BAD_RECORD_TAG)));
       addErrorCollection(shardedElements);
 
       PCollection<KV<org.apache.beam.sdk.util.ShardedKey<Integer>, Iterable<UserT>>> shardedInput =
-          shardedElements.get(shardTag)
+          shardedElements
+              .get(shardTag)
               .setCoder(KvCoder.of(VarIntCoder.of(), input.getCoder()))
               .apply(
                   "ShardAndBatch",
@@ -920,11 +983,15 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                       ShardedKeyCoder.of(VarIntCoder.of()), IterableCoder.of(input.getCoder())))
               .apply(
                   "WriteShardsIntoTempFiles",
-                  ParDo.of(new WriteShardsIntoTempFilesFn(input.getCoder())).withSideInputs(getSideInputs()).withOutputTags(writtenRecordsTag, TupleTagList.of(BAD_RECORD_TAG)));
+                  ParDo.of(new WriteShardsIntoTempFilesFn(input.getCoder()))
+                      .withSideInputs(getSideInputs())
+                      .withOutputTags(writtenRecordsTag, TupleTagList.of(BAD_RECORD_TAG)));
 
       addErrorCollection(writtenFiles);
 
-      PCollection<FileResult<DestinationT>> tempFiles = writtenFiles.get(writtenRecordsTag)
+      PCollection<FileResult<DestinationT>> tempFiles =
+          writtenFiles
+              .get(writtenRecordsTag)
               .setCoder(fileResultCoder)
               .apply(
                   "DropShardNum",
@@ -1023,7 +1090,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
 
     @ProcessElement
-    public void processElement(ProcessContext context, MultiOutputReceiver outputReceiver) throws Exception {
+    public void processElement(ProcessContext context, MultiOutputReceiver outputReceiver)
+        throws Exception {
       getDynamicDestinations().setSideInputAccessorFromProcessContext(context);
       final int shardCount;
       if (numShardsView != null) {
@@ -1039,10 +1107,12 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               + " Got %s",
           shardCount);
 
-      DestinationT destination = getDestinationWithErrorHandling(context.element(), outputReceiver, inputCoder);
-      if (destination == null) {
+      MaybeDestination<DestinationT> maybeDestination =
+          getDestinationWithErrorHandling(context.element(), outputReceiver, inputCoder);
+      if (!maybeDestination.isValid) {
         return;
       }
+      DestinationT destination = maybeDestination.destination;
       ShardedKey<Integer> shardKey =
           shardingFn.assignShardKey(destination, context.element(), shardCount);
       context.output(KV.of(shardKey, context.element()));
@@ -1057,6 +1127,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     public WriteShardsIntoTempFilesFn(Coder<UserT> inputCoder) {
       this.inputCoder = inputCoder;
     }
+
     private transient List<CompletionStage<Void>> closeFutures = new ArrayList<>();
     private transient List<KV<Instant, FileResult<DestinationT>>> deferredOutput =
         new ArrayList<>();
@@ -1070,17 +1141,21 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c, BoundedWindow window, MultiOutputReceiver outputReceiver) throws Exception {
+    public void processElement(
+        ProcessContext c, BoundedWindow window, MultiOutputReceiver outputReceiver)
+        throws Exception {
       getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
       // Since we key by a 32-bit hash of the destination, there might be multiple destinations
       // in this iterable. The number of destinations is generally very small (1000s or less), so
       // there will rarely be hash collisions.
       Map<DestinationT, Writer<DestinationT, OutputT>> writers = Maps.newHashMap();
       for (UserT input : c.element().getValue()) {
-        DestinationT destination = getDestinationWithErrorHandling(input, outputReceiver, inputCoder);
-        if (destination == null) {
-          continue;
+        MaybeDestination<DestinationT> maybeDestination =
+            getDestinationWithErrorHandling(input, outputReceiver, inputCoder);
+        if (!maybeDestination.isValid) {
+          return;
         }
+        DestinationT destination = maybeDestination.destination;
         Writer<DestinationT, OutputT> writer = writers.get(destination);
         if (writer == null) {
           String uuid = UUID.randomUUID().toString();
@@ -1096,8 +1171,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           writers.put(destination, writer);
         }
 
-        OutputT formattedRecord = formatRecordWithErrorHandling(input,outputReceiver,inputCoder);
-        if (formattedRecord == null){
+        OutputT formattedRecord = formatRecordWithErrorHandling(input, outputReceiver, inputCoder);
+        if (formattedRecord == null) {
           return;
         }
         writeOrClose(writer, formattedRecord);

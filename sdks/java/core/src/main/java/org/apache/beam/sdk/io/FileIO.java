@@ -1018,7 +1018,7 @@ public class FileIO {
 
     abstract boolean getNoSpilling();
 
-    abstract @Nullable ErrorHandler<BadRecord,?> getBadRecordErrorHandler();
+    abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
     abstract @Nullable SerializableFunction<Exception, Boolean> getBadRecordMatcher();
 
@@ -1069,10 +1069,10 @@ public class FileIO {
       abstract Builder<DestinationT, UserT> setNoSpilling(boolean noSpilling);
 
       abstract Builder<DestinationT, UserT> setBadRecordErrorHandler(
-          @Nullable ErrorHandler<BadRecord,?> badRecordErrorHandler);
+          @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
       abstract Builder<DestinationT, UserT> setBadRecordMatcher(
-          @Nullable SerializableFunction<Exception,Boolean> badRecordMatcher);
+          @Nullable SerializableFunction<Exception, Boolean> badRecordMatcher);
 
       abstract Write<DestinationT, UserT> build();
     }
@@ -1301,8 +1301,13 @@ public class FileIO {
     }
 
     /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. */
-    public Write<DestinationT, UserT> withBadRecordErrorHandler(ErrorHandler<BadRecord,?> errorHandler, SerializableFunction<Exception, Boolean> badRecordMatcher) {
-      return toBuilder().setBadRecordErrorHandler(errorHandler).setBadRecordMatcher(badRecordMatcher).build();
+    public Write<DestinationT, UserT> withBadRecordErrorHandler(
+        ErrorHandler<BadRecord, ?> errorHandler,
+        SerializableFunction<Exception, Boolean> badRecordMatcher) {
+      return toBuilder()
+          .setBadRecordErrorHandler(errorHandler)
+          .setBadRecordMatcher(badRecordMatcher)
+          .build();
     }
 
     @VisibleForTesting
@@ -1409,7 +1414,8 @@ public class FileIO {
         writeFiles = writeFiles.withNoSpilling();
       }
       if (getBadRecordErrorHandler() != null) {
-        writeFiles = writeFiles.withBadRecordErrorHandler(getBadRecordErrorHandler(),getBadRecordMatcher());
+        writeFiles =
+            writeFiles.withBadRecordErrorHandler(getBadRecordErrorHandler(), getBadRecordMatcher());
       }
       return input.apply(writeFiles);
     }
