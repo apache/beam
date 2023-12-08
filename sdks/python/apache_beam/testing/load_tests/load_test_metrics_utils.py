@@ -33,6 +33,8 @@ import json
 import logging
 import time
 import uuid
+from typing import Any
+from typing import Dict
 from typing import List
 from typing import Mapping
 from typing import Optional
@@ -258,7 +260,8 @@ class MetricsReader(object):
     # Under each key there is list of objects of each metric type. It is
     # required to prepare metrics for publishing purposes. Expected is to have
     # a list of dictionaries matching the schema.
-    insert_dicts = self._prepare_all_metrics(metrics, metric_id)
+
+    insert_dicts = self._prepare_all_metrics(metrics, metric_id, job_id)
 
     insert_dicts += self._prepare_extra_metrics(metric_id, extra_metrics)
 
@@ -266,10 +269,17 @@ class MetricsReader(object):
     job_id = None
     if isinstance(result, DataflowPipelineResult):
       job_id = result.job_id()
-      insert_dicts.append([{JOB_ID_LABEL: job_id}])
+      self._add_job_id_to_metrics(insert_dicts, job_id)
+
     if len(insert_dicts) > 0:
       for publisher in self.publishers:
         publisher.publish(insert_dicts)
+
+  def _add_job_id_to_metrics(self, metrics: List[Dict[str, Any]],
+                             job_id) -> List[Dict[str, Any]]:
+    for metric in metrics:
+      metric[JOB_ID_LABEL] = job_id
+    return metrics
 
   def _prepare_extra_metrics(
       self, metric_id: str, extra_metrics: Optional[dict] = None):
@@ -296,7 +306,7 @@ class MetricsReader(object):
     for publisher in self.publishers:
       publisher.publish(metric_dicts)
 
-  def _prepare_all_metrics(self, metrics, metric_id):
+  def _prepare_all_metrics(self, metrics, metric_id, job_id):
 
     insert_rows = self._get_counters(metrics['counters'], metric_id)
     insert_rows += self._get_distributions(metrics['distributions'], metric_id)
