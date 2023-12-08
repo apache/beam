@@ -1707,8 +1707,11 @@ def _create_pardo_operation(
             transform_id,
             tag,
             si,
-            input_tags_to_coders[tag]) for tag,
-        si in tagged_side_inputs
+            input_tags_to_coders[tag],
+            use_bulk_read=(
+                common_urns.runner_protocols.MULTIMAP_KEYS_VALUES_SIDE_INPUT.urn
+                in factory.runner_capabilities))
+        for (tag, si) in tagged_side_inputs
     ]
   else:
     side_input_maps = []
