@@ -920,6 +920,7 @@ class BundleProcessor(object):
   """ A class for processing bundles of elements. """
 
   def __init__(self,
+               runner_capabilities,  # type: FrozenSet[str]
                process_bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
                state_handler,  # type: sdk_worker.CachingStateHandler
                data_channel_factory,  # type: data_plane.DataChannelFactory
@@ -930,11 +931,14 @@ class BundleProcessor(object):
     """Initialize a bundle processor.
 
     Args:
+      runner_capabilities (``FrozenSet[str]``): The set of capabilities of the
+        runner with which we will be interacting
       process_bundle_descriptor (``beam_fn_api_pb2.ProcessBundleDescriptor``):
         a description of the stage that this ``BundleProcessor``is to execute.
       state_handler (CachingStateHandler).
       data_channel_factory (``data_plane.DataChannelFactory``).
     """
+    self.runner_capabilities = runner_capabilities
     self.process_bundle_descriptor = process_bundle_descriptor
     self.state_handler = state_handler
     self.data_channel_factory = data_channel_factory
@@ -976,12 +980,14 @@ class BundleProcessor(object):
   ):
     # type: (...) -> collections.OrderedDict[str, operations.DoOperation]
     transform_factory = BeamTransformFactory(
+        self.runner_capabilities,
         descriptor,
         self.data_channel_factory,
         self.counter_factory,
         self.state_sampler,
         self.state_handler,
-        self.data_sampler)
+        self.data_sampler,
+    )
 
     self.timers_info = transform_factory.extract_timers_info()
 
@@ -1267,6 +1273,7 @@ class ExecutionContext:
 class BeamTransformFactory(object):
   """Factory for turning transform_protos into executable operations."""
   def __init__(self,
+               runner_capabilities,  # type: FrozenSet[str]
                descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
                data_channel_factory,  # type: data_plane.DataChannelFactory
                counter_factory,  # type: counters.CounterFactory
@@ -1274,6 +1281,7 @@ class BeamTransformFactory(object):
                state_handler,  # type: sdk_worker.CachingStateHandler
                data_sampler,  # type: Optional[data_sampler.DataSampler]
               ):
+    self.runner_capabilities = runner_capabilities
     self.descriptor = descriptor
     self.data_channel_factory = data_channel_factory
     self.counter_factory = counter_factory
