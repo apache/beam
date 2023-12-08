@@ -94,7 +94,7 @@ func invalidDescriptor(t *testing.T) *fnpb.ProcessBundleDescriptor {
 
 func TestControl_getOrCreatePlan(t *testing.T) {
 	testBDID := bundleDescriptorID("test")
-	testPlan, err := exec.UnmarshalPlan(validDescriptor(t))
+	testPlan, err := exec.UnmarshalPlan(validDescriptor(t), nil)
 	if err != nil {
 		t.Fatal("bad testPlan")
 	}
