@@ -20,11 +20,9 @@ import re
 
 import yaml
 
-from apache_beam.yaml import yaml_provider
 from apache_beam.portability.api import schema_pb2
-from apache_beam.typehints import native_type_compatibility
-from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.utils import subprocess_server
+from apache_beam.yaml import yaml_provider
 
 
 def _fake_value(name, beam_type):
@@ -96,7 +94,9 @@ def config_docs(schema):
     elif type_info == "iterable_type":
       return f'Iterable[{pretty_type(beam_type.iterable_type.element_type)}]'
     elif type_info == "map_type":
-      return f'Map[{pretty_type(beam_type.map_type.key_type)}, {pretty_type(beam_type.map_type.value_type)}]'
+      return (
+          f'Map[{pretty_type(beam_type.map_type.key_type)}, '
+          f'{pretty_type(beam_type.map_type.value_type)}]')
     elif type_info == "row_type":
       return 'Row'
     else:

@@ -48,11 +48,9 @@ from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms import external
 from apache_beam.transforms import window
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
-from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.schemas import named_tuple_to_schema
-from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.utils import python_callable
 from apache_beam.utils import subprocess_server
@@ -460,7 +458,8 @@ class InlineProvider(Provider):
     docstring = self._transform_factories[typ].__doc__ or ''
     # These "extra" docstring parameters are not relevant for YAML and mess
     # up the parsing.
-    docstring = re.sub('Pandas Parameters\s+-----.*', '', docstring, flags=re.S)
+    docstring = re.sub(
+        r'Pandas Parameters\s+-----.*', '', docstring, flags=re.S)
     return docstring_parser.parse(
         docstring, docstring_parser.DocstringStyle.GOOGLE)
 
