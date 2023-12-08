@@ -46,6 +46,7 @@ from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.runners.runner import PipelineResult
+from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.timestamp import Timestamp
 
@@ -65,6 +66,7 @@ ID_LABEL = 'test_id'
 SUBMIT_TIMESTAMP_LABEL = 'timestamp'
 METRICS_TYPE_LABEL = 'metric'
 VALUE_LABEL = 'value'
+JOB_ID_LABEL = 'job_id'
 
 SCHEMA = [{
     'name': ID_LABEL, 'field_type': 'STRING', 'mode': 'REQUIRED'
@@ -80,6 +82,8 @@ SCHEMA = [{
               'mode': 'REQUIRED'
           }, {
               'name': VALUE_LABEL, 'field_type': 'FLOAT', 'mode': 'REQUIRED'
+          }, {
+              'name': JOB_ID_LABEL, 'field_type': 'STRING', 'mode': 'NULLABLE'
           }]
 
 _LOGGER = logging.getLogger(__name__)
@@ -257,6 +261,12 @@ class MetricsReader(object):
     insert_dicts = self._prepare_all_metrics(metrics, metric_id)
 
     insert_dicts += self._prepare_extra_metrics(metric_id, extra_metrics)
+
+    # Add job id for dataflow jobs for easier debugging.
+    job_id = None
+    if isinstance(result, DataflowPipelineResult):
+      job_id = result.job_id()
+      insert_dicts.append([{JOB_ID_LABEL: job_id}])
     if len(insert_dicts) > 0:
       for publisher in self.publishers:
         publisher.publish(insert_dicts)
@@ -479,6 +489,12 @@ class BigQueryClient(object):
       table = bigquery.Table(table_ref, schema=bq_schemas)
       self._bq_table = self._client.create_table(table)
 
+  def _update_schema(self):
+    table_schema = self._bq_table.schema
+    if self.schema and len(table_schema) != self.schema:
+      self._bq_table.schema = self._prepare_schema()
+      self._bq_table = self._client.update_table(self._bq_table, ["schema"])
+
   def _get_dataset(self, dataset_name):
     bq_dataset_ref = self._client.dataset(dataset_name)
     try:
@@ -490,6 +506,8 @@ class BigQueryClient(object):
     return bq_dataset
 
   def save(self, results):
+    # update schema if needed
+    self._update_schema()
     return self._client.insert_rows(self._bq_table, results)
 
 
