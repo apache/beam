@@ -747,18 +747,26 @@ public class BigtableServiceImplTest {
    * @throws InterruptedException
    */
   @Test
-  public void testWrite() throws IOException, InterruptedException {
+  public void testWrite() throws IOException {
     doReturn(mockBatcher).when(mockBigtableDataClient).newBulkMutationBatcher(any());
+    SettableApiFuture<Void> fakeFuture = SettableApiFuture.create();
+    when(mockBatcher.closeAsync()).thenReturn(fakeFuture);
     ArgumentCaptor<RowMutationEntry> captor = ArgumentCaptor.forClass(RowMutationEntry.class);
     ApiFuture<Void> fakeResponse = SettableApiFuture.create();
-    when(mockBatcher.add(any(RowMutationEntry.class))).thenReturn(fakeResponse);
+    when(mockBatcher.add(any(RowMutationEntry.class)))
+        .thenAnswer(
+            invocation -> {
+              fakeFuture.set(null);
+              return fakeResponse;
+            });
 
     BigtableService.Writer underTest =
         new BigtableServiceImpl.BigtableWriterImpl(
             mockBigtableDataClient,
             bigtableDataSettings.getProjectId(),
             bigtableDataSettings.getInstanceId(),
-            TABLE_ID);
+            TABLE_ID,
+            Duration.millis(60000));
 
     ByteString key = ByteString.copyFromUtf8("key");
     Mutation mutation =
@@ -780,7 +788,6 @@ public class BigtableServiceImplTest {
     assertEquals(
         "Family", captor.getValue().toProto().getMutations(0).getSetCell().getFamilyName());
     underTest.close();
-    verify(mockBatcher, times(1)).flush();
   }
 
   private void verifyMetricWasSet(String method, String status, long count) {

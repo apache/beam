@@ -25,6 +25,7 @@ import inspect
 import json
 import logging
 import os
+import re
 import subprocess
 import sys
 import urllib.parse
@@ -35,6 +36,7 @@ from typing import Iterable
 from typing import Mapping
 from typing import Optional
 
+import docstring_parser
 import yaml
 from yaml.loader import SafeLoader
 
@@ -46,11 +48,9 @@ from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms import external
 from apache_beam.transforms import window
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
-from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.schemas import named_tuple_to_schema
-from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.utils import python_callable
 from apache_beam.utils import subprocess_server
@@ -71,6 +71,9 @@ class Provider:
     raise NotImplementedError(type(self))
 
   def config_schema(self, type):
+    return None
+
+  def description(self, type):
     return None
 
   def requires_inputs(self, typ: str, args: Mapping[str, Any]) -> bool:
@@ -166,6 +169,10 @@ class ExternalProvider(Provider):
     if self._urns[type] in self.schema_transforms():
       return named_tuple_to_schema(
           self.schema_transforms()[self._urns[type]].configuration_schema)
+
+  def description(self, type):
+    if self._urns[type] in self.schema_transforms():
+      return self.schema_transforms()[self._urns[type]].description
 
   def requires_inputs(self, typ, args):
     if self._urns[typ] in self.schema_transforms():
@@ -412,7 +419,8 @@ class InlineProvider(Provider):
     if isinstance(factory, type) and issubclass(factory, beam.PTransform):
       # https://bugs.python.org/issue40897
       params = dict(inspect.signature(factory.__init__).parameters)
-      del params['self']
+      if 'self' in params:
+        del params['self']
     else:
       params = inspect.signature(factory).parameters
 
@@ -423,14 +431,37 @@ class InlineProvider(Provider):
       else:
         return t
 
+    docs = {
+        param.arg_name: param.description
+        for param in self.get_docs(typ).params
+    }
+
     names_and_types = [
         (name, typing_to_runner_api(type_of(p))) for name, p in params.items()
     ]
     return schema_pb2.Schema(
         fields=[
-            schema_pb2.Field(name=name, type=type) for name,
-            type in names_and_types
+            schema_pb2.Field(name=name, type=type, description=docs.get(name))
+            for (name, type) in names_and_types
         ])
+
+  def description(self, typ):
+    def empty_if_none(s):
+      return s or ''
+
+    docs = self.get_docs(typ)
+    return (
+        empty_if_none(docs.short_description) + '\n\n' +
+        empty_if_none(docs.long_description)).strip() or None
+
+  def get_docs(self, typ):
+    docstring = self._transform_factories[typ].__doc__ or ''
+    # These "extra" docstring parameters are not relevant for YAML and mess
+    # up the parsing.
+    docstring = re.sub(
+        r'Pandas Parameters\s+-----.*', '', docstring, flags=re.S)
+    return docstring_parser.parse(
+        docstring, docstring_parser.DocstringStyle.GOOGLE)
 
   def create_transform(self, type, args, yaml_create_transform):
     return self._transform_factories[type](**args)
@@ -727,13 +758,31 @@ class RenamingProvider(Provider):
         self._transforms[type])
     if underlying_schema is None:
       return None
-    underlying_schema_types = {f.name: f.type for f in underlying_schema.fields}
+    defaults = self._defaults.get(type, {})
+    underlying_schema_fields = {f.name: f for f in underlying_schema.fields}
+    missing = set(self._mappings[type].values()) - set(
+        underlying_schema_fields.keys())
+    if missing:
+      raise ValueError(
+          f"Mapping destinations {missing} for {type} are not in the "
+          f"underlying config schema {list(underlying_schema_fields.keys())}")
+
+    def with_name(
+        original: schema_pb2.Field, new_name: str) -> schema_pb2.Field:
+      result = schema_pb2.Field()
+      result.CopyFrom(original)
+      result.name = new_name
+      return result
+
     return schema_pb2.Schema(
         fields=[
-            schema_pb2.Field(name=src, type=underlying_schema_types[dest])
-            for src,
-            dest in self._mappings[type].items()
+            with_name(underlying_schema_fields[dest], src)
+            for (src, dest) in self._mappings[type].items()
+            if dest not in defaults
         ])
+
+  def description(self, typ):
+    return self._underlying_provider.description(typ)
 
   def requires_inputs(self, typ, args):
     return self._underlying_provider.requires_inputs(typ, args)
@@ -810,36 +859,3 @@ def standard_providers():
       create_combine_providers(),
       io_providers(),
       parse_providers(standard_providers))
-
-
-def list_providers():
-  def pretty_type(field_type):
-    if field_type.WhichOneof('type_info') == 'row_type':
-      return pretty_schema(field_type.row_type.schema)
-    else:
-      t = typing_from_runner_api(field_type)
-      optional_base = native_type_compatibility.extract_optional_type(t)
-      if optional_base:
-        t = optional_base
-        suffix = '?'
-      else:
-        suffix = ''
-      s = str(t)
-      if s.startswith('<class '):
-        s = t.__name__
-      return s + suffix
-
-  def pretty_schema(s):
-    if s is None:
-      return '[no schema]'
-    return 'Row(%s)' % ', '.join(
-        f'{f.name}={pretty_type(f.type)}' for f in s.fields)
-
-  for t, providers in sorted(standard_providers().items()):
-    print(t)
-    for p in providers:
-      print('\t', type(p).__name__, pretty_schema(p.config_schema(t)))
-
-
-if __name__ == '__main__':
-  list_providers()

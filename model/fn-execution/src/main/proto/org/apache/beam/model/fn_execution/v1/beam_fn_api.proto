@@ -52,7 +52,7 @@ import "google/protobuf/duration.proto";
 message FnApiTransforms {
   enum Runner {
     // DataSource is a Root Transform, and a source of data for downstream
-    // transforms in the same ProcessBundleDescriptor. 
+    // transforms in the same ProcessBundleDescriptor.
     // It represents a stream of values coming in from an external source/over
     // a data channel, typically from the runner. It's not the PCollection itself
     // but a description of how to get the portion of the PCollection for a given
@@ -82,7 +82,7 @@ message FnApiTransforms {
     // request will be sent with the matching instruction ID and transform ID.
     // Each PCollection that exits the ProcessBundleDescriptor subgraph will have
     // it's own DataSink, keyed by a transform ID determined by the runner.
-    //  
+    //
     // The DataSink will take in a stream of elements for a given instruction ID
     // and encode them for transmission to the remote sink. The coder ID must be
     // for a windowed value coder.
@@ -924,6 +924,35 @@ message StateKey {
     bytes window = 3;
   }
 
+  // Represents a request for the keys and values associated with a specified window in a PCollection. See
+  // https://s.apache.org/beam-fn-state-api-and-bundle-processing for further
+  // details.
+  //
+  // This is expected to be more efficient than iterating over they keys and
+  // looking up the values one at a time.  If a runner chooses not to implement
+  // this protocol, or a key has too many values to fit into a single response,
+  // the runner is free to fail the request and a fallback to point lookups
+  // will be performed by the SDK.
+  //
+  // Can only be used to perform StateGetRequests on side inputs of the URN
+  // beam:side_input:multimap:v1.
+  //
+  // For a PCollection<KV<K, V>>, the response data stream will be a
+  // concatenation of all KVs associated with the specified window,
+  // encoded with the the KV<K, Iterable<V>> coder.
+  // See
+  // https://s.apache.org/beam-fn-api-send-and-receive-data for further
+  // details.
+  message MultimapKeysValuesSideInput {
+    // (Required) The id of the PTransform containing a side input.
+    string transform_id = 1;
+    // (Required) The id of the side input.
+    string side_input_id = 2;
+    // (Required) The window (after mapping the currently executing elements
+    // window into the side input windows domain) encoded in a nested context.
+    bytes window = 3;
+  }
+
   // Represents a request for an unordered set of values associated with a
   // specified user key and window for a PTransform. See
   // https://s.apache.org/beam-fn-state-api-and-bundle-processing for further
@@ -999,6 +1028,7 @@ message StateKey {
     BagUserState bag_user_state = 3;
     IterableSideInput iterable_side_input = 4;
     MultimapKeysSideInput multimap_keys_side_input = 5;
+    MultimapKeysValuesSideInput multimap_keys_values_side_input = 8;
     MultimapKeysUserState multimap_keys_user_state = 6;
     MultimapUserState multimap_user_state = 7;
   }

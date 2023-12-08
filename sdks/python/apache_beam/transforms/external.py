@@ -373,7 +373,7 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
 # Information regarding a SchemaTransform available in an external SDK.
 SchemaTransformsConfig = namedtuple(
     'SchemaTransformsConfig',
-    ['identifier', 'configuration_schema', 'inputs', 'outputs'])
+    ['identifier', 'configuration_schema', 'inputs', 'outputs', 'description'])
 
 
 class SchemaAwareExternalTransform(ptransform.PTransform):
@@ -444,22 +444,23 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
       discover_response = service.DiscoverSchemaTransform(
           beam_expansion_api_pb2.DiscoverSchemaTransformRequest())
 
-      for identifier in discover_response.schema_transform_configs:
-        proto_config = discover_response.schema_transform_configs[identifier]
-        try:
-          schema = named_tuple_from_schema(proto_config.config_schema)
-        except Exception as exn:
-          if ignore_errors:
-            logging.info("Bad schema for %s: %s", identifier, str(exn)[:250])
-            continue
-          else:
-            raise
+    for identifier in discover_response.schema_transform_configs:
+      proto_config = discover_response.schema_transform_configs[identifier]
+      try:
+        schema = named_tuple_from_schema(proto_config.config_schema)
+      except Exception as exn:
+        if ignore_errors:
+          logging.info("Bad schema for %s: %s", identifier, str(exn)[:250])
+          continue
+        else:
+          raise
 
-        yield SchemaTransformsConfig(
-            identifier=identifier,
-            configuration_schema=schema,
-            inputs=proto_config.input_pcollection_names,
-            outputs=proto_config.output_pcollection_names)
+      yield SchemaTransformsConfig(
+          identifier=identifier,
+          configuration_schema=schema,
+          inputs=proto_config.input_pcollection_names,
+          outputs=proto_config.output_pcollection_names,
+          description=proto_config.description)
 
   @staticmethod
   def discover_config(expansion_service, name):
@@ -722,7 +723,8 @@ class ExternalTransform(ptransform.PTransform):
         components=components,
         namespace=self._external_namespace,
         transform=transform_proto,
-        output_coder_requests=output_coders)
+        output_coder_requests=output_coders,
+        pipeline_options=pipeline._options.to_runner_api())
 
     expansion_service = _maybe_use_transform_service(
         self._expansion_service, pipeline.options)

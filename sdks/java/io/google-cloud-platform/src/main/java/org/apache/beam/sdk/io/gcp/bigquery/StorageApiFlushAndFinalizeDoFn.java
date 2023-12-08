@@ -26,7 +26,7 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.WriteStreamService;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.Operation.Context;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.RetryType;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiFlushAndFinalizeDoFn.Operation;
@@ -50,7 +50,7 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiFlushAndFinalizeDoFn.class);
 
   private final BigQueryServices bqServices;
-  private transient @Nullable DatasetService datasetService = null;
+  private transient @Nullable WriteStreamService writeStreamService = null;
   private final Counter flushOperationsSent =
       Metrics.counter(StorageApiFlushAndFinalizeDoFn.class, "flushOperationsSent");
   private final Counter flushOperationsSucceeded =
@@ -112,19 +112,21 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
     this.bqServices = bqServices;
   }
 
-  private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
-    if (datasetService == null) {
-      datasetService = bqServices.getDatasetService(pipelineOptions.as(BigQueryOptions.class));
+  private WriteStreamService getWriteStreamService(PipelineOptions pipelineOptions)
+      throws IOException {
+    if (writeStreamService == null) {
+      writeStreamService =
+          bqServices.getWriteStreamService(pipelineOptions.as(BigQueryOptions.class));
     }
-    return datasetService;
+    return writeStreamService;
   }
 
   @Teardown
   public void onTeardown() {
     try {
-      if (datasetService != null) {
-        datasetService.close();
-        datasetService = null;
+      if (writeStreamService != null) {
+        writeStreamService.close();
+        writeStreamService = null;
       }
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -136,7 +138,7 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
       throws Exception {
     final String streamId = element.getKey();
     final Operation operation = element.getValue();
-    final DatasetService datasetService = getDatasetService(pipelineOptions);
+    final WriteStreamService datasetService = getWriteStreamService(pipelineOptions);
     // Flush the stream. If the flush offset < 0, that means we only need to finalize.
     long offset = operation.flushOffset;
     if (offset >= 0) {

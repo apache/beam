@@ -16,6 +16,8 @@
 #
 
 """This module defines the basic MapToFields operation."""
+import functools
+import inspect
 import itertools
 from collections import abc
 from typing import Any
@@ -23,6 +25,7 @@ from typing import Callable
 from typing import Collection
 from typing import Dict
 from typing import Mapping
+from typing import NamedTuple
 from typing import Optional
 from typing import Union
 
@@ -267,6 +270,11 @@ def _as_callable(original_fields, expr, transform_name, language):
     return func
 
 
+class ErrorHandlingConfig(NamedTuple):
+  output: str
+  # TODO: Other parameters are valid here too, but not common to Java.
+
+
 def exception_handling_args(error_handling_spec):
   if error_handling_spec:
     return {
@@ -294,11 +302,25 @@ def maybe_with_exception_handling(inner_expand):
 
 
 def maybe_with_exception_handling_transform_fn(transform_fn):
+  @functools.wraps(transform_fn)
   def expand(pcoll, error_handling=None, **kwargs):
     wrapped_pcoll = beam.core._MaybePValueWithErrors(
         pcoll, exception_handling_args(error_handling))
     return transform_fn(wrapped_pcoll,
                         **kwargs).as_result(_map_errors_to_standard_format())
+
+  original_signature = inspect.signature(transform_fn)
+  new_parameters = list(original_signature.parameters.values())
+  error_handling_param = inspect.Parameter(
+      'error_handling',
+      inspect.Parameter.KEYWORD_ONLY,
+      default=None,
+      annotation=ErrorHandlingConfig)
+  if new_parameters[-1].kind == inspect.Parameter.VAR_KEYWORD:
+    new_parameters.insert(-1, error_handling_param)
+  else:
+    new_parameters.append(error_handling_param)
+  expand.__signature__ = original_signature.replace(parameters=new_parameters)
 
   return expand
 
