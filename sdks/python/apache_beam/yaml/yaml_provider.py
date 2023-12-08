@@ -637,6 +637,7 @@ def create_builtin_provider():
 
   class WindowInto(beam.PTransform):
     # pylint: disable=line-too-long
+
     """A window transform assigning windows to each element of a PCollection.
 
     The assigned windows will affect all downstream aggregating operations,
