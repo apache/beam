@@ -84,8 +84,10 @@ _parameterized_inputs = [
 class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp(prefix='sentence_transformers_')
+    # this bucket has TTL and will be deleted periodically
     self.gcs_artifact_location = os.path.join(
-        'gs://apache-beam-ml/testing/sentence_transformers', uuid.uuid4().hex)
+        'gs://temp-storage-for-perf-tests/sentence_transformers',
+        uuid.uuid4().hex)
 
   def tearDown(self) -> None:
     shutil.rmtree(self.artifact_location)

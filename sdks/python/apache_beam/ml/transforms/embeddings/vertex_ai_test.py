@@ -48,7 +48,7 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp(prefix='_vertex_ai_test')
     self.gcs_artifact_location = os.path.join(
-        'gs://apache-beam-ml/testing/vertex_ai', uuid.uuid4().hex)
+        'gs://temp-storage-for-perf-tests/vertex_ai', uuid.uuid4().hex)
 
   def tearDown(self) -> None:
     shutil.rmtree(self.artifact_location)
