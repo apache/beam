@@ -14,11 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import shutil
 import tempfile
 import unittest
-import uuid
 
 import numpy as np
 from parameterized import parameterized
@@ -57,12 +55,24 @@ _parameterized_inputs = [
     ([{
         test_query_column: test_query,
     }], DEFAULT_MODEL_NAME, [0.13]),
-    ([{
-        test_query_column: 'This is an example sentence',
-    }, {
-        test_query_column: ("Each sentence is converted")
-    }],
-     'sentence-transformers/all-MiniLM-L6-v2', [0.15, 0.14]),
+    (
+        [{
+            test_query_column: 'query: how much protein should a female eat',
+        },
+         {
+             test_query_column: (
+                 "passage: As a general guideline, the CDC's "
+                 "average requirement of protein for women "
+                 "ages 19 to 70 is 46 grams per day. But, "
+                 "as you can see from this chart, you'll need "
+                 "to increase that if you're expecting or training"
+                 " for a marathon. Check out the chart below "
+                 "to see how much protein "
+                 "you should be eating each day.")
+         }],
+        'intfloat/e5-base-v2',
+        # this model requires inputs to be specified as query: and passage:
+        [0.1, 0.1]),
 ]
 
 
@@ -78,7 +88,6 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
 
   def test_sentence_transformer_embeddings(self):
     model_name = DEFAULT_MODEL_NAME
-    artifact_location = os.path.join(self.artifact_location, uuid.uuid4().hex)
     embedding_config = SentenceTransformerEmbeddings(
         model_name=model_name, columns=[test_query_column])
     with beam.Pipeline() as pipeline:
@@ -87,9 +96,9 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
           | "CreateData" >> beam.Create([{
               test_query_column: test_query
           }])
-          | "MLTransform" >>
-          MLTransform(write_artifact_location=artifact_location).with_transform(
-              embedding_config))
+          | "MLTransform" >> MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  embedding_config))
 
       def assert_element(element):
         assert len(element[test_query_column]) == 768
@@ -98,7 +107,6 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
 
   @unittest.skipIf(tft is None, 'Tensorflow Transform is not installed.')
   def test_embeddings_with_scale_to_0_1(self):
-    artifact_location = os.path.join(self.artifact_location, uuid.uuid4().hex)
     model_name = DEFAULT_MODEL_NAME
     embedding_config = SentenceTransformerEmbeddings(
         model_name=model_name,
@@ -110,10 +118,10 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
           | "CreateData" >> beam.Create([{
               test_query_column: test_query
           }])
-          | "MLTransform" >>
-          MLTransform(write_artifact_location=artifact_location).with_transform(
-              embedding_config).with_transform(
-                  ScaleTo01(columns=[test_query_column])))
+          | "MLTransform" >> MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  embedding_config).with_transform(
+                      ScaleTo01(columns=[test_query_column])))
 
       def assert_element(element):
         assert max(element.feature_1) == 1
@@ -126,14 +134,13 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
     embedding_config = SentenceTransformerEmbeddings(
         model_name=model_name, columns=[test_query_column])
 
-    artifact_location = os.path.join(self.artifact_location, uuid.uuid4().hex)
     with beam.Pipeline() as p:
       result_pcoll = (
           p
           | "CreateData" >> beam.Create(inputs)
-          | "MLTransform" >>
-          MLTransform(write_artifact_location=artifact_location).with_transform(
-              embedding_config))
+          | "MLTransform" >> MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  embedding_config))
       max_ele_pcoll = (
           result_pcoll
           | beam.Map(lambda x: round(max(x[test_query_column]), 2)))
@@ -145,7 +152,7 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
           p
           | "CreateData" >> beam.Create(inputs)
           | "MLTransform" >>
-          MLTransform(read_artifact_location=artifact_location))
+          MLTransform(read_artifact_location=self.artifact_location))
       max_ele_pcoll = (
           result_pcoll
           | beam.Map(lambda x: round(max(x[test_query_column]), 2)))
@@ -154,7 +161,6 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
 
   def test_sentence_transformer_with_int_data_types(self):
     model_name = DEFAULT_MODEL_NAME
-    artifact_location = os.path.join(self.artifact_location, uuid.uuid4().hex)
     embedding_config = SentenceTransformerEmbeddings(
         model_name=model_name, columns=[test_query_column])
     with self.assertRaises(TypeError):
@@ -165,13 +171,12 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
                 test_query_column: 1
             }])
             | "MLTransform" >> MLTransform(
-                write_artifact_location=artifact_location).with_transform(
+                write_artifact_location=self.artifact_location).with_transform(
                     embedding_config))
 
   @parameterized.expand(_parameterized_inputs)
   def test_with_gcs_artifact_location(self, inputs, model_name, output):
-    artifact_location = os.path.join(
-        'gs://apache-beam-ml/testing/sentence_transformers', uuid.uuid4().hex)
+    artifact_location = ('gs://apache-beam-ml/testing/sentence_transformers')
     embedding_config = SentenceTransformerEmbeddings(
         model_name=model_name, columns=[test_query_column])
 
@@ -202,7 +207,7 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
 
   def test_embeddings_with_inference_args(self):
     model_name = DEFAULT_MODEL_NAME
-    artifact_location = os.path.join(self.artifact_location, uuid.uuid4().hex)
+
     inference_args = {'convert_to_numpy': False}
     embedding_config = SentenceTransformerEmbeddings(
         model_name=model_name,
@@ -214,9 +219,9 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
           | "CreateData" >> beam.Create([{
               test_query_column: test_query
           }])
-          | "MLTransform" >>
-          MLTransform(write_artifact_location=artifact_location).with_transform(
-              embedding_config))
+          | "MLTransform" >> MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  embedding_config))
 
       def assert_element(element):
         assert type(element) == torch.Tensor
@@ -228,7 +233,6 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
 
   def test_mltransform_to_ptransform_with_vertex(self):
     model_name = ''
-    artifact_location = os.path.join(self.artifact_location, uuid.uuid4().hex)
     transforms = [
         SentenceTransformerEmbeddings(columns=['x'], model_name=model_name),
         SentenceTransformerEmbeddings(
@@ -236,7 +240,7 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
     ]
     ptransform_mapper = base._MLTransformToPTransformMapper(
         transforms=transforms,
-        artifact_location=artifact_location,
+        artifact_location=self.artifact_location,
         artifact_mode=None)
 
     ptransform_list = ptransform_mapper.create_and_save_ptransform_list()
