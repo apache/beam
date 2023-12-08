@@ -37,7 +37,7 @@ public class VarIntBenchmark {
 
   /** Output to {@link Blackhole}. Do nothing, assume nothing. */
   @State(Scope.Benchmark)
-  public static class BlackHoleOutput {
+  public static class BlackholeOutput {
     OutputStream stream;
 
     @Setup
@@ -198,7 +198,7 @@ public class VarIntBenchmark {
   }
 
   @Benchmark
-  public void encodeDoLoopBlackhole(Longs input, BlackHoleOutput output) throws IOException {
+  public void encodeDoLoopBlackhole(Longs input, BlackholeOutput output) throws IOException {
     for (long l : input.values) {
       encodeDoLoop(l, output.stream);
     }
@@ -212,7 +212,7 @@ public class VarIntBenchmark {
   }
 
   @Benchmark
-  public void encodeDoLoopTwiddleBlackhole(Longs input, BlackHoleOutput output) throws IOException {
+  public void encodeDoLoopTwiddleBlackhole(Longs input, BlackholeOutput output) throws IOException {
     for (long l : input.values) {
       encodeDoLoopTwiddle(l, output.stream);
     }
@@ -227,7 +227,7 @@ public class VarIntBenchmark {
   }
 
   @Benchmark
-  public void encodeLoopBlackhole(Longs input, BlackHoleOutput output) throws IOException {
+  public void encodeLoopBlackhole(Longs input, BlackholeOutput output) throws IOException {
     for (long l : input.values) {
       encodeLoop(l, output.stream);
     }
@@ -241,7 +241,7 @@ public class VarIntBenchmark {
   }
 
   @Benchmark
-  public void encodeUnrolledBlackhole(Longs input, BlackHoleOutput output) throws IOException {
+  public void encodeUnrolledBlackhole(Longs input, BlackholeOutput output) throws IOException {
     for (long l : input.values) {
       encodeUnrolled(l, output.stream);
     }
