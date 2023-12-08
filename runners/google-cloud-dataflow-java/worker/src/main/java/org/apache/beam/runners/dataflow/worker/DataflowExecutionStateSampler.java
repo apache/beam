@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.util.HashMap;
 import java.util.IntSummaryStatistics;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -125,7 +126,7 @@ public final class DataflowExecutionStateSampler extends ExecutionStateSampler {
     }
     DataflowExecutionStateTracker tracker = activeTrackersByWorkId.get(workId);
     return mergeStepStatsMaps(
-        completedProcessingMetrics.getOrDefault(workId, new ConcurrentHashMap<>()),
+        completedProcessingMetrics.getOrDefault(workId, new HashMap<>()),
         tracker.getProcessingTimesByStep());
   }
 
