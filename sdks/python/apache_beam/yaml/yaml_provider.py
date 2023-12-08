@@ -622,7 +622,7 @@ def create_builtin_provider():
     """
     def __init__(self):
       # Suppress the "label" argument from the superclass for better docs.
-      super(self).__init__()
+      super().__init__()
 
     def expand(self, pcolls):
       if isinstance(pcolls, beam.PCollection):
