@@ -66,6 +66,7 @@
 * TextIO now supports skipping multiple header lines (Java) ([#17990](https://github.com/apache/beam/issues/17990)).
 * Python GCSIO is now implemented with GCP GCS Client instead of apitools ([#25676](https://github.com/apache/beam/issues/25676))
 * Adding support for LowCardinality DataType in ClickHouse (Java) ([#29533](https://github.com/apache/beam/pull/29533)).
+* Added support for handling bad records to KafkaIO (Java) ([#29546](https://github.com/apache/beam/pull/29546))
 
 ## New Features / Improvements
 
@@ -74,6 +75,7 @@
 * Running multi-language pipelines locally no longer requires Docker.
   Instead, the same (generally auto-started) subprocess used to perform the
   expansion can also be used as the cross-language worker.
+* Framework for adding Error Handlers to composite transforms added in Java ([#29164](https://github.com/apache/beam/pull/29164))
 
 ## Breaking Changes
 

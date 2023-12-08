@@ -116,7 +116,7 @@ jobs:
             '-PloadTest.args=${{ env.beam_LoadTests_Java_CoGBK_Dataflow_Streaming_test_arguments_4 }}' \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
-        if: failure()
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

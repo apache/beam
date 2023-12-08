@@ -428,14 +428,14 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
     }
 
     @Override
-    public DatasetService getDatasetService(BigQueryOptions options) {
-      return new CrashingDatasetService(options);
+    public WriteStreamService getWriteStreamService(BigQueryOptions options) {
+      return new CrashingWriteStreamService(options);
     }
 
-    private class CrashingDatasetService extends BigQueryServicesImpl.DatasetServiceImpl {
+    private class CrashingWriteStreamService extends BigQueryServicesImpl.WriteStreamServiceImpl {
       private Instant lastCrash;
 
-      public CrashingDatasetService(BigQueryOptions bqOptions) {
+      public CrashingWriteStreamService(BigQueryOptions bqOptions) {
         super(bqOptions);
       }
 

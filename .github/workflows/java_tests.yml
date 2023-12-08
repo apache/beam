@@ -145,7 +145,7 @@ jobs:
           gradle-command: integrationTest
           arguments: -p examples/ --tests org.apache.beam.examples.WordCountIT
             -DintegrationTestRunner=direct
-            -DintegrationTestPipelineOptions=["--runner=DirectRunner","--tempRoot=./tmp"]
+            -DintegrationTestPipelineOptions=[\"--runner=DirectRunner\",\"--tempRoot=./tmp\"]
       - name: Upload test logs
         uses: actions/upload-artifact@v3
         if: always()
@@ -190,7 +190,7 @@ jobs:
         with:
           gradle-command: integrationTest
           arguments: -p examples/ --tests org.apache.beam.examples.WordCountIT
-            -DintegrationTestPipelineOptions=["--runner=DataflowRunner","--project=${{ secrets.GCP_PROJECT_ID }}","--tempRoot=gs://${{ secrets.GCP_TESTING_BUCKET }}/tmp/"]
+            -DintegrationTestPipelineOptions=[\"--runner=DataflowRunner\",\"--project=${{ secrets.GCP_PROJECT_ID }}\",\"--tempRoot=gs://${{ secrets.GCP_TESTING_BUCKET }}/tmp/\"]
             -DintegrationTestRunner=dataflow
       - name: Upload test logs
         uses: actions/upload-artifact@v3

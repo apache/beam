@@ -50,6 +50,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
@@ -67,6 +68,7 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -584,7 +586,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         request.getTransform().getSpec().getUrn());
     LOG.debug("Full transform: {}", request.getTransform());
     Set<String> existingTransformIds = request.getComponents().getTransformsMap().keySet();
-    Pipeline pipeline = createPipeline();
+    Pipeline pipeline =
+        createPipeline(PipelineOptionsTranslation.fromProto(request.getPipelineOptions()));
     boolean isUseDeprecatedRead =
         ExperimentalOptions.hasExperiment(pipelineOptions, "use_deprecated_read")
             || ExperimentalOptions.hasExperiment(
@@ -707,7 +710,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         .build();
   }
 
-  protected Pipeline createPipeline() {
+  protected Pipeline createPipeline(PipelineOptions requestOptions) {
     // TODO: [https://github.com/apache/beam/issues/21064]: implement proper validation
     PipelineOptions effectiveOpts = PipelineOptionsFactory.create();
     PortablePipelineOptions portableOptions = effectiveOpts.as(PortablePipelineOptions.class);
@@ -728,6 +731,14 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         .as(ExpansionServiceOptions.class)
         .setExpansionServiceConfig(
             pipelineOptions.as(ExpansionServiceOptions.class).getExpansionServiceConfig());
+    // TODO(https://github.com/apache/beam/issues/20090): Figure out the correct subset of options
+    // to propagate.
+    if (requestOptions.as(StreamingOptions.class).getUpdateCompatibilityVersion() != null) {
+      effectiveOpts
+          .as(StreamingOptions.class)
+          .setUpdateCompatibilityVersion(
+              requestOptions.as(StreamingOptions.class).getUpdateCompatibilityVersion());
+    }
     return Pipeline.create(effectiveOpts);
   }
 
