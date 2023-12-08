@@ -19,6 +19,7 @@ import tempfile
 import unittest
 
 import numpy as np
+import pytest
 from parameterized import parameterized
 
 import apache_beam as beam
@@ -79,6 +80,7 @@ _parameterized_inputs = [
 @unittest.skipIf(
     SentenceTransformerEmbeddings is None,
     'sentence-transformers is not installed.')
+@pytest.mark.no_xdist
 class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
