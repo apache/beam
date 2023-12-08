@@ -434,13 +434,14 @@ class StateBackedSideInputMap(object):
         key_coder = self._element_coder.key_coder()
         key_coder_impl = key_coder.get_impl()
         value_coder = self._element_coder.value_coder()
+        use_bulk_read = self._use_bulk_read
 
         class MultiMap(object):
           _bulk_read = None
           _lock = threading.Lock()
 
           def __getitem__(self, key):
-            if self._use_bulk_read:
+            if use_bulk_read:
               if self._bulk_read is None:
                 with self._lock:
                   if self._bulk_read is None:
