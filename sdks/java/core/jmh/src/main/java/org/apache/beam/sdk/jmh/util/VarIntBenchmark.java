@@ -148,7 +148,7 @@ public class VarIntBenchmark {
 
   // Use a mask check to do less work for 1 byte output.
   static void encodeLoop(long v, OutputStream stream) throws IOException {
-    while ((v & ~0x7F) != 0) {
+    while ((v & ~0x7FL) != 0) {
       stream.write((byte) (v | 0x80));
       v >>>= 7;
     }
