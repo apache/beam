@@ -118,9 +118,10 @@ class VertexAITextEmbeddings(EmbeddingsManager):
     Args:
       model_name: The name of the Vertex AI Text Embedding model.
       columns: The columns containing the text to be embedded.
-      task_type: The downstream task for the embeddings.
-        Valid values are RETRIEVAL_QUERY, RETRIEVAL_DOCUMENT,
-        SEMANTIC_SIMILARITY, CLASSIFICATION, CLUSTERING.
+      task_type: The downstream task for the embeddings. Valid values are
+        RETRIEVAL_QUERY, RETRIEVAL_DOCUMENT, SEMANTIC_SIMILARITY,
+        CLASSIFICATION, CLUSTERING. For more information on the task type,
+        look at https://cloud.google.com/vertex-ai/docs/generative-ai/embeddings/get-text-embeddings # pylint: disable=line-too-long
       title: Identifier of the text content.
       project: The default GCP project for API calls.
       location: The default location for API calls.

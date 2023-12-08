@@ -14,12 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import shutil
 import tempfile
 import unittest
+import uuid
 
 import numpy as np
-import pytest
 from parameterized import parameterized
 
 import apache_beam as beam
@@ -80,10 +81,11 @@ _parameterized_inputs = [
 @unittest.skipIf(
     SentenceTransformerEmbeddings is None,
     'sentence-transformers is not installed.')
-@pytest.mark.no_xdist
 class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
   def setUp(self) -> None:
-    self.artifact_location = tempfile.mkdtemp()
+    self.artifact_location = tempfile.mkdtemp(prefix='sentence_transformers_')
+    self.gcs_artifact_location = os.path.join(
+        'gs://apache-beam-ml/testing/sentence_transformers', uuid.uuid4().hex)
 
   def tearDown(self) -> None:
     shutil.rmtree(self.artifact_location)
@@ -178,7 +180,6 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
 
   @parameterized.expand(_parameterized_inputs)
   def test_with_gcs_artifact_location(self, inputs, model_name, output):
-    artifact_location = ('gs://apache-beam-ml/testing/sentence_transformers')
     embedding_config = SentenceTransformerEmbeddings(
         model_name=model_name, columns=[test_query_column])
 
@@ -187,8 +188,8 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
           p
           | "CreateData" >> beam.Create(inputs)
           | "MLTransform" >>
-          MLTransform(write_artifact_location=artifact_location).with_transform(
-              embedding_config))
+          MLTransform(write_artifact_location=self.gcs_artifact_location
+                      ).with_transform(embedding_config))
       max_ele_pcoll = (
           result_pcoll
           | beam.Map(lambda x: round(np.max(x[test_query_column]), 2)))
@@ -200,7 +201,7 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
           p
           | "CreateData" >> beam.Create(inputs)
           | "MLTransform" >>
-          MLTransform(read_artifact_location=artifact_location))
+          MLTransform(read_artifact_location=self.gcs_artifact_location))
       max_ele_pcoll = (
           result_pcoll
           | beam.Map(lambda x: round(np.max(x[test_query_column]), 2)))
@@ -233,7 +234,7 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
           | beam.Map(lambda x: x[test_query_column])
           | beam.Map(assert_element))
 
-  def test_mltransform_to_ptransform_with_vertex(self):
+  def test_mltransform_to_ptransform_with_sentence_transformer(self):
     model_name = ''
     transforms = [
         SentenceTransformerEmbeddings(columns=['x'], model_name=model_name),

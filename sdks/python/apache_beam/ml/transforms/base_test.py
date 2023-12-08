@@ -567,6 +567,19 @@ class TestJsonPickleTransformAttributeManager(unittest.TestCase):
       self.attribute_manager.save_attributes(
           ptransform_list=[], artifact_location=path)
 
+  def test_with_same_local_artifact_location(self):
+    artifact_location = self.artifact_location
+    attribute_manager = base._JsonPickleTransformAttributeManager()
+
+    ptransform_list = [RunInference(model_handler=FakeModelHandler())]
+
+    attribute_manager.save_attributes(
+        ptransform_list, artifact_location=artifact_location)
+
+    with self.assertRaises(FileExistsError):
+      attribute_manager.save_attributes([lambda x: x],
+                                        artifact_location=artifact_location)
+
 
 if __name__ == '__main__':
   unittest.main()

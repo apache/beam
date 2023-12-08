@@ -105,10 +105,6 @@ class TFTOperation(BaseOperation[common_types.TensorType,
           "artifact_location is not specified. Please specify the "
           "artifact_location for the op %s" % self.__class__.__name__)
 
-    transforms = kwargs.get('transforms')
-    if transforms:
-      params['transforms'] = transforms
-
     artifact_mode = kwargs.get('artifact_mode')
     if artifact_mode:
       params['artifact_mode'] = artifact_mode

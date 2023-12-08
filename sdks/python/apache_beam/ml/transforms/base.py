@@ -96,8 +96,8 @@ class ArtifactMode(object):
 class MLTransformProvider:
   """
   Data processing transforms that are intended to be used with MLTransform
-  should subclass MLTransformProvider and implement the following methods:
-  1. get_ptransform_for_processing()
+  should subclass MLTransformProvider and implement
+  get_ptransform_for_processing().
 
   get_ptransform_for_processing() method should return a PTransform that can be
   used to process the data.
@@ -184,7 +184,7 @@ class EmbeddingsManager(MLTransformProvider):
     if kwargs:
       _LOGGER.warning("Ignoring the following arguments: %s", kwargs.keys())
 
-  # TODO: Add set_model_handler method.
+  # TODO:https://github.com/apache/beam/pull/29564 add set_model_handler method
   @abc.abstractmethod
   def get_model_handler(self) -> ModelHandler:
     """
@@ -398,6 +398,17 @@ class _JsonPickleTransformAttributeManager(_TransformAttributeManager):
       artifact_location,
       **kwargs,
   ):
+    # if an artifact location is present, instead of overwriting the
+    # existing file, raise an error since the same artifact location
+    # can be used by multiple beam jobs and this could result in undesired
+    # behavior.
+    if FileSystems.exists(FileSystems.join(artifact_location,
+                                           _ATTRIBUTE_FILE_NAME)):
+      raise FileExistsError(
+          "The artifact location %s already exists and contains %s. Please "
+          "specify a different location." %
+          (artifact_location, _ATTRIBUTE_FILE_NAME))
+
     if _JsonPickleTransformAttributeManager._is_remote_path(artifact_location):
       temp_dir = tempfile.mkdtemp()
       temp_json_file = os.path.join(temp_dir, _ATTRIBUTE_FILE_NAME)
