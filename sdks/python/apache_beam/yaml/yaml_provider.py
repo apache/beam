@@ -46,7 +46,6 @@ import apache_beam.io
 import apache_beam.transforms.util
 from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms import external
-from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 from apache_beam.typehints import native_type_compatibility
@@ -637,6 +636,7 @@ def create_builtin_provider():
       return pcolls | beam.Flatten(**pipeline_arg)
 
   class WindowInto(beam.PTransform):
+    # pylint: disable=line-too-long
     """A window transform assigning windows to each element of a PCollection.
 
     The assigned windows will affect all downstream aggregating operations,
