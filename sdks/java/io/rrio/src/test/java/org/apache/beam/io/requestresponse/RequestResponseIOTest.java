@@ -25,7 +25,6 @@ import static org.apache.beam.io.requestresponse.RequestResponseIO.THROTTLE_NAME
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.notNullValue;
 
 import com.google.auto.value.AutoValue;
 import java.net.URI;
@@ -48,7 +47,6 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Duration;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -57,15 +55,19 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link RequestResponseIO}. */
 @RunWith(JUnit4.class)
 public class RequestResponseIOTest {
-  @Rule public final transient TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule
+  public final transient TestPipeline pipeline =
+      TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   private static final TypeDescriptor<Request> REQUEST_TYPE = TypeDescriptor.of(Request.class);
   private static final TypeDescriptor<Response> RESPONSE_TYPE = TypeDescriptor.of(Response.class);
   private static final SchemaProvider SCHEMA_PROVIDER = new AutoValueSchema();
-  private static final String PACKAGE = RequestResponseIO.class.getName().replace(RequestResponseIO.class.getSimpleName(), "");
+  private static final String PACKAGE =
+      RequestResponseIO.class.getName().replace(RequestResponseIO.class.getSimpleName(), "");
 
   private static final String NOOP_SETUP_TEARDOWN = PACKAGE + "Call$NoopSetupTeardown";
-  private static final String WRAPPED_CALLER = PACKAGE + "RequestResponseIO$WrappedAssociatingRequestResponseCaller";
+  private static final String WRAPPED_CALLER =
+      PACKAGE + "RequestResponseIO$WrappedAssociatingRequestResponseCaller";
   private static final String CACHE_READ_USING_REDIS = PACKAGE + "Cache$UsingRedis$Read";
   private static final String CACHE_WRITE_USING_REDIS = PACKAGE + "Cache$UsingRedis$Write";
 
@@ -88,9 +90,7 @@ public class RequestResponseIOTest {
   @Test
   public void givenMinimalConfiguration_transformExpandsWithCallerOnly() {
     ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
-    requests()
-        .apply(
-            RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER));
+    requests().apply(RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER));
     pipeline.traverseTopologically(visitor);
     visitor.assertCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
   }
@@ -102,8 +102,14 @@ public class RequestResponseIOTest {
     requests()
         .apply(
             RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER)
-                .withRedisCache(URI.create("redis://localhost:6379"), REQUEST_CODER, Duration.standardHours(1L))
-                .withPreventiveThrottleUsingRedis(URI.create("redis://localhost:6379"), REQUEST_CODER, new Quota(1L, Duration.standardSeconds(1L)), "quota", "queue"));
+                .withRedisCache(
+                    URI.create("redis://localhost:6379"), REQUEST_CODER, Duration.standardHours(1L))
+                .withPreventiveThrottleUsingRedis(
+                    URI.create("redis://localhost:6379"),
+                    REQUEST_CODER,
+                    new Quota(1L, Duration.standardSeconds(1L)),
+                    "quota",
+                    "queue"));
     pipeline.traverseTopologically(visitor);
     visitor.assertCallOf(CALL_NAME, WRAPPED_CALLER, NOOP_SETUP_TEARDOWN);
     visitor.assertThrottleOf(THROTTLE_USING_EXTERNAL);
@@ -113,16 +119,19 @@ public class RequestResponseIOTest {
 
   private static class ExpansionPipelineVisitor implements PipelineVisitor {
 
-    private final Map<String, TransformHierarchy.Node> visits
-        = new HashMap<>();
+    private final Map<String, TransformHierarchy.Node> visits = new HashMap<>();
 
-    private void assertCallOf(String stepName, String callerClassName, String setupTeardownClassName) {
+    private void assertCallOf(
+        String stepName, String callerClassName, String setupTeardownClassName) {
       stepName = ROOT_NAME + "/" + stepName;
       PTransform<?, ?> transform = getFromStep(stepName);
       assertThat(transform.getClass(), equalTo(Call.class));
       Call<?, ?> call = (Call<?, ?>) transform;
-      assertThat(call.getConfiguration().getCaller().getClass().getName(), equalTo(callerClassName));
-      assertThat(call.getConfiguration().getSetupTeardown().getClass().getName(), equalTo(setupTeardownClassName));
+      assertThat(
+          call.getConfiguration().getCaller().getClass().getName(), equalTo(callerClassName));
+      assertThat(
+          call.getConfiguration().getSetupTeardown().getClass().getName(),
+          equalTo(setupTeardownClassName));
     }
 
     private void assertThrottleOf(String className) {
@@ -143,9 +152,8 @@ public class RequestResponseIOTest {
     public void enterPipeline(Pipeline p) {}
 
     @Override
-    public CompositeBehavior enterCompositeTransform(
-        TransformHierarchy.Node node) {
-        visit(node);
+    public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+      visit(node);
       return CompositeBehavior.ENTER_TRANSFORM;
     }
 
@@ -154,16 +162,13 @@ public class RequestResponseIOTest {
     }
 
     @Override
-    public void leaveCompositeTransform(
-        TransformHierarchy.Node node) {}
+    public void leaveCompositeTransform(TransformHierarchy.Node node) {}
 
     @Override
-    public void visitPrimitiveTransform(
-        TransformHierarchy.Node node) {}
+    public void visitPrimitiveTransform(TransformHierarchy.Node node) {}
 
     @Override
-    public void visitValue(PValue value,
-        TransformHierarchy.Node producer) {}
+    public void visitValue(PValue value, TransformHierarchy.Node producer) {}
 
     @Override
     public void leavePipeline(Pipeline pipeline) {}
@@ -252,7 +257,6 @@ public class RequestResponseIOTest {
           .setALong(request.getALong())
           .build();
     }
-
   }
 
   @SuppressWarnings({"unused"})
@@ -264,11 +268,9 @@ public class RequestResponseIOTest {
     }
 
     @Override
-    public void setup() throws UserCodeExecutionException {
-    }
+    public void setup() throws UserCodeExecutionException {}
 
     @Override
-    public void teardown() throws UserCodeExecutionException {
-    }
+    public void teardown() throws UserCodeExecutionException {}
   }
 }

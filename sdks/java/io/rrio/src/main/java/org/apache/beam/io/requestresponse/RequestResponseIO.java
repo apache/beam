@@ -17,7 +17,6 @@
  */
 package org.apache.beam.io.requestresponse;
 
-import static org.apache.beam.sdk.transforms.display.DisplayData.item;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -40,15 +39,12 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Partition;
 import org.apache.beam.sdk.transforms.Partition.PartitionFn;
 import org.apache.beam.sdk.transforms.Values;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -309,8 +305,7 @@ public class RequestResponseIO<RequestT, ResponseT>
     // Flatten the responses and failures.
     PCollection<ResponseT> responses =
         responseList.apply("FlattenResponses", Flatten.pCollections());
-    PCollection<ApiIOError> failures =
-        failureList.apply("FlattenErrors", Flatten.pCollections());
+    PCollection<ApiIOError> failures = failureList.apply("FlattenErrors", Flatten.pCollections());
 
     // Prepare and return final result.
     PCollectionTuple pct = PCollectionTuple.of(responseTag, responses).and(failureTag, failures);
