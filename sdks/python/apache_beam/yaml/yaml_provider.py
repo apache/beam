@@ -621,6 +621,7 @@ def create_builtin_provider():
     """
     def __init__(self):
       # Suppress the "label" argument from the superclass for better docs.
+      # pylint: disable=useless-parent-delegation
       super().__init__()
 
     def expand(self, pcolls):
