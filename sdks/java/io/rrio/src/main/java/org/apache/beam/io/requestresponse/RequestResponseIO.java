@@ -17,6 +17,7 @@
  */
 package org.apache.beam.io.requestresponse;
 
+import static org.apache.beam.sdk.transforms.display.DisplayData.item;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -24,6 +25,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.util.List;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Triple;
 import org.apache.beam.sdk.coders.Coder;
@@ -38,13 +40,19 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Partition;
 import org.apache.beam.sdk.transforms.Partition.PartitionFn;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Duration;
 
 /**
@@ -79,6 +87,13 @@ import org.joda.time.Duration;
  */
 public class RequestResponseIO<RequestT, ResponseT>
     extends PTransform<PCollection<RequestT>, Result<ResponseT>> {
+
+  static final String ROOT_NAME = RequestResponseIO.class.getSimpleName();
+
+  static final String CALL_NAME = Call.class.getSimpleName();
+  static final String CACHE_READ_NAME = "CacheRead";
+  static final String CACHE_WRITE_NAME = "CacheWrite";
+  static final String THROTTLE_NAME = "Throttle";
 
   private final TupleTag<ResponseT> responseTag = new TupleTag<ResponseT>() {};
   private final TupleTag<ApiIOError> failureTag = new TupleTag<ApiIOError>() {};
@@ -293,9 +308,9 @@ public class RequestResponseIO<RequestT, ResponseT>
 
     // Flatten the responses and failures.
     PCollection<ResponseT> responses =
-        responseList.apply(name("flatten responses"), Flatten.pCollections());
+        responseList.apply("FlattenResponses", Flatten.pCollections());
     PCollection<ApiIOError> failures =
-        failureList.apply(name("flatten failures"), Flatten.pCollections());
+        failureList.apply("FlattenErrors", Flatten.pCollections());
 
     // Prepare and return final result.
     PCollectionTuple pct = PCollectionTuple.of(responseTag, responses).and(failureTag, failures);
@@ -324,25 +339,25 @@ public class RequestResponseIO<RequestT, ResponseT>
       return Triple.of(input, responseList, failureList);
     }
     Result<KV<RequestT, @Nullable ResponseT>> cacheReadResult =
-        input.apply(checkStateNotNull(configuration.getCacheRead()));
+        input.apply(CACHE_READ_NAME, checkStateNotNull(configuration.getCacheRead()));
 
     PCollectionList<KV<RequestT, ResponseT>> cacheReadList =
         cacheReadResult
             .getResponses()
             .apply(
-                name("partition cache reads"),
+                "PartitionCacheReads",
                 Partition.of(PartitionCacheReadsFn.NUM_PARTITIONS, new PartitionCacheReadsFn<>()));
 
     input =
         cacheReadList
             .get(PartitionCacheReadsFn.NULL_PARTITION)
-            .apply(name("uncached requests"), Keys.create());
+            .apply("UncachedRequests", Keys.create());
 
     responseList =
         responseList.and(
             cacheReadList
                 .get(PartitionCacheReadsFn.NON_NULL_PARTITION)
-                .apply("cached responses", Values.create()));
+                .apply("CachedResponses", Values.create()));
 
     failureList = failureList.and(cacheReadResult.getFailures());
 
@@ -367,7 +382,7 @@ public class RequestResponseIO<RequestT, ResponseT>
     }
 
     Result<RequestT> throttleResult =
-        input.apply(name("throttle"), checkStateNotNull(configuration.getThrottle()));
+        input.apply(THROTTLE_NAME, checkStateNotNull(configuration.getThrottle()));
 
     return Pair.of(throttleResult.getResponses(), failureList.and(throttleResult.getFailures()));
   }
@@ -399,7 +414,7 @@ public class RequestResponseIO<RequestT, ResponseT>
       if (configuration.getSetupTeardown() != null) {
         call = call.withSetupTeardown(checkStateNotNull(configuration.getSetupTeardown()));
       }
-      Result<ResponseT> result = input.apply(name("call"), call);
+      Result<ResponseT> result = input.apply(CALL_NAME, call);
       return Pair.of(
           responseList.and(result.getResponses()), failureList.and(result.getFailures()));
     }
@@ -415,9 +430,9 @@ public class RequestResponseIO<RequestT, ResponseT>
     }
 
     // Extract ResponseT from KV; append failures.
-    Result<KV<RequestT, ResponseT>> result = input.apply(name("call"), call);
+    Result<KV<RequestT, ResponseT>> result = input.apply(CALL_NAME, call);
     PCollection<ResponseT> responses =
-        result.getResponses().apply(name("responses"), Values.create());
+        result.getResponses().apply(CALL_NAME + "Responses", Values.create());
     responseList = responseList.and(responses);
     failureList = failureList.and(result.getFailures());
 
@@ -425,7 +440,7 @@ public class RequestResponseIO<RequestT, ResponseT>
     Result<KV<RequestT, ResponseT>> cacheWriteResult =
         result
             .getResponses()
-            .apply("cache write", checkStateNotNull(configuration.getCacheWrite()));
+            .apply(CACHE_WRITE_NAME, checkStateNotNull(configuration.getCacheWrite()));
     failureList = failureList.and(cacheWriteResult.getFailures());
 
     return Pair.of(responseList, failureList);
@@ -447,7 +462,7 @@ public class RequestResponseIO<RequestT, ResponseT>
     }
   }
 
-  static class WrappedAssociatingRequestResponseCaller<RequestT, ResponseT>
+  private static class WrappedAssociatingRequestResponseCaller<RequestT, ResponseT>
       implements Caller<RequestT, KV<RequestT, ResponseT>> {
 
     private final Caller<RequestT, ResponseT> caller;
@@ -461,10 +476,6 @@ public class RequestResponseIO<RequestT, ResponseT>
       ResponseT response = caller.call(request);
       return KV.of(request, response);
     }
-  }
-
-  private static String name(String... parts) {
-    return RequestResponseIO.class.getSimpleName() + String.join(" ", parts);
   }
 
   /** Resolves checker error: incompatible argument for parameter ResponseT Coder. */
@@ -484,6 +495,17 @@ public class RequestResponseIO<RequestT, ResponseT>
     @Override
     public @Nullable ResponseT decode(InputStream inStream) throws CoderException, IOException {
       return basis.decode(inStream);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return basis.getCoderArguments();
+    }
+
+    @Override
+    public void verifyDeterministic()
+        throws @UnknownKeyFor @NonNull @Initialized NonDeterministicException {
+      basis.verifyDeterministic();
     }
   }
 }

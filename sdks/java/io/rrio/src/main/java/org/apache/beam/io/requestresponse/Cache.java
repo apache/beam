@@ -190,49 +190,50 @@ final class Cache {
         client.teardown();
       }
     }
-  }
 
-  private static class Write<RequestT, ResponseT>
-      implements Caller<KV<RequestT, ResponseT>, KV<RequestT, ResponseT>>, SetupTeardown {
-    private final Duration expiry;
-    private final Coder<RequestT> requestTCoder;
-    private final Coder<@Nullable ResponseT> responseTCoder;
-    private final RedisClient client;
+    private static class Write<RequestT, ResponseT>
+        implements Caller<KV<RequestT, ResponseT>, KV<RequestT, ResponseT>>, SetupTeardown {
+      private final Duration expiry;
+      private final Coder<RequestT> requestTCoder;
+      private final Coder<@Nullable ResponseT> responseTCoder;
+      private final RedisClient client;
 
-    private Write(
-        Duration expiry,
-        Coder<RequestT> requestTCoder,
-        Coder<@Nullable ResponseT> responseTCoder,
-        RedisClient client) {
-      this.expiry = expiry;
-      this.requestTCoder = requestTCoder;
-      this.responseTCoder = responseTCoder;
-      this.client = client;
-    }
-
-    @Override
-    public KV<RequestT, ResponseT> call(KV<RequestT, ResponseT> request)
-        throws UserCodeExecutionException {
-      ByteArrayOutputStream keyStream = new ByteArrayOutputStream();
-      ByteArrayOutputStream valueStream = new ByteArrayOutputStream();
-      try {
-        requestTCoder.encode(request.getKey(), keyStream);
-        responseTCoder.encode(request.getValue(), valueStream);
-      } catch (IOException e) {
-        throw new UserCodeExecutionException(e);
+      private Write(
+          Duration expiry,
+          Coder<RequestT> requestTCoder,
+          Coder<@Nullable ResponseT> responseTCoder,
+          RedisClient client) {
+        this.expiry = expiry;
+        this.requestTCoder = requestTCoder;
+        this.responseTCoder = responseTCoder;
+        this.client = client;
       }
-      client.setex(keyStream.toByteArray(), valueStream.toByteArray(), expiry);
-      return request;
-    }
 
-    @Override
-    public void setup() throws UserCodeExecutionException {
-      client.setup();
-    }
+      @Override
+      public KV<RequestT, ResponseT> call(KV<RequestT, ResponseT> request)
+          throws UserCodeExecutionException {
+        ByteArrayOutputStream keyStream = new ByteArrayOutputStream();
+        ByteArrayOutputStream valueStream = new ByteArrayOutputStream();
+        try {
+          requestTCoder.encode(request.getKey(), keyStream);
+          responseTCoder.encode(request.getValue(), valueStream);
+        } catch (IOException e) {
+          throw new UserCodeExecutionException(e);
+        }
+        client.setex(keyStream.toByteArray(), valueStream.toByteArray(), expiry);
+        return request;
+      }
 
-    @Override
-    public void teardown() throws UserCodeExecutionException {
-      client.teardown();
+      @Override
+      public void setup() throws UserCodeExecutionException {
+        client.setup();
+      }
+
+      @Override
+      public void teardown() throws UserCodeExecutionException {
+        client.teardown();
+      }
     }
   }
+
 }
