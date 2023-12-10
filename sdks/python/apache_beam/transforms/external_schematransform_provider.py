@@ -17,10 +17,10 @@
 
 import logging
 import re
+from collections import namedtuple
 from typing import Dict
 from typing import List
 from typing import Tuple
-from collections import namedtuple
 
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.external import BeamJarExpansionService
