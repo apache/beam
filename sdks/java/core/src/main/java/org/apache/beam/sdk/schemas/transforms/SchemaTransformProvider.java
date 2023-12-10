@@ -36,11 +36,6 @@ public interface SchemaTransformProvider {
   /** Returns an id that uniquely represents this transform. */
   String identifier();
 
-  /** Returns a description of this transform to be used for documentation. */
-  default String description() {
-    return "";
-  }
-
   /**
    * Returns a description regarding the {@link SchemaTransform} represented by the {@link
    * SchemaTransformProvider}. Please keep the language generic (i.e. not specific to any
