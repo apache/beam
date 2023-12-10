@@ -962,7 +962,9 @@ class YamlTransform(beam.PTransform):
     python_provider = yaml_provider.InlineProvider({})
 
     options = pipeline.options.view_as(GoogleCloudOptions)
-    options.labels = ["yaml=true"]
+    if not options.labels:
+      options.labels = []
+    options.labels += ["yaml=true"]
 
     result = expand_transform(
         self._spec,

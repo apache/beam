@@ -74,6 +74,11 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: 3.8
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: GCloud Docker credential helper
+        run: |
+          gcloud auth configure-docker us.gcr.io
       - name: run XVR GoUsingJava Dataflow script
         env:
           USER: github-actions
@@ -83,7 +88,7 @@ jobs:
           gradle-command: :runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerGoUsingJava
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
-        if: failure()
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

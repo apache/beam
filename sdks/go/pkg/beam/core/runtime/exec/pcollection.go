@@ -16,12 +16,14 @@
 package exec
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math"
 	"math/rand"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 )
@@ -32,19 +34,22 @@ import (
 // In particular, must not be placed after a Multiplex, and must be placed
 // after a Flatten.
 type PCollection struct {
-	UID    UnitID
-	PColID string
-	Out    Node // Out is the consumer of this PCollection.
-	Coder  *coder.Coder
-	Seed   int64
+	UID         UnitID
+	PColID      string
+	Out         Node // Out is the consumer of this PCollection.
+	Coder       *coder.Coder
+	WindowCoder *coder.WindowCoder
+	Seed        int64
 
 	r             *rand.Rand
 	nextSampleIdx int64 // The index of the next value to sample.
 	elementCoder  ElementEncoder
+	windowCoder   WindowEncoder
 
 	elementCount                         int64 // must use atomic operations.
 	sizeMu                               sync.Mutex
 	sizeCount, sizeSum, sizeMin, sizeMax int64
+	dataSampler                          *DataSampler
 }
 
 // ID returns the debug id for this unit.
@@ -57,6 +62,7 @@ func (p *PCollection) Up(ctx context.Context) error {
 	// dedicated rand source
 	p.r = rand.New(rand.NewSource(p.Seed))
 	p.elementCoder = MakeElementEncoder(p.Coder)
+	p.windowCoder = MakeWindowEncoder(p.WindowCoder)
 	return nil
 }
 
@@ -93,9 +99,19 @@ func (p *PCollection) ProcessElement(ctx context.Context, elm *FullValue, values
 		} else {
 			p.nextSampleIdx = cur + p.r.Int63n(cur/10+2) + 1
 		}
-		var w byteCounter
-		p.elementCoder.Encode(elm, &w)
-		p.addSize(int64(w.count))
+
+		if p.dataSampler == nil {
+			var w byteCounter
+			p.elementCoder.Encode(elm, &w)
+			p.addSize(int64(w.count))
+		} else {
+			var buf bytes.Buffer
+			EncodeWindowedValueHeader(p.windowCoder, elm.Windows, elm.Timestamp, elm.Pane, &buf)
+			winSize := buf.Len()
+			p.elementCoder.Encode(elm, &buf)
+			p.addSize(int64(buf.Len() - winSize))
+			p.dataSampler.SendSample(p.PColID, buf.Bytes(), time.Now())
+		}
 	}
 	return p.Out.ProcessElement(ctx, elm, values...)
 }

@@ -198,6 +198,11 @@ public class BigQueryServicesImpl implements BigQueryServices {
   }
 
   @Override
+  public WriteStreamService getWriteStreamService(BigQueryOptions options) {
+    return new WriteStreamServiceImpl(options);
+  }
+
+  @Override
   public StorageClient getStorageClient(BigQueryOptions options) throws IOException {
     return new StorageClientImpl(options);
   }
@@ -563,64 +568,43 @@ public class BigQueryServicesImpl implements BigQueryServices {
 
     private final ApiErrorExtractor errorExtractor;
     private final Bigquery client;
-    private final @Nullable BigQueryWriteClient newWriteClient;
     private final PipelineOptions options;
     private final long maxRowsPerBatch;
     private final long maxRowBatchSize;
-    private final long storageWriteMaxInflightRequests;
-    private final long storageWriteMaxInflightBytes;
     // aggregate the total time spent in exponential backoff
     private final Counter throttlingMsecs =
         Metrics.counter(DatasetServiceImpl.class, "throttling-msecs");
 
     private @Nullable BoundedExecutorService executor;
-    private final BigQueryIOMetadata bqIOMetadata;
 
     @VisibleForTesting
-    DatasetServiceImpl(
-        Bigquery client, @Nullable BigQueryWriteClient newWriteClient, PipelineOptions options) {
+    DatasetServiceImpl(Bigquery client, PipelineOptions options) {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       this.errorExtractor = new ApiErrorExtractor();
       this.client = client;
-      this.newWriteClient = newWriteClient;
       this.options = options;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
-      this.storageWriteMaxInflightRequests = bqOptions.getStorageWriteMaxInflightRequests();
-      this.storageWriteMaxInflightBytes = bqOptions.getStorageWriteMaxInflightBytes();
-      this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
 
     @VisibleForTesting
-    DatasetServiceImpl(
-        Bigquery client,
-        BigQueryWriteClient newWriteClient,
-        PipelineOptions options,
-        long maxRowsPerBatch) {
+    DatasetServiceImpl(Bigquery client, PipelineOptions options, long maxRowsPerBatch) {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       this.errorExtractor = new ApiErrorExtractor();
       this.client = client;
-      this.newWriteClient = newWriteClient;
       this.options = options;
       this.maxRowsPerBatch = maxRowsPerBatch;
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
-      this.storageWriteMaxInflightRequests = bqOptions.getStorageWriteMaxInflightRequests();
-      this.storageWriteMaxInflightBytes = bqOptions.getStorageWriteMaxInflightBytes();
-      this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
 
     public DatasetServiceImpl(BigQueryOptions bqOptions) {
       this.errorExtractor = new ApiErrorExtractor();
       this.client = newBigQueryClient(bqOptions).build();
-      this.newWriteClient = newBigQueryWriteClient(bqOptions);
       this.options = bqOptions;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
-      this.storageWriteMaxInflightRequests = bqOptions.getStorageWriteMaxInflightRequests();
-      this.storageWriteMaxInflightBytes = bqOptions.getStorageWriteMaxInflightBytes();
-      this.bqIOMetadata = BigQueryIOMetadata.create();
       this.executor = null;
     }
 
@@ -1342,6 +1326,38 @@ public class BigQueryServicesImpl implements BigQueryServices {
           Sleeper.DEFAULT,
           createDefaultBackoff(),
           ALWAYS_RETRY);
+    }
+
+    @Override
+    public void close() throws Exception {
+      // Nothing to close
+    }
+  }
+
+  @VisibleForTesting
+  public static class WriteStreamServiceImpl implements WriteStreamService {
+    private final BigQueryWriteClient newWriteClient;
+    private final long storageWriteMaxInflightRequests;
+    private final long storageWriteMaxInflightBytes;
+    private final BigQueryIOMetadata bqIOMetadata;
+    private final PipelineOptions options;
+
+    @VisibleForTesting
+    WriteStreamServiceImpl(BigQueryWriteClient newWriteClient, PipelineOptions options) {
+      BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+      this.newWriteClient = newWriteClient;
+      this.options = options;
+      this.storageWriteMaxInflightRequests = bqOptions.getStorageWriteMaxInflightRequests();
+      this.storageWriteMaxInflightBytes = bqOptions.getStorageWriteMaxInflightBytes();
+      this.bqIOMetadata = BigQueryIOMetadata.create();
+    }
+
+    public WriteStreamServiceImpl(BigQueryOptions bqOptions) {
+      this.newWriteClient = newBigQueryWriteClient(bqOptions);
+      this.options = bqOptions;
+      this.storageWriteMaxInflightRequests = bqOptions.getStorageWriteMaxInflightRequests();
+      this.storageWriteMaxInflightBytes = bqOptions.getStorageWriteMaxInflightBytes();
+      this.bqIOMetadata = BigQueryIOMetadata.create();
     }
 
     @Override

@@ -60,6 +60,9 @@ abstract class BigtableWriteOptions implements Serializable {
   /** Returns true if batch write flow control is enabled. Otherwise return false. */
   abstract @Nullable Boolean getFlowControl();
 
+  /** Returns the time to wait when closing the writer. */
+  abstract @Nullable Duration getCloseWaitTimeout();
+
   abstract Builder toBuilder();
 
   static Builder builder() {
@@ -86,6 +89,8 @@ abstract class BigtableWriteOptions implements Serializable {
     abstract Builder setThrottlingTargetMs(int targetMs);
 
     abstract Builder setFlowControl(boolean enableFlowControl);
+
+    abstract Builder setCloseWaitTimeout(Duration timeout);
 
     abstract BigtableWriteOptions build();
   }

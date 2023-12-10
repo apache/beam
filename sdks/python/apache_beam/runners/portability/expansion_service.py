@@ -19,9 +19,11 @@
 """
 # pytype: skip-file
 
+import copy
 import traceback
 
 from apache_beam import pipeline as beam_pipeline
+from apache_beam.options import pipeline_options
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_expansion_api_pb2
@@ -49,7 +51,18 @@ class ExpansionServiceServicer(
 
   def Expand(self, request, context=None):
     try:
-      pipeline = beam_pipeline.Pipeline(options=self._options)
+      options = copy.deepcopy(self._options)
+      request_options = pipeline_options.PipelineOptions.from_runner_api(
+          request.pipeline_options)
+      # TODO(https://github.com/apache/beam/issues/20090): Figure out the
+      # correct subset of options to apply to expansion.
+      if request_options.view_as(
+          pipeline_options.StreamingOptions).update_compatibility_version:
+        options.view_as(
+            pipeline_options.StreamingOptions
+        ).update_compatibility_version = request_options.view_as(
+            pipeline_options.StreamingOptions).update_compatibility_version
+      pipeline = beam_pipeline.Pipeline(options=options)
 
       def with_pipeline(component, pcoll_id=None):
         component.pipeline = pipeline

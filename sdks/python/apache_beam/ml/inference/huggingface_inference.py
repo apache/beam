@@ -224,6 +224,7 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
       inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
+      max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
       **kwargs):
     """
@@ -255,6 +256,8 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
         Defaults to None.
       min_batch_size: the minimum batch size to use when batching inputs.
       max_batch_size: the maximum batch size to use when batching inputs.
+      max_batch_duration_secs: the maximum amount of time to buffer a batch
+        before emitting; used in streaming contexts.
       large_model: set to true if your model is large enough to run into
         memory pressure if you load multiple copies. Given a model that
         consumes N memory and a machine with W cores and M memory, you should
@@ -277,6 +280,8 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
       self._batching_kwargs["min_batch_size"] = min_batch_size
     if max_batch_size is not None:
       self._batching_kwargs["max_batch_size"] = max_batch_size
+    if max_batch_duration_secs is not None:
+      self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
     self._large_model = large_model
     self._framework = framework
 
@@ -405,6 +410,7 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
       inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
+      max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
       **kwargs):
     """
@@ -436,6 +442,8 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
         Defaults to None.
       min_batch_size: the minimum batch size to use when batching inputs.
       max_batch_size: the maximum batch size to use when batching inputs.
+      max_batch_duration_secs: the maximum amount of time to buffer a batch
+        before emitting; used in streaming contexts.
       large_model: set to true if your model is large enough to run into
         memory pressure if you load multiple copies. Given a model that
         consumes N memory and a machine with W cores and M memory, you should
@@ -458,6 +466,8 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
       self._batching_kwargs["min_batch_size"] = min_batch_size
     if max_batch_size is not None:
       self._batching_kwargs["max_batch_size"] = max_batch_size
+    if max_batch_duration_secs is not None:
+      self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
     self._large_model = large_model
     self._framework = ""
 
@@ -579,6 +589,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
+      max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
       **kwargs):
     """
@@ -617,6 +628,8 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
         Defaults to None.
       min_batch_size: the minimum batch size to use when batching inputs.
       max_batch_size: the maximum batch size to use when batching inputs.
+      max_batch_duration_secs: the maximum amount of time to buffer a batch
+        before emitting; used in streaming contexts.
       large_model: set to true if your model is large enough to run into
         memory pressure if you load multiple copies. Given a model that
         consumes N memory and a machine with W cores and M memory, you should
@@ -639,6 +652,8 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       self._batching_kwargs['min_batch_size'] = min_batch_size
     if max_batch_size is not None:
       self._batching_kwargs['max_batch_size'] = max_batch_size
+    if max_batch_duration_secs is not None:
+      self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
     self._large_model = large_model
 
     # Check if the device is specified twice. If true then the device parameter
