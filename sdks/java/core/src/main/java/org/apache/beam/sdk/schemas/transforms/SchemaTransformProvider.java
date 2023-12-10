@@ -37,9 +37,9 @@ public interface SchemaTransformProvider {
   String identifier();
 
   /**
-   * Returns a description regarding the {@link SchemaTransform} represented by this {@link
+   * Returns a description regarding the {@link SchemaTransform} represented by the {@link
    * SchemaTransformProvider}. Please keep the language generic (i.e. not specific to any
-   * programming language). May be markdown formatted.
+   * programming language). The description may be markdown formatted.
    */
   default String description() {
     return "";
