@@ -104,7 +104,7 @@ class ExternalSchemaTransform(PTransform):
     return input | external_schematransform
 
 
-STANDARD_URN_PATTERN = "^beam:schematransform:org.apache.beam:([\w-]+):(\w+)$"
+STANDARD_URN_PATTERN = r"^beam:schematransform:org.apache.beam:([\w-]+):(\w+)$"
 
 
 class ExternalSchemaTransformProvider:
@@ -121,7 +121,8 @@ class ExternalSchemaTransformProvider:
 
   >>> ExternalSchemaTransformProvider("localhost:12345").get_available()
   [('JdbcWrite', 'beam:schematransform:org.apache.beam:jdbc_write:v1'),
-  ('BigtableRead', 'beam:schematransform:org.apache.beam:bigtable_read:v1'), ...]
+  ('BigtableRead', 'beam:schematransform:org.apache.beam:bigtable_read:v1'),
+  ...]
 
   Then retrieve a transform by :func:`get()`, :func:`get_urn()`, or by directly
   accessing it as an attribute of :class:`ExternalSchemaTransformProvider`:
@@ -202,7 +203,7 @@ class ExternalSchemaTransformProvider:
 
           components = [snake_case_to_upper_camel_case(n) for n in groups]
           # Special handling for standard SchemaTransforms:
-          # We don't want to include their version number if it's the first version
+          # We don't include the version number if it's the first version
           if self._urn_pattern == STANDARD_URN_PATTERN and components[1].lower(
           ) == 'v1':
             name = components[0]
