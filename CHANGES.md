@@ -67,7 +67,7 @@
 * Python GCSIO is now implemented with GCP GCS Client instead of apitools ([#25676](https://github.com/apache/beam/issues/25676))
 * Adding support for LowCardinality DataType in ClickHouse (Java) ([#29533](https://github.com/apache/beam/pull/29533)).
 * Added support for handling bad records to KafkaIO (Java) ([#29546](https://github.com/apache/beam/pull/29546))
-* Add support for generating text embeddings in MLTransform for Vertex AI and Huggingface hub models.([#29564](https://github.com/apache/beam/pull/29564))
+* Add support for generating text embeddings in MLTransform for Vertex AI and Hugging Face Hub models.([#29564](https://github.com/apache/beam/pull/29564))
 
 ## New Features / Improvements
 
