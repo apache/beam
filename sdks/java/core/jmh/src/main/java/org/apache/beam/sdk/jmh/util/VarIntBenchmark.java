@@ -33,7 +33,7 @@ import org.openjdk.jmh.infra.Blackhole;
 /** Benchmarks for {@link org.apache.beam.sdk.util.VarInt} and variants. */
 @OperationsPerInvocation(VarIntBenchmark.VALUES_PER_INVOCATION)
 public class VarIntBenchmark {
-  public static final int VALUES_PER_INVOCATION = 2048;
+  static final int VALUES_PER_INVOCATION = 2048;
   private static final Random RNG = new Random(314159);
 
   /** Output to {@link Blackhole}. Do nothing, assume nothing. */
