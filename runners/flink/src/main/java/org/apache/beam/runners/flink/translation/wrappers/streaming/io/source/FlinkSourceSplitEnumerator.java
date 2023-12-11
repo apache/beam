@@ -121,7 +121,6 @@ public class FlinkSourceSplitEnumerator<T>
     List<FlinkSourceSplit<T>> splitsForSubtask = pendingSplits.remove(subtaskId);
     if (splitsForSubtask != null) {
       assignSplitsAndLog(splitsForSubtask, subtaskId);
-      pendingSplits.remove(subtaskId);
     } else {
       if (splitsInitialized) {
         LOG.info("There is no split for subtask {}. Signaling no more splits.", subtaskId);
