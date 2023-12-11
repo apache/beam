@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 import com.google.auto.value.AutoValue;
+import java.util.Collections;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
@@ -36,6 +37,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribut
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown.ActiveElementMetadata;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown.Distribution;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -118,7 +120,7 @@ public class Work implements Runnable {
     }
   }
 
-  public Collection<Windmill.LatencyAttribution> getLatencyAttributions(
+  public ImmutableList<LatencyAttribution> getLatencyAttributions(
       boolean isHeartbeat, String workId, DataflowExecutionStateSampler sampler) {
     List<Windmill.LatencyAttribution> list = new ArrayList<>();
     for (Windmill.LatencyAttribution.State state : Windmill.LatencyAttribution.State.values()) {
@@ -137,7 +139,7 @@ public class Work implements Runnable {
           laBuilder.setState(state).setTotalDurationMillis(duration.getMillis()).build();
       list.add(la);
     }
-    return list;
+    return ImmutableList.copyOf(list);
   }
 
   private static LatencyAttribution.Builder addActiveLatencyBreakdownToBuilder(
