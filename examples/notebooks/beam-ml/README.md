@@ -30,8 +30,8 @@ see the [About Beam ML](https://beam.apache.org/documentation/ml/about-ml/) page
 ## Using The Notebooks
 
 These notebooks illustrate ways to use Apache Beam's RunInference transforms, as well as different
-use cases for [ModelHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.ModelHandler) implementations.
-Beam comes with [multiple ModelHandler implementations](https://beam.apache.org/documentation/ml/about-ml/#multi-model-pipelines).
+use cases for [`ModelHandler`](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.ModelHandler) implementations.
+Beam comes with [multiple `ModelHandler` implementations](https://beam.apache.org/documentation/ml/about-ml/#modify-a-python-pipeline-to-use-an-ml-model).
 
 ### Loading the Notebooks
 
