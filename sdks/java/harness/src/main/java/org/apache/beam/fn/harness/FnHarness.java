@@ -312,17 +312,6 @@ public class FnHarness {
               processWideCache,
               dataSampler);
 
-      BeamFnStatusClient beamFnStatusClient = null;
-      if (statusApiServiceDescriptor != null) {
-        beamFnStatusClient =
-            new BeamFnStatusClient(
-                statusApiServiceDescriptor,
-                channelFactory::forDescriptor,
-                processBundleHandler.getBundleProcessorCache(),
-                options,
-                processWideCache);
-      }
-
       // TODO(https://github.com/apache/beam/issues/20270): Remove once runners no longer send this
       // instruction.
       handlers.put(
@@ -369,6 +358,16 @@ public class FnHarness {
 
       LOG.info("Entering instruction processing loop");
 
+      BeamFnStatusClient beamFnStatusClient = null;
+      if (statusApiServiceDescriptor != null) {
+        beamFnStatusClient =
+            new BeamFnStatusClient(
+                statusApiServiceDescriptor,
+                channelFactory::forDescriptor,
+                processBundleHandler.getBundleProcessorCache(),
+                options,
+                processWideCache);
+      }
       // The control client immediately dispatches requests to an executor so we execute on the
       // direct executor. If we created separate channels for different stubs we could use
       // directExecutor() when building the channel.
