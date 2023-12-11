@@ -25,6 +25,7 @@ import sys
 from apache_beam.metrics import MetricsFilter
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.load_tests.load_test_metrics_utils import InfluxDBMetricsPublisherOptions
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
@@ -133,7 +134,8 @@ class LoadTest(object):
             os.getenv('INFLUXDB_USER'),
             os.getenv('INFLUXDB_USER_PASSWORD')),
         # Apply filter to prevent system metrics from being published
-        filters=MetricsFilter().with_namespace(self.metrics_namespace))
+        filters=MetricsFilter().with_namespace(self.metrics_namespace),
+        is_streaming_pipeline=options.view_as(StandardOptions).streaming)
 
   def test(self):
     """An abstract method where the pipeline definition should be put."""
