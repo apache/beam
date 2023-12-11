@@ -34,6 +34,8 @@ this module in your notebook or application code.
 
 # pytype: skip-file
 
+# mypy: ignore-errors
+
 import logging
 from datetime import timedelta
 from typing import Dict

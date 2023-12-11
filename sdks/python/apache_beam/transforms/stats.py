@@ -323,8 +323,8 @@ class ApproximateQuantiles(object):
     }
 
   @typehints.with_input_types(
-      typehints.Union[typing.Sequence[T], typing.Tuple[T, float]])
-  @typehints.with_output_types(typing.List[T])
+      typehints.Union[typing.Sequence[T], typing.Tuple[T, float]])  # type: ignore
+  @typehints.with_output_types(typing.List[T])  # type: ignore
   class Globally(PTransform):
     """
     PTransform takes PCollection and returns a list whose single value is
@@ -378,7 +378,7 @@ class ApproximateQuantiles(object):
   @typehints.with_input_types(
       typehints.Union[typing.Tuple[K, V],
                       typing.Tuple[K, typing.Tuple[V, float]]])
-  @typehints.with_output_types(typing.Tuple[K, typing.List[V]])
+  @typehints.with_output_types(typing.Tuple[K, typing.List[V]])  # type: ignore
   class PerKey(PTransform):
     """
     PTransform takes PCollection of KV and returns a list based on each key
@@ -921,7 +921,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
 
   # TODO(https://github.com/apache/beam/issues/19737): Signature incompatible
   # with supertype
-  def create_accumulator(self):  # type: ignore[override]
+  def create_accumulator(self):
     # type: () -> _QuantileState
     self._qs = _QuantileState(
         unbuffered_elements=[],

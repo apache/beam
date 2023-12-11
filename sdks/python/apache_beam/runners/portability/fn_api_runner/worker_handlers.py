@@ -1050,7 +1050,7 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
 
     if state_key.WhichOneof('type') not in self._SUPPORTED_STATE_TYPES:
       raise NotImplementedError(
-          'Unknown state type: ' + state_key.WhichOneof('type'))
+          'Unknown state type: ' + str(state_key.WhichOneof('type')))
 
     with self._lock:
       full_state = self._state[self._to_key(state_key)]

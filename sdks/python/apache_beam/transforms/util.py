@@ -776,7 +776,7 @@ class WithSharedKey(DoFn):
 
 
 @typehints.with_input_types(T)
-@typehints.with_output_types(List[T])
+@typehints.with_output_types(List[T])  # type: ignore
 class BatchElements(PTransform):
   """A Transform that batches elements for amortized processing.
 
@@ -1051,7 +1051,7 @@ def WithKeys(pcoll, k, *args, **kwargs):
 
 
 @typehints.with_input_types(Tuple[K, V])
-@typehints.with_output_types(Tuple[K, Iterable[V]])
+@typehints.with_output_types(Tuple[K, Iterable[V]])  # type: ignore
 class GroupIntoBatches(PTransform):
   """PTransform that batches the input into desired batch size. Elements are
   buffered until they are equal to batch size provided in the argument at which

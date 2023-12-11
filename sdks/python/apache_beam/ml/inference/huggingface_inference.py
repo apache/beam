@@ -293,7 +293,7 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
     model = self._model_class.from_pretrained(
         self._model_uri, **self._model_config_args)
     if self._framework == 'pt':
-      if self._device == "GPU" and is_gpu_available_torch:
+      if self._device == "GPU" and is_gpu_available_torch():
         model.to(torch.device("cuda"))
       if callable(getattr(model, 'requires_grad_', None)):
         model.requires_grad_(False)

@@ -1340,7 +1340,7 @@ class PartitionFn(WithTypeHints):
   def default_label(self):
     return self.__class__.__name__
 
-  def partition_for(self, element, num_partitions, *args, **kwargs):
+  def partition_for(self, element, num_partitions, *args, **kwargs):  # type: ignore
     # type: (T, int, *typing.Any, **typing.Any) -> int
 
     """Specify which partition will receive this element.
@@ -3066,7 +3066,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
 
 
 @typehints.with_input_types(typing.Tuple[K, V])
-@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])  # type: ignore
 class GroupByKey(PTransform):
   """A group by key transform.
 
@@ -3282,7 +3282,7 @@ def _dynamic_named_tuple(type_name, field_names):
         type_name, field_names)
     # typing: can't override a method. also, self type is unknown and can't
     # be cast to tuple
-    result.__reduce__ = lambda self: (  # type: ignore[assignment]
+    result.__reduce__ = lambda self: (  # type: ignore[method-assign]
         _unpickle_dynamic_named_tuple, (type_name, field_names, tuple(self)))  # type: ignore[arg-type]
   return result
 

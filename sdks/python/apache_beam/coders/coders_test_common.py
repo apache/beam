@@ -53,7 +53,7 @@ try:
 except ImportError:
   dataclasses = None  # type: ignore
 
-MyNamedTuple = collections.namedtuple('A', ['x', 'y'])
+MyNamedTuple = collections.namedtuple('A', ['x', 'y'])  # type: ignore
 MyTypedNamedTuple = NamedTuple('MyTypedNamedTuple', [('f1', int), ('f2', str)])
 
 
@@ -528,7 +528,7 @@ class CodersTest(unittest.TestCase):
         b'',
         # Milliseconds to microseconds
         1000 * 1000,
-        (IntervalWindow(11, 21), ),
+        IntervalWindow(start=11, end=21),
         PaneInfo(True, False, 1, 2, 3))
     windowed_value_coder = coders.WindowedValueCoder(
         coders.BytesCoder(), coders.IntervalWindowCoder())

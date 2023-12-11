@@ -838,7 +838,7 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
       if IntervalWindow is None:
         from apache_beam.transforms.window import IntervalWindow
     # instantiating with None is not part of the public interface
-    typed_value = IntervalWindow(None, None)  # type: ignore[arg-type]
+    typed_value = IntervalWindow(start=None, end=None)  # type: ignore[arg-type]
     typed_value._end_micros = (
         1000 * self._to_normal_time(in_.read_bigendian_uint64()))
     typed_value._start_micros = (
@@ -1922,7 +1922,7 @@ class DecimalCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, out, nested):
     # type: (decimal.Decimal, create_OutputStream, bool) -> None
-    scale = -value.as_tuple().exponent
+    scale = -value.as_tuple().exponent  # type: ignore
     int_value = int(value.scaleb(scale))
     out.write_var_int64(scale)
     self.BIG_INT_CODER_IMPL.encode_to_stream(int_value, out, nested)

@@ -123,7 +123,7 @@ class Metrics(object):
     def __init__(self, metric_name, process_wide=False):
       # type: (MetricName, bool) -> None
       super().__init__(metric_name)
-      self.inc = MetricUpdater(  # type: ignore[assignment]
+      self.inc = MetricUpdater(  # type: ignore[method-assign]
           cells.CounterCell,
           metric_name,
           default_value=1,
@@ -134,14 +134,14 @@ class Metrics(object):
     def __init__(self, metric_name):
       # type: (MetricName) -> None
       super().__init__(metric_name)
-      self.update = MetricUpdater(cells.DistributionCell, metric_name)  # type: ignore[assignment]
+      self.update = MetricUpdater(cells.DistributionCell, metric_name)  # type: ignore[method-assign]
 
   class DelegatingGauge(Gauge):
     """Metrics Gauge that Delegates functionality to MetricsEnvironment."""
     def __init__(self, metric_name):
       # type: (MetricName) -> None
       super().__init__(metric_name)
-      self.set = MetricUpdater(cells.GaugeCell, metric_name)  # type: ignore[assignment]
+      self.set = MetricUpdater(cells.GaugeCell, metric_name)  # type: ignore[method-assign]
 
 
 class MetricResults(object):

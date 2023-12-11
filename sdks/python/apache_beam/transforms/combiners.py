@@ -193,7 +193,7 @@ class Top(object):
 
   # pylint: disable=no-self-argument
   @with_input_types(T)
-  @with_output_types(List[T])
+  @with_output_types(List[T])  # type: ignore
   class Of(CombinerWithoutDefaults):
     """Returns the n greatest elements in the PCollection.
 
@@ -247,7 +247,7 @@ class Top(object):
                            self._reverse)).without_defaults()
 
   @with_input_types(Tuple[K, V])
-  @with_output_types(Tuple[K, List[V]])
+  @with_output_types(Tuple[K, List[V]])  # type: ignore
   class PerKey(ptransform.PTransform):
     """Identifies the N greatest elements associated with each key.
 
@@ -323,7 +323,7 @@ class Top(object):
 
 
 @with_input_types(T)
-@with_output_types(Tuple[None, List[T]])
+@with_output_types(Tuple[None, List[T]])  # type: ignore
 class _TopPerBundle(core.DoFn):
   def __init__(self, n, key, reverse):
     self._n = n
@@ -356,8 +356,8 @@ class _TopPerBundle(core.DoFn):
       yield window.GlobalWindows.windowed_value((None, self._heap))
 
 
-@with_input_types(Tuple[None, Iterable[List[T]]])
-@with_output_types(List[T])
+@with_input_types(Tuple[None, Iterable[List[T]]])  # type: ignore
+@with_output_types(List[T])  # type: ignore
 class _MergeTopPerBundle(core.DoFn):
   def __init__(self, n, key, reverse):
     self._n = n
@@ -421,7 +421,7 @@ class _MergeTopPerBundle(core.DoFn):
 
 
 @with_input_types(T)
-@with_output_types(List[T])
+@with_output_types(List[T])  # type: ignore
 class TopCombineFn(core.CombineFn):
   """CombineFn doing the combining for all of the Top transforms.
 
@@ -564,7 +564,7 @@ class Sample(object):
   # pylint: disable=no-self-argument
 
   @with_input_types(T)
-  @with_output_types(List[T])
+  @with_output_types(List[T])  # type: ignore
   class FixedSizeGlobally(CombinerWithoutDefaults):
     """Sample n elements from the input PCollection without replacement."""
     def __init__(self, n):
@@ -585,7 +585,7 @@ class Sample(object):
       return 'FixedSizeGlobally(%d)' % self._n
 
   @with_input_types(Tuple[K, V])
-  @with_output_types(Tuple[K, List[V]])
+  @with_output_types(Tuple[K, List[V]])  # type: ignore
   class FixedSizePerKey(ptransform.PTransform):
     """Sample n elements associated with each key without replacement."""
     def __init__(self, n):
@@ -602,7 +602,7 @@ class Sample(object):
 
 
 @with_input_types(T)
-@with_output_types(List[T])
+@with_output_types(List[T])  # type: ignore
 class SampleCombineFn(core.CombineFn):
   """CombineFn for all Sample transforms."""
   def __init__(self, n):
@@ -734,7 +734,7 @@ class SingleInputTupleCombineFn(_TupleCombineFnBase):
 
 
 @with_input_types(T)
-@with_output_types(List[T])
+@with_output_types(List[T])  # type: ignore
 class ToList(CombinerWithoutDefaults):
   """A global CombineFn that condenses a PCollection into a single list."""
   def expand(self, pcoll):
@@ -746,7 +746,7 @@ class ToList(CombinerWithoutDefaults):
 
 
 @with_input_types(T)
-@with_output_types(List[T])
+@with_output_types(List[T])  # type: ignore
 class ToListCombineFn(core.CombineFn):
   """CombineFn for to_list."""
   def create_accumulator(self):
@@ -764,7 +764,7 @@ class ToListCombineFn(core.CombineFn):
 
 
 @with_input_types(Tuple[K, V])
-@with_output_types(Dict[K, V])
+@with_output_types(Dict[K, V])  # type: ignore
 class ToDict(CombinerWithoutDefaults):
   """A global CombineFn that condenses a PCollection into a single dict.
 
@@ -781,7 +781,7 @@ class ToDict(CombinerWithoutDefaults):
 
 
 @with_input_types(Tuple[K, V])
-@with_output_types(Dict[K, V])
+@with_output_types(Dict[K, V])  # type: ignore
 class ToDictCombineFn(core.CombineFn):
   """CombineFn for to_dict."""
   def create_accumulator(self):
@@ -803,7 +803,7 @@ class ToDictCombineFn(core.CombineFn):
 
 
 @with_input_types(T)
-@with_output_types(Set[T])
+@with_output_types(Set[T])  # type: ignore
 class ToSet(CombinerWithoutDefaults):
   """A global CombineFn that condenses a PCollection into a set."""
   def expand(self, pcoll):
@@ -815,7 +815,7 @@ class ToSet(CombinerWithoutDefaults):
 
 
 @with_input_types(T)
-@with_output_types(Set[T])
+@with_output_types(Set[T])  # type: ignore
 class ToSetCombineFn(core.CombineFn):
   """CombineFn for ToSet."""
   def create_accumulator(self):
