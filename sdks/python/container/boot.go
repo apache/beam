@@ -349,14 +349,6 @@ func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId stri
 	if err != nil {
 		return "", err
 	}
-    logger.Printf(ctx, "Using Python version:")
-	args := []string{"--version"}
-    bufLogger := tools.NewBufferedLogger(logger)
-    if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
-        bufLogger.FlushAtError(ctx)
-    } else {
-        bufLogger.FlushAtDebug(ctx)
-    }
 	if err := execx.Execute(pythonVersion, "-m", "venv", "--system-site-packages", dir); err != nil {
 		return "", fmt.Errorf("python venv initialization failed: %s", err)
 	}
@@ -473,8 +465,15 @@ func logRuntimeDependencies(ctx context.Context, logger *tools.Logger) error {
 	if err != nil {
 		return err
 	}
-	args := []string{"-m", "pip", "freeze"}
-	bufLogger := tools.NewBufferedLogger(logger)
+	logger.Printf(ctx, "Using Python version:")
+	args := []string{"--version"}
+    bufLogger := tools.NewBufferedLogger(logger)
+    if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
+        bufLogger.FlushAtError(ctx)
+    } else {
+        bufLogger.FlushAtDebug(ctx)
+    }
+	args = []string{"-m", "pip", "freeze"}
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
 		bufLogger.FlushAtError(ctx)
 	} else {
