@@ -469,9 +469,9 @@ func logRuntimeDependencies(ctx context.Context, logger *tools.Logger) error {
 	args := []string{"--version"}
 	bufLogger := tools.NewBufferedLogger(logger)
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
-	    bufLogger.FlushAtError(ctx)
+		bufLogger.FlushAtError(ctx)
 	} else {
-	    bufLogger.FlushAtDebug(ctx)
+		bufLogger.FlushAtDebug(ctx)
 	}
 	args = []string{"-m", "pip", "freeze"}
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
