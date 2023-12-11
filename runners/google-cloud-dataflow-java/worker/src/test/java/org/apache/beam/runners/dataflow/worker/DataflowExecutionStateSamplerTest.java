@@ -64,10 +64,10 @@ public class DataflowExecutionStateSamplerTest {
     when(trackerMock.getActiveMessageMetadata()).thenReturn(Optional.of(testMetadata));
 
     sampler.addTracker(trackerMock);
-    assertThat(sampler.getActiveMessageMetadataForWorkId(workId), equalTo(testMetadata));
+    assertThat(sampler.getActiveMessageMetadataForWorkId(workId).get(), equalTo(testMetadata));
 
     sampler.removeTracker(trackerMock);
-    Assert.assertNull(sampler.getActiveMessageMetadataForWorkId(workId));
+    Assert.assertFalse(sampler.getActiveMessageMetadataForWorkId(workId).isPresent());
   }
 
   @Test
@@ -102,7 +102,7 @@ public class DataflowExecutionStateSamplerTest {
 
     sampler.addTracker(trackerMock);
 
-    assertThat(sampler.getActiveMessageMetadataForWorkId(workId), equalTo(testMetadata));
+    assertThat(sampler.getActiveMessageMetadataForWorkId(workId).get(), equalTo(testMetadata));
     assertThat(
         sampler.getProcessingDistributionsForWorkId(workId), equalTo(testCompletedProcessingTimes));
   }
@@ -119,13 +119,13 @@ public class DataflowExecutionStateSamplerTest {
 
     assertThat(
         sampler.getActiveMessageMetadataForWorkId(workId1),
-        equalTo(tracker1Mock.getActiveMessageMetadata().orElse(null)));
+        equalTo(tracker1Mock.getActiveMessageMetadata()));
     assertThat(
         sampler.getProcessingDistributionsForWorkId(workId1),
         equalTo(tracker1Mock.getProcessingTimesByStep()));
     assertThat(
         sampler.getActiveMessageMetadataForWorkId(workId2),
-        equalTo(tracker2Mock.getActiveMessageMetadata().orElse(null)));
+        equalTo(tracker2Mock.getActiveMessageMetadata()));
     assertThat(
         sampler.getProcessingDistributionsForWorkId(workId2),
         equalTo(tracker2Mock.getProcessingTimesByStep()));

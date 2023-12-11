@@ -25,6 +25,7 @@ import java.util.IntSummaryStatistics;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -146,14 +147,15 @@ public class Work implements Runnable {
       DataflowExecutionStateSampler sampler) {
     if (isHeartbeat) {
       ActiveLatencyBreakdown.Builder stepBuilder = ActiveLatencyBreakdown.newBuilder();
-      ActiveMessageMetadata activeMessage = sampler.getActiveMessageMetadataForWorkId(workId);
-      if (activeMessage == null) {
+      Optional<ActiveMessageMetadata> activeMessage = sampler.getActiveMessageMetadataForWorkId(
+          workId);
+      if (!activeMessage.isPresent()) {
         return builder;
       }
-      stepBuilder.setUserStepName(activeMessage.userStepName());
+      stepBuilder.setUserStepName(activeMessage.get().userStepName());
       ActiveElementMetadata.Builder activeElementBuilder = ActiveElementMetadata.newBuilder();
       activeElementBuilder.setProcessingTimeMillis(
-          System.currentTimeMillis() - activeMessage.startTime());
+          System.currentTimeMillis() - activeMessage.get().startTime());
       stepBuilder.setActiveMessageMetadata(activeElementBuilder);
       builder.addActiveLatencyBreakdown(stepBuilder.build());
       return builder;
