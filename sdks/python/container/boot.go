@@ -409,6 +409,9 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 	if err := pipInstallPackage(ctx, logger, files, workDir, workflowFile, false, true, nil); err != nil {
 		return fmt.Errorf("failed to install workflow: %v", err)
 	}
+	if err := logRuntimeDependencies(ctx, logger); err != nil {
+		logger.Warnf(ctx, "couldn't fetch the runtime python dependencies: %v", err)
+	}
 
 	return nil
 }
@@ -452,4 +455,29 @@ func processArtifactsInSetupOnlyMode() {
 	if setupErr := installSetupPackages(context.Background(), nil, files, workDir, []string{requirementsFile}); setupErr != nil {
 		log.Fatalf("Failed to install required packages: %v", setupErr)
 	}
+}
+
+// logRuntimeDependencies logs the python dependencies
+// installed in the runtime environment.
+func logRuntimeDependencies(ctx context.Context, logger *tools.Logger) error {
+	logger.Printf(ctx, "Logging runtime dependencies:")
+	pythonVersion, err := expansionx.GetPythonVersion()
+	if err != nil {
+		return err
+	}
+	logger.Printf(ctx, "Using Python version:")
+	args := []string{"--version"}
+	bufLogger := tools.NewBufferedLogger(logger)
+	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
+		bufLogger.FlushAtError(ctx)
+	} else {
+		bufLogger.FlushAtDebug(ctx)
+	}
+	args = []string{"-m", "pip", "freeze"}
+	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
+		bufLogger.FlushAtError(ctx)
+	} else {
+		bufLogger.FlushAtDebug(ctx)
+	}
+	return nil
 }
