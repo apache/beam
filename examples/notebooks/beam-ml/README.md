@@ -25,13 +25,13 @@ transform.
 This transform allows you to make predictions and inference on data with machine learning (ML) models.
 The model handler abstracts the user from the configuration needed for
 specific frameworks, such as Tensorflow, PyTorch, and others. For a full list of supported frameworks,
-see the Apache Beam [Machine Learning](https://beam.apache.org/documentation/sdks/python-machine-learning) page.
+see the [About Beam ML](https://beam.apache.org/documentation/ml/about-ml/) page.
 
 ## Using The Notebooks
 
 These notebooks illustrate ways to use Apache Beam's RunInference transforms, as well as different
 use cases for [ModelHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.ModelHandler) implementations.
-Beam comes with [multiple ModelHandler implementations](https://beam.apache.org/documentation/sdks/python-machine-learning/#modify-a-pipeline-to-use-an-ml-model).
+Beam comes with [multiple ModelHandler implementations](https://beam.apache.org/documentation/ml/about-ml/#multi-model-pipelines).
 
 ### Loading the Notebooks
 

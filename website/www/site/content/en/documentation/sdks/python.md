@@ -52,7 +52,7 @@ To integrate machine learning models into your pipelines for making inferences, 
 [library from `tfx_bsl`](https://github.com/tensorflow/tfx-bsl/tree/master/tfx_bsl/beam).
 
 You can create multiple types of transforms using the RunInference API: the API takes multiple types of setup parameters from model handlers, and the parameter type determines the model implementation. For more information,
-see [Machine Learning](/documentation/sdks/python-machine-learning).
+see [About Beam ML](/documentation/ml/about-ml).
 
 [TensorFlow Extended (TFX)](https://www.tensorflow.org/tfx) is an end-to-end platform for deploying production ML pipelines. TFX is integrated with Beam. For more information, see [TFX user guide](https://www.tensorflow.org/tfx/guide).
 

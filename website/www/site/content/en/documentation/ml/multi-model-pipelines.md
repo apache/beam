@@ -33,7 +33,7 @@ all of those steps together by encapsulating them in a single Apache Beam Direct
 resilient and scalable end-to-end machine learning systems.
 
 To deploy your machine learning model in an Apache Beam pipeline, use
-the [`RunInferenceAPI`](/documentation/sdks/python-machine-learning/), which
+the [`RunInferenceAPI`](/documentation/ml/about-ml), which
 facilitates the integration of your model as a `PTransform` step in your DAG. Composing
 multiple `RunInference` transforms within a single DAG makes it possible to build a pipeline that consists
 of multiple ML models. In this way, Apache Beam supports the development of complex ML systems.
