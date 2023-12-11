@@ -62,17 +62,6 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
       String instructionId,
       StateKey stateKey,
       Coder<K> keyCoder,
-      Coder<V> valueCoder) {
-    // TODO(robertwb): Plumb the value of useBulkRead from runner capabilities.
-    this(cache, beamFnStateClient, instructionId, stateKey, keyCoder, valueCoder, false);
-  }
-
-  public MultimapSideInput(
-      Cache<?, ?> cache,
-      BeamFnStateClient beamFnStateClient,
-      String instructionId,
-      StateKey stateKey,
-      Coder<K> keyCoder,
       Coder<V> valueCoder,
       boolean useBulkRead) {
     checkArgument(
