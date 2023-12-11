@@ -288,6 +288,20 @@ class Call<RequestT, ResponseT>
     }
   }
 
+  private static class NoopCallShouldBackoff<ResponseT> implements CallShouldBackoff<ResponseT> {
+
+    @Override
+    public void update(UserCodeExecutionException exception) {}
+
+    @Override
+    public void update(ResponseT response) {}
+
+    @Override
+    public boolean value() {
+      return false;
+    }
+  }
+
   private static class CallerWithTimeout<RequestT, ResponseT>
       implements Caller<RequestT, ResponseT> {
     private final Duration timeout;
