@@ -55,7 +55,7 @@ RUN  \
     rm /root/nltk_data/corpora/stopwords.zip && \
 
     # Check that the protobuf upb(also called micro protobuf) is used.
-    python -c "from google.protobuf.internal import api_implementation; assert api_implementation._implementation_type == 'upb'; print ('Verified fast protobuf used.')" && \
+    python -c "from google.protobuf.internal import api_implementation; t = api_implementation._implementation_type; assert t == 'cpp', f'Installation has unexpected protobuf implementation type: {t}.'; print ('Verified fast protobuf used.')" && \
 
     # Install Google Cloud SDK.
     mkdir -p /usr/local/gcloud && \
