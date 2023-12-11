@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.util.List;
+import java.util.Set;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Triple;
 import org.apache.beam.sdk.coders.Coder;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -86,6 +88,18 @@ import org.joda.time.Duration;
  */
 public class RequestResponseIO<RequestT, ResponseT>
     extends PTransform<PCollection<RequestT>, Result<ResponseT>> {
+
+  /**
+   * {@link Set} of {@link UserCodeExecutionException}s that warrant repeating. Not all errors
+   * should be repeat execution such as bad or unauthenticated requests. However, certain errors
+   * such as timeouts, remote system or quota exceed errors may not be related to the code but due
+   * to the remote system and thus warrant repeating.
+   */
+  public static final Set<Class<? extends UserCodeExecutionException>> REPEATABLE_ERROR_TYPES =
+      ImmutableSet.of(
+          UserCodeRemoteSystemException.class,
+          UserCodeTimeoutException.class,
+          UserCodeQuotaException.class);
 
   /**
    * static final Strings below are {@link VisibleForTesting} to test composite pipeline

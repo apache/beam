@@ -50,7 +50,7 @@ public class WindowedCallShouldBackoffTest {
   private static WindowedCallShouldBackoff<Integer> instantiate(Duration window) {
     return new WindowedCallShouldBackoff<>(
         window,
-        (WindowedCallShouldBackoff.CallShouldBackoffSupplier<Integer>)
+        (SerializableSupplier<CallShouldBackoff<Integer>>)
             () -> new CallShouldBackoffBasedOnRejectionProbability<Integer>().setThreshold(0.5));
   }
 }

@@ -20,11 +20,9 @@ package org.apache.beam.io.requestresponse;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.Optional;
-import java.util.Set;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
 /**
  * Repeats a method invocation when it encounters an error, pausing invocations using {@link
@@ -33,28 +31,21 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 @AutoValue
 abstract class Repeater<InputT, OutputT> {
 
-  /** {@link Set} of {@link UserCodeExecutionException}s that warrant repeating. */
-  static final Set<Class<? extends UserCodeExecutionException>> REPEATABLE_ERROR_TYPES =
-      ImmutableSet.of(
-          UserCodeRemoteSystemException.class,
-          UserCodeTimeoutException.class,
-          UserCodeQuotaException.class);
-
   static <InputT, OutputT> Builder<InputT, OutputT> builder() {
     return new AutoValue_Repeater.Builder<>();
   }
 
   /**
    * The {@link ThrowableFunction} to invoke repeatedly until it succeeds, throws a {@link
-   * UserCodeExecutionException} that is not {@link #REPEATABLE_ERROR_TYPES}, or {@link
-   * BackOff#STOP}.
+   * UserCodeExecutionException} that is not {@link RequestResponseIO#REPEATABLE_ERROR_TYPES}, or
+   * {@link BackOff#STOP}.
    */
   abstract ThrowableFunction<InputT, OutputT> getThrowableFunction();
 
   /**
    * The {@link Sleeper} that pauses execution of the {@link #getThrowableFunction} when it throws a
-   * {@link #REPEATABLE_ERROR_TYPES} {@link UserCodeExecutionException}. Uses {@link
-   * Sleeper#DEFAULT} by default.
+   * {@link RequestResponseIO#REPEATABLE_ERROR_TYPES} {@link UserCodeExecutionException}. Uses
+   * {@link Sleeper#DEFAULT} by default.
    */
   abstract Sleeper getSleeper();
 
@@ -67,10 +58,11 @@ abstract class Repeater<InputT, OutputT> {
 
   /**
    * Applies the {@link InputT} to the {@link ThrowableFunction}, returning the {@link OutputT} if
-   * successful. If the function throws an exception that {@link #REPEATABLE_ERROR_TYPES} contains,
-   * repeats the invocation after {@link Sleeper#sleep} for the amount of time reported by {@link
-   * BackOff#nextBackOffMillis}. Throws the latest encountered {@link UserCodeExecutionException}
-   * when {@link BackOff} reports a {@link BackOff#STOP}.
+   * successful. If the function throws an exception that {@link
+   * RequestResponseIO#REPEATABLE_ERROR_TYPES} contains, repeats the invocation after {@link
+   * Sleeper#sleep} for the amount of time reported by {@link BackOff#nextBackOffMillis}. Throws the
+   * latest encountered {@link UserCodeExecutionException} when {@link BackOff} reports a {@link
+   * BackOff#STOP}.
    */
   OutputT apply(InputT input) throws UserCodeExecutionException {
     Optional<UserCodeExecutionException> latestError = Optional.empty();
@@ -80,7 +72,7 @@ abstract class Repeater<InputT, OutputT> {
         getSleeper().sleep(waitFor);
         return getThrowableFunction().apply(input);
       } catch (UserCodeExecutionException e) {
-        if (!REPEATABLE_ERROR_TYPES.contains(e.getClass())) {
+        if (!RequestResponseIO.REPEATABLE_ERROR_TYPES.contains(e.getClass())) {
           throw e;
         }
         latestError = Optional.of(e);

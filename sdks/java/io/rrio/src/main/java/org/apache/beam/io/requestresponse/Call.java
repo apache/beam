@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.auto.value.AutoValue;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Optional;
 import java.util.concurrent.Callable;
@@ -32,9 +33,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
@@ -109,9 +114,14 @@ class Call<RequestT, ResponseT>
   private final Configuration<RequestT, ResponseT> configuration;
 
   private Call(Configuration<RequestT, ResponseT> configuration) {
-    this.configuration = configuration;
+    this.configuration = SerializableUtils.ensureSerializable(configuration);
   }
 
+  /**
+   * Configures {@link Call} with features required to execute user custom {@link Caller}
+   * implementations. {@link VisibleForTesting} to test whether {@link RequestResponseIO} adequately
+   * instantiates {@link Call} with the correct {@link Configuration}.
+   */
   @VisibleForTesting
   Configuration<RequestT, ResponseT> getConfiguration() {
     return configuration;
@@ -152,6 +162,7 @@ class Call<RequestT, ResponseT>
     private final TupleTag<ApiIOError> failureTag;
     private final CallerWithTimeout<RequestT, ResponseT> caller;
     private final SetupTeardownWithTimeout setupTeardown;
+    private final Configuration<RequestT, ResponseT> configuration;
 
     private transient @MonotonicNonNull ExecutorService executor;
 
@@ -165,6 +176,11 @@ class Call<RequestT, ResponseT>
       this.setupTeardown =
           new SetupTeardownWithTimeout(
               configuration.getTimeout(), configuration.getSetupTeardown());
+      this.configuration = configuration;
+    }
+
+    private void setupWithoutRepeat() throws UserCodeExecutionException {
+      this.setupTeardown.setup();
     }
 
     /**
@@ -174,12 +190,61 @@ class Call<RequestT, ResponseT>
     @Setup
     public void setup() throws UserCodeExecutionException {
       this.executor = Executors.newSingleThreadExecutor();
-      this.caller.setExecutor(executor);
-      this.setupTeardown.setExecutor(executor);
+      caller.setExecutor(executor);
+      setupTeardown.setExecutor(executor);
 
-      // TODO(damondouglas): Incorporate repeater when https://github.com/apache/beam/issues/28926
-      //  resolves.
-      this.setupTeardown.setup();
+      if (!this.configuration.getShouldRepeat()) {
+        setupWithoutRepeat();
+        return;
+      }
+
+      BackOff backOff = this.configuration.getBackOffSupplier().get();
+      Sleeper sleeper = this.configuration.getSleeperSupplier().get();
+
+      if (this.configuration.getCallShouldBackoff().value()) {
+        try {
+          sleeper.sleep(backOff.nextBackOffMillis());
+        } catch (InterruptedException ignored) {
+        } catch (IOException e) {
+          throw new UserCodeExecutionException(e);
+        }
+      }
+
+      Repeater<Void, Void> repeater =
+          Repeater.<Void, Void>builder()
+              .setBackOff(backOff)
+              .setSleeper(sleeper)
+              .setThrowableFunction(
+                  ignored -> {
+                    this.setupTeardown.setup();
+                    return null;
+                  })
+              .build();
+
+      repeater.apply(null);
+    }
+
+    private void performTeardown() throws UserCodeExecutionException {
+      if (!configuration.getShouldRepeat()) {
+        setupTeardown.teardown();
+        return;
+      }
+
+      BackOff backOff = configuration.getBackOffSupplier().get();
+      Sleeper sleeper = configuration.getSleeperSupplier().get();
+
+      Repeater<Void, Void> repeater =
+          Repeater.<Void, Void>builder()
+              .setBackOff(backOff)
+              .setSleeper(sleeper)
+              .setThrowableFunction(
+                  ignored -> {
+                    setupTeardown.teardown();
+                    return null;
+                  })
+              .build();
+
+      repeater.apply(null);
     }
 
     /**
@@ -188,9 +253,20 @@ class Call<RequestT, ResponseT>
      */
     @Teardown
     public void teardown() throws UserCodeExecutionException {
-      // TODO(damondouglas): Incorporate repeater when https://github.com/apache/beam/issues/28926
-      //  resolves.
-      this.setupTeardown.teardown();
+      BackOff backOff = configuration.getBackOffSupplier().get();
+      Sleeper sleeper = configuration.getSleeperSupplier().get();
+
+      if (configuration.getCallShouldBackoff().value()) {
+        try {
+          sleeper.sleep(backOff.nextBackOffMillis());
+        } catch (InterruptedException ignored) {
+        } catch (IOException e) {
+          throw new UserCodeExecutionException(e);
+        }
+      }
+
+      performTeardown();
+
       checkStateNotNull(executor).shutdown();
       try {
         boolean ignored = executor.awaitTermination(3L, TimeUnit.SECONDS);
@@ -201,9 +277,40 @@ class Call<RequestT, ResponseT>
     @ProcessElement
     public void process(@Element @NonNull RequestT request, MultiOutputReceiver receiver)
         throws JsonProcessingException {
+
+      BackOff backOff = configuration.getBackOffSupplier().get();
+      Sleeper sleeper = configuration.getSleeperSupplier().get();
+
+      if (configuration.getCallShouldBackoff().value()) {
+        try {
+          sleeper.sleep(backOff.nextBackOffMillis());
+        } catch (InterruptedException ignored) {
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
+
+      if (!configuration.getShouldRepeat()) {
+        try {
+          // TODO(damondouglas): https://github.com/apache/beam/issues/29248
+          ResponseT response = caller.call(request);
+          receiver.get(responseTag).output(response);
+        } catch (UserCodeExecutionException e) {
+          receiver.get(failureTag).output(ApiIOError.of(e, request));
+        }
+
+        return;
+      }
+
+      Repeater<RequestT, ResponseT> repeater =
+          Repeater.<RequestT, ResponseT>builder()
+              .setSleeper(sleeper)
+              .setBackOff(backOff)
+              .setThrowableFunction(caller::call)
+              .build();
+
       try {
-        // TODO(damondouglas): https://github.com/apache/beam/issues/29248
-        ResponseT response = this.caller.call(request);
+        ResponseT response = repeater.apply(request);
         receiver.get(responseTag).output(response);
       } catch (UserCodeExecutionException e) {
         receiver.get(failureTag).output(ApiIOError.of(e, request));
@@ -216,7 +323,7 @@ class Call<RequestT, ResponseT>
   abstract static class Configuration<RequestT, ResponseT> implements Serializable {
 
     static <RequestT, ResponseT> Builder<RequestT, ResponseT> builder() {
-      return new AutoValue_Call_Configuration.Builder<>();
+      return new AutoValue_Call_Configuration.Builder<RequestT, ResponseT>();
     }
 
     /** The user custom code that converts a {@link RequestT} into a {@link ResponseT}. */
@@ -239,6 +346,38 @@ class Call<RequestT, ResponseT>
      */
     abstract Coder<ResponseT> getResponseCoder();
 
+    /**
+     * Configures whether the {@link DoFn} should repeat {@link SetupTeardown} and {@link Caller}
+     * invocations, using the {@link Repeater}, in the setting of {@link
+     * RequestResponseIO#REPEATABLE_ERROR_TYPES}. Defaults to false.
+     */
+    abstract Boolean getShouldRepeat();
+
+    /**
+     * The {@link CallShouldBackoff} that determines whether the {@link DoFn} should hold {@link
+     * RequestT}s. Defaults to a private no-op implementation; no {@link RequestT}s are held during
+     * {@link ProcessElement}.
+     */
+    abstract CallShouldBackoff<ResponseT> getCallShouldBackoff();
+
+    /**
+     * The {@link SerializableSupplier} of a {@link Sleeper} that pauses code execution of when user
+     * custom code throws a {@link RequestResponseIO#REPEATABLE_ERROR_TYPES} {@link
+     * UserCodeExecutionException}. Supplies with {@link Sleeper#DEFAULT} by default. The need for a
+     * {@link SerializableSupplier} instead of setting this directly is that some implementations of
+     * {@link Sleeper} may not be {@link Serializable}.
+     */
+    abstract SerializableSupplier<Sleeper> getSleeperSupplier();
+
+    /**
+     * The {@link SerializableSupplier} of a {@link BackOff} that reports to a {@link Sleeper} how
+     * long to pause execution. It reports a {@link BackOff#STOP} to stop repeating invocation
+     * attempts. Supplies with {@link FluentBackoff#DEFAULT} by default. The need for a {@link
+     * SerializableSupplier} instead of setting this directly is that some {@link BackOff}
+     * implementations, such as {@link FluentBackoff} are not {@link Serializable}.
+     */
+    abstract SerializableSupplier<BackOff> getBackOffSupplier();
+
     abstract Builder<RequestT, ResponseT> toBuilder();
 
     @AutoValue.Builder
@@ -257,7 +396,28 @@ class Call<RequestT, ResponseT>
 
       abstract Optional<Duration> getTimeout();
 
+      /** See {@link #getCallShouldBackoff}. */
       abstract Builder<RequestT, ResponseT> setResponseCoder(Coder<ResponseT> value);
+
+      /** See {@link Configuration#getShouldRepeat()}. */
+      abstract Builder<RequestT, ResponseT> setShouldRepeat(Boolean value);
+
+      abstract Optional<Boolean> getShouldRepeat();
+
+      abstract Builder<RequestT, ResponseT> setCallShouldBackoff(
+          CallShouldBackoff<ResponseT> value);
+
+      /** See {@link Configuration#getSleeperSupplier}. */
+      abstract Builder<RequestT, ResponseT> setSleeperSupplier(SerializableSupplier<Sleeper> value);
+
+      abstract Optional<SerializableSupplier<Sleeper>> getSleeperSupplier();
+
+      /** See {@link Configuration#getBackOffSupplier}. */
+      abstract Builder<RequestT, ResponseT> setBackOffSupplier(SerializableSupplier<BackOff> value);
+
+      abstract Optional<SerializableSupplier<BackOff>> getBackOffSupplier();
+
+      abstract Optional<CallShouldBackoff<ResponseT>> getCallShouldBackoff();
 
       abstract Configuration<RequestT, ResponseT> autoBuild();
 
@@ -266,8 +426,24 @@ class Call<RequestT, ResponseT>
           setSetupTeardown(new NoopSetupTeardown());
         }
 
+        if (!getShouldRepeat().isPresent()) {
+          setShouldRepeat(false);
+        }
+
         if (!getTimeout().isPresent()) {
           setTimeout(DEFAULT_TIMEOUT);
+        }
+
+        if (!getCallShouldBackoff().isPresent()) {
+          setCallShouldBackoff(new NoopCallShouldBackoff<>());
+        }
+
+        if (!getSleeperSupplier().isPresent()) {
+          setSleeperSupplier((SerializableSupplier<Sleeper>) () -> Sleeper.DEFAULT);
+        }
+
+        if (!getBackOffSupplier().isPresent()) {
+          setBackOffSupplier(new DefaultSerializableBackoffSupplier());
         }
 
         return autoBuild();
@@ -291,10 +467,14 @@ class Call<RequestT, ResponseT>
   private static class NoopCallShouldBackoff<ResponseT> implements CallShouldBackoff<ResponseT> {
 
     @Override
-    public void update(UserCodeExecutionException exception) {}
+    public void update(UserCodeExecutionException exception) {
+      // Noop
+    }
 
     @Override
-    public void update(ResponseT response) {}
+    public void update(ResponseT response) {
+      // Noop
+    }
 
     @Override
     public boolean value() {

@@ -19,39 +19,30 @@ package org.apache.beam.io.requestresponse;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
-import java.io.Serializable;
-import java.util.function.Supplier;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
  * Performs {@link CallShouldBackoff} computations but within a windowed {@link Duration}.
- * Reinstantiates {@link CallShouldBackoff} using a {@link CallShouldBackoffSupplier} at {@link
- * #update} after a check for whether a windowed {@link Duration} elapsed.
+ * Reinstantiates {@link CallShouldBackoff} using a {@link SerializableSupplier} at {@link #update}
+ * after a check for whether a windowed {@link Duration} elapsed.
  */
 class WindowedCallShouldBackoff<ResponseT> implements CallShouldBackoff<ResponseT> {
 
-  /**
-   * Instantiates a {@link CallShouldBackoffSupplier} with a {@link
-   * CallShouldBackoffBasedOnRejectionProbability}.
-   */
-  static <ResponseT> CallShouldBackoffSupplier<ResponseT> getDefaultCallShouldBackoffSupplier() {
-    return CallShouldBackoffBasedOnRejectionProbability::new;
-  }
-
   private final Duration window;
-  private final CallShouldBackoffSupplier<ResponseT> callShouldBackoffSupplier;
+  private final SerializableSupplier<CallShouldBackoff<ResponseT>> callShouldBackoffSupplier;
   private @MonotonicNonNull CallShouldBackoff<ResponseT> basis;
   private Instant nextReset;
 
   /**
    * Instantiates a {@link WindowedCallShouldBackoff} with a {@link Duration} window and a {@link
-   * CallShouldBackoffSupplier}. Within the constructor, sets the clock to {@link Instant#now()} and
-   * instantiates {@link CallShouldBackoff} using the {@link CallShouldBackoffSupplier}.
+   * SerializableSupplier}. Within the constructor, sets the clock to {@link Instant#now()} and
+   * instantiates {@link CallShouldBackoff} using the {@link SerializableSupplier}.
    */
   WindowedCallShouldBackoff(
-      Duration window, CallShouldBackoffSupplier<ResponseT> callShouldBackoffSupplier) {
+      Duration window,
+      SerializableSupplier<CallShouldBackoff<ResponseT>> callShouldBackoffSupplier) {
     this.window = window;
     this.callShouldBackoffSupplier = callShouldBackoffSupplier;
     this.basis = callShouldBackoffSupplier.get();
@@ -81,16 +72,5 @@ class WindowedCallShouldBackoff<ResponseT> implements CallShouldBackoff<Response
   public boolean value() {
     resetIfNeeded();
     return checkStateNotNull(basis).value();
-  }
-
-  /**
-   * A {@link Serializable} {@link Supplier} of a {@link CallShouldBackoff} computation. Used by
-   * {@link WindowedCallShouldBackoff} to instantiate a {@link CallShouldBackoff} after a window
-   * {@link Duration} elapses.
-   */
-  interface CallShouldBackoffSupplier<ResponseT>
-      extends Supplier<CallShouldBackoff<ResponseT>>, Serializable {
-    @Override
-    CallShouldBackoff<ResponseT> get();
   }
 }
