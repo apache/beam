@@ -544,7 +544,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                         writtenRecordsTag,
                         TupleTagList.of(ImmutableList.of(unwrittenRecordsTag, BAD_RECORD_TAG))));
         addErrorCollection(writeTuple);
-        writeTuple.get(unwrittenRecordsTag)
+        writeTuple
+            .get(unwrittenRecordsTag)
             .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()));
         return writeTuple.get(writtenRecordsTag).setCoder(fileResultCoder);
       }
@@ -1034,24 +1035,19 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
 
     @ProcessElement
-      public void processElement(
-          @Element UserT element,
-          ProcessContext context,
-          MultiOutputReceiver outputReceiver)
-                            throws Exception {
-        getDynamicDestinations().setSideInputAccessorFromProcessContext(context);
-        MaybeDestination<DestinationT> maybeDestination =
-            getDestinationWithErrorHandling(
-                context.element(), outputReceiver, inputCoder);
-        if (!maybeDestination.isValid) {
-          return;
-        }
-        DestinationT destination = maybeDestination.destination;
-        context.output(
-            KV.of(hashDestination(destination, destinationCoder), element));
+    public void processElement(
+        @Element UserT element, ProcessContext context, MultiOutputReceiver outputReceiver)
+        throws Exception {
+      getDynamicDestinations().setSideInputAccessorFromProcessContext(context);
+      MaybeDestination<DestinationT> maybeDestination =
+          getDestinationWithErrorHandling(context.element(), outputReceiver, inputCoder);
+      if (!maybeDestination.isValid) {
+        return;
       }
+      DestinationT destination = maybeDestination.destination;
+      context.output(KV.of(hashDestination(destination, destinationCoder), element));
+    }
   }
-
 
   private class RandomShardingFunction implements ShardingFunction<UserT, DestinationT> {
     private final Coder<DestinationT> destinationCoder;

@@ -650,7 +650,7 @@ public class WriteFilesTest {
     @Override
     public String formatRecord(String record) {
       int value = Integer.valueOf(record);
-      //deterministically fail to format 1/3rd of records
+      // deterministically fail to format 1/3rd of records
       if (value % 3 == 0) {
         throw new RuntimeException("Failed To Format Record");
       }
@@ -660,7 +660,7 @@ public class WriteFilesTest {
     @Override
     public Integer getDestination(String element) {
       int value = Integer.valueOf(element);
-      //deterministically fail to find the destination for 1/7th of records
+      // deterministically fail to find the destination for 1/7th of records
       if (value % 7 == 0) {
         throw new RuntimeException("Failed To Get Destination");
       }
