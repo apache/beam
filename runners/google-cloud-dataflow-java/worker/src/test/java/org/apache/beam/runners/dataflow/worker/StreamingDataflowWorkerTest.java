@@ -195,7 +195,6 @@ import org.slf4j.LoggerFactory;
 // released (2.11.0)
 @SuppressWarnings("unused")
 public class StreamingDataflowWorkerTest {
-
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorkerTest.class);
   private static final IntervalWindow DEFAULT_WINDOW =
       new IntervalWindow(new Instant(1234), Duration.millis(1000));

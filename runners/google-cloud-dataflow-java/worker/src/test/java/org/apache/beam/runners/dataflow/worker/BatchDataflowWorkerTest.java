@@ -50,6 +50,7 @@ import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
@@ -61,6 +62,7 @@ import org.mockito.hamcrest.MockitoHamcrest;
 @RunWith(JUnit4.class)
 public class BatchDataflowWorkerTest {
 
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Rule public FastNanoClockAndSleeper clockAndSleeper = new FastNanoClockAndSleeper();
   @Mock WorkUnitClient mockWorkUnitClient;
   @Mock DataflowWorkProgressUpdater mockProgressUpdater;
