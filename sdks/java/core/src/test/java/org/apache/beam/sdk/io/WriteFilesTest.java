@@ -650,7 +650,8 @@ public class WriteFilesTest {
     @Override
     public String formatRecord(String record) {
       int value = Integer.valueOf(record);
-      if (value % 2 == 0) {
+      //deterministically fail to format 1/3rd of records
+      if (value % 3 == 0) {
         throw new RuntimeException("Failed To Format Record");
       }
       return "record_" + record;
@@ -659,7 +660,8 @@ public class WriteFilesTest {
     @Override
     public Integer getDestination(String element) {
       int value = Integer.valueOf(element);
-      if (value % 3 == 0) {
+      //deterministically fail to find the destination for 1/7th of records
+      if (value % 7 == 0) {
         throw new RuntimeException("Failed To Get Destination");
       }
       return value % 5;
@@ -713,7 +715,7 @@ public class WriteFilesTest {
     List<String> inputs = Lists.newArrayList();
     for (int i = 0; i < numInputs; ++i) {
       inputs.add(Integer.toString(i));
-      if (i % 2 != 0 && i % 3 != 0) {
+      if (i % 7 == 0 || i % 3 == 0) {
         expectedFailures++;
       }
     }
@@ -730,9 +732,6 @@ public class WriteFilesTest {
         WriteFiles.to(sink)
             .withNumShards(numShards)
             .withBadRecordErrorHandler(errorHandler, (e) -> true);
-    errorHandler.close();
-
-    PAssert.thatSingleton(errorHandler.getOutput()).isEqualTo(expectedFailures);
 
     PCollection<String> input = p.apply(Create.timestamped(inputs, timestamps));
     WriteFilesResult<Integer> res;
@@ -743,6 +742,11 @@ public class WriteFilesTest {
     } else {
       res = input.apply(writeFiles);
     }
+
+    errorHandler.close();
+
+    PAssert.thatSingleton(errorHandler.getOutput()).isEqualTo(expectedFailures);
+
     res.getPerDestinationOutputFilenames().apply(new VerifyFilesExist<>());
     p.run();
 
@@ -751,12 +755,14 @@ public class WriteFilesTest {
           getBaseOutputDirectory().resolve("file_" + i, StandardResolveOptions.RESOLVE_FILE);
       List<String> expected = Lists.newArrayList();
       for (int j = i; j < numInputs; j += 5) {
-        expected.add("record_" + j);
+        if (j % 3 != 0 && j % 7 != 0) {
+          expected.add("record_" + j);
+        }
       }
       checkFileContents(
           base.toString(),
           expected,
-          Optional.of(numShards),
+          Optional.fromNullable(autosharding ? null : numShards),
           bounded /* expectRemovedTempDirectory */);
     }
   }

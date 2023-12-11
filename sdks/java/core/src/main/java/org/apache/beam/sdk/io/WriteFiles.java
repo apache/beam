@@ -544,6 +544,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                         writtenRecordsTag,
                         TupleTagList.of(ImmutableList.of(unwrittenRecordsTag, BAD_RECORD_TAG))));
         addErrorCollection(writeTuple);
+        writeTuple.get(unwrittenRecordsTag)
+            .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()));
         return writeTuple.get(writtenRecordsTag).setCoder(fileResultCoder);
       }
 
@@ -780,13 +782,12 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     MaybeDestination(DestinationT destination, boolean isValid) {
       this.destination = destination;
-      this.isValid = true;
+      this.isValid = isValid;
     }
   }
-  // Utility method to get the dynamic destination based on a record. If the operation fails, and is
-  // output to the bad record router, this returns null. Returns a MaybeDestination because some
-  // implementations of dynamic destinations return null, despite this being prohibited by the
-  // interface
+  // Utility method to get the dynamic destination based on a record. Returns a MaybeDestination
+  // because some implementations of dynamic destinations return null, despite this being prohibited
+  // by the interface
   private MaybeDestination<DestinationT> getDestinationWithErrorHandling(
       UserT input, MultiOutputReceiver outputReceiver, Coder<UserT> inputCoder) throws Exception {
     try {
@@ -805,14 +806,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         throw e;
       }
     }
-  }
-
-  private void addErrorCollection(PCollectionTuple sourceTuple) {
-    getBadRecordErrorHandler()
-        .addErrorCollection(
-            sourceTuple
-                .get(BAD_RECORD_TAG)
-                .setCoder(BadRecord.getCoder(sourceTuple.getPipeline())));
   }
 
   // Utility method to format a record based on the dynamic destination. If the operation fails, and
@@ -835,6 +828,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         throw e;
       }
     }
+  }
+
+  private void addErrorCollection(PCollectionTuple sourceTuple) {
+    getBadRecordErrorHandler()
+        .addErrorCollection(
+            sourceTuple
+                .get(BAD_RECORD_TAG)
+                .setCoder(BadRecord.getCoder(sourceTuple.getPipeline())));
   }
 
   private class WriteShardedBundlesToTempFiles
@@ -919,26 +920,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       PCollectionTuple shardedElements =
           input.apply(
               "KeyedByDestinationHash",
-              ParDo.of(
-                      new DoFn<UserT, KV<Integer, UserT>>() {
-                        @ProcessElement
-                        public void processElement(
-                            @Element UserT element,
-                            ProcessContext context,
-                            MultiOutputReceiver outputReceiver)
-                            throws Exception {
-                          getDynamicDestinations().setSideInputAccessorFromProcessContext(context);
-                          MaybeDestination<DestinationT> maybeDestination =
-                              getDestinationWithErrorHandling(
-                                  context.element(), outputReceiver, input.getCoder());
-                          if (!maybeDestination.isValid) {
-                            return;
-                          }
-                          DestinationT destination = maybeDestination.destination;
-                          context.output(
-                              KV.of(hashDestination(destination, destinationCoder), element));
-                        }
-                      })
+              ParDo.of(new KeyByDestinationHash(input.getCoder(), destinationCoder))
                   .withOutputTags(shardTag, TupleTagList.of(BAD_RECORD_TAG)));
       addErrorCollection(shardedElements);
 
@@ -1039,6 +1021,37 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           .setCoder(ListCoder.of(fileResultCoder));
     }
   }
+
+  private class KeyByDestinationHash extends DoFn<UserT, KV<Integer, UserT>> {
+
+    private final Coder<UserT> inputCoder;
+
+    private final Coder<DestinationT> destinationCoder;
+
+    public KeyByDestinationHash(Coder<UserT> inputCoder, Coder<DestinationT> destinationCoder) {
+      this.inputCoder = inputCoder;
+      this.destinationCoder = destinationCoder;
+    }
+
+    @ProcessElement
+      public void processElement(
+          @Element UserT element,
+          ProcessContext context,
+          MultiOutputReceiver outputReceiver)
+                            throws Exception {
+        getDynamicDestinations().setSideInputAccessorFromProcessContext(context);
+        MaybeDestination<DestinationT> maybeDestination =
+            getDestinationWithErrorHandling(
+                context.element(), outputReceiver, inputCoder);
+        if (!maybeDestination.isValid) {
+          return;
+        }
+        DestinationT destination = maybeDestination.destination;
+        context.output(
+            KV.of(hashDestination(destination, destinationCoder), element));
+      }
+  }
+
 
   private class RandomShardingFunction implements ShardingFunction<UserT, DestinationT> {
     private final Coder<DestinationT> destinationCoder;
@@ -1153,7 +1166,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         MaybeDestination<DestinationT> maybeDestination =
             getDestinationWithErrorHandling(input, outputReceiver, inputCoder);
         if (!maybeDestination.isValid) {
-          return;
+          continue;
         }
         DestinationT destination = maybeDestination.destination;
         Writer<DestinationT, OutputT> writer = writers.get(destination);
@@ -1173,7 +1186,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
         OutputT formattedRecord = formatRecordWithErrorHandling(input, outputReceiver, inputCoder);
         if (formattedRecord == null) {
-          return;
+          continue;
         }
         writeOrClose(writer, formattedRecord);
       }
