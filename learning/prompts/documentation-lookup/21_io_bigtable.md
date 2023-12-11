@@ -1,43 +1,27 @@
 Prompt:
-Is Google BigTable supported in Apache Beam?
+Is Cloud BigTable supported in Apache Beam?
 Response:
-BigTable is a Google Cloud service that provides a NoSQL database. Apache Beam provides a BigTableIO connector that allows you to read and write data from and to BigTable.
+[Cloud Bigtable](https://cloud.google.com/bigtable) is a [Google Cloud](https://cloud.google.com/) service that provides  enterprise-grade NoSQL database service with single-digit millisecond latency, limitless scale, and 99.999% availability for large analytical and operational workloads.
 
-
-
-
-
-
-
-
-
-
-
-
------------------------------------------------
-[PubSub](https://cloud.google.com/pubsub) is a[ Google Cloud](https://cloud.google.com/) service that provides a simple, reliable, scalable, and secure real-time messaging service for sending and receiving messages between independent applications. Apache Beam provides a PubSubIO connector that allows you to read and write messages from and to Pub/Sub.
-Pub/Sub is currently supported only in streaming pipelines.
-
-
-Pub/Sub is supported in the following Beam SDKs:
+Apache Beam has a built-in connector for Cloud Bigtable that allows you to read and write data from and to Bigtable:  
 * [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigtable/BigtableIO.html)
 * [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html)
-* [Via xlang](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html)
+* [Python via X lang](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/bigtableio)
 * [Go](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigtableio)
-* [Go](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/bigtableio)
+* [Go via X lang](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/bigtableio)
 
-[Dataflow-cookbook repository](https://github.com/GoogleCloudPlatform/dataflow-cookbook) will help you to get started with Pub/Sub and Apache Beam. See here for [read](https://github.com/GoogleCloudPlatform/dataflow-cookbook/blob/main/Python/pubsub/read_pubsub_multiple.py) and [write](https://github.com/GoogleCloudPlatform/dataflow-cookbook/blob/main/Python/pubsub/write_pubsub.py) examples in Python.
+[Dataflow-cookbook repository](https://github.com/GoogleCloudPlatform/dataflow-cookbook) will help you to get started with Cloud Bigtable and Apache Beam.
+
+Apache Beam pipeline code for reading data from Bigtable table might look like the following example:
 
 ```python
-from apache_beam.io import ReadFromPubSub
-from apache_beam.io import WriteToPubSub
-
-  with beam.Pipeline(options=options) as p:
-    (p | "Read from Pub/Sub" >> ReadFromPubSub(topic="input_topic")
-       | "Write to Pub/Sub" >> WriteToPubSub(topic="output_topic"))
+with beam.Pipeline(options=options) as p:
+output = (p | "Read from Bigtable" >> ReadFromBigtable(
+                    project_id=project_id,
+                    instance_id=instance_id,
+                    table_id=table_id,
+                 )
+                    | "Extract cells" >> beam.Map(lambda row: row._cells)
+                    | "Log Data" >> Map(logging.info))
 ```
-
-
-
-
-https://beam.apache.org/performance/bigtable
+For performance benchmarks of Bigtable IO connectors, see [here](https://beam.apache.org/performance/bigtable/).

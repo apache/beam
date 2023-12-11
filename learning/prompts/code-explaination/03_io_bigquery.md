@@ -26,7 +26,7 @@ output = (p | "Read table" >> ReadFromBigQuery(table=options.table))
 ```
 The `ReadFromBigQuery` transform uses a BigQuery export job to take a snapshot of the table on GCS, and then reads from each produced file. File format is Avro by default.
 
-Another option would be to use a query to read data from BigQuery.
+Another option would be to use a query to read data from BigQuery using a SQL query.
 
 ```python
 output = (p | "Read table" >> ReadFromBigQuery(query="SELECT * FROM table"))
