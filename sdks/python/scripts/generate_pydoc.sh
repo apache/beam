@@ -133,7 +133,7 @@ autodoc_inherit_docstrings = False
 autodoc_member_order = 'bysource'
 autodoc_mock_imports = ["tensorrt", "cuda", "torch",
     "onnxruntime", "onnx", "tensorflow", "tensorflow_hub",
-    "tensorflow_transform", "tensorflow_metadata", "transformers", "tensorflow_text",
+    "tensorflow_transform", "tensorflow_metadata", "transformers", "xgboost", "datatable", "transformers",
     "sentence_transformers",
     ]
 

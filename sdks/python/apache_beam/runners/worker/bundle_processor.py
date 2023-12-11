@@ -388,7 +388,8 @@ class StateBackedSideInputMap(object):
                transform_id,  # type: str
                tag,  # type: Optional[str]
                side_input_data,  # type: pvalue.SideInputData
-               coder  # type: WindowedValueCoder
+               coder,  # type: WindowedValueCoder
+               use_bulk_read = False,  # type: bool
               ):
     # type: (...) -> None
     self._state_handler = state_handler
@@ -399,6 +400,7 @@ class StateBackedSideInputMap(object):
     self._target_window_coder = coder.window_coder
     # TODO(robertwb): Limit the cache size.
     self._cache = {}  # type: Dict[BoundedWindow, Any]
+    self._use_bulk_read = use_bulk_read
 
   def __getitem__(self, window):
     target_window = self._side_input_data.window_mapping_fn(window)
@@ -432,42 +434,44 @@ class StateBackedSideInputMap(object):
         key_coder = self._element_coder.key_coder()
         key_coder_impl = key_coder.get_impl()
         value_coder = self._element_coder.value_coder()
+        use_bulk_read = self._use_bulk_read
 
         class MultiMap(object):
           _bulk_read = None
           _lock = threading.Lock()
 
           def __getitem__(self, key):
-            if self._bulk_read is None:
-              with self._lock:
-                if self._bulk_read is None:
-                  try:
-                    # Attempt to bulk read the key-values over the iterable
-                    # protocol which, if supported, can be much more efficient
-                    # than point lookups if it fits into memory.
-                    for ix, (k, vs) in enumerate(_StateBackedIterable(
-                        state_handler,
-                        kv_iter_state_key,
-                        coders.TupleCoder(
-                            (key_coder, coders.IterableCoder(value_coder))))):
-                      cache[k] = vs
-                      if ix > StateBackedSideInputMap._BULK_READ_LIMIT:
+            if use_bulk_read:
+              if self._bulk_read is None:
+                with self._lock:
+                  if self._bulk_read is None:
+                    try:
+                      # Attempt to bulk read the key-values over the iterable
+                      # protocol which, if supported, can be much more efficient
+                      # than point lookups if it fits into memory.
+                      for ix, (k, vs) in enumerate(_StateBackedIterable(
+                          state_handler,
+                          kv_iter_state_key,
+                          coders.TupleCoder(
+                              (key_coder, coders.IterableCoder(value_coder))))):
+                        cache[k] = vs
+                        if ix > StateBackedSideInputMap._BULK_READ_LIMIT:
+                          self._bulk_read = (
+                              StateBackedSideInputMap._BULK_READ_PARTIALLY)
+                          break
+                      else:
+                        # We reached the end of the iteration without breaking.
                         self._bulk_read = (
-                            StateBackedSideInputMap._BULK_READ_PARTIALLY)
-                        break
-                    else:
-                      # We reached the end of the iteration without breaking.
+                            StateBackedSideInputMap._BULK_READ_FULLY)
+                    except Exception:
+                      _LOGGER.error(
+                          "Iterable access of map side inputs unsupported.",
+                          exc_info=True)
                       self._bulk_read = (
-                          StateBackedSideInputMap._BULK_READ_FULLY)
-                  except Exception:
-                    _LOGGER.error(
-                        "Iterable access of map side inputs unsupported.",
-                        exc_info=True)
-                    self._bulk_read = (
-                        StateBackedSideInputMap._BULK_READ_PARTIALLY)
+                          StateBackedSideInputMap._BULK_READ_PARTIALLY)
 
-            if (self._bulk_read == StateBackedSideInputMap._BULK_READ_FULLY):
-              return cache.get(key, [])
+              if (self._bulk_read == StateBackedSideInputMap._BULK_READ_FULLY):
+                return cache.get(key, [])
 
             if key not in cache:
               keyed_state_key = beam_fn_api_pb2.StateKey()
