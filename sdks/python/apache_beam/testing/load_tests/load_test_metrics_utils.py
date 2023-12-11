@@ -50,6 +50,7 @@ from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
+from apache_beam.runners.runner import PipelineResult
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.timestamp import Timestamp
 
