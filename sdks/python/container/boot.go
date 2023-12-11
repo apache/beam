@@ -465,14 +465,14 @@ func logRuntimeDependencies(ctx context.Context, logger *tools.Logger) error {
 	if err != nil {
 		return err
 	}
-    logger.Printf(ctx, "Using Python version:")
-    args := []string{"--version"}
-    bufLogger := tools.NewBufferedLogger(logger)
-    if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
-        bufLogger.FlushAtError(ctx)
-    } else {
-        bufLogger.FlushAtDebug(ctx)
-    }
+	logger.Printf(ctx, "Using Python version:")
+	args := []string{"--version"}
+	bufLogger := tools.NewBufferedLogger(logger)
+	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
+	    bufLogger.FlushAtError(ctx)
+	} else {
+	    bufLogger.FlushAtDebug(ctx)
+	}
 	args = []string{"-m", "pip", "freeze"}
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
 		bufLogger.FlushAtError(ctx)
