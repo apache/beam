@@ -27,12 +27,26 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /** Transforms for reading and writing request/response associations to a cache. */
 final class Cache {
+
+  /**
+   * {@link VisibleForTesting} to test {@link RequestResponseIO} composite transform construction
+   * without exposing {@link UsingRedis.Read}.
+   */
+  @VisibleForTesting
+  static final String CACHE_READ_USING_REDIS = Cache.UsingRedis.Read.class.getName();
+
+  /**
+   * {@link VisibleForTesting} to test {@link RequestResponseIO} composite transform construction
+   * without exposing {@link UsingRedis.Write}.
+   */
+  static final String CACHE_WRITE_USING_REDIS = Cache.UsingRedis.Write.class.getName();
 
   /**
    * Instantiates a {@link Call} {@link PTransform} that reads {@link RequestT} {@link ResponseT}

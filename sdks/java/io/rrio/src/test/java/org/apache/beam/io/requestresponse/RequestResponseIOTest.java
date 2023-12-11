@@ -17,11 +17,15 @@
  */
 package org.apache.beam.io.requestresponse;
 
+import static org.apache.beam.io.requestresponse.Cache.CACHE_READ_USING_REDIS;
+import static org.apache.beam.io.requestresponse.Cache.CACHE_WRITE_USING_REDIS;
+import static org.apache.beam.io.requestresponse.Call.NOOP_SETUP_TEARDOWN;
 import static org.apache.beam.io.requestresponse.RequestResponseIO.CACHE_READ_NAME;
 import static org.apache.beam.io.requestresponse.RequestResponseIO.CACHE_WRITE_NAME;
 import static org.apache.beam.io.requestresponse.RequestResponseIO.CALL_NAME;
 import static org.apache.beam.io.requestresponse.RequestResponseIO.ROOT_NAME;
 import static org.apache.beam.io.requestresponse.RequestResponseIO.THROTTLE_NAME;
+import static org.apache.beam.io.requestresponse.RequestResponseIO.WRAPPED_CALLER;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -62,16 +66,8 @@ public class RequestResponseIOTest {
   private static final TypeDescriptor<Request> REQUEST_TYPE = TypeDescriptor.of(Request.class);
   private static final TypeDescriptor<Response> RESPONSE_TYPE = TypeDescriptor.of(Response.class);
   private static final SchemaProvider SCHEMA_PROVIDER = new AutoValueSchema();
-  private static final String PACKAGE =
-      RequestResponseIO.class.getName().replace(RequestResponseIO.class.getSimpleName(), "");
-
-  private static final String NOOP_SETUP_TEARDOWN = PACKAGE + "Call$NoopSetupTeardown";
-  private static final String WRAPPED_CALLER =
-      PACKAGE + "RequestResponseIO$WrappedAssociatingRequestResponseCaller";
-  private static final String CACHE_READ_USING_REDIS = PACKAGE + "Cache$UsingRedis$Read";
-  private static final String CACHE_WRITE_USING_REDIS = PACKAGE + "Cache$UsingRedis$Write";
-
-  private static final String THROTTLE_USING_EXTERNAL = PACKAGE + "ThrottleWithExternalResource";
+  private static final String THROTTLE_USING_EXTERNAL =
+      ThrottleWithExternalResource.class.getName();
 
   private static final Coder<Request> REQUEST_CODER =
       SchemaCoder.of(
@@ -88,15 +84,82 @@ public class RequestResponseIOTest {
           checkStateNotNull(SCHEMA_PROVIDER.fromRowFunction(RESPONSE_TYPE)));
 
   @Test
-  public void givenMinimalConfiguration_transformExpandsWithCallerOnly() {
+  public void givenMinimalConfiguration_transformExpandsWithCallOnly() {
     ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
     requests().apply(RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER));
     pipeline.traverseTopologically(visitor);
-    visitor.assertCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
+    visitor.assertExpandsWithCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
+    visitor.assertNotExpandsWith(THROTTLE_NAME);
+    visitor.assertNotExpandsWith(CACHE_READ_NAME);
+    visitor.assertNotExpandsWith(CACHE_WRITE_NAME);
   }
 
   @Test
-  public void givenAllConfiguration_transformExpandsWithEverything()
+  public void givenCallerAndSetupTeardown_transformExpandsWithCallOnly() {
+    ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
+    requests()
+        .apply(
+            RequestResponseIO.ofCallerAndSetupTeardown(
+                new CallerSetupTeardownImpl(), RESPONSE_CODER));
+
+    pipeline.traverseTopologically(visitor);
+
+    visitor.assertExpandsWithCallOf(
+        CALL_NAME,
+        CallerSetupTeardownImpl.class.getName(),
+        CallerSetupTeardownImpl.class.getName());
+
+    visitor.assertNotExpandsWith(THROTTLE_NAME);
+    visitor.assertNotExpandsWith(CACHE_READ_NAME);
+    visitor.assertNotExpandsWith(CACHE_WRITE_NAME);
+  }
+
+  @Test
+  public void givenPreventiveThrottlingUsingRedis_transformExpandsWithCallAndThrottling()
+      throws NonDeterministicException {
+    ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
+    requests()
+        .apply(
+            RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER)
+                .withPreventiveThrottleUsingRedis(
+                    URI.create("redis://localhost:6379"),
+                    REQUEST_CODER,
+                    new Quota(1L, Duration.standardSeconds(1L)),
+                    "quota",
+                    "queue"));
+
+    pipeline.traverseTopologically(visitor);
+
+    visitor.assertExpandsWithCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
+    visitor.assertExpandsWithThrottleOf(THROTTLE_USING_EXTERNAL);
+    visitor.assertNotExpandsWith(CACHE_READ_NAME);
+    visitor.assertNotExpandsWith(CACHE_WRITE_NAME);
+  }
+
+  @Test
+  public void givenCacheUsingRedis_transformExpandsWithCallAndCache()
+      throws NonDeterministicException {
+    ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
+    requests()
+        .apply(
+            RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER)
+                .withRedisCache(
+                    URI.create("redis://localhost:6379"),
+                    REQUEST_CODER,
+                    Duration.standardHours(1L)));
+
+    pipeline.traverseTopologically(visitor);
+
+    visitor.assertExpandsWithCallOf(CALL_NAME, WRAPPED_CALLER, NOOP_SETUP_TEARDOWN);
+    visitor.assertNotExpandsWith(THROTTLE_NAME);
+    visitor.assertExpandsWithCallOf(
+        CACHE_READ_NAME, CACHE_READ_USING_REDIS, CACHE_READ_USING_REDIS);
+    visitor.assertExpandsWithCallOf(
+        CACHE_WRITE_NAME, CACHE_WRITE_USING_REDIS, CACHE_WRITE_USING_REDIS);
+  }
+
+  @Test
+  public void givenAllConfigurationUsingRedis_transformExpandsWithEverything()
       throws NonDeterministicException {
     ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
     requests()
@@ -110,18 +173,22 @@ public class RequestResponseIOTest {
                     new Quota(1L, Duration.standardSeconds(1L)),
                     "quota",
                     "queue"));
+
     pipeline.traverseTopologically(visitor);
-    visitor.assertCallOf(CALL_NAME, WRAPPED_CALLER, NOOP_SETUP_TEARDOWN);
-    visitor.assertThrottleOf(THROTTLE_USING_EXTERNAL);
-    visitor.assertCallOf(CACHE_READ_NAME, CACHE_READ_USING_REDIS, CACHE_READ_USING_REDIS);
-    visitor.assertCallOf(CACHE_WRITE_NAME, CACHE_WRITE_USING_REDIS, CACHE_WRITE_USING_REDIS);
+
+    visitor.assertExpandsWithCallOf(CALL_NAME, WRAPPED_CALLER, NOOP_SETUP_TEARDOWN);
+    visitor.assertExpandsWithThrottleOf(THROTTLE_USING_EXTERNAL);
+    visitor.assertExpandsWithCallOf(
+        CACHE_READ_NAME, CACHE_READ_USING_REDIS, CACHE_READ_USING_REDIS);
+    visitor.assertExpandsWithCallOf(
+        CACHE_WRITE_NAME, CACHE_WRITE_USING_REDIS, CACHE_WRITE_USING_REDIS);
   }
 
   private static class ExpansionPipelineVisitor implements PipelineVisitor {
 
     private final Map<String, TransformHierarchy.Node> visits = new HashMap<>();
 
-    private void assertCallOf(
+    private void assertExpandsWithCallOf(
         String stepName, String callerClassName, String setupTeardownClassName) {
       stepName = ROOT_NAME + "/" + stepName;
       PTransform<?, ?> transform = getFromStep(stepName);
@@ -134,11 +201,16 @@ public class RequestResponseIOTest {
           equalTo(setupTeardownClassName));
     }
 
-    private void assertThrottleOf(String className) {
-      assertPTransformClassOf(ROOT_NAME + "/" + THROTTLE_NAME, className);
+    private void assertExpandsWithThrottleOf(String className) {
+      assertExpandsPTransformClassOf(ROOT_NAME + "/" + THROTTLE_NAME, className);
     }
 
-    private void assertPTransformClassOf(String stepName, String className) {
+    private void assertNotExpandsWith(String stepName) {
+      stepName = ROOT_NAME + "/" + stepName;
+      assertThat(visits.containsKey(stepName), equalTo(false));
+    }
+
+    private void assertExpandsPTransformClassOf(String stepName, String className) {
       PTransform<?, ?> transform = getFromStep(stepName);
       assertThat(transform.getClass().getName(), equalTo(className));
     }
@@ -227,10 +299,8 @@ public class RequestResponseIOTest {
     }
   }
 
-  @SuppressWarnings({"unused"})
   private static class CallerSetupTeardownImpl implements Caller<Request, Response>, SetupTeardown {
     private final CallerImpl caller = new CallerImpl();
-    private final SetupTeardownImpl setupTeardown = new SetupTeardownImpl(caller);
 
     @Override
     public Response call(Request request) throws UserCodeExecutionException {
@@ -238,14 +308,10 @@ public class RequestResponseIOTest {
     }
 
     @Override
-    public void setup() throws UserCodeExecutionException {
-      setupTeardown.setup();
-    }
+    public void setup() throws UserCodeExecutionException {}
 
     @Override
-    public void teardown() throws UserCodeExecutionException {
-      setupTeardown.teardown();
-    }
+    public void teardown() throws UserCodeExecutionException {}
   }
 
   private static class CallerImpl implements Caller<Request, Response> {
@@ -257,20 +323,5 @@ public class RequestResponseIOTest {
           .setALong(request.getALong())
           .build();
     }
-  }
-
-  @SuppressWarnings({"unused"})
-  private static class SetupTeardownImpl implements SetupTeardown {
-    private final CallerImpl caller;
-
-    private SetupTeardownImpl(CallerImpl caller) {
-      this.caller = caller;
-    }
-
-    @Override
-    public void setup() throws UserCodeExecutionException {}
-
-    @Override
-    public void teardown() throws UserCodeExecutionException {}
   }
 }

@@ -59,6 +59,12 @@ class Call<RequestT, ResponseT>
   static final Duration DEFAULT_TIMEOUT = Duration.standardSeconds(30L);
 
   /**
+   * {@link VisibleForTesting} to test {@link RequestResponseIO} composite transform construction
+   * without exposing {@link NoopSetupTeardown}.
+   */
+  @VisibleForTesting static final String NOOP_SETUP_TEARDOWN = NoopSetupTeardown.class.getName();
+
+  /**
    * Instantiates a {@link Call} {@link PTransform} with the required {@link Caller} and {@link
    * ResponseT} {@link Coder}. Checks for the {@link Caller}'s {@link
    * SerializableUtils#ensureSerializable} serializable errors.

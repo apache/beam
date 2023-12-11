@@ -33,11 +33,13 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Partition;
 import org.apache.beam.sdk.transforms.Partition.PartitionFn;
+import org.apache.beam.sdk.transforms.PeriodicImpulse;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
@@ -45,6 +47,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -84,12 +87,26 @@ import org.joda.time.Duration;
 public class RequestResponseIO<RequestT, ResponseT>
     extends PTransform<PCollection<RequestT>, Result<ResponseT>> {
 
-  static final String ROOT_NAME = RequestResponseIO.class.getSimpleName();
+  /**
+   * static final Strings below are {@link VisibleForTesting} to test composite pipeline
+   * construction of {@link RequestResponseIO}.
+   */
+  @VisibleForTesting static final String ROOT_NAME = RequestResponseIO.class.getSimpleName();
 
-  static final String CALL_NAME = Call.class.getSimpleName();
-  static final String CACHE_READ_NAME = "CacheRead";
-  static final String CACHE_WRITE_NAME = "CacheWrite";
-  static final String THROTTLE_NAME = "Throttle";
+  @VisibleForTesting static final String CALL_NAME = Call.class.getSimpleName();
+
+  @VisibleForTesting static final String CACHE_READ_NAME = "CacheRead";
+
+  @VisibleForTesting static final String CACHE_WRITE_NAME = "CacheWrite";
+
+  @VisibleForTesting static final String THROTTLE_NAME = "Throttle";
+
+  /**
+   * {@link VisibleForTesting} to test {@link RequestResponseIO} composite transform construction
+   * without exposing {@link WrappedAssociatingRequestResponseCaller}.
+   */
+  @VisibleForTesting
+  static final String WRAPPED_CALLER = WrappedAssociatingRequestResponseCaller.class.getName();
 
   private final TupleTag<ResponseT> responseTag = new TupleTag<ResponseT>() {};
   private final TupleTag<ApiIOError> failureTag = new TupleTag<ApiIOError>() {};
@@ -137,14 +154,15 @@ public class RequestResponseIO<RequestT, ResponseT>
   }
 
   /**
-   * Configures {@link RequestResponseIO} to use a <a href="https://redis.io">Redis</a> cache that
-   * reads and writes associated {@link RequestT} and {@link ResponseT} pairs. The purpose of the
-   * cache is to offload {@link RequestT}s from the API and instead return the {@link ResponseT} if
-   * the association is known. Since the {@link RequestT}s and {@link ResponseT}s need encoding and
-   * decoding, checks are made whether the requestTCoder and {@link Configuration#getResponseTCoder}
-   * are {@link Coder#verifyDeterministic}.
+   * Configures {@link RequestResponseIO} to use a <a href="https://redis.io">Redis</a> cache to
+   * configure {@link #withCacheRead} and {@link #withCacheWrite}, to read and write {@link
+   * RequestT} and {@link ResponseT} pairs. The purpose of the cache is to offload {@link RequestT}s
+   * from the API and instead return the {@link ResponseT} if the association is known. Since the
+   * {@link RequestT}s and {@link ResponseT}s need encoding and decoding, checks are made whether
+   * the requestTCoder and {@link Configuration#getResponseTCoder} are {@link
+   * Coder#verifyDeterministic}.
    *
-   * <pre>Below describes the paramters in more detail and their usage.</pre>
+   * <pre>Below describes the parameters in more detail and their usage.</pre>
    *
    * <ul>
    *   <li>{@code URI uri} - the {@link URI} of the Redis instance.
@@ -167,40 +185,72 @@ public class RequestResponseIO<RequestT, ResponseT>
             new CacheResponseCoder<>(configuration.getResponseTCoder()));
 
     PTransform<PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>> cacheWrite =
+        // Type arguments needed to resolve "error: [assignment] incompatible types in assignment."
         Cache.<RequestT, ResponseT>writeUsingRedis(
             expiry,
             new RedisClient(uri),
             requestTCoder,
             new CacheResponseCoder<>(configuration.getResponseTCoder()));
 
-    return new RequestResponseIO<>(
-        configuration.toBuilder().setCacheRead(cacheRead).setCacheWrite(cacheWrite).build());
+    return withCacheRead(cacheRead).withCacheWrite(cacheWrite);
   }
 
+  /**
+   * Configures {@link RequestResponseIO} for reading {@link RequestT} and {@link ResponseT} pairs
+   * from a cache. The transform {@link Flatten}s the {@link ResponseT} {@link PCollection} of
+   * successful pairs with that resulting from API calls of {@link RequestT}s of unsuccessful pairs.
+   * It is intended for this method and {@link #withCacheWrite} to be used together.
+   */
   public RequestResponseIO<RequestT, ResponseT> withCacheRead(
       PTransform<PCollection<RequestT>, Result<KV<RequestT, @Nullable ResponseT>>> cacheRead) {
     return new RequestResponseIO<>(configuration.toBuilder().setCacheRead(cacheRead).build());
   }
 
+  /**
+   * Configures {@link RequestResponseIO} for writing {@link RequestT} and {@link ResponseT} pairs
+   * to a cache. The transform applies a result of {@link Call} to the {@link PTransform} supplied
+   * by this method. It is intended for this method and {@link #withCacheRead} to be used together.
+   */
   public RequestResponseIO<RequestT, ResponseT> withCacheWrite(
       PTransform<PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>>
           cacheWrite) {
     return new RequestResponseIO<>(configuration.toBuilder().setCacheWrite(cacheWrite).build());
   }
 
+  /**
+   * Configures {@link RequestResponseIO} with a {@link #withPreventiveThrottle} using a <a
+   * href="https://redis.io">Redis</a> cache. <strong>Take care not to mix up the {@code quotaKey}
+   * from the {@code queueKey}.</strong> Additionally, usage of this should consider that the {@link
+   * PTransform} uses {@link PeriodicImpulse} to fulfill its aim. <strong>Therefore, usage of this
+   * method will convert a batch pipeline to a streaming one.</strong>
+   *
+   * <pre>The algorithm is as follows.</pre>
+   *
+   * <ol>
+   *   <li>The transform queues {@link RequestT} elements into a Redis list identified by the {@code
+   *       queueKey}
+   *   <li>A refresher uses {@link PeriodicImpulse} to refresh a shared cached {@link
+   *       Quota#getNumRequests} quota value, identified by the {@code quotaKey}, every {@link
+   *       Quota#getInterval}.
+   *   <li>Finally, a {@link DoFn} emits dequeued {@link RequestT} elements when there's available
+   *       quota.
+   * </ol>
+   */
   public RequestResponseIO<RequestT, ResponseT> withPreventiveThrottleUsingRedis(
       URI uri, Coder<RequestT> requestTCoder, Quota quota, String quotaKey, String queueKey)
       throws NonDeterministicException {
     requestTCoder.verifyDeterministic();
-    return new RequestResponseIO<>(
-        configuration
-            .toBuilder()
-            .setThrottle(
-                ThrottleWithExternalResource.usingRedis(
-                    uri, quotaKey, queueKey, quota, requestTCoder))
-            .build());
+    return withPreventiveThrottle(
+        ThrottleWithExternalResource.usingRedis(uri, quotaKey, queueKey, quota, requestTCoder));
   }
 
+  // TODO(damondouglas): implement after resolving https://github.com/apache/beam/issues/28932.
+  //  public RequestResponseIO<RequestT, ResponseT> withPreventiveThrottleWithoutExternalResource()
+
+  /**
+   * Configures {@link RequestResponseIO} with a {@link PTransform} that holds back {@link
+   * RequestT}s to prevent quota errors such as HTTP 429 or gRPC RESOURCE_EXHAUSTION errors.
+   */
   public RequestResponseIO<RequestT, ResponseT> withPreventiveThrottle(
       PTransform<PCollection<RequestT>, Result<RequestT>> throttle) {
     return new RequestResponseIO<>(configuration.toBuilder().setThrottle(throttle).build());
