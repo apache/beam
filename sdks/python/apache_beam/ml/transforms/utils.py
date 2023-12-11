@@ -32,7 +32,8 @@ class ArtifactsFetcher():
   def __init__(self, artifact_location):
     files = os.listdir(artifact_location)
     files.remove(base._ATTRIBUTE_FILE_NAME)
-    # TODO: Integrate ArtifactFetcher into MLTransform.
+    # TODO: https://github.com/apache/beam/issues/29356
+    #  Integrate ArtifactFetcher into MLTransform.
     if len(files) > 1:
       raise NotImplementedError(
           "MLTransform may have been utilized alongside transforms written "

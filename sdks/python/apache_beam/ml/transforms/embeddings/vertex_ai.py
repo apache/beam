@@ -40,7 +40,8 @@ from vertexai.language_models import TextEmbeddingModel
 __all__ = ["VertexAITextEmbeddings"]
 
 DEFAULT_TASK_TYPE = "RETRIEVAL_DOCUMENT"
-# TODO: Can this list be automatically pulled from Vertex SDK?
+# TODO: https://github.com/apache/beam/issues/29356
+# Can this list be automatically pulled from Vertex SDK?
 TASK_TYPE_INPUTS = [
     "RETRIEVAL_DOCUMENT",
     "RETRIEVAL_QUERY",

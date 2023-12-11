@@ -162,7 +162,8 @@ class ProcessHandler(beam.PTransform[beam.PCollection[ExampleT],
     """
 
 
-# TODO: Add support for inference_fn
+# TODO:https://github.com/apache/beam/issues/29356
+#  Add support for inference_fn
 class EmbeddingsManager(MLTransformProvider):
   def __init__(
       self,
@@ -385,7 +386,8 @@ class _JsonPickleTransformAttributeManager(_TransformAttributeManager):
   @staticmethod
   def _is_remote_path(path):
     is_gcs = path.find('gs://') != -1
-    # TODO: Add support for other remote paths.
+    # TODO:https://github.com/apache/beam/issues/29356
+    #  Add support for other remote paths.
     if not is_gcs and path.find('://') != -1:
       raise RuntimeError(
           "Artifact locations are currently supported for only available for "
