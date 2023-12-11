@@ -23,6 +23,7 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.net.URI;
 import java.util.List;
 import java.util.Set;
@@ -42,7 +43,10 @@ import org.apache.beam.sdk.transforms.Partition;
 import org.apache.beam.sdk.transforms.Partition.PartitionFn;
 import org.apache.beam.sdk.transforms.PeriodicImpulse;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -121,14 +125,24 @@ public class RequestResponseIO<RequestT, ResponseT>
    */
   @VisibleForTesting
   static final String WRAPPED_CALLER = WrappedAssociatingRequestResponseCaller.class.getName();
+  /**
+   * The default {@link Duration} to wait until completion of user code. A {@link
+   * UserCodeTimeoutException} is thrown when {@link Caller#call}, {@link SetupTeardown#setup}, or
+   * {@link SetupTeardown#teardown} exceed this timeout.
+   */
+  public static final Duration DEFAULT_TIMEOUT = Duration.standardSeconds(30L);
 
   private final TupleTag<ResponseT> responseTag = new TupleTag<ResponseT>() {};
   private final TupleTag<ApiIOError> failureTag = new TupleTag<ApiIOError>() {};
 
-  private final Configuration<RequestT, ResponseT> configuration;
+  private final Configuration<RequestT, ResponseT> rrioConfiguration;
+  private final Call.Configuration<RequestT, ResponseT> callConfiguration;
 
-  private RequestResponseIO(Configuration<RequestT, ResponseT> configuration) {
-    this.configuration = configuration;
+  private RequestResponseIO(
+      Configuration<RequestT, ResponseT> rrioConfiguration,
+      Call.Configuration<RequestT, ResponseT> callConfiguration) {
+    this.rrioConfiguration = rrioConfiguration;
+    this.callConfiguration = callConfiguration;
   }
 
   /**
@@ -142,10 +156,12 @@ public class RequestResponseIO<RequestT, ResponseT>
     caller = SerializableUtils.ensureSerializable(caller);
 
     return new RequestResponseIO<>(
-        Configuration.<RequestT, ResponseT>builder()
-            .setCaller(caller)
-            .setResponseTCoder(responseTCoder)
-            .build());
+            Configuration.<RequestT, ResponseT>builder().setResponseTCoder(responseTCoder).build(),
+            Call.Configuration.<RequestT, ResponseT>builder()
+                .setCaller(caller)
+                .setResponseCoder(responseTCoder)
+                .build())
+        .withDefaults();
   }
 
   /**
@@ -159,12 +175,84 @@ public class RequestResponseIO<RequestT, ResponseT>
           CallerSetupTeardownT extends Caller<RequestT, ResponseT> & SetupTeardown>
       RequestResponseIO<RequestT, ResponseT> ofCallerAndSetupTeardown(
           CallerSetupTeardownT implementsCallerAndSetupTeardown, Coder<ResponseT> responseTCoder) {
+
+    implementsCallerAndSetupTeardown =
+        SerializableUtils.ensureSerializable(implementsCallerAndSetupTeardown);
+
     return new RequestResponseIO<>(
-        Configuration.<RequestT, ResponseT>builder()
-            .setCaller(implementsCallerAndSetupTeardown)
-            .setResponseTCoder(responseTCoder)
-            .setSetupTeardown(implementsCallerAndSetupTeardown)
-            .build());
+            Configuration.<RequestT, ResponseT>builder().setResponseTCoder(responseTCoder).build(),
+            Call.Configuration.<RequestT, ResponseT>builder()
+                .setCaller(implementsCallerAndSetupTeardown)
+                .setSetupTeardown(implementsCallerAndSetupTeardown)
+                .setResponseCoder(responseTCoder)
+                .build())
+        .withDefaults();
+  }
+
+  private RequestResponseIO<RequestT, ResponseT> withDefaults() {
+    return withTimeout(DEFAULT_TIMEOUT)
+        .shouldRepeat(true)
+        .withBackOffSupplier(new DefaultSerializableBackoffSupplier())
+        .withSleeperSupplier((SerializableSupplier<Sleeper>) () -> Sleeper.DEFAULT)
+        .withCallShouldBackoff(new CallShouldBackoffBasedOnRejectionProbability<>());
+  }
+
+  /**
+   * Overrides the {@link #DEFAULT_TIMEOUT} expected timeout of all user custom code. If user custom
+   * code exceeds this timeout, then a {@link UserCodeTimeoutException} is thrown. User custom code
+   * may throw this exception prior to the configured timeout value on their own.
+   */
+  public RequestResponseIO<RequestT, ResponseT> withTimeout(Duration value) {
+    return new RequestResponseIO<>(
+        rrioConfiguration, callConfiguration.toBuilder().setTimeout(value).build());
+  }
+
+  /**
+   * Turns off repeat invocations (default is on) of {@link SetupTeardown} and {@link Caller}, using
+   * the {@link Repeater}, in the setting of {@link RequestResponseIO#REPEATABLE_ERROR_TYPES}.
+   */
+  public RequestResponseIO<RequestT, ResponseT> withoutRepeater() {
+    return shouldRepeat(false);
+  }
+
+  private RequestResponseIO<RequestT, ResponseT> shouldRepeat(boolean value) {
+    return new RequestResponseIO<>(
+        rrioConfiguration, callConfiguration.toBuilder().setShouldRepeat(value).build());
+  }
+
+  /**
+   * Overrides the private no-op implementation of {@link CallShouldBackoff} that determines whether
+   * the {@link DoFn} should hold {@link RequestT}s. Without this configuration, {@link RequestT}s
+   * are never held; no-op implemented {@link CallShouldBackoff#value} always returns {@code false}.
+   */
+  public RequestResponseIO<RequestT, ResponseT> withCallShouldBackoff(
+      CallShouldBackoff<ResponseT> value) {
+    return new RequestResponseIO<>(
+        rrioConfiguration, callConfiguration.toBuilder().setCallShouldBackoff(value).build());
+  }
+
+  /**
+   * Overrides the default {@link SerializableSupplier} of a {@link Sleeper} that pauses code
+   * execution when user custom code throws a {@link RequestResponseIO#REPEATABLE_ERROR_TYPES}
+   * {@link UserCodeExecutionException}. The default supplies with {@link Sleeper#DEFAULT}. The need
+   * for a {@link SerializableSupplier} instead of setting this directly is that some
+   * implementations of {@link Sleeper} may not be {@link Serializable}.
+   */
+  RequestResponseIO<RequestT, ResponseT> withSleeperSupplier(SerializableSupplier<Sleeper> value) {
+    return new RequestResponseIO<>(
+        rrioConfiguration, callConfiguration.toBuilder().setSleeperSupplier(value).build());
+  }
+
+  /**
+   * Overrides the default {@link SerializableSupplier} of a {@link BackOff} that reports to a
+   * {@link Sleeper} how long to pause execution. It reports a {@link BackOff#STOP} to stop
+   * repeating invocation attempts. The default supplies with {@link FluentBackoff#DEFAULT}. The
+   * need for a {@link SerializableSupplier} instead of setting this directly is that some {@link
+   * BackOff} implementations, such as {@link FluentBackoff} are not {@link Serializable}.
+   */
+  RequestResponseIO<RequestT, ResponseT> withBackOffSupplier(SerializableSupplier<BackOff> value) {
+    return new RequestResponseIO<>(
+        rrioConfiguration, callConfiguration.toBuilder().setBackOffSupplier(value).build());
   }
 
   /**
@@ -190,13 +278,13 @@ public class RequestResponseIO<RequestT, ResponseT>
       URI uri, Coder<RequestT> requestTCoder, Duration expiry) throws NonDeterministicException {
 
     requestTCoder.verifyDeterministic();
-    configuration.getResponseTCoder().verifyDeterministic();
+    rrioConfiguration.getResponseTCoder().verifyDeterministic();
 
     PTransform<PCollection<RequestT>, Result<KV<RequestT, @Nullable ResponseT>>> cacheRead =
         Cache.<RequestT, @Nullable ResponseT>readUsingRedis(
             new RedisClient(uri),
             requestTCoder,
-            new CacheResponseCoder<>(configuration.getResponseTCoder()));
+            new CacheResponseCoder<>(rrioConfiguration.getResponseTCoder()));
 
     PTransform<PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>> cacheWrite =
         // Type arguments needed to resolve "error: [assignment] incompatible types in assignment."
@@ -204,7 +292,7 @@ public class RequestResponseIO<RequestT, ResponseT>
             expiry,
             new RedisClient(uri),
             requestTCoder,
-            new CacheResponseCoder<>(configuration.getResponseTCoder()));
+            new CacheResponseCoder<>(rrioConfiguration.getResponseTCoder()));
 
     return withCacheRead(cacheRead).withCacheWrite(cacheWrite);
   }
@@ -217,7 +305,8 @@ public class RequestResponseIO<RequestT, ResponseT>
    */
   public RequestResponseIO<RequestT, ResponseT> withCacheRead(
       PTransform<PCollection<RequestT>, Result<KV<RequestT, @Nullable ResponseT>>> cacheRead) {
-    return new RequestResponseIO<>(configuration.toBuilder().setCacheRead(cacheRead).build());
+    return new RequestResponseIO<>(
+        rrioConfiguration.toBuilder().setCacheRead(cacheRead).build(), callConfiguration);
   }
 
   /**
@@ -228,7 +317,8 @@ public class RequestResponseIO<RequestT, ResponseT>
   public RequestResponseIO<RequestT, ResponseT> withCacheWrite(
       PTransform<PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>>
           cacheWrite) {
-    return new RequestResponseIO<>(configuration.toBuilder().setCacheWrite(cacheWrite).build());
+    return new RequestResponseIO<>(
+        rrioConfiguration.toBuilder().setCacheWrite(cacheWrite).build(), callConfiguration);
   }
 
   /**
@@ -267,7 +357,8 @@ public class RequestResponseIO<RequestT, ResponseT>
    */
   public RequestResponseIO<RequestT, ResponseT> withPreventiveThrottle(
       PTransform<PCollection<RequestT>, Result<RequestT>> throttle) {
-    return new RequestResponseIO<>(configuration.toBuilder().setThrottle(throttle).build());
+    return new RequestResponseIO<>(
+        rrioConfiguration.toBuilder().setThrottle(throttle).build(), callConfiguration);
   }
 
   /** Configuration details for {@link RequestResponseIO}. */
@@ -278,20 +369,10 @@ public class RequestResponseIO<RequestT, ResponseT>
       return new AutoValue_RequestResponseIO_Configuration.Builder<>();
     }
 
-    /** The user custom code to execute for each {@link RequestT}. */
-    abstract Caller<RequestT, ResponseT> getCaller();
-
     /**
      * Required by {@link Call} and applied to the resulting {@link ResponseT} {@link PCollection}.
      */
     abstract Coder<ResponseT> getResponseTCoder();
-
-    /**
-     * Optional parameter to tell {@link Call} what to call during a {@link
-     * org.apache.beam.sdk.transforms.DoFn.Setup} and {@link
-     * org.apache.beam.sdk.transforms.DoFn.Teardown}, respectively.
-     */
-    abstract @Nullable SetupTeardown getSetupTeardown();
 
     /**
      * Reads a {@link RequestT} {@link PCollection} from an optional cache and returns a {@link KV}
@@ -314,14 +395,8 @@ public class RequestResponseIO<RequestT, ResponseT>
     @AutoValue.Builder
     abstract static class Builder<RequestT, ResponseT> {
 
-      /** See {@link #getCaller}. */
-      abstract Builder<RequestT, ResponseT> setCaller(Caller<RequestT, ResponseT> value);
-
       /** See {@link #getResponseTCoder}. */
       abstract Builder<RequestT, ResponseT> setResponseTCoder(Coder<ResponseT> value);
-
-      /** See {@link #getSetupTeardown}. */
-      abstract Builder<RequestT, ResponseT> setSetupTeardown(SetupTeardown value);
 
       /** See {@link #getCacheRead}. */
       abstract Builder<RequestT, ResponseT> setCacheRead(
@@ -394,11 +469,11 @@ public class RequestResponseIO<RequestT, ResponseT>
           PCollection<RequestT> input,
           PCollectionList<ResponseT> responseList,
           PCollectionList<ApiIOError> failureList) {
-    if (configuration.getCacheRead() == null) {
+    if (rrioConfiguration.getCacheRead() == null) {
       return Triple.of(input, responseList, failureList);
     }
     Result<KV<RequestT, @Nullable ResponseT>> cacheReadResult =
-        input.apply(CACHE_READ_NAME, checkStateNotNull(configuration.getCacheRead()));
+        input.apply(CACHE_READ_NAME, checkStateNotNull(rrioConfiguration.getCacheRead()));
 
     PCollectionList<KV<RequestT, ResponseT>> cacheReadList =
         cacheReadResult
@@ -436,12 +511,12 @@ public class RequestResponseIO<RequestT, ResponseT>
    */
   Pair<PCollection<RequestT>, PCollectionList<ApiIOError>> expandThrottle(
       PCollection<RequestT> input, PCollectionList<ApiIOError> failureList) {
-    if (configuration.getThrottle() == null) {
+    if (rrioConfiguration.getThrottle() == null) {
       return Pair.of(input, failureList);
     }
 
     Result<RequestT> throttleResult =
-        input.apply(THROTTLE_NAME, checkStateNotNull(configuration.getThrottle()));
+        input.apply(THROTTLE_NAME, checkStateNotNull(rrioConfiguration.getThrottle()));
 
     return Pair.of(throttleResult.getResponses(), failureList.and(throttleResult.getFailures()));
   }
@@ -452,9 +527,9 @@ public class RequestResponseIO<RequestT, ResponseT>
    * <pre>Algorithm is as follows:
    * <ol>
    *   <li>If {@link Configuration#getCacheWrite} not available, instantiates and applies a
-   *   {@link Call} using {@link Configuration#getCaller} and optionally
-   *   {@link Configuration#getSetupTeardown}. </li>
-   *   <li>Otherwise, wraps the original {@link Configuration#getCaller} using
+   *   {@link Call} using original {@link Caller} and optionally
+   *   {@link SetupTeardown}. </li>
+   *   <li>Otherwise, wraps the original {@link Caller} using
    *   {@link WrappedAssociatingRequestResponseCaller} that preserves the association between the
    *   {@link RequestT} and its {@link ResponseT}.</li>
    *   <li>Applies the resulting {@link KV} of the {@link RequestT} and its {@link ResponseT}
@@ -467,11 +542,11 @@ public class RequestResponseIO<RequestT, ResponseT>
       PCollectionList<ResponseT> responseList,
       PCollectionList<ApiIOError> failureList) {
 
-    if (configuration.getCacheWrite() == null) {
+    if (rrioConfiguration.getCacheWrite() == null) {
       Call<RequestT, ResponseT> call =
-          Call.of(configuration.getCaller(), configuration.getResponseTCoder());
-      if (configuration.getSetupTeardown() != null) {
-        call = call.withSetupTeardown(checkStateNotNull(configuration.getSetupTeardown()));
+          Call.of(callConfiguration.getCaller(), rrioConfiguration.getResponseTCoder());
+      if (callConfiguration.getSetupTeardown() != null) {
+        call = call.withSetupTeardown(checkStateNotNull(callConfiguration.getSetupTeardown()));
       }
       Result<ResponseT> result = input.apply(CALL_NAME, call);
       return Pair.of(
@@ -480,12 +555,12 @@ public class RequestResponseIO<RequestT, ResponseT>
 
     // Wrap caller to associate RequestT with ResponseT as a KV.
     Caller<RequestT, KV<RequestT, ResponseT>> caller =
-        new WrappedAssociatingRequestResponseCaller<>(configuration.getCaller());
+        new WrappedAssociatingRequestResponseCaller<>(callConfiguration.getCaller());
     Coder<KV<RequestT, ResponseT>> coder =
-        KvCoder.of(input.getCoder(), configuration.getResponseTCoder());
+        KvCoder.of(input.getCoder(), rrioConfiguration.getResponseTCoder());
     Call<RequestT, KV<RequestT, ResponseT>> call = Call.of(caller, coder);
-    if (configuration.getSetupTeardown() != null) {
-      call = call.withSetupTeardown(checkStateNotNull(configuration.getSetupTeardown()));
+    if (callConfiguration.getSetupTeardown() != null) {
+      call = call.withSetupTeardown(checkStateNotNull(callConfiguration.getSetupTeardown()));
     }
 
     // Extract ResponseT from KV; append failures.
@@ -499,7 +574,7 @@ public class RequestResponseIO<RequestT, ResponseT>
     Result<KV<RequestT, ResponseT>> cacheWriteResult =
         result
             .getResponses()
-            .apply(CACHE_WRITE_NAME, checkStateNotNull(configuration.getCacheWrite()));
+            .apply(CACHE_WRITE_NAME, checkStateNotNull(rrioConfiguration.getCacheWrite()));
     failureList = failureList.and(cacheWriteResult.getFailures());
 
     return Pair.of(responseList, failureList);

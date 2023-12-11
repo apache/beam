@@ -57,13 +57,6 @@ class Call<RequestT, ResponseT>
     extends PTransform<@NonNull PCollection<RequestT>, @NonNull Result<ResponseT>> {
 
   /**
-   * The default {@link Duration} to wait until completion of user code. A {@link
-   * UserCodeTimeoutException} is thrown when {@link Caller#call}, {@link SetupTeardown#setup}, or
-   * {@link SetupTeardown#teardown} exceed this timeout.
-   */
-  static final Duration DEFAULT_TIMEOUT = Duration.standardSeconds(30L);
-
-  /**
    * {@link VisibleForTesting} to test {@link RequestResponseIO} composite transform construction
    * without exposing {@link NoopSetupTeardown}.
    */
@@ -137,9 +130,9 @@ class Call<RequestT, ResponseT>
   }
 
   /**
-   * Overrides the default {@link #DEFAULT_TIMEOUT}. A {@link UserCodeTimeoutException} is thrown
-   * when {@link Caller#call}, {@link SetupTeardown#setup}, or {@link SetupTeardown#teardown} exceed
-   * the timeout.
+   * Overrides the default {@link RequestResponseIO#DEFAULT_TIMEOUT}. A {@link
+   * UserCodeTimeoutException} is thrown when {@link Caller#call}, {@link SetupTeardown#setup}, or
+   * {@link SetupTeardown#teardown} exceed the timeout.
    */
   Call<RequestT, ResponseT> withTimeout(Duration timeout) {
     return new Call<>(configuration.toBuilder().setTimeout(timeout).build());
@@ -431,7 +424,7 @@ class Call<RequestT, ResponseT>
         }
 
         if (!getTimeout().isPresent()) {
-          setTimeout(DEFAULT_TIMEOUT);
+          setTimeout(RequestResponseIO.DEFAULT_TIMEOUT);
         }
 
         if (!getCallShouldBackoff().isPresent()) {
