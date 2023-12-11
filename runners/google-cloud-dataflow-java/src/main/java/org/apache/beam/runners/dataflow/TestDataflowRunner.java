@@ -23,6 +23,7 @@ import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
@@ -78,8 +79,10 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 dataflowOptions.getTempRoot(), dataflowOptions.getJobName(), "output", "results")
             .toString();
     // to keep exact same behavior prior to matchNewDirectory introduced
-    if (tempLocation.endsWith("/") || tempLocation.endsWith("\\")) {
+    if (tempLocation.endsWith("/")) {
       tempLocation = tempLocation.substring(0, tempLocation.length() - 1);
+    } else if (tempLocation.endsWith(File.separator)) {
+      tempLocation = tempLocation.substring(0, tempLocation.length() - File.separator.length());
     }
     dataflowOptions.setTempLocation(tempLocation);
 
