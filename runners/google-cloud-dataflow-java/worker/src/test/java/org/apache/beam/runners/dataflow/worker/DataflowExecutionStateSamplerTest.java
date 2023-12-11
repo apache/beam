@@ -137,7 +137,7 @@ public class DataflowExecutionStateSamplerTest {
     assertThat(
         sampler.getProcessingDistributionsForWorkId(workId1),
         equalTo(tracker1Mock.getProcessingTimesByStep()));
-    Assert.assertNull(sampler.getProcessingDistributionsForWorkId(workId2));
+    Assert.assertTrue(sampler.getProcessingDistributionsForWorkId(workId2).isEmpty());
   }
 
   private DataflowExecutionStateTracker createMockTracker(String workItemId) {

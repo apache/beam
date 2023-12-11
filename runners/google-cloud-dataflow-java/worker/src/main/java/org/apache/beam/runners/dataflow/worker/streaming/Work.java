@@ -163,9 +163,6 @@ public class Work implements Runnable {
 
     Map<String, IntSummaryStatistics> processingDistributions =
         sampler.getProcessingDistributionsForWorkId(workId);
-    if (processingDistributions == null) {
-      return builder;
-    }
     for (Entry<String, IntSummaryStatistics> entry : processingDistributions.entrySet()) {
       ActiveLatencyBreakdown.Builder stepBuilder = ActiveLatencyBreakdown.newBuilder();
       stepBuilder.setUserStepName(entry.getKey());
