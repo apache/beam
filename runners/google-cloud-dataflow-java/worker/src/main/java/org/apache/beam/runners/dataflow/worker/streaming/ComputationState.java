@@ -24,7 +24,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -121,9 +120,7 @@ public class ComputationState implements AutoCloseable {
     executor.forceExecute(work, work.getWorkItem().getSerializedSize());
   }
 
-  /**
-   * Adds any work started before the refreshDeadline to the GetDataRequest builder.
-   */
+  /** Adds any work started before the refreshDeadline to the GetDataRequest builder. */
   public ImmutableList<KeyedGetDataRequest> getKeysToRefresh(
       Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
     return activeWorkState.getKeysToRefresh(refreshDeadline, sampler);

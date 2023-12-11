@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
@@ -111,8 +110,8 @@ public final class DataflowExecutionStateSampler extends ExecutionStateSampler {
 
   public Optional<ActiveMessageMetadata> getActiveMessageMetadataForWorkId(String workId) {
     if (activeTrackersByWorkId.containsKey(workId)) {
-      return Optional.ofNullable(activeTrackersByWorkId.get(workId).getActiveMessageMetadata()
-          .orElse(null));
+      return Optional.ofNullable(
+          activeTrackersByWorkId.get(workId).getActiveMessageMetadata().orElse(null));
     }
     return Optional.ofNullable(null);
   }

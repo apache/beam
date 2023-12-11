@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 import com.google.auto.value.AutoValue;
-import java.util.Collections;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
@@ -149,8 +148,8 @@ public class Work implements Runnable {
       DataflowExecutionStateSampler sampler) {
     if (isHeartbeat) {
       ActiveLatencyBreakdown.Builder stepBuilder = ActiveLatencyBreakdown.newBuilder();
-      Optional<ActiveMessageMetadata> activeMessage = sampler.getActiveMessageMetadataForWorkId(
-          workId);
+      Optional<ActiveMessageMetadata> activeMessage =
+          sampler.getActiveMessageMetadataForWorkId(workId);
       if (!activeMessage.isPresent()) {
         return builder;
       }
