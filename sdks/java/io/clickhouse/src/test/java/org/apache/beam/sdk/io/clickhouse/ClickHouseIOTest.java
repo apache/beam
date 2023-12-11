@@ -139,6 +139,55 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
   }
 
   @Test
+  public void testTupleType() throws Exception {
+    /* Tuple('s':;String)
+    Tuple(
+            browser Tuple(name Nullable(String),
+                          size Tuple(width Nullable(Int64), height Nullable(Int64)),
+                          version Nullable(String)
+                         ),
+            deviceCategory Nullable(String),
+            mobileDeviceInfo Nullable(String),
+            mobileDeviceMarketingName Nullable(String),
+            mobileDeviceModel Nullable(String),
+            mobileInputSelector Nullable(String),
+            operatingSystem Nullable(String),
+            operatingSystemVersion Nullable(String),
+            mobileDeviceBranding Nullable(String),
+            flashVersion Nullable(String),
+            javaEnabled Nullable(Bool),
+            language Nullable(String),
+            screen Tuple(colors Nullable(String),
+                         resolution Tuple(width Nullable(Int64),
+                                          height Nullable(Int64)
+                                         )),
+            isBot Nullable(Bool),
+            isApp Nullable(Bool),
+            isInAppWebview Nullable(Bool)
+    )
+    */
+
+    Schema tupleSchema =
+        Schema.of(
+            Schema.Field.of("f0", FieldType.STRING), Schema.Field.of("f1", FieldType.BOOLEAN));
+    Schema schema = Schema.of(Schema.Field.of("t0", FieldType.row(tupleSchema)));
+    Row row1Tuple = Row.withSchema(tupleSchema).addValue("tuple").addValue(true).build();
+
+    Row row1 = Row.withSchema(schema).addValue(row1Tuple).build();
+
+    executeSql(
+        "CREATE TABLE test_named_tuples (" + "t0 Tuple(`f0` String, `f1` Bool)" + ") ENGINE=Log");
+
+    pipeline.apply(Create.of(row1).withRowSchema(schema)).apply(write("test_named_tuples"));
+
+    pipeline.run().waitUntilFinish();
+
+    try (ResultSet rs = executeQuery("SELECT * FROM test_named_tuples")) {
+      rs.next();
+    }
+  }
+
+  @Test
   public void testPrimitiveTypes() throws Exception {
     Schema schema =
         Schema.of(

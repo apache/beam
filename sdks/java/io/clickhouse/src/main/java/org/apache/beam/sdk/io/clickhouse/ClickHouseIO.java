@@ -27,6 +27,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
@@ -498,7 +499,22 @@ public class ClickHouseIO {
           String defaultTypeStr = rs.getString("default_type");
           String defaultExpression = rs.getString("default_expression");
 
-          ColumnType columnType = ColumnType.parse(type);
+          ColumnType columnType = null;
+          if (type.toLowerCase().trim().startsWith("tuple(")) {
+            System.out.println(type);
+            List<String> l =
+                Arrays.stream(type.trim().split(","))
+                    .map(s -> s.trim().replaceAll(" +", "':;"))
+                    .collect(Collectors.toList());
+            String content =
+                String.join(",", l).trim().replaceAll("\\(", "('").replaceAll(",", ",'");
+            System.out.println(content);
+            // columnType = ColumnType.parse(content);
+            columnType = ColumnType.parse(content);
+
+          } else {
+            columnType = ColumnType.parse(type);
+          }
           DefaultType defaultType = DefaultType.parse(defaultTypeStr).orElse(null);
 
           Object defaultValue;
