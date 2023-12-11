@@ -81,6 +81,7 @@ idna==3.6
 iniconfig==2.0.0
 joblib==1.3.2
 Js2Py==0.74
+jsonpickle==3.0.2
 jsonschema==4.20.0
 jsonschema-specifications==2023.11.2
 mmh3==4.0.1

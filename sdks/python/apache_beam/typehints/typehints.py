@@ -1020,13 +1020,13 @@ FrozenSetTypeConstraint = FrozenSetHint.FrozenSetTypeConstraint
 
 class CollectionHint(CompositeTypeHint):
   """ A Collection type-hint.
-  
+
   Collection[X] defines a type-hint for a collection of homogenous types. 'X'
   may be either a built-in Python type or another nested TypeConstraint.
 
   This represents a collections.abc.Collection type, which implements
   __contains__, __iter__, and __len__. This acts as a parent type for
-  sets but has fewer guarantees for mixins. 
+  sets but has fewer guarantees for mixins.
   """
   class CollectionTypeConstraint(SequenceTypeConstraint):
     def __init__(self, type_param):
@@ -1302,6 +1302,8 @@ def is_consistent_with(sub, base):
   relation, but also handles the special Any type as well as type
   parameterization.
   """
+  from apache_beam.pvalue import Row
+  from apache_beam.typehints.row_type import RowTypeConstraint
   if sub == base:
     # Common special case.
     return True
@@ -1313,6 +1315,8 @@ def is_consistent_with(sub, base):
     return all(is_consistent_with(c, base) for c in sub.union_types)
   elif isinstance(base, TypeConstraint):
     return base._consistent_with_check_(sub)
+  elif isinstance(sub, RowTypeConstraint):
+    return base == Row
   elif isinstance(sub, TypeConstraint):
     # Nothing but object lives above any type constraints.
     return base == object
