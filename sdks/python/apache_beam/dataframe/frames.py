@@ -488,11 +488,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
       else:
 
-        def set_index(df, by):  # type: ignore
+        def set_index(df, by):
           df, by = df.align(by, axis=0, join='inner')
           return df.set_index(by)
 
-        def prepend_index(df, by):  # type: ignore
+        def prepend_index(df, by):
           df, by = df.align(by, axis=0, join='inner')
           return df.set_index([by, df.index])
 
@@ -576,12 +576,12 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         grouping_indexes=grouping_indexes,
         group_keys=group_keys)
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.DataFrame)
   def loc(self):
     return _DeferredLoc(self)
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.DataFrame)
   def iloc(self):
     """Position-based indexing with `iloc` is order-sensitive in almost every
@@ -754,7 +754,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Singleton()))
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.DataFrame)
   def size(self):
     sizes = expressions.ComputedExpression(
@@ -799,7 +799,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         "result. Consider using df.length() instead.",
         reason="non-deferred-result")
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.DataFrame)
   def empty(self):
     empties = expressions.ComputedExpression(
@@ -1155,12 +1155,12 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
           "on the full dataset."),
       preserves_partition_by=expressions.partitionings.Singleton())
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.DataFrame)
   def ndim(self):
     return self._expr.proxy().ndim
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.DataFrame)
   def index(self):
     return _DeferredIndex(self)
@@ -1242,7 +1242,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
         f'DeferredSeries(name={self.name!r}, dtype={self.dtype}, '
         f'{self._render_indexes()})')
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.Series)
   def name(self):
     return self._expr.proxy().name
@@ -1260,7 +1260,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
         requires_partition_by=partitionings.Arbitrary(),
         preserves_partition_by=partitionings.Arbitrary())
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.Series)
   def hasnans(self):
     has_nans = expressions.ComputedExpression(
@@ -1277,7 +1277,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               requires_partition_by=partitionings.Singleton(),
               preserves_partition_by=partitionings.Singleton()))
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.Series)
   def dtype(self):
     return self._expr.proxy().dtype
@@ -2084,7 +2084,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   agg = aggregate
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.Series)
   def axes(self):
     return [self.index]
@@ -2230,7 +2230,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               preserves_partition_by=partitionings.Arbitrary(),
               requires_partition_by=partitionings.Singleton()))
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.Series)
   def is_unique(self):
     def set_index(s):
@@ -2372,17 +2372,17 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           "because it relies on memory-sharing semantics that are "
           "not compatible with the Beam model."))
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.Series)
   def str(self):
     return _DeferredStringMethods(self._expr)
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.Series)
   def cat(self):
     return _DeferredCategoricalMethods(self._expr)
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.Series)
   def dt(self):
     return _DeferredDatetimeMethods(self._expr)
@@ -2480,7 +2480,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         f'DeferredDataFrame(columns={list(self.columns)}, '
         f'{self._render_indexes()})')
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.DataFrame)
   def columns(self):
     return self._expr.proxy().columns
@@ -2703,12 +2703,12 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
               preserves_partition_by=partitionings.Arbitrary()))
 
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.DataFrame)
   def axes(self):
     return (self.index, self.columns)
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.DataFrame)
   def dtypes(self):
     return self._expr.proxy().dtypes
@@ -4470,7 +4470,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
     return self.apply(apply_fn).droplevel(self._grouping_columns)
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(DataFrameGroupBy)
   def dtypes(self):
     return frame_base.DeferredFrame.wrap(
@@ -5220,17 +5220,17 @@ def make_cat_func(method):
 
 
 class _DeferredCategoricalMethods(frame_base.DeferredBase):
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.core.arrays.categorical.CategoricalAccessor)
   def categories(self):
     return self._expr.proxy().cat.categories
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.core.arrays.categorical.CategoricalAccessor)
   def ordered(self):
     return self._expr.proxy().cat.ordered
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.core.arrays.categorical.CategoricalAccessor)
   def codes(self):
     return frame_base.DeferredFrame.wrap(
@@ -5265,12 +5265,12 @@ for method in ELEMENTWISE_CATEGORICAL_METHODS:
               base=pd.core.arrays.categorical.CategoricalAccessor))
 
 class _DeferredDatetimeMethods(frame_base.DeferredBase):
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.core.indexes.accessors.DatetimeProperties)
   def tz(self):
     return self._expr.proxy().dt.tz
 
-  @property  # type: ignore
+  @property
   @frame_base.with_docs_from(pd.core.indexes.accessors.DatetimeProperties)
   def freq(self):
     return self._expr.proxy().dt.freq
@@ -5452,8 +5452,8 @@ def _create_maybe_elementwise_or(base):
   return _maybe_elementwise_or
 
 
-DeferredSeries.__or__ = _create_maybe_elementwise_or(pd.Series)  # type: ignore
-DeferredDataFrame.__or__ = _create_maybe_elementwise_or(pd.DataFrame)  # type: ignore
+DeferredSeries.__or__ = _create_maybe_elementwise_or(pd.Series)
+DeferredDataFrame.__or__ = _create_maybe_elementwise_or(pd.DataFrame)
 
 
 for name in ['lt', 'le', 'gt', 'ge', 'eq', 'ne']:
@@ -5471,12 +5471,12 @@ for name in ['__neg__', '__pos__', '__invert__']:
   setattr(DeferredDataFrame, name,
           frame_base._elementwise_method(name, base=pd.DataFrame))
 
-DeferredSeries.multiply = DeferredSeries.mul  # type: ignore
-DeferredDataFrame.multiply = DeferredDataFrame.mul  # type: ignore
-DeferredSeries.subtract = DeferredSeries.sub  # type: ignore
-DeferredDataFrame.subtract = DeferredDataFrame.sub  # type: ignore
-DeferredSeries.divide = DeferredSeries.div  # type: ignore
-DeferredDataFrame.divide = DeferredDataFrame.div  # type: ignore
+DeferredSeries.multiply = DeferredSeries.mul
+DeferredDataFrame.multiply = DeferredDataFrame.mul
+DeferredSeries.subtract = DeferredSeries.sub
+DeferredDataFrame.subtract = DeferredDataFrame.sub
+DeferredSeries.divide = DeferredSeries.div
+DeferredDataFrame.divide = DeferredDataFrame.div
 
 
 def _slice_parts(s):

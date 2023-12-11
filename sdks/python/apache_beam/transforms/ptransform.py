@@ -748,7 +748,7 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
     # type: (PipelineContext, bool, Any) -> beam_runner_api_pb2.FunctionSpec
     from apache_beam.portability.api import beam_runner_api_pb2
     # typing: only ParDo supports extra_kwargs
-    urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)  # type: ignore[call-arg]
+    urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)
     if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
       # TODO(https://github.com/apache/beam/issues/18713): Remove this fallback.
       urn, typed_param = self.to_runner_api_pickled(context)
@@ -847,7 +847,7 @@ class PTransformWithSideInputs(PTransform):
     # type: (WithTypeHints, *Any, **Any) -> None
     if isinstance(fn, type) and issubclass(fn, WithTypeHints):
       # Don't treat Fn class objects as callables.
-      raise ValueError('Use %s() not %s.' % (fn.__name__, fn.__name__))
+      raise ValueError('Use %s() not %s.' % (fn.__name__, fn.__name__))  # type: ignore
     self.fn = self.make_fn(fn, bool(args or kwargs))
     # Now that we figure out the label, initialize the super-class.
     super().__init__()

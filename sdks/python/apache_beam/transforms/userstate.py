@@ -297,7 +297,7 @@ def validate_stateful_dofn(dofn):
           'DoFn %r has a TimerSpec without an associated on_timer '
           'callback: %s.') % (dofn, timer_spec))
     method_name = timer_spec._attached_callback.__name__
-    if (timer_spec._attached_callback != getattr(dofn, method_name,
+    if (timer_spec._attached_callback != getattr(dofn, method_name,  # type: ignore
                                                  None).__func__):
       raise ValueError((
           'The on_timer callback for %s is not the specified .%s method '
@@ -315,7 +315,7 @@ class BaseTimer(object):
     raise NotImplementedError
 
 
-_TimerTuple = collections.namedtuple('timer_tuple', ('cleared', 'timestamp'))
+_TimerTuple = collections.namedtuple('timer_tuple', ('cleared', 'timestamp'))  # type: ignore
 
 
 class RuntimeTimer(BaseTimer):

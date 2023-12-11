@@ -111,7 +111,7 @@ class SideInputTest(LoadTest):
       def __init__(self, first_n: int):
         self._first_n = first_n
 
-      def process(  # type: ignore[override]
+      def process(
           self, element: Any, side_input: Iterable[Tuple[bytes,
                                                          bytes]]) -> None:
         i = 0
@@ -129,7 +129,7 @@ class SideInputTest(LoadTest):
       def __init__(self, first_n: int):
         self._first_n = first_n
 
-      def process(  # type: ignore[override]
+      def process(
           self, element: Any, dict_side_input: Dict[bytes, bytes]) -> None:
         i = 0
         for key in dict_side_input:
@@ -146,7 +146,7 @@ class SideInputTest(LoadTest):
         # Avoid having to use save_main_session
         self.window = window
 
-      def process(self, element: int) -> Iterable[window.TimestampedValue]:  # type: ignore[override]
+      def process(self, element: int) -> Iterable[window.TimestampedValue]:
         yield self.window.TimestampedValue(element, element)
 
     class GetSyntheticSDFOptions(beam.DoFn):
@@ -156,7 +156,7 @@ class SideInputTest(LoadTest):
         self.key_size = key_size
         self.value_size = value_size
 
-      def process(self, element: Any) -> Iterable[Dict[str, Union[int, str]]]:  # type: ignore[override]
+      def process(self, element: Any) -> Iterable[Dict[str, Union[int, str]]]:
         yield {
             'num_records': self.elements_per_record,
             'key_size': self.key_size,
