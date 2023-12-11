@@ -24,7 +24,7 @@ public abstract class ActiveMessageMetadata {
 
   public abstract String userStepName();
 
-  public abstract Long startTime();
+  public abstract long startTime();
 
   static ActiveMessageMetadata create(String userStepName, Long startTime) {
     return new AutoValue_ActiveMessageMetadata(userStepName, startTime);
