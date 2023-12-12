@@ -238,6 +238,29 @@ import org.slf4j.LoggerFactory;
  * destination-dependent: every window/pane for every destination will use the same number of shards
  * specified via {@link Write#withNumShards} or {@link Write#withSharding}.
  *
+ * <h3>Handling Errors</h3>
+ *
+ * <p>When using dynamic destinations, or when using a formatting function to format a record for
+ * writing, it's possible for an individual record to be malformed, causing an exception. By default,
+ * these exceptions are propagated to the runner, and are usually retried, though this depends on
+ * the runner. Alternately, these errors can be routed to another {@link PTransform} by using
+ * {@link Write#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. The ErrorHandler
+ * is registered with the pipeline (see below), and the SerializableFunction lets you filter which
+ * exceptions should be sent to the error handler, and which should be handled by the runner. See
+ * {@link ErrorHandler} for more documentation. Of note, this error handling only handles errors
+ * related to specific records. It does not handle errors related to connectivity, authorization,
+ * etc. as those should be retried by the runner.</p>
+ *
+ * <pre>{@code
+ * PCollection<> records = ...;
+ * PTransform<PCollection<BadRecord>,?> alternateSink = ...;
+ * try (BadRecordErrorHandler<?> handler = pipeline.registerBadRecordErrorHandler(alternateSink) {
+ *    records.apply("Write", FileIO.writeDynamic().otherConfigs()
+ *        .withBadRecordErrorHandler(handler, (exception) -> true));
+ * }
+ * }</pre>
+ *
+ *
  * <h3>Writing custom types to sinks</h3>
  *
  * <p>Normally, when writing a collection of a custom type using a {@link Sink} that takes a
@@ -1298,6 +1321,12 @@ public class FileIO {
     /** See {@link WriteFiles#withNoSpilling()}. */
     public Write<DestinationT, UserT> withNoSpilling() {
       return toBuilder().setNoSpilling(true).build();
+    }
+
+    /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. */
+    public Write<DestinationT, UserT> withBadRecordErrorHandler(
+        ErrorHandler<BadRecord, ?> errorHandler) {
+      return withBadRecordErrorHandler(errorHandler, (e) -> true);
     }
 
     /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. */
