@@ -34,7 +34,7 @@ type TentativeData struct {
 	// bagState is a map from transformID + UserStateID, to window, to userKey, to datavalues.
 	bagState map[LinkID]map[typex.Window]map[string][][]byte
 
-	// multimapState is a map from transformID + UserStateID, to window, to userKey, to customKey to datavalues.
+	// multimapState is a map from transformID + UserStateID, to window, to userKey, to mapKey to datavalues.
 	multimapState map[LinkID]map[typex.Window]map[string]map[string][][]byte
 }
 
@@ -50,6 +50,7 @@ func (d *TentativeData) toWindow(wKey []byte) typex.Window {
 	if len(wKey) == 0 {
 		return window.GlobalWindow{}
 	}
+	// TODO: Custom Window handling.
 	w, err := exec.MakeWindowDecoder(coder.NewIntervalWindow()).DecodeSingle(bytes.NewBuffer(wKey))
 	if err != nil {
 		panic(fmt.Sprintf("error decoding append bag user state window key %v: %v", wKey, err))
@@ -178,9 +179,7 @@ func (d *TentativeData) ClearMultimapState(stateID LinkID, wKey, uKey, mapKey []
 	slog.Debug("State() Multimap.Clear", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", w))
 }
 
-// GetMultimapKeysState clears tentative data for all user map keys. Since state data is only initialized if any exists,
-// Clear takes the approach to not create state that doesn't already exist. Existing state is nil'd
-// to allow that to be committed post bundle commpletion.
+// GetMultimapKeysState retrieves all available user map keys.
 //
 // The stateID has the Transform and Local fields populated, for the Transform and UserStateID respectively.
 func (d *TentativeData) GetMultimapKeysState(stateID LinkID, wKey, uKey []byte) [][]byte {

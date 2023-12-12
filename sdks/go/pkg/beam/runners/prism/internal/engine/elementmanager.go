@@ -320,13 +320,16 @@ func (em *ElementManager) InputForBundle(rb RunBundle, info PColInfo) [][]byte {
 	return es.ToData(info)
 }
 
+// StateForBundle retreives relevant state for the given bundle, WRT the data in the bundle.
+//
+// TODO(lostluck): Consider unifiying with InputForBundle, to reduce lock contention.
 func (em *ElementManager) StateForBundle(rb RunBundle) TentativeData {
 	ss := em.stages[rb.StageID]
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 	var ret TentativeData
 	keys := ss.inprogressKeysByBundle[rb.BundleID]
-	// Also track windows per bundle?
+	// TODO(lostluck): Also track windows per bundle, to reduce copying.
 	if len(ss.bagState) > 0 {
 		ret.bagState = map[LinkID]map[typex.Window]map[string][][]byte{}
 	}
@@ -1015,6 +1018,14 @@ func (ss *stageState) updateWatermarks(minPending, minStateHold mtime.Time, em *
 			}
 		}
 		for _, wins := range ss.bagState {
+			for win := range wins {
+				// Clear out anything we've already used.
+				if win.MaxTimestamp() < newOut {
+					delete(wins, win)
+				}
+			}
+		}
+		for _, wins := range ss.multimapState {
 			for win := range wins {
 				// Clear out anything we've already used.
 				if win.MaxTimestamp() < newOut {

@@ -32,11 +32,6 @@ type SideInputKey struct {
 	TransformID, Local string
 }
 
-// StateKey is for data lookups for a given bundle.
-type StateKey struct {
-	TransformID, UserStateID string
-}
-
 // B represents an extant ProcessBundle instruction sent to an SDK worker.
 // Generally manipulated by another package to interact with a worker.
 type B struct {

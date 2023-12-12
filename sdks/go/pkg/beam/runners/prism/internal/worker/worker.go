@@ -424,7 +424,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 			}
 			switch req.GetRequest().(type) {
 			case *fnpb.StateRequest_Get:
-				// TODO: move data handling to be pcollection based
+				// TODO: move data handling to be pcollection based.
 
 				key := req.GetStateKey()
 				slog.Debug("StateRequest_Get", prototext.Format(req), "bundle", b)
