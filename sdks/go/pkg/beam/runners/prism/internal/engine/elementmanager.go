@@ -328,7 +328,7 @@ func (em *ElementManager) StateForBundle(rb RunBundle) TentativeData {
 	keys := ss.inprogressKeysByBundle[rb.BundleID]
 	// Also track windows per bundle?
 	if len(ss.bagState) > 0 {
-		ret.BagState = map[LinkID]map[typex.Window]map[string][][]byte{}
+		ret.bagState = map[LinkID]map[typex.Window]map[string][][]byte{}
 	}
 	for link, winMap := range ss.bagState {
 		for w, keyMap := range winMap {
@@ -337,10 +337,10 @@ func (em *ElementManager) StateForBundle(rb RunBundle) TentativeData {
 				if !ok {
 					break
 				}
-				linkMap, ok := ret.BagState[link]
+				linkMap, ok := ret.bagState[link]
 				if !ok {
 					linkMap = map[typex.Window]map[string][][]byte{}
-					ret.BagState[link] = linkMap
+					ret.bagState[link] = linkMap
 				}
 				wlinkMap, ok := linkMap[w]
 				if !ok {
@@ -491,7 +491,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	}
 
 	// Handle persisting.
-	for link, winMap := range d.BagState {
+	for link, winMap := range d.bagState {
 		linkMap, ok := stage.bagState[link]
 		if !ok {
 			linkMap = map[typex.Window]map[string][][]byte{}

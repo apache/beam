@@ -31,8 +31,8 @@ import (
 type TentativeData struct {
 	Raw map[string][][]byte
 
-	// BagState is a map from transformID + UserStateID, to window, to userKey, to datavalues.
-	BagState map[LinkID]map[typex.Window]map[string][][]byte
+	// bagState is a map from transformID + UserStateID, to window, to userKey, to datavalues.
+	bagState map[LinkID]map[typex.Window]map[string][][]byte
 }
 
 // WriteData adds data to a given global collectionID.
@@ -57,7 +57,7 @@ func (d *TentativeData) toWindow(wKey []byte) typex.Window {
 // GetBagState retrieves available state from the tentative bundle data.
 // The stateID has the Transform and Local fields populated, for the Transform and UserStateID respectively.
 func (d *TentativeData) GetBagState(stateID LinkID, wKey, uKey []byte) [][]byte {
-	winMap := d.BagState[stateID]
+	winMap := d.bagState[stateID]
 	w := d.toWindow(wKey)
 	data := winMap[w][string(uKey)]
 	slog.Debug("State() Bag.Get", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", w), slog.Any("Data", data))
@@ -68,13 +68,13 @@ func (d *TentativeData) GetBagState(stateID LinkID, wKey, uKey []byte) [][]byte 
 //
 // The stateID has the Transform and Local fields populated, for the Transform and UserStateID respectively.
 func (d *TentativeData) AppendBagState(stateID LinkID, wKey, uKey, data []byte) {
-	if d.BagState == nil {
-		d.BagState = map[LinkID]map[typex.Window]map[string][][]byte{}
+	if d.bagState == nil {
+		d.bagState = map[LinkID]map[typex.Window]map[string][][]byte{}
 	}
-	winMap, ok := d.BagState[stateID]
+	winMap, ok := d.bagState[stateID]
 	if !ok {
 		winMap = map[typex.Window]map[string][][]byte{}
-		d.BagState[stateID] = winMap
+		d.bagState[stateID] = winMap
 	}
 	w := d.toWindow(wKey)
 	kmap, ok := winMap[w]
@@ -92,10 +92,10 @@ func (d *TentativeData) AppendBagState(stateID LinkID, wKey, uKey, data []byte) 
 //
 // The stateID has the Transform and Local fields populated, for the Transform and UserStateID respectively.
 func (d *TentativeData) ClearBagState(stateID LinkID, wKey, uKey []byte) {
-	if d.BagState == nil {
+	if d.bagState == nil {
 		return
 	}
-	winMap, ok := d.BagState[stateID]
+	winMap, ok := d.bagState[stateID]
 	if !ok {
 		return
 	}
