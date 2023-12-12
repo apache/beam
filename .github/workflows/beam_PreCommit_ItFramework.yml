@@ -29,6 +29,7 @@ on:
     paths:
       - 'it/**'
       - 'release/trigger_all_tests.json'
+      - '.github/trigger_files/beam_PreCommit_ItFramework.json'
   issue_comment:
     types: [created]
   schedule:
@@ -90,7 +91,7 @@ jobs:
         run: ./gradlew -p it build
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
-        if: failure()
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

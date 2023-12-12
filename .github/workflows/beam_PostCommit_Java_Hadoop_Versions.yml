@@ -19,7 +19,7 @@ on:
   schedule:
     - cron: '45 3/6 * * *'
   pull_request_target:
-    paths: ['release/trigger_all_tests.json']
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_Hadoop_Versions.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -80,7 +80,7 @@ jobs:
           gradle-command: :javaHadoopVersionsTest
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
-        if: failure()
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

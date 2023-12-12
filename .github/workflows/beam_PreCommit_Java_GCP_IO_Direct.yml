@@ -37,6 +37,7 @@ on:
       - "runners/core-construction-java/**"
       - "runners/core-java/**"
       - 'release/trigger_all_tests.json'
+      - '.github/trigger_files/beam_PreCommit_Java_GCP_IO_Direct.json'
       - "sdks/java/core/src/main/**"
       - "sdks/java/extensions/arrow/**"
       - "sdks/java/extensions/google-cloud-platform-core/**"
@@ -115,7 +116,7 @@ jobs:
             -PenableJacocoReport \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
-        if: failure()
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

@@ -245,6 +245,10 @@ class SchemaTranslation(object):
     if isinstance(type_, schema_pb2.Schema):
       return schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=type_))
 
+    if hasattr(type_, '_beam_schema_proto') and type_._beam_schema_proto.obj:
+      return schema_pb2.FieldType(
+          row_type=schema_pb2.RowType(schema=type_._beam_schema_proto.obj))
+
     if isinstance(type_, row_type.RowTypeConstraint):
       if type_.schema_id is None:
         schema_id = SCHEMA_REGISTRY.generate_new_id()
@@ -560,6 +564,7 @@ class SchemaTranslation(object):
         _named_tuple_reduce_method(schema.SerializeToString()))
     setattr(user_type, "_field_descriptions", descriptions)
     setattr(user_type, row_type._BEAM_SCHEMA_ID, schema.id)
+    user_type._beam_schema_proto = _Ephemeral(schema)
 
     self.schema_registry.add(user_type, schema)
     coders.registry.register_coder(user_type, coders.RowCoder)
@@ -628,6 +633,15 @@ def union_schema_type(element_types):
     union_fields_and_types.append(
         (next(iter(name_set)), typehints.Union[types]))
   return named_tuple_from_schema(named_fields_to_schema(union_fields_and_types))
+
+
+class _Ephemeral:
+  """Helper class for wrapping unpicklable objects."""
+  def __init__(self, obj):
+    self.obj = obj
+
+  def __reduce__(self):
+    return _Ephemeral, (None, )
 
 
 # Registry of typings for a schema by UUID

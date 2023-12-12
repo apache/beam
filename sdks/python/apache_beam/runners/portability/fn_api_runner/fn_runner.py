@@ -224,17 +224,26 @@ class FnApiRunner(runner.PipelineRunner):
     return self.run_stages(stage_context, stages)
 
   def embed_default_docker_image(self, pipeline_proto):
+    """Updates the pipeline proto to execute transforms that would normally
+    be executed in the default docker image for this SDK to execute inline
+    via the "embedded" environment.
+    """
     # Context is unused for these types.
     embedded_env = environments.EmbeddedPythonEnvironment.default(
     ).to_runner_api(None)  # type: ignore[arg-type]
     docker_env = environments.DockerEnvironment.from_container_image(
         environments.DockerEnvironment.default_docker_image()).to_runner_api(
             None)  # type: ignore[arg-type]
-    for env_id, env in pipeline_proto.components.environments.items():
-      if env == docker_env:
-        docker_env_id = env_id
-        break
-    else:
+
+    def is_this_python_docker_env(env):
+      return any(
+          e == docker_env for e in environments.expand_anyof_environments(env))
+
+    python_docker_environments = set(
+        env_id
+        for (env_id, env) in pipeline_proto.components.environments.items()
+        if is_this_python_docker_env(env))
+    if not python_docker_environments:
       # No matching docker environments.
       return pipeline_proto
 
@@ -243,13 +252,15 @@ class FnApiRunner(runner.PipelineRunner):
         embedded_env_id = env_id
         break
     else:
-      # No existing embedded environment.
-      pipeline_proto.components.environments[docker_env_id].CopyFrom(
+      # No existing embedded environment. Create one.
+      embedded_env_id = "python_embedded_env"
+      while embedded_env_id in pipeline_proto.components.environments:
+        embedded_env_id += '_'
+      pipeline_proto.components.environments[embedded_env_id].CopyFrom(
           embedded_env)
-      return pipeline_proto
 
     for transform in pipeline_proto.components.transforms.values():
-      if transform.environment_id == docker_env_id:
+      if transform.environment_id in python_docker_environments:
         transform.environment_id = embedded_env_id
     return pipeline_proto
 

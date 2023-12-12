@@ -21,7 +21,7 @@ on:
   schedule:
     - cron: '30 6/8 * * *'
   pull_request_target:
-    paths: ['release/trigger_all_tests.json']
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_ValidatesRunner_Dataflow_V2_Streaming.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -83,7 +83,7 @@ jobs:
           max-workers: 12
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
-        if: failure()
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

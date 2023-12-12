@@ -30,12 +30,14 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.apache.beam.fn.harness.ExternalWorkerService;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.expansion.v1.ExpansionApi.DiscoverSchemaTransformRequest;
 import org.apache.beam.model.expansion.v1.ExpansionApi.DiscoverSchemaTransformResponse;
@@ -48,6 +50,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
@@ -65,6 +68,7 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -81,6 +85,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
@@ -456,6 +461,22 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           i++;
         }
         return indexToPCollection.build();
+      } else if (output instanceof POutput) {
+        // This is needed to support custom output types.
+        Map<TupleTag<?>, PValue> values = output.expand();
+        Map<String, PCollection<?>> returnMap = new HashMap<>();
+        for (Map.Entry<TupleTag<?>, PValue> entry : values.entrySet()) {
+          if (!(entry.getValue() instanceof PCollection)) {
+            throw new UnsupportedOperationException(
+                "Unable to parse the output type "
+                    + output.getClass()
+                    + " due to key "
+                    + entry.getKey()
+                    + " not mapping to a PCollection");
+          }
+          returnMap.put(entry.getKey().getId(), (PCollection<?>) entry.getValue());
+        }
+        return returnMap;
       } else {
         throw new UnsupportedOperationException("Unknown output type: " + output.getClass());
       }
@@ -514,6 +535,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
   private @MonotonicNonNull Map<String, TransformProvider> registeredTransforms;
   private final PipelineOptions pipelineOptions;
+  private final @Nullable String loopbackAddress;
 
   public ExpansionService() {
     this(new String[] {});
@@ -524,7 +546,12 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   public ExpansionService(PipelineOptions opts) {
+    this(opts, null);
+  }
+
+  public ExpansionService(PipelineOptions opts, @Nullable String loopbackAddress) {
     this.pipelineOptions = opts;
+    this.loopbackAddress = loopbackAddress;
   }
 
   private Map<String, TransformProvider> getRegisteredTransforms() {
@@ -559,7 +586,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         request.getTransform().getSpec().getUrn());
     LOG.debug("Full transform: {}", request.getTransform());
     Set<String> existingTransformIds = request.getComponents().getTransformsMap().keySet();
-    Pipeline pipeline = createPipeline();
+    Pipeline pipeline =
+        createPipeline(PipelineOptionsTranslation.fromProto(request.getPipelineOptions()));
     boolean isUseDeprecatedRead =
         ExperimentalOptions.hasExperiment(pipelineOptions, "use_deprecated_read")
             || ExperimentalOptions.hasExperiment(
@@ -628,9 +656,19 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         rehydratedComponents
             .getSdkComponents(request.getRequirementsList())
             .withNewIdPrefix(request.getNamespace());
-    sdkComponents.registerEnvironment(
+    RunnerApi.Environment defaultEnvironment =
         Environments.createOrGetDefaultEnvironment(
-            pipeline.getOptions().as(PortablePipelineOptions.class)));
+            pipeline.getOptions().as(PortablePipelineOptions.class));
+    if (pipelineOptions.as(ExpansionServiceOptions.class).getAlsoStartLoopbackWorker()) {
+      PortablePipelineOptions externalOptions =
+          PipelineOptionsFactory.create().as(PortablePipelineOptions.class);
+      externalOptions.setDefaultEnvironmentType(Environments.ENVIRONMENT_EXTERNAL);
+      externalOptions.setDefaultEnvironmentConfig(loopbackAddress);
+      defaultEnvironment =
+          Environments.createAnyOfEnvironment(
+              defaultEnvironment, Environments.createOrGetDefaultEnvironment(externalOptions));
+    }
+    sdkComponents.registerEnvironment(defaultEnvironment);
     Map<String, String> outputMap =
         outputs.entrySet().stream()
             .collect(
@@ -672,7 +710,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         .build();
   }
 
-  protected Pipeline createPipeline() {
+  protected Pipeline createPipeline(PipelineOptions requestOptions) {
     // TODO: [https://github.com/apache/beam/issues/21064]: implement proper validation
     PipelineOptions effectiveOpts = PipelineOptionsFactory.create();
     PortablePipelineOptions portableOptions = effectiveOpts.as(PortablePipelineOptions.class);
@@ -693,6 +731,14 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         .as(ExpansionServiceOptions.class)
         .setExpansionServiceConfig(
             pipelineOptions.as(ExpansionServiceOptions.class).getExpansionServiceConfig());
+    // TODO(https://github.com/apache/beam/issues/20090): Figure out the correct subset of options
+    // to propagate.
+    if (requestOptions.as(StreamingOptions.class).getUpdateCompatibilityVersion() != null) {
+      effectiveOpts
+          .as(StreamingOptions.class)
+          .setUpdateCompatibilityVersion(
+              requestOptions.as(StreamingOptions.class).getUpdateCompatibilityVersion());
+    }
     return Pipeline.create(effectiveOpts);
   }
 
@@ -721,6 +767,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         transformProvider.getAllProviders()) {
       SchemaTransformConfig.Builder schemaTransformConfigBuilder =
           SchemaTransformConfig.newBuilder();
+      schemaTransformConfigBuilder.setDescription(provider.description());
       schemaTransformConfigBuilder.setConfigSchema(
           SchemaTranslation.schemaToProto(provider.configurationSchema(), true));
       schemaTransformConfigBuilder.addAllInputPcollectionNames(provider.inputCollectionNames());
@@ -759,9 +806,12 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
     // Register the options class used by the expansion service.
     PipelineOptionsFactory.register(ExpansionServiceOptions.class);
+    @SuppressWarnings({"nullness"})
+    PipelineOptions options =
+        PipelineOptionsFactory.fromArgs(Arrays.copyOfRange(args, 1, args.length)).create();
 
     @SuppressWarnings("nullness")
-    ExpansionService service = new ExpansionService(Arrays.copyOfRange(args, 1, args.length));
+    ExpansionService service = new ExpansionService(options, "localhost:" + port);
 
     StringBuilder registeredTransformsLog = new StringBuilder();
     boolean registeredTransformsFound = false;
@@ -794,11 +844,12 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       System.out.println("\nDid not find any registered transforms or SchemaTransforms.\n");
     }
 
-    Server server =
-        ServerBuilder.forPort(port)
-            .addService(service)
-            .addService(new ArtifactRetrievalService())
-            .build();
+    ServerBuilder serverBuilder =
+        ServerBuilder.forPort(port).addService(service).addService(new ArtifactRetrievalService());
+    if (options.as(ExpansionServiceOptions.class).getAlsoStartLoopbackWorker()) {
+      serverBuilder.addService(new ExternalWorkerService(options));
+    }
+    Server server = serverBuilder.build();
     server.start();
     server.awaitTermination();
   }

@@ -31,6 +31,7 @@ on:
       - 'runners/flink/**'
       - 'release/**'
       - 'release/trigger_all_tests.json'
+      - '.github/trigger_files/beam_PreCommit_Java_Flink_Versions.json'
   issue_comment:
     types: [created]
   schedule:
@@ -93,7 +94,7 @@ jobs:
             -PdisableSpotlessCheck=true -PdisableCheckStyle=true \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
-        if: failure()
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

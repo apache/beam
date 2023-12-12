@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -42,31 +41,10 @@ public class GetWorkBudgetTest {
   }
 
   @Test
-  public void testAdd_doesNotAllowNegativeParameters() {
+  public void testApply_itemsAndBytesNeverBelowZero() {
     GetWorkBudget getWorkBudget = GetWorkBudget.builder().setItems(1).setBytes(1).build();
-    assertThrows(IllegalArgumentException.class, () -> getWorkBudget.add(-1, -1));
-  }
-
-  @Test
-  public void testSubtract_itemsAndBytesNeverBelowZero() {
-    GetWorkBudget getWorkBudget = GetWorkBudget.builder().setItems(1).setBytes(1).build();
-    GetWorkBudget subtracted = getWorkBudget.subtract(10, 10);
+    GetWorkBudget subtracted = getWorkBudget.apply(-10, -10);
     assertEquals(0, subtracted.items());
     assertEquals(0, subtracted.bytes());
-  }
-
-  @Test
-  public void testSubtractGetWorkBudget_itemsAndBytesNeverBelowZero() {
-    GetWorkBudget getWorkBudget = GetWorkBudget.builder().setItems(1).setBytes(1).build();
-    GetWorkBudget subtracted =
-        getWorkBudget.subtract(GetWorkBudget.builder().setItems(10).setBytes(10).build());
-    assertEquals(0, subtracted.items());
-    assertEquals(0, subtracted.bytes());
-  }
-
-  @Test
-  public void testSubtract_doesNotAllowNegativeParameters() {
-    GetWorkBudget getWorkBudget = GetWorkBudget.builder().setItems(1).setBytes(1).build();
-    assertThrows(IllegalArgumentException.class, () -> getWorkBudget.subtract(-1, -1));
   }
 }

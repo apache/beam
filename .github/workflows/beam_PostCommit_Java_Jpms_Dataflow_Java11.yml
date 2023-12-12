@@ -19,7 +19,7 @@ on:
   schedule:
     - cron: '0 4/6 * * *'
   pull_request_target:
-    paths: ['release/trigger_all_tests.json']
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_Jpms_Dataflow_Java11.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -81,7 +81,7 @@ jobs:
           arguments: -Dorg.gradle.java.home=$JAVA_HOME_11_X64
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
-        if: failure()
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

@@ -20,13 +20,14 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 import com.google.auto.value.AutoValue;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * Budget of items and bytes for fetching {@link
  * org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem}(s) via {@link
  * WindmillStream.GetWorkStream}. Used to control how "much" work is returned from Windmill.
  */
+@Internal
 @AutoValue
 public abstract class GetWorkBudget {
   public static GetWorkBudget.Builder builder() {
@@ -46,29 +47,26 @@ public abstract class GetWorkBudget {
   }
 
   /**
-   * Adds the given bytes and items or the current budget, returning a new {@link GetWorkBudget}.
-   * Does not drop below 0.
-   */
-  public GetWorkBudget add(long items, long bytes) {
-    Preconditions.checkArgument(items >= 0 && bytes >= 0);
-    return GetWorkBudget.builder().setBytes(bytes() + bytes).setItems(items() + items).build();
-  }
-
-  public GetWorkBudget add(GetWorkBudget other) {
-    return add(other.items(), other.bytes());
-  }
-
-  /**
-   * Subtracts the given bytes and items or the current budget, returning a new {@link
+   * Applies the given bytes and items delta to the current budget, returning a new {@link
    * GetWorkBudget}. Does not drop below 0.
    */
-  public GetWorkBudget subtract(long items, long bytes) {
-    Preconditions.checkArgument(items >= 0 && bytes >= 0);
-    return GetWorkBudget.builder().setBytes(bytes() - bytes).setItems(items() - items).build();
+  public GetWorkBudget apply(long itemsDelta, long bytesDelta) {
+    return GetWorkBudget.builder()
+        .setBytes(bytes() + bytesDelta)
+        .setItems(items() + itemsDelta)
+        .build();
+  }
+
+  public GetWorkBudget apply(GetWorkBudget other) {
+    return apply(other.items(), other.bytes());
   }
 
   public GetWorkBudget subtract(GetWorkBudget other) {
-    return subtract(other.items(), other.bytes());
+    return apply(-other.items(), -other.bytes());
+  }
+
+  public GetWorkBudget subtract(long items, long bytes) {
+    return apply(-items, -bytes);
   }
 
   /** Budget of bytes for GetWork. Does not drop below 0. */
@@ -77,6 +75,9 @@ public abstract class GetWorkBudget {
   /** Budget of items for GetWork. Does not drop below 0. */
   public abstract long items();
 
+  public abstract GetWorkBudget.Builder toBuilder();
+
+  @Internal
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setBytes(long bytes);

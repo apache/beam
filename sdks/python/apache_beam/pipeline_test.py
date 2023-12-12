@@ -872,7 +872,9 @@ class PipelineOptionsTest(unittest.TestCase):
         'slices',
         'style',
         'view_as',
-        'display_data'
+        'display_data',
+        'from_runner_api',
+        'to_runner_api',
     },
                      {
                          attr
@@ -884,7 +886,9 @@ class PipelineOptionsTest(unittest.TestCase):
         'get_all_options',
         'style',
         'view_as',
-        'display_data'
+        'display_data',
+        'from_runner_api',
+        'to_runner_api',
     },
                      {
                          attr

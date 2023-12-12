@@ -7,6 +7,3 @@
 [submodule ".github/actions/github-push-action"]
 	path = .github/actions/github-push-action
 	url = https://github.com/ad-m/github-push-action
-[submodule ".github/actions/gradle-command-action"]
-	path = .github/actions/gradle-command-action
-	url = https://github.com/eskatos/gradle-command-action

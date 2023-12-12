@@ -27,6 +27,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.ServiceLoader;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -500,6 +501,12 @@ public class PTransformTranslation {
             CONFIG_ROW_SCHEMA_KEY,
             ByteString.copyFrom(
                 SchemaTranslation.schemaToProto(configRow.getSchema(), true).toByteArray()));
+      }
+
+      for (Entry<String, byte[]> annotation :
+          appliedPTransform.getTransform().getAnnotations().entrySet()) {
+        transformBuilder.putAnnotations(
+            annotation.getKey(), ByteString.copyFrom(annotation.getValue()));
       }
 
       return transformBuilder.build();
