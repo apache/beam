@@ -357,6 +357,45 @@ class ComputeAndApplyVocabTest(unittest.TestCase):
       ]
       assert_that(result, equal_to(expected_result, equals_fn=np.array_equal))
 
+  def test_multiple_columns(self):
+    data = [{
+        'x': ['I', 'like', 'pie'], 'y': ['Apach', 'Beam', 'is', 'awesome']
+    },
+            {
+                'x': ['yum', 'yum', 'pie'],
+                'y': ['Beam', 'is', 'a', 'unified', 'model']
+            }]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  tft.ComputeAndApplyVocabulary(columns=['x', 'y'])))
+
+      expected_data_x = [np.array([3, 2, 1]), np.array([0, 0, 1])]
+
+      expected_data_y = [np.array([6, 1, 0, 4]), np.array([1, 0, 5, 2, 3])]
+
+      actual_data_x = (result | beam.Map(lambda x: x.x))
+      actual_data_y = (result | beam.Map(lambda x: x.y))
+
+      assert_that(
+          actual_data_x,
+          equal_to(expected_data_x, equals_fn=np.array_equal),
+          label='x')
+      assert_that(
+          actual_data_y,
+          equal_to(expected_data_y, equals_fn=np.array_equal),
+          label='y')
+    files = os.listdir(self.artifact_location)
+    files.remove(base._ATTRIBUTE_FILE_NAME)
+    assert len(files) == 1
+    tft_vocab_assets = os.listdir(
+        os.path.join(
+            self.artifact_location, files[0], 'transform_fn', 'assets'))
+    assert len(tft_vocab_assets) == 2
+
 
 class TFIDIFTest(unittest.TestCase):
   def setUp(self) -> None:
