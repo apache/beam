@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
@@ -122,6 +123,10 @@ public class ComputationState implements AutoCloseable {
   /** Adds any work started before the refreshDeadline to the GetDataRequest builder. */
   public List<Windmill.KeyedGetDataRequest> getKeysToRefresh(Instant refreshDeadline) {
     return activeWorkState.getKeysToRefresh(refreshDeadline);
+  }
+
+  public GetWorkBudget getActiveWorkBudget() {
+    return activeWorkState.currentActiveWorkBudget();
   }
 
   public void printActiveWork(PrintWriter writer) {

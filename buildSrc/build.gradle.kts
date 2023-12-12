@@ -35,6 +35,7 @@ repositories {
     url = uri("https://jitpack.io")
     content { includeGroup("com.github.davidmc24.gradle-avro-plugin") }
   }
+
 }
 
 // Dependencies on other plugins used when this plugin is invoked

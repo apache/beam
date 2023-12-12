@@ -835,15 +835,24 @@ message WorkerMetadataResponse {
   // CommitWorkStream. Each response on this stream replaces the previous, and
   // connections to endpoints that are no longer present should be closed.
   message Endpoint {
-    // IPv6 address of a streaming engine windmill worker.
     optional string direct_endpoint = 1;
-    optional string worker_token = 2;
+    optional string backend_worker_token = 2;
+    optional int64 port = 3;
   }
   repeated Endpoint work_endpoints = 2;
 
-  // Maps from GlobalData tag to the endpoint that should be used for GetData
-  // calls to retrieve that global data.
+  // Maps from GlobalData tag to the Endpoint that should be used for
+  // GetData calls to retrieve that global data.
   map<string, Endpoint> global_data_endpoints = 3;
+
+  // DNS name of the windmill worker service. This is used only in the case
+  // direct path communication is established using VIP. In order to enact
+  // Server Authorization checks, User Worker (client) set authority of the
+  // gRPC channel to this endpoint. Server Authorization checks ensure the
+  // servers clients connect to are being run by authorized borg roles. All
+  // channels connecting to Endpoint.direct_endpoint fields must set this
+  // authority.
+  optional string external_endpoint = 5;
 
   reserved 4;
 }

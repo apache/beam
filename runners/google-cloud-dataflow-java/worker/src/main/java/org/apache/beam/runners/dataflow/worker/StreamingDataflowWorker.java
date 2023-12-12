@@ -53,6 +53,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.servlet.http.HttpServletRequest;
@@ -107,8 +108,15 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcDispatcherClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.StreamingEngineClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.work.ProcessWorkItemClient;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributors;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
@@ -277,6 +285,7 @@ public class StreamingDataflowWorker {
   private final HotKeyLogger hotKeyLogger;
   // Periodic sender of debug information to the debug capture service.
   private final DebugCapture.@Nullable Manager debugCaptureManager;
+  private final StreamingEngineClient streamingEngineClient;
   private ScheduledExecutorService refreshWorkTimer;
   private ScheduledExecutorService statusPageTimer;
   private ScheduledExecutorService globalWorkerUpdatesTimer;
@@ -401,6 +410,66 @@ public class StreamingDataflowWorker {
     dispatchThread.setDaemon(true);
     dispatchThread.setPriority(Thread.MIN_PRIORITY);
     dispatchThread.setName("DispatchThread");
+
+    Windmill.JobHeader jobHeader =
+        Windmill.JobHeader.newBuilder()
+            .setJobId(options.getJobId())
+            .setProjectId(options.getProject())
+            .setWorkerId(options.getWorkerId())
+            .build();
+    GetWorkBudget totalGetWorkBudget =
+        GetWorkBudget.builder()
+            .setItems(chooseMaximumBundlesOutstanding())
+            .setBytes(MAX_GET_WORK_FETCH_BYTES)
+            .build();
+    GrpcWindmillStreamFactory streamingEngineStreamFactory =
+        GrpcWindmillStreamFactory.of(
+                Windmill.JobHeader.newBuilder()
+                    .setJobId(options.getJobId())
+                    .setProjectId(options.getProject())
+                    .setWorkerId(options.getWorkerId())
+                    .build())
+            .setWindmillMessagesBetweenIsReadyChecks(
+                options.getWindmillMessagesBetweenIsReadyChecks())
+            .setLogEveryNStreamFailures(
+                options.getWindmillServiceStreamingLogEveryNStreamFailures())
+            .setStreamingRpcBatchLimit(options.getWindmillServiceStreamingRpcBatchLimit())
+            .build();
+    streamingEngineStreamFactory.scheduleHealthChecks(
+        options.getWindmillServiceStreamingRpcHealthCheckPeriodMs());
+    GrpcDispatcherClient dispatcherClient =
+        GrpcDispatcherClient.create(
+            WindmillStubFactory.remoteStubFactory(
+                options.getWindmillServiceRpcChannelAliveTimeoutSec(), options.getGcpCredential()));
+    // Aggregate the current active work budget across all computations.
+    Supplier<GetWorkBudget> activeWorkBudgetSupplier =
+        () ->
+            computationMap.values().stream()
+                .map(ComputationState::getActiveWorkBudget)
+                .reduce(GetWorkBudget.noBudget(), GetWorkBudget::apply);
+    this.streamingEngineClient =
+        StreamingEngineClient.create(
+            jobHeader,
+            totalGetWorkBudget,
+            streamingEngineStreamFactory,
+            (String computation,
+                @Nullable Instant inputDataWatermark,
+                @Nullable Instant synchronizedProcessingTime,
+                ProcessWorkItemClient wrappedWorkItem,
+                Consumer<Windmill.WorkItem> ackWorkItemQueued,
+                Collection<LatencyAttribution> getWorkStreamLatencies) -> {
+              memoryMonitor.waitForResources("GetWork");
+              scheduleWorkItemDirectPath(
+                  getComputationState(computation),
+                  inputDataWatermark,
+                  synchronizedProcessingTime,
+                  wrappedWorkItem,
+                  ackWorkItemQueued,
+                  getWorkStreamLatencies);
+            },
+            WindmillStubFactory.remoteDirectStubFactory(),
+            GetWorkBudgetDistributors.distributeEvenly(activeWorkBudgetSupplier),
+            dispatcherClient);
 
     commitThread =
         new Thread(
@@ -576,8 +645,11 @@ public class StreamingDataflowWorker {
       schedulePeriodicGlobalConfigRequests();
     }
 
+    if (options.getJobId().equals("test_job_id")) {
+      dispatchThread.start();
+    }
+
     memoryMonitorThread.start();
-    dispatchThread.start();
     commitThread.start();
     ExecutionStateSampler.instance().start();
 
@@ -704,8 +776,11 @@ public class StreamingDataflowWorker {
         debugCaptureManager.stop();
       }
       running.set(false);
-      dispatchThread.interrupt();
-      dispatchThread.join();
+      if (options.getJobId().equals("test_job_id")) {
+        dispatchThread.interrupt();
+        dispatchThread.join();
+      }
+      streamingEngineClient.finish();
       // We need to interrupt the commitThread in case it is blocking on pulling
       // from the commitQueue.
       commitThread.interrupt();
@@ -881,6 +956,37 @@ public class StreamingDataflowWorker {
                     work));
     computationState.activateWork(
         ShardedKey.create(workItem.getKey(), workItem.getShardingKey()), scheduledWork);
+  }
+
+  private void scheduleWorkItemDirectPath(
+      final ComputationState computationState,
+      final @Nullable Instant inputDataWatermark,
+      final @Nullable Instant synchronizedProcessingTime,
+      final ProcessWorkItemClient wrappedWorkItem,
+      final Consumer<Windmill.WorkItem> ackWorkItemQueued,
+      final Collection<LatencyAttribution> getWorkStreamLatencies) {
+    Preconditions.checkNotNull(inputDataWatermark);
+    Windmill.WorkItem workItem = wrappedWorkItem.workItem();
+    // May be null if output watermark not yet known.
+    final @Nullable Instant outputDataWatermark =
+        WindmillTimeUtils.windmillToHarnessWatermark(workItem.getOutputDataWatermark());
+    Preconditions.checkState(
+        outputDataWatermark == null || !outputDataWatermark.isAfter(inputDataWatermark));
+    Work scheduledWork =
+        Work.create(
+            wrappedWorkItem.workItem(),
+            clock,
+            getWorkStreamLatencies,
+            work ->
+                process(
+                    computationState,
+                    inputDataWatermark,
+                    outputDataWatermark,
+                    synchronizedProcessingTime,
+                    work));
+    computationState.activateWork(
+        ShardedKey.create(workItem.getKey(), workItem.getShardingKey()), scheduledWork);
+    ackWorkItemQueued.accept(workItem);
   }
 
   /**
@@ -1105,8 +1211,7 @@ public class StreamingDataflowWorker {
       // The coder type that will be present is:
       //     WindowedValueCoder(TimerOrElementCoder(KvCoder))
       Optional<Coder<?>> keyCoder = executionState.keyCoder();
-      @Nullable
-      Object executionKey =
+      @Nullable Object executionKey =
           !keyCoder.isPresent() ? null : keyCoder.get().decode(key.newInput(), Coder.Context.OUTER);
 
       if (workItem.hasHotKeyInfo()) {

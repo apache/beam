@@ -22,59 +22,58 @@ import org.gradle.api.Project
 
 class Repositories {
 
-  static void register(Project project) {
+    static void register(Project project) {
+        project.repositories {
+            maven { url "${project.rootDir}/tempLib" }
+            maven { url project.offlineRepositoryRoot }
+            // To run gradle in offline mode, one must first invoke
+            // 'updateOfflineRepository' to create an offline repo
+            // inside the root project directory. See the application
+            // of the offline repo plugin within build_rules.gradle
+            // for further details.
+            if (project.gradle.startParameter.isOffline()) {
+                return
+            }
 
-    project.repositories {
-      maven { url project.offlineRepositoryRoot }
+            mavenCentral()
+            mavenLocal()
 
-      // To run gradle in offline mode, one must first invoke
-      // 'updateOfflineRepository' to create an offline repo
-      // inside the root project directory. See the application
-      // of the offline repo plugin within build_rules.gradle
-      // for further details.
-      if (project.gradle.startParameter.isOffline()) {
-        return
-      }
+            // Release staging repository
+            maven { url "https://oss.sonatype.org/content/repositories/staging/" }
 
-      mavenCentral()
-      mavenLocal()
+            // Apache nightly snapshots
+            maven { url "https://repository.apache.org/snapshots" }
 
-      // Release staging repository
-      maven { url "https://oss.sonatype.org/content/repositories/staging/" }
+            // Apache release snapshots
+            maven { url "https://repository.apache.org/content/repositories/releases" }
 
-      // Apache nightly snapshots
-      maven { url "https://repository.apache.org/snapshots" }
+            // For Confluent Kafka dependencies
+            maven {
+                url "https://packages.confluent.io/maven/"
+                content { includeGroup "io.confluent" }
+            }
+        }
 
-      // Apache release snapshots
-      maven { url "https://repository.apache.org/content/repositories/releases" }
-
-      // For Confluent Kafka dependencies
-      maven {
-        url "https://packages.confluent.io/maven/"
-        content { includeGroup "io.confluent" }
-      }
+        // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
+        // repository. This offline repository satisfies all Gradle build dependencies and Java
+        // project dependencies. The offline repository is placed within $rootDir/offline-repo
+        // but can be overridden by specifying '-PofflineRepositoryRoot=/path/to/repo'.
+        // Note that parallel build must be disabled when executing 'updateOfflineRepository'
+        // by specifying '--no-parallel', see
+        // https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
+        project.apply plugin: "io.pry.gradle.offline_dependencies"
+        project.offlineDependencies {
+            repositories {
+                mavenLocal()
+                mavenCentral()
+                maven { url "https://plugins.gradle.org/m2/" }
+                maven { url "https://repo.spring.io/plugins-release" }
+                maven { url "https://packages.confluent.io/maven/" }
+                maven { url project.offlineRepositoryRoot }
+            }
+            includeSources = false
+            includeJavadocs = false
+            includeIvyXmls = false
+        }
     }
-
-    // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
-    // repository. This offline repository satisfies all Gradle build dependencies and Java
-    // project dependencies. The offline repository is placed within $rootDir/offline-repo
-    // but can be overridden by specifying '-PofflineRepositoryRoot=/path/to/repo'.
-    // Note that parallel build must be disabled when executing 'updateOfflineRepository'
-    // by specifying '--no-parallel', see
-    // https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
-    project.apply plugin: "io.pry.gradle.offline_dependencies"
-    project.offlineDependencies {
-      repositories {
-        mavenLocal()
-        mavenCentral()
-        maven { url "https://plugins.gradle.org/m2/" }
-        maven { url "https://repo.spring.io/plugins-release" }
-        maven { url "https://packages.confluent.io/maven/" }
-        maven { url project.offlineRepositoryRoot }
-      }
-      includeSources = false
-      includeJavadocs = false
-      includeIvyXmls = false
-    }
-  }
 }

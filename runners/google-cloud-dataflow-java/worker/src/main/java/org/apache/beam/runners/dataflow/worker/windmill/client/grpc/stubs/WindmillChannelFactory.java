@@ -22,8 +22,10 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLException;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress.AuthenticatedGcpServiceAddress;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Channel;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.alts.AltsChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.netty.GrpcSslContexts;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.netty.NegotiationType;
@@ -56,11 +58,22 @@ public final class WindmillChannelFactory {
       case GCP_SERVICE_ADDRESS:
         return remoteChannel(
             windmillServiceAddress.gcpServiceAddress(), windmillServiceRpcChannelTimeoutSec);
+      case AUTHENTICATED_GCP_SERVICE_ADDRESS:
+        return remoteDirectChannel(windmillServiceAddress.authenticatedGcpServiceAddress());
         // switch is exhaustive will never happen.
       default:
         throw new UnsupportedOperationException(
             "Only IPV6 and GCP_SERVICE_ADDRESS are supported WindmillServiceAddresses.");
     }
+  }
+
+  static Channel remoteDirectChannel(
+      AuthenticatedGcpServiceAddress authenticatedGcpServiceAddress) {
+    return AltsChannelBuilder.forAddress(
+            authenticatedGcpServiceAddress.gcpServiceAddress().getHost(),
+            authenticatedGcpServiceAddress.gcpServiceAddress().getPort())
+        .addTargetServiceAccount(authenticatedGcpServiceAddress.authenticatingService())
+        .build();
   }
 
   public static Channel remoteChannel(

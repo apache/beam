@@ -92,8 +92,8 @@ dependencies {
   // IdTokenVerifier.verifyPayload method. Let's declare the newer one.
   implementation library.java.google_oauth_client
   permitUnusedDeclared library.java.google_oauth_client
-  implementation library.java.grpc_alts
-  permitUnusedDeclared library.java.grpc_alts // BEAM-11761
+//  implementation library.java.grpc_alts
+//  permitUnusedDeclared library.java.grpc_alts // BEAM-11761
   implementation library.java.grpc_api
   implementation library.java.grpc_auth
   implementation library.java.grpc_core

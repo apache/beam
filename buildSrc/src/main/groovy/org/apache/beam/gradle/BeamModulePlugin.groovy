@@ -769,7 +769,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_oauth_client                         : "com.google.oauth-client:google-oauth-client:$google_oauth_clients_version",
         google_oauth_client_java6                   : "com.google.oauth-client:google-oauth-client-java6:$google_oauth_clients_version",
         // Don't use grpc_all, it can cause issues in Bazel builds. Reference the gRPC libraries you need individually instead.
-        grpc_alts                                   : "io.grpc:grpc-alts", // google_cloud_platform_libraries_bom sets version
+//        grpc_alts                                   : "io.grpc:grpc-alts", // google_cloud_platform_libraries_bom sets version
         grpc_api                                    : "io.grpc:grpc-api", // google_cloud_platform_libraries_bom sets version
         grpc_auth                                   : "io.grpc:grpc-auth", // google_cloud_platform_libraries_bom sets version
         // Once grpc-xds is added to google_cloud_platform_libraries_bom, use google_cloud_platform_libraries_bom instead.
@@ -902,7 +902,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_rabbitmq                     : "org.testcontainers:rabbitmq:$testcontainers_version",
         truth                                       : "com.google.truth:truth:1.1.5",
         threetenbp                                  : "org.threeten:threetenbp:1.6.8",
-        vendored_grpc_1_54_0                        : "org.apache.beam:beam-vendor-grpc-1_54_0:0.1",
+        vendored_grpc_1_54_0                        : "org.apache.beam:beam-vendor-grpc-1_54_0:0.1-SNAPSHOT",
         vendored_guava_32_1_2_jre                   : "org.apache.beam:beam-vendor-guava-32_1_2-jre:0.1",
         vendored_calcite_1_28_0                     : "org.apache.beam:beam-vendor-calcite-1_28_0:0.2",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
