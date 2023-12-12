@@ -54,6 +54,8 @@ env:
     --dataDirectory=gs://beam-tpcds/datasets/parquet/nonpartitioned
     --resultsDirectory=gs://beam-tpcds/results/spark3-rdd/
     --tpcParallel=1
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
   tpcdsBigQueryArgs: |
     --bigQueryTable=tpcds 
     --bigQueryDataset=tpcds 
