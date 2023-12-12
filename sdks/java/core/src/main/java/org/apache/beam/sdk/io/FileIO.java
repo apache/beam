@@ -241,15 +241,15 @@ import org.slf4j.LoggerFactory;
  * <h3>Handling Errors</h3>
  *
  * <p>When using dynamic destinations, or when using a formatting function to format a record for
- * writing, it's possible for an individual record to be malformed, causing an exception. By default,
- * these exceptions are propagated to the runner, and are usually retried, though this depends on
- * the runner. Alternately, these errors can be routed to another {@link PTransform} by using
- * {@link Write#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. The ErrorHandler
- * is registered with the pipeline (see below), and the SerializableFunction lets you filter which
- * exceptions should be sent to the error handler, and which should be handled by the runner. See
- * {@link ErrorHandler} for more documentation. Of note, this error handling only handles errors
- * related to specific records. It does not handle errors related to connectivity, authorization,
- * etc. as those should be retried by the runner.</p>
+ * writing, it's possible for an individual record to be malformed, causing an exception. By
+ * default, these exceptions are propagated to the runner, and are usually retried, though this
+ * depends on the runner. Alternately, these errors can be routed to another {@link PTransform} by
+ * using {@link Write#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. The
+ * ErrorHandler is registered with the pipeline (see below), and the SerializableFunction lets you
+ * filter which exceptions should be sent to the error handler, and which should be handled by the
+ * runner. See {@link ErrorHandler} for more documentation. Of note, this error handling only
+ * handles errors related to specific records. It does not handle errors related to connectivity,
+ * authorization, etc. as those should be retried by the runner.
  *
  * <pre>{@code
  * PCollection<> records = ...;
@@ -259,7 +259,6 @@ import org.slf4j.LoggerFactory;
  *        .withBadRecordErrorHandler(handler, (exception) -> true));
  * }
  * }</pre>
- *
  *
  * <h3>Writing custom types to sinks</h3>
  *
