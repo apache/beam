@@ -495,7 +495,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 						wins = append(wins, w)
 					}
 					data = winMap[w][string(uKey)]
-					fmt.Println(fmt.Sprintf("State() Bag.Get bund: %v instID: %v, StateID: %v  Key: %v Win: %v, Windows: %v: Data: %v", req.GetId(), req.GetInstructionId(), bagkey.GetUserStateId(), string(uKey), w, wins, data))
+					slog.Debug(fmt.Sprintf("State() Bag.Get bund: %v instID: %v, StateID: %v  Key: %v Win: %v, Windows: %v: Data: %v", req.GetId(), req.GetInstructionId(), bagkey.GetUserStateId(), string(uKey), w, wins, data))
 
 				default:
 					panic(fmt.Sprintf("unsupported StateKey Access type: %T: %v", key.GetType(), prototext.Format(key)))
@@ -507,7 +507,6 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				for _, value := range data {
 					buf.Write(value)
 				}
-				fmt.Println(buf.Bytes())
 				responses <- &fnpb.StateResponse{
 					Id: req.GetId(),
 					Response: &fnpb.StateResponse_Get{
@@ -554,11 +553,9 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 						kmap = map[string][][]byte{}
 						winMap[w] = kmap
 					}
-					fmt.Println(fmt.Sprintf("State() Bag.Append reqID: %v instID: %v, StateID: %v  Key: %v Win: %v, Windows: %v: Data: %v New: %v", req.GetId(), req.GetInstructionId(), bagkey.GetUserStateId(), string(uKey), w, wins, kmap[string(uKey)], req.GetAppend().GetData()))
+					slog.Debug(fmt.Sprintf("State() Bag.Append reqID: %v instID: %v, StateID: %v  Key: %v Win: %v, Windows: %v: Data: %v New: %v", req.GetId(), req.GetInstructionId(), bagkey.GetUserStateId(), string(uKey), w, wins, kmap[string(uKey)], req.GetAppend().GetData()))
 
 					kmap[string(uKey)] = append(kmap[string(uKey)], req.GetAppend().GetData())
-
-					fmt.Println(kmap[string(uKey)])
 				default:
 					panic(fmt.Sprintf("unsupported StateKey Access type: %T: %v", key.GetType(), prototext.Format(key)))
 				}

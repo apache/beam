@@ -366,10 +366,6 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 	var kd func(io.Reader) []byte
 	if kcid, ok := extractKVCoderID(col.GetCoderId(), coders); ok {
 		kd = collectionPullDecoder(kcid, coders, comps)
-
-		fmt.Println("forcing statefulness for hack:", stg.ID, stg.primaryInput, col.UniqueName, col.GetCoderId(), kcid, prototext.Format(coders[col.GetCoderId()]))
-		stg.stateful = true // HACK
-
 	}
 
 	inputInfo := engine.PColInfo{

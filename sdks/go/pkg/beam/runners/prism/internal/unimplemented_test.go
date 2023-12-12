@@ -22,13 +22,12 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/test/integration/primitives"
 )
 
 // This file covers pipelines with features that aren't yet supported by Prism.
 
-func intTestName(fn any) string {
+func initTestName(fn any) string {
 	name := reflectx.FunctionName(fn)
 	n := strings.LastIndex(name, "/")
 	return name[n+1:]
@@ -79,7 +78,7 @@ func TestUnimplemented(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(intTestName(test.pipeline), func(t *testing.T) {
+		t.Run(initTestName(test.pipeline), func(t *testing.T) {
 			p, s := beam.NewPipelineWithRoot()
 			test.pipeline(s)
 			_, err := executeWithT(context.Background(), t, p)
@@ -108,7 +107,7 @@ func TestImplemented(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(intTestName(test.pipeline), func(t *testing.T) {
+		t.Run(initTestName(test.pipeline), func(t *testing.T) {
 			p, s := beam.NewPipelineWithRoot()
 			test.pipeline(s)
 			_, err := executeWithT(context.Background(), t, p)
@@ -133,31 +132,14 @@ func TestStateAPI(t *testing.T) {
 		{pipeline: primitives.ValueStateParDoWindowed},
 	}
 
-	configs := []struct {
-		name                              string
-		OneElementPerKey, OneKeyPerBundle bool
-	}{
-		{"greedy", false, false},
-		{"AllElementsPerKey", false, true},
-		{"OneElementPerKey", true, false},
-		{"OneElementPerBundle", true, true},
-	}
-	for _, config := range configs {
-		for _, test := range tests {
-			t.Run(intTestName(test.pipeline)+"_"+config.name, func(t *testing.T) {
-				t.Cleanup(func() {
-					engine.OneElementPerKey = false
-					engine.OneKeyPerBundle = false
-				})
-				engine.OneElementPerKey = config.OneElementPerKey
-				engine.OneKeyPerBundle = config.OneKeyPerBundle
-				p, s := beam.NewPipelineWithRoot()
-				test.pipeline(s)
-				_, err := executeWithT(context.Background(), t, p)
-				if err != nil {
-					t.Fatalf("pipeline failed, but feature should be implemented in Prism: %v", err)
-				}
-			})
-		}
+	for _, test := range tests {
+		t.Run(initTestName(test.pipeline), func(t *testing.T) {
+			p, s := beam.NewPipelineWithRoot()
+			test.pipeline(s)
+			_, err := executeWithT(context.Background(), t, p)
+			if err != nil {
+				t.Fatalf("pipeline failed, but feature should be implemented in Prism: %v", err)
+			}
+		})
 	}
 }

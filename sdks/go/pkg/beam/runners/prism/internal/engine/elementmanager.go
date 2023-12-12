@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -289,10 +290,11 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 				v := em.livePending.Load()
 				slog.Debug("Bundles: nothing in progress and no refreshes", slog.Int64("pendingElementCount", v))
 				if v > 0 {
+					var stageState []string
 					for id, ss := range em.stages {
-						fmt.Println(id, ss.pending, ss.pendingByKeys, ss.inprogressKeys, ss.inprogressKeysByBundle)
+						stageState = append(stageState, fmt.Sprintln(id, ss.pending, ss.pendingByKeys, ss.inprogressKeys, ss.inprogressKeysByBundle))
 					}
-					panic(fmt.Sprintf("nothing in progress and no refreshes with non zero pending elements: %v", v))
+					panic(fmt.Sprintf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, strings.Join(stageState, "")))
 				}
 			} else if len(em.inprogressBundles) == 0 {
 				v := em.livePending.Load()
@@ -853,8 +855,6 @@ keysPerBundle:
 	ss.inprogress[bundID] = es
 	ss.inprogressKeysByBundle[bundID] = newKeys
 	ss.inprogressKeys.merge(newKeys)
-
-	fmt.Printf("executing keys: %v for stage %v\n", newKeys, ss.ID)
 	return bundID, true, stillSchedulable
 }
 
