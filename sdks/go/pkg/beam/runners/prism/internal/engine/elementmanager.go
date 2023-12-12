@@ -338,7 +338,7 @@ func (em *ElementManager) StateForBundle(rb RunBundle) TentativeData {
 			for key := range keys {
 				data, ok := keyMap[key]
 				if !ok {
-					break
+					continue
 				}
 				linkMap, ok := ret.state[link]
 				if !ok {
@@ -388,9 +388,13 @@ func reElementResiduals(residuals [][]byte, inputInfo PColInfo, rb RunBundle) []
 			slog.Error("reElementResiduals: sdk provided a windowed value header 0 windows", "bundle", rb)
 			panic("error decoding residual header: sdk provided a windowed value header 0 windows")
 		}
+		// POSSIBLY BAD PATTERN: The buffer is invalidated on the next call, which doesn't always happen.
+		// But the decoder won't be mutating the buffer bytes, just reading the data. So the elmBytes
+		// should remain pointing to the whole element, and we should have a copy of the key bytes.
+		// Ideally, we're simply refering to the key part of the existing buffer.
 		elmBytes := buf.Bytes()
 		var keyBytes []byte
-		if inputInfo.KeyDec != nil { // BAD PATTERN: The buffer is invalidated on the next call.
+		if inputInfo.KeyDec != nil {
 			keyBytes = inputInfo.KeyDec(buf)
 		}
 

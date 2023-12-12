@@ -473,26 +473,13 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 
 				case *fnpb.StateKey_BagUserState_:
 					bagkey := key.GetBagUserState()
-					data = b.OutputData.GetBagState(
-						engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()},
-						bagkey.GetWindow(),
-						bagkey.GetKey(),
-					)
+					data = b.OutputData.GetBagState(engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()}, bagkey.GetWindow(), bagkey.GetKey())
 				case *fnpb.StateKey_MultimapUserState_:
 					mmkey := key.GetMultimapUserState()
-					data = b.OutputData.GetMultimapState(
-						engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()},
-						mmkey.GetWindow(),
-						mmkey.GetKey(),
-						mmkey.GetMapKey(),
-					)
+					data = b.OutputData.GetMultimapState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey())
 				case *fnpb.StateKey_MultimapKeysUserState_:
 					mmkey := key.GetMultimapKeysUserState()
-					data = b.OutputData.GetMultimapKeysState(
-						engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()},
-						mmkey.GetWindow(),
-						mmkey.GetKey(),
-					)
+					data = b.OutputData.GetMultimapKeysState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey())
 				default:
 					panic(fmt.Sprintf("unsupported StateKey Get type: %T: %v", key.GetType(), prototext.Format(key)))
 				}
@@ -513,21 +500,10 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				switch key.GetType().(type) {
 				case *fnpb.StateKey_BagUserState_:
 					bagkey := key.GetBagUserState()
-					b.OutputData.AppendBagState(
-						engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()},
-						bagkey.GetWindow(),
-						bagkey.GetKey(),
-						req.GetAppend().GetData(),
-					)
+					b.OutputData.AppendBagState(engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()}, bagkey.GetWindow(), bagkey.GetKey(), req.GetAppend().GetData())
 				case *fnpb.StateKey_MultimapUserState_:
 					mmkey := key.GetMultimapUserState()
-					b.OutputData.AppendMultimapState(
-						engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()},
-						mmkey.GetWindow(),
-						mmkey.GetKey(),
-						mmkey.GetMapKey(),
-						req.GetAppend().GetData(),
-					)
+					b.OutputData.AppendMultimapState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey(), req.GetAppend().GetData())
 				default:
 					panic(fmt.Sprintf("unsupported StateKey Append type: %T: %v", key.GetType(), prototext.Format(key)))
 				}
@@ -543,26 +519,13 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				switch key.GetType().(type) {
 				case *fnpb.StateKey_BagUserState_:
 					bagkey := key.GetBagUserState()
-					b.OutputData.ClearBagState(
-						engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()},
-						bagkey.GetWindow(),
-						bagkey.GetKey(),
-					)
+					b.OutputData.ClearBagState(engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()}, bagkey.GetWindow(), bagkey.GetKey())
 				case *fnpb.StateKey_MultimapUserState_:
 					mmkey := key.GetMultimapUserState()
-					b.OutputData.ClearMultimapState(
-						engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()},
-						mmkey.GetWindow(),
-						mmkey.GetKey(),
-						mmkey.GetMapKey(),
-					)
+					b.OutputData.ClearMultimapState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey())
 				case *fnpb.StateKey_MultimapKeysUserState_:
 					mmkey := key.GetMultimapUserState()
-					b.OutputData.ClearMultimapKeysState(
-						engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()},
-						mmkey.GetWindow(),
-						mmkey.GetKey(),
-					)
+					b.OutputData.ClearMultimapKeysState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey())
 				default:
 					panic(fmt.Sprintf("unsupported StateKey Clear type: %T: %v", key.GetType(), prototext.Format(key)))
 				}
