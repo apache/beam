@@ -22,6 +22,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/test/integration/primitives"
 )
 
@@ -104,14 +105,6 @@ func TestImplemented(t *testing.T) {
 		{pipeline: primitives.Checkpoints},
 		{pipeline: primitives.CoGBK},
 		{pipeline: primitives.ReshuffleKV},
-
-		// State API
-		{pipeline: primitives.BagStateParDo},
-		{pipeline: primitives.BagStateParDoClear},
-		{pipeline: primitives.CombiningStateParDo},
-		{pipeline: primitives.ValueStateParDo},
-		{pipeline: primitives.ValueStateParDoClear},
-		{pipeline: primitives.ValueStateParDoWindowed},
 	}
 
 	for _, test := range tests {
@@ -123,5 +116,48 @@ func TestImplemented(t *testing.T) {
 				t.Fatalf("pipeline failed, but feature should be implemented in Prism: %v", err)
 			}
 		})
+	}
+}
+
+func TestStateAPI(t *testing.T) {
+	initRunner(t)
+
+	tests := []struct {
+		pipeline func(s beam.Scope)
+	}{
+		{pipeline: primitives.BagStateParDo},
+		{pipeline: primitives.BagStateParDoClear},
+		{pipeline: primitives.CombiningStateParDo},
+		{pipeline: primitives.ValueStateParDo},
+		{pipeline: primitives.ValueStateParDoClear},
+		{pipeline: primitives.ValueStateParDoWindowed},
+	}
+
+	configs := []struct {
+		name                              string
+		OneElementPerKey, OneKeyPerBundle bool
+	}{
+		{"greedy", false, false},
+		{"AllElementsPerKey", false, true},
+		{"OneElementPerKey", true, false},
+		{"OneElementPerBundle", true, true},
+	}
+	for _, config := range configs {
+		for _, test := range tests {
+			t.Run(intTestName(test.pipeline)+"_"+config.name, func(t *testing.T) {
+				t.Cleanup(func() {
+					engine.OneElementPerKey = false
+					engine.OneKeyPerBundle = false
+				})
+				engine.OneElementPerKey = config.OneElementPerKey
+				engine.OneKeyPerBundle = config.OneKeyPerBundle
+				p, s := beam.NewPipelineWithRoot()
+				test.pipeline(s)
+				_, err := executeWithT(context.Background(), t, p)
+				if err != nil {
+					t.Fatalf("pipeline failed, but feature should be implemented in Prism: %v", err)
+				}
+			})
+		}
 	}
 }

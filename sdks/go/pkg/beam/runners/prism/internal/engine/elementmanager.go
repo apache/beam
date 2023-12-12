@@ -759,6 +759,12 @@ func (ss *stageState) OutputWatermark() mtime.Time {
 	return ss.output
 }
 
+// TODO: Move to better place for configuration
+var (
+	OneKeyPerBundle  bool // OneKeyPerBundle sets if a bundle is restricted to a single key.
+	OneElementPerKey bool // OneElementPerKey sets if a key in a bundle is restricted to one element.
+)
+
 // startBundle initializes a bundle with elements if possible.
 // A bundle only starts if there are elements at all, and if it's
 // an aggregation stage, if the windowing stratgy allows it.
@@ -790,6 +796,8 @@ func (ss *stageState) startBundle(watermark mtime.Time, genBundID func() string)
 	// With the greedy approach, we don't need to since "new data" triggers a refresh, and so should completing processing of a bundle.
 	newKeys := set[string]{}
 	stillSchedulable := true
+
+keysPerBundle:
 	for k, h := range ss.pendingByKeys {
 		if ss.inprogressKeys.present(k) {
 			continue
@@ -800,11 +808,7 @@ func (ss *stageState) startBundle(watermark mtime.Time, genBundID func() string)
 			minTs = h[0].timestamp
 		}
 
-		// Greedily all at once!
-		if ss.aggregate {
-			toProcess = append(toProcess, h...)
-			delete(ss.pendingByKeys, k)
-		} else {
+		if OneElementPerKey {
 			hp := &h
 			toProcess = append(toProcess, heap.Pop(hp).(element))
 			if hp.Len() == 0 {
@@ -814,6 +818,12 @@ func (ss *stageState) startBundle(watermark mtime.Time, genBundID func() string)
 			} else {
 				ss.pendingByKeys[k] = *hp
 			}
+		} else {
+			toProcess = append(toProcess, h...)
+			delete(ss.pendingByKeys, k)
+		}
+		if OneKeyPerBundle {
+			break keysPerBundle
 		}
 	}
 	if len(ss.pendingByKeys) == 0 {
