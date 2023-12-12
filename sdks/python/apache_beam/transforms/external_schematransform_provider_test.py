@@ -26,6 +26,75 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external_schematransform_provider import ExternalSchemaTransformProvider
+from apache_beam.transforms.external_schematransform_provider import snake_case_to_upper_camel_case
+from apache_beam.transforms.external_schematransform_provider import snake_case_to_lower_camel_case
+from apache_beam.transforms.external_schematransform_provider import camel_case_to_snake_case
+from apache_beam.transforms.external_schematransform_provider import infer_name_from_identifier
+from apache_beam.transforms.external_schematransform_provider import STANDARD_URN_PATTERN
+
+
+class NameUtilsTest(unittest.TestCase):
+  def test_snake_case_to_upper_camel_case(self):
+    test_cases = [("", ""), ("test", "Test"), ("test_name", "TestName"),
+                  ("test_double_underscore", "TestDoubleUnderscore"),
+                  ("TEST_CAPITALIZED", "TestCapitalized"),
+                  ("_prepended_underscore", "PrependedUnderscore"),
+                  ("appended_underscore_", "AppendedUnderscore")]
+    for case in test_cases:
+      self.assertEqual(case[1], snake_case_to_upper_camel_case(case[0]))
+
+  def test_snake_case_to_lower_camel_case(self):
+    test_cases = [("", ""), ("test", "test"), ("test_name", "testName"),
+                  ("test_double_underscore", "testDoubleUnderscore"),
+                  ("TEST_CAPITALIZED", "testCapitalized"),
+                  ("_prepended_underscore", "prependedUnderscore"),
+                  ("appended_underscore_", "appendedUnderscore")]
+    for case in test_cases:
+      self.assertEqual(case[1], snake_case_to_lower_camel_case(case[0]))
+
+  def test_camel_case_to_snake_case(self):
+    test_cases = [("", ""), ("Test", "test"), ("TestName", "test_name"),
+                  ("TestDoubleUnderscore",
+                   "test_double_underscore"), ("MyToLoFo", "my_to_lo_fo"),
+                  ("BEGINNINGAllCaps",
+                   "beginning_all_caps"), ("AllCapsENDING", "all_caps_ending"),
+                  ("AllCapsMIDDLEWord", "all_caps_middle_word"),
+                  ("lowerCamelCase", "lower_camel_case")]
+    for case in test_cases:
+      self.assertEqual(case[1], camel_case_to_snake_case(case[0]))
+
+  def test_infer_name_from_identifier(self):
+    standard_test_cases = [
+        ("beam:schematransform:org.apache.beam:transform:v1", "Transform"),
+        ("beam:schematransform:org.apache.beam:my_transform:v1",
+         "MyTransform"), (
+             "beam:schematransform:org.apache.beam:my_transform:v2",
+             "MyTransformV2"),
+        ("beam:schematransform:org.apache.beam:fe_fi_fo_fum:v2", "FeFiFoFumV2"),
+        ("beam:schematransform:bad_match:my_transform:v1", None)
+    ]
+    for case in standard_test_cases:
+      self.assertEqual(
+          case[1], infer_name_from_identifier(case[0], STANDARD_URN_PATTERN))
+
+    custom_pattern_cases = [
+        # (<pattern>, <urn>, <expected output>)
+        (
+            r"^custom:transform:([\w-]+):(\w+)$",
+            "custom:transform:my_transform:v1",
+            "MyTransformV1"),
+        (
+            r"^org.user:([\w-]+):([\w-]+):([\w-]+):external$",
+            "org.user:some:custom_transform:we_made:external",
+            "SomeCustomTransformWeMade"),
+        (
+            r"^([\w-]+):user.transforms",
+            "my_eXTErnal:user.transforms",
+            "MyExternal"),
+        (r"^([\w-]+):user.transforms", "my_external:badinput.transforms", None),
+    ]
+    for case in custom_pattern_cases:
+      self.assertEqual(case[2], infer_name_from_identifier(case[1], case[0]))
 
 
 @pytest.mark.uses_io_java_expansion_service

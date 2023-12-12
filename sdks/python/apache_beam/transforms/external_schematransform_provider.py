@@ -49,8 +49,20 @@ def snake_case_to_lower_camel_case(string):
 
 def camel_case_to_snake_case(string):
   """Convert camelCase to snake_case"""
-  arr = ['_' + n.lower() if n.isupper() else n for n in string]
-  return ''.join(arr).lstrip('_')
+  arr = []
+  word = []
+  for i, n in enumerate(string):
+    # If seeing an upper letter after a lower letter, we just witnessed a word
+    # If seeing an upper letter and the next letter is lower, we may have just
+    # witnessed an all caps word
+    if n.isupper() and ((i > 0 and string[i - 1].islower()) or
+                        (i + 1 < len(string) and string[i + 1].islower())):
+      arr.append(''.join(word))
+      word = [n.lower()]
+    else:
+      word.append(n.lower())
+  arr.append(''.join(word))
+  return '_'.join(arr).strip('_')
 
 
 # Information regarding a Wrapper parameter.
@@ -81,6 +93,7 @@ class ExternalSchemaTransform(PTransform):
   # These attributes need to be set when
   # creating an ExternalSchemaTransform type
   default_expansion_service = None
+  description: str = ""
   identifier: str = ""
   configuration_schema: Dict[str, ParamInfo] = {}
 
@@ -107,6 +120,22 @@ class ExternalSchemaTransform(PTransform):
 STANDARD_URN_PATTERN = r"^beam:schematransform:org.apache.beam:([\w-]+):(\w+)$"
 
 
+def infer_name_from_identifier(identifier: str, pattern: str):
+  """Infer a class name from an identifier, adhering to the input pattern"""
+  match = re.match(pattern, identifier)
+  if not match:
+    return None
+  groups = match.groups()
+
+  components = [snake_case_to_upper_camel_case(n) for n in groups]
+  # Special handling for standard SchemaTransform identifiers:
+  # We don't include the version number if it's the first version
+  if (pattern == STANDARD_URN_PATTERN and components[1].lower() == 'v1'):
+    return components[0]
+  else:
+    return ''.join(components)
+
+
 class ExternalSchemaTransformProvider:
   """Dynamically discovers Schema-aware external transforms from a given list
   of expansion services and provides them as ready PTransforms.
@@ -116,25 +145,36 @@ class ExternalSchemaTransformProvider:
   (see :param urn_pattern).
 
   These classes are generated when :class:`ExternalSchemaTransformProvider` is
-  initialized. First take a look at the output of :func:`get_available()` to
-  know the available transforms:
-
-  >>> ExternalSchemaTransformProvider("localhost:12345").get_available()
+  initialized. We need to give it one or more expansion service addresses that
+  are already up and running:
+  >>> provider = ExternalSchemaTransformProvider(["localhost:12345",
+  ...                                             "localhost:12121"])
+  We can also give it the gradle target of a standard Beam expansion service:
+  >>> provider = ExternalSchemaTransform(BeamJarExpansionService(
+  ...     "sdks:java:io:google-cloud-platform:expansion-service:shadowJar"))
+  Let's take a look at the output of :func:`get_available()` to know the
+  available transforms in the expansion service(s) we provided:
+  >>> provider.get_available()
   [('JdbcWrite', 'beam:schematransform:org.apache.beam:jdbc_write:v1'),
   ('BigtableRead', 'beam:schematransform:org.apache.beam:bigtable_read:v1'),
   ...]
 
   Then retrieve a transform by :func:`get()`, :func:`get_urn()`, or by directly
-  accessing it as an attribute of :class:`ExternalSchemaTransformProvider`:
-  >>> provider = ExternalSchemaTransformProvider("localhost:12345")
+  accessing it as an attribute of :class:`ExternalSchemaTransformProvider`.
   All of the following commands do the same thing:
-  >>> provider.get('JdbcWrite')
-  >>> provider.get_urn('beam:schematransform:org.apache.beam:jdbc_write:v1')
-  >>> provider.JdbcWrite
+  >>> provider.get('BigqueryStorageRead')
+  >>> provider.get_urn(
+  ...       'beam:schematransform:org.apache.beam:bigquery_storage_read:v1')
+  >>> provider.BigqueryStorageRead
 
-  To know more about the parameters used for a given transform, take a look at
-  the `configuration_schema` attribute. This includes parameter names, types,
-  and any documentation that the underlying SchemaTransform may provide
+  To know more about the usage of a given transform, take a look at the
+  `description` attribute. This returns some documentation IF the underlying
+  SchemaTransform provides any.
+  >>> provider.BigqueryStorageRead.description
+
+  Similarly, the `configuration_schema` attribute returns information about the
+  parameters, including their names, types, and any documentation that the
+  underlying SchemaTransform may provide:
   >>> provider.BigqueryStorageRead.configuration_schema
   {'query': ParamInfo(type=typing.Optional[str], description='The SQL query to
   be executed to read from the BigQuery table.', original_name='query'),
@@ -144,7 +184,7 @@ class ExternalSchemaTransformProvider:
 
     with Pipeline() as p:
       _ = (p
-        | 'Read from JDBC` >> provider.BigqueryStorageRead(
+        | 'Read from BigQuery` >> provider.BigqueryStorageRead(
                 query=query,
                 row_restriction=restriction)
         | 'Some processing' >> beam.Map(...))
@@ -195,20 +235,10 @@ class ExternalSchemaTransformProvider:
         if identifier not in identifiers:
           identifiers.add(identifier)
 
-          match = re.match(self._urn_pattern, identifier)
-          if not match:
+          name = infer_name_from_identifier(identifier, self._urn_pattern)
+          if name is None:
             skipped_urns.append(identifier)
             continue
-          groups = match.groups()
-
-          components = [snake_case_to_upper_camel_case(n) for n in groups]
-          # Special handling for standard SchemaTransforms:
-          # We don't include the version number if it's the first version
-          if self._urn_pattern == STANDARD_URN_PATTERN and components[1].lower(
-          ) == 'v1':
-            name = components[0]
-          else:
-            name = ''.join(components)
 
           self._transforms[identifier] = type(
               name, (ExternalSchemaTransform, ),
@@ -216,6 +246,7 @@ class ExternalSchemaTransformProvider:
                   identifier=identifier,
                   default_expansion_service=service,
                   schematransform=config,
+                  description=config.description,
                   configuration_schema=get_config_with_descriptions(config)))
           self._name_to_urn[name] = identifier
 
@@ -234,9 +265,9 @@ class ExternalSchemaTransformProvider:
     return list(self._name_to_urn.items())
 
   def get(self, name) -> ExternalSchemaTransform:
-    """Get an ExternalSchemaTransform by its name"""
+    """Get an ExternalSchemaTransform by its inferred class name"""
     return self._transforms[self._name_to_urn[name]]
 
   def get_urn(self, identifier) -> ExternalSchemaTransform:
-    """Get an ExternalSchemaTransform by its URN"""
+    """Get an ExternalSchemaTransform by its SchemaTransform identifier"""
     return self._transforms[identifier]
