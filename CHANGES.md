@@ -66,6 +66,7 @@
 * TextIO now supports skipping multiple header lines (Java) ([#17990](https://github.com/apache/beam/issues/17990)).
 * Python GCSIO is now implemented with GCP GCS Client instead of apitools ([#25676](https://github.com/apache/beam/issues/25676))
 * Adding support for LowCardinality DataType in ClickHouse (Java) ([#29533](https://github.com/apache/beam/pull/29533)).
+* Adding support for Tuples DataType in ClickHouse (Java) ([Tuple Support](https://github.com/apache/beam/pull/29715)).
 
 ## New Features / Improvements
 
