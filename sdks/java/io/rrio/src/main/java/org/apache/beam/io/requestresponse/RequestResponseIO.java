@@ -54,10 +54,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Duration;
 
 /**
@@ -566,6 +563,7 @@ public class RequestResponseIO<RequestT, ResponseT>
     Coder<KV<RequestT, ResponseT>> coder =
         KvCoder.of(input.getCoder(), rrioConfiguration.getResponseTCoder());
 
+    // Could not re-use original configuration because of different type parameters.
     Call.Configuration<RequestT, KV<RequestT, ResponseT>> configuration =
         Call.Configuration.<RequestT, KV<RequestT, ResponseT>>builder()
             .setResponseCoder(coder)
@@ -680,8 +678,7 @@ public class RequestResponseIO<RequestT, ResponseT>
     }
 
     @Override
-    public void verifyDeterministic()
-        throws @UnknownKeyFor @NonNull @Initialized NonDeterministicException {
+    public void verifyDeterministic() throws NonDeterministicException {
       basis.verifyDeterministic();
     }
   }
