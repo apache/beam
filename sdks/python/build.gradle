@@ -99,11 +99,12 @@ platform_identifiers_map.each { platform, idsuffix ->
           environment CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
           // note: sync cibuildwheel version with GitHub Action
           // .github/workflow/build_wheel.yml:build_wheels "Install cibuildwheel" step
+          // note(https://github.com/pypa/cibuildwheel/issues/1692): cibuildwheel appears to timeout occasionally.
           executable 'sh'
           args '-c', ". ${envdir}/bin/activate && " +
               "pip install cibuildwheel==2.9.0 && " +
               "cibuildwheel --print-build-identifiers --platform ${platform} --archs ${archs} && " +
-              "cibuildwheel --output-dir ${buildDir} --platform ${platform} --archs ${archs}"
+              "for i in {1..3}; do cibuildwheel --output-dir ${buildDir} --platform ${platform} --archs ${archs} && break; done"
         }
       }
     }

@@ -1675,6 +1675,11 @@ message StandardRunnerProtocols {
     // https://s.apache.org/beam-fn-api-control-data-embedding
     CONTROL_RESPONSE_ELEMENTS_EMBEDDING = 6
     [(beam_urn) = "beam:protocol:control_response_elements_embedding:v1"];
+
+    // Indicates that this runner can handle the multimap_keys_values_side_input
+    // style read of a multimap side input.
+    MULTIMAP_KEYS_VALUES_SIDE_INPUT = 7
+    [(beam_urn) = "beam:protocol:multimap_keys_values_side_input:v1"];
   }
 }
 

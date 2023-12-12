@@ -16,6 +16,8 @@
 #
 
 """This module defines the basic MapToFields operation."""
+import functools
+import inspect
 import itertools
 from collections import abc
 from typing import Any
@@ -23,6 +25,7 @@ from typing import Callable
 from typing import Collection
 from typing import Dict
 from typing import Mapping
+from typing import NamedTuple
 from typing import Optional
 from typing import Union
 
@@ -267,6 +270,11 @@ def _as_callable(original_fields, expr, transform_name, language):
     return func
 
 
+class ErrorHandlingConfig(NamedTuple):
+  output: str
+  # TODO: Other parameters are valid here too, but not common to Java.
+
+
 def exception_handling_args(error_handling_spec):
   if error_handling_spec:
     return {
@@ -294,16 +302,52 @@ def maybe_with_exception_handling(inner_expand):
 
 
 def maybe_with_exception_handling_transform_fn(transform_fn):
+  @functools.wraps(transform_fn)
   def expand(pcoll, error_handling=None, **kwargs):
     wrapped_pcoll = beam.core._MaybePValueWithErrors(
         pcoll, exception_handling_args(error_handling))
     return transform_fn(wrapped_pcoll,
                         **kwargs).as_result(_map_errors_to_standard_format())
 
+  original_signature = inspect.signature(transform_fn)
+  new_parameters = list(original_signature.parameters.values())
+  error_handling_param = inspect.Parameter(
+      'error_handling',
+      inspect.Parameter.KEYWORD_ONLY,
+      default=None,
+      annotation=ErrorHandlingConfig)
+  if new_parameters[-1].kind == inspect.Parameter.VAR_KEYWORD:
+    new_parameters.insert(-1, error_handling_param)
+  else:
+    new_parameters.append(error_handling_param)
+  expand.__signature__ = original_signature.replace(parameters=new_parameters)
+
   return expand
 
 
 class _Explode(beam.PTransform):
+  """Explodes (aka unnest/flatten) one or more fields producing multiple rows.
+
+  Given one or more fields of iterable type, produces multiple rows, one for
+  each value of that field. For example, a row of the form `('a', [1, 2, 3])`
+  would expand to `('a', 1)`, `('a', 2')`, and `('a', 3)` when exploded on
+  the second field.
+
+  This is akin to a `FlatMap` when paired with the MapToFields transform.
+
+  Args:
+      fields: The list of fields to expand.
+      cross_product: If multiple fields are specified, indicates whether the
+          full cross-product of combinations should be produced, or if the
+          first element of the first field corresponds to the first element
+          of the second field, etc. For example, the row
+          `(['a', 'b'], [1, 2])` would expand to the four rows
+          `('a', 1)`, `('a', 2)`, `('b', 1)`, and `('b', 2)` when
+          `cross_product` is set to `true` but only the two rows
+          `('a', 1)` and `('b', 2)` when it is set to `false`.
+          Only meaningful (and required) if multiple rows are specified.
+      error_handling: Whether and how to handle errors during iteration.
+  """
   def __init__(
       self,
       fields: Union[str, Collection[str]],

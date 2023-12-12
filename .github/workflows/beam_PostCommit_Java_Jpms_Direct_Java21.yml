@@ -71,7 +71,7 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     - name: Set up Java
-      uses: actions/setup-java@v3.11.0
+      uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: |
@@ -87,7 +87,7 @@ jobs:
           -Pjava21Home=$JAVA_HOME_21_X64
     - name: Archive JUnit Test Results
       uses: actions/upload-artifact@v3
-      if: failure()
+      if: ${{ !success() }}
       with:
         name: JUnit Test Results
         path: "**/build/reports/tests/"

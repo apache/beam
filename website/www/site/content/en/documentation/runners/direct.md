@@ -76,6 +76,10 @@ Local execution is limited by the memory available in your local environment. It
 
 ### Streaming execution
 
+{{< paragraph class="language-py" >}}
+Streaming support for Python DirectRunner is limited. For known issues, see: https://github.com/apache/beam/issues/24528.
+{{< /paragraph >}}
+
 If your pipeline uses an unbounded data source or sink, you must set the `streaming` option to `true`.
 
 ### Parallel execution

@@ -33,6 +33,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -168,6 +169,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT> runner =
           new FnApiDoFnRunner<>(
               context.getPipelineOptions(),
+              context.getRunnerCapabilities(),
               context.getShortIdMap(),
               context.getBeamFnStateClient(),
               context.getPTransformId(),
@@ -336,6 +338,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   FnApiDoFnRunner(
       PipelineOptions pipelineOptions,
+      Set<String> runnerCapabilities,
       ShortIdMap shortIds,
       BeamFnStateClient beamFnStateClient,
       String pTransformId,
@@ -740,6 +743,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     this.stateAccessor =
         new FnApiStateAccessor(
             pipelineOptions,
+            runnerCapabilities,
             pTransformId,
             processBundleInstructionId,
             cacheTokens,

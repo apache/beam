@@ -155,13 +155,13 @@ env:
 jobs:
   beam_PreCommit_Java:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    timeout-minutes: 180
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       fail-fast: false
       matrix:
         job_name: [beam_PreCommit_Java]
         job_phrase: [Run Java PreCommit]
+    timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
@@ -187,7 +187,7 @@ jobs:
             -PdisableCheckStyle=true \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v3
-        if: failure()
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

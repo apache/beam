@@ -43,7 +43,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 })
 public class FakeBigQueryServices implements BigQueryServices {
   private JobService jobService;
-  private DatasetService datasetService;
+  private FakeDatasetService datasetService;
   private StorageClient storageClient;
 
   public FakeBigQueryServices withJobService(JobService jobService) {
@@ -68,6 +68,11 @@ public class FakeBigQueryServices implements BigQueryServices {
 
   @Override
   public DatasetService getDatasetService(BigQueryOptions bqOptions) {
+    return datasetService;
+  }
+
+  @Override
+  public WriteStreamService getWriteStreamService(BigQueryOptions bqOptions) {
     return datasetService;
   }
 

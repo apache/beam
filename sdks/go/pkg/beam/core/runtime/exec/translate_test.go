@@ -460,7 +460,7 @@ func TestUnmarshalPlan(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			plan, err := UnmarshalPlan(test.inputDesc)
+			plan, err := UnmarshalPlan(test.inputDesc, nil)
 			if err != nil && test.outputError == nil {
 				t.Errorf("there is an error where should not be. UnmarshalPlan(%v) = (%v, %v), want (%v, %v)", test.inputDesc, plan, err, test.outputPlan, test.outputError)
 			} else if err != nil && !reflect.DeepEqual(err, test.outputError) {
@@ -503,7 +503,7 @@ func TestNewBuilder(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			b, err := newBuilder(test.inputDesc)
+			b, err := newBuilder(test.inputDesc, nil)
 			if err != nil && test.outputError == nil {
 				t.Errorf("There is an error where should not be. newBuilder(%v) = (%v, %v), want (%v, %v)", test.inputDesc, b, err, test.outputBuilder, test.outputError)
 			} else if err != nil && err != test.outputError {

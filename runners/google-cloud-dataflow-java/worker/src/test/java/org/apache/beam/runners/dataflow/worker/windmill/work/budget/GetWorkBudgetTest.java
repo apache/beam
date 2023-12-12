@@ -19,12 +19,15 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
 import static org.junit.Assert.assertEquals;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class GetWorkBudgetTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   @Test
   public void testCreateWithNoBudget() {
