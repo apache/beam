@@ -484,15 +484,11 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 
 				// Encode the runner iterable (no length, just consecutive elements), and send it out.
 				// This is also where we can handle things like State Backed Iterables.
-				var buf bytes.Buffer
-				for _, value := range data {
-					buf.Write(value)
-				}
 				responses <- &fnpb.StateResponse{
 					Id: req.GetId(),
 					Response: &fnpb.StateResponse_Get{
 						Get: &fnpb.StateGetResponse{
-							Data: buf.Bytes(),
+							Data: bytes.Join(data, []byte{}),
 						},
 					},
 				}
