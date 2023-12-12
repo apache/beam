@@ -959,7 +959,8 @@ class DecimalLogicalType(NoArgumentLogicalType[decimal.Decimal, bytes]):
 
   def to_language_type(self, value):
     # type: (bytes) -> decimal.Decimal
-    return decimal.Decimal(value.decode())
+    if not isinstance(value, decimal.Decimal):
+      return decimal.Decimal(value.decode())
 
 
 @LogicalType.register_logical_type
