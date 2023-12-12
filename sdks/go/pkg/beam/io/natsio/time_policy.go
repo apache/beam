@@ -13,50 +13,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package natsio contains transforms for interacting with NATS.
 package natsio
 
 import (
-	"fmt"
+	"time"
 
-	"github.com/nats-io/nats.go"
-	"github.com/nats-io/nats.go/jetstream"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 )
 
-type natsFn struct {
-	URI       string
-	CredsFile string
-	nc        *nats.Conn
-	js        jetstream.JetStream
+type timePolicy int
+
+const (
+	processingTimePolicy timePolicy = iota
+	publishingTimePolicy
+)
+
+type timestampFn func(time.Time) mtime.Time
+
+func processingTime(_ time.Time) mtime.Time {
+	return mtime.Now()
 }
 
-func (fn *natsFn) Setup() error {
-	if fn.nc != nil && fn.js != nil {
-		return nil
-	}
-
-	var opts []nats.Option
-	if fn.CredsFile != "" {
-		opts = append(opts, nats.UserCredentials(fn.CredsFile))
-	}
-
-	conn, err := nats.Connect(fn.URI, opts...)
-	if err != nil {
-		return fmt.Errorf("error connecting to NATS: %v", err)
-	}
-	fn.nc = conn
-
-	js, err := jetstream.New(fn.nc)
-	if err != nil {
-		return fmt.Errorf("error creating JetStream context: %v", err)
-	}
-	fn.js = js
-
-	return nil
+func publishingTime(t time.Time) mtime.Time {
+	return mtime.FromTime(t)
 }
 
-func (fn *natsFn) Teardown() {
-	if fn.nc != nil {
-		fn.nc.Close()
+func (p timePolicy) TimestampFn() timestampFn {
+	switch p {
+	case processingTimePolicy:
+		return processingTime
+	case publishingTimePolicy:
+		return publishingTime
+	default:
+		panic("unsupported time policy")
 	}
 }
