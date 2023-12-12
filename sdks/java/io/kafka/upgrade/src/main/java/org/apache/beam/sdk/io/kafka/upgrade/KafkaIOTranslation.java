@@ -22,6 +22,7 @@ import static org.apache.beam.runners.core.construction.TransformUpgrader.toByte
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.io.InvalidClassException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -57,12 +59,16 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utility methods for translating {@link KafkaIO} transforms to and from {@link RunnerApi}
  * representations.
  */
 public class KafkaIOTranslation {
+
+  private static final Logger LOG = LoggerFactory.getLogger(KafkaIOTranslation.class);
 
   // We define new v2 URNs here for KafkaIO transforms that includes all properties of Java
   // transforms. Kafka read/write v1 URNs are defined in KafkaIO.java and offer a limited set of
@@ -99,6 +105,7 @@ public class KafkaIOTranslation {
             .addNullableByteArrayField("key_deserializer_provider")
             .addNullableByteArrayField("value_deserializer_provider")
             .addNullableByteArrayField("check_stop_reading_fn")
+            .addNullableByteArrayField("bad_record_error_handler")
             .build();
 
     @Override
@@ -203,162 +210,195 @@ public class KafkaIOTranslation {
       if (transform.getCheckStopReadingFn() != null) {
         fieldValues.put("check_stop_reading_fn", toByteArray(transform.getCheckStopReadingFn()));
       }
+      if (transform.getBadRecordErrorHandler() != null) {
+        fieldValues.put(
+            "bad_record_error_handler", toByteArray(transform.getBadRecordErrorHandler()));
+      }
 
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
     }
 
     @Override
     public Read<?, ?> fromConfigRow(Row configRow) {
-      Read<?, ?> transform = KafkaIO.read();
+      try {
+        Read<?, ?> transform = KafkaIO.read();
 
-      Map<String, byte[]> consumerConfig = configRow.getMap("consumer_config");
-      if (consumerConfig != null) {
-        Map<String, Object> updatedConsumerConfig = new HashMap<>();
-        consumerConfig.forEach(
-            (key, dataBytes) -> {
-              // Adding all allowed properties.
-              if (!KafkaIOUtils.DISALLOWED_CONSUMER_PROPERTIES.containsKey(key)) {
-                if (consumerConfig.get(key) == null) {
-                  throw new IllegalArgumentException(
-                      "Encoded value of the consumer config property " + key + " was null");
+        Map<String, byte[]> consumerConfig = configRow.getMap("consumer_config");
+        if (consumerConfig != null) {
+          Map<String, Object> updatedConsumerConfig = new HashMap<>();
+          consumerConfig.forEach(
+              (key, dataBytes) -> {
+                // Adding all allowed properties.
+                if (!KafkaIOUtils.DISALLOWED_CONSUMER_PROPERTIES.containsKey(key)) {
+                  if (consumerConfig.get(key) == null) {
+                    throw new IllegalArgumentException(
+                        "Encoded value of the consumer config property " + key + " was null");
+                  }
+                  try {
+                    updatedConsumerConfig.put(key, fromByteArray(consumerConfig.get(key)));
+                  } catch (InvalidClassException e) {
+                    throw new RuntimeException(e);
+                  }
                 }
-                updatedConsumerConfig.put(key, fromByteArray(consumerConfig.get(key)));
-              }
-            });
-        transform = transform.withConsumerConfigUpdates(updatedConsumerConfig);
-      }
-      Collection<String> topics = configRow.getArray("topics");
-      if (topics != null) {
-        transform = transform.withTopics(new ArrayList<>(topics));
-      }
-      Collection<Row> topicPartitionRows = configRow.getArray("topic_partitions");
-      if (topicPartitionRows != null) {
-        Collection<TopicPartition> topicPartitions =
-            topicPartitionRows.stream()
-                .map(
-                    row -> {
-                      String topic = row.getString("topic");
-                      if (topic == null) {
-                        throw new IllegalArgumentException("Expected the topic to be not null");
-                      }
-                      Integer partition = row.getInt32("partition");
-                      if (partition == null) {
-                        throw new IllegalArgumentException("Expected the partition to be not null");
-                      }
-                      return new TopicPartition(topic, partition);
-                    })
-                .collect(Collectors.toList());
-        transform = transform.withTopicPartitions(Lists.newArrayList(topicPartitions));
-      }
-      String topicPattern = configRow.getString("topic_pattern");
-      if (topicPattern != null) {
-        transform = transform.withTopicPattern(topicPattern);
-      }
-
-      byte[] keyDeserializerProvider = configRow.getBytes("key_deserializer_provider");
-      if (keyDeserializerProvider != null) {
-
-        byte[] keyCoder = configRow.getBytes("key_coder");
-        if (keyCoder != null) {
-          transform =
-              transform.withKeyDeserializerProviderAndCoder(
-                  (DeserializerProvider) fromByteArray(keyDeserializerProvider),
-                  (org.apache.beam.sdk.coders.Coder) fromByteArray(keyCoder));
-        } else {
-          transform =
-              transform.withKeyDeserializer(
-                  (DeserializerProvider) fromByteArray(keyDeserializerProvider));
+              });
+          transform = transform.withConsumerConfigUpdates(updatedConsumerConfig);
         }
-      }
-
-      byte[] valueDeserializerProvider = configRow.getBytes("value_deserializer_provider");
-      if (valueDeserializerProvider != null) {
-        byte[] valueCoder = configRow.getBytes("value_coder");
-        if (valueCoder != null) {
-          transform =
-              transform.withValueDeserializerProviderAndCoder(
-                  (DeserializerProvider) fromByteArray(valueDeserializerProvider),
-                  (org.apache.beam.sdk.coders.Coder) fromByteArray(valueCoder));
-        } else {
-          transform =
-              transform.withValueDeserializer(
-                  (DeserializerProvider) fromByteArray(valueDeserializerProvider));
+        Collection<String> topics = configRow.getArray("topics");
+        if (topics != null) {
+          transform = transform.withTopics(new ArrayList<>(topics));
         }
-      }
-
-      byte[] consumerFactoryFn = configRow.getBytes("consumer_factory_fn");
-      if (consumerFactoryFn != null) {
-        transform =
-            transform.withConsumerFactoryFn(
-                (SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>)
-                    fromByteArray(consumerFactoryFn));
-      }
-      byte[] watermarkFn = configRow.getBytes("watermark_fn");
-      if (watermarkFn != null) {
-        transform = transform.withWatermarkFn2((SerializableFunction) fromByteArray(watermarkFn));
-      }
-      Long maxNumRecords = configRow.getInt64("max_num_records");
-      if (maxNumRecords != null) {
-        transform = transform.withMaxNumRecords(maxNumRecords);
-      }
-      Duration maxReadTime = configRow.getValue("max_read_time");
-      if (maxReadTime != null) {
-        transform =
-            transform.withMaxReadTime(org.joda.time.Duration.millis(maxReadTime.toMillis()));
-      }
-      Instant startReadTime = configRow.getValue("start_read_time");
-      if (startReadTime != null) {
-        transform = transform.withStartReadTime(startReadTime);
-      }
-      Instant stopReadTime = configRow.getValue("stop_read_time");
-      if (stopReadTime != null) {
-        transform = transform.withStopReadTime(stopReadTime);
-      }
-      Boolean isCommitOffsetFinalizeEnabled =
-          configRow.getBoolean("is_commit_offset_finalize_enabled");
-      if (isCommitOffsetFinalizeEnabled != null && isCommitOffsetFinalizeEnabled) {
-        transform = transform.commitOffsetsInFinalize();
-      }
-      Boolean isDynamicRead = configRow.getBoolean("is_dynamic_read");
-      if (isDynamicRead != null && isDynamicRead) {
-        Duration watchTopicPartitionDuration = configRow.getValue("watch_topic_partition_duration");
-        if (watchTopicPartitionDuration == null) {
-          throw new IllegalArgumentException(
-              "Expected watchTopicPartitionDuration to be available when isDynamicRead is set to true");
+        Collection<Row> topicPartitionRows = configRow.getArray("topic_partitions");
+        if (topicPartitionRows != null) {
+          Collection<TopicPartition> topicPartitions =
+              topicPartitionRows.stream()
+                  .map(
+                      row -> {
+                        String topic = row.getString("topic");
+                        if (topic == null) {
+                          throw new IllegalArgumentException("Expected the topic to be not null");
+                        }
+                        Integer partition = row.getInt32("partition");
+                        if (partition == null) {
+                          throw new IllegalArgumentException(
+                              "Expected the partition to be not null");
+                        }
+                        return new TopicPartition(topic, partition);
+                      })
+                  .collect(Collectors.toList());
+          transform = transform.withTopicPartitions(Lists.newArrayList(topicPartitions));
         }
-        transform =
-            transform.withDynamicRead(
-                org.joda.time.Duration.millis(watchTopicPartitionDuration.toMillis()));
-      }
+        String topicPattern = configRow.getString("topic_pattern");
+        if (topicPattern != null) {
+          transform = transform.withTopicPattern(topicPattern);
+        }
 
-      byte[] timestampPolicyFactory = configRow.getBytes("timestamp_policy_factory");
-      if (timestampPolicyFactory != null) {
-        transform =
-            transform.withTimestampPolicyFactory(
-                (TimestampPolicyFactory) fromByteArray(timestampPolicyFactory));
-      }
-      Map<String, byte[]> offsetConsumerConfig = configRow.getMap("offset_consumer_config");
-      if (offsetConsumerConfig != null) {
-        Map<String, Object> updatedOffsetConsumerConfig = new HashMap<>();
-        offsetConsumerConfig.forEach(
-            (key, dataBytes) -> {
-              if (offsetConsumerConfig.get(key) == null) {
-                throw new IllegalArgumentException(
-                    "Encoded value for the offset consumer config key " + key + " was null.");
-              }
-              updatedOffsetConsumerConfig.put(key, fromByteArray(offsetConsumerConfig.get(key)));
-            });
-        transform = transform.withOffsetConsumerConfigOverrides(updatedOffsetConsumerConfig);
-      }
+        byte[] keyDeserializerProvider = configRow.getBytes("key_deserializer_provider");
+        if (keyDeserializerProvider != null) {
 
-      byte[] checkStopReadinfFn = configRow.getBytes("check_stop_reading_fn");
-      if (checkStopReadinfFn != null) {
-        transform =
-            transform.withCheckStopReadingFn(
-                (SerializableFunction<TopicPartition, Boolean>) fromByteArray(checkStopReadinfFn));
-      }
+          byte[] keyCoder = configRow.getBytes("key_coder");
+          if (keyCoder != null) {
+            transform =
+                transform.withKeyDeserializerProviderAndCoder(
+                    (DeserializerProvider) fromByteArray(keyDeserializerProvider),
+                    (org.apache.beam.sdk.coders.Coder) fromByteArray(keyCoder));
+          } else {
+            transform =
+                transform.withKeyDeserializer(
+                    (DeserializerProvider) fromByteArray(keyDeserializerProvider));
+          }
+        }
 
-      return transform;
+        byte[] valueDeserializerProvider = configRow.getBytes("value_deserializer_provider");
+        if (valueDeserializerProvider != null) {
+          byte[] valueCoder = configRow.getBytes("value_coder");
+          if (valueCoder != null) {
+            transform =
+                transform.withValueDeserializerProviderAndCoder(
+                    (DeserializerProvider) fromByteArray(valueDeserializerProvider),
+                    (org.apache.beam.sdk.coders.Coder) fromByteArray(valueCoder));
+          } else {
+            transform =
+                transform.withValueDeserializer(
+                    (DeserializerProvider) fromByteArray(valueDeserializerProvider));
+          }
+        }
+
+        byte[] consumerFactoryFn = configRow.getBytes("consumer_factory_fn");
+        if (consumerFactoryFn != null) {
+          transform =
+              transform.withConsumerFactoryFn(
+                  (SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>)
+                      fromByteArray(consumerFactoryFn));
+        }
+        byte[] watermarkFn = configRow.getBytes("watermark_fn");
+        if (watermarkFn != null) {
+          transform = transform.withWatermarkFn2((SerializableFunction) fromByteArray(watermarkFn));
+        }
+        Long maxNumRecords = configRow.getInt64("max_num_records");
+        if (maxNumRecords != null) {
+          transform = transform.withMaxNumRecords(maxNumRecords);
+        }
+        Duration maxReadTime = configRow.getValue("max_read_time");
+        if (maxReadTime != null) {
+          transform =
+              transform.withMaxReadTime(org.joda.time.Duration.millis(maxReadTime.toMillis()));
+        }
+        Instant startReadTime = configRow.getValue("start_read_time");
+        if (startReadTime != null) {
+          transform = transform.withStartReadTime(startReadTime);
+        }
+        Instant stopReadTime = configRow.getValue("stop_read_time");
+        if (stopReadTime != null) {
+          transform = transform.withStopReadTime(stopReadTime);
+        }
+        Boolean isCommitOffsetFinalizeEnabled =
+            configRow.getBoolean("is_commit_offset_finalize_enabled");
+        if (isCommitOffsetFinalizeEnabled != null && isCommitOffsetFinalizeEnabled) {
+          transform = transform.commitOffsetsInFinalize();
+        }
+        Boolean isDynamicRead = configRow.getBoolean("is_dynamic_read");
+        if (isDynamicRead != null && isDynamicRead) {
+          Duration watchTopicPartitionDuration =
+              configRow.getValue("watch_topic_partition_duration");
+          if (watchTopicPartitionDuration == null) {
+            throw new IllegalArgumentException(
+                "Expected watchTopicPartitionDuration to be available when isDynamicRead is set to true");
+          }
+          transform =
+              transform.withDynamicRead(
+                  org.joda.time.Duration.millis(watchTopicPartitionDuration.toMillis()));
+        }
+
+        byte[] timestampPolicyFactory = configRow.getBytes("timestamp_policy_factory");
+        if (timestampPolicyFactory != null) {
+          transform =
+              transform.withTimestampPolicyFactory(
+                  (TimestampPolicyFactory) fromByteArray(timestampPolicyFactory));
+        }
+        Map<String, byte[]> offsetConsumerConfig = configRow.getMap("offset_consumer_config");
+        if (offsetConsumerConfig != null) {
+          Map<String, Object> updatedOffsetConsumerConfig = new HashMap<>();
+          offsetConsumerConfig.forEach(
+              (key, dataBytes) -> {
+                if (offsetConsumerConfig.get(key) == null) {
+                  throw new IllegalArgumentException(
+                      "Encoded value for the offset consumer config key " + key + " was null.");
+                }
+                try {
+                  updatedOffsetConsumerConfig.put(
+                      key, fromByteArray(offsetConsumerConfig.get(key)));
+                } catch (InvalidClassException e) {
+                  throw new RuntimeException(e);
+                }
+              });
+          transform = transform.withOffsetConsumerConfigOverrides(updatedOffsetConsumerConfig);
+        }
+
+        byte[] checkStopReadinfFn = configRow.getBytes("check_stop_reading_fn");
+        if (checkStopReadinfFn != null) {
+          transform =
+              transform.withCheckStopReadingFn(
+                  (SerializableFunction<TopicPartition, Boolean>)
+                      fromByteArray(checkStopReadinfFn));
+        }
+
+        byte[] badRecordErrorHandlerBytes = configRow.getBytes("bad_record_error_handler");
+        if (badRecordErrorHandlerBytes != null) {
+          try {
+            transform =
+                transform.withBadRecordErrorHandler(
+                    (ErrorHandler) fromByteArray(badRecordErrorHandlerBytes));
+          } catch (InvalidClassException e) {
+            LOG.warn(
+                "Could not use the provided `ErrorHandler` implementation when upgrading."
+                    + "Using the default.");
+          }
+        }
+
+        return transform;
+      } catch (InvalidClassException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 
@@ -392,6 +432,7 @@ public class KafkaIOTranslation {
             .addNullableStringField("sink_group_id")
             .addNullableByteArrayField("consumer_factory_fn")
             .addNullableMapField("producer_config", FieldType.STRING, FieldType.BYTES)
+            .addNullableByteArrayField("bad_record_error_handler")
             .build();
 
     @Override
@@ -476,68 +517,93 @@ public class KafkaIOTranslation {
                 });
         fieldValues.put("producer_config", producerConfigMap);
       }
+      if (writeRecordsTransform.getBadRecordErrorHandler() != null) {
+        fieldValues.put(
+            "bad_record_error_handler",
+            toByteArray(writeRecordsTransform.getBadRecordErrorHandler()));
+      }
 
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
     }
 
     @Override
     public Write<?, ?> fromConfigRow(Row configRow) {
-      Write<?, ?> transform = KafkaIO.write();
+      try {
+        Write<?, ?> transform = KafkaIO.write();
 
-      String bootstrapServers = configRow.getString("bootstrap_servers");
-      if (bootstrapServers != null) {
-        transform = transform.withBootstrapServers(bootstrapServers);
-      }
-      String topic = configRow.getValue("topic");
-      if (topic != null) {
-        transform = transform.withTopic(topic);
-      }
-      byte[] keySerializerBytes = configRow.getBytes("key_serializer");
-      if (keySerializerBytes != null) {
-        transform = transform.withKeySerializer((Class) fromByteArray(keySerializerBytes));
-      }
-      byte[] valueSerializerBytes = configRow.getBytes("value_serializer");
-      if (valueSerializerBytes != null) {
-        transform = transform.withValueSerializer((Class) fromByteArray(valueSerializerBytes));
-      }
-      byte[] producerFactoryFnBytes = configRow.getBytes("producer_factory_fn");
-      if (producerFactoryFnBytes != null) {
-        transform =
-            transform.withProducerFactoryFn(
-                (SerializableFunction) fromByteArray(producerFactoryFnBytes));
-      }
-      Boolean isEOS = configRow.getBoolean("eos");
-      if (isEOS != null && isEOS) {
-        Integer numShards = configRow.getInt32("num_shards");
-        String sinkGroupId = configRow.getString("sink_group_id");
-        if (numShards == null) {
-          throw new IllegalArgumentException(
-              "Expected numShards to be provided when EOS is set to true");
+        String bootstrapServers = configRow.getString("bootstrap_servers");
+        if (bootstrapServers != null) {
+          transform = transform.withBootstrapServers(bootstrapServers);
         }
-        if (sinkGroupId == null) {
-          throw new IllegalArgumentException(
-              "Expected sinkGroupId to be provided when EOS is set to true");
+        String topic = configRow.getValue("topic");
+        if (topic != null) {
+          transform = transform.withTopic(topic);
         }
-        transform = transform.withEOS(numShards, sinkGroupId);
-      }
-      byte[] consumerFactoryFnBytes = configRow.getBytes("consumer_factory_fn");
-      if (consumerFactoryFnBytes != null) {
-        transform =
-            transform.withConsumerFactoryFn(
-                (SerializableFunction) fromByteArray(consumerFactoryFnBytes));
-      }
+        byte[] keySerializerBytes = configRow.getBytes("key_serializer");
+        if (keySerializerBytes != null) {
+          transform = transform.withKeySerializer((Class) fromByteArray(keySerializerBytes));
+        }
+        byte[] valueSerializerBytes = configRow.getBytes("value_serializer");
+        if (valueSerializerBytes != null) {
+          transform = transform.withValueSerializer((Class) fromByteArray(valueSerializerBytes));
+        }
+        byte[] producerFactoryFnBytes = configRow.getBytes("producer_factory_fn");
+        if (producerFactoryFnBytes != null) {
+          transform =
+              transform.withProducerFactoryFn(
+                  (SerializableFunction) fromByteArray(producerFactoryFnBytes));
+        }
+        Boolean isEOS = configRow.getBoolean("eos");
+        if (isEOS != null && isEOS) {
+          Integer numShards = configRow.getInt32("num_shards");
+          String sinkGroupId = configRow.getString("sink_group_id");
+          if (numShards == null) {
+            throw new IllegalArgumentException(
+                "Expected numShards to be provided when EOS is set to true");
+          }
+          if (sinkGroupId == null) {
+            throw new IllegalArgumentException(
+                "Expected sinkGroupId to be provided when EOS is set to true");
+          }
+          transform = transform.withEOS(numShards, sinkGroupId);
+        }
+        byte[] consumerFactoryFnBytes = configRow.getBytes("consumer_factory_fn");
+        if (consumerFactoryFnBytes != null) {
+          transform =
+              transform.withConsumerFactoryFn(
+                  (SerializableFunction) fromByteArray(consumerFactoryFnBytes));
+        }
 
-      Map<String, byte[]> producerConfig = configRow.getMap("producer_config");
-      if (producerConfig != null && !producerConfig.isEmpty()) {
-        Map<String, Object> updatedProducerConfig = new HashMap<>();
-        producerConfig.forEach(
-            (key, dataBytes) -> {
-              updatedProducerConfig.put(key, fromByteArray((byte[]) dataBytes));
-            });
-        transform = transform.withProducerConfigUpdates(updatedProducerConfig);
-      }
+        Map<String, byte[]> producerConfig = configRow.getMap("producer_config");
+        if (producerConfig != null && !producerConfig.isEmpty()) {
+          Map<String, Object> updatedProducerConfig = new HashMap<>();
+          producerConfig.forEach(
+              (key, dataBytes) -> {
+                try {
+                  updatedProducerConfig.put(key, fromByteArray((byte[]) dataBytes));
+                } catch (InvalidClassException e) {
+                  throw new RuntimeException(e);
+                }
+              });
+          transform = transform.withProducerConfigUpdates(updatedProducerConfig);
+        }
+        byte[] badRecordErrorHandlerBytes = configRow.getBytes("bad_record_error_handler");
+        if (badRecordErrorHandlerBytes != null) {
+          try {
+            transform =
+                transform.withBadRecordErrorHandler(
+                    (ErrorHandler) fromByteArray(badRecordErrorHandlerBytes));
+          } catch (InvalidClassException e) {
+            LOG.warn(
+                "Could not use the provided `ErrorHandler` implementation when upgrading."
+                    + "Using the default.");
+          }
+        }
 
-      return transform;
+        return transform;
+      } catch (InvalidClassException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 
