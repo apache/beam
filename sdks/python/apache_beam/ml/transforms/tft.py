@@ -560,8 +560,8 @@ class BagOfWords(TFTOperation):
       compute_word_count: A boolean that specifies whether to compute
         the unique word count over the entire dataset. Defaults to False.
       key_vocab_filename: The file name for the key vocabulary file when
-        compute_word_count is True. If empty, a file
-      name will be chosen based on the current scope
+        compute_word_count is True. If empty, a file name 
+        will be chosen based on the current scope
       name: A name for the operation (optional).
 
     Note that original order of the input may not be preserved.
@@ -588,7 +588,7 @@ class BagOfWords(TFTOperation):
           data, self.split_string_by_delimiter)
     output = tft.bag_of_words(
         data, self.ngram_range, self.ngrams_separator, self.name)
-    # word counts are written to the key_vocab_filename
+    # word counts are written to the file only if compute_word_count is True
     key_vocab_filename = self.key_vocab_filename
     if key_vocab_filename:
       key_vocab_filename = key_vocab_filename + f'_{output_col_name}'
@@ -596,5 +596,6 @@ class BagOfWords(TFTOperation):
     return {output_col_name: output}
 
 
-def count_unqiue_words(data: tf.SparseTensor, output_vocab_name: str) -> None:
+def count_unqiue_words(
+    data: tf.SparseTensor, output_vocab_name: Optional[str]) -> None:
   tft.count_per_key(data, key_vocabulary_filename=output_vocab_name)
