@@ -113,7 +113,7 @@ pip install skl2onnx
 
 ### Additional resources
 For more information, see the
-[Machine Learning](/documentation/sdks/python-machine-learning) and the
+[About Beam ML](/documentation/ml/about-ml) and the
 [RunInference transform](/documentation/transforms/python/elementwise/runinference) documentation.
 
 ---
