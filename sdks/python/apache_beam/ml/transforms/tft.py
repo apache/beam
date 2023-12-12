@@ -173,7 +173,7 @@ class ComputeAndApplyVocabulary(TFTOperation):
         bucket ID based on its hash if `num_oov_buckets` is greater than zero.
         Otherwise it is assigned the `default_value`.
       vocab_filename: The file name for the vocabulary file. If not provided,
-        the default name would be `compute_and_apply_vocab'
+        the default name would be `compute_and_apply_vocab_{column_name}'
         NOTE in order to make your pipelines resilient to implementation
         details please set `vocab_filename` when you are using
         the vocab_filename on a downstream component.
@@ -203,7 +203,7 @@ class ComputeAndApplyVocabulary(TFTOperation):
             top_k=self._top_k,
             frequency_threshold=self._frequency_threshold,
             num_oov_buckets=self._num_oov_buckets,
-            vocab_filename=self._vocab_filename,
+            vocab_filename=self._vocab_filename + f'_{output_column_name}',
             name=self._name)
     }
 
@@ -586,7 +586,8 @@ class BagOfWords(TFTOperation):
     output = tft.bag_of_words(
         data, self.ngram_range, self.ngrams_separator, self.name)
     # word counts are written to the key_vocab_filename
-    self.compute_word_count_fn(data, self.key_vocab_filename)
+    self.compute_word_count_fn(
+        data, self.key_vocab_filename + f"_{output_col_name}")
     return {output_col_name: output}
 
 
