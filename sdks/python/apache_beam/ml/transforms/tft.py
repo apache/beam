@@ -561,7 +561,8 @@ class BagOfWords(TFTOperation):
         the unique word count over the entire dataset. Defaults to False.
       key_vocab_filename: The file name for the key vocabulary file when
         compute_word_count is True. If empty, a file name 
-        will be chosen based on the current scope
+        will be chosen based on the current scope. If provided, the vocab
+        file will be suffixed with the column name.
       name: A name for the operation (optional).
 
     Note that original order of the input may not be preserved.
