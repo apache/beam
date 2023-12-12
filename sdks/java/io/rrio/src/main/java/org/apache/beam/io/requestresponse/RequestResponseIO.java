@@ -94,6 +94,13 @@ public class RequestResponseIO<RequestT, ResponseT>
     extends PTransform<PCollection<RequestT>, Result<ResponseT>> {
 
   /**
+   * The default {@link Duration} to wait until completion of user code. A {@link
+   * UserCodeTimeoutException} is thrown when {@link Caller#call}, {@link SetupTeardown#setup}, or
+   * {@link SetupTeardown#teardown} exceed this timeout.
+   */
+  public static final Duration DEFAULT_TIMEOUT = Duration.standardSeconds(30L);
+
+  /**
    * {@link Set} of {@link UserCodeExecutionException}s that warrant repeating. Not all errors
    * should be repeat execution such as bad or unauthenticated requests. However, certain errors
    * such as timeouts, remote system or quota exceed errors may not be related to the code but due
@@ -125,12 +132,14 @@ public class RequestResponseIO<RequestT, ResponseT>
    */
   @VisibleForTesting
   static final String WRAPPED_CALLER = WrappedAssociatingRequestResponseCaller.class.getName();
+
   /**
-   * The default {@link Duration} to wait until completion of user code. A {@link
-   * UserCodeTimeoutException} is thrown when {@link Caller#call}, {@link SetupTeardown#setup}, or
-   * {@link SetupTeardown#teardown} exceed this timeout.
+   * {@link VisibleForTesting} to test {@link RequestResponseIO} composite transform construction
+   * without exposing {@link WrappedAssociatingRequestResponseCallShouldBackoff}.
    */
-  public static final Duration DEFAULT_TIMEOUT = Duration.standardSeconds(30L);
+  @VisibleForTesting
+  static final String WRAPPED_CALL_SHOULD_BACKOFF =
+      WrappedAssociatingRequestResponseCallShouldBackoff.class.getName();
 
   private final TupleTag<ResponseT> responseTag = new TupleTag<ResponseT>() {};
   private final TupleTag<ApiIOError> failureTag = new TupleTag<ApiIOError>() {};
@@ -543,11 +552,7 @@ public class RequestResponseIO<RequestT, ResponseT>
       PCollectionList<ApiIOError> failureList) {
 
     if (rrioConfiguration.getCacheWrite() == null) {
-      Call<RequestT, ResponseT> call =
-          Call.of(callConfiguration.getCaller(), rrioConfiguration.getResponseTCoder());
-      if (callConfiguration.getSetupTeardown() != null) {
-        call = call.withSetupTeardown(checkStateNotNull(callConfiguration.getSetupTeardown()));
-      }
+      Call<RequestT, ResponseT> call = Call.of(callConfiguration);
       Result<ResponseT> result = input.apply(CALL_NAME, call);
       return Pair.of(
           responseList.and(result.getResponses()), failureList.and(result.getFailures()));
@@ -556,12 +561,25 @@ public class RequestResponseIO<RequestT, ResponseT>
     // Wrap caller to associate RequestT with ResponseT as a KV.
     Caller<RequestT, KV<RequestT, ResponseT>> caller =
         new WrappedAssociatingRequestResponseCaller<>(callConfiguration.getCaller());
+
     Coder<KV<RequestT, ResponseT>> coder =
         KvCoder.of(input.getCoder(), rrioConfiguration.getResponseTCoder());
-    Call<RequestT, KV<RequestT, ResponseT>> call = Call.of(caller, coder);
-    if (callConfiguration.getSetupTeardown() != null) {
-      call = call.withSetupTeardown(checkStateNotNull(callConfiguration.getSetupTeardown()));
-    }
+
+    Call.Configuration<RequestT, KV<RequestT, ResponseT>> configuration =
+        Call.Configuration.<RequestT, KV<RequestT, ResponseT>>builder()
+            .setResponseCoder(coder)
+            .setCaller(caller)
+            .setSetupTeardown(callConfiguration.getSetupTeardown())
+            .setBackOffSupplier(callConfiguration.getBackOffSupplier())
+            .setCallShouldBackoff(
+                new WrappedAssociatingRequestResponseCallShouldBackoff<>(
+                    callConfiguration.getCallShouldBackoff()))
+            .setShouldRepeat(callConfiguration.getShouldRepeat())
+            .setSleeperSupplier(callConfiguration.getSleeperSupplier())
+            .setTimeout(callConfiguration.getTimeout())
+            .build();
+
+    Call<RequestT, KV<RequestT, ResponseT>> call = Call.of(configuration);
 
     // Extract ResponseT from KV; append failures.
     Result<KV<RequestT, ResponseT>> result = input.apply(CALL_NAME, call);
@@ -609,6 +627,30 @@ public class RequestResponseIO<RequestT, ResponseT>
     public KV<RequestT, ResponseT> call(RequestT request) throws UserCodeExecutionException {
       ResponseT response = caller.call(request);
       return KV.of(request, response);
+    }
+  }
+
+  private static class WrappedAssociatingRequestResponseCallShouldBackoff<RequestT, ResponseT>
+      implements CallShouldBackoff<KV<RequestT, ResponseT>> {
+    private final CallShouldBackoff<ResponseT> basis;
+
+    private WrappedAssociatingRequestResponseCallShouldBackoff(CallShouldBackoff<ResponseT> basis) {
+      this.basis = basis;
+    }
+
+    @Override
+    public void update(UserCodeExecutionException exception) {
+      basis.update(exception);
+    }
+
+    @Override
+    public void update(KV<RequestT, ResponseT> response) {
+      basis.update(response.getValue());
+    }
+
+    @Override
+    public boolean value() {
+      return basis.value();
     }
   }
 

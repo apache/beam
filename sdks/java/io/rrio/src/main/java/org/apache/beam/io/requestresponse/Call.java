@@ -98,6 +98,12 @@ class Call<RequestT, ResponseT>
             .build());
   }
 
+  /** Instantiates a {@link Call} using the {@link Configuration}. */
+  static <RequestT, ResponseT> Call<RequestT, ResponseT> of(
+      Configuration<RequestT, ResponseT> configuration) {
+    return new Call<>(configuration);
+  }
+
   // TupleTags need to be instantiated for each Call instance. We cannot use a shared
   // static instance that is shared for multiple PCollectionTuples when Call is
   // instantiated multiple times as it is reused throughout code in this library.

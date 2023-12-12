@@ -23,14 +23,17 @@ import static org.apache.beam.io.requestresponse.Call.NOOP_SETUP_TEARDOWN;
 import static org.apache.beam.io.requestresponse.RequestResponseIO.CACHE_READ_NAME;
 import static org.apache.beam.io.requestresponse.RequestResponseIO.CACHE_WRITE_NAME;
 import static org.apache.beam.io.requestresponse.RequestResponseIO.CALL_NAME;
+import static org.apache.beam.io.requestresponse.RequestResponseIO.DEFAULT_TIMEOUT;
 import static org.apache.beam.io.requestresponse.RequestResponseIO.ROOT_NAME;
 import static org.apache.beam.io.requestresponse.RequestResponseIO.THROTTLE_NAME;
 import static org.apache.beam.io.requestresponse.RequestResponseIO.WRAPPED_CALLER;
+import static org.apache.beam.io.requestresponse.RequestResponseIO.WRAPPED_CALL_SHOULD_BACKOFF;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
 import com.google.auto.value.AutoValue;
+import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -46,6 +49,8 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -56,7 +61,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link RequestResponseIO}. */
+/** Tests for {@link RequestResponseIO} composite {@link PTransform} construction. */
 @RunWith(JUnit4.class)
 public class RequestResponseIOTest {
   @Rule
@@ -88,10 +93,80 @@ public class RequestResponseIOTest {
     ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
     requests().apply(RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER));
     pipeline.traverseTopologically(visitor);
-    visitor.assertExpandsWithCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
+
+    Call.Configuration<?, ?> configuration =
+        visitor.assertExpandsWithCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
+    assertHasDefaults(configuration);
+
     visitor.assertNotExpandsWith(THROTTLE_NAME);
     visitor.assertNotExpandsWith(CACHE_READ_NAME);
     visitor.assertNotExpandsWith(CACHE_WRITE_NAME);
+  }
+
+  @Test
+  public void givenWithTimeout_transformCallConfigured() {
+    Duration timeout = Duration.standardSeconds(1L);
+    ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
+    requests().apply(RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER).withTimeout(timeout));
+    pipeline.traverseTopologically(visitor);
+
+    Call.Configuration<?, ?> configuration =
+        visitor.assertExpandsWithCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
+    assertThat(configuration.getTimeout(), equalTo(timeout));
+  }
+
+  @Test
+  public void givenWithoutRepeat_transformCallConfigured() {
+    ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
+    requests().apply(RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER).withoutRepeater());
+    pipeline.traverseTopologically(visitor);
+
+    Call.Configuration<?, ?> configuration =
+        visitor.assertExpandsWithCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
+    assertThat(configuration.getShouldRepeat(), equalTo(false));
+  }
+
+  @Test
+  public void givenWithCallShouldBackoff_transformCallConfigured() {
+    ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
+    requests()
+        .apply(
+            RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER)
+                .withCallShouldBackoff(new CustomCallShouldBackoff<>()));
+    pipeline.traverseTopologically(visitor);
+
+    Call.Configuration<?, ?> configuration =
+        visitor.assertExpandsWithCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
+    assertThat(
+        configuration.getCallShouldBackoff().getClass(), equalTo(CustomCallShouldBackoff.class));
+  }
+
+  @Test
+  public void givenWithSleeperSupplier_transformCallConfigured() {
+    ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
+    requests()
+        .apply(
+            RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER)
+                .withSleeperSupplier(new CustomSleeperSupplier()));
+    pipeline.traverseTopologically(visitor);
+
+    Call.Configuration<?, ?> configuration =
+        visitor.assertExpandsWithCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
+    assertThat(configuration.getSleeperSupplier().getClass(), equalTo(CustomSleeperSupplier.class));
+  }
+
+  @Test
+  public void givenWithBackOffSupplier_transformCallConfigured() {
+    ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
+    requests()
+        .apply(
+            RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER)
+                .withBackOffSupplier(new CustomBackOffSupplier()));
+    pipeline.traverseTopologically(visitor);
+
+    Call.Configuration<?, ?> configuration =
+        visitor.assertExpandsWithCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
+    assertThat(configuration.getBackOffSupplier().getClass(), equalTo(CustomBackOffSupplier.class));
   }
 
   @Test
@@ -104,10 +179,12 @@ public class RequestResponseIOTest {
 
     pipeline.traverseTopologically(visitor);
 
-    visitor.assertExpandsWithCallOf(
-        CALL_NAME,
-        CallerSetupTeardownImpl.class.getName(),
-        CallerSetupTeardownImpl.class.getName());
+    Call.Configuration<?, ?> configuration =
+        visitor.assertExpandsWithCallOf(
+            CALL_NAME,
+            CallerSetupTeardownImpl.class.getName(),
+            CallerSetupTeardownImpl.class.getName());
+    assertHasDefaults(configuration);
 
     visitor.assertNotExpandsWith(THROTTLE_NAME);
     visitor.assertNotExpandsWith(CACHE_READ_NAME);
@@ -130,7 +207,10 @@ public class RequestResponseIOTest {
 
     pipeline.traverseTopologically(visitor);
 
-    visitor.assertExpandsWithCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
+    Call.Configuration<?, ?> configuration =
+        visitor.assertExpandsWithCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
+    assertHasDefaults(configuration);
+
     visitor.assertExpandsWithThrottleOf(THROTTLE_USING_EXTERNAL);
     visitor.assertNotExpandsWith(CACHE_READ_NAME);
     visitor.assertNotExpandsWith(CACHE_WRITE_NAME);
@@ -150,7 +230,19 @@ public class RequestResponseIOTest {
 
     pipeline.traverseTopologically(visitor);
 
-    visitor.assertExpandsWithCallOf(CALL_NAME, WRAPPED_CALLER, NOOP_SETUP_TEARDOWN);
+    Call.Configuration<?, ?> configuration =
+        visitor.assertExpandsWithCallOf(CALL_NAME, WRAPPED_CALLER, NOOP_SETUP_TEARDOWN);
+    assertThat(configuration.getTimeout(), equalTo(DEFAULT_TIMEOUT));
+    assertThat(configuration.getShouldRepeat(), equalTo(true));
+    assertThat(
+        configuration.getBackOffSupplier().getClass(),
+        equalTo(DefaultSerializableBackoffSupplier.class));
+    assertThat(
+        configuration.getSleeperSupplier().get().getClass(), equalTo(Sleeper.DEFAULT.getClass()));
+    assertThat(
+        configuration.getCallShouldBackoff().getClass().getName(),
+        equalTo(WRAPPED_CALL_SHOULD_BACKOFF));
+
     visitor.assertNotExpandsWith(THROTTLE_NAME);
     visitor.assertExpandsWithCallOf(
         CACHE_READ_NAME, CACHE_READ_USING_REDIS, CACHE_READ_USING_REDIS);
@@ -176,7 +268,19 @@ public class RequestResponseIOTest {
 
     pipeline.traverseTopologically(visitor);
 
-    visitor.assertExpandsWithCallOf(CALL_NAME, WRAPPED_CALLER, NOOP_SETUP_TEARDOWN);
+    Call.Configuration<?, ?> configuration =
+        visitor.assertExpandsWithCallOf(CALL_NAME, WRAPPED_CALLER, NOOP_SETUP_TEARDOWN);
+    assertThat(configuration.getTimeout(), equalTo(DEFAULT_TIMEOUT));
+    assertThat(configuration.getShouldRepeat(), equalTo(true));
+    assertThat(
+        configuration.getBackOffSupplier().getClass(),
+        equalTo(DefaultSerializableBackoffSupplier.class));
+    assertThat(
+        configuration.getSleeperSupplier().get().getClass(), equalTo(Sleeper.DEFAULT.getClass()));
+    assertThat(
+        configuration.getCallShouldBackoff().getClass().getName(),
+        equalTo(WRAPPED_CALL_SHOULD_BACKOFF));
+
     visitor.assertExpandsWithThrottleOf(THROTTLE_USING_EXTERNAL);
     visitor.assertExpandsWithCallOf(
         CACHE_READ_NAME, CACHE_READ_USING_REDIS, CACHE_READ_USING_REDIS);
@@ -184,11 +288,24 @@ public class RequestResponseIOTest {
         CACHE_WRITE_NAME, CACHE_WRITE_USING_REDIS, CACHE_WRITE_USING_REDIS);
   }
 
+  private static void assertHasDefaults(Call.Configuration<?, ?> configuration) {
+    assertThat(configuration.getTimeout(), equalTo(DEFAULT_TIMEOUT));
+    assertThat(configuration.getShouldRepeat(), equalTo(true));
+    assertThat(
+        configuration.getBackOffSupplier().getClass(),
+        equalTo(DefaultSerializableBackoffSupplier.class));
+    assertThat(
+        configuration.getSleeperSupplier().get().getClass(), equalTo(Sleeper.DEFAULT.getClass()));
+    assertThat(
+        configuration.getCallShouldBackoff().getClass(),
+        equalTo(CallShouldBackoffBasedOnRejectionProbability.class));
+  }
+
   private static class ExpansionPipelineVisitor implements PipelineVisitor {
 
     private final Map<String, TransformHierarchy.Node> visits = new HashMap<>();
 
-    private void assertExpandsWithCallOf(
+    private Call.Configuration<?, ?> assertExpandsWithCallOf(
         String stepName, String callerClassName, String setupTeardownClassName) {
       stepName = ROOT_NAME + "/" + stepName;
       PTransform<?, ?> transform = getFromStep(stepName);
@@ -199,6 +316,8 @@ public class RequestResponseIOTest {
       assertThat(
           call.getConfiguration().getSetupTeardown().getClass().getName(),
           equalTo(setupTeardownClassName));
+
+      return call.getConfiguration();
     }
 
     private void assertExpandsWithThrottleOf(String className) {
@@ -322,6 +441,44 @@ public class RequestResponseIOTest {
           .setAString(request.getAString())
           .setALong(request.getALong())
           .build();
+    }
+  }
+
+  private static class CustomCallShouldBackoff<ResponseT> implements CallShouldBackoff<ResponseT> {
+
+    @Override
+    public void update(UserCodeExecutionException exception) {}
+
+    @Override
+    public void update(ResponseT response) {}
+
+    @Override
+    public boolean value() {
+      return false;
+    }
+  }
+
+  private static class CustomSleeperSupplier implements SerializableSupplier<Sleeper> {
+
+    @Override
+    public Sleeper get() {
+      return millis -> {};
+    }
+  }
+
+  private static class CustomBackOffSupplier implements SerializableSupplier<BackOff> {
+
+    @Override
+    public BackOff get() {
+      return new BackOff() {
+        @Override
+        public void reset() throws IOException {}
+
+        @Override
+        public long nextBackOffMillis() throws IOException {
+          return 0;
+        }
+      };
     }
   }
 }
