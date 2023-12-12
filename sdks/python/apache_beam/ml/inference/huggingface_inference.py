@@ -221,7 +221,6 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
       *,
       inference_fn: Optional[Callable[..., Iterable[PredictionResult]]] = None,
       load_model_args: Optional[Dict[str, Any]] = None,
-      inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
@@ -250,10 +249,6 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
       load_model_args (Dict[str, Any]): (Optional) Keyword arguments to provide
         load options while loading models from Hugging Face Hub.
         Defaults to None.
-      inference_args (Dict[str, Any]): (Optional) Non-batchable arguments
-        required as inputs to the model's inference function. Unlike Tensors
-        in `batch`, these parameters will not be dynamically batched.
-        Defaults to None.
       min_batch_size: the minimum batch size to use when batching inputs.
       max_batch_size: the maximum batch size to use when batching inputs.
       max_batch_duration_secs: the maximum amount of time to buffer a batch
@@ -273,7 +268,6 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
     self._device = device
     self._inference_fn = inference_fn
     self._model_config_args = load_model_args if load_model_args else {}
-    self._inference_args = inference_args if inference_args else {}
     self._batching_kwargs = {}
     self._env_vars = kwargs.get("env_vars", {})
     if min_batch_size is not None:
@@ -407,7 +401,6 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
       *,
       inference_fn: Optional[Callable[..., Iterable[PredictionResult]]] = None,
       load_model_args: Optional[Dict[str, Any]] = None,
-      inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
@@ -436,10 +429,6 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
       load_model_args (Dict[str, Any]): (Optional) keyword arguments to provide
         load options while loading models from Hugging Face Hub.
         Defaults to None.
-      inference_args (Dict[str, Any]): (Optional) Non-batchable arguments
-        required as inputs to the model's inference function. Unlike Tensors
-        in `batch`, these parameters will not be dynamically batched.
-        Defaults to None.
       min_batch_size: the minimum batch size to use when batching inputs.
       max_batch_size: the maximum batch size to use when batching inputs.
       max_batch_duration_secs: the maximum amount of time to buffer a batch
@@ -459,7 +448,6 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
     self._device = device
     self._inference_fn = inference_fn
     self._model_config_args = load_model_args if load_model_args else {}
-    self._inference_args = inference_args if inference_args else {}
     self._batching_kwargs = {}
     self._env_vars = kwargs.get("env_vars", {})
     if min_batch_size is not None:
@@ -586,7 +574,6 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       device: Optional[str] = None,
       inference_fn: PipelineInferenceFn = _default_pipeline_inference_fn,
       load_pipeline_args: Optional[Dict[str, Any]] = None,
-      inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
@@ -623,9 +610,6 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
         Default is _default_pipeline_inference_fn.
       load_pipeline_args (Dict[str, Any]): keyword arguments to provide load
         options while loading pipelines from Hugging Face. Defaults to None.
-      inference_args (Dict[str, Any]): Non-batchable arguments
-        required as inputs to the model's inference function.
-        Defaults to None.
       min_batch_size: the minimum batch size to use when batching inputs.
       max_batch_size: the maximum batch size to use when batching inputs.
       max_batch_duration_secs: the maximum amount of time to buffer a batch
@@ -644,7 +628,6 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     self._model = model
     self._inference_fn = inference_fn
     self._load_pipeline_args = load_pipeline_args if load_pipeline_args else {}
-    self._inference_args = inference_args if inference_args else {}
     self._batching_kwargs = {}
     self._framework = "torch"
     self._env_vars = kwargs.get('env_vars', {})
