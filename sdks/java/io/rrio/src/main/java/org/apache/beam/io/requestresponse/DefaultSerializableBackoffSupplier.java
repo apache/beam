@@ -23,7 +23,7 @@ import org.apache.beam.sdk.util.SerializableUtils;
 
 /**
  * A default {@link SerializableSupplier} of a {@link BackOff} that relies on {@link
- * FluentBackoff#DEFAULT}. Embedding {@link FluentBackoff#DEFAULT}. in a lambda failed {@link
+ * FluentBackoff#DEFAULT}. Embedding {@link FluentBackoff#DEFAULT} in a lambda failed {@link
  * SerializableUtils#ensureSerializable}.
  */
 class DefaultSerializableBackoffSupplier implements SerializableSupplier<BackOff> {
