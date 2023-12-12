@@ -382,27 +382,28 @@ class Call<RequestT, ResponseT>
     @AutoValue.Builder
     abstract static class Builder<RequestT, ResponseT> {
 
-      /** See {@link #getCaller()}. */
+      /** See {@link Configuration#getCaller}. */
       abstract Builder<RequestT, ResponseT> setCaller(Caller<RequestT, ResponseT> value);
 
-      /** See {@link #getSetupTeardown()}. */
+      /** See {@link Configuration#getResponseCoder}. */
+      abstract Builder<RequestT, ResponseT> setResponseCoder(Coder<ResponseT> value);
+
+      /** See {@link Configuration#getSetupTeardown}. */
       abstract Builder<RequestT, ResponseT> setSetupTeardown(SetupTeardown value);
 
       abstract Optional<SetupTeardown> getSetupTeardown();
 
-      /** See {@link #getTimeout()}. */
+      /** See {@link Configuration#getTimeout}. */
       abstract Builder<RequestT, ResponseT> setTimeout(Duration value);
 
       abstract Optional<Duration> getTimeout();
 
-      /** See {@link #getCallShouldBackoff}. */
-      abstract Builder<RequestT, ResponseT> setResponseCoder(Coder<ResponseT> value);
-
-      /** See {@link Configuration#getShouldRepeat()}. */
+      /** See {@link Configuration#getShouldRepeat}. */
       abstract Builder<RequestT, ResponseT> setShouldRepeat(Boolean value);
 
       abstract Optional<Boolean> getShouldRepeat();
 
+      /** See {@link Configuration#getCallShouldBackoff}. */
       abstract Builder<RequestT, ResponseT> setCallShouldBackoff(
           CallShouldBackoff<ResponseT> value);
 
