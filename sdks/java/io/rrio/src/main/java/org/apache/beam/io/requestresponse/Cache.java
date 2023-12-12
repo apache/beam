@@ -46,6 +46,7 @@ final class Cache {
    * {@link VisibleForTesting} to test {@link RequestResponseIO} composite transform construction
    * without exposing {@link UsingRedis.Write}.
    */
+  @VisibleForTesting
   static final String CACHE_WRITE_USING_REDIS = Cache.UsingRedis.Write.class.getName();
 
   /**

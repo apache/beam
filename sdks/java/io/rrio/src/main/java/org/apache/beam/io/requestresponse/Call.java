@@ -406,6 +406,8 @@ class Call<RequestT, ResponseT>
       abstract Builder<RequestT, ResponseT> setCallShouldBackoff(
           CallShouldBackoff<ResponseT> value);
 
+      abstract Optional<CallShouldBackoff<ResponseT>> getCallShouldBackoff();
+
       /** See {@link Configuration#getSleeperSupplier}. */
       abstract Builder<RequestT, ResponseT> setSleeperSupplier(SerializableSupplier<Sleeper> value);
 
@@ -415,8 +417,6 @@ class Call<RequestT, ResponseT>
       abstract Builder<RequestT, ResponseT> setBackOffSupplier(SerializableSupplier<BackOff> value);
 
       abstract Optional<SerializableSupplier<BackOff>> getBackOffSupplier();
-
-      abstract Optional<CallShouldBackoff<ResponseT>> getCallShouldBackoff();
 
       abstract Configuration<RequestT, ResponseT> autoBuild();
 
