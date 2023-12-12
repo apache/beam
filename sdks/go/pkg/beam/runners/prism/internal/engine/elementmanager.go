@@ -330,59 +330,38 @@ func (em *ElementManager) StateForBundle(rb RunBundle) TentativeData {
 	var ret TentativeData
 	keys := ss.inprogressKeysByBundle[rb.BundleID]
 	// TODO(lostluck): Also track windows per bundle, to reduce copying.
-	if len(ss.bagState) > 0 {
-		ret.bagState = map[LinkID]map[typex.Window]map[string][][]byte{}
+	if len(ss.state) > 0 {
+		ret.state = map[LinkID]map[typex.Window]map[string]StateData{}
 	}
-	if len(ss.multimapState) > 0 {
-		ret.multimapState = map[LinkID]map[typex.Window]map[string]map[string][][]byte{}
-	}
-	for link, winMap := range ss.bagState {
+	for link, winMap := range ss.state {
 		for w, keyMap := range winMap {
 			for key := range keys {
 				data, ok := keyMap[key]
 				if !ok {
 					break
 				}
-				linkMap, ok := ret.bagState[link]
+				linkMap, ok := ret.state[link]
 				if !ok {
-					linkMap = map[typex.Window]map[string][][]byte{}
-					ret.bagState[link] = linkMap
+					linkMap = map[typex.Window]map[string]StateData{}
+					ret.state[link] = linkMap
 				}
 				wlinkMap, ok := linkMap[w]
 				if !ok {
-					wlinkMap = map[string][][]byte{}
+					wlinkMap = map[string]StateData{}
 					linkMap[w] = wlinkMap
+				}
+				var mm map[string][][]byte
+				if len(data.Multimap) > 0 {
+					mm = map[string][][]byte{}
+					for uk, v := range data.Multimap {
+						// Clone the "holding" slice, but refer to the existing data bytes.
+						mm[uk] = append([][]byte(nil), v...)
+					}
 				}
 				// Clone the "holding" slice, but refer to the existing data bytes.
-				wlinkMap[key] = append([][]byte(nil), data...)
-			}
-		}
-	}
-	for link, winMap := range ss.multimapState {
-		for w, keyMap := range winMap {
-			for key := range keys {
-				data, ok := keyMap[key]
-				if !ok {
-					break
-				}
-				linkMap, ok := ret.multimapState[link]
-				if !ok {
-					linkMap = map[typex.Window]map[string]map[string][][]byte{}
-					ret.multimapState[link] = linkMap
-				}
-				wlinkMap, ok := linkMap[w]
-				if !ok {
-					wlinkMap = map[string]map[string][][]byte{}
-					linkMap[w] = wlinkMap
-				}
-				userMap, ok := wlinkMap[key]
-				if !ok {
-					userMap = map[string][][]byte{}
-					wlinkMap[key] = userMap
-				}
-				for uk, v := range data {
-					// Clone the "holding" slice, but refer to the existing data bytes.
-					userMap[uk] = append([][]byte(nil), v...)
+				wlinkMap[key] = StateData{
+					Bag:      append([][]byte(nil), data.Bag...),
+					Multimap: mm,
 				}
 			}
 		}
@@ -526,33 +505,16 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	}
 
 	// Handle persisting.
-	for link, winMap := range d.bagState {
-		linkMap, ok := stage.bagState[link]
+	for link, winMap := range d.state {
+		linkMap, ok := stage.state[link]
 		if !ok {
-			linkMap = map[typex.Window]map[string][][]byte{}
-			stage.bagState[link] = linkMap
+			linkMap = map[typex.Window]map[string]StateData{}
+			stage.state[link] = linkMap
 		}
 		for w, keyMap := range winMap {
 			wlinkMap, ok := linkMap[w]
 			if !ok {
-				wlinkMap = map[string][][]byte{}
-				linkMap[w] = wlinkMap
-			}
-			for key, data := range keyMap {
-				wlinkMap[key] = data
-			}
-		}
-	}
-	for link, winMap := range d.multimapState {
-		linkMap, ok := stage.multimapState[link]
-		if !ok {
-			linkMap = map[typex.Window]map[string]map[string][][]byte{}
-			stage.multimapState[link] = linkMap
-		}
-		for w, keyMap := range winMap {
-			wlinkMap, ok := linkMap[w]
-			if !ok {
-				wlinkMap = map[string]map[string][][]byte{}
+				wlinkMap = map[string]StateData{}
 				linkMap[w] = wlinkMap
 			}
 			for key, data := range keyMap {
@@ -684,22 +646,20 @@ type stageState struct {
 	sideInputs map[LinkID]map[typex.Window][][]byte // side input data for this stage, from {tid, inputID} -> window
 
 	// Fields for stateful stages which need to be per key.
-	pendingByKeys          map[string]elementHeap                                     // pending input elements by Key, if stateful.
-	inprogressKeys         set[string]                                                // all keys that are assigned to bundles.
-	inprogressKeysByBundle map[string]set[string]                                     // bundle to key assignments.
-	bagState               map[LinkID]map[typex.Window]map[string][][]byte            // state data for this stage, from {tid, stateID} -> window -> userKey
-	multimapState          map[LinkID]map[typex.Window]map[string]map[string][][]byte // state data for this stage, from {tid, stateID} -> window -> userKey -> mapKey
+	pendingByKeys          map[string]elementHeap                           // pending input elements by Key, if stateful.
+	inprogressKeys         set[string]                                      // all keys that are assigned to bundles.
+	inprogressKeysByBundle map[string]set[string]                           // bundle to key assignments.
+	state                  map[LinkID]map[typex.Window]map[string]StateData // state data for this stage, from {tid, stateID} -> window -> userKey
 }
 
 // makeStageState produces an initialized stageState.
 func makeStageState(ID string, inputIDs, outputIDs []string, sides []LinkID) *stageState {
 	ss := &stageState{
-		ID:            ID,
-		outputIDs:     outputIDs,
-		sides:         sides,
-		strat:         defaultStrat{},
-		bagState:      map[LinkID]map[typex.Window]map[string][][]byte{},
-		multimapState: map[LinkID]map[typex.Window]map[string]map[string][][]byte{},
+		ID:        ID,
+		outputIDs: outputIDs,
+		sides:     sides,
+		strat:     defaultStrat{},
+		state:     map[LinkID]map[typex.Window]map[string]StateData{},
 
 		input:           mtime.MinTimestamp,
 		output:          mtime.MinTimestamp,
@@ -1017,15 +977,7 @@ func (ss *stageState) updateWatermarks(minPending, minStateHold mtime.Time, em *
 				}
 			}
 		}
-		for _, wins := range ss.bagState {
-			for win := range wins {
-				// Clear out anything we've already used.
-				if win.MaxTimestamp() < newOut {
-					delete(wins, win)
-				}
-			}
-		}
-		for _, wins := range ss.multimapState {
+		for _, wins := range ss.state {
 			for win := range wins {
 				// Clear out anything we've already used.
 				if win.MaxTimestamp() < newOut {
