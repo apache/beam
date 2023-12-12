@@ -64,7 +64,7 @@ Javadoc
 &lt;/ol>
 &lt;p>To keep your model up to date and performing well as your data grows and evolves, run these steps multiple times. In addition, you can apply ML ops to your project to automate the AI/ML workflows throughout the model and data lifecycle. Use orchestrators to automate this flow and to handle the transition between the different building blocks in your project.&lt;/p>
 &lt;h2 id="use-runinference">Use RunInference&lt;/h2>
-&lt;p>The &lt;a href="/documentation/sdks/python-machine-learning/">RunInference API&lt;/a> is a &lt;code>PTransform&lt;/code> optimized for machine learning inferences that lets you efficiently use ML models in your pipelines. The API includes the following features:&lt;/p>
+&lt;p>The RunInference API is a &lt;code>PTransform&lt;/code> optimized for machine learning inferences that lets you efficiently use ML models in your pipelines. The API includes the following features:&lt;/p>
 &lt;ul>
 &lt;li>To efficiently feed your model, dynamically batches inputs based on pipeline throughput using Apache Beam&amp;rsquo;s &lt;code>BatchElements&lt;/code> transform.&lt;/li>
 &lt;li>To balance memory and throughput usage, determines the optimal number of models to load using a central model manager. Shares these models across threads and processes as needed to maximize throughput.&lt;/li>
