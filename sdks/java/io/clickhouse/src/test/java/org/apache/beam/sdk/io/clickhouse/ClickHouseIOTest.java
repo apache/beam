@@ -184,6 +184,13 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
 
     try (ResultSet rs = executeQuery("SELECT * FROM test_named_tuples")) {
       rs.next();
+      assertEquals("('tuple',true)", rs.getString("t0"));
+    }
+
+    try (ResultSet rs = executeQuery("SELECT t0.f0 as f0, t0.f1 as f1 FROM test_named_tuples")) {
+      rs.next();
+      assertEquals("tuple", rs.getString("f0"));
+      assertEquals("true", rs.getString("f1"));
     }
   }
 
