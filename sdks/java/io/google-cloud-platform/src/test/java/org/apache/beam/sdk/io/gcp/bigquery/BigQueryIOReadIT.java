@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -71,7 +72,8 @@ public class BigQueryIOReadIT {
     PipelineOptionsFactory.register(BigQueryIOReadOptions.class);
     options = TestPipeline.testingPipelineOptions().as(BigQueryIOReadOptions.class);
     options.setNumRecords(numOfRecords.get(recordSize));
-    options.setTempLocation(options.getTempRoot() + "/temp-it/");
+    options.setTempLocation(
+        FileSystems.matchNewDirectory(options.getTempRoot(), "temp-it").toString());
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     options.setInputTable(project + ":" + datasetId + "." + tablePrefix + recordSize);
   }
