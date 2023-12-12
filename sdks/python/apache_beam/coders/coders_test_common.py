@@ -528,7 +528,7 @@ class CodersTest(unittest.TestCase):
         b'',
         # Milliseconds to microseconds
         1000 * 1000,
-        IntervalWindow(start=11, end=21),
+        (IntervalWindow(start=11, end=21), ),
         PaneInfo(True, False, 1, 2, 3))
     windowed_value_coder = coders.WindowedValueCoder(
         coders.BytesCoder(), coders.IntervalWindowCoder())
