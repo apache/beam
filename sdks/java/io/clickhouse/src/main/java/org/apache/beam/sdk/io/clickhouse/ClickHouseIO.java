@@ -476,6 +476,15 @@ public class ClickHouseIO {
     }
   }
 
+  private static String tuplePreprocessing(String payload) {
+    List<String> l =
+        Arrays.stream(payload.trim().split(","))
+            .map(s -> s.trim().replaceAll(" +", "':;"))
+            .collect(Collectors.toList());
+    String content =
+        String.join(",", l).trim().replaceAll("Tuple\\(", "Tuple('").replaceAll(",", ",'");
+    return content;
+  }
   /**
    * Returns {@link TableSchema} for a given table.
    *
@@ -501,17 +510,8 @@ public class ClickHouseIO {
 
           ColumnType columnType = null;
           if (type.toLowerCase().trim().startsWith("tuple(")) {
-            System.out.println(type);
-            List<String> l =
-                Arrays.stream(type.trim().split(","))
-                    .map(s -> s.trim().replaceAll(" +", "':;"))
-                    .collect(Collectors.toList());
-            String content =
-                String.join(",", l).trim().replaceAll("Tuple\\(", "Tuple('").replaceAll(",", ",'");
-            System.out.println(content);
-            // columnType = ColumnType.parse(content);
+            String content = tuplePreprocessing(type);
             columnType = ColumnType.parse(content);
-
           } else {
             columnType = ColumnType.parse(type);
           }
