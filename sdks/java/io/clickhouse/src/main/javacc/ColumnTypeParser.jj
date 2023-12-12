@@ -17,9 +17,9 @@
  */
 options {
     IGNORE_CASE=true;
-    DEBUG_PARSER = true;
-    DEBUG_LOOKAHEAD = true;
-    DEBUG_TOKEN_MANAGER = true;
+    DEBUG_PARSER = false;
+    DEBUG_LOOKAHEAD = false;
+    DEBUG_TOKEN_MANAGER = false;
     STATIC = false;
 }
 
