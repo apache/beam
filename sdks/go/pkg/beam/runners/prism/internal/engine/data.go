@@ -15,10 +15,15 @@
 
 package engine
 
+import "github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+
 // TentativeData is where data for in progress bundles is put
 // until the bundle executes successfully.
 type TentativeData struct {
 	Raw map[string][][]byte
+
+	// BagState is a map from transformID + UserStateID, to window, to userKey, to datavalues.
+	BagState map[LinkID]map[typex.Window]map[string][][]byte
 }
 
 // WriteData adds data to a given global collectionID.

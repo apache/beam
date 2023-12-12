@@ -69,16 +69,10 @@ func TestUnimplemented(t *testing.T) {
 		{pipeline: primitives.TriggerRepeat},
 
 		// State API
-		{pipeline: primitives.BagStateParDo},
-		{pipeline: primitives.BagStateParDoClear},
 		{pipeline: primitives.MapStateParDo},
 		{pipeline: primitives.MapStateParDoClear},
 		{pipeline: primitives.SetStateParDo},
 		{pipeline: primitives.SetStateParDoClear},
-		{pipeline: primitives.CombiningStateParDo},
-		{pipeline: primitives.ValueStateParDo},
-		{pipeline: primitives.ValueStateParDoClear},
-		{pipeline: primitives.ValueStateParDoWindowed},
 
 		// TODO: Timers integration tests.
 	}
@@ -110,6 +104,14 @@ func TestImplemented(t *testing.T) {
 		{pipeline: primitives.Checkpoints},
 		{pipeline: primitives.CoGBK},
 		{pipeline: primitives.ReshuffleKV},
+
+		// State API
+		{pipeline: primitives.BagStateParDo},
+		{pipeline: primitives.BagStateParDoClear},
+		{pipeline: primitives.CombiningStateParDo},
+		{pipeline: primitives.ValueStateParDo},
+		{pipeline: primitives.ValueStateParDoClear},
+		{pipeline: primitives.ValueStateParDoWindowed},
 	}
 
 	for _, test := range tests {

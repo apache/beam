@@ -32,6 +32,11 @@ type SideInputKey struct {
 	TransformID, Local string
 }
 
+// StateKey is for data lookups for a given bundle.
+type StateKey struct {
+	TransformID, UserStateID string
+}
+
 // B represents an extant ProcessBundle instruction sent to an SDK worker.
 // Generally manipulated by another package to interact with a worker.
 type B struct {
@@ -42,10 +47,12 @@ type B struct {
 	InputTransformID string
 	InputData        [][]byte // Data specifically for this bundle.
 
-	// IterableSideInputData is a map from transformID, to inputID, to window, to data.
+	// IterableSideInputData is a map from transformID + inputID, to window, to data.
 	IterableSideInputData map[SideInputKey]map[typex.Window][][]byte
-	// MultiMapSideInputData is a map from transformID, to inputID, to window, to data key, to data values.
+	// MultiMapSideInputData is a map from transformID + inputID, to window, to data key, to data values.
 	MultiMapSideInputData map[SideInputKey]map[typex.Window]map[string][][]byte
+
+	// State lives in OutputData
 
 	// OutputCount is the number of data or timer outputs this bundle has.
 	// We need to see this many closed data channels before the bundle is complete.
