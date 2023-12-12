@@ -152,10 +152,13 @@ public class ClickHouseWriter {
         RowWithStorage rowValues = (RowWithStorage) value;
         List<Object> tupleValues = rowValues.getValues();
         Collection<ColumnType> columnTypesList = columnType.tupleTypes().values();
-//        BinaryStreamUtils.writeVarInt(stream, tupleValues.size());
         int index = 0;
         for (ColumnType ct : columnTypesList) {
-          writeValue(stream, ct, tupleValues.get(index));
+          if (ct.nullable()) {
+            writeNullableValue(stream, ct, tupleValues.get(index));
+          } else {
+            writeValue(stream, ct, tupleValues.get(index));
+          }
           index++;
         }
         break;

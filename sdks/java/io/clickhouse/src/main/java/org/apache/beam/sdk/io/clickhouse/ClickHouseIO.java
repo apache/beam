@@ -507,7 +507,7 @@ public class ClickHouseIO {
                     .map(s -> s.trim().replaceAll(" +", "':;"))
                     .collect(Collectors.toList());
             String content =
-                String.join(",", l).trim().replaceAll("\\(", "('").replaceAll(",", ",'");
+                String.join(",", l).trim().replaceAll("Tuple\\(", "Tuple('").replaceAll(",", ",'");
             System.out.println(content);
             // columnType = ColumnType.parse(content);
             columnType = ColumnType.parse(content);

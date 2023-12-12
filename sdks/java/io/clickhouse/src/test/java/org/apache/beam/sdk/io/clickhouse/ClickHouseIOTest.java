@@ -140,33 +140,6 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
 
   @Test
   public void testTupleType() throws Exception {
-    /* Tuple('s':;String)
-    Tuple(
-            browser Tuple(name Nullable(String),
-                          size Tuple(width Nullable(Int64), height Nullable(Int64)),
-                          version Nullable(String)
-                         ),
-            deviceCategory Nullable(String),
-            mobileDeviceInfo Nullable(String),
-            mobileDeviceMarketingName Nullable(String),
-            mobileDeviceModel Nullable(String),
-            mobileInputSelector Nullable(String),
-            operatingSystem Nullable(String),
-            operatingSystemVersion Nullable(String),
-            mobileDeviceBranding Nullable(String),
-            flashVersion Nullable(String),
-            javaEnabled Nullable(Bool),
-            language Nullable(String),
-            screen Tuple(colors Nullable(String),
-                         resolution Tuple(width Nullable(Int64),
-                                          height Nullable(Int64)
-                                         )),
-            isBot Nullable(Bool),
-            isApp Nullable(Bool),
-            isInAppWebview Nullable(Bool)
-    )
-    */
-
     Schema tupleSchema =
         Schema.of(
             Schema.Field.of("f0", FieldType.STRING), Schema.Field.of("f1", FieldType.BOOLEAN));
@@ -191,6 +164,55 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
       rs.next();
       assertEquals("tuple", rs.getString("f0"));
       assertEquals("true", rs.getString("f1"));
+    }
+  }
+
+  @Test
+  public void testComplexTupleType() throws Exception {
+    Schema sizeSchema =
+        Schema.of(
+            Schema.Field.of("width", FieldType.INT64.withNullable(true)),
+            Schema.Field.of("height", FieldType.INT64.withNullable(true)));
+
+    Schema browserSchema =
+        Schema.of(
+            Schema.Field.of("name", FieldType.STRING.withNullable(true)),
+            Schema.Field.of("size", FieldType.row(sizeSchema)),
+            Schema.Field.of("version", FieldType.STRING.withNullable(true)));
+
+    Schema propSchema =
+        Schema.of(
+            Schema.Field.of("browser", FieldType.row(browserSchema)),
+            Schema.Field.of("deviceCategory", FieldType.STRING.withNullable(true)));
+
+    Schema schema = Schema.of(Schema.Field.of("prop", FieldType.row(propSchema)));
+
+    Row sizeRow = Row.withSchema(sizeSchema).addValue(10L).addValue(20L).build();
+    Row browserRow =
+        Row.withSchema(browserSchema).addValue("test").addValue(sizeRow).addValue("1.0.0").build();
+    Row propRow = Row.withSchema(propSchema).addValue(browserRow).addValue("mobile").build();
+    Row row1 = Row.withSchema(schema).addValue(propRow).build();
+
+    executeSql(
+        "CREATE TABLE test_named_complex_tuples ("
+            + "`prop` Tuple(`browser` Tuple(`name` Nullable(String),`size` Tuple(`width` Nullable(Int64), `height` Nullable(Int64)),`version` Nullable(String)),`deviceCategory` Nullable(String))"
+            + ") ENGINE=Log");
+
+    pipeline.apply(Create.of(row1).withRowSchema(schema)).apply(write("test_named_complex_tuples"));
+
+    pipeline.run().waitUntilFinish();
+
+    try (ResultSet rs = executeQuery("SELECT * FROM test_named_complex_tuples")) {
+      rs.next();
+      assertEquals("(('test',(10,20),'1.0.0'),'mobile')", rs.getString("prop"));
+    }
+
+    try (ResultSet rs =
+        executeQuery(
+            "SELECT prop.browser.name as name, prop.browser.size as size FROM test_named_complex_tuples")) {
+      rs.next();
+      assertEquals("test", rs.getString("name"));
+      assertEquals("(10,20)", rs.getString("size"));
     }
   }
 
