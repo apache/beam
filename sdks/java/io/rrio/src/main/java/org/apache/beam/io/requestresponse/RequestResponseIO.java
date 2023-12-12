@@ -271,7 +271,8 @@ public class RequestResponseIO<RequestT, ResponseT>
    * from the API and instead return the {@link ResponseT} if the association is known. Since the
    * {@link RequestT}s and {@link ResponseT}s need encoding and decoding, checks are made whether
    * the requestTCoder and {@link Configuration#getResponseTCoder} are {@link
-   * Coder#verifyDeterministic}.
+   * Coder#verifyDeterministic}. <strong>This feature is only appropriate for API reads such as HTTP
+   * list, get, etc.</strong>
    *
    * <pre>Below describes the parameters in more detail and their usage.</pre>
    *

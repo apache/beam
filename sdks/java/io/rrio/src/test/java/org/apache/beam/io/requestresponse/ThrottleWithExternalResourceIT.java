@@ -85,7 +85,7 @@ public class ThrottleWithExternalResourceIT {
               + GRPC_ENDPOINT_ADDRESS_NAME
               + " is missing. See "
               + EchoITOptions.class
-              + "for details.");
+              + " for details.");
     }
     client = EchoGRPCCallerWithSetupTeardown.of(URI.create(options.getGrpcEndpointAddress()));
     checkStateNotNull(client).setup();

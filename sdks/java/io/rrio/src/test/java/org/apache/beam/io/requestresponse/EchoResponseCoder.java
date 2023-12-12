@@ -22,22 +22,20 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.testinfra.mockapis.echo.v1.Echo.EchoRequest;
-import org.checkerframework.checker.nullness.qual.NonNull;
+import org.apache.beam.testinfra.mockapis.echo.v1.Echo.EchoResponse;
 
-/** A {@link CustomCoder} for {@link EchoRequest}s. */
-class EchoRequestCoder extends CustomCoder<@NonNull EchoRequest> {
+/** A {@link CustomCoder} for {@link EchoResponse}es. */
+public class EchoResponseCoder extends CustomCoder<EchoResponse> {
 
   @Override
-  public void encode(@NonNull EchoRequest value, @NonNull OutputStream outStream)
+  public void encode(EchoResponse value, OutputStream outStream)
       throws CoderException, IOException {
     value.writeTo(outStream);
   }
 
   @Override
-  public @NonNull EchoRequest decode(@NonNull InputStream inStream)
-      throws CoderException, IOException {
-    return EchoRequest.parseFrom(inStream);
+  public EchoResponse decode(InputStream inStream) throws CoderException, IOException {
+    return EchoResponse.parseFrom(inStream);
   }
 
   @Override
