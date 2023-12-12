@@ -961,6 +961,7 @@ class DecimalLogicalType(NoArgumentLogicalType[decimal.Decimal, bytes]):
     # type: (bytes) -> decimal.Decimal
     if not isinstance(value, decimal.Decimal):
       return decimal.Decimal(value.decode())
+    return value
 
 
 @LogicalType.register_logical_type
