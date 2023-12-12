@@ -284,30 +284,22 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     numTransitions++;
   }
 
-  /**
-   * Return the number of transitions that have been observed by this state tracker.
-   */
+  /** Return the number of transitions that have been observed by this state tracker. */
   public long getNumTransitions() {
     return numTransitions;
   }
 
-  /**
-   * Return the time since the last transition.
-   */
+  /** Return the time since the last transition. */
   public long getMillisSinceLastTransition() {
     return millisSinceLastTransition;
   }
 
-  /**
-   * Return the number of transitions since the last sample.
-   */
+  /** Return the number of transitions since the last sample. */
   public long getTransitionsAtLastSample() {
     return transitionsAtLastSample;
   }
 
-  /**
-   * Return the time of the next lull report.
-   */
+  /** Return the time of the next lull report. */
   public long getNextLullReportMs() {
     return nextLullReportMs;
   }
@@ -316,8 +308,8 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * Called periodically by the {@link ExecutionStateSampler} to report time recorded by the
    * tracker.
    *
-   * @param millisSinceLastSample the time since the last sample was reported. As an
-   *     approximation, all of that time should be associated with this tracker.
+   * @param millisSinceLastSample the time since the last sample was reported. As an approximation,
+   *     all of that time should be associated with this tracker.
    */
   public void takeSample(long millisSinceLastSample) {
     if (SAMPLING_UPDATER.compareAndSet(this, 0, 1)) {
