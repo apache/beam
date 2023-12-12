@@ -330,6 +330,9 @@ func (em *ElementManager) StateForBundle(rb RunBundle) TentativeData {
 	if len(ss.bagState) > 0 {
 		ret.bagState = map[LinkID]map[typex.Window]map[string][][]byte{}
 	}
+	if len(ss.multimapState) > 0 {
+		ret.multimapState = map[LinkID]map[typex.Window]map[string]map[string][][]byte{}
+	}
 	for link, winMap := range ss.bagState {
 		for w, keyMap := range winMap {
 			for key := range keys {
@@ -349,6 +352,35 @@ func (em *ElementManager) StateForBundle(rb RunBundle) TentativeData {
 				}
 				// Clone the "holding" slice, but refer to the existing data bytes.
 				wlinkMap[key] = append([][]byte(nil), data...)
+			}
+		}
+	}
+	for link, winMap := range ss.multimapState {
+		for w, keyMap := range winMap {
+			for key := range keys {
+				data, ok := keyMap[key]
+				if !ok {
+					break
+				}
+				linkMap, ok := ret.multimapState[link]
+				if !ok {
+					linkMap = map[typex.Window]map[string]map[string][][]byte{}
+					ret.multimapState[link] = linkMap
+				}
+				wlinkMap, ok := linkMap[w]
+				if !ok {
+					wlinkMap = map[string]map[string][][]byte{}
+					linkMap[w] = wlinkMap
+				}
+				userMap, ok := wlinkMap[key]
+				if !ok {
+					userMap = map[string][][]byte{}
+					wlinkMap[key] = userMap
+				}
+				for uk, v := range data {
+					// Clone the "holding" slice, but refer to the existing data bytes.
+					userMap[uk] = append([][]byte(nil), v...)
+				}
 			}
 		}
 	}
@@ -508,6 +540,23 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 			}
 		}
 	}
+	for link, winMap := range d.multimapState {
+		linkMap, ok := stage.multimapState[link]
+		if !ok {
+			linkMap = map[typex.Window]map[string]map[string][][]byte{}
+			stage.multimapState[link] = linkMap
+		}
+		for w, keyMap := range winMap {
+			wlinkMap, ok := linkMap[w]
+			if !ok {
+				wlinkMap = map[string]map[string][][]byte{}
+				linkMap[w] = wlinkMap
+			}
+			for key, data := range keyMap {
+				wlinkMap[key] = data
+			}
+		}
+	}
 	stage.mu.Unlock()
 
 	// TODO support state/timer watermark holds.
@@ -632,20 +681,22 @@ type stageState struct {
 	sideInputs map[LinkID]map[typex.Window][][]byte // side input data for this stage, from {tid, inputID} -> window
 
 	// Fields for stateful stages which need to be per key.
-	pendingByKeys          map[string]elementHeap                          // pending input elements by Key, if stateful.
-	inprogressKeys         set[string]                                     // all keys that are assigned to bundles.
-	inprogressKeysByBundle map[string]set[string]                          // bundle to key assignments.
-	bagState               map[LinkID]map[typex.Window]map[string][][]byte // state data for this stage, from {tid, stateID} -> window -> userKey
+	pendingByKeys          map[string]elementHeap                                     // pending input elements by Key, if stateful.
+	inprogressKeys         set[string]                                                // all keys that are assigned to bundles.
+	inprogressKeysByBundle map[string]set[string]                                     // bundle to key assignments.
+	bagState               map[LinkID]map[typex.Window]map[string][][]byte            // state data for this stage, from {tid, stateID} -> window -> userKey
+	multimapState          map[LinkID]map[typex.Window]map[string]map[string][][]byte // state data for this stage, from {tid, stateID} -> window -> userKey -> mapKey
 }
 
 // makeStageState produces an initialized stageState.
 func makeStageState(ID string, inputIDs, outputIDs []string, sides []LinkID) *stageState {
 	ss := &stageState{
-		ID:        ID,
-		outputIDs: outputIDs,
-		sides:     sides,
-		strat:     defaultStrat{},
-		bagState:  map[LinkID]map[typex.Window]map[string][][]byte{},
+		ID:            ID,
+		outputIDs:     outputIDs,
+		sides:         sides,
+		strat:         defaultStrat{},
+		bagState:      map[LinkID]map[typex.Window]map[string][][]byte{},
+		multimapState: map[LinkID]map[typex.Window]map[string]map[string][][]byte{},
 
 		input:           mtime.MinTimestamp,
 		output:          mtime.MinTimestamp,

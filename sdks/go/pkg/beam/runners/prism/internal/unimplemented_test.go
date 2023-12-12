@@ -68,12 +68,6 @@ func TestUnimplemented(t *testing.T) {
 		{pipeline: primitives.TriggerOrFinally},
 		{pipeline: primitives.TriggerRepeat},
 
-		// State API
-		{pipeline: primitives.MapStateParDo},
-		{pipeline: primitives.MapStateParDoClear},
-		{pipeline: primitives.SetStateParDo},
-		{pipeline: primitives.SetStateParDoClear},
-
 		// TODO: Timers integration tests.
 	}
 
@@ -130,6 +124,10 @@ func TestStateAPI(t *testing.T) {
 		{pipeline: primitives.ValueStateParDo},
 		{pipeline: primitives.ValueStateParDoClear},
 		{pipeline: primitives.ValueStateParDoWindowed},
+		{pipeline: primitives.MapStateParDo},
+		{pipeline: primitives.MapStateParDoClear},
+		{pipeline: primitives.SetStateParDo},
+		{pipeline: primitives.SetStateParDoClear},
 	}
 
 	for _, test := range tests {

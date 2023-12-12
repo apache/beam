@@ -33,6 +33,9 @@ type TentativeData struct {
 
 	// bagState is a map from transformID + UserStateID, to window, to userKey, to datavalues.
 	bagState map[LinkID]map[typex.Window]map[string][][]byte
+
+	// multimapState is a map from transformID + UserStateID, to window, to userKey, to customKey to datavalues.
+	multimapState map[LinkID]map[typex.Window]map[string]map[string][][]byte
 }
 
 // WriteData adds data to a given global collectionID.
@@ -108,4 +111,110 @@ func (d *TentativeData) ClearBagState(stateID LinkID, wKey, uKey []byte) {
 	// Delete makes it difficult to delete the persisted stage state for the key.
 	kmap[string(uKey)] = nil
 	slog.Debug("State() Bag.Clear", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", w))
+}
+
+// GetMultimapState retrieves available state from the tentative bundle data.
+// The stateID has the Transform and Local fields populated, for the Transform and UserStateID respectively.
+func (d *TentativeData) GetMultimapState(stateID LinkID, wKey, uKey, mapKey []byte) [][]byte {
+	winMap := d.multimapState[stateID]
+	w := d.toWindow(wKey)
+	data := winMap[w][string(uKey)][string(mapKey)]
+	slog.Debug("State() Multimap.Get", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", w), slog.Any("Data", data))
+	return data
+}
+
+// AppendMultimapState appends the incoming data to the existing tentative data bundle.
+//
+// The stateID has the Transform and Local fields populated, for the Transform and UserStateID respectively.
+func (d *TentativeData) AppendMultimapState(stateID LinkID, wKey, uKey, mapKey, data []byte) {
+	if d.multimapState == nil {
+		d.multimapState = map[LinkID]map[typex.Window]map[string]map[string][][]byte{}
+	}
+	winMap, ok := d.multimapState[stateID]
+	if !ok {
+		winMap = map[typex.Window]map[string]map[string][][]byte{}
+		d.multimapState[stateID] = winMap
+	}
+	w := d.toWindow(wKey)
+	kmap, ok := winMap[w]
+	if !ok {
+		kmap = map[string]map[string][][]byte{}
+		winMap[w] = kmap
+	}
+	userMap, ok := kmap[string(uKey)]
+	if !ok || userMap == nil { // Incase of All Key Clear tombstones, we may have a nil map.
+		userMap = map[string][][]byte{}
+		kmap[string(uKey)] = userMap
+	}
+	userMap[string(mapKey)] = append(userMap[string(mapKey)], data)
+	slog.Debug("State() Multimap.Append", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("MapKey", mapKey), slog.Any("Window", w), slog.Any("NewData", data))
+}
+
+// ClearMultimapState clears any tentative data for the state. Since state data is only initialized if any exists,
+// Clear takes the approach to not create state that doesn't already exist. Existing state is nil'd
+// to allow that to be committed post bundle commpletion.
+//
+// The stateID has the Transform and Local fields populated, for the Transform and UserStateID respectively.
+func (d *TentativeData) ClearMultimapState(stateID LinkID, wKey, uKey, mapKey []byte) {
+	if d.multimapState == nil {
+		return
+	}
+	winMap, ok := d.multimapState[stateID]
+	if !ok {
+		return
+	}
+	w := d.toWindow(wKey)
+	kmap, ok := winMap[w]
+	if !ok {
+		return
+	}
+	// Nil the current entry to clear.
+	// Delete makes it difficult to delete the persisted stage state for the key.
+	userMap, ok := kmap[string(uKey)]
+	if !ok || userMap == nil {
+		return
+	}
+	userMap[string(mapKey)] = nil
+	slog.Debug("State() Multimap.Clear", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", w))
+}
+
+// GetMultimapKeysState clears tentative data for all user map keys. Since state data is only initialized if any exists,
+// Clear takes the approach to not create state that doesn't already exist. Existing state is nil'd
+// to allow that to be committed post bundle commpletion.
+//
+// The stateID has the Transform and Local fields populated, for the Transform and UserStateID respectively.
+func (d *TentativeData) GetMultimapKeysState(stateID LinkID, wKey, uKey []byte) [][]byte {
+	winMap := d.multimapState[stateID]
+	w := d.toWindow(wKey)
+	userMap := winMap[w][string(uKey)]
+	var keys [][]byte
+	for k := range userMap {
+		keys = append(keys, []byte(k))
+	}
+	slog.Debug("State() MultimapKeys.Get", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", w), slog.Any("Keys", keys))
+	return keys
+}
+
+// ClearMultimapKeysState clears tentative data for all user map keys. Since state data is only initialized if any exists,
+// Clear takes the approach to not create state that doesn't already exist. Existing state is nil'd
+// to allow that to be committed post bundle commpletion.
+//
+// The stateID has the Transform and Local fields populated, for the Transform and UserStateID respectively.
+func (d *TentativeData) ClearMultimapKeysState(stateID LinkID, wKey, uKey []byte) {
+	if d.multimapState == nil {
+		return
+	}
+	winMap, ok := d.multimapState[stateID]
+	if !ok {
+		return
+	}
+	w := d.toWindow(wKey)
+	kmap, ok := winMap[w]
+	if !ok {
+		return
+	}
+	// Nil the current entry to clear.
+	// Delete makes it difficult to delete the persisted stage state for the key.
+	kmap[string(uKey)] = nil
+	slog.Debug("State() MultimapKeys.Clear", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", w))
 }

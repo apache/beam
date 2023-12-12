@@ -478,8 +478,23 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 						bagkey.GetWindow(),
 						bagkey.GetKey(),
 					)
+				case *fnpb.StateKey_MultimapUserState_:
+					mmkey := key.GetMultimapUserState()
+					data = b.OutputData.GetMultimapState(
+						engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()},
+						mmkey.GetWindow(),
+						mmkey.GetKey(),
+						mmkey.GetMapKey(),
+					)
+				case *fnpb.StateKey_MultimapKeysUserState_:
+					mmkey := key.GetMultimapKeysUserState()
+					data = b.OutputData.GetMultimapKeysState(
+						engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()},
+						mmkey.GetWindow(),
+						mmkey.GetKey(),
+					)
 				default:
-					panic(fmt.Sprintf("unsupported StateKey Access type: %T: %v", key.GetType(), prototext.Format(key)))
+					panic(fmt.Sprintf("unsupported StateKey Get type: %T: %v", key.GetType(), prototext.Format(key)))
 				}
 
 				// Encode the runner iterable (no length, just consecutive elements), and send it out.
@@ -504,8 +519,17 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 						bagkey.GetKey(),
 						req.GetAppend().GetData(),
 					)
+				case *fnpb.StateKey_MultimapUserState_:
+					mmkey := key.GetMultimapUserState()
+					b.OutputData.AppendMultimapState(
+						engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()},
+						mmkey.GetWindow(),
+						mmkey.GetKey(),
+						mmkey.GetMapKey(),
+						req.GetAppend().GetData(),
+					)
 				default:
-					panic(fmt.Sprintf("unsupported StateKey Access type: %T: %v", key.GetType(), prototext.Format(key)))
+					panic(fmt.Sprintf("unsupported StateKey Append type: %T: %v", key.GetType(), prototext.Format(key)))
 				}
 				responses <- &fnpb.StateResponse{
 					Id: req.GetId(),
@@ -524,8 +548,23 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 						bagkey.GetWindow(),
 						bagkey.GetKey(),
 					)
+				case *fnpb.StateKey_MultimapUserState_:
+					mmkey := key.GetMultimapUserState()
+					b.OutputData.ClearMultimapState(
+						engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()},
+						mmkey.GetWindow(),
+						mmkey.GetKey(),
+						mmkey.GetMapKey(),
+					)
+				case *fnpb.StateKey_MultimapKeysUserState_:
+					mmkey := key.GetMultimapUserState()
+					b.OutputData.ClearMultimapKeysState(
+						engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()},
+						mmkey.GetWindow(),
+						mmkey.GetKey(),
+					)
 				default:
-					panic(fmt.Sprintf("unsupported StateKey Access type: %T: %v", key.GetType(), prototext.Format(key)))
+					panic(fmt.Sprintf("unsupported StateKey Clear type: %T: %v", key.GetType(), prototext.Format(key)))
 				}
 				responses <- &fnpb.StateResponse{
 					Id: req.GetId(),

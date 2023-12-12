@@ -101,6 +101,10 @@ func TestStateAPI(t *testing.T) {
 		{pipeline: primitives.ValueStateParDo},
 		{pipeline: primitives.ValueStateParDoClear},
 		{pipeline: primitives.ValueStateParDoWindowed},
+		{pipeline: primitives.MapStateParDo},
+		{pipeline: primitives.MapStateParDoClear},
+		{pipeline: primitives.SetStateParDo},
+		{pipeline: primitives.SetStateParDoClear},
 	}
 
 	configs := []struct {
