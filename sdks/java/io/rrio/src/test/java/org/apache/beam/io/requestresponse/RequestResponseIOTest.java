@@ -71,8 +71,6 @@ public class RequestResponseIOTest {
   private static final TypeDescriptor<Request> REQUEST_TYPE = TypeDescriptor.of(Request.class);
   private static final TypeDescriptor<Response> RESPONSE_TYPE = TypeDescriptor.of(Response.class);
   private static final SchemaProvider SCHEMA_PROVIDER = new AutoValueSchema();
-  private static final String THROTTLE_USING_EXTERNAL =
-      ThrottleWithExternalResource.class.getName();
 
   private static final Coder<Request> REQUEST_CODER =
       SchemaCoder.of(
@@ -192,31 +190,6 @@ public class RequestResponseIOTest {
   }
 
   @Test
-  public void givenPreventiveThrottlingUsingRedis_transformExpandsWithCallAndThrottling()
-      throws NonDeterministicException {
-    ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
-    requests()
-        .apply(
-            RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER)
-                .withPreventiveThrottleUsingRedis(
-                    URI.create("redis://localhost:6379"),
-                    REQUEST_CODER,
-                    new Quota(1L, Duration.standardSeconds(1L)),
-                    "quota",
-                    "queue"));
-
-    pipeline.traverseTopologically(visitor);
-
-    Call.Configuration<?, ?> configuration =
-        visitor.assertExpandsWithCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
-    assertHasDefaults(configuration);
-
-    visitor.assertExpandsWithThrottleOf(THROTTLE_USING_EXTERNAL);
-    visitor.assertNotExpandsWith(CACHE_READ_NAME);
-    visitor.assertNotExpandsWith(CACHE_WRITE_NAME);
-  }
-
-  @Test
   public void givenCacheUsingRedis_transformExpandsWithCallAndCache()
       throws NonDeterministicException {
     ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
@@ -258,13 +231,9 @@ public class RequestResponseIOTest {
         .apply(
             RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER)
                 .withRedisCache(
-                    URI.create("redis://localhost:6379"), REQUEST_CODER, Duration.standardHours(1L))
-                .withPreventiveThrottleUsingRedis(
                     URI.create("redis://localhost:6379"),
                     REQUEST_CODER,
-                    new Quota(1L, Duration.standardSeconds(1L)),
-                    "quota",
-                    "queue"));
+                    Duration.standardHours(1L)));
 
     pipeline.traverseTopologically(visitor);
 
@@ -281,7 +250,6 @@ public class RequestResponseIOTest {
         configuration.getCallShouldBackoff().getClass().getName(),
         equalTo(WRAPPED_CALL_SHOULD_BACKOFF));
 
-    visitor.assertExpandsWithThrottleOf(THROTTLE_USING_EXTERNAL);
     visitor.assertExpandsWithCallOf(
         CACHE_READ_NAME, CACHE_READ_USING_REDIS, CACHE_READ_USING_REDIS);
     visitor.assertExpandsWithCallOf(
@@ -320,18 +288,9 @@ public class RequestResponseIOTest {
       return call.getConfiguration();
     }
 
-    private void assertExpandsWithThrottleOf(String className) {
-      assertExpandsPTransformClassOf(ROOT_NAME + "/" + THROTTLE_NAME, className);
-    }
-
     private void assertNotExpandsWith(String stepName) {
       stepName = ROOT_NAME + "/" + stepName;
       assertThat(visits.containsKey(stepName), equalTo(false));
-    }
-
-    private void assertExpandsPTransformClassOf(String stepName, String className) {
-      PTransform<?, ?> transform = getFromStep(stepName);
-      assertThat(transform.getClass().getName(), equalTo(className));
     }
 
     private @NonNull PTransform<?, ?> getFromStep(String name) {

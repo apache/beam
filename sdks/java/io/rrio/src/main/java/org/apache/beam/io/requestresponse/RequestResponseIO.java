@@ -41,7 +41,6 @@ import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Partition;
 import org.apache.beam.sdk.transforms.Partition.PartitionFn;
-import org.apache.beam.sdk.transforms.PeriodicImpulse;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -81,10 +80,12 @@ import org.joda.time.Duration;
  * <p>Then provide {@link RequestResponseIO}'s {@link #of} method your {@link Caller}
  * implementation.
  *
- * <pre>{@code  PCollection<SomeRequest> requests = ...
- *  Result result = requests.apply(RequestResponseIO.create(new MyCaller()));
- *  result.getResponses().apply( ... );
- *  result.getFailures().apply( ... );
+ * <pre>{@code
+ * Coder<SomeResponse> responseCoder = ...
+ * PCollection<SomeRequest> requests = ...
+ * Result result = requests.apply(RequestResponseIO.of(new MyCaller(), responseCoder));
+ * result.getResponses().apply( ... );
+ * result.getFailures().apply( ... );
  * }</pre>
  */
 public class RequestResponseIO<RequestT, ResponseT>
@@ -264,12 +265,12 @@ public class RequestResponseIO<RequestT, ResponseT>
   /**
    * Configures {@link RequestResponseIO} to use a <a href="https://redis.io">Redis</a> cache to
    * configure {@link #withCacheRead} and {@link #withCacheWrite}, to read and write {@link
-   * RequestT} and {@link ResponseT} pairs. The purpose of the cache is to offload {@link RequestT}s
-   * from the API and instead return the {@link ResponseT} if the association is known. Since the
-   * {@link RequestT}s and {@link ResponseT}s need encoding and decoding, checks are made whether
-   * the requestTCoder and {@link Configuration#getResponseTCoder} are {@link
-   * Coder#verifyDeterministic}. <strong>This feature is only appropriate for API reads such as HTTP
-   * list, get, etc.</strong>
+   * RequestT} and {@link ResponseT} pairs. {@link RequestResponseIO} by default does not cache. The
+   * purpose of the cache is to offload {@link RequestT}s from the API and instead return the {@link
+   * ResponseT} if the association is known. Since the {@link RequestT}s and {@link ResponseT}s need
+   * encoding and decoding, checks are made whether the requestTCoder and {@link
+   * Configuration#getResponseTCoder} are {@link Coder#verifyDeterministic}. <strong>This feature is
+   * only appropriate for API reads such as HTTP list, get, etc.</strong>
    *
    * <pre>Below describes the parameters in more detail and their usage.</pre>
    *
@@ -308,7 +309,8 @@ public class RequestResponseIO<RequestT, ResponseT>
    * Configures {@link RequestResponseIO} for reading {@link RequestT} and {@link ResponseT} pairs
    * from a cache. The transform {@link Flatten}s the {@link ResponseT} {@link PCollection} of
    * successful pairs with that resulting from API calls of {@link RequestT}s of unsuccessful pairs.
-   * It is intended for this method and {@link #withCacheWrite} to be used together.
+   * It is intended for this method and {@link #withCacheWrite} to be used together. Default for
+   * {@link RequestResponseIO} is to not read from a cache.
    */
   public RequestResponseIO<RequestT, ResponseT> withCacheRead(
       PTransform<PCollection<RequestT>, Result<KV<RequestT, @Nullable ResponseT>>> cacheRead) {
@@ -320,6 +322,7 @@ public class RequestResponseIO<RequestT, ResponseT>
    * Configures {@link RequestResponseIO} for writing {@link RequestT} and {@link ResponseT} pairs
    * to a cache. The transform applies a result of {@link Call} to the {@link PTransform} supplied
    * by this method. It is intended for this method and {@link #withCacheRead} to be used together.
+   * Default for {@link RequestResponseIO} is to not write to a cache.
    */
   public RequestResponseIO<RequestT, ResponseT> withCacheWrite(
       PTransform<PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>>
@@ -329,46 +332,21 @@ public class RequestResponseIO<RequestT, ResponseT>
   }
 
   /**
-   * Configures {@link RequestResponseIO} with a {@link #withPreventiveThrottle} using a <a
-   * href="https://redis.io">Redis</a> cache. <strong>Take care not to mix up the {@code quotaKey}
-   * from the {@code queueKey}.</strong> Additionally, usage of this should consider that the {@link
-   * PTransform} uses {@link PeriodicImpulse} to fulfill its aim. <strong>Therefore, usage of this
-   * method will convert a batch pipeline to a streaming one.</strong>
-   *
-   * <pre>The algorithm is as follows.</pre>
-   *
-   * <ol>
-   *   <li>The transform queues {@link RequestT} elements into a Redis list identified by the {@code
-   *       queueKey}
-   *   <li>A refresher uses {@link PeriodicImpulse} to refresh a shared cached {@link
-   *       Quota#getNumRequests} quota value, identified by the {@code quotaKey}, every {@link
-   *       Quota#getInterval}.
-   *   <li>Finally, a {@link DoFn} emits dequeued {@link RequestT} elements when there's available
-   *       quota.
-   * </ol>
-   */
-  public RequestResponseIO<RequestT, ResponseT> withPreventiveThrottleUsingRedis(
-      URI uri, Coder<RequestT> requestTCoder, Quota quota, String quotaKey, String queueKey)
-      throws NonDeterministicException {
-    requestTCoder.verifyDeterministic();
-    return withPreventiveThrottle(
-        ThrottleWithExternalResource.usingRedis(uri, quotaKey, queueKey, quota, requestTCoder));
-  }
-
-  // TODO(damondouglas): implement after resolving https://github.com/apache/beam/issues/28932.
-  //  public RequestResponseIO<RequestT, ResponseT> withPreventiveThrottleWithoutExternalResource()
-
-  /**
    * Configures {@link RequestResponseIO} with a {@link PTransform} that holds back {@link
    * RequestT}s to prevent quota errors such as HTTP 429 or gRPC RESOURCE_EXHAUSTION errors.
    */
+  // TODO(damondouglas): Until https://github.com/apache/beam/issues/28930 there is no provided
+  //  solution for this, however this method allows users to provide their own at this time.
   public RequestResponseIO<RequestT, ResponseT> withPreventiveThrottle(
       PTransform<PCollection<RequestT>, Result<RequestT>> throttle) {
     return new RequestResponseIO<>(
         rrioConfiguration.toBuilder().setThrottle(throttle).build(), callConfiguration);
   }
 
-  /** Configuration details for {@link RequestResponseIO}. */
+  /**
+   * Configuration details for {@link RequestResponseIO}. Package-private as minimally required by
+   * {@link AutoValue}.
+   */
   @AutoValue
   abstract static class Configuration<RequestT, ResponseT> {
 
@@ -384,12 +362,12 @@ public class RequestResponseIO<RequestT, ResponseT>
     /**
      * Reads a {@link RequestT} {@link PCollection} from an optional cache and returns a {@link KV}
      * {@link PCollection} of the original {@link RequestT}s and associated {@link ResponseT}, null
-     * if if no association persists in the cache.
+     * if no association persists in the cache.
      */
     abstract @Nullable PTransform<PCollection<RequestT>, Result<KV<RequestT, @Nullable ResponseT>>>
         getCacheRead();
 
-    /** Writes {@link RequestT} and {@link ResponseT} associations to an optional cache. */
+    /** Writes {@link RequestT} and {@link ResponseT} associations to a cache. */
     abstract @Nullable PTransform<
             PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>>
         getCacheWrite();
@@ -482,6 +460,7 @@ public class RequestResponseIO<RequestT, ResponseT>
     Result<KV<RequestT, @Nullable ResponseT>> cacheReadResult =
         input.apply(CACHE_READ_NAME, checkStateNotNull(rrioConfiguration.getCacheRead()));
 
+    // Partition KV PCollection into elements that have null or not null response values.
     PCollectionList<KV<RequestT, ResponseT>> cacheReadList =
         cacheReadResult
             .getResponses()
@@ -489,17 +468,20 @@ public class RequestResponseIO<RequestT, ResponseT>
                 "PartitionCacheReads",
                 Partition.of(PartitionCacheReadsFn.NUM_PARTITIONS, new PartitionCacheReadsFn<>()));
 
+    // Requests of null response values will be sent for Call downstream.
     input =
         cacheReadList
             .get(PartitionCacheReadsFn.NULL_PARTITION)
             .apply("UncachedRequests", Keys.create());
 
+    // Responses of non-null values will be returned to the final RequestResponseIO output.
     responseList =
         responseList.and(
             cacheReadList
                 .get(PartitionCacheReadsFn.NON_NULL_PARTITION)
                 .apply("CachedResponses", Values.create()));
 
+    // Append any failures to the final output.
     failureList = failureList.and(cacheReadResult.getFailures());
 
     return Triple.of(input, responseList, failureList);
@@ -516,8 +498,11 @@ public class RequestResponseIO<RequestT, ResponseT>
    *   <li>Returns appended {@link PCollection} of {@link ApiIOError}s to the failureList.</li>
    * </ol></pre>
    */
+  // TODO(damondouglas): See https://github.com/apache/beam/issues/28930; currently there is no
+  //  provided solution for this, though users could provide their own via withThrottle.
   Pair<PCollection<RequestT>, PCollectionList<ApiIOError>> expandThrottle(
       PCollection<RequestT> input, PCollectionList<ApiIOError> failureList) {
+
     if (rrioConfiguration.getThrottle() == null) {
       return Pair.of(input, failureList);
     }
