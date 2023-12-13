@@ -47,9 +47,10 @@ class CriteoTest(unittest.TestCase):
     # beam pipeline options
     extra_opts['input'] = os.path.join(
         _INPUT_GCS_BUCKET_ROOT, constants.INPUT_CRITEO_10GB)
+    logging.info("#################")
     extra_opts['artifact_location'] = os.path.join(
         _OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)
-
+    logging.info(extra_opts['artifact_location'])
     extra_opts['frequency_threshold'] = 0
 
     extra_opts['job_name'] = (

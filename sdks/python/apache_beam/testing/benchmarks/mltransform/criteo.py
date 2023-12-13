@@ -77,7 +77,7 @@ def parse_known_args(argv):
   return parser.parse_known_args(argv)
 
 
-def run(argv=None, ):
+def run(argv=None):
   known_args, pipeline_args = parse_known_args(argv)
   options = PipelineOptions(flags=pipeline_args)
   data_path = known_args.input
@@ -99,21 +99,17 @@ def run(argv=None, ):
                               for i in range(len(x))})
         | beam.Map(convert_str_to_int))
 
-    # processed_lines | beam.Map(logging.info)
+    transformed_lines = (
+        processed_lines
+        | "MLTransform" >>
+        MLTransform(write_artifact_location=known_args.artifact_location).
+        with_transform(
+            ComputeAndApplyVocabulary(
+                columns=CATEGORICAL_FEATURE_KEYS, frequency_threshold=5)
+        ).with_transform(
+            Bucketize(columns=NUMERIC_FEATURE_KEYS, num_buckets=_NUM_BUCKETS)))
 
-    artifact_location = known_args.artifact_location
-    if not artifact_location:
-      import tempfile
-      artifact_location = tempfile.mkdtemp(prefix='criteo-mltransform-')
-    ml_transform = MLTransform(write_artifact_location=artifact_location)
-    ml_transform.with_transform(
-        ComputeAndApplyVocabulary(columns=CATEGORICAL_FEATURE_KEYS))
-    ml_transform.with_transform(
-        Bucketize(columns=NUMERIC_FEATURE_KEYS, num_buckets=_NUM_BUCKETS))
-
-    transformed_lines = (processed_lines | 'MLTransform' >> ml_transform)
-
-    # _ = transformed_lines | beam.Map(logging.info)
+    transformed_lines | beam.Map(logging.info)
 
 
 if __name__ == '__main__':
