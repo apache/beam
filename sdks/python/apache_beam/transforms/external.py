@@ -375,7 +375,7 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
 # Information regarding a SchemaTransform available in an external SDK.
 SchemaTransformsConfig = namedtuple(
     'SchemaTransformsConfig',
-    ['identifier', 'configuration_schema', 'inputs', 'outputs', 'description'])
+    ['identifier', 'configuration_schema', 'inputs', 'outputs'])
 
 
 class SchemaAwareExternalTransform(ptransform.PTransform):
@@ -473,12 +473,11 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
         else:
           raise
 
-      yield SchemaTransformsConfig(
-          identifier=identifier,
-          configuration_schema=schema,
-          inputs=proto_config.input_pcollection_names,
-          outputs=proto_config.output_pcollection_names,
-          description=proto_config.description)
+        yield SchemaTransformsConfig(
+            identifier=identifier,
+            configuration_schema=schema,
+            inputs=proto_config.input_pcollection_names,
+            outputs=proto_config.output_pcollection_names)
 
   @staticmethod
   def discover_config(expansion_service, name):
