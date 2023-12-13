@@ -489,11 +489,18 @@ class BundleProcessorCache(object):
         pass
 
     # Make sure we instantiate the processor while not holding the lock.
+
+    # Reduce risks of concurrent modifications of the same protos
+    # captured in bundle descriptor when the same bundle descriptor is used
+    # in different instructions.
+    pbd = beam_fn_api_pb2.ProcessBundleDescriptor()
+    pbd.MergeFrom(self.fns[bundle_descriptor_id])
+
     processor = bundle_processor.BundleProcessor(
         self.runner_capabilities,
-        self.fns[bundle_descriptor_id],
+        pbd,
         self.state_handler_factory.create_state_handler(
-            self.fns[bundle_descriptor_id].state_api_service_descriptor),
+            pbd.state_api_service_descriptor),
         self.data_channel_factory,
         self.data_sampler)
     with self._lock:
