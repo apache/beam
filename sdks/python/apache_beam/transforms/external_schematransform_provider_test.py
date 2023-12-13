@@ -25,12 +25,12 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.external import BeamJarExpansionService
+from apache_beam.transforms.external_schematransform_provider import STANDARD_URN_PATTERN
 from apache_beam.transforms.external_schematransform_provider import ExternalSchemaTransformProvider
-from apache_beam.transforms.external_schematransform_provider import snake_case_to_upper_camel_case
-from apache_beam.transforms.external_schematransform_provider import snake_case_to_lower_camel_case
 from apache_beam.transforms.external_schematransform_provider import camel_case_to_snake_case
 from apache_beam.transforms.external_schematransform_provider import infer_name_from_identifier
-from apache_beam.transforms.external_schematransform_provider import STANDARD_URN_PATTERN
+from apache_beam.transforms.external_schematransform_provider import snake_case_to_lower_camel_case
+from apache_beam.transforms.external_schematransform_provider import snake_case_to_upper_camel_case
 
 
 class NameUtilsTest(unittest.TestCase):
@@ -105,7 +105,7 @@ class ExternalSchemaTransformProviderTest(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
 
-  def test_generate_sequence_config_schema(self):
+  def test_generate_sequence_config_schema_and_description(self):
     provider = ExternalSchemaTransformProvider(
         BeamJarExpansionService(":sdks:java:io:expansion-service:shadowJar"))
 
@@ -114,9 +114,15 @@ class ExternalSchemaTransformProviderTest(unittest.TestCase):
         'beam:schematransform:org.apache.beam:generate_sequence:v1'
     ) in provider.get_available())
 
-    config_schema = provider.get('GenerateSequence').configuration_schema
+    GenerateSequence = provider.get('GenerateSequence')
+    config_schema = GenerateSequence.configuration_schema
     for param in ['start', 'end', 'rate']:
       self.assertTrue(param in config_schema)
+
+    description_substring = (
+        "Outputs a PCollection of Beam Rows, each "
+        "containing a single INT64")
+    self.assertTrue(description_substring in GenerateSequence.description)
 
   def test_run_generate_sequence(self):
     provider = ExternalSchemaTransformProvider(

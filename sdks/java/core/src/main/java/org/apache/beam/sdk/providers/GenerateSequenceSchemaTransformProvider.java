@@ -63,6 +63,18 @@ public class GenerateSequenceSchemaTransformProvider
   }
 
   @Override
+  public String description() {
+    return String.format(
+        "Outputs a PCollection of Beam Rows, each containing a single INT64 "
+            + "number called \"value\". The count is produced from the given \"start\""
+            + "value and either up to the given \"end\" or until 2^63 - 1.\n"
+            + "To produce an unbounded PCollection, simply do not specify an \"end\" value. "
+            + "Unbounded sequences can specify a \"rate\" for output elements.\n"
+            + "In all cases, the sequence of numbers is generated in parallel, so there is no "
+            + "inherent ordering between the generated values");
+  }
+
+  @Override
   public Class<GenerateSequenceConfiguration> configurationClass() {
     return GenerateSequenceConfiguration.class;
   }
@@ -113,7 +125,8 @@ public class GenerateSequenceSchemaTransformProvider
     public abstract Long getEnd();
 
     @SchemaFieldDescription(
-        "Specifies the rate to generate a given number of elements per a given number of seconds. Applicable only to unbounded sequences.")
+        "Specifies the rate to generate a given number of elements per a given number of seconds. "
+            + "Applicable only to unbounded sequences.")
     @Nullable
     public abstract Rate getRate();
 
