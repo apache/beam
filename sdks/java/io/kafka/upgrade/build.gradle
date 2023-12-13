@@ -38,7 +38,6 @@ dependencies {
     permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
     permitUnusedDeclared project(":model:pipeline")
     implementation library.java.joda_time
-    implementation library.java.slf4j_api
     // Get back to "provided" since 2.14
     provided library.java.kafka_clients
     testImplementation library.java.junit

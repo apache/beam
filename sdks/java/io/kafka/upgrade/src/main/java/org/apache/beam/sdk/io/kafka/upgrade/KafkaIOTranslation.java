@@ -59,16 +59,12 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Utility methods for translating {@link KafkaIO} transforms to and from {@link RunnerApi}
  * representations.
  */
 public class KafkaIOTranslation {
-
-  private static final Logger LOG = LoggerFactory.getLogger(KafkaIOTranslation.class);
 
   // We define new v2 URNs here for KafkaIO transforms that includes all properties of Java
   // transforms. Kafka read/write v1 URNs are defined in KafkaIO.java and offer a limited set of
@@ -105,7 +101,6 @@ public class KafkaIOTranslation {
             .addNullableByteArrayField("key_deserializer_provider")
             .addNullableByteArrayField("value_deserializer_provider")
             .addNullableByteArrayField("check_stop_reading_fn")
-            .addNullableByteArrayField("bad_record_error_handler")
             .build();
 
     @Override
@@ -211,8 +206,9 @@ public class KafkaIOTranslation {
         fieldValues.put("check_stop_reading_fn", toByteArray(transform.getCheckStopReadingFn()));
       }
       if (transform.getBadRecordErrorHandler() != null) {
-        fieldValues.put(
-            "bad_record_error_handler", toByteArray(transform.getBadRecordErrorHandler()));
+        throw new RuntimeException(
+            "Upgrading KafkaIO read transforms that have `withBadRecordErrorHandler` property set"
+                + "is not supported yet.");
       }
 
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
@@ -382,19 +378,6 @@ public class KafkaIOTranslation {
                       fromByteArray(checkStopReadinfFn));
         }
 
-        byte[] badRecordErrorHandlerBytes = configRow.getBytes("bad_record_error_handler");
-        if (badRecordErrorHandlerBytes != null) {
-          try {
-            transform =
-                transform.withBadRecordErrorHandler(
-                    (ErrorHandler) fromByteArray(badRecordErrorHandlerBytes));
-          } catch (InvalidClassException e) {
-            LOG.warn(
-                "Could not use the provided `ErrorHandler` implementation when upgrading."
-                    + "Using the default.");
-          }
-        }
-
         return transform;
       } catch (InvalidClassException e) {
         throw new RuntimeException(e);
@@ -432,7 +415,6 @@ public class KafkaIOTranslation {
             .addNullableStringField("sink_group_id")
             .addNullableByteArrayField("consumer_factory_fn")
             .addNullableMapField("producer_config", FieldType.STRING, FieldType.BYTES)
-            .addNullableByteArrayField("bad_record_error_handler")
             .build();
 
     @Override
@@ -517,10 +499,12 @@ public class KafkaIOTranslation {
                 });
         fieldValues.put("producer_config", producerConfigMap);
       }
-      if (writeRecordsTransform.getBadRecordErrorHandler() != null) {
-        fieldValues.put(
-            "bad_record_error_handler",
-            toByteArray(writeRecordsTransform.getBadRecordErrorHandler()));
+      if (writeRecordsTransform.getBadRecordErrorHandler() != null
+          && !(writeRecordsTransform.getBadRecordErrorHandler()
+              instanceof ErrorHandler.DefaultErrorHandler)) {
+        throw new RuntimeException(
+            "Upgrading KafkaIO write transforms that have `withBadRecordErrorHandler` property set"
+                + "is not supported yet.");
       }
 
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
@@ -586,18 +570,6 @@ public class KafkaIOTranslation {
                 }
               });
           transform = transform.withProducerConfigUpdates(updatedProducerConfig);
-        }
-        byte[] badRecordErrorHandlerBytes = configRow.getBytes("bad_record_error_handler");
-        if (badRecordErrorHandlerBytes != null) {
-          try {
-            transform =
-                transform.withBadRecordErrorHandler(
-                    (ErrorHandler) fromByteArray(badRecordErrorHandlerBytes));
-          } catch (InvalidClassException e) {
-            LOG.warn(
-                "Could not use the provided `ErrorHandler` implementation when upgrading."
-                    + "Using the default.");
-          }
         }
 
         return transform;
