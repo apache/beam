@@ -104,8 +104,6 @@ TOKEN :
   | < BOOL           : "BOOL" >
   | < LOWCARDINALITY : "LOWCARDINALITY" >
   | < TUPLE          : "TUPLE" >
-  | < COLON          : ":" >
-  | < SEMI_COLON     : ";" >
 }
 
 public ColumnType columnType() :
@@ -278,7 +276,7 @@ private Map.Entry<String, ColumnType> tupleElement() :
     Token token;
 }
 {
-    ( (key = string() ) <COLON> <SEMI_COLON> ( value = columnType() ) )  {
+    ( (key = string() ) ( value = columnType() ) )  {
         return Maps.immutableEntry(key, value);
     }
 }

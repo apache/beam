@@ -480,7 +480,7 @@ public class ClickHouseIO {
   private static String tuplePreprocessing(String payload) {
     List<String> l =
         Arrays.stream(payload.trim().split(","))
-            .map(s -> s.trim().replaceAll(" +", "':;"))
+            .map(s -> s.trim().replaceAll(" +", "' "))
             .collect(Collectors.toList());
     String content =
         String.join(",", l).trim().replaceAll("Tuple\\(", "Tuple('").replaceAll(",", ",'");

@@ -202,7 +202,7 @@ public class TableSchemaTest {
   public void testParseTupleSingle() {
     Map<String, ColumnType> m1 = new HashMap<>();
     m1.put("s", ColumnType.STRING);
-    ColumnType columnType01 = ColumnType.parse("Tuple('s':;String)");
+    ColumnType columnType01 = ColumnType.parse("Tuple('s' String)");
     assertEquals(ColumnType.tuple(m1), columnType01);
   }
 
@@ -211,7 +211,7 @@ public class TableSchemaTest {
     Map<String, ColumnType> m2 = new HashMap<>();
     m2.put("a1", ColumnType.STRING);
     m2.put("b", ColumnType.BOOL);
-    ColumnType columnType02 = ColumnType.parse("Tuple('a1':;String,'b':;Bool)");
+    ColumnType columnType02 = ColumnType.parse("Tuple('a1' String,'b' Bool)");
     assertEquals(ColumnType.tuple(m2), columnType02);
   }
 
@@ -223,8 +223,7 @@ public class TableSchemaTest {
     m3.put("a", ColumnType.STRING);
     m3.put("b", ColumnType.BOOL);
     m3.put("c", ColumnType.tuple(m1));
-    ColumnType columnType03 =
-        ColumnType.parse("Tuple('a':;String,'b':;Bool,'c':;Tuple('a':;String))");
+    ColumnType columnType03 = ColumnType.parse("Tuple('a' String,'b' Bool,'c' Tuple('a' String))");
     assertEquals(ColumnType.tuple(m3), columnType03);
   }
 
@@ -245,7 +244,7 @@ public class TableSchemaTest {
 
     ColumnType columnType03 =
         ColumnType.parse(
-            "Tuple('browser':;Tuple('name':;Nullable(String),'size':;Tuple('width':;Nullable(Int64),'height':;Nullable(Int64)),'version':;Nullable(String)),'deviceCategory':; Nullable(String))");
+            "Tuple('browser' Tuple('name' Nullable(String),'size' Tuple('width' Nullable(Int64),'height' Nullable(Int64)),'version' Nullable(String)),'deviceCategory' Nullable(String))");
     assertEquals(ColumnType.tuple(m3), columnType03);
   }
 }
