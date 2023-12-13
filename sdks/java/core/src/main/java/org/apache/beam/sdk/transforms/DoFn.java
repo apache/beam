@@ -24,6 +24,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.Collection;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
@@ -186,6 +187,31 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     public abstract void outputWithTimestamp(OutputT output, Instant timestamp);
 
     /**
+     * Adds the given element to the main output {@code PCollection}, with the given windowing
+     * metadata.
+     *
+     * <p>Once passed to {@code outputWindowedValue} the element should not be modified in any way.
+     *
+     * <p>If invoked from {@link ProcessElement}), the timestamp must not be older than the input
+     * element's timestamp minus {@link DoFn#getAllowedTimestampSkew}. The output element will be in
+     * the same windows as the input element.
+     *
+     * <p>If invoked from {@link StartBundle} or {@link FinishBundle}, this will attempt to use the
+     * {@link org.apache.beam.sdk.transforms.windowing.WindowFn} of the input {@code PCollection} to
+     * determine what windows the element should be in, throwing an exception if the {@code
+     * WindowFn} attempts to access any information about the input element except for the
+     * timestamp.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from {@link StartBundle}
+     * or {@link FinishBundle} methods.
+     */
+    public abstract void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo);
+
+    /**
      * Adds the given element to the output {@code PCollection} with the given tag.
      *
      * <p>Once passed to {@code output} the element should not be modified in any way.
@@ -231,6 +257,32 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * @see ParDo.SingleOutput#withOutputTags
      */
     public abstract <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp);
+
+    /**
+     * Adds the given element to the main output {@code PCollection}, with the given windowing
+     * metadata.
+     *
+     * <p>Once passed to {@code outputWindowedValue} the element should not be modified in any way.
+     *
+     * <p>If invoked from {@link ProcessElement}), the timestamp must not be older than the input
+     * element's timestamp minus {@link DoFn#getAllowedTimestampSkew}. The output element will be in
+     * the same windows as the input element.
+     *
+     * <p>If invoked from {@link StartBundle} or {@link FinishBundle}, this will attempt to use the
+     * {@link org.apache.beam.sdk.transforms.windowing.WindowFn} of the input {@code PCollection} to
+     * determine what windows the element should be in, throwing an exception if the {@code
+     * WindowFn} attempts to access any information about the input element except for the
+     * timestamp.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from {@link StartBundle}
+     * or {@link FinishBundle} methods.
+     */
+    public abstract <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo);
   }
 
   /** Information accessible when running a {@link DoFn.ProcessElement} method. */
@@ -342,6 +394,12 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     void output(T output);
 
     void outputWithTimestamp(T output, Instant timestamp);
+
+    void outputWindowedValue(
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo);
   }
 
   /** Receives tagged output for a multi-output function. */
