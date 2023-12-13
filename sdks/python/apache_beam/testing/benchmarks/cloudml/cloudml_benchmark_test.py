@@ -55,9 +55,9 @@ def _publish_metrics(pipeline, metric_value, metrics_table, metric_name):
   )])
 
 
-@unittest.skip('Remve this line to run this test')
 @pytest.mark.uses_tft
 class CloudMLTFTBenchmarkTest(unittest.TestCase):
+  @unittest.skip('Remve this line to run this test')
   def test_cloudml_benchmark_criteo_small(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     extra_opts = {}
@@ -79,6 +79,7 @@ class CloudMLTFTBenchmarkTest(unittest.TestCase):
         metrics_table=metrics_table,
         metric_name='runtime_sec')
 
+  @unittest.skip('Remve this line to run this test')
   def test_cloudml_benchmark_cirteo_no_shuffle_10GB(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     extra_opts = {}
@@ -112,6 +113,8 @@ class CloudMLTFTBenchmarkTest(unittest.TestCase):
     extra_opts['output'] = os.path.join(
         _OUTPUT_GCS_BUCKET_ROOT, uuid.uuid4().hex)
     start_time = time.time()
+    extra_opts['job_name'] = (
+        'tft-criteo-dataset-{}-10'.format(uuid.uuid4().hex))
     workflow.run(test_pipeline.get_full_options_as_args(**extra_opts))
     end_time = time.time()
 
