@@ -52,7 +52,7 @@ google-auth-httplib2==0.1.1
 google-cloud-aiplatform==1.37.0
 google-cloud-bigquery==3.13.0
 google-cloud-bigquery-storage==2.23.0
-google-cloud-bigtable==2.21.0
+google-cloud-bigtable==2.22.0
 google-cloud-core==2.3.3
 google-cloud-datastore==2.18.0
 google-cloud-dlp==3.13.0
