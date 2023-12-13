@@ -27,17 +27,15 @@ import pytest
 
 try:
   import apache_beam.testing.benchmarks.cloudml.cloudml_benchmark_constants_lib as constants
-  #   from apache_beam.examples.ml_transform import vocab_tfidf_processing
   from apache_beam.testing.load_tests.load_test_metrics_utils import InfluxDBMetricsPublisherOptions
   from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
   from apache_beam.testing.test_pipeline import TestPipeline
-  from apache_beam.examples.ml_transform import criteo
+  from apache_beam.testing.benchmarks.mltransform import criteo
 except ImportError:  # pylint: disable=bare-except
   raise unittest.SkipTest('tensorflow_transform is not installed.')
 
 _INPUT_GCS_BUCKET_ROOT = 'gs://apache-beam-ml/datasets/cloudml/criteo'
 _OUTPUT_GCS_BUCKET_ROOT = 'gs://temp-storage-for-end-to-end-tests/tft/'
-_DISK_SIZE = 150
 
 
 @pytest.mark.uses_tft
@@ -54,9 +52,6 @@ class CriteoTest(unittest.TestCase):
 
     extra_opts['frequency_threshold'] = 0
 
-    # dataflow pipeliens options
-    extra_opts['disk_size_gb'] = _DISK_SIZE
-    extra_opts['machine_type'] = 'e2-highmem-2'
     extra_opts['job_name'] = (
         'mltransform-criteo-dataset-{}-10'.format(uuid.uuid4().hex))
     # start_time = time.time()
