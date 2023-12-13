@@ -23,6 +23,7 @@
 import abc
 import collections
 import contextlib
+import copy
 import functools
 import json
 import logging
@@ -491,7 +492,10 @@ class BundleProcessorCache(object):
     # Make sure we instantiate the processor while not holding the lock.
     processor = bundle_processor.BundleProcessor(
         self.runner_capabilities,
-        self.fns[bundle_descriptor_id],
+        # Reduce risks of concurrent modifications of the same protos
+        # captured in bundle descriptor when the same bundle desciptor is used
+        # in different instructions.
+        copy.deepcopy(self.fns[bundle_descriptor_id]),
         self.state_handler_factory.create_state_handler(
             self.fns[bundle_descriptor_id].state_api_service_descriptor),
         self.data_channel_factory,
