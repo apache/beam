@@ -17426,16 +17426,16 @@ docker push &amp;#34;${IMAGE_NAME}:${TAG}&amp;#34;
 &lt;li>Copy necessary artifacts from Apache Beam base image to your image.&lt;/li>
 &lt;/ol>
 &lt;pre tabindex="0">&lt;code># This can be any container image,
-FROM python:3.7-bullseye
+FROM python:3.8-bookworm
 # Install SDK. (needed for Python SDK)
-RUN pip install --no-cache-dir apache-beam[gcp]==2.35.0
+RUN pip install --no-cache-dir apache-beam[gcp]==2.52.0
 # Copy files from official SDK image, including script/dependencies.
-COPY --from=apache/beam_python3.7_sdk:2.35.0 /opt/apache/beam /opt/apache/beam
+COPY --from=apache/beam_python3.8_sdk:2.52.0 /opt/apache/beam /opt/apache/beam
 # Perform any additional customizations if desired
 # Set the entrypoint to Apache Beam SDK launcher.
 ENTRYPOINT [&amp;#34;/opt/apache/beam/boot&amp;#34;]
 &lt;/code>&lt;/pre>&lt;blockquote>
-&lt;p>&lt;strong>NOTE&lt;/strong>: This example assumes necessary dependencies (in this case, Python 3.7 and pip) have been installed on the existing base image. Installing the Apache Beam SDK into the image will ensure that the image has the necessary SDK dependencies and reduce the worker startup time.
+&lt;p>&lt;strong>NOTE&lt;/strong>: This example assumes necessary dependencies (in this case, Python 3.8 and pip) have been installed on the existing base image. Installing the Apache Beam SDK into the image will ensure that the image has the necessary SDK dependencies and reduce the worker startup time.
 The version specified in the &lt;code>RUN&lt;/code> instruction must match the version used to launch the pipeline.&lt;br>
 &lt;strong>Make sure that the Python or Java runtime version specified in the base image is the same as the version used to run the pipeline.&lt;/strong>&lt;/p>
 &lt;/blockquote>
@@ -17445,7 +17445,7 @@ The version specified in the &lt;code>RUN&lt;/code> instruction must match the v
 &lt;ol start="2">
 &lt;li>&lt;a href="https://docs.docker.com/engine/reference/commandline/build/">Build&lt;/a> and &lt;a href="https://docs.docker.com/engine/reference/commandline/push/">push&lt;/a> the image using Docker.&lt;/li>
 &lt;/ol>
-&lt;pre tabindex="0">&lt;code> export BASE_IMAGE=&amp;#34;apache/beam_python3.7_sdk:2.25.0&amp;#34;
+&lt;pre tabindex="0">&lt;code> export BASE_IMAGE=&amp;#34;apache/beam_python3.8_sdk:2.52.0&amp;#34;
 export IMAGE_NAME=&amp;#34;myremoterepo/mybeamsdk&amp;#34;
 export TAG=&amp;#34;latest&amp;#34;
 # Optional - pull the base image into your local Docker daemon to ensure
