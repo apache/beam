@@ -1,5 +1,5 @@
 Prompt:
-Write the python code to read data from Apache Kafka.
+Write the python code to read data from Apache Kafka using Apache Beam.
 Response:
 You can read data from [Apache Kafka](https://kafka.apache.org/) using the `ReadFromKafka` transform. The following Python code reads a topic `topic` from a Kafka server `bootstrap_servers`. The `topic` and `bootstrap_servers` are provided as a command line arguments. The data is logged to the console:
 

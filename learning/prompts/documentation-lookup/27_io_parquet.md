@@ -18,15 +18,13 @@ class ReadParquetOptions(PipelineOptions):
     def _add_argparse_args(cls, parser):
       parser.add_argument(
           "--path",
-          default="gs://cloud-samples-data/bigquery/us-states/*.parquet",
-          help="GCS path to read from")
+          help="GCS path to parquet file")
 
   options = ReadParquetOptions()
 
   with beam.Pipeline(options=options) as p:
 
     (p | "ReadParquet" >> ReadFromParquet(options.path)
-       | "CheckRow" >> Map(lambda row: f"The abbreviation of {row['name']} is {row['post_abbr']}")
        | Map(logging.info))
 
 ```
