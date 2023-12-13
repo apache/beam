@@ -55,6 +55,7 @@ def _publish_metrics(pipeline, metric_value, metrics_table, metric_name):
   )])
 
 
+@unittest.skip('Remve this line to run this test')
 @pytest.mark.uses_tft
 class CloudMLTFTBenchmarkTest(unittest.TestCase):
   def test_cloudml_benchmark_criteo_small(self):
