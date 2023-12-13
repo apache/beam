@@ -662,22 +662,24 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 				},
 			},
 		}
-	case req.GetSampleData() != nil && c.dataSampler != nil:
+	case req.GetSampleData() != nil:
 		msg := req.GetSampleData()
 		var samples = make(map[string]*fnpb.SampleDataResponse_ElementList)
-		var elementsMap = c.dataSampler.GetSamples(msg.GetPcollectionIds())
-
-		for pid, elements := range elementsMap {
-			var elementList fnpb.SampleDataResponse_ElementList
-			for i := range elements {
-				var sampledElement = &fnpb.SampledElement{
-					Element:         elements[i].Element,
-					SampleTimestamp: timestamppb.New(elements[i].Timestamp),
+		if c.dataSampler != nil {
+			var elementsMap = c.dataSampler.GetSamples(msg.GetPcollectionIds())
+			for pid, elements := range elementsMap {
+				var elementList fnpb.SampleDataResponse_ElementList
+				for i := range elements {
+					var sampledElement = &fnpb.SampledElement{
+						Element:         elements[i].Element,
+						SampleTimestamp: timestamppb.New(elements[i].Timestamp),
+					}
+					elementList.Elements = append(elementList.Elements, sampledElement)
 				}
-				elementList.Elements = append(elementList.Elements, sampledElement)
+				samples[pid] = &elementList
 			}
-			samples[pid] = &elementList
 		}
+
 		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_SampleData{
