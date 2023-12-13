@@ -558,6 +558,7 @@ class YamlProviders:
   def create(elements: Iterable[Any], reshuffle: Optional[bool] = True):
     """Creates a collection containing a specified set of elements.
 
+<<<<<<< HEAD
     This transform always produces schema'd data. For example::
 
         type: Create

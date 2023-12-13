@@ -64,7 +64,7 @@ def _pipeline_spec_from_args(known_args):
   return pipeline_yaml
 
 
-def run(argv=None):
+def run(argv=None, test=None):
   known_args, pipeline_args = _configure_parser(argv)
   pipeline_yaml = _pipeline_spec_from_args(known_args)
   pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
@@ -77,9 +77,11 @@ def run(argv=None):
               'options', {}))),
       display_data={'yaml': pipeline_yaml}) as p:
     print("Building pipeline...")
-    yaml_transform.expand_pipeline(
+    pipeline_output = yaml_transform.expand_pipeline(
         p, pipeline_spec, validate_schema=known_args.json_schema_validation)
     print("Running pipeline...")
+    if test:
+      test(pipeline_output)
 
 
 if __name__ == '__main__':
