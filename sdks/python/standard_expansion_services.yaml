@@ -1,0 +1,15 @@
+- gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
+  destinations:
+    python: 'apache_beam.io.gcp'
+  transforms:
+    'beam:schematransform:org.apache.beam:bigquery_storage_write:v2':
+      name: 'StorageWriteToBigQuery'
+      destinations:
+        python: 'apache_beam.io.custommmm'
+
+- gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+  destinations:
+    python: 'apache_beam.io'
+  transforms:
+    'beam:schematransform:org.apache.beam:kafka_write:v1':
+      name: 'MYKAFKAWRITE'
