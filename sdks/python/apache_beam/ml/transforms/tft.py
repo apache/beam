@@ -172,8 +172,8 @@ class ComputeAndApplyVocabulary(TFTOperation):
       num_oov_buckets:  Any lookup of an out-of-vocabulary token will return a
         bucket ID based on its hash if `num_oov_buckets` is greater than zero.
         Otherwise it is assigned the `default_value`.
-      vocab_filename: The file name for the vocabulary file. If not provided,
-        the default name would be `compute_and_apply_vocab'
+      vocab_filename: The file name for the vocabulary file. The vocab file
+        will be suffixed with the column name.
         NOTE in order to make your pipelines resilient to implementation
         details please set `vocab_filename` when you are using
         the vocab_filename on a downstream component.
@@ -183,8 +183,7 @@ class ComputeAndApplyVocabulary(TFTOperation):
     self._top_k = top_k
     self._frequency_threshold = frequency_threshold
     self._num_oov_buckets = num_oov_buckets
-    self._vocab_filename = vocab_filename if vocab_filename else (
-        'compute_and_apply_vocab')
+    self._vocab_filename = vocab_filename
     self._name = name
     self.split_string_by_delimiter = split_string_by_delimiter
 
@@ -196,6 +195,9 @@ class ComputeAndApplyVocabulary(TFTOperation):
       data = self._split_string_with_delimiter(
           data, self.split_string_by_delimiter)
 
+    vocab_filename = self._vocab_filename
+    if vocab_filename:
+      vocab_filename = vocab_filename + f'_{output_column_name}'
     return {
         output_column_name: tft.compute_and_apply_vocabulary(
             x=data,
@@ -203,7 +205,7 @@ class ComputeAndApplyVocabulary(TFTOperation):
             top_k=self._top_k,
             frequency_threshold=self._frequency_threshold,
             num_oov_buckets=self._num_oov_buckets,
-            vocab_filename=self._vocab_filename,
+            vocab_filename=vocab_filename,
             name=self._name)
     }
 
@@ -535,7 +537,7 @@ class BagOfWords(TFTOperation):
       ngram_range: Tuple[int, int] = (1, 1),
       ngrams_separator: Optional[str] = None,
       compute_word_count: bool = False,
-      key_vocab_filename: str = 'key_vocab_mapping',
+      key_vocab_filename: Optional[str] = None,
       name: Optional[str] = None,
   ):
     """
@@ -558,7 +560,9 @@ class BagOfWords(TFTOperation):
       compute_word_count: A boolean that specifies whether to compute
         the unique word count over the entire dataset. Defaults to False.
       key_vocab_filename: The file name for the key vocabulary file when
-        compute_word_count is True.
+        compute_word_count is True. If empty, a file name 
+        will be chosen based on the current scope. If provided, the vocab
+        file will be suffixed with the column name.
       name: A name for the operation (optional).
 
     Note that original order of the input may not be preserved.
@@ -585,10 +589,14 @@ class BagOfWords(TFTOperation):
           data, self.split_string_by_delimiter)
     output = tft.bag_of_words(
         data, self.ngram_range, self.ngrams_separator, self.name)
-    # word counts are written to the key_vocab_filename
-    self.compute_word_count_fn(data, self.key_vocab_filename)
+    # word counts are written to the file only if compute_word_count is True
+    key_vocab_filename = self.key_vocab_filename
+    if key_vocab_filename:
+      key_vocab_filename = key_vocab_filename + f'_{output_col_name}'
+    self.compute_word_count_fn(data, key_vocab_filename)
     return {output_col_name: output}
 
 
-def count_unqiue_words(data: tf.SparseTensor, output_vocab_name: str) -> None:
+def count_unqiue_words(
+    data: tf.SparseTensor, output_vocab_name: Optional[str]) -> None:
   tft.count_per_key(data, key_vocabulary_filename=output_vocab_name)

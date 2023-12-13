@@ -69,6 +69,7 @@
 * Added support for handling bad records to KafkaIO (Java) ([#29546](https://github.com/apache/beam/pull/29546))
 * Add support for generating text embeddings in MLTransform for Vertex AI and Hugging Face Hub models.([#29564](https://github.com/apache/beam/pull/29564))
 * Adding support for Tuples DataType in ClickHouse (Java) ([Tuple Support](https://github.com/apache/beam/pull/29715)).
+* NATS IO connector added (Go) ([#29000](https://github.com/apache/beam/issues/29000)).
 
 ## New Features / Improvements
 

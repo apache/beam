@@ -29,6 +29,7 @@ import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -90,7 +91,8 @@ public class BigQueryTimePartitioningClusteringIT {
   public void setUp() {
     PipelineOptionsFactory.register(BigQueryClusteringITOptions.class);
     options = TestPipeline.testingPipelineOptions().as(BigQueryClusteringITOptions.class);
-    options.setTempLocation(options.getTempRoot() + "/temp-it/");
+    options.setTempLocation(
+        FileSystems.matchNewDirectory(options.getTempRoot(), "temp-it").toString());
     bqClient = BigqueryClient.getNewBigqueryClient(options.getAppName());
   }
 

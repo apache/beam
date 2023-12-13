@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -70,7 +71,8 @@ public class BigQueryIOJsonIT {
 
   static {
     TestPipelineOptions opt = TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
-    testOptions.setTempLocation(opt.getTempRoot() + "/java-tmp");
+    testOptions.setTempLocation(
+        FileSystems.matchNewDirectory(opt.getTempRoot(), "java-tmp").toString());
   }
 
   @Rule public final transient TestPipeline p = TestPipeline.fromOptions(testOptions);

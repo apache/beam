@@ -13,50 +13,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package natsio contains transforms for interacting with NATS.
 package natsio
 
 import (
-	"fmt"
+	"testing"
+	"time"
 
-	"github.com/nats-io/nats.go"
-	"github.com/nats-io/nats.go/jetstream"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 )
 
-type natsFn struct {
-	URI       string
-	CredsFile string
-	nc        *nats.Conn
-	js        jetstream.JetStream
-}
+func Test_timePolicy_TimestampFn(t *testing.T) {
+	t.Run("processingTime", func(t *testing.T) {
+		pubTime := time.Date(2020, 1, 2, 3, 4, 5, 6e6, time.UTC)
 
-func (fn *natsFn) Setup() error {
-	if fn.nc != nil && fn.js != nil {
-		return nil
-	}
+		t1 := mtime.Now()
+		got := processingTimePolicy.TimestampFn()(pubTime)
+		t2 := mtime.Now()
 
-	var opts []nats.Option
-	if fn.CredsFile != "" {
-		opts = append(opts, nats.UserCredentials(fn.CredsFile))
-	}
+		if got < t1 || got > t2 {
+			t.Errorf("timestamp = %v, want between %v and %v", got, t1, t2)
+		}
+	})
 
-	conn, err := nats.Connect(fn.URI, opts...)
-	if err != nil {
-		return fmt.Errorf("error connecting to NATS: %v", err)
-	}
-	fn.nc = conn
+	t.Run("publishingTime", func(t *testing.T) {
+		pubTime := time.Date(2020, 1, 2, 3, 4, 5, 6e6, time.UTC)
 
-	js, err := jetstream.New(fn.nc)
-	if err != nil {
-		return fmt.Errorf("error creating JetStream context: %v", err)
-	}
-	fn.js = js
-
-	return nil
-}
-
-func (fn *natsFn) Teardown() {
-	if fn.nc != nil {
-		fn.nc.Close()
-	}
+		if got, want := publishingTimePolicy.TimestampFn()(pubTime), mtime.FromTime(pubTime); got != want {
+			t.Errorf("timestamp = %v, want %v", got, want)
+		}
+	})
 }
