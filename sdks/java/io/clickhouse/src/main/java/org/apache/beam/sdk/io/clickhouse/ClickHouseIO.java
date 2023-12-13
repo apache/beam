@@ -113,8 +113,8 @@ import org.slf4j.LoggerFactory;
  * </table>
  *
  * Nullable row columns are supported through Nullable type in ClickHouse. Low cardinality hint is
- * supported through LowCardinality DataType in ClickHouse supported through Tuple DataType in
- * ClickHouse see: Example in ClickHouseIOTest.testComplexTupleType.
+ * supported through LowCardinality DataType in ClickHouse
+ * supported through Tuple DataType in ClickHouse see: Example in ClickHouseIOTest.testComplexTupleType.
  *
  * <p>Nested rows should be unnested using {@link Select#flattenedSchema()}. Type casting should be
  * done using {@link org.apache.beam.sdk.schemas.transforms.Cast} before {@link ClickHouseIO}.
