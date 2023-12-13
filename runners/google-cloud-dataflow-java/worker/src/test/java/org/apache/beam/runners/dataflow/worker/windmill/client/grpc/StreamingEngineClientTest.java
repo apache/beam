@@ -253,6 +253,7 @@ public class StreamingEngineClientTest {
   }
 
   @Test
+  @Ignore("https://github.com/apache/beam/issues/28957") // stuck test
   public void testOnNewWorkerMetadata_correctlyRemovesStaleWindmillServers()
       throws InterruptedException {
     streamingEngineClient =
