@@ -36,6 +36,7 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_combine import normalize_combine
+from apache_beam.yaml.yaml_mapping import normalize_mapping
 
 __all__ = ["YamlTransform"]
 
@@ -904,6 +905,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
 
   for phase in [
       ensure_transforms_have_types,
+      normalize_mapping,
       normalize_combine,
       preprocess_langauges,
       ensure_transforms_have_providers,
