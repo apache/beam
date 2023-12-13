@@ -662,7 +662,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 				},
 			},
 		}
-	case req.GetSampleData() != nil:
+	case req.GetSampleData() != nil && c.dataSampler != nil:
 		msg := req.GetSampleData()
 		var samples = make(map[string]*fnpb.SampleDataResponse_ElementList)
 		var elementsMap = c.dataSampler.GetSamples(msg.GetPcollectionIds())
