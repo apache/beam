@@ -415,8 +415,10 @@ public class TransformUpgrader implements AutoCloseable {
         ObjectInputStream in = new ObjectInputStream(bis)) {
       return in.readObject();
     } catch (InvalidClassException e) {
-      LOG.info("An object cannot be re-generated from the provided byte array. Caller may use the "
-          + "default value for the parameter when upgrading. Underlying error: " + e);
+      LOG.info(
+          "An object cannot be re-generated from the provided byte array. Caller may use the "
+              + "default value for the parameter when upgrading. Underlying error: "
+              + e);
       throw e;
     } catch (Exception e) {
       throw new RuntimeException(e);
