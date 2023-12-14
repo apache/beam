@@ -561,7 +561,6 @@ class SchemaTranslation(object):
         '__reduce__',
         _named_tuple_reduce_method(schema.SerializeToString()))
     setattr(user_type, row_type._BEAM_SCHEMA_ID, schema.id)
-    user_type._beam_schema_proto = _Ephemeral(schema)
 
     self.schema_registry.add(user_type, schema)
     coders.registry.register_coder(user_type, coders.RowCoder)
