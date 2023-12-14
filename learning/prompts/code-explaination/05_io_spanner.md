@@ -23,12 +23,12 @@ class SpannerOptions(PipelineOptions):
             default='your-database-id',
             help='Google Cloud Spanner database ID'
         )
-        
+
 options = SpannerOptions()
 coders.registry.register_coder(ExampleRow, coders.RowCoder)
 
 with beam.Pipeline(options=options) as p:
-    
+
     output = (p | "Read from table" >> ReadFromSpanner(
         project_id=options.project_id,
         instance_id=options.instance_id,
@@ -61,7 +61,7 @@ class SpannerOptions(PipelineOptions):
             default='your-database-id',
             help='Google Cloud Spanner database ID'
         )
-        
+
 options = SpannerOptions()
 ```
 This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command line arguments. The `SpannerOptions` class defines three command line arguments `project_id`, `instance_id` and `database_id` that are used to configure `ReadFromSpanner` transform.

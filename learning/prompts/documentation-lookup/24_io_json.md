@@ -20,7 +20,7 @@ class JsonOptions(PipelineOptions):
             default="gs://your-bucket/your-file.json",
             help='Json file path'
         )
-        
+
 options = JsonOptions()
 with beam.Pipeline(options=options) as p:
     output = (p | "Read from Json file" >> ReadFromJson(

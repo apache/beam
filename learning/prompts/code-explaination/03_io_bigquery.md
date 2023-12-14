@@ -8,14 +8,13 @@ class BigQueryReadTableOptions(PipelineOptions):
       "--table",
       default="bigquery-public-data:samples.github_timeline",
       help="BigQuery table to read data from")
-      
+
 options = BigQueryReadTableOptions()
 with beam.Pipeline(options=options) as p:
   output = (p | "Read table" >> ReadFromBigQuery(table=options.table)
   | "Log data" >> Map(logging.info)
   )
 ```
-
 Response:
 This code uses Apache Beam [BigQueryIO](https://beam.apache.org/documentation/io/built-in/google-bigquery/) connector to read data from a [BigQuery](https://cloud.google.com/bigquery/docs) table `table`.
 

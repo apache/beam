@@ -51,7 +51,7 @@ with beam.Pipeline(options=options) as p:
         | "Log Data" >> Map(logging.info))
 ```
 
-ReadFromSpanner is a built-in Apache Beam transform that reads data from a Cloud Spanner table. The `ReadFromSpanner` transform returns a `PCollection` of `NamedTuple` objects. The `NamedTuple` object is a Python class that represents a row in a Cloud Spanner table. 
+ReadFromSpanner is a built-in Apache Beam transform that reads data from a Cloud Spanner table. The `ReadFromSpanner` transform returns a `PCollection` of `NamedTuple` objects. The `NamedTuple` object is a Python class that represents a row in a Cloud Spanner table.
 
 Registering a coder for `NamedTuple` is required to use `NamedTuple` as a row type:
 ```python
@@ -59,4 +59,4 @@ Registering a coder for `NamedTuple` is required to use `NamedTuple` as a row ty
 ```
 For more information on how to register a coder for a custom type, visit [here](https://beam.apache.org/documentation/programming-guide/#data-encoding-and-type-safety).
 
-SpannerOptions class defines three command line arguments `project_id`, `instance_id` and `database_id` that are used to configure `ReadFromSpanner` transform. Those arguments are parsed from a command line using [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/). 
+SpannerOptions class defines three command line arguments `project_id`, `instance_id` and `database_id` that are used to configure `ReadFromSpanner` transform. Those arguments are parsed from a command line using [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/).

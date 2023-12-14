@@ -28,7 +28,3 @@ with beam.Pipeline(options=options) as p:
         | "Map Data" >> Map(lambda row: f"Id = {row.id}, Name = {row.name}")
         | "Log Data" >> Map(logging.info))
 ```
-
-
-
-    

@@ -27,7 +27,7 @@ Configure pipeline options for Kafka read transform.
             default="your-topic",
             help='Apache Kafka topic'
         )
-        
+
 #parse pipeline options
 options = KafkaOptions()
 
