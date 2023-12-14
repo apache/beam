@@ -35,12 +35,12 @@ class SpannerOptions(PipelineOptions):
             default='your-database-id',
             help='Google Cloud Spanner database ID'
         )
-        
+
 options = SpannerOptions()
 coders.registry.register_coder(ExampleRow, coders.RowCoder)
 
 with beam.Pipeline(options=options) as p:
-    
+
     output = (p | "Read from table" >> ReadFromSpanner(
         project_id=options.project_id,
         instance_id=options.instance_id,
