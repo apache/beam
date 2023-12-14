@@ -74,7 +74,7 @@ permissions:
 jobs:
   beam_PreCommit_Java_Examples_Dataflow:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    timeout-minutes: 60
+    timeout-minutes: 75
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       matrix:
