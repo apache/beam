@@ -147,6 +147,8 @@ func (d *TentativeData) AppendMultimapState(stateID LinkID, wKey, uKey, mapKey, 
 		kmap[string(uKey)] = stateData
 	}
 	stateData.Multimap[string(mapKey)] = append(stateData.Multimap[string(mapKey)], data)
+	// The Multimap field is aliased to the instance we stored in kmap,
+	// so we don't need to re-assign back to kmap after appending the data to mapKey.
 	slog.Debug("State() Multimap.Append", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("MapKey", mapKey), slog.Any("Window", wKey), slog.Any("NewData", data))
 }
 
@@ -167,6 +169,8 @@ func (d *TentativeData) ClearMultimapState(stateID LinkID, wKey, uKey, mapKey []
 		return
 	}
 	userMap.Multimap[string(mapKey)] = nil
+	// The Multimap field is aliased to the instance we stored in kmap,
+	// so we don't need to re-assign back to kmap after clearing the data from mapKey.
 	slog.Debug("State() Multimap.Clear", slog.Any("StateID", stateID), slog.Any("UserKey", uKey), slog.Any("Window", wKey))
 }
 
