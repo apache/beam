@@ -47,7 +47,7 @@ type PCollection struct {
 	windowCoder   WindowEncoder
 
 	bundleElementCount                   int64 // must use atomic operations.
-	pCollectionElementCount              int64
+	pCollectionElementCount              int64 // track the total number of elements this instance has processed. Local use only, no concurrent read/write.
 	sizeMu                               sync.Mutex
 	sizeCount, sizeSum, sizeMin, sizeMax int64
 	dataSampler                          *DataSampler
