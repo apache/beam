@@ -88,7 +88,9 @@ class ExternalSchemaTransform(PTransform):
   """Template for a wrapper class of an external SchemaTransform
 
   This is a superclass for dynamically generated SchemaTransform wrappers and
-  is not meant to be manually instantiated."""
+  is not meant to be manually instantiated.
+
+  Experimental; no backwards compatibility guarantees."""
 
   # These attributes need to be set when
   # creating an ExternalSchemaTransform type
@@ -188,6 +190,8 @@ class ExternalSchemaTransformProvider:
                 query=query,
                 row_restriction=restriction)
         | 'Some processing' >> beam.Map(...))
+
+  Experimental; no backwards compatibility guarantees.
   """
   def __init__(self, expansion_services, urn_pattern=STANDARD_URN_PATTERN):
     f"""Initialize an ExternalSchemaTransformProvider
