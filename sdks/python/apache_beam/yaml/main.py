@@ -36,6 +36,7 @@ def _configure_parser(argv):
   parser.add_argument(
       '--pipeline_spec_file',
       help='A file containing a yaml description of the pipeline to run.')
+  parser.add_argument('--json_schema_validation', default='generic')
   return parser.parse_known_args(argv)
 
 
@@ -69,7 +70,10 @@ def run(argv=None):
               'options', {}))),
       display_data={'yaml': pipeline_yaml}) as p:
     print("Building pipeline...")
-    yaml_transform.expand_pipeline(p, pipeline_spec)
+    yaml_transform.expand_pipeline(
+        p,
+        pipeline_spec,
+        validate_schema=known_args.json_schema_validation == 'generic')
     print("Running pipeline...")
 
 
