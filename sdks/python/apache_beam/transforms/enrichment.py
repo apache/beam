@@ -54,7 +54,12 @@ def cross_join(element):
 
 
 class EnrichmentSourceHandler(Caller):
-  """Wrapper class for :class:`apache_beam.io.requestresponseio.Caller`"""
+  """Wrapper class for :class:`apache_beam.io.requestresponseio.Caller`
+
+  Ensure that the implementation of ``__call__`` method returns a tuple
+  of `beam.Row`  objects.
+  """
+
   pass
 
 
@@ -112,5 +117,5 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
         cache_writer=self._cache_writer,
         throttler=self._throttler).with_output_types(dict)
 
-    # RequestResponseIO returns a tuple of (request,response)
-    return fetched_data | beam.ParDo(self._join_fn)
+    # EnrichmentSourceHandler returns a tuple of (request,response).
+    return fetched_data | beam.Map(self._join_fn)
