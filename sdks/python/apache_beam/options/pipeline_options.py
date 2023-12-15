@@ -572,12 +572,18 @@ class StreamingOptions(PipelineOptions):
 
 
 class CrossLanguageOptions(PipelineOptions):
+  @staticmethod
+  def _beam_services_from_enviroment():
+    return json.loads(os.environ.get('BEAM_SERVICE_OVERRIDES') or '{}')
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--beam_services',
-        type=json.loads,
-        default={},
+        type=lambda s: {
+            **cls._beam_services_from_enviroment(), **json.loads(s)
+        },
+        default=cls._beam_services_from_enviroment(),
         help=(
             'For convenience, Beam provides the ability to automatically '
             'download and start various services (such as expansion services) '
