@@ -81,6 +81,73 @@ message LatencyAttribution {
   optional int64 total_duration_millis = 2;
 }
 
+message PerStepNamespaceMetrics {
+  // The namespace of these metrics on the user worker.
+  optional string metrics_namespace = 1;
+  // The original system name of the unfused step that these metrics are
+  // reported from.
+  optional string original_step_name = 2;
+  // Metrics that are recorded for this namespace and unfused stage.
+  repeated MetricValue metric_values = 3;
+}
+
+message MetricValue {
+  optional string metric_name = 1;
+  map<string, string> metric_labels = 2;
+  oneof value {
+    int64 value_int64 = 3;
+    Histogram value_histogram = 4;
+  }
+}
+
+// google3/google/api/distribution.proto with the following limitations.
+// Distribution does not support explicit buckets.
+// We only support a specific type of exponential buckets.
+message Histogram {
+  // Number of values recorded in this distribution.
+  optional int64 count = 1;
+  // The arithmetic mean of the values recorded in this distribution.
+  optional double mean = 2;
+  // The sum of squared deviations from the mean of the values recorded in this
+  // distribution. For values x_i this is:
+  //     Sum[i=1..n]((x_i - mean)^2)
+  optional double sum_of_squared_deviations = 3;
+
+  // `BucketOptions` describes the bucket boundaries used to create a histogram
+  // for the distribution.
+  message BucketOptions {
+    // Linear buckets with the following boundaries for indicies in 0 to n-1.
+    // 0: (-inf, start)
+    // i in [1, n-2]:  [start + (i-1)*width, start + (i)*width)
+    // n-1: [start + (n-1)*width, inf)
+    // The 0th and n-1th bucket are the underflow/overflow buckets respectively.
+    message Linear {
+      optional int32 number_of_buckets = 1;
+      optional double width = 2;
+      optional double start = 3;
+    }
+
+    // Exponential buckets where the growth factor between buckets is
+    // 2**(2**-scale). e.g. for 'scale=1' growth factor is 2**(2**(-1))=sqrt(2).
+    // Buckets with the following boundaries for indicies in 0 to n-1.
+    // 0th: (-inf, 0)
+    // 1st: [0, gf)
+    // i in [2, n-2]: [gf^(i-1), gf^i)
+    // n-1: [gf^(n-2), inf)
+    // The 0th and n-1th bucket are the underflow/overflow buckets respectively.
+    message Base2Exponent {
+      optional int32 number_of_buckets = 1;
+      optional int32 scale = 2;
+    }
+    oneof BucketType {
+      Linear linear = 1;
+      Base2Exponent exponential = 2;
+    }
+  }
+  optional BucketOptions bucket_options = 5;
+  repeated int64 bucket_counts = 6 [packed = true];
+}
+
 message GetWorkStreamTimingInfo {
   enum Event {
     UNKNOWN = 0;

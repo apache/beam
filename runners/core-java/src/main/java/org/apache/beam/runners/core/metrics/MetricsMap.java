@@ -64,6 +64,10 @@ public class MetricsMap<K, T> implements Serializable {
     return metric;
   }
 
+  public int size() {
+    return metrics.size();
+  }
+
   /** Get the value associated with the given key, if it exists. */
   public @Nullable T tryGet(K key) {
     return metrics.get(key);

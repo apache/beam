@@ -40,6 +40,7 @@ import org.apache.beam.sdk.util.HistogramData;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 
 /** Tests for {@link StreamingStepMetricsContainer}. */
 @RunWith(JUnit4.class)
@@ -200,4 +201,80 @@ public class StreamingStepMetricsContainerTest {
         metricsContainer.getPerWorkerHistogram(name1, testBucket),
         not(instanceOf(NoOpHistogram.class)));
   }
+
+//   @Test
+//   public void testPerWorkerCounterExtraction() {
+//     StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
+
+//     MetricName metricName1 = MetricName.named("BigQuerySink", "name1");
+//     MetricName metricName2 = MetricName.named("BigQuerySink", "name2");
+
+//     c1.getPerWorkerCounter(metricName1).inc(5);
+//     c2.getPerWorkerCounter(metricName1).inc(8);
+//     c2.getPerWorkerCounter(metricName2).inc(12);
+
+//     Iterable<Windmill.MetricValue> updates = StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(registry);
+//     Windmill.MetricValue expectedVal1 = Windmill.MetricValue.newBuilder().setMetricName("name1").setValueInt64(13L).build();
+//     Windmill.MetricValue expectedVal2 = Windmill.MetricValue.newBuilder().setMetricName("name2").setValueInt64(12L).build();
+
+//     assertThat(
+//         updates,
+//         containsInAnyOrder(
+//             new CounterUpdate()
+//                 .setStructuredNameAndMetadata(
+//                     new CounterStructuredNameAndMetadata()
+//                         .setName(
+//                             new CounterStructuredName()
+//                                 .setOrigin(Origin.USER.toString())
+//                                 .setOriginNamespace("ns")
+//                                 .setName("name1")
+//                                 .setOriginalStepName("s1"))
+//                         .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
+//                 .setCumulative(false)
+//                 .setInteger(longToSplitInt(5)),
+//             new CounterUpdate()
+//                 .setStructuredNameAndMetadata(
+//                     new CounterStructuredNameAndMetadata()
+//                         .setName(
+//                             new CounterStructuredName()
+//                                 .setOrigin(Origin.USER.toString())
+//                                 .setOriginNamespace("ns")
+//                                 .setName("name1")
+//                                 .setOriginalStepName("s2"))
+//                         .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
+//                 .setCumulative(false)
+//                 .setInteger(longToSplitInt(8)),
+//             new CounterUpdate()
+//                 .setStructuredNameAndMetadata(
+//                     new CounterStructuredNameAndMetadata()
+//                         .setName(
+//                             new CounterStructuredName()
+//                                 .setOrigin(Origin.USER.toString())
+//                                 .setOriginNamespace("ns")
+//                                 .setName("name2")
+//                                 .setOriginalStepName("s2"))
+//                         .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
+//                 .setCumulative(false)
+//                 .setInteger(longToSplitInt(12))));
+
+//     c2.getCounter(metricName1).inc(7);
+
+//     updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+//     assertThat(
+//         updates,
+//         containsInAnyOrder(
+//             new CounterUpdate()
+//                 .setStructuredNameAndMetadata(
+//                     new CounterStructuredNameAndMetadata()
+//                         .setName(
+//                             new CounterStructuredName()
+//                                 .setOrigin(Origin.USER.toString())
+//                                 .setOriginNamespace("ns")
+//                                 .setName("name1")
+//                                 .setOriginalStepName("s2"))
+//                         .setMetadata(new CounterMetadata().setKind(Kind.SUM.toString())))
+//                 .setCumulative(false)
+//                 .setInteger(longToSplitInt(7))));
+//   }
+
 }

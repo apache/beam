@@ -34,6 +34,7 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 
 /** Contains a few of the stage specific fields. E.g. metrics container registry, counters etc. */
 @AutoValue
@@ -88,6 +89,15 @@ public abstract class StageInfo {
     counterUpdates.addAll(
         deltaCounters().extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE));
     return counterUpdates;
+  }
+
+  public List<Windmill.MetricValue> extractPerWorkerMetricValues() {
+    List<Windmill.MetricValue> metricValues = new ArrayList<>();
+    Iterables.addAll(
+      metricValues,
+      StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(metricsContainerRegistry())
+    );
+    return metricValues;
   }
 
   /**

@@ -19,8 +19,11 @@ package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeCell;
@@ -39,6 +42,10 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 /**
  * For Dataflow Streaming, we want to efficiently support many threads report metric updates, and a
@@ -48,6 +55,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class StreamingStepMetricsContainer implements MetricsContainer {
+  private static final Logger LOG = LoggerFactory.getLogger(StreamingStepMetricsContainer.class);
 
   private final String stepName;
 
@@ -177,4 +185,58 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   public static void setEnablePerWorkerMetrics(Boolean enablePerWorkerMetrics) {
     StreamingStepMetricsContainer.enablePerWorkerMetrics = enablePerWorkerMetrics;
   }
+
+  /**
+   * Returns {@link Windmill.MetricValue} protos representing the changes to all per-worker metrics that have changed
+   * since the last time this function was invoked.
+   */
+  public static Iterable<Windmill.MetricValue> extractPerWorkerMetricUpdates(
+      MetricsContainerRegistry<StreamingStepMetricsContainer> metricsContainerRegistry) {
+    return metricsContainerRegistry
+      .getContainers()
+      .transformAndConcat(StreamingStepMetricsContainer::extractPerWorkerMetricUpdates);
+  }
+
+  private Iterable<Windmill.MetricValue> extractPerWorkerMetricUpdates() {
+    ConcurrentHashMap<MetricName, Long> counters =
+        new ConcurrentHashMap<MetricName, Long>();
+    ConcurrentHashMap<MetricName, HistogramData> histograms =
+        new ConcurrentHashMap<MetricName, HistogramData>();
+    LOG.warn("Number of per worker counters: " + perWorkerCounters.size());
+    LOG.warn("Number of per worker histograms: " + perWorkerHistograms.size());
+    LOG.warn("Perworkermetrics enabled: " + enablePerWorkerMetrics);
+    ConcurrentHashMap<String, ConcurrentHashMap<MetricName, Long>> countersByNamespace = new ConcurrentHashMap<String, ConcurrentHashMap<MetricName, Long>>();
+
+    // Extraact metrics updates.
+    perWorkerCounters.forEach(
+        (k, v) -> {
+          Long val = v.getSumAndReset();
+          if (val == 0) {
+            return;
+          }
+          countersByNamespace.computeIfAbsent(k.getNamespace(), namespace -> new ConcurrentHashMap<MetricName, Long>());
+          countersByNamespace.get(k.getNamespace()).put(k, val);
+          counters.put(k, val);
+        });
+    perWorkerHistograms.forEach(
+      (k,v) -> {
+        HistogramData val = v.getCumulative().getAndReset();
+        if (val.getTotalCount() == 0) {
+          return;
+        }
+        histograms.put(k.getKey(), val);
+      }
+    );
+    
+    // HashMap<String, Windmill.PerStepNamespaceMetrics> map = new HashMap<String, Windmill.PerStepNamespaceMetrics>();
+
+    // Windmill.PerStepNamespaceMetrics.Builder perStepNamespaceMetrics = Windmill.PerStepNamespaceMetrics.newBuilder();
+    // for (Map.Entry<MetricName, Long> counterEntry : counters.entrySet()) {
+    //   perStepNamespaceMetrics.computeIfAbsent(counterEntry.getKey().getNamespace(), namespace -> {
+    //     return Windmill.PerStepNamespaceMetrics.newBuilder().setMetricsNamespace(namespace).setOriginalStepName(this.stepName);
+    //   });
+    // }
+    return FluentIterable.from(MetricsToMetricValueConverter.convertCountersToMetricValueUpdates(counters)).append(MetricsToMetricValueConverter.convertHistogramsToMetricValueUpdates(histograms));
+  }
+
 }

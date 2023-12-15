@@ -47,6 +47,10 @@ public class HistogramData implements Serializable {
   private long numTopRecords;
   private long numBottomRecords;
 
+  private double sum_of_squared_deviations;
+  private double mean;
+  private long count;
+
   /**
    * Create a histogram.
    *
@@ -58,10 +62,20 @@ public class HistogramData implements Serializable {
     this.numBoundedBucketRecords = 0;
     this.numTopRecords = 0;
     this.numBottomRecords = 0;
+    this.mean = 0;
+    this.count = 0;
+    this.sum_of_squared_deviations = 0;
   }
 
   public BucketType getBucketType() {
     return this.bucketType;
+  }
+
+  public synchronized HistogramData getAndReset() {
+    HistogramData other = new HistogramData(this.getBucketType());
+    other.update(this);
+    this.clear();
+    return other;
   }
 
   /**
@@ -146,6 +160,9 @@ public class HistogramData implements Serializable {
       for (int i = 0; i < other.buckets.length; i++) {
         incBucketCount(i, other.buckets[i]);
       }
+      this.mean = other.mean;
+      this.count = other.count;
+      this.sum_of_squared_deviations = other.sum_of_squared_deviations;  
     }
   }
 
@@ -171,6 +188,9 @@ public class HistogramData implements Serializable {
     this.numBoundedBucketRecords = 0;
     this.numTopRecords = 0;
     this.numBottomRecords = 0;
+    this.mean = 0;
+    this.count = 0;
+    this.sum_of_squared_deviations = 0;
   }
 
   public synchronized void record(double value) {
@@ -184,10 +204,31 @@ public class HistogramData implements Serializable {
       buckets[bucketType.getBucketIndex(value)]++;
       numBoundedBucketRecords++;
     }
+    updateStatistics(value);
+  }
+
+  private void updateStatistics(double value) {
+    count++;
+    if (count == 1) {
+      mean = value;
+      return;
+    }
+
+    double old_mean = mean;
+    mean = old_mean + (value - old_mean)/count;
+    sum_of_squared_deviations += (value - mean)*(value - old_mean);
   }
 
   public synchronized long getTotalCount() {
     return numBoundedBucketRecords + numTopRecords + numBottomRecords;
+  }
+
+  public synchronized double getMean() {
+    return mean;
+  }
+
+  public synchronized double getSumOfSquaredDeviations() {
+    return sum_of_squared_deviations;
   }
 
   public synchronized String getPercentileString(String elemType, String unit) {

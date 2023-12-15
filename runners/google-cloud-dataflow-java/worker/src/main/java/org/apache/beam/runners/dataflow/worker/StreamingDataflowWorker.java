@@ -1786,13 +1786,20 @@ public class StreamingDataflowWorker {
     }
 
     List<CounterUpdate> counterUpdates = new ArrayList<>(128);
+    List<Windmill.MetricValue> metricValues = new ArrayList<>();
 
     if (publishCounters) {
       stageInfoMap.values().forEach(s -> counterUpdates.addAll(s.extractCounterUpdates()));
+      stageInfoMap.values().forEach(s -> metricValues.addAll(s.extractPerWorkerMetricValues()));
       counterUpdates.addAll(
           cumulativeCounters.extractUpdates(false, DataflowCounterUpdateExtractor.INSTANCE));
       counterUpdates.addAll(
           deltaCounters.extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE));
+    }
+
+    LOG.warn("Size of per worker metrics: " + metricValues.size());
+    for (Windmill.MetricValue metricValue : metricValues) {
+      LOG.warn("Metric: " + metricValue);
     }
 
     // Handle duplicate counters from different stages. Store all the counters in a multi-map and

@@ -332,4 +332,18 @@ public class HistogramDataTest {
     HistogramData negativeScaleBucket = HistogramData.exponential(-3, 500);
     assertThat(negativeScaleBucket.getBucketType().getNumBuckets(), equalTo(4));
   }
+
+  @Test
+  public void testGetAndReset() {
+    HistogramData originalHistogram = HistogramData.linear(0, 10, 10);
+    originalHistogram.record(15.0, 25.0, 35.0, 45.0);
+    HistogramData copyHistogram = originalHistogram.getAndReset();
+
+    assertThat(originalHistogram.getTotalCount(), equalTo(0L));
+    assertThat(originalHistogram.getBucketType(), equalTo(copyHistogram.getBucketType()));
+    HistogramData expectedHistogram = HistogramData.linear(0, 10, 10);
+    expectedHistogram.record(15.0, 25.0, 35.0, 45.0);
+    assertThat(copyHistogram, equalTo(expectedHistogram));
+    
+  }
 }
