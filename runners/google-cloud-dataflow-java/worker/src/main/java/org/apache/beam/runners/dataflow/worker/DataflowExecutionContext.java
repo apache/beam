@@ -342,7 +342,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     }
 
     public Map<String, IntSummaryStatistics> getProcessingTimesByStep() {
-      return Collections.unmodifiableMap(processingTimesByStep);
+      return processingTimesByStep;
     }
 
     /**
