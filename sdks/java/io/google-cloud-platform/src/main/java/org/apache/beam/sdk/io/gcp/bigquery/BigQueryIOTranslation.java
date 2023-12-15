@@ -353,7 +353,7 @@ public class BigQueryIOTranslation {
             .addNullableBooleanField("propagate_successful_storage_api_writes")
             .addNullableInt32Field("max_files_per_partition")
             .addNullableInt64Field("max_bytes_per_partition")
-            .addNullableLogicalTypeField("triggerring_frequency", new NanosDuration())
+            .addNullableLogicalTypeField("triggering_frequency", new NanosDuration())
             .addNullableByteArrayField("method")
             .addNullableStringField("load_job_project_id")
             .addNullableByteArrayField("failed_insert_retry_policy")
@@ -477,7 +477,7 @@ public class BigQueryIOTranslation {
       fieldValues.put("max_bytes_per_partition", transform.getMaxBytesPerPartition());
       if (transform.getTriggeringFrequency() != null) {
         fieldValues.put(
-            "triggerring_frequency",
+            "triggering_frequency",
             Duration.ofMillis(transform.getTriggeringFrequency().getMillis()));
       }
       if (transform.getMethod() != null) {
@@ -695,11 +695,11 @@ public class BigQueryIOTranslation {
         if (maxBytesPerPartition != null) {
           builder = builder.setMaxBytesPerPartition(maxBytesPerPartition);
         }
-        Duration triggerringFrequency = configRow.getValue("triggerring_frequency");
-        if (triggerringFrequency != null) {
+        Duration triggeringFrequency = configRow.getValue("triggering_frequency");
+        if (triggeringFrequency != null) {
           builder =
               builder.setTriggeringFrequency(
-                  org.joda.time.Duration.millis(triggerringFrequency.toMillis()));
+                  org.joda.time.Duration.millis(triggeringFrequency.toMillis()));
         }
         byte[] methodBytes = configRow.getBytes("method");
         if (methodBytes != null) {
