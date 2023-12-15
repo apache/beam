@@ -84,7 +84,7 @@ jobs:
           path-to-root: sdks/java/javadoc/build/docs/javadoc
           base-url-path: https://beam.apache.org/releases/javadoc/current/
       - name: Upload Javadoc Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Javadoc Results
           path: '**/sdks/java/javadoc/build/docs/javadoc/**'

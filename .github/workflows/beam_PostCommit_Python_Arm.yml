@@ -114,7 +114,7 @@ jobs:
           MULTIARCH_TAG: ${{ steps.set_tag.outputs.TAG }}
           USER: github-actions
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: Python Test Results
