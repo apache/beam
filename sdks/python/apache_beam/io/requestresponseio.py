@@ -206,7 +206,7 @@ class _CallDoFn(beam.DoFn, Generic[RequestT, ResponseT]):
     with concurrent.futures.ThreadPoolExecutor() as executor:
       future = executor.submit(self._caller, request)
       try:
-        yield future.result(timeout=self._timeout)
+        return future.result(timeout=self._timeout)
       except concurrent.futures.TimeoutError:
         raise UserCodeTimeoutException(
             f'Timeout {self._timeout} exceeded '
