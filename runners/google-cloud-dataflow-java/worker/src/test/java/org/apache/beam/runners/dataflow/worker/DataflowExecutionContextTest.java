@@ -176,7 +176,7 @@ public class DataflowExecutionContextTest {
     tracker.enterState(newState);
 
     // The first completed state should be recorded and the new state should be active.
-    Map<String, IntSummaryStatistics> gotProcessingTimes = tracker.getProcessingTimesByStep();
+    Map<String, IntSummaryStatistics> gotProcessingTimes = tracker.getProcessingTimesByStepCopy();
     Assert.assertEquals(1, gotProcessingTimes.size());
     Assert.assertEquals(
         new HashSet<>(Arrays.asList(NameContextsForTests.nameContextForTest().userName())),
