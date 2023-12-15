@@ -104,7 +104,7 @@ jobs:
             -Ptest=apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it \
             "-Ptest-pipeline-options=${{ env.beam_PerformanceTests_WordCountIT_PythonVersions_test_arguments_1 }}"
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: Python Test Results
