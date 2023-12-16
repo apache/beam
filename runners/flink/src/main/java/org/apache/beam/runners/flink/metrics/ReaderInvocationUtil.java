@@ -69,4 +69,18 @@ public class ReaderInvocationUtil<OutputT, ReaderT extends Source.Reader<OutputT
       return reader.advance();
     }
   }
+
+  public UnboundedSource.CheckpointMark invokeCheckpointMark(
+      UnboundedSource.UnboundedReader<OutputT> reader) throws IOException {
+    if (enableMetrics) {
+      try (Closeable ignored =
+          MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
+        UnboundedSource.CheckpointMark result = reader.getCheckpointMark();
+        container.updateMetrics(stepName);
+        return result;
+      }
+    } else {
+      return reader.getCheckpointMark();
+    }
+  }
 }

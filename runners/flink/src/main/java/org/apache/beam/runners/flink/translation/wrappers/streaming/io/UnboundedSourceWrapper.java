@@ -142,6 +142,8 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
   /** Metrics container which will be reported as Flink accumulators at the end of the job. */
   private transient FlinkMetricContainer metricContainer;
+  /** Global reader wrapper to update metrics to Flink metric and accumulator in methods. */
+  private transient ReaderInvocationUtil<OutputT, UnboundedReader<OutputT>> readerInvoker;
 
   @SuppressWarnings("unchecked")
   public UnboundedSourceWrapper(
@@ -229,7 +231,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
     context = ctx;
 
-    ReaderInvocationUtil<OutputT, UnboundedSource.UnboundedReader<OutputT>> readerInvoker =
+    readerInvoker =
         new ReaderInvocationUtil<>(stepName, serializedOptions.get(), metricContainer);
 
     setNextWatermarkTimer(this.runtimeContext);
@@ -408,7 +410,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
       UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(i);
 
       @SuppressWarnings("unchecked")
-      CheckpointMarkT mark = (CheckpointMarkT) reader.getCheckpointMark();
+      CheckpointMarkT mark = (CheckpointMarkT) readerInvoker.invokeCheckpointMark(reader);
       checkpointMarks.add(mark);
       KV<UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> kv = KV.of(source, mark);
       stateForCheckpoint.add(kv);
