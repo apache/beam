@@ -143,7 +143,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
   /** Metrics container which will be reported as Flink accumulators at the end of the job. */
   private transient FlinkMetricContainer metricContainer;
   /** Global reader wrapper to update metrics to Flink metric and accumulator in methods. */
-  private transient ReaderInvocationUtil<OutputT, UnboundedReader<OutputT>> readerInvoker;
+  private transient ReaderInvocationUtil<OutputT, UnboundedSource.UnboundedReader<OutputT>> readerInvoker;
 
   @SuppressWarnings("unchecked")
   public UnboundedSourceWrapper(
