@@ -58,7 +58,7 @@ def cross_join(element):
   return beam.Row(**left_dict)
 
 
-class EnrichmentSourceHandler(Caller):
+class EnrichmentSourceHandler(Caller[InputT, OutputT]):
   """Wrapper class for :class:`apache_beam.io.requestresponseio.Caller`.
 
   Ensure that the implementation of ``__call__`` method returns a tuple
