@@ -38,8 +38,7 @@ class SampleHTTPEnrichment(EnrichmentSourceHandler[beam.Row, beam.Row]):
   def __init__(self, url: str):
     self.url = url + '/v1/echo'  # append path to the mock API.
 
-  def __call__(self, request: beam.Row, *args,
-               **kwargs) -> Tuple[beam.Row, beam.Row]:
+  def __call__(self, request: beam.Row, *args, **kwargs):
     """Overrides ``Caller``'s call method invoking the
     ``EchoServiceGrpc``'s HTTP handler with an ``EchoRequest``, returning
     either a successful ``EchoResponse`` or throwing either a
@@ -59,7 +58,7 @@ class SampleHTTPEnrichment(EnrichmentSourceHandler[beam.Row, beam.Row]):
         resp_body = resp.json()
         resp_id = resp_body['id']
         payload = resp_body['payload']
-        return (
+        yield (
             beam.Row(id=request.id, payload=request.payload),
             beam.Row(id=resp_id, resp_payload=bytes(payload, 'utf-8')))
 
