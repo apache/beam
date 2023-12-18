@@ -16,9 +16,11 @@
 #
 
 import unittest
+from typing import NamedTuple
 from typing import Tuple
 from typing import Union
 
+import pytest
 import urllib3
 
 import apache_beam as beam
@@ -29,6 +31,12 @@ from apache_beam.io.requestresponseio_it_test import EchoITOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.enrichment import Enrichment
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
+
+
+class Request(NamedTuple):
+  """Simple request type to store id and payload for requests."""
+  id: str  # mock API quota id
+  payload: bytes  # byte payload
 
 
 class SampleHTTPEnrichment(EnrichmentSourceHandler[beam.Row, beam.Row]):
@@ -71,6 +79,7 @@ class SampleHTTPEnrichment(EnrichmentSourceHandler[beam.Row, beam.Row]):
       raise UserCodeExecutionException(e)
 
 
+@pytest.mark.it_postcommit
 class TestEnrichment(unittest.TestCase):
   options: Union[EchoITOptions, None] = None
   client: Union[SampleHTTPEnrichment, None] = None
