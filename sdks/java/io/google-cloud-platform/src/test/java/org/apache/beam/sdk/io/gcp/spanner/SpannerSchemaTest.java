@@ -75,10 +75,11 @@ public class SpannerSchemaTest {
             .addColumn("test", "maxKey", "character varying")
             .addColumn("test", "numericVal", "numeric")
             .addColumn("test", "commitTime", "spanner.commit_timestamp")
+            .addColumn("test", "jsonbCol", "jsonb")
             .build();
 
     assertEquals(1, schema.getTables().size());
-    assertEquals(4, schema.getColumns("test").size());
+    assertEquals(5, schema.getColumns("test").size());
     assertEquals(1, schema.getKeyParts("test").size());
     assertEquals(Type.timestamp(), schema.getColumns("test").get(3).getType());
   }
@@ -90,6 +91,7 @@ public class SpannerSchemaTest {
             .addColumn("test", "pk", "character varying(48)")
             .addKeyPart("test", "pk", false)
             .addColumn("test", "maxKey", "character varying")
+            .addColumn("test", "jsonbCol", "jsonb")
             .addColumn("other", "pk", "bigint")
             .addKeyPart("other", "pk", true)
             .addColumn("other", "maxKey", "character varying")
@@ -97,7 +99,7 @@ public class SpannerSchemaTest {
             .build();
 
     assertEquals(2, schema.getTables().size());
-    assertEquals(2, schema.getColumns("test").size());
+    assertEquals(3, schema.getColumns("test").size());
     assertEquals(1, schema.getKeyParts("test").size());
 
     assertEquals(3, schema.getColumns("other").size());

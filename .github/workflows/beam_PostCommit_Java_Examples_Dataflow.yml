@@ -18,10 +18,10 @@
 name: PostCommit Java Examples Dataflow
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
   - cron: '45 3/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_Examples_Dataflow.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -61,7 +61,8 @@ jobs:
         job_phrase: [Run Java examples on Dataflow]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Java Examples on Dataflow'
     steps:
     - uses: actions/checkout@v4
@@ -71,14 +72,16 @@ jobs:
         comment_phrase: ${{ matrix.job_phrase }}
         github_token: ${{ secrets.GITHUB_TOKEN }}
         github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    - name: Setup environment
+      uses: ./.github/actions/setup-environment-action
     - name: run PostCommit Java Examples Dataflow script
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
         gradle-command: :runners:google-cloud-dataflow-java:examples:javaPostCommit
         max-workers: 12
     - name: Archive JUnit Test Results
-      uses: actions/upload-artifact@v3
-      if: failure()
+      uses: actions/upload-artifact@v4
+      if: ${{ !success() }}
       with:
         name: JUnit Test Results
         path: "**/build/reports/tests/"

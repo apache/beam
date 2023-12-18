@@ -67,13 +67,55 @@ func (*runner) ConfigCharacteristic() reflect.Type {
 var _ transformPreparer = (*runner)(nil)
 
 func (*runner) PrepareUrns() []string {
-	return []string{urns.TransformReshuffle}
+	return []string{urns.TransformReshuffle, urns.TransformFlatten}
 }
 
 // PrepareTransform handles special processing with respect runner transforms, like reshuffle.
-func (h *runner) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components) (*pipepb.Components, []string) {
+func (h *runner) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
+	switch t.GetSpec().GetUrn() {
+	case urns.TransformFlatten:
+		return h.handleFlatten(tid, t, comps)
+	case urns.TransformReshuffle:
+		return h.handleReshuffle(tid, t, comps)
+	default:
+		panic("unknown urn to Prepare: " + t.GetSpec().GetUrn())
+	}
+}
+
+func (h *runner) handleFlatten(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
+	if !h.config.SDKFlatten {
+		t.EnvironmentId = ""         // force the flatten to be a runner transform due to configuration.
+		forcedRoots := []string{tid} // Have runner side transforms be roots.
+
+		// Force runner flatten consumers to be roots.
+		// This resolves merges between two runner transforms trying
+		// to execute together.
+		outColID := getOnlyValue(t.GetOutputs())
+		for ctid, t := range comps.GetTransforms() {
+			for _, gi := range t.GetInputs() {
+				if gi == outColID {
+					forcedRoots = append(forcedRoots, ctid)
+				}
+			}
+		}
+
+		// Return the new components which is the transforms consumer
+		return prepareResult{
+			// We sub this flatten with itself, to not drop it.
+			SubbedComps: &pipepb.Components{
+				Transforms: map[string]*pipepb.PTransform{
+					tid: t,
+				},
+			},
+			RemovedLeaves: nil,
+			ForcedRoots:   forcedRoots,
+		}
+	}
+	return prepareResult{}
+}
+
+func (h *runner) handleReshuffle(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
 	// TODO: Implement the windowing strategy the "backup" transforms used for Reshuffle.
-	// TODO: Implement a fusion break for reshuffles.
 
 	if h.config.SDKReshuffle {
 		panic("SDK side reshuffle not yet supported")
@@ -106,12 +148,15 @@ func (h *runner) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipep
 
 	// We need to remove the consumers of the output PCollection.
 	toRemove := []string{}
+	// We need to force the consumers to be stage root,
+	// because reshuffle should be a fusion break.
+	forcedRoots := []string{}
 
-	for _, t := range comps.GetTransforms() {
+	for tid, t := range comps.GetTransforms() {
 		for li, gi := range t.GetInputs() {
 			if gi == outColID {
-				// The whole s
 				t.GetInputs()[li] = inColID
+				forcedRoots = append(forcedRoots, tid)
 			}
 		}
 	}
@@ -120,7 +165,11 @@ func (h *runner) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipep
 	toRemove = append(toRemove, t.GetSubtransforms()...)
 
 	// Return the new components which is the transforms consumer
-	return nil, toRemove
+	return prepareResult{
+		SubbedComps:   nil, // Replace the reshuffle with nothing.
+		RemovedLeaves: toRemove,
+		ForcedRoots:   forcedRoots,
+	}
 }
 
 var _ transformExecuter = (*runner)(nil)

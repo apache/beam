@@ -246,7 +246,8 @@ abstract class BatchSpannerRead
         }
       } catch (SpannerException e) {
         serviceCallMetric.call(e.getErrorCode().getGrpcStatusCode().toString());
-        LOG.error("Error while processing element", e);
+        LOG.error(
+            "Error while reading partition for operation: " + op.getReadOperation().toString(), e);
         throw (e);
       }
       serviceCallMetric.call("ok");

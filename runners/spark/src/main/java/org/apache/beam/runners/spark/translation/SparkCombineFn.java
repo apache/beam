@@ -41,7 +41,6 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineWithContext;
@@ -101,7 +100,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
         throws Exception;
 
     /**
-     * Merge other acccumulator into this one.
+     * Merge other accumulator into this one.
      *
      * @param other the other accumulator to merge
      */
@@ -173,7 +172,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
       return new SingleWindowWindowedAccumulator<>(toValue);
     }
 
-    static <InputT, ValueT, AccumT> WindowedAccumulator<InputT, ValueT, AccumT, ?> create(
+    static <InputT, ValueT, AccumT> SingleWindowWindowedAccumulator<InputT, ValueT, AccumT> create(
         Function<InputT, ValueT> toValue, WindowedValue<AccumT> accumulator) {
       return new SingleWindowWindowedAccumulator<>(toValue, accumulator);
     }
@@ -191,10 +190,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
         Function<InputT, ValueT> toValue, WindowedValue<AccumT> accumulator) {
       this.toValue = toValue;
       this.windowAccumulator = accumulator.getValue();
-      this.accTimestamp =
-          accumulator.getTimestamp().equals(BoundedWindow.TIMESTAMP_MIN_VALUE)
-              ? null
-              : accumulator.getTimestamp();
+      this.accTimestamp = accumulator.getTimestamp();
       this.accWindow = getWindow(accumulator);
     }
 
@@ -247,7 +243,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
     @Override
     public Collection<WindowedValue<AccumT>> extractOutput() {
       if (windowAccumulator != null) {
-        return Arrays.asList(
+        return Collections.singletonList(
             WindowedValue.of(
                 windowAccumulator, accTimestamp, accWindow, PaneInfo.ON_TIME_AND_ONLY_FIRING));
       }
@@ -516,7 +512,8 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
 
     @Override
     public void encode(WindowedAccumulator<InputT, ValueT, AccumT, ?> value, OutputStream outStream)
-        throws CoderException, IOException {
+        throws IOException {
+
       if (type.isMapBased()) {
         wrap.encode(((MapBasedWindowedAccumulator<?, ?, AccumT, ?>) value).map.values(), outStream);
       } else {
@@ -536,7 +533,8 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
 
     @Override
     public WindowedAccumulator<InputT, ValueT, AccumT, ?> decode(InputStream inStream)
-        throws CoderException, IOException {
+        throws IOException {
+
       if (type.isMapBased()) {
         return WindowedAccumulator.create(toValue, type, wrap.decode(inStream), windowComparator);
       }

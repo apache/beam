@@ -18,6 +18,8 @@ name: PostCommit Website Test
 on:
   schedule:
     - cron: '30 5/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Website_Test.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -50,7 +52,8 @@ jobs:
   beam_PostCommit_Website_Test:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Full Website Test'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 60
@@ -67,6 +70,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: run PostCommit Website Test script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

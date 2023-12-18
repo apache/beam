@@ -37,7 +37,9 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.NoOpCounter;
 import org.apache.beam.sdk.metrics.NoOpHistogram;
 import org.apache.beam.sdk.util.HistogramData;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -47,7 +49,7 @@ import org.junit.runners.JUnit4;
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class StreamingStepMetricsContainerTest {
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private MetricsContainerRegistry registry = StreamingStepMetricsContainer.createRegistry();
 
   private MetricsContainer c1 = registry.getContainer("s1");

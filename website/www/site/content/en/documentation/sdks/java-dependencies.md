@@ -18,29 +18,52 @@ limitations under the License.
 
 # Beam SDK for Java dependencies
 
-The Beam SDKs depend on common third-party components which then
-import additional dependencies. Version collisions can result in unexpected
-behavior in the service. If you are using any of these packages in your code, be
-aware that some libraries are not forward-compatible and you may need to pin to
-the listed versions that will be in scope during execution.
+The Apache Beam SDKs depend on common third-party components. These components
+import additional dependencies. You need to manage your dependencies for the following reasons:
 
-Compile and runtime dependencies for your Beam SDK version are listed in `BeamModulePlugin.groovy` in the Beam repository. To view them, perform the following steps:
+- Dependencies might have version collisions or incompatible classes and libraries.
+- Some libraries are not forward compatible. When you use these packages in your code,
+  you might need to pin to the appropriate versions so that those versions are used
+  when you run your pipeline.
 
-1. Open `BeamModulePlugin.groovy`.
+When problems occur with dependencies, you might see unexpected behavior in the service,
+including errors such as `NoClassDefFoundError`, `NoSuchMethodError`, `NoSuchFieldError`,
+or `FATAL ERROR in native method`.
+
+This page explains how to view the dependencies that your SDK is using and how to manage your
+dependencies to avoid issues.
+
+## View dependencies
+
+To view your dependencies, either use the
+`BeamModulePlugin.groovy` file or retrieve the list by creating a new project
+through Maven and resolving the dependencies.
+
+### Use BeamModulePlugin.groovy to retrieve dependencies
+
+The `BeamModulePlugin.groovy` file in the Beam repository lists compile and runtime
+dependencies for your Beam SDK version.
+
+1. Use the following link to open the `BeamModulePlugin.groovy` file.
 
     ```
-    https://raw.githubusercontent.com/apache/beam/v<VERSION_NUMBER>/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
+    https://raw.githubusercontent.com/apache/beam/vBEAM_VERSION/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
     ```
 
-    <p class="paragraph-wrap">Replace `&lt;VERSION_NUMBER&gt;` with the major.minor.patch version of the SDK. For example, <a href="https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy" target="_blank" rel="noopener noreferrer">https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy</a> will provide the dependencies for the {{< param release_latest >}} release.</p>
+    <p class="paragraph-wrap">Replace <em>BEAM_VERSION</em> with the SDK version
+        that you're using. The following example provides the dependencies for the
+        {{< param release_latest >}} release: <a href="https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy" target="_blank" rel="noopener noreferrer">https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy</a>.</p>
 
-2. Review the list under `project.ext.library`.
+2. Under `project.ext.library`, review the list of dependencies. Some dependencies in the
+list use version variables, such as `google_cloud_bigdataoss_version`. These variables are
+defined before the `project.ext.library` map definition.
 
-    **Note:** Some dependencies in the list use version variables, such as `google_cloud_bigdataoss_version`. These variables are defined prior to the `project.ext.library` map definition.
+### Use a Maven project to resolve dependencies
 
-You can also retrieve this list by creating a new project through Maven and resolving the dependencies.
+You can retrieve the list of dependencies by creating a new project through Maven and
+then resolving the dependencies.
 
-1. Define the Beam SDK and Java versions for the new project.
+1. In your terminal or command line, use the following command to define the Beam SDK and Java versions for the new project.
 
     ```
     export BEAM_VERSION={{< param release_latest >}}
@@ -72,3 +95,92 @@ You can also retrieve this list by creating a new project through Maven and reso
     mvn dependency:resolve && mvn -o dependency:list
     ```
 
+## Manage dependencies
+
+To simplify dependency management, Beam provides
+[Bill of Materials (BOM)](https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#bill-of-materials-bom-poms)
+artifacts that help dependency management tools select compatible combinations.
+
+When you import Apache Beam, using a Bill of Material artifact is recommended.
+When a project import contains unspecified or ambiguous dependencies,
+the BOM provides the information that the SDK needs to use the correct
+dependency version.
+
+Apache Beam provides two BOMs:
+
+- `beam-sdks-java-bom`: manages Apache Beam dependencies, which allows
+  you to specify the version only one time
+- `beam-sdks-java-io-google-cloud-platform-bom`: manages Apache Beam, Google Cloud,
+  and third-party dependencies
+
+Because errors are more likely to occur when you use third-party dependencies,
+the `beam-sdks-java-io-google-cloud-platform-bom` BOM is recommended.
+
+### Import the BOM
+
+To use a BOM, import the BOM into your Maven or Gradle
+dependency configuration. For example, to
+use `beam-sdks-java-io-google-cloud-platform-bom`,
+make the following changes in the `pom.xml` file of your SDK artifact.
+In the following examples, replace _BEAM_VERSION_ with the appropriate
+Apache Beam SDK version.
+
+**Maven**
+
+```xml
+<dependencyManagement>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-google-cloud-platform-bom</artifactId>
+      <version>BEAM_VERSION</version>
+      <type>pom</type>
+      <scope>import</scope>
+    </dependency>
+  </dependencies>
+</dependencyManagement>
+```
+
+**Gradle**
+
+```
+dependencies {
+    implementation(platform("org.apache.beam:beam-sdks-java-google-cloud-platform-bom:BEAM_VERSION"))
+}
+```
+
+### Remove version pinning
+
+After you import the BOM, you can remove specific version pinning from your dependencies. For example,
+you can remove the versions associated with `org.apache.beam`, `io.grpc`, and `com.google.cloud`,
+including `libraries-bom`. Because the dependencies aren't automatically imported by the BOM,
+don't remove them entirely. Keep the dependency without specifying a version.
+
+The following example shows dependencies without versions in Maven:
+
+```xml
+<dependency>
+  <groupId>org.apache.beam</groupId>
+  <artifactId>beam-sdks-java-core</artifactId>
+</dependency>
+```
+
+The following example shows dependencies without versions in Gradle:
+
+```
+implementation("org.apache.beam:beam-sdks-java-core")
+```
+
+### View the depenencies managed by the BOM
+
+To see a full list of dependency versions that are managed by a specific BOM, use the
+Maven tool `help:effective-pom` by running the following command.
+Replace _BEAM_VERSION_ with the appropriate Apache Beam SDK version.
+
+```shell
+mvn help:effective-pom -f ~/.m2/repository/org/apache/beam/beam-sdks-java-google-cloud-platform-bom/BEAM_VERSION/beam-sdks-java-google-cloud-platform-bom-BEAM_VERSION.pom
+```
+
+## Resources
+
+- [Beam SDKs Java Google Cloud Platform BOM](https://mvnrepository.com/artifact/org.apache.beam/beam-sdks-java-google-cloud-platform-bom/) in the Maven repository.

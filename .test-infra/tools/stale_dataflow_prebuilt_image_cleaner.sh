@@ -70,8 +70,31 @@ for image_name in ${IMAGE_NAMES[@]}; do
       # do not delete the one with latest label and the newest image without latest label
       # this make sure we leave at least one container under each image name, either labelled "latest" or not
       if [ "$LATEST_IN_TIME" != "$current" ]; then
-        echo "Deleting image. Command: gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q"
-        gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q || FAILED_TO_DELETE+="${current} "
+        # Check to see if this image is built on top of earlier images. This is the case for multiarch images,
+        # they will have a virtual size of 0 and a created date at the start of the epoch, but their manifests will
+        # point to active images. These images should only be deleted when all of their dependencies can be safely
+        # deleted.
+        MANIFEST=$(docker manifest inspect ${image_name}@"${current}")
+        SHOULD_DELETE=0
+        DIGEST=$(echo $MANIFEST |  jq -r '.manifests[0].digest')
+        if [ "$DIGEST" != "null" ]
+        then
+          SHOULD_DELETE=1
+          for i in ${STALE_IMAGES_CURRENT[@]}
+          do
+            echo "$i"
+            if [ "$i" = "$DIGEST" ]
+            then
+              SHOULD_DELETE=0
+            fi
+          done
+        fi
+
+        if [ $SHOULD_DELETE = 0 ]
+        then
+          echo "Deleting image. Command: gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q"
+          gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q || FAILED_TO_DELETE+="${current} "
+        fi
       fi
     done
   fi

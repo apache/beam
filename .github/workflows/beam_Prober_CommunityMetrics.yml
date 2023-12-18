@@ -52,7 +52,7 @@ jobs:
   beam_Prober_CommunityMetrics:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Community Metrics Prober'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
@@ -62,13 +62,15 @@ jobs:
         job_name: ["beam_Prober_CommunityMetrics"]
         job_phrase: ["Run Community Metrics Prober"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Health check probes for the Community Metrics infrastructure
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

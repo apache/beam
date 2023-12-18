@@ -50,7 +50,7 @@ jobs:
           persist-credentials: false
           submodules: recursive
       - name: Install node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '16'
       - run: npm ci
@@ -79,11 +79,11 @@ jobs:
           persist-credentials: false
           submodules: recursive
       - name: Install Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '16'
       - name: Install Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 3.8
       - name: Setup Beam Python
@@ -134,11 +134,11 @@ jobs:
           persist-credentials: false
           submodules: recursive
       - name: Install node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '16'
       - name: Install python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 3.8
       - name: Setup Beam Python

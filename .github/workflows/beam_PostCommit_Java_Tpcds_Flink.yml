@@ -18,6 +18,8 @@ name: PostCommit Java Tpcds Flink
 on:
   schedule:
     - cron: '30 4/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_Tpcds_Flink.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -53,6 +55,8 @@ env:
     --dataDirectory=gs://beam-tpcds/datasets/parquet/nonpartitioned
     --resultsDirectory=gs://beam-tpcds/results/flink/
     --tpcParallel=1
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
   tpcdsBigQueryArgs: |
     --bigQueryTable=tpcds 
     --bigQueryDataset=tpcds 
@@ -72,7 +76,8 @@ jobs:
   beam_PostCommit_Java_Tpcds_Flink:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Flink Runner Tpcds Tests'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 240
@@ -82,13 +87,15 @@ jobs:
         job_name: ["beam_PostCommit_Java_Tpcds_Flink"]
         job_phrase: ["Run Flink Runner Tpcds Tests"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: run PostCommit Java Tpcds Flink script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

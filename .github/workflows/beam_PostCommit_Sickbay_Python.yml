@@ -20,6 +20,8 @@ name: PostCommit Sickbay Python
 on:
   schedule:
     - cron: '0 8 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Sickbay_Python.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -62,7 +64,8 @@ jobs:
         python_version: ['3.8', '3.9', '3.10', '3.11']
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       (startswith(github.event.comment.body, 'Run Python') &&
          endswith(github.event.comment.body, 'PostCommit Sickbay'))
     steps:
@@ -73,8 +76,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase_1 }} ${{ matrix.python_version }} ${{ matrix.job_phrase_2 }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.python_version }} ${{ matrix.job_phrase_2 }})
-      - name: Install Python
-        uses: actions/setup-python@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
           python-version: ${{ matrix.python_version }}
       - name: Set PY_VER_CLEAN
@@ -90,7 +93,7 @@ jobs:
           arguments: |
             -PpythonVersion=${{ matrix.python_version }} \
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: Python Test Results

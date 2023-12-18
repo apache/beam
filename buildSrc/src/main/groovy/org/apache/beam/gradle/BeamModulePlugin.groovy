@@ -449,6 +449,21 @@ class BeamModulePlugin implements Plugin<Project> {
     return 'beam' + p.path.replace(':', '-')
   }
 
+  static def getSupportedJavaVersion() {
+    if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
+      return 'java8'
+    } else if (JavaVersion.current() == JavaVersion.VERSION_11) {
+      return 'java11'
+    } else if (JavaVersion.current() == JavaVersion.VERSION_17) {
+      return 'java17'
+    } else if (JavaVersion.current() == JavaVersion.VERSION_21) {
+      return 'java21'
+    } else {
+      String exceptionMessage = "Your Java version is unsupported. You need Java version of 8, 11, 17 or 21 to get started, but your Java version is: " + JavaVersion.current();
+      throw new GradleException(exceptionMessage)
+    }
+  }
+
   /*
    * Set compile args for compiling and running in different java version by modifying the compiler args in place.
    *
@@ -583,16 +598,16 @@ class BeamModulePlugin implements Plugin<Project> {
     def dbcp2_version = "2.9.0"
     def errorprone_version = "2.10.0"
     // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom
-    def gax_version = "2.33.0"
+    def gax_version = "2.38.0"
     def google_ads_version = "26.0.0"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "2.2.16"
     // Try to keep google_cloud_spanner_version consistent with google_cloud_spanner_bom in google_cloud_platform_libraries_bom
-    def google_cloud_spanner_version = "6.47.0"
+    def google_cloud_spanner_version = "6.55.0"
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
-    def grpc_version = "1.56.1"
+    def grpc_version = "1.59.1"
     def guava_version = "32.1.2-jre"
     def hadoop_version = "2.10.2"
     def hamcrest_version = "2.1"
@@ -611,7 +626,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def postgres_version = "42.2.16"
     def powermock_version = "2.0.9"
     // Try to keep protobuf_version consistent with the protobuf version in google_cloud_platform_libraries_bom
-    def protobuf_version = "3.23.2"
+    def protobuf_version = "3.25.1"
     def qpid_jms_client_version = "0.61.0"
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
@@ -716,7 +731,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // Keep version consistent with the version in google_cloud_resourcemanager, managed by google_cloud_platform_libraries_bom
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20230806-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20220920-$google_clients_version",
-        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20231003-$google_clients_version",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20231101-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         // Keep version consistent with the version in google_cloud_nio, managed by google_cloud_platform_libraries_bom
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20230907-$google_clients_version",
@@ -739,7 +754,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // The release notes shows the versions set by the BOM:
         // https://github.com/googleapis/java-cloud-bom/releases/tag/v26.21.0
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.23.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.28.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
@@ -809,7 +824,7 @@ class BeamModulePlugin implements Plugin<Project> {
         joda_time                                   : "joda-time:joda-time:2.10.10",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
         jsr305                                      : "com.google.code.findbugs:jsr305:$jsr305_version",
-        json_org                                    : "org.json:json:20230618", // Keep in sync with everit-json-schema / google_cloud_platform_libraries_bom transitive deps.
+        json_org                                    : "org.json:json:20231013", // Keep in sync with everit-json-schema / google_cloud_platform_libraries_bom transitive deps.
         everit_json_schema                          : "com.github.erosb:everit-json-schema:${everit_json_version}",
         junit                                       : "junit:junit:4.13.1",
         jupiter_api                                 : "org.junit.jupiter:junit-jupiter-api:$jupiter_version",
@@ -922,51 +937,66 @@ class BeamModulePlugin implements Plugin<Project> {
           + suffix)
     }
 
-    project.ext.setJava17Options = { CompileOptions options ->
-      def java17Home = project.findProperty("java17Home")
-      options.fork = true
-      options.forkOptions.javaHome = java17Home as File
-      options.compilerArgs += ['-Xlint:-path']
-      // Error prone requires some packages to be exported/opened for Java 17
-      // Disabling checks since this property is only used for Jenkins tests
-      // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
-      options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
-      // The -J prefix is needed to workaround https://github.com/gradle/gradle/issues/22747
-      options.forkOptions.jvmArgs += [
-        "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
-        "-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
-        "-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-        "-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
-        "-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
-        "-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
-        "-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-        "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-        "-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-        "-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
-      ]
-    }
-
-    project.ext.setJava21Options = { CompileOptions options ->
-      def java21Home = project.findProperty("java21Home")
-      options.fork = true
-      options.forkOptions.javaHome = java21Home as File
-      options.compilerArgs += ['-Xlint:-path']
-      // Error prone requires some packages to be exported/opened for Java 17+
-      // Disabling checks since this property is only used for Jenkins tests
-      // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
-      options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
-      options.forkOptions.jvmArgs += [
-        "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
-        "-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
-        "-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-        "-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
-        "-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
-        "-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
-        "-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-        "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-        "-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-        "-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
-      ]
+    // set compiler options for java version overrides to compile with a different java version
+    project.ext.setJavaVerOptions = { CompileOptions options, String ver ->
+      if (ver == '11') {
+        def java11Home = project.findProperty("java11Home")
+        options.fork = true
+        options.forkOptions.javaHome = java11Home as File
+        options.compilerArgs += ['-Xlint:-path']
+      } else if (ver == '17') {
+        def java17Home = project.findProperty("java17Home")
+        options.fork = true
+        options.forkOptions.javaHome = java17Home as File
+        options.compilerArgs += ['-Xlint:-path']
+        // Error prone requires some packages to be exported/opened for Java 17
+        // Disabling checks since this property is only used for tests
+        // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
+        options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
+        // The -J prefix is needed to workaround https://github.com/gradle/gradle/issues/22747
+        options.forkOptions.jvmArgs += [
+          "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+          "-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+          "-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+          "-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
+          "-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
+          "-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+          "-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+          "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+          "-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+          "-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
+        ]
+      } else if (ver == '21') {
+        def java21Home = project.findProperty("java21Home")
+        options.fork = true
+        options.forkOptions.javaHome = java21Home as File
+        options.compilerArgs += [
+          '-Xlint:-path',
+          '-Xlint:-this-escape'
+        ]
+        // Error prone requires some packages to be exported/opened for Java 17+
+        // Disabling checks since this property is only used for tests
+        options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
+        options.forkOptions.jvmArgs += [
+          "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+          "-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+          "-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+          "-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
+          "-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
+          "-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+          "-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+          "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+          "-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+          "-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
+        ]
+        // TODO(https://github.com/apache/beam/issues/28963)
+        // upgrade checkerFramework to enable it in Java 21
+        project.checkerFramework {
+          skipCheckerFramework = true
+        }
+      } else {
+        throw new GradleException("Unknown Java Version ${ver} for setting additional java options")
+      }
     }
 
     project.ext.repositories = {
@@ -1096,6 +1126,11 @@ class BeamModulePlugin implements Plugin<Project> {
         'unchecked',
         'varargs',
       ]
+      // Java21 introduced new lint "this-escape", violated by generated srcs
+      // TODO(yathu) remove this once generated code (antlr) no longer trigger this warning
+      if (JavaVersion.current().compareTo(JavaVersion.VERSION_21) >= 0) {
+        defaultLintSuppressions += ['this-escape']
+      }
 
       project.tasks.withType(JavaCompile).configureEach {
         options.encoding = "UTF-8"
@@ -1515,37 +1550,20 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:Slf4jLoggerShouldBeNonStatic:OFF")
       }
 
-      if (project.findProperty('testJavaVersion') == "11") {
-        def java11Home = project.findProperty("java11Home")
+      // if specified test java version, modify the compile and runtime versions accordingly
+      if (['11', '17', '21'].contains(project.findProperty('testJavaVersion'))) {
+        String ver = project.getProperty('testJavaVersion')
+        def testJavaHome = project.getProperty("java${ver}Home")
+
+        // redirect java compiler to specified version for compileTestJava only
         project.tasks.compileTestJava {
-          options.fork = true
-          options.forkOptions.javaHome = java11Home as File
-          options.compilerArgs += ['-Xlint:-path']
-          setCompileAndRuntimeJavaVersion(options.compilerArgs, '11')
+          setCompileAndRuntimeJavaVersion(options.compilerArgs, ver)
+          project.ext.setJavaVerOptions(options, ver)
         }
+        // redirect java runtime to specified version for running tests
         project.tasks.withType(Test).configureEach {
           useJUnit()
-          executable = "${java11Home}/bin/java"
-        }
-      } else if (project.findProperty('testJavaVersion') == "17") {
-        def java17Home = project.findProperty("java17Home")
-        project.tasks.compileTestJava {
-          setCompileAndRuntimeJavaVersion(options.compilerArgs, '17')
-          project.ext.setJava17Options(options)
-        }
-        project.tasks.withType(Test).configureEach {
-          useJUnit()
-          executable = "${java17Home}/bin/java"
-        }
-      } else if (project.findProperty('testJavaVersion') == "21") {
-        def java21Home = project.findProperty("java21Home")
-        project.tasks.compileTestJava {
-          setCompileAndRuntimeJavaVersion(options.compilerArgs, '21')
-          project.ext.setJava17Options(options)
-        }
-        project.tasks.withType(Test).configureEach {
-          useJUnit()
-          executable = "${java21Home}/bin/java"
+          executable = "${testJavaHome}/bin/java"
         }
       }
 
@@ -2187,7 +2205,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def goRootDir = "${project.rootDir}/sdks/go"
 
       // This sets the whole project Go version.
-      project.ext.goVersion = "go1.21.2"
+      project.ext.goVersion = "go1.21.5"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.
@@ -2266,6 +2284,9 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         groovyGradle { greclipse().configFile(grEclipseConfig) }
       }
+      // Workaround to fix spotless groovy and groovyGradle tasks use the same intermediate dir,
+      // until Beam no longer build on Java8 and can upgrade spotless plugin.
+      project.tasks.spotlessGroovy.mustRunAfter project.tasks.spotlessGroovyGradle
     }
 
     // containerImageName returns a configurable container image name, by default a
@@ -2579,17 +2600,7 @@ class BeamModulePlugin implements Plugin<Project> {
         "java_expansion_service_allowlist_file": javaClassLookupAllowlistFile,
       ]
       def usesDataflowRunner = config.pythonPipelineOptions.contains("--runner=TestDataflowRunner") || config.pythonPipelineOptions.contains("--runner=DataflowRunner")
-      def javaContainerSuffix
-      if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
-        javaContainerSuffix = 'java8'
-      } else if (JavaVersion.current() == JavaVersion.VERSION_11) {
-        javaContainerSuffix = 'java11'
-      } else if (JavaVersion.current() == JavaVersion.VERSION_17) {
-        javaContainerSuffix = 'java17'
-      } else {
-        String exceptionMessage = "Your Java version is unsupported. You need Java version of 8 or 11 or 17 to get started, but your Java version is: " + JavaVersion.current();
-        throw new GradleException(exceptionMessage)
-      }
+      def javaContainerSuffix = getSupportedJavaVersion()
 
       // 1. Builds the chosen expansion service jar and launches it
       def setupTask = project.tasks.register(config.name+"Setup") {
@@ -2692,17 +2703,7 @@ class BeamModulePlugin implements Plugin<Project> {
       ]
       def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
       def pythonContainerSuffix = project.project(':sdks:python').pythonVersion.replace('.', '')
-      def javaContainerSuffix
-      if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
-        javaContainerSuffix = 'java8'
-      } else if (JavaVersion.current() == JavaVersion.VERSION_11) {
-        javaContainerSuffix = 'java11'
-      } else if (JavaVersion.current() == JavaVersion.VERSION_17) {
-        javaContainerSuffix = 'java17'
-      } else {
-        String exceptionMessage = "Your Java version is unsupported. You need Java version of 8 or 11 or 17 to get started, but your Java version is: " + JavaVersion.current();
-        throw new GradleException(exceptionMessage)
-      }
+      def javaContainerSuffix = getSupportedJavaVersion()
       def setupTask = project.tasks.register(config.name+"Setup", Exec) {
         dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
         dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
@@ -2875,17 +2876,7 @@ class BeamModulePlugin implements Plugin<Project> {
       ]
       def serviceArgs = project.project(':sdks:python').mapToArgString(transformServiceOpts)
       def pythonContainerSuffix = project.project(':sdks:python').pythonVersion.replace('.', '')
-      def javaContainerSuffix
-      if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
-        javaContainerSuffix = 'java8'
-      } else if (JavaVersion.current() == JavaVersion.VERSION_11) {
-        javaContainerSuffix = 'java11'
-      } else if (JavaVersion.current() == JavaVersion.VERSION_17) {
-        javaContainerSuffix = 'java17'
-      } else {
-        String exceptionMessage = "Your Java version is unsupported. You need Java version of 8 or 11 or 17 to get started, but your Java version is: " + JavaVersion.current();
-        throw new GradleException(exceptionMessage)
-      }
+      def javaContainerSuffix = getSupportedJavaVersion()
 
       // Transform service delivers transforms that refer to SDK harness containers with following sufixes.
       def transformServiceJavaContainerSuffix = 'java11'

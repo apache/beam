@@ -25,8 +25,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.translate.EuphoriaOptions;
 /**
  * Provides access to an accumulator backend service. It is intended to be implemented by third
  * party to support different type of services.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.EXECUTOR)
+@Deprecated
 public interface AccumulatorProvider {
 
   static AccumulatorProvider.Factory of(Pipeline pipeline) {

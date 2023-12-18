@@ -18,6 +18,8 @@ name: PostCommit Java Jpms Direct Java17
 on:
   schedule:
     - cron: '0 4/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_Jpms_Direct_Java17.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -50,7 +52,8 @@ jobs:
   beam_PostCommit_Java_Jpms_Direct_Java17:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Jpms Direct Java 17 PostCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 240
@@ -67,10 +70,9 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Set up Java
-        uses: actions/setup-java@v3.11.0
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'temurin'
           java-version: |
             17
             8
@@ -83,8 +85,8 @@ jobs:
             -PtestJavaVersion=17
             -Pjava17Home=$JAVA_HOME_17_X64
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
-        if: failure()
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

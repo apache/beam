@@ -136,6 +136,10 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
     if (key.getTypeCase() == TypeCase.MULTIMAP_SIDE_INPUT || key.getTypeCase() == TypeCase.RUNNER) {
       assertEquals(RequestCase.GET, request.getRequestCase());
     }
+    if (key.getTypeCase() == TypeCase.MULTIMAP_KEYS_VALUES_SIDE_INPUT && !data.containsKey(key)) {
+      // Allow testing this not being supported rather than blindly returning the empty list.
+      throw new UnsupportedOperationException("No multimap keys values states provided.");
+    }
 
     switch (request.getRequestCase()) {
       case GET:

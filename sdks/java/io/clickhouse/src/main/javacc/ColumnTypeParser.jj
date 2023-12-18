@@ -73,30 +73,32 @@ TOKEN :
 
 TOKEN :
 {
-    < ARRAY       : "ARRAY" >
-  | < DATE        : "DATE" >
-  | < DATETIME    : "DATETIME" >
-  | < ENUM8       : "ENUM8" >
-  | < ENUM16      : "ENUM16" >
-  | < FIXEDSTRING : "FIXEDSTRING" >
-  | < FLOAT32     : "FLOAT32" >
-  | < FLOAT64     : "FLOAT64" >
-  | < STRING      : "STRING" >
-  | < INT8        : "INT8" >
-  | < INT16       : "INT16" >
-  | < INT32       : "INT32" >
-  | < INT64       : "INT64" >
-  | < UINT8       : "UINT8" >
-  | < UINT16      : "UINT16" >
-  | < UINT32      : "UINT32" >
-  | < UINT64      : "UINT64" >
-  | < NULLABLE    : "NULLABLE" >
-  | < LPAREN      : "(" >
-  | < RPAREN      : ")" >
-  | < CAST        : "CAST" >
-  | < AS          : "AS" >
-  | < COMMA       : "," >
-  | < EQ          : "=" >
+    < ARRAY          : "ARRAY" >
+  | < DATE           : "DATE" >
+  | < DATETIME       : "DATETIME" >
+  | < ENUM8          : "ENUM8" >
+  | < ENUM16         : "ENUM16" >
+  | < FIXEDSTRING    : "FIXEDSTRING" >
+  | < FLOAT32        : "FLOAT32" >
+  | < FLOAT64        : "FLOAT64" >
+  | < STRING         : "STRING" >
+  | < INT8           : "INT8" >
+  | < INT16          : "INT16" >
+  | < INT32          : "INT32" >
+  | < INT64          : "INT64" >
+  | < UINT8          : "UINT8" >
+  | < UINT16         : "UINT16" >
+  | < UINT32         : "UINT32" >
+  | < UINT64         : "UINT64" >
+  | < NULLABLE       : "NULLABLE" >
+  | < LPAREN         : "(" >
+  | < RPAREN         : ")" >
+  | < CAST           : "CAST" >
+  | < AS             : "AS" >
+  | < COMMA          : "," >
+  | < EQ             : "=" >
+  | < BOOL           : "BOOL" >
+  | < LOWCARDINALITY : "LOWCARDINALITY" >
 }
 
 public ColumnType columnType() :
@@ -110,6 +112,7 @@ public ColumnType columnType() :
         | ct = enum_()
         | ct = array()
         | ct = nullable()
+        | ct = lowcardenality()
     )
     {
         return ct;
@@ -189,6 +192,7 @@ private TypeName typeName() :
         | <UINT16>   { return TypeName.UINT16;   }
         | <UINT32>   { return TypeName.UINT32;   }
         | <UINT64>   { return TypeName.UINT64;   }
+        | <BOOL>     { return TypeName.BOOL;     }
     )
 }
 
@@ -274,5 +278,15 @@ private ColumnType enum_() :
         {
             return ColumnType.enum16(elements);
         }
+    )
+}
+
+private ColumnType lowcardenality() :
+{
+        ColumnType ct;
+}
+{
+    (
+        (<LOWCARDINALITY> <LPAREN> (ct = primitive()) <RPAREN>) { return ct; }
     )
 }

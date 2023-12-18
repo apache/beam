@@ -205,7 +205,7 @@ public class HistogramDataTest {
 
   // The following tests cover exponential buckets.
   @Test
-  public void testExponentialBuckets_PostiveScaleRecord() {
+  public void testExponentialBuckets_PositiveScaleRecord() {
     // Buckets will be:
     // Index        Range
     // Underflow    (-inf, 0)
@@ -331,5 +331,53 @@ public class HistogramDataTest {
 
     HistogramData negativeScaleBucket = HistogramData.exponential(-3, 500);
     assertThat(negativeScaleBucket.getBucketType().getNumBuckets(), equalTo(4));
+  }
+
+  @Test
+  public void testStatistics_mean() {
+    HistogramData histogram = HistogramData.linear(0, 10, 10);
+
+    for (int i = 0; i < 10; i++) {
+      histogram.record(i * 10.0);
+    }
+
+    assertThat(histogram.getMean(), equalTo(45.0));
+  }
+
+  @Test
+  public void testStatistics_sumOfSquaredDeviations() {
+    HistogramData histogram = HistogramData.linear(0, 10, 10);
+
+    for (int i = 0; i < 10; i++) {
+      histogram.record(i * 10.0);
+    }
+
+    assertThat(histogram.getSumOfSquaredDeviations(), equalTo(8250.0));
+  }
+
+  @Test
+  public void testGetAndReset_resetSucceeds() {
+    HistogramData originalHistogram = HistogramData.linear(0, 10, 10);
+    originalHistogram.record(15.0, 25.0, 35.0, 45.0);
+    originalHistogram.getAndReset();
+
+    HistogramData emptyHistogramData = HistogramData.linear(0, 10, 10);
+    assertThat(originalHistogram, equalTo(emptyHistogramData));
+    assertThat(originalHistogram.getMean(), equalTo(0.0));
+    assertThat(originalHistogram.getSumOfSquaredDeviations(), equalTo(0.0));
+  }
+
+  @Test
+  public void testGetAndReset_getSucceeds() {
+    HistogramData originalHistogram = HistogramData.linear(0, 10, 10);
+    originalHistogram.record(15.0, 25.0, 35.0, 45.0, 55.0);
+    HistogramData copyHistogram = originalHistogram.getAndReset();
+
+    HistogramData duplicateHistogram = HistogramData.linear(0, 10, 10);
+    duplicateHistogram.record(15.0, 25.0, 35.0, 45.0, 55.0);
+    assertThat(copyHistogram, equalTo(duplicateHistogram));
+    assertThat(copyHistogram.getBucketType(), equalTo(originalHistogram.getBucketType()));
+    assertThat(copyHistogram.getMean(), equalTo(35.0));
+    assertThat(copyHistogram.getSumOfSquaredDeviations(), equalTo(1000.0));
   }
 }

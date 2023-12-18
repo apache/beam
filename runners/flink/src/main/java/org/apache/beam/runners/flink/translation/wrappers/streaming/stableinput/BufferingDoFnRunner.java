@@ -131,7 +131,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
    */
   private final @Nullable Supplier<Locker> locker;
   /**
-   * A selector of key. When non-null, this must be set to the keyed state beckend before buffering.
+   * A selector of key. When non-null, this must be set to the keyed state backend before buffering.
    */
   private final @Nullable Function<InputT, Object> keySelector;
   /** Callable to notify about possibility to flush bundle. */

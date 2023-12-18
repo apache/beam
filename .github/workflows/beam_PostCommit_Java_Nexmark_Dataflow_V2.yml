@@ -20,6 +20,8 @@ name: PostCommit Java Nexmark Dataflow V2
 on:
   schedule:
     - cron: '15 4/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_Nexmark_Dataflow_V2.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -71,6 +73,8 @@ env:
     --enforceEncodability=true 
     --enforceImmutability=true 
     --runner=DataflowRunner
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_PostCommit_Java_Nexmark_Dataflow_V2:
@@ -85,7 +89,8 @@ jobs:
         streaming: [false, true]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Dataflow Runner V2 Nexmark Tests'
     steps:
       - uses: actions/checkout@v4
@@ -95,6 +100,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: run PostCommit Java Nexmark Dataflow V2 (streaming = ${{ matrix.streaming }}) script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

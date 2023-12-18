@@ -18,6 +18,8 @@ name: PostCommit TransformService Direct
 on:
   schedule:
     - cron: '30 5/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_TransformService_Direct.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -50,7 +52,8 @@ jobs:
   beam_PostCommit_TransformService_Direct:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run TransformService_Direct PostCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 120
@@ -68,14 +71,10 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
-      - name: Set up Java 11
-        uses: actions/setup-java@v3.11.0
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'temurin'
-          java-version: '11'
-      - name: Install Python
-        uses: actions/setup-python@v4
-        with:
+          java-version: 11
           python-version: |
             3.8
             3.11
@@ -89,7 +88,7 @@ jobs:
             -PuseWheelDistribution \
             -PpythonVersion=${{ matrix.python_version }} \
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: Python Test Results

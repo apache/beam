@@ -22,7 +22,7 @@ on:
     paths: ['sdks/java/extensions/sql/**','.github/workflows/beam_PreCommit_SQL.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: ['sdks/java/extensions/sql/**', 'release/trigger_all_tests.json']
+    paths: ['sdks/java/extensions/sql/**', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_SQL.json']
   issue_comment:
     types: [created]
   schedule:
@@ -67,7 +67,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run SQL PreCommit'
     steps:
@@ -78,11 +78,10 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Set up Java
-        uses: actions/setup-java@v3.8.0
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'temurin'
-          java-version: '11'
+          java-version: 11
       - name: Build and Test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -92,8 +91,8 @@ jobs:
             -PdisableCheckStyle=true \
             -PenableJacocoReport \
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
-        if: failure()
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"
@@ -105,7 +104,7 @@ jobs:
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'
       - name: Archive SpotBugs Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: SpotBugs Results

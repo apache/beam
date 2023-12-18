@@ -25,7 +25,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.WriteStreamService;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.Operation.Context;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.RetryType;
 import org.apache.beam.sdk.metrics.Counter;
@@ -64,27 +64,29 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
 
   private Map<String, Collection<String>> commitStreams;
   private final BigQueryServices bqServices;
-  private transient @Nullable DatasetService datasetService;
+  private transient @Nullable WriteStreamService writeStreamService;
 
   public StorageApiFinalizeWritesDoFn(BigQueryServices bqServices) {
     this.bqServices = bqServices;
     this.commitStreams = Maps.newHashMap();
-    this.datasetService = null;
+    this.writeStreamService = null;
   }
 
-  private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
-    if (datasetService == null) {
-      datasetService = bqServices.getDatasetService(pipelineOptions.as(BigQueryOptions.class));
+  private WriteStreamService getWriteStreamService(PipelineOptions pipelineOptions)
+      throws IOException {
+    if (writeStreamService == null) {
+      writeStreamService =
+          bqServices.getWriteStreamService(pipelineOptions.as(BigQueryOptions.class));
     }
-    return datasetService;
+    return writeStreamService;
   }
 
   @Teardown
   public void onTeardown() {
     try {
-      if (datasetService != null) {
-        datasetService.close();
-        datasetService = null;
+      if (writeStreamService != null) {
+        writeStreamService.close();
+        writeStreamService = null;
       }
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -101,20 +103,28 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
       throws Exception {
     String tableId = element.getKey();
     String streamId = element.getValue();
-    DatasetService datasetService = getDatasetService(pipelineOptions);
+    WriteStreamService writeStreamService = getWriteStreamService(pipelineOptions);
 
     RetryManager<FinalizeWriteStreamResponse, Context<FinalizeWriteStreamResponse>> retryManager =
-        new RetryManager<>(Duration.standardSeconds(1), Duration.standardMinutes(1), 3);
+        new RetryManager<>(
+            Duration.standardSeconds(1),
+            Duration.standardMinutes(1),
+            3,
+            BigQuerySinkMetrics.throttledTimeCounter(
+                BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM));
     retryManager.addOperation(
         c -> {
           finalizeOperationsSent.inc();
-          return datasetService.finalizeWriteStream(streamId);
+          return writeStreamService.finalizeWriteStream(streamId);
         },
         contexts -> {
           RetryManager.Operation.Context<FinalizeWriteStreamResponse> firstContext =
               Preconditions.checkArgumentNotNull(Iterables.getFirst(contexts, null));
           LOG.error("Finalize of stream " + streamId + " failed with " + firstContext.getError());
           finalizeOperationsFailed.inc();
+          BigQuerySinkMetrics.reportFailedRPCMetrics(
+              firstContext, BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM);
+
           return RetryType.RETRY_ALL_OPERATIONS;
         },
         c -> {
@@ -126,6 +136,9 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
           rowsFinalized.inc(response.getRowCount());
 
           finalizeOperationsSucceeded.inc();
+          BigQuerySinkMetrics.reportSuccessfulRpcMetrics(
+              c, BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM);
+
           commitStreams.computeIfAbsent(tableId, d -> Lists.newArrayList()).add(streamId);
         },
         new Context<>());
@@ -134,7 +147,7 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
 
   @FinishBundle
   public void finishBundle(PipelineOptions pipelineOptions) throws Exception {
-    DatasetService datasetService = getDatasetService(pipelineOptions);
+    WriteStreamService writeStreamService = getWriteStreamService(pipelineOptions);
     for (Map.Entry<String, Collection<String>> entry : commitStreams.entrySet()) {
       final String tableId = entry.getKey();
       final Collection<String> streamNames = entry.getValue();
@@ -150,7 +163,7 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
             Iterable<String> streamsToCommit =
                 Iterables.filter(streamNames, s -> !alreadyCommittedStreams.contains(s));
             batchCommitOperationsSent.inc();
-            return datasetService.commitWriteStreams(tableId, streamsToCommit);
+            return writeStreamService.commitWriteStreams(tableId, streamsToCommit);
           },
           contexts -> {
             RetryManager.Operation.Context<BatchCommitWriteStreamsResponse> firstContext =

@@ -16,6 +16,6 @@
 #
 
 """
-Peformance alert tooling for Apache Beam. No backwards compatibility
+Performance alert tooling for Apache Beam. No backwards compatibility
 guarantees.
 """

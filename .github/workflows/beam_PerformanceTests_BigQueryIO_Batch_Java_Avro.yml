@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Performance Tests BigQueryIO Batch Java Avro
+name: PerformanceTests BigQueryIO Batch Java Avro
 
 on:
   schedule:
@@ -52,7 +52,7 @@ jobs:
   beam_PerformanceTests_BigQueryIO_Batch_Java_Avro:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run BigQueryIO Batch Performance Test Java Avro'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
@@ -69,6 +69,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
@@ -89,8 +91,8 @@ jobs:
             -DintegrationTestRunner=dataflow \
             -DintegrationTestPipelineOptions='[${{ env.beam_PerformanceTests_BigQueryIO_Batch_Java_Avro_test_arguments_1 }}]' \
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
-        if: failure()
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

@@ -45,10 +45,13 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
  * <p>{@link OperatorTranslator Translators} can be added by calling variants of {@link
  * GenericTranslatorProvider.Builder#register(Class, OperatorTranslator) register} method during
  * build. Order of registration is important. Building is started by {@link #newBuilder()}.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
+@Deprecated
 public class GenericTranslatorProvider implements TranslatorProvider {
 
   public static GenericTranslatorProvider createWithDefaultTranslators() {
@@ -57,7 +60,7 @@ public class GenericTranslatorProvider implements TranslatorProvider {
         .register(Union.class, new UnionTranslator<>())
         .register(ReduceByKey.class, new ReduceByKeyTranslator<>())
         .register(Join.class, new JoinTranslator<>())
-        // register fallback operator translator to decompose composit operators
+        // register fallback operator translator to decompose composite operators
         .register(op -> op instanceof CompositeOperator, new CompositeOperatorTranslator<>())
         .build();
   }

@@ -17,8 +17,14 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.getRowToRawBytesFunction;
+
+import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransform.ErrorCounterFn;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
@@ -47,7 +53,38 @@ public class KafkaWriteSchemaTransformProviderTest {
 
   private static final Schema BEAMSCHEMA =
       Schema.of(Schema.Field.of("name", Schema.FieldType.STRING));
+
+  private static final Schema BEAM_RAW_SCHEMA =
+      Schema.of(Schema.Field.of("payload", Schema.FieldType.BYTES));
   private static final Schema ERRORSCHEMA = KafkaWriteSchemaTransformProvider.ERROR_SCHEMA;
+
+  private static final Schema BEAM_PROTO_SCHEMA =
+      Schema.builder()
+          .addField("id", Schema.FieldType.INT32)
+          .addField("name", Schema.FieldType.STRING)
+          .addField("active", Schema.FieldType.BOOLEAN)
+          .addField(
+              "address",
+              Schema.FieldType.row(
+                  Schema.builder()
+                      .addField("city", Schema.FieldType.STRING)
+                      .addField("street", Schema.FieldType.STRING)
+                      .addField("state", Schema.FieldType.STRING)
+                      .addField("zip_code", Schema.FieldType.STRING)
+                      .build()))
+          .build();
+
+  private static final List<Row> PROTO_ROWS =
+      Collections.singletonList(
+          Row.withSchema(BEAM_PROTO_SCHEMA)
+              .withFieldValue("id", 1234)
+              .withFieldValue("name", "Doe")
+              .withFieldValue("active", false)
+              .withFieldValue("address.city", "seattle")
+              .withFieldValue("address.street", "fake street")
+              .withFieldValue("address.zip_code", "TO-1234")
+              .withFieldValue("address.state", "wa")
+              .build());
 
   private static final List<Row> ROWS =
       Arrays.asList(
@@ -55,8 +92,37 @@ public class KafkaWriteSchemaTransformProviderTest {
           Row.withSchema(BEAMSCHEMA).withFieldValue("name", "b").build(),
           Row.withSchema(BEAMSCHEMA).withFieldValue("name", "c").build());
 
+  private static final List<Row> RAW_ROWS;
+
+  static {
+    try {
+      RAW_ROWS =
+          Arrays.asList(
+              Row.withSchema(BEAM_RAW_SCHEMA)
+                  .withFieldValue("payload", "a".getBytes("UTF8"))
+                  .build(),
+              Row.withSchema(BEAM_RAW_SCHEMA)
+                  .withFieldValue("payload", "b".getBytes("UTF8"))
+                  .build(),
+              Row.withSchema(BEAM_RAW_SCHEMA)
+                  .withFieldValue("payload", "c".getBytes("UTF8"))
+                  .build());
+    } catch (UnsupportedEncodingException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   final SerializableFunction<Row, byte[]> valueMapper =
       JsonUtils.getRowToJsonBytesFunction(BEAMSCHEMA);
+
+  final SerializableFunction<Row, byte[]> valueRawMapper = getRowToRawBytesFunction("payload");
+
+  final SerializableFunction<Row, byte[]> protoValueRawMapper =
+      ProtoByteUtils.getRowToProtoBytes(
+          Objects.requireNonNull(
+                  getClass().getResource("/proto_byte/file_descriptor/proto_byte_utils.pb"))
+              .getPath(),
+          "MyMessage");
 
   @Rule public transient TestPipeline p = TestPipeline.create();
 
@@ -77,6 +143,38 @@ public class KafkaWriteSchemaTransformProviderTest {
     output.get(ERROR_TAG).setRowSchema(ERRORSCHEMA);
 
     PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(msg);
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testKafkaErrorFnRawSuccess() throws Exception {
+    List<KV<byte[], byte[]>> msg =
+        Arrays.asList(
+            KV.of(new byte[1], "a".getBytes("UTF8")),
+            KV.of(new byte[1], "b".getBytes("UTF8")),
+            KV.of(new byte[1], "c".getBytes("UTF8")));
+
+    PCollection<Row> input = p.apply(Create.of(RAW_ROWS));
+    PCollectionTuple output =
+        input.apply(
+            ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", valueRawMapper))
+                .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+    output.get(ERROR_TAG).setRowSchema(ERRORSCHEMA);
+
+    PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(msg);
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testKafkaErrorFnProtoSuccess() {
+    PCollection<Row> input = p.apply(Create.of(PROTO_ROWS));
+    PCollectionTuple output =
+        input.apply(
+            ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", protoValueRawMapper))
+                .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+    PAssert.that(output.get(ERROR_TAG).setRowSchema(ERRORSCHEMA)).empty();
     p.run().waitUntilFinish();
   }
 }
