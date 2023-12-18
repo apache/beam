@@ -30,12 +30,17 @@ from apache_beam.io.requestresponseio import Repeater
 from apache_beam.io.requestresponseio import RequestResponseIO
 from apache_beam.io.requestresponseio import ShouldBackOff
 
+__all__ = [
+    "EnrichmentSourceHandler",
+    "Enrichment",
+]
+
 InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
 
 
 def cross_join(element):
-  """cross_join performs a cross join between two beam.Row objects.
+  """cross_join performs a cross join between two `beam.Row` objects.
 
     Joins the columns of the right `beam.Row` onto the left `beam.Row`.
 
@@ -45,7 +50,7 @@ def cross_join(element):
 
     Returns:
       beam.Row: `beam.Row` containing the merged columns.
-    """
+  """
   right_dict = element[1].as_dict()
   left_dict = element[0].as_dict()
   for k, v in right_dict.items():
@@ -66,7 +71,8 @@ class EnrichmentSourceHandler(Caller):
 class Enrichment(beam.PTransform[beam.PCollection[InputT],
                                  beam.PCollection[OutputT]],
                  Generic[InputT, OutputT]):
-  """A :class:`Enrichment` transform to enrich elements in a PCollection.
+  """A :class:`apache_beam.transforms.Enrichment` transform to enrich elements
+  in a PCollection.
 
   Uses the :class:`apache_beam.transforms.EnrichmentSourceHandler` to enrich
   elements by joining the metadata from external source.
@@ -107,7 +113,8 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
     self._throttler = throttler
     self.output_type = None
 
-  def expand(self, input_row: InputT) -> OutputT:
+  def expand(self,
+             input_row: beam.PCollection[InputT]) -> beam.PCollection[OutputT]:
     fetched_data = input_row | RequestResponseIO(
         caller=self._source_handler,
         timeout=self._timeout,

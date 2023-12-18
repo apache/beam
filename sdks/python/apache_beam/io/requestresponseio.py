@@ -99,7 +99,8 @@ class PreCallThrottler(abc.ABC):
 
 
 class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
-                                        beam.PCollection[ResponseT]]):
+                                        beam.PCollection[ResponseT]],
+                        Generic[RequestT, ResponseT]):
   """A :class:`RequestResponseIO` transform to read and write to APIs.
 
   Processes an input :class:`~apache_beam.pvalue.PCollection` of requests

@@ -30,7 +30,7 @@ from apache_beam.io.requestresponseio_it_test import _PAYLOAD
 from apache_beam.io.requestresponseio_it_test import EchoITOptions
 
 
-class SampleHTTPEnrichment(EnrichmentSourceHandler):
+class SampleHTTPEnrichment(EnrichmentSourceHandler[beam.Row, beam.Row]):
   """Implements ``EnrichmentSourceHandler`` to call the ``EchoServiceGrpc``'s
   HTTP handler.
   """
@@ -58,7 +58,7 @@ class SampleHTTPEnrichment(EnrichmentSourceHandler):
         resp_body = resp.json()
         resp_id = resp_body['id']
         payload = resp_body['payload']
-        yield (
+        return (
             beam.Row(id=request.id, payload=request.payload),
             beam.Row(id=resp_id, resp_payload=bytes(payload, 'utf-8')))
 
