@@ -39,7 +39,7 @@ class Request(NamedTuple):
   payload: bytes  # byte payload
 
 
-class SampleHTTPEnrichment(EnrichmentSourceHandler[beam.Row, beam.Row]):
+class SampleHTTPEnrichment(EnrichmentSourceHandler[Request, beam.Row]):
   """Implements ``EnrichmentSourceHandler`` to call the ``EchoServiceGrpc``'s
   HTTP handler.
   """
