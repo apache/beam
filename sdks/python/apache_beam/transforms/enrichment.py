@@ -71,19 +71,21 @@ class EnrichmentSourceHandler(Caller[InputT, OutputT]):
 class Enrichment(beam.PTransform[beam.PCollection[InputT],
                                  beam.PCollection[OutputT]],
                  Generic[InputT, OutputT]):
-  """A :class:`apache_beam.transforms.Enrichment` transform to enrich elements
-  in a PCollection.
+  """A :class:`apache_beam.transforms.enrichment.Enrichment` transform to
+  enrich elements in a PCollection.
 
-  Uses the :class:`apache_beam.transforms.EnrichmentSourceHandler` to enrich
-  elements by joining the metadata from external source.
+  Uses the :class:`apache_beam.transforms.enrichment.EnrichmentSourceHandler`
+  to enrich elements by joining the metadata from external source.
 
   Processes an input :class:`~apache_beam.pvalue.PCollection` of `beam.Row` by
-  applying a :class:`apache_beam.transforms.EnrichmentSourceHandler` to each
-  element and returning the enriched :class:`~apache_beam.pvalue.PCollection`.
+  applying a :class:`apache_beam.transforms.enrichment.EnrichmentSourceHandler`
+  to each element and returning the enriched
+  :class:`~apache_beam.pvalue.PCollection`.
 
   Args:
     source_handler: Handles source lookup and metadata retrieval.
-      Implements the :class:`apache_beam.transforms.EnrichmentSourceHandler`
+      Implements the
+      :class:`apache_beam.transforms.enrichment.EnrichmentSourceHandler`
     join_fn: A lambda function to join original element with lookup metadata.
       Defaults to `CROSS_JOIN`.
     timeout: (Optional) timeout for source requests. Defaults to 30 seconds.
