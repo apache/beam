@@ -50,7 +50,9 @@ class UserCodeTimeoutException(UserCodeExecutionException):
   """Extends ``UserCodeExecutionException`` to signal a user code timeout."""
 
 
-class Caller(contextlib.AbstractContextManager, abc.ABC):
+class Caller(contextlib.AbstractContextManager,
+             abc.ABC,
+             Generic[RequestT, ResponseT]):
   """Interface for user custom code intended for API calls.
   For setup and teardown of clients when applicable, implement the
   ``__enter__`` and ``__exit__`` methods respectively."""

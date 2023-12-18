@@ -21,10 +21,10 @@ from typing import Optional
 from typing import TypeVar
 
 import apache_beam as beam
-from apache_beam.io.requestresponseio import Caller
+from apache_beam.io.requestresponseio import DEFAULT_TIMEOUT_SECS
 from apache_beam.io.requestresponseio import CacheReader
 from apache_beam.io.requestresponseio import CacheWriter
-from apache_beam.io.requestresponseio import DEFAULT_TIMEOUT_SECS
+from apache_beam.io.requestresponseio import Caller
 from apache_beam.io.requestresponseio import PreCallThrottler
 from apache_beam.io.requestresponseio import Repeater
 from apache_beam.io.requestresponseio import RequestResponseIO
