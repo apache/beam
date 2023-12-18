@@ -418,8 +418,13 @@ if __name__ == '__main__':
           ],
           'dataframe': dataframe_dependency,
           'dask': [
-              'dask >= 2022.6',
-              'distributed >= 2022.6',
+              # FIXME(cisaacstern): The git+ link below is where https://github.com/dask/distributed/pull/8400
+              # was merged into `distributed`. This PR is a fix for https://github.com/apache/beam/issues/29365.
+              # Installing from here to move forward with development. Before merge, this should be replaced with
+              # a lower bound release of `distributed`, once a release that includes the linked PR is available.
+              # 'dask >= 2023.XX',
+              # 'distributed >= 2023.XX',
+              'distributed @ git+https://github.com/dask/distributed.git@8c3eb6f0bf47d124c887c543599d80ff09c3f5ed',
           ],
           'yaml': [
               'docstring-parser>=0.15,<1.0',
