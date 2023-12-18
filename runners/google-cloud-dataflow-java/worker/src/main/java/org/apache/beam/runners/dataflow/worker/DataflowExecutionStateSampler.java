@@ -86,7 +86,8 @@ public final class DataflowExecutionStateSampler extends ExecutionStateSampler {
       return;
     }
     DataflowExecutionStateTracker dfTracker = (DataflowExecutionStateTracker) tracker;
-    completedProcessingMetrics.put(dfTracker.getWorkItemId(), dfTracker.getProcessingTimesByStepCopy());
+    completedProcessingMetrics.put(
+        dfTracker.getWorkItemId(), dfTracker.getProcessingTimesByStepCopy());
     activeTrackersByWorkId.remove(dfTracker.getWorkItemId());
 
     // Attribute any remaining time since the last sampling while removing the tracker.
