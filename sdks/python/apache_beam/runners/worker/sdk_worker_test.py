@@ -126,7 +126,7 @@ class SdkWorkerTest(unittest.TestCase):
 
   def test_inactive_bundle_processor_returns_empty_progress_response(self):
     bundle_processor = mock.MagicMock()
-    bundle_processor_cache = BundleProcessorCache(None, None, {})
+    bundle_processor_cache = BundleProcessorCache(None, None, None, {})
     bundle_processor_cache.activate('instruction_id')
     worker = SdkWorker(bundle_processor_cache)
     split_request = beam_fn_api_pb2.InstructionRequest(
@@ -153,7 +153,7 @@ class SdkWorkerTest(unittest.TestCase):
 
   def test_failed_bundle_processor_returns_failed_progress_response(self):
     bundle_processor = mock.MagicMock()
-    bundle_processor_cache = BundleProcessorCache(None, None, {})
+    bundle_processor_cache = BundleProcessorCache(None, None, None, {})
     bundle_processor_cache.activate('instruction_id')
     worker = SdkWorker(bundle_processor_cache)
 
@@ -172,7 +172,7 @@ class SdkWorkerTest(unittest.TestCase):
 
   def test_inactive_bundle_processor_returns_empty_split_response(self):
     bundle_processor = mock.MagicMock()
-    bundle_processor_cache = BundleProcessorCache(None, None, {})
+    bundle_processor_cache = BundleProcessorCache(None, None, None, {})
     bundle_processor_cache.activate('instruction_id')
     worker = SdkWorker(bundle_processor_cache)
     split_request = beam_fn_api_pb2.InstructionRequest(
@@ -258,7 +258,7 @@ class SdkWorkerTest(unittest.TestCase):
 
   def test_failed_bundle_processor_returns_failed_split_response(self):
     bundle_processor = mock.MagicMock()
-    bundle_processor_cache = BundleProcessorCache(None, None, {})
+    bundle_processor_cache = BundleProcessorCache(None, None, None, {})
     bundle_processor_cache.activate('instruction_id')
     worker = SdkWorker(bundle_processor_cache)
 

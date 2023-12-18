@@ -339,11 +339,16 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public boolean advance() throws IOException {
+      if (future != null && future.isDone()) {
+        // Add rows from the future to the buffer and reset the future
+        // so we can do prefetching
+        consumeReadRowsFuture();
+      }
       if (buffer.size() < refillSegmentWaterMark && future == null) {
         future = fetchNextSegment();
       }
       if (buffer.isEmpty() && future != null) {
-        waitReadRowsFuture();
+        consumeReadRowsFuture();
       }
       currentRow = buffer.poll();
       return currentRow != null;
@@ -407,7 +412,7 @@ class BigtableServiceImpl implements BigtableService {
       return future;
     }
 
-    private void waitReadRowsFuture() throws IOException {
+    private void consumeReadRowsFuture() throws IOException {
       try {
         UpstreamResults r = future.get();
         buffer.addAll(r.rows);

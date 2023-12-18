@@ -42,6 +42,7 @@ import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -314,6 +315,25 @@ public class FileSystemsTest {
   public void testInvalidSchemaMatchNewResource() {
     assertEquals("file", FileSystems.matchNewResource("invalidschema://tmp/f1", false));
     assertEquals("file", FileSystems.matchNewResource("c:/tmp/f1", false));
+  }
+
+  @Test
+  public void testMatchNewDirectory() {
+    List<KV<String, KV<String, String[]>>> testCases =
+        ImmutableList.<KV<String, KV<String, String[]>>>builder()
+            .add(KV.of("/abc/d/", KV.of("/abc", new String[] {"d"})))
+            .add(KV.of("/abc/d/", KV.of("/abc/", new String[] {"d"})))
+            .add(KV.of("/abc/d/", KV.of("/abc", new String[] {"d/"})))
+            .add(KV.of("/abc/d/e/f/", KV.of("/abc", new String[] {"d", "e", "f"})))
+            .add(KV.of("/abc/", KV.of("/abc", new String[] {})))
+            .build();
+    for (KV<String, KV<String, String[]>> testCase : testCases) {
+      ResourceId expected = FileSystems.matchNewResource(testCase.getKey(), true);
+      ResourceId actual =
+          FileSystems.matchNewDirectory(
+              testCase.getValue().getKey(), testCase.getValue().getValue());
+      assertEquals(expected, actual);
+    }
   }
 
   private static List<ResourceId> toResourceIds(List<Path> paths, final boolean isDirectory) {

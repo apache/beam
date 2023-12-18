@@ -18,23 +18,18 @@
 # TODO(robertwb): Add more providers.
 # TODO(robertwb): Perhaps auto-generate this file?
 
-- type: 'beamJar'
-  config:
-    gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
-    version: BEAM_VERSION
-  transforms:
-     Sql: 'beam:external:java:sql:v1'
-     MapToFields-java: "beam:schematransform:org.apache.beam:yaml:map_to_fields-java:v1"
-     MapToFields-generic: "beam:schematransform:org.apache.beam:yaml:map_to_fields-java:v1"
-
 - type: renaming
   transforms:
+    'Sql': 'Sql'
     'MapToFields-java': 'MapToFields-java'
     'MapToFields-generic': 'MapToFields-java'
     'Filter-java': 'Filter-java'
     'Explode': 'Explode'
   config:
     mappings:
+      'Sql':
+        query: 'query'
+        # Unfortunately dialect is a java logical type.
       'MapToFields-generic':
         language: 'language'
         append: 'append'
@@ -57,6 +52,7 @@
     underlying_provider:
       type: beamJar
       transforms:
+        Sql: "schematransform:org.apache.beam:sql_transform:v1"
         MapToFields-java: "beam:schematransform:org.apache.beam:yaml:map_to_fields-java:v1"
         Filter-java: "beam:schematransform:org.apache.beam:yaml:filter-java:v1"
         Explode: "beam:schematransform:org.apache.beam:yaml:explode:v1"

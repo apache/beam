@@ -63,6 +63,9 @@ public interface BigQueryServices extends Serializable {
   /** Returns a real, mock, or fake {@link DatasetService}. */
   DatasetService getDatasetService(BigQueryOptions bqOptions);
 
+  /** Returns a real, mock, or fake {@link WriteStreamService}. */
+  WriteStreamService getWriteStreamService(BigQueryOptions bqOptions);
+
   /** Returns a real, mock, or fake {@link StorageClient}. */
   StorageClient getStorageClient(BigQueryOptions bqOptions) throws IOException;
 
@@ -112,7 +115,7 @@ public interface BigQueryServices extends Serializable {
   }
 
   /** An interface to get, create and delete Cloud BigQuery datasets and tables. */
-  public interface DatasetService extends AutoCloseable {
+  interface DatasetService extends AutoCloseable {
 
     // maps the values at
     // https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/get#TableMetadataView
@@ -201,7 +204,10 @@ public interface BigQueryServices extends Serializable {
     /** Patch BigQuery {@link Table} description. */
     Table patchTableDescription(TableReference tableReference, @Nullable String tableDescription)
         throws IOException, InterruptedException;
+  }
 
+  /** An interface to get, create and flush Cloud BigQuery STORAGE API write streams. */
+  interface WriteStreamService extends AutoCloseable {
     /** Create a Write Stream for use with the Storage Write API. */
     WriteStream createWriteStream(String tableUrn, WriteStream.Type type)
         throws IOException, InterruptedException;

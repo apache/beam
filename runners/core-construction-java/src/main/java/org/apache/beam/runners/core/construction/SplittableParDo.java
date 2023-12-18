@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -667,6 +668,15 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
 
                     @Override
                     public void outputWithTimestamp(RestrictionT part, Instant timestamp) {
+                      throw new UnsupportedOperationException();
+                    }
+
+                    @Override
+                    public void outputWindowedValue(
+                        RestrictionT output,
+                        Instant timestamp,
+                        Collection<? extends BoundedWindow> windows,
+                        PaneInfo paneInfo) {
                       throw new UnsupportedOperationException();
                     }
                   };

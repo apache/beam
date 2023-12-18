@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.transforms.errorhandling;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,22 +52,24 @@ import org.slf4j.LoggerFactory;
  *     <p>Simple usage with one DLQ
  *     <pre>{@code
  * PCollection<?> records = ...;
- * try (ErrorHandler<E,T> errorHandler = pipeline.registerErrorHandler(SomeSink.write())) {
- *  PCollection<?> results = records.apply(SomeIO.write().withDeadLetterQueue(errorHandler));
+ * try (BadRecordErrorHandler<T> errorHandler = pipeline.registerBadRecordErrorHandler(SomeSink.write())) {
+ *  PCollection<?> results = records.apply(SomeIO.write().withErrorHandler(errorHandler));
  * }
  * results.apply(SomeOtherTransform);
  * }</pre>
  *     Usage with multiple DLQ stages
  *     <pre>{@code
  * PCollection<?> records = ...;
- * try (ErrorHandler<E,T> errorHandler = pipeline.registerErrorHandler(SomeSink.write())) {
- *  PCollection<?> results = records.apply(SomeIO.write().withDeadLetterQueue(errorHandler))
- *                        .apply(OtherTransform.builder().withDeadLetterQueue(errorHandler));
+ * try (BadRecordErrorHandler<T> errorHandler = pipeline.registerBadRecordErrorHandler(SomeSink.write())) {
+ *  PCollection<?> results = records.apply(SomeIO.write().withErrorHandler(errorHandler))
+ *                        .apply(OtherTransform.builder().withErrorHandler(errorHandler));
  * }
  * results.apply(SomeOtherTransform);
  * }</pre>
+ *     This is marked as serializable despite never being needed on the runner, to enable it to be a
+ *     parameter of an Autovalue configured PTransform.
  */
-public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoCloseable {
+public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoCloseable, Serializable {
 
   void addErrorCollection(PCollection<ErrorT> errorCollection);
 
@@ -79,13 +84,16 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
     private static final Logger LOG = LoggerFactory.getLogger(PTransformErrorHandler.class);
     private final PTransform<PCollection<ErrorT>, OutputT> sinkTransform;
 
-    private final Pipeline pipeline;
+    // transient as Pipelines are not serializable
+    private final transient Pipeline pipeline;
 
     private final Coder<ErrorT> coder;
 
-    private final List<PCollection<ErrorT>> errorCollections = new ArrayList<>();
+    // transient as PCollections are not serializable
+    private transient List<PCollection<ErrorT>> errorCollections = new ArrayList<>();
 
-    private @Nullable OutputT sinkOutput = null;
+    // transient as PCollections are not serializable
+    private transient @Nullable OutputT sinkOutput = null;
 
     private boolean closed = false;
 
@@ -101,6 +109,12 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
       this.sinkTransform = sinkTransform;
       this.pipeline = pipeline;
       this.coder = coder;
+    }
+
+    private void readObject(ObjectInputStream aInputStream)
+        throws ClassNotFoundException, IOException {
+      aInputStream.defaultReadObject();
+      errorCollections = new ArrayList<>();
     }
 
     @Override

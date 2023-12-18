@@ -35,6 +35,7 @@ import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecords;
 import org.apache.beam.sdk.io.kafka.upgrade.KafkaIOTranslation.KafkaIOReadWithMetadataTranslator;
 import org.apache.beam.sdk.io.kafka.upgrade.KafkaIOTranslation.KafkaIOWriteTranslator;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.junit.Test;
@@ -123,6 +124,9 @@ public class KafkaIOTranslationTest {
 
   @Test
   public void testReadTransformRowIncludesAllFields() throws Exception {
+    // TODO: support 'withBadRecordErrorHandler' property.
+    List<String> fieldsToIgnore =
+        ImmutableList.of("getBadRecordRouter", "getBadRecordErrorHandler");
     List<String> getMethodNames =
         Arrays.stream(Read.class.getDeclaredMethods())
             .map(
@@ -130,6 +134,7 @@ public class KafkaIOTranslationTest {
                   return method.getName();
                 })
             .filter(methodName -> methodName.startsWith("get"))
+            .filter(methodName -> !fieldsToIgnore.contains(methodName))
             .collect(Collectors.toList());
 
     // Just to make sure that this does not pass trivially.
@@ -189,6 +194,11 @@ public class KafkaIOTranslationTest {
 
   @Test
   public void testWriteTransformRowIncludesAllFields() throws Exception {
+    // For these fields, default value will suffice (so no need to serialize when upgrading).
+    // TODO: support 'withBadRecordErrorHandler' property.
+    List<String> fieldsToIgnore =
+        ImmutableList.of("getBadRecordRouter", "getBadRecordErrorHandler");
+
     // Write transform delegates property handling to the WriteRecords class. So we inspect the
     // WriteRecords class here.
     List<String> getMethodNames =
@@ -198,6 +208,7 @@ public class KafkaIOTranslationTest {
                   return method.getName();
                 })
             .filter(methodName -> methodName.startsWith("get"))
+            .filter(methodName -> !fieldsToIgnore.contains(methodName))
             .collect(Collectors.toList());
 
     // Just to make sure that this does not pass trivially.

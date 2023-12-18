@@ -36,8 +36,10 @@ runs:
       shell: bash
       if: github.event_name == 'issue_comment' && github.event.comment.body != inputs.comment_phrase
       run: |
-        echo "The comment ${{ github.event.comment.body }} does not match the phrase for this instance:  ${{ inputs.comment_phrase }}. Exiting."
+        echo "The comment $PHRASE does not match the phrase for this instance:  ${{ inputs.comment_phrase }}. Exiting."
         exit 1
+      env:
+        PHRASE: "${{ github.event.comment.body }}"
     - name: Check out repository code if pull request commit
       shell: bash
       if: ${{ github.event_name == 'pull_request_target' }}

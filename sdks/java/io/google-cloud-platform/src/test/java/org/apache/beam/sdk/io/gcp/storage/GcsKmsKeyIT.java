@@ -70,7 +70,8 @@ public class GcsKmsKeyIT {
     TestPipelineOptions options =
         TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
     assertNotNull(options.getTempRoot());
-    options.setTempLocation(options.getTempRoot() + "/testGcsWriteWithKmsKey");
+    options.setTempLocation(
+        FileSystems.matchNewDirectory(options.getTempRoot(), "testGcsWriteWithKmsKey").toString());
     GcsOptions gcsOptions = options.as(GcsOptions.class);
 
     ResourceId filenamePrefix =

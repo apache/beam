@@ -51,7 +51,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
@@ -63,6 +65,7 @@ import org.mockito.MockitoAnnotations;
 @SuppressWarnings("deprecation")
 @RunWith(JUnit4.class)
 public class SideInputStateFetcherTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final String STATE_FAMILY = "state";
 
   @Mock private MetricTrackingWindmillServerStub server;

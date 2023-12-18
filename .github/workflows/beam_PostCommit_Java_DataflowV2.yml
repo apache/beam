@@ -79,8 +79,8 @@ jobs:
         with:
           gradle-command: :runners:google-cloud-dataflow-java:postCommitRunnerV2
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
-        if: failure()
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

@@ -298,6 +298,7 @@ if __name__ == '__main__':
           'httplib2>=0.8,<0.23.0',
           'js2py>=0.74,<1',
           'jsonschema>=4.0.0,<5.0.0',
+          'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
           'numpy>=1.14.3,<1.25.0',  # Update pyproject.toml as well.
@@ -332,12 +333,14 @@ if __name__ == '__main__':
       extras_require={
           'docs': [
               'Sphinx>=1.5.2,<2.0',
+              'docstring-parser>=0.15,<1.0',
               # Pinning docutils as a workaround for Sphinx issue:
               # https://github.com/sphinx-doc/sphinx/issues/9727
               'docutils==0.17.1',
               'pandas<2.0.0',
           ],
           'test': [
+              'docstring-parser>=0.15,<1.0',
               'freezegun>=0.3.12',
               'joblib>=1.0.1',
               'mock>=1.0.1,<6.0.0',
@@ -356,6 +359,7 @@ if __name__ == '__main__':
               'testcontainers[mysql]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<=7.0.0',
+              'pyyaml>=3.12,<7.0.0',
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',
@@ -369,7 +373,7 @@ if __name__ == '__main__':
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
               'google-cloud-pubsublite>=1.2.0,<2',
-              'google-cloud-storage>=2.10.0,<3',
+              'google-cloud-storage>=2.14.0,<3',
               # GCP packages required by tests
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
@@ -418,6 +422,7 @@ if __name__ == '__main__':
               'distributed >= 2022.6',
           ],
           'yaml': [
+              'docstring-parser>=0.15,<1.0',
               'pyyaml>=3.12,<7.0.0',
           ] + dataframe_dependency
       },
