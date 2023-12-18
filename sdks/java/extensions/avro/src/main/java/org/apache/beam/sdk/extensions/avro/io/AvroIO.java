@@ -339,6 +339,10 @@ import org.joda.time.Duration;
  * events.apply("WriteAvros", AvroIO.<Integer>writeCustomTypeToGenericRecords()
  *     .to(new UserDynamicAvroDestinations(userToSchemaMap)));
  * }</pre>
+ *
+ * <p>Error handling for writing records that are malformed can be handled by using {@link
+ * TypedWrite#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. See documentation in
+ * {@link FileIO} for details on usage
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
