@@ -46,7 +46,9 @@ public class HistogramData implements Serializable {
   private long[] buckets;
   private long numBoundedBucketRecords;
   private long numTopRecords;
+  private double topRecordsMean;
   private long numBottomRecords;
+  private double bottomRecordsMean;
 
   @GuardedBy("this")
   private double sumOfSquaredDeviations;
@@ -64,7 +66,9 @@ public class HistogramData implements Serializable {
     this.buckets = new long[bucketType.getNumBuckets()];
     this.numBoundedBucketRecords = 0;
     this.numTopRecords = 0;
+    this.topRecordsMean = 0;
     this.numBottomRecords = 0;
+    this.bottomRecordsMean = 0;
     this.mean = 0;
     this.sumOfSquaredDeviations = 0;
   }
@@ -151,7 +155,9 @@ public class HistogramData implements Serializable {
       }
 
       incTopBucketCount(other.numTopRecords);
+      this.topRecordsMean = other.topRecordsMean;
       incBottomBucketCount(other.numBottomRecords);
+      this.bottomRecordsMean = other.bottomRecordsMean;
       for (int i = 0; i < other.buckets.length; i++) {
         incBucketCount(i, other.buckets[i]);
       }
@@ -181,7 +187,9 @@ public class HistogramData implements Serializable {
     this.buckets = new long[bucketType.getNumBuckets()];
     this.numBoundedBucketRecords = 0;
     this.numTopRecords = 0;
+    this.topRecordsMean = 0;
     this.numBottomRecords = 0;
+    this.bottomRecordsMean = 0;
     this.mean = 0;
     this.sumOfSquaredDeviations = 0;
   }
@@ -202,9 +210,9 @@ public class HistogramData implements Serializable {
     double rangeTo = bucketType.getRangeTo();
     double rangeFrom = bucketType.getRangeFrom();
     if (value >= rangeTo) {
-      numTopRecords++;
+      recordTopRecordsValue(value);
     } else if (value < rangeFrom) {
-      numBottomRecords++;
+      recordBottomRecordsValue(value);
     } else {
       buckets[bucketType.getBucketIndex(value)]++;
       numBoundedBucketRecords++;
@@ -229,6 +237,38 @@ public class HistogramData implements Serializable {
     double oldMean = mean;
     mean = oldMean + (value - oldMean) / count;
     sumOfSquaredDeviations += (value - mean) * (value - oldMean);
+  }
+
+  /**
+   * Increment the {@code numTopRecords} and update {@code topRecordsMean} when a new overflow value
+   * is recorded. This function should only be called when a Histogram is recording a value greater
+   * than the upper bound of it's largest bucket.
+   *
+   * @param value
+   */
+  private synchronized void recordTopRecordsValue(double value) {
+    numTopRecords++;
+    if (numTopRecords == 1) {
+      topRecordsMean = value;
+    } else {
+      topRecordsMean = topRecordsMean + (value - topRecordsMean) / numTopRecords;
+    }
+  }
+
+  /**
+   * Increment the {@code numBottomRecords} and update {@code bottomRecordsMean} when a new
+   * underflow value is recorded. This function should only be called when a Histogram is recording
+   * a value smaller than the lowerbound bound of it's smallest bucket.
+   *
+   * @param value
+   */
+  private synchronized void recordBottomRecordsValue(double value) {
+    numBottomRecords++;
+    if (numBottomRecords == 1) {
+      bottomRecordsMean = value;
+    } else {
+      bottomRecordsMean = bottomRecordsMean + (value - bottomRecordsMean) / numBottomRecords;
+    }
   }
 
   public synchronized long getTotalCount() {
@@ -260,8 +300,16 @@ public class HistogramData implements Serializable {
     return numTopRecords;
   }
 
+  public synchronized double getTopBucketMean() {
+    return topRecordsMean;
+  }
+
   public synchronized long getBottomBucketCount() {
     return numBottomRecords;
+  }
+
+  public synchronized double getBottomBucketMean() {
+    return bottomRecordsMean;
   }
 
   public synchronized double getMean() {
