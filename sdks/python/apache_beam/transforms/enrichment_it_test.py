@@ -46,7 +46,7 @@ class SampleHTTPEnrichment(EnrichmentSourceHandler[beam.Row, beam.Row]):
   def __init__(self, url: str):
     self.url = url + '/v1/echo'  # append path to the mock API.
 
-  def __call__(self, request: beam.Row, *args, **kwargs):
+  def __call__(self, request: Request, *args, **kwargs):
     """Overrides ``Caller``'s call method invoking the
     ``EchoServiceGrpc``'s HTTP handler with an ``EchoRequest``, returning
     either a successful ``EchoResponse`` or throwing either a
@@ -99,7 +99,7 @@ class TestEnrichment(unittest.TestCase):
 
   def test_http_enrichment(self):
     client, options = TestEnrichment._get_client_and_options()
-    req = beam.Row(id=options.never_exceed_quota_id, payload=_PAYLOAD)
+    req = Request(id=options.never_exceed_quota_id, payload=_PAYLOAD)
     with TestPipeline(is_integration_test=True) as test_pipeline:
       output = (
           test_pipeline
