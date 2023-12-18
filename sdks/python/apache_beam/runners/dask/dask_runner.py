@@ -86,21 +86,31 @@ class DaskOptions(PipelineOptions):
 
 @dataclasses.dataclass
 class DaskRunnerResult(PipelineResult):
-  from dask import distributed
+  import dask.distributed as ddist
 
-  client: distributed.Client
-  futures: t.Sequence[distributed.Future]
+  client: ddist.Client
+  futures: t.Sequence[ddist.Future]
 
   def __post_init__(self):
     super().__init__(PipelineState.RUNNING)
 
   def wait_until_finish(self, duration=None) -> str:
+    import dask.distributed as ddist
+
     try:
       if duration is not None:
         # Convert milliseconds to seconds
         duration /= 1000
-      self.client.wait_for_workers(timeout=duration)
-      self.client.gather(self.futures, errors='raise')
+      for _ in ddist.as_completed(self.futures,
+                                  timeout=duration,
+                                  with_results=True):
+        # without gathering results, worker errors are not raised on the client:
+        # https://distributed.dask.org/en/stable/resilience.html#user-code-failures
+        # so we want to gather results to raise errors client-side, but we do
+        # not actually need to use the results here, so we just pass. to gather,
+        # we use the iterative `as_completed(..., with_results=True)`, instead
+        # of aggregate `client.gather`, to minimize memory footprint of results.
+        pass
       self._state = PipelineState.DONE
     except:  # pylint: disable=broad-except
       self._state = PipelineState.FAILED
