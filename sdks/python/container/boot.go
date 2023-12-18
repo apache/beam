@@ -409,7 +409,7 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 	if err := pipInstallPackage(ctx, logger, files, workDir, workflowFile, false, true, nil); err != nil {
 		return fmt.Errorf("failed to install workflow: %v", err)
 	}
-	if err := logRuntimeDependencies(ctx, logger); err != nil {
+	if err := logRuntimeDependencies(ctx, bufLogger); err != nil {
 		logger.Warnf(ctx, "couldn't fetch the runtime python dependencies: %v", err)
 	}
 
@@ -459,15 +459,14 @@ func processArtifactsInSetupOnlyMode() {
 
 // logRuntimeDependencies logs the python dependencies
 // installed in the runtime environment.
-func logRuntimeDependencies(ctx context.Context, logger *tools.Logger) error {
-	logger.Printf(ctx, "Logging runtime dependencies:")
+func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger) error {
+	bufLogger.Printf(ctx, "Logging runtime dependencies:")
 	pythonVersion, err := expansionx.GetPythonVersion()
 	if err != nil {
 		return err
 	}
-	logger.Printf(ctx, "Using Python version:")
+	bufLogger.Printf(ctx, "Using Python version:")
 	args := []string{"--version"}
-	bufLogger := tools.NewBufferedLogger(logger)
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
 		bufLogger.FlushAtError(ctx)
 	} else {
