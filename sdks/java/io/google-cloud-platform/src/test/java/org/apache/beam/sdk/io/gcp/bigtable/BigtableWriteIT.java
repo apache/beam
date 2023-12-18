@@ -35,16 +35,22 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.ErrorSinkTransform;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.junit.After;
@@ -69,6 +75,8 @@ public class BigtableWriteIT implements Serializable {
   private static BigtableTableAdminClient tableAdminClient;
   private final String tableId =
       String.format("BigtableWriteIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date());
+
+  private final String failureTableId = tableId + "-failure";
   private String project;
 
   @Before
@@ -147,9 +155,65 @@ public class BigtableWriteIT implements Serializable {
     assertThat(tableData, Matchers.containsInAnyOrder(testData.toArray()));
   }
 
+  @Test
+  public void testE2EBigtableWriteWithFailures() throws Exception {
+    final int numRows = 1000;
+    final List<KV<ByteString, ByteString>> testData = generateTableData(numRows);
+
+    createEmptyTable(failureTableId);
+
+    Pipeline p = Pipeline.create(options);
+    PCollection<KV<ByteString,Iterable<Mutation>>> mutations = p.apply(GenerateSequence.from(0).to(numRows))
+        .apply(
+            ParDo.of(
+                new DoFn<Long, KV<ByteString, Iterable<Mutation>>>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    int index = c.element().intValue();
+
+                    String familyName = COLUMN_FAMILY_NAME;
+                    if (index % 1700 == 0 ) {
+                      familyName = "malformed";
+                    }
+                    Iterable<Mutation> mutations = ImmutableList.of(
+                        Mutation.newBuilder()
+                            .setSetCell(
+                                Mutation.SetCell.newBuilder()
+                                    .setValue(testData.get(index).getValue())
+                                    .setFamilyName(familyName))
+                            .build());
+                    c.output(KV.of(testData.get(index).getKey(), mutations));
+                  }
+                }));
+    ErrorHandler<BadRecord,PCollection<Long>> errorHandler = p.registerBadRecordErrorHandler(new ErrorSinkTransform());
+    mutations.apply(
+          BigtableIO.write()
+              .withProjectId(project)
+              .withInstanceId(options.getInstanceId())
+              .withTableId(failureTableId)
+              .withErrorHandler(errorHandler));
+
+    errorHandler.close();
+    PAssert.thatSingleton(Objects.requireNonNull(errorHandler.getOutput())).isEqualTo(10L);
+
+    p.run();
+
+    // Test number of column families and column family name equality
+    Table table = getTable(failureTableId);
+    assertThat(table.getColumnFamilies(), Matchers.hasSize(1));
+    assertThat(
+        table.getColumnFamilies().stream().map((c) -> c.getId()).collect(Collectors.toList()),
+        Matchers.contains(COLUMN_FAMILY_NAME));
+
+    // Test table data equality
+    List<KV<ByteString, ByteString>> tableData = getTableData(failureTableId);
+    assertThat(tableData, Matchers.containsInAnyOrder(testData.toArray()));
+  }
+
   @After
   public void tearDown() throws Exception {
     deleteTable(tableId);
+    deleteTable(failureTableId);
     if (tableAdminClient != null) {
       tableAdminClient.close();
     }
