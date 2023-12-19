@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-Welcome back to Part 2 of our in-depth series on building and managing a service for Apache Beam Flink on Kubernetes. In this segment, we're taking a closer look at the hurdles we encountered while implementing autoscaling. 
+Welcome back to Part 2 of our in-depth series on building and managing a service for Apache Beam Flink on Kubernetes. In this segment, we're taking a closer look at the hurdles we encountered while implementing autoscaling.
 
 <!--more-->
 
