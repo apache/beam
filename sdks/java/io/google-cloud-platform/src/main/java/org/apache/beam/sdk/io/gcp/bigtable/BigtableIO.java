@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.api.gax.batching.BatchingException;
 import com.google.api.gax.rpc.NotFoundException;
 import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Mutation;
@@ -1326,12 +1327,23 @@ public class BigtableIO {
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
       try {
+        checkForFailures();
+
         if (bigtableWriter != null) {
-          bigtableWriter.close();
+          try {
+            bigtableWriter.close();
+          } catch (IOException e){
+            //If the writer fails due to a batching exception, but no failures were detected
+            //it means that error handling was enabled, and that errors were detected and routed
+            //to the error queue. Bigtable will successfully write other failures in the batch,
+            //so this exception should be ignored
+            if (!(e.getCause() instanceof BatchingException)){
+              throw e;
+            }
+          }
           bigtableWriter = null;
         }
 
-        checkForFailures();
         LOG.debug("Wrote {} records", recordsWritten);
 
         for (Map.Entry<BoundedWindow, Long> entry : seenWindows.entrySet()) {
