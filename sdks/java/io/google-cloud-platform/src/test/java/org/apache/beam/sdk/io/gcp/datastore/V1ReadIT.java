@@ -60,7 +60,8 @@ public class V1ReadIT {
     PipelineOptionsFactory.register(V1TestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(V1TestOptions.class);
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-    database = TestPipeline.testingPipelineOptions().as(FirestoreOptions.class).getFirestoreDb();
+    // The default database.
+    database = "";
 
     ancestor = UUID.randomUUID().toString();
     // Create entities and write them to datastore
