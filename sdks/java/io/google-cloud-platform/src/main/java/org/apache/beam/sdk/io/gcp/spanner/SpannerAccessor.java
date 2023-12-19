@@ -89,25 +89,21 @@ public class SpannerAccessor implements AutoCloseable {
 
   public static SpannerAccessor getOrCreate(SpannerConfig spannerConfig) {
 
-    SpannerAccessor self = spannerAccessors.get(spannerConfig);
-    if (self == null) {
-      synchronized (spannerAccessors) {
-        // Re-check that it has not been created before we got the lock.
-        self = spannerAccessors.get(spannerConfig);
-        if (self == null) {
-          // Connect to spanner for this SpannerConfig.
-          LOG.info("Connecting to {}", spannerConfig);
-          self = SpannerAccessor.createAndConnect(spannerConfig);
-          LOG.info("Successfully connected to {}", spannerConfig);
-          spannerAccessors.put(spannerConfig, self);
-          refcounts.putIfAbsent(spannerConfig, new AtomicInteger(0));
-        }
+    synchronized (spannerAccessors) {
+      SpannerAccessor self = spannerAccessors.get(spannerConfig);
+      if (self == null) {
+        // Connect to spanner for this SpannerConfig.
+        LOG.info("Connecting to {}", spannerConfig);
+        self = SpannerAccessor.createAndConnect(spannerConfig);
+        LOG.info("Successfully connected to {}", spannerConfig);
+        spannerAccessors.put(spannerConfig, self);
+        refcounts.putIfAbsent(spannerConfig, new AtomicInteger(0));
       }
+      // Add refcount for this spannerConfig.
+      int refcount = refcounts.get(spannerConfig).incrementAndGet();
+      LOG.debug("getOrCreate(): refcount={} for {}", refcount, spannerConfig);
+      return self;
     }
-    // Add refcount for this spannerConfig.
-    int refcount = refcounts.get(spannerConfig).incrementAndGet();
-    LOG.debug("getOrCreate(): refcount={} for {}", refcount, spannerConfig);
-    return self;
   }
 
   private static SpannerAccessor createAndConnect(SpannerConfig spannerConfig) {
@@ -262,18 +258,14 @@ public class SpannerAccessor implements AutoCloseable {
   @Override
   public void close() {
     // Only close Spanner when present in map and refcount == 0
-    int refcount = refcounts.getOrDefault(spannerConfig, new AtomicInteger(0)).decrementAndGet();
-    LOG.debug("close(): refcount={} for {}", refcount, spannerConfig);
-
-    if (refcount == 0) {
-      synchronized (spannerAccessors) {
-        // Re-check refcount in case it has increased outside the lock.
-        if (refcounts.get(spannerConfig).get() <= 0) {
-          spannerAccessors.remove(spannerConfig);
-          refcounts.remove(spannerConfig);
-          LOG.info("Closing {} ", spannerConfig);
-          spanner.close();
-        }
+    synchronized (spannerAccessors) {
+      int refcount = refcounts.getOrDefault(spannerConfig, new AtomicInteger(0)).decrementAndGet();
+      LOG.debug("close(): refcount={} for {}", refcount, spannerConfig);
+      if (refcount <= 0) {
+        spannerAccessors.remove(spannerConfig);
+        refcounts.remove(spannerConfig);
+        LOG.info("Closing {} ", spannerConfig);
+        spanner.close();
       }
     }
   }
