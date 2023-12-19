@@ -326,7 +326,7 @@ jobs:
     - name: Download wheels from artifacts
       uses: actions/download-artifact@v4
       with:
-        name: wheelhouse-${{ matrix.os }}${{ (matrix.arch == 'aarch64' && '-arch') || '' }}
+        name: wheelhouse-${{ matrix.os }}${{ (matrix.arch == 'aarch64' && '-aarch64') || '' }}
         path: wheelhouse/
     - name: Authenticate on GCP
       uses: google-github-actions/setup-gcloud@v0
