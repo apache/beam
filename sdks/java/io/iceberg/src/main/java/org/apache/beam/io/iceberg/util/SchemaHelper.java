@@ -1,60 +1,53 @@
-package org.apache.beam.io.iceberg;
+package org.apache.beam.io.iceberg.util;
 
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
 
 @SuppressWarnings({"dereference.of.nullable"})
 public class SchemaHelper {
+    public static String ICEBERG_TYPE_OPTION_NAME = "icebergTypeID";
 
-    public static Schema.Field convert(final Types.NestedField field) {
-
-        Schema.Field f = null;
-        switch(field.type().typeId()) {
+    public static Schema.FieldType fieldTypeForType(final Type type) {
+        switch(type.typeId()) {
             case BOOLEAN:
-                f = Schema.Field.of(field.name(), Schema.FieldType.BOOLEAN);
-                break;
+                return FieldType.BOOLEAN;
             case INTEGER:
-                f = Schema.Field.of(field.name(), Schema.FieldType.INT32);
-                break;
+                return FieldType.INT32;
             case LONG:
-                f = Schema.Field.of(field.name(), Schema.FieldType.INT64);
-                break;
+                return FieldType.INT64;
             case FLOAT:
-                f = Schema.Field.of(field.name(), Schema.FieldType.FLOAT);
-                break;
+                return FieldType.FLOAT;
             case DOUBLE:
-                f = Schema.Field.of(field.name(), Schema.FieldType.DOUBLE);
-                break;
-            case DATE:
-            case TIME:
-            case TIMESTAMP:
-                f = Schema.Field.of(field.name(), Schema.FieldType.DATETIME);
-                break;
+                return FieldType.DOUBLE;
+            case DATE: case TIME: case TIMESTAMP: //TODO: Logical types?
+                return FieldType.DATETIME;
             case STRING:
-                f = Schema.Field.of(field.name(), Schema.FieldType.STRING);
-                break;
+                return FieldType.STRING;
             case UUID:
             case BINARY:
-                f = Schema.Field.of(field.name(), Schema.FieldType.BYTES);
-                break;
-            case FIXED:
-            case DECIMAL:
-                f = Schema.Field.of(field.name(), Schema.FieldType.DECIMAL);
-                break;
+                return FieldType.BYTES;
+            case FIXED:case DECIMAL:
+                return FieldType.DECIMAL;
             case STRUCT:
-                f = Schema.Field.of(field.name(),
-                        Schema.FieldType.row(convert(field.type().asStructType())));
-                break;
+                return FieldType.row(convert(type.asStructType()));
             case LIST:
-                break;
+                return FieldType.iterable(fieldTypeForType(type.asListType().elementType()));
             case MAP:
-                break;
+                return FieldType.map(fieldTypeForType(type.asMapType().keyType()),
+                    fieldTypeForType(type.asMapType().valueType()));
         }
-        f = f.withOptions(Schema.Options.builder()
-                        .setOption("icebergTypeID", Schema.FieldType.STRING,field.type().typeId().name())
-                .build());
-        return f.withNullable(field.isOptional());
+        throw new RuntimeException("Unrecognized Iceberg Type");
+    }
 
+    public static Schema.Field convert(final Types.NestedField field) {
+        return Schema.Field.of(field.name(),fieldTypeForType(field.type()))
+                .withOptions(Schema.Options.builder()
+                        .setOption(ICEBERG_TYPE_OPTION_NAME,
+                            Schema.FieldType.STRING,field.type().typeId().name())
+                .build())
+                .withNullable(field.isOptional());
     }
     public static Schema convert(final org.apache.iceberg.Schema schema) {
         Schema.Builder builder = Schema.builder();
@@ -73,7 +66,7 @@ public class SchemaHelper {
     }
 
     public static Types.NestedField convert(int fieldId,final Schema.Field field) {
-        String typeId = field.getOptions().getValue("icebergTypeID",String.class);
+        String typeId = field.getOptions().getValue(ICEBERG_TYPE_OPTION_NAME,String.class);
         if(typeId != null) {
             return Types.NestedField.of(
                     fieldId,

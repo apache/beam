@@ -362,3 +362,5 @@ include("sdks:java:extensions:iceberg")
 findProject(":sdks:java:extensions:iceberg")?.name = "iceberg"
 include("sdks:java:io:iceberg")
 findProject(":sdks:java:io:iceberg")?.name = "iceberg"
+include("sdks:java:io:catalog")
+findProject(":sdks:java:io:catalog")?.name = "catalog"

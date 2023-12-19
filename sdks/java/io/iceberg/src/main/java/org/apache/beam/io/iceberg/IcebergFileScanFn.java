@@ -1,6 +1,7 @@
 package org.apache.beam.io.iceberg;
 
 import java.io.IOException;
+import org.apache.beam.io.iceberg.util.SchemaHelper;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.CombinedScanTask;
@@ -33,7 +34,7 @@ public class IcebergFileScanFn extends DoFn<IcebergScanTask, Row> {
     }
 
     public IcebergFileScanFn(Schema schema) {
-        this(schema,SchemaHelper.convert(schema));
+        this(schema, SchemaHelper.convert(schema));
     }
 
     public IcebergFileScanFn(org.apache.beam.sdk.schemas.Schema schema) {
@@ -77,18 +78,21 @@ public class IcebergFileScanFn extends DoFn<IcebergScanTask, Row> {
                     LOG.info("Preparing ORC input");
                     baseIter = ORC.read(input).project(project)
                         .createReaderFunc(fileSchema -> GenericOrcReader.buildReader(project,fileSchema))
+                        .filter(fileTask.residual())
                         .build();
                     break;
                 case PARQUET:
                     LOG.info("Preparing Parquet input.");
                     baseIter = Parquet.read(input).project(project)
                         .createReaderFunc(fileSchema -> GenericParquetReaders.buildReader(project,fileSchema))
+                        .filter(fileTask.residual())
                         .build();
                     break;
                 case AVRO:
                     LOG.info("Preparing Avro input.");
                     baseIter = Avro.read(input).project(project)
-                        .createReaderFunc(DataReader::create).build();
+                        .createReaderFunc(DataReader::create)
+                        .build();
                     break;
                 default:
                     throw new UnsupportedOperationException("Cannot read format: "+file.format());

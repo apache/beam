@@ -1,6 +1,7 @@
 package org.apache.beam.io.iceberg;
 
 import com.google.common.collect.ImmutableMap;
+import org.apache.beam.io.iceberg.util.SchemaHelper;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.PAssert;
