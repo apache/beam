@@ -23,7 +23,7 @@
 #
 # then run `service docker start` and `docker login docker.io` to connect to the docker
 # daemon and authenticate with Docker Hub.
-FROM debian:bullseye
+FROM debian:bookworm
 LABEL Author "Apache Beam <dev@beam.apache.org>"
 SHELL ["/bin/bash", "-c"]
 

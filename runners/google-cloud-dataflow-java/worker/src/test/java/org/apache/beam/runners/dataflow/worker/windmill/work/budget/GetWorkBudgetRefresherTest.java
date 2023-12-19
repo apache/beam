@@ -21,13 +21,16 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 @RunWith(JUnit4.class)
 public class GetWorkBudgetRefresherTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final int WAIT_BUFFER = 10;
   private final Runnable redistributeBudget = Mockito.mock(Runnable.class);
 

@@ -61,7 +61,7 @@ To keep your model up to date and performing well as your data grows and evolves
 
 ## Use RunInference
 
-The [RunInference API](/documentation/sdks/python-machine-learning/) is a `PTransform` optimized for machine learning inferences that lets you efficiently use ML models in your pipelines. The API includes the following features:
+The RunInference API is a `PTransform` optimized for machine learning inferences that lets you efficiently use ML models in your pipelines. The API includes the following features:
 
 - To efficiently feed your model, dynamically batches inputs based on pipeline throughput using Apache Beam's `BatchElements` transform.
 - To balance memory and throughput usage, determines the optimal number of models to load using a central model manager. Shares these models across threads and processes as needed to maximize throughput.

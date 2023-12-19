@@ -540,6 +540,7 @@ class SchemaTranslation(object):
     type_name = 'BeamSchema_{}'.format(schema.id.replace('-', '_'))
 
     subfields = []
+    descriptions = {}
     for field in schema.fields:
       try:
         field_py_type = self.typing_from_runner_api(field.type)
@@ -550,6 +551,7 @@ class SchemaTranslation(object):
             "Failed to decode schema due to an issue with Field proto:\n\n"
             f"{text_format.MessageToString(field)}") from e
 
+      descriptions[field.name] = field.description
       subfields.append((field.name, field_py_type))
 
     user_type = NamedTuple(type_name, subfields)
@@ -560,8 +562,8 @@ class SchemaTranslation(object):
         user_type,
         '__reduce__',
         _named_tuple_reduce_method(schema.SerializeToString()))
+    setattr(user_type, "_field_descriptions", descriptions)
     setattr(user_type, row_type._BEAM_SCHEMA_ID, schema.id)
-    user_type._beam_schema_proto = _Ephemeral(schema)
 
     self.schema_registry.add(user_type, schema)
     coders.registry.register_coder(user_type, coders.RowCoder)

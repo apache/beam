@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 
-FROM debian:bullseye
+FROM debian:bookworm
 LABEL Author "Apache Beam <dev@beam.apache.org>"
 
 ARG TARGETOS

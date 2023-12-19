@@ -27,7 +27,7 @@ import (
 
 // This file covers pipelines with features that aren't yet supported by Prism.
 
-func intTestName(fn any) string {
+func initTestName(fn any) string {
 	name := reflectx.FunctionName(fn)
 	n := strings.LastIndex(name, "/")
 	return name[n+1:]
@@ -68,23 +68,11 @@ func TestUnimplemented(t *testing.T) {
 		{pipeline: primitives.TriggerOrFinally},
 		{pipeline: primitives.TriggerRepeat},
 
-		// State API
-		{pipeline: primitives.BagStateParDo},
-		{pipeline: primitives.BagStateParDoClear},
-		{pipeline: primitives.MapStateParDo},
-		{pipeline: primitives.MapStateParDoClear},
-		{pipeline: primitives.SetStateParDo},
-		{pipeline: primitives.SetStateParDoClear},
-		{pipeline: primitives.CombiningStateParDo},
-		{pipeline: primitives.ValueStateParDo},
-		{pipeline: primitives.ValueStateParDoClear},
-		{pipeline: primitives.ValueStateParDoWindowed},
-
 		// TODO: Timers integration tests.
 	}
 
 	for _, test := range tests {
-		t.Run(intTestName(test.pipeline), func(t *testing.T) {
+		t.Run(initTestName(test.pipeline), func(t *testing.T) {
 			p, s := beam.NewPipelineWithRoot()
 			test.pipeline(s)
 			_, err := executeWithT(context.Background(), t, p)
@@ -113,7 +101,37 @@ func TestImplemented(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(intTestName(test.pipeline), func(t *testing.T) {
+		t.Run(initTestName(test.pipeline), func(t *testing.T) {
+			p, s := beam.NewPipelineWithRoot()
+			test.pipeline(s)
+			_, err := executeWithT(context.Background(), t, p)
+			if err != nil {
+				t.Fatalf("pipeline failed, but feature should be implemented in Prism: %v", err)
+			}
+		})
+	}
+}
+
+func TestStateAPI(t *testing.T) {
+	initRunner(t)
+
+	tests := []struct {
+		pipeline func(s beam.Scope)
+	}{
+		{pipeline: primitives.BagStateParDo},
+		{pipeline: primitives.BagStateParDoClear},
+		{pipeline: primitives.CombiningStateParDo},
+		{pipeline: primitives.ValueStateParDo},
+		{pipeline: primitives.ValueStateParDoClear},
+		{pipeline: primitives.ValueStateParDoWindowed},
+		{pipeline: primitives.MapStateParDo},
+		{pipeline: primitives.MapStateParDoClear},
+		{pipeline: primitives.SetStateParDo},
+		{pipeline: primitives.SetStateParDoClear},
+	}
+
+	for _, test := range tests {
+		t.Run(initTestName(test.pipeline), func(t *testing.T) {
 			p, s := beam.NewPipelineWithRoot()
 			test.pipeline(s)
 			_, err := executeWithT(context.Background(), t, p)

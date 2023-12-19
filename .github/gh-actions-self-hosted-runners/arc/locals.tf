@@ -20,6 +20,8 @@
 
 locals {
         arc_values = {
+            #fix dind issue
+            "image.dindSidecarRepositoryAndTag" = "docker:24.0.7-dind-alpine3.18"
             "githubWebhookServer.enabled" = "${var.deploy_webhook}"
             "authSecret.create" = "true"
             "authSecret.github_app_id" = data.google_secret_manager_secret_version.github_app_id.secret_data

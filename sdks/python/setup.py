@@ -298,6 +298,7 @@ if __name__ == '__main__':
           'httplib2>=0.8,<0.23.0',
           'js2py>=0.74,<1',
           'jsonschema>=4.0.0,<5.0.0',
+          'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
           'numpy>=1.14.3,<1.25.0',  # Update pyproject.toml as well.
@@ -372,7 +373,7 @@ if __name__ == '__main__':
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
               'google-cloud-pubsublite>=1.2.0,<2',
-              'google-cloud-storage>=2.10.0,<3',
+              'google-cloud-storage>=2.14.0,<3',
               # GCP packages required by tests
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',

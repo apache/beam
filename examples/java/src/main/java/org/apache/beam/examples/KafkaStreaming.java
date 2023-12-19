@@ -102,7 +102,7 @@ public class KafkaStreaming {
      * to use your own Kafka server.
      */
     @Description("Kafka server host")
-    @Default.String("localhost:9092")
+    @Default.String("kafka_server:9092")
     String getKafkaHost();
 
     void setKafkaHost(String value);

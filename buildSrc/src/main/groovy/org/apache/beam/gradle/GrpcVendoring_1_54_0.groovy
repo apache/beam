@@ -59,6 +59,7 @@ class GrpcVendoring_1_54_0 {
       "io.grpc:grpc-netty:$grpc_version",
       "io.grpc:grpc-protobuf:$grpc_version",
       "io.grpc:grpc-stub:$grpc_version",
+      "io.grpc:grpc-alts:$grpc_version",
       "io.grpc:grpc-testing:$grpc_version",
       // Use a classifier to ensure we get the jar containing native libraries. In the future
       // hopefully netty releases a single jar containing native libraries for all architectures.

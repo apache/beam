@@ -50,6 +50,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -60,6 +61,8 @@ import org.slf4j.LoggerFactory;
 /** Unit tests for {@link DataflowWorkUnitClient}. */
 @RunWith(JUnit4.class)
 public class DataflowWorkUnitClientTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
   private static final Logger LOG = LoggerFactory.getLogger(DataflowWorkUnitClientTest.class);
   private static final String PROJECT_ID = "TEST_PROJECT_ID";
   private static final String JOB_ID = "TEST_JOB_ID";
