@@ -34,7 +34,6 @@ import random
 import sys
 import time
 import traceback
-import requests.exceptions
 
 from apache_beam.io.filesystem import BeamIOError
 
