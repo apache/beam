@@ -175,7 +175,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .setSkipIfEmpty(false)
         .setBadRecordErrorHandler(new DefaultErrorHandler<>())
         .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
-        .setBadRecordMatcher((e) -> true)
         .build();
   }
 
@@ -202,8 +201,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
   public abstract BadRecordRouter getBadRecordRouter();
-
-  public abstract SerializableFunction<Exception, Boolean> getBadRecordMatcher();
 
   abstract Builder<UserT, DestinationT, OutputT> toBuilder();
 
@@ -236,9 +233,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     abstract Builder<UserT, DestinationT, OutputT> setBadRecordRouter(
         BadRecordRouter badRecordRouter);
-
-    abstract Builder<UserT, DestinationT, OutputT> setBadRecordMatcher(
-        SerializableFunction<Exception, Boolean> badRecordMatcher);
 
     abstract WriteFiles<UserT, DestinationT, OutputT> build();
   }
@@ -358,19 +352,15 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   /**
    * Configures a new {@link WriteFiles} with an ErrorHandler. For configuring an ErrorHandler, see
    * {@link ErrorHandler}. Whenever a record is formatted, or a lookup for a dynamic destination is
-   * performed, and that operation fails, the exception is checked by the passed badRecordMatcher.
-   * If the matcher returns true, the exception is passed to the error handler. If the matcher
-   * returns false, the exception is rethrown to be handled by the runner. This is intended to
-   * handle any errors related to the data of a record, but not any connectivity or IO errors
-   * related to the literal writing of a record.
+   * performed, and that operation fails, the exception is passed to the error handler. This is
+   * intended to handle any errors related to the data of a record, but not any connectivity or IO
+   * errors related to the literal writing of a record.
    */
   public WriteFiles<UserT, DestinationT, OutputT> withBadRecordErrorHandler(
-      ErrorHandler<BadRecord, ?> errorHandler,
-      SerializableFunction<Exception, Boolean> badRecordMatcher) {
+      ErrorHandler<BadRecord, ?> errorHandler) {
     return toBuilder()
         .setBadRecordErrorHandler(errorHandler)
         .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER)
-        .setBadRecordMatcher(badRecordMatcher)
         .build();
   }
 
@@ -803,7 +793,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     try {
       return new MaybeDestination<>(getDynamicDestinations().getDestination(input), true);
     } catch (Exception e) {
-      if (getBadRecordMatcher().apply(e)) {
         getBadRecordRouter()
             .route(
                 outputReceiver,
@@ -812,9 +801,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                 e,
                 "Unable to get dynamic destination for record");
         return new MaybeDestination<>(null, false);
-      } else {
-        throw e;
-      }
     }
   }
 
@@ -825,7 +811,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     try {
       return getDynamicDestinations().formatRecord(input);
     } catch (Exception e) {
-      if (getBadRecordMatcher().apply(e)) {
         getBadRecordRouter()
             .route(
                 outputReceiver,
@@ -834,9 +819,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                 e,
                 "Unable to format record for Dynamic Destination");
         return null;
-      } else {
-        throw e;
-      }
     }
   }
 

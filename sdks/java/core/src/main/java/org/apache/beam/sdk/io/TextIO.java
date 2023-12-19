@@ -716,8 +716,6 @@ public class TextIO {
 
     abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
-    abstract @Nullable SerializableFunction<Exception, Boolean> getBadRecordMatcher();
-
     abstract Builder<UserT, DestinationT> toBuilder();
 
     @AutoValue.Builder
@@ -766,9 +764,6 @@ public class TextIO {
 
       abstract Builder<UserT, DestinationT> setBadRecordErrorHandler(
           @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
-
-      abstract Builder<UserT, DestinationT> setBadRecordMatcher(
-          @Nullable SerializableFunction<Exception, Boolean> badRecordMatcher);
 
       abstract TypedWrite<UserT, DestinationT> build();
     }
@@ -1009,19 +1004,11 @@ public class TextIO {
       return toBuilder().setNoSpilling(true).build();
     }
 
-    /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. */
+    /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler)}. */
     public TypedWrite<UserT, DestinationT> withBadRecordErrorHandler(
         ErrorHandler<BadRecord, ?> errorHandler) {
-      return withBadRecordErrorHandler(errorHandler, (e) -> true);
-    }
-
-    /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. */
-    public TypedWrite<UserT, DestinationT> withBadRecordErrorHandler(
-        ErrorHandler<BadRecord, ?> errorHandler,
-        SerializableFunction<Exception, Boolean> badRecordMatcher) {
       return toBuilder()
           .setBadRecordErrorHandler(errorHandler)
-          .setBadRecordMatcher(badRecordMatcher)
           .build();
     }
 
@@ -1116,7 +1103,7 @@ public class TextIO {
         write = write.withNoSpilling();
       }
       if (getBadRecordErrorHandler() != null) {
-        write = write.withBadRecordErrorHandler(getBadRecordErrorHandler(), getBadRecordMatcher());
+        write = write.withBadRecordErrorHandler(getBadRecordErrorHandler());
       }
       if (getSkipIfEmpty()) {
         write = write.withSkipIfEmpty();

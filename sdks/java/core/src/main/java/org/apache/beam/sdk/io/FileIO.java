@@ -1042,8 +1042,6 @@ public class FileIO {
 
     abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
-    abstract @Nullable SerializableFunction<Exception, Boolean> getBadRecordMatcher();
-
     abstract Builder<DestinationT, UserT> toBuilder();
 
     @AutoValue.Builder
@@ -1092,9 +1090,6 @@ public class FileIO {
 
       abstract Builder<DestinationT, UserT> setBadRecordErrorHandler(
           @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
-
-      abstract Builder<DestinationT, UserT> setBadRecordMatcher(
-          @Nullable SerializableFunction<Exception, Boolean> badRecordMatcher);
 
       abstract Write<DestinationT, UserT> build();
     }
@@ -1322,19 +1317,10 @@ public class FileIO {
       return toBuilder().setNoSpilling(true).build();
     }
 
-    /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. */
-    public Write<DestinationT, UserT> withBadRecordErrorHandler(
-        ErrorHandler<BadRecord, ?> errorHandler) {
-      return withBadRecordErrorHandler(errorHandler, (e) -> true);
-    }
-
-    /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. */
-    public Write<DestinationT, UserT> withBadRecordErrorHandler(
-        ErrorHandler<BadRecord, ?> errorHandler,
-        SerializableFunction<Exception, Boolean> badRecordMatcher) {
+    /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler)}. */
+    public Write<DestinationT, UserT> withBadRecordErrorHandler(ErrorHandler<BadRecord, ?> errorHandler) {
       return toBuilder()
           .setBadRecordErrorHandler(errorHandler)
-          .setBadRecordMatcher(badRecordMatcher)
           .build();
     }
 
@@ -1443,7 +1429,7 @@ public class FileIO {
       }
       if (getBadRecordErrorHandler() != null) {
         writeFiles =
-            writeFiles.withBadRecordErrorHandler(getBadRecordErrorHandler(), getBadRecordMatcher());
+            writeFiles.withBadRecordErrorHandler(getBadRecordErrorHandler());
       }
       return input.apply(writeFiles);
     }

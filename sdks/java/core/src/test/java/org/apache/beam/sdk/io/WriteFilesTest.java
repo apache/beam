@@ -731,7 +731,7 @@ public class WriteFilesTest {
     WriteFiles<String, Integer, String> writeFiles =
         WriteFiles.to(sink)
             .withNumShards(numShards)
-            .withBadRecordErrorHandler(errorHandler, (e) -> true);
+            .withBadRecordErrorHandler(errorHandler);
 
     PCollection<String> input = p.apply(Create.timestamped(inputs, timestamps));
     WriteFilesResult<Integer> res;
