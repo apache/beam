@@ -169,6 +169,9 @@ var prismFilters = []string{
 	"TestMapStateClear",
 	"TestSetState",
 	"TestSetStateClear",
+
+	// The prism runner does not support timers https://github.com/apache/beam/issues/29772.
+	"TestTimers*",
 }
 
 var flinkFilters = []string{
