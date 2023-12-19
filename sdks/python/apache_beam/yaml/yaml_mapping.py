@@ -48,6 +48,17 @@ from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_provider import dicts_to_rows
 
 
+def normalize_mapping(spec):
+  """
+  Normalizes various fields for mapping transforms.
+  """
+  if spec['type'] == 'MapToFields':
+    config = spec.get('config')
+    if isinstance(config.get('drop'), str):
+      config['drop'] = [config['drop']]
+  return spec
+
+
 def _check_mapping_arguments(
     transform_name, expression=None, callable=None, name=None, path=None):
   # Argument checking
@@ -453,8 +464,6 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
       raise ValueError("Can only use expressions on a schema'd input.") from exn
     input_schema = {}
 
-  if isinstance(drop, str):
-    drop = [drop]
   if drop and not append:
     raise ValueError("Can only drop fields if append is true.")
   for name in drop:

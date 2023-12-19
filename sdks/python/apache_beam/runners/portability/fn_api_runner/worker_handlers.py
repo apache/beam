@@ -87,6 +87,10 @@ MB_TO_BYTES = 1 << 20
 # Time-based flush is enabled in the fn_api_runner by default.
 DATA_BUFFER_TIME_LIMIT_MS = 1000
 
+FNAPI_RUNNER_CAPABILITIES = frozenset([
+    common_urns.runner_protocols.MULTIMAP_KEYS_VALUES_SIDE_INPUT.urn,
+])
+
 _LOGGER = logging.getLogger(__name__)
 
 T = TypeVar('T')
@@ -363,6 +367,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
     self.data_conn = self.data_plane_handler
     state_cache = StateCache(STATE_CACHE_SIZE_MB * MB_TO_BYTES)
     self.bundle_processor_cache = sdk_worker.BundleProcessorCache(
+        FNAPI_RUNNER_CAPABILITIES,
         SingletonStateHandlerFactory(
             sdk_worker.GlobalCachingStateHandler(state_cache, state)),
         data_plane.InMemoryDataChannelFactory(
@@ -433,6 +438,7 @@ class BasicProvisionService(beam_provision_api_pb2_grpc.ProvisionServiceServicer
       info.control_endpoint.CopyFrom(worker.control_api_service_descriptor())
     else:
       info = self._base_info
+    info.runner_capabilities[:] = FNAPI_RUNNER_CAPABILITIES
     return beam_provision_api_pb2.GetProvisionInfoResponse(info=info)
 
 
@@ -663,7 +669,8 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
         self.control_address,
         state_cache_size=self._state_cache_size,
         data_buffer_time_limit_ms=self._data_buffer_time_limit_ms,
-        worker_id=self.worker_id)
+        worker_id=self.worker_id,
+        runner_capabilities=FNAPI_RUNNER_CAPABILITIES)
     self.worker_thread = threading.Thread(
         name='run_worker', target=self.worker.run)
     self.worker_thread.daemon = True

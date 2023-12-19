@@ -1068,6 +1068,7 @@ class BeamJarExpansionService(JavaJarExpansionService):
     self.gradle_target = gradle_target
     path_to_jar = subprocess_server.JavaJarServer.path_to_beam_jar(
         gradle_target, gradle_appendix)
+    self.gradle_target = gradle_target
     super().__init__(
         path_to_jar, extra_args, classpath=classpath, append_args=append_args)
 

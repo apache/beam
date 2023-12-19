@@ -47,6 +47,7 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -602,5 +603,21 @@ public class FileSystems {
   public static ResourceId matchNewResource(String singleResourceSpec, boolean isDirectory) {
     return getFileSystemInternal(parseScheme(singleResourceSpec))
         .matchNewResource(singleResourceSpec, isDirectory);
+  }
+
+  /**
+   * Returns a new {@link ResourceId} that represents the named directory resource.
+   *
+   * @param singleResourceSpec the root directory, for example "/abc"
+   * @param baseNames a list of named directory, for example ["d", "e", "f"]
+   * @return the ResourceId for the resolved directory. In same example as above, it corresponds to
+   *     "/abc/d/e/f".
+   */
+  public static ResourceId matchNewDirectory(String singleResourceSpec, String... baseNames) {
+    ResourceId currentDir = matchNewResource(singleResourceSpec, true);
+    for (String dir : baseNames) {
+      currentDir = currentDir.resolve(dir, StandardResolveOptions.RESOLVE_DIRECTORY);
+    }
+    return currentDir;
   }
 }

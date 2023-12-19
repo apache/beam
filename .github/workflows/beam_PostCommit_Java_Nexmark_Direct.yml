@@ -67,6 +67,8 @@ env:
     --enforceEncodability=true 
     --enforceImmutability=true 
     --runner=DirectRunner
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_PostCommit_Java_Nexmark_Direct:

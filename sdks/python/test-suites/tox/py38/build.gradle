@@ -141,6 +141,10 @@ toxTask "testPy38transformers-430", "py38-transformers-430", "${posargs}"
 test.dependsOn "testPy38transformers-430"
 preCommitPyCoverage.dependsOn "testPy38transformers-430"
 
+toxTask "testPy38embeddingsMLTransform", "py38-embeddings", "${posargs}"
+test.dependsOn "testPy38embeddingsMLTransform"
+preCommitPyCoverage.dependsOn "testPy38embeddingsMLTransform"
+
 toxTask "whitespacelint", "whitespacelint", "${posargs}"
 
 task archiveFilesToLint(type: Zip) {

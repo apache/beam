@@ -540,6 +540,7 @@ class SchemaTranslation(object):
     type_name = 'BeamSchema_{}'.format(schema.id.replace('-', '_'))
     descriptions = {}
     subfields = []
+    descriptions = {}
     for field in schema.fields:
       try:
         field_py_type = self.typing_from_runner_api(field.type)
@@ -563,7 +564,6 @@ class SchemaTranslation(object):
         _named_tuple_reduce_method(schema.SerializeToString()))
     setattr(user_type, "_field_descriptions", descriptions)
     setattr(user_type, row_type._BEAM_SCHEMA_ID, schema.id)
-    user_type._beam_schema_proto = _Ephemeral(schema)
 
     self.schema_registry.add(user_type, schema)
     coders.registry.register_coder(user_type, coders.RowCoder)
