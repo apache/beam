@@ -463,6 +463,10 @@ func processArtifactsInSetupOnlyMode() {
 // logRuntimeDependencies logs the python dependencies
 // installed in the runtime environment.
 func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger) error {
+	pythonVersion, err := expansionx.GetPythonVersion()
+	if err != nil {
+		return err
+	}
 	bufLogger.Printf(ctx, "Using Python version:")
 	args := []string{"--version"}
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
@@ -471,10 +475,6 @@ func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger
 		bufLogger.FlushAtDebug(ctx)
 	}
 	bufLogger.Printf(ctx, "Logging runtime dependencies:")
-	pythonVersion, err := expansionx.GetPythonVersion()
-	if err != nil {
-		return err
-	}
 	args = []string{"-m", "pip", "freeze"}
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
 		bufLogger.FlushAtError(ctx)

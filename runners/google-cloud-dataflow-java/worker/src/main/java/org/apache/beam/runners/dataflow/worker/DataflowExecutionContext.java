@@ -341,8 +341,9 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       return Optional.ofNullable(activeMessageMetadata);
     }
 
-    public Map<String, IntSummaryStatistics> getProcessingTimesByStep() {
-      return Collections.unmodifiableMap(processingTimesByStep);
+    public Map<String, IntSummaryStatistics> getProcessingTimesByStepCopy() {
+      Map<String, IntSummaryStatistics> processingTimesCopy = processingTimesByStep;
+      return processingTimesCopy;
     }
 
     /**
