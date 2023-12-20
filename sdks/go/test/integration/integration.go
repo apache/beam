@@ -103,6 +103,7 @@ var directFilters = []string{
 	"TestMapStateClear",
 	"TestSetState",
 	"TestSetStateClear",
+	"TestTimers.*", // no timer support for the go direct runner.
 }
 
 var portableFilters = []string{
@@ -126,19 +127,19 @@ var portableFilters = []string{
 	// OOMs currently only lead to heap dumps on Dataflow runner
 	"TestOomParDo",
 	// The portable runner does not support user state.
-	"TestValueState",
-	"TestValueStateWindowed",
-	"TestValueStateClear",
-	"TestBagState",
-	"TestBagStateClear",
-	"TestCombiningState",
-	"TestMapState",
-	"TestMapStateClear",
-	"TestSetState",
-	"TestSetStateClear",
+	// "TestValueState",
+	// "TestValueStateWindowed",
+	// "TestValueStateClear",
+	// "TestBagState",
+	// "TestBagStateClear",
+	// "TestCombiningState",
+	// "TestMapState",
+	// "TestMapStateClear",
+	// "TestSetState",
+	// "TestSetStateClear",
 
-	// The portable runner does not uniquify support timers. (extra elements)
-	// "TestTimers.*",
+	// The portable runner does not uniquify timers. (elements re-fired)
+	"TestTimers.*",
 }
 
 var prismFilters = []string{
