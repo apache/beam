@@ -94,7 +94,7 @@ public class ProtoByteUtilsTest {
   @Test
   public void testProtoBytesToRowSchemaStringGenerateSerializableFunction() {
     SerializableFunction<byte[], Row> protoBytesToRowFunction =
-        ProtoByteUtils.getProtoBytesToRowFunction(PROTO_STRING_SCHEMA, "MyMessage");
+        ProtoByteUtils.getProtoBytesToRowFromSchemaFunction(PROTO_STRING_SCHEMA, "MyMessage");
     Assert.assertNotNull(protoBytesToRowFunction);
   }
 
