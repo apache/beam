@@ -212,11 +212,12 @@ def generate_external_transform_wrappers():
     wrappers = list(find_by_ext(beam_root, '_et.py'))
 
     if not wrappers:
-      raise RuntimeError(
-        'External transform wrappers have not been generated. Please generate'
-        'them by running `python gen_xlang_wrappers.py`')
-    warnings.warn('Skipping external transform wrapper generation as they '
-                  'are already generated.')
+      warnings.warn(
+        'External transform wrappers have not been generated and the '
+        'generation script `gen_xlang_wrappers.py` cannot be found')
+    else:
+      warnings.warn('Skipping external transform wrapper generation as they '
+                    'are already generated.')
     return
   out = subprocess.run([
     sys.executable,
