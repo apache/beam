@@ -852,10 +852,11 @@ class RenamingProvider(Provider):
         ])
 
   def description(self, typ):
-    return self._underlying_provider.description(typ)
+    return self._underlying_provider.description(self._transforms[typ])
 
   def requires_inputs(self, typ, args):
-    return self._underlying_provider.requires_inputs(typ, args)
+    return self._underlying_provider.requires_inputs(
+        self._transforms[typ], args)
 
   def create_transform(
       self,

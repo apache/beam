@@ -22,8 +22,26 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/natsio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 	"github.com/nats-io/nats.go"
 )
+
+func ExampleRead() {
+	beam.Init()
+
+	p, s := beam.NewPipelineWithRoot()
+
+	uri := "nats://localhost:4222"
+	stream := "EVENTS"
+	subject := "events.*"
+
+	col := natsio.Read(s, uri, stream, subject)
+	debug.Print(s, col)
+
+	if err := beamx.Run(context.Background(), p); err != nil {
+		log.Fatalf("Failed to execute job: %v", err)
+	}
+}
 
 func ExampleWrite() {
 	beam.Init()

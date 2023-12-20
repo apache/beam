@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -61,6 +62,7 @@ type stage struct {
 	sideInputs   []engine.LinkID // Non-parallel input PCollections and their consumers
 	internalCols []string        // PCollections that escape. Used for precise coder sending.
 	envID        string
+	stateful     bool
 
 	exe              transformExecuter
 	inputTransformID string
@@ -77,6 +79,7 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 
 	var b *worker.B
 	inputData := em.InputForBundle(rb, s.inputInfo)
+	initialState := em.StateForBundle(rb)
 	var dataReady <-chan struct{}
 	switch s.envID {
 	case "": // Runner Transforms
@@ -102,8 +105,8 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 
 			InputTransformID: s.inputTransformID,
 
-			// TODO Here's where we can split data for processing in multiple bundles.
-			InputData: inputData,
+			InputData:  inputData,
+			OutputData: initialState,
 
 			SinkToPCollection: s.SinkToPCollection,
 			OutputCount:       len(s.outputs),
@@ -300,6 +303,12 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 		}
 		sinkID := o.Transform + "_" + o.Local
 		ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
+
+		var kd func(io.Reader) []byte
+		if kcid, ok := extractKVCoderID(col.GetCoderId(), coders); ok {
+			kd = collectionPullDecoder(kcid, coders, comps)
+		}
+
 		wDec, wEnc := getWindowValueCoders(comps, col, coders)
 		sink2Col[sinkID] = o.Global
 		col2Coders[o.Global] = engine.PColInfo{
@@ -307,6 +316,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 			WDec:     wDec,
 			WEnc:     wEnc,
 			EDec:     ed,
+			KeyDec:   kd,
 		}
 		transforms[sinkID] = sinkTransform(sinkID, portFor(wOutCid, wk), o.Global)
 	}
@@ -350,14 +360,20 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 	if err != nil {
 		return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for primary input, pcol %q %v:\n%w\n%v", stg.ID, stg.primaryInput, prototext.Format(col), err, stg.transforms)
 	}
-
 	ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
 	wDec, wEnc := getWindowValueCoders(comps, col, coders)
+
+	var kd func(io.Reader) []byte
+	if kcid, ok := extractKVCoderID(col.GetCoderId(), coders); ok {
+		kd = collectionPullDecoder(kcid, coders, comps)
+	}
+
 	inputInfo := engine.PColInfo{
 		GlobalID: stg.primaryInput,
 		WDec:     wDec,
 		WEnc:     wEnc,
 		EDec:     ed,
+		KeyDec:   kd,
 	}
 
 	stg.inputTransformID = stg.ID + "_source"

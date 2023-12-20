@@ -489,11 +489,18 @@ class BundleProcessorCache(object):
         pass
 
     # Make sure we instantiate the processor while not holding the lock.
+
+    # Reduce risks of concurrent modifications of the same protos
+    # captured in bundle descriptor when the same bundle descriptor is used
+    # in different instructions.
+    pbd = beam_fn_api_pb2.ProcessBundleDescriptor()
+    pbd.MergeFrom(self.fns[bundle_descriptor_id])
+
     processor = bundle_processor.BundleProcessor(
         self.runner_capabilities,
-        self.fns[bundle_descriptor_id],
+        pbd,
         self.state_handler_factory.create_state_handler(
-            self.fns[bundle_descriptor_id].state_api_service_descriptor),
+            pbd.state_api_service_descriptor),
         self.data_channel_factory,
         self.data_sampler)
     with self._lock:
@@ -589,11 +596,12 @@ class BundleProcessorCache(object):
     # type: () -> None
     def shutdown_inactive_bundle_processors():
       # type: () -> None
-      for descriptor_id, last_access_time in self.last_access_times.items():
-        if (time.time() - last_access_time >
-            DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S):
-          BundleProcessorCache._shutdown_cached_bundle_processors(
-              self.cached_bundle_processors[descriptor_id])
+      with self._lock:
+        for descriptor_id, last_access_time in self.last_access_times.items():
+          if (time.time() - last_access_time >
+              DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S):
+            BundleProcessorCache._shutdown_cached_bundle_processors(
+                self.cached_bundle_processors[descriptor_id])
 
     self.periodic_shutdown = PeriodicThread(
         DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S,

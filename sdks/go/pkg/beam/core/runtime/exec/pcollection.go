@@ -46,7 +46,8 @@ type PCollection struct {
 	elementCoder  ElementEncoder
 	windowCoder   WindowEncoder
 
-	elementCount                         int64 // must use atomic operations.
+	bundleElementCount                   int64 // must use atomic operations.
+	pCollectionElementCount              int64 // track the total number of elements this instance has processed. Local use only, no concurrent read/write.
 	sizeMu                               sync.Mutex
 	sizeCount, sizeSum, sizeMin, sizeMax int64
 	dataSampler                          *DataSampler
@@ -68,7 +69,7 @@ func (p *PCollection) Up(ctx context.Context) error {
 
 // StartBundle resets collected metrics for this PCollection, and propagates bundle start.
 func (p *PCollection) StartBundle(ctx context.Context, id string, data DataContext) error {
-	atomic.StoreInt64(&p.elementCount, 0)
+	atomic.StoreInt64(&p.bundleElementCount, 0)
 	p.nextSampleIdx = 1
 	p.resetSize()
 	return MultiStartBundle(ctx, id, data, p.Out)
@@ -85,8 +86,8 @@ func (w *byteCounter) Write(p []byte) (n int, err error) {
 
 // ProcessElement increments the element count and sometimes takes size samples of the elements.
 func (p *PCollection) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
-	cur := atomic.AddInt64(&p.elementCount, 1)
-	if cur == p.nextSampleIdx {
+	cur := atomic.AddInt64(&p.bundleElementCount, 1)
+	if cur+p.pCollectionElementCount == p.nextSampleIdx {
 		// Always encode the first 3 elements. Otherwise...
 		// We pick the next sampling index based on how large this pcollection already is.
 		// We don't want to necessarily wait until the pcollection has doubled, so we reduce the range.
@@ -97,7 +98,7 @@ func (p *PCollection) ProcessElement(ctx context.Context, elm *FullValue, values
 		if p.nextSampleIdx < 4 {
 			p.nextSampleIdx++
 		} else {
-			p.nextSampleIdx = cur + p.r.Int63n(cur/10+2) + 1
+			p.nextSampleIdx = cur + p.r.Int63n((cur+p.pCollectionElementCount)/10+2) + 1
 		}
 
 		if p.dataSampler == nil {
@@ -140,6 +141,7 @@ func (p *PCollection) resetSize() {
 
 // FinishBundle propagates bundle termination.
 func (p *PCollection) FinishBundle(ctx context.Context) error {
+	p.pCollectionElementCount += atomic.LoadInt64(&p.bundleElementCount)
 	return MultiFinishBundle(ctx, p.Out)
 }
 
@@ -165,7 +167,7 @@ func (p *PCollection) snapshot() PCollectionSnapshot {
 	defer p.sizeMu.Unlock()
 	return PCollectionSnapshot{
 		ID:           p.PColID,
-		ElementCount: atomic.LoadInt64(&p.elementCount),
+		ElementCount: atomic.LoadInt64(&p.bundleElementCount),
 		SizeCount:    p.sizeCount,
 		SizeSum:      p.sizeSum,
 		SizeMin:      p.sizeMin,
