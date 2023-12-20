@@ -144,7 +144,7 @@ class ExternalSchemaTransformProvider:
 
   An :class:`ExternalSchemaTransform` subclass is generated for each external
   transform, and is named based on what can be inferred from the URN
-  (see :param:`urn_pattern`).
+  (see the `urn_pattern` parameter).
 
   These classes are generated when :class:`ExternalSchemaTransformProvider` is
   initialized. We need to give it one or more expansion service addresses that

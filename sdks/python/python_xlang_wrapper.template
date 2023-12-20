@@ -20,6 +20,7 @@ class {{ class_name }}(ExternalSchemaTransform):
   {{ description | wordwrap(78) | replace('\n', '\n  ') }}
   """{% endif %}
   identifier = "{{ identifier }}"
+
   def __init__(self,{% if parameters %}{% for param in parameters%} {{ param.name }}{% if 'default' in param %}={{ param.default }}{% endif %},{% endfor %}{% endif %} expansion_service={{ default_expansion_service }}):
     {% if parameters %}"""{% for param in parameters %}
     :param {{ param.name }} ({{ param.type | wordwrap(67 - param.name | length) | replace('\n', '\n        ') }}):{% if param.description %}

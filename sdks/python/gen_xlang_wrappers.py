@@ -301,7 +301,7 @@ def write_wrappers_to_destinations(grouped_wrappers: Dict[str, List[str]]):
           "from apache_beam.transforms.external_schematransform_provider "
           "import ExternalSchemaTransform\n")
       for wrapper in wrappers:
-        file.write("\n\n")
+        file.write("\n")
         file.write(wrapper + "\n")
     format_command.append(dest)
 

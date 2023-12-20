@@ -34,13 +34,15 @@ from apache_beam.transforms.external_schematransform_provider import camel_case_
 from apache_beam.transforms.external_schematransform_provider import infer_name_from_identifier
 from apache_beam.transforms.external_schematransform_provider import snake_case_to_lower_camel_case
 from apache_beam.transforms.external_schematransform_provider import snake_case_to_upper_camel_case
-from gen_xlang_wrappers import PYTHON_SUFFIX
-from gen_xlang_wrappers import delete_generated_files
-from gen_xlang_wrappers import generate_transform_configs
-from gen_xlang_wrappers import get_wrappers_from_transform_configs
-from gen_xlang_wrappers import run_script
-from gen_xlang_wrappers import write_wrappers_to_destinations
-
+try:
+  from gen_xlang_wrappers import PYTHON_SUFFIX
+  from gen_xlang_wrappers import delete_generated_files
+  from gen_xlang_wrappers import generate_transform_configs
+  from gen_xlang_wrappers import get_wrappers_from_transform_configs
+  from gen_xlang_wrappers import run_script
+  from gen_xlang_wrappers import write_wrappers_to_destinations
+except ImportError:
+  run_script = None
 
 class NameUtilsTest(unittest.TestCase):
   def test_snake_case_to_upper_camel_case(self):
@@ -145,9 +147,11 @@ class ExternalSchemaTransformProviderTest(unittest.TestCase):
 
 
 @pytest.mark.uses_io_java_expansion_service
-# @unittest.skipUnless(
-#   os.environ.get('EXPANSION_PORT'),
-#   "EXPANSION_PORT environment var is not provided.")
+@unittest.skipUnless(
+  os.environ.get('EXPANSION_PORT'),
+  "EXPANSION_PORT environment var is not provided.")
+@unittest.skipIf(run_script is None,
+                 "Need access to gen_xlang_wrappers.py to run these tests")
 class AutoGenerationScriptTest(unittest.TestCase):
   """
   This class tests the generation and regeneration operations in
