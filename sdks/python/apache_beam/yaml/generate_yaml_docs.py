@@ -116,7 +116,7 @@ def config_docs(schema):
       yield ''.join([
           f'**{f.name}** `{pretty_type(f.type)}`',
           maybe_optional(f.type),
-          ': ' + f.description if f.description else '',
+          indent(': ' + f.description if f.description else '', 2),
           maybe_row_parameters(f.type),
       ])
 
