@@ -1724,13 +1724,10 @@ public class AvroIO {
       return toBuilder().setMetadata(ImmutableMap.copyOf(metadata)).build();
     }
 
-
     /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler)}. */
     public TypedWrite<UserT, DestinationT, OutputT> withBadRecordErrorHandler(
         ErrorHandler<BadRecord, ?> errorHandler) {
-      return toBuilder()
-          .setBadRecordErrorHandler(errorHandler)
-          .build();
+      return toBuilder().setBadRecordErrorHandler(errorHandler).build();
     }
 
     DynamicAvroDestinations<UserT, DestinationT, OutputT> resolveDynamicDestinations() {
