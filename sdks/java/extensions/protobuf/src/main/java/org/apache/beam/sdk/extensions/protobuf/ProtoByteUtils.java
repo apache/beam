@@ -24,6 +24,10 @@ import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.squareup.wire.schema.Location;
+import com.squareup.wire.schema.internal.parser.ProtoFileElement;
+import com.squareup.wire.schema.internal.parser.ProtoParser;
+import io.apicurio.registry.utils.protobuf.schema.FileDescriptorUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
@@ -55,6 +59,8 @@ public class ProtoByteUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(ProtoByteUtils.class);
 
+  private static final Location LOCATION = Location.get("");
+
   /**
    * Retrieves a Beam Schema from a Protocol Buffer message.
    *
@@ -66,6 +72,68 @@ public class ProtoByteUtils {
     ProtoSchemaInfo dpd = getProtoDomain(fileDescriptorPath);
     ProtoDomain protoDomain = dpd.getProtoDomain();
     return ProtoDynamicMessageSchema.forDescriptor(protoDomain, messageName).getSchema();
+  }
+
+  /**
+   * Parses the given Protocol Buffers schema string, retrieves the Descriptor for the specified
+   * message name, and constructs a Beam Schema from it.
+   *
+   * @param schemaString The Protocol Buffers schema string.
+   * @param messageName The name of the message type for which the Beam Schema is desired.
+   * @return The Beam Schema constructed from the specified Protocol Buffers schema.
+   * @throws RuntimeException If there is an error during parsing, descriptor retrieval, or schema
+   *     construction.
+   */
+  public static Schema getBeamSchemaFromProtoSchema(String schemaString, String messageName) {
+    Descriptors.Descriptor descriptor = getDescriptorFromProtoSchema(schemaString, messageName);
+    return ProtoDynamicMessageSchema.forDescriptor(ProtoDomain.buildFrom(descriptor), descriptor)
+        .getSchema();
+  }
+
+  /**
+   * Parses the given Protocol Buffers schema string, retrieves the FileDescriptor, and returns the
+   * Descriptor for the specified message name.
+   *
+   * @param schemaString The Protocol Buffers schema string.
+   * @param messageName The name of the message type for which the descriptor is desired.
+   * @return The Descriptor for the specified message name.
+   * @throws RuntimeException If there is an error during parsing or descriptor validation.
+   */
+  private static Descriptors.Descriptor getDescriptorFromProtoSchema(
+      final String schemaString, final String messageName) {
+    ProtoFileElement result = ProtoParser.Companion.parse(LOCATION, schemaString);
+    try {
+      Descriptors.FileDescriptor fileDescriptor =
+          FileDescriptorUtils.protoFileToFileDescriptor(result);
+      return fileDescriptor.findMessageTypeByName(messageName);
+    } catch (Descriptors.DescriptorValidationException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static SerializableFunction<byte[], Row> getProtoBytesToRowFromSchemaFunction(
+      String schemaString, String messageName) {
+
+    Descriptors.Descriptor descriptor = getDescriptorFromProtoSchema(schemaString, messageName);
+
+    ProtoDynamicMessageSchema<DynamicMessage> protoDynamicMessageSchema =
+        ProtoDynamicMessageSchema.forDescriptor(ProtoDomain.buildFrom(descriptor), descriptor);
+    return new SimpleFunction<byte[], Row>() {
+      @Override
+      public Row apply(byte[] input) {
+        try {
+          Descriptors.Descriptor descriptorFunction =
+              getDescriptorFromProtoSchema(schemaString, messageName);
+          DynamicMessage dynamicMessage = DynamicMessage.parseFrom(descriptorFunction, input);
+          SerializableFunction<DynamicMessage, Row> res =
+              protoDynamicMessageSchema.getToRowFunction();
+          return res.apply(dynamicMessage);
+        } catch (InvalidProtocolBufferException e) {
+          LOG.error("Error parsing to DynamicMessage", e);
+          throw new RuntimeException(e);
+        }
+      }
+    };
   }
 
   public static SerializableFunction<byte[], Row> getProtoBytesToRowFunction(
@@ -92,6 +160,23 @@ public class ProtoByteUtils {
           LOG.error("Error parsing to DynamicMessage", e);
           throw new RuntimeException(e);
         }
+      }
+    };
+  }
+
+  public static SerializableFunction<Row, byte[]> getRowToProtoFromSchemaBytes(
+      String schemaString, String messageName) {
+
+    Descriptors.Descriptor descriptor = getDescriptorFromProtoSchema(schemaString, messageName);
+
+    ProtoDynamicMessageSchema<DynamicMessage> protoDynamicMessageSchema =
+        ProtoDynamicMessageSchema.forDescriptor(ProtoDomain.buildFrom(descriptor), descriptor);
+    return new SimpleFunction<Row, byte[]>() {
+      @Override
+      public byte[] apply(Row input) {
+        SerializableFunction<Row, DynamicMessage> res =
+            protoDynamicMessageSchema.getFromRowFunction();
+        return res.apply(input).toByteArray();
       }
     };
   }

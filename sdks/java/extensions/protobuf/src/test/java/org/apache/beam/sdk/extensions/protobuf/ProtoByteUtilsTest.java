@@ -29,6 +29,25 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ProtoByteUtilsTest {
 
+  private static final String PROTO_STRING_SCHEMA =
+      "syntax = \"proto3\";\n"
+          + "\n"
+          + "message MyMessage {\n"
+          + "  int32 id = 1;\n"
+          + "  string name = 2;\n"
+          + "  bool active = 3;\n"
+          + "\n"
+          + "  // Nested field\n"
+          + "  message Address {\n"
+          + "    string street = 1;\n"
+          + "    string city = 2;\n"
+          + "    string state = 3;\n"
+          + "    string zip_code = 4;\n"
+          + "  }\n"
+          + "\n"
+          + "  Address address = 4;\n"
+          + "}";
+
   private static final String DESCRIPTOR_PATH =
       Objects.requireNonNull(
               ProtoByteUtilsTest.class.getResource(
@@ -60,9 +79,22 @@ public class ProtoByteUtilsTest {
   }
 
   @Test
+  public void testProtoSchemaStringToBeamSchema() {
+    Schema schema = ProtoByteUtils.getBeamSchemaFromProtoSchema(PROTO_STRING_SCHEMA, "MyMessage");
+    Assert.assertEquals(schema.getFieldNames(), SCHEMA.getFieldNames());
+  }
+
+  @Test
   public void testProtoBytesToRowFunctionGenerateSerializableFunction() {
     SerializableFunction<byte[], Row> protoBytesToRowFunction =
         ProtoByteUtils.getProtoBytesToRowFunction(DESCRIPTOR_PATH, MESSAGE_NAME);
+    Assert.assertNotNull(protoBytesToRowFunction);
+  }
+
+  @Test
+  public void testProtoBytesToRowSchemaStringGenerateSerializableFunction() {
+    SerializableFunction<byte[], Row> protoBytesToRowFunction =
+        ProtoByteUtils.getProtoBytesToRowFunction(PROTO_STRING_SCHEMA, "MyMessage");
     Assert.assertNotNull(protoBytesToRowFunction);
   }
 
@@ -94,5 +126,22 @@ public class ProtoByteUtilsTest {
 
     Assert.assertNotNull(
         ProtoByteUtils.getRowToProtoBytes(DESCRIPTOR_PATH, MESSAGE_NAME).apply(row));
+  }
+
+  @Test
+  public void testRowToProtoSchemaFunction() {
+    Row row =
+        Row.withSchema(SCHEMA)
+            .withFieldValue("id", 1234)
+            .withFieldValue("name", "Doe")
+            .withFieldValue("active", false)
+            .withFieldValue("address.city", "seattle")
+            .withFieldValue("address.street", "fake street")
+            .withFieldValue("address.zip_code", "TO-1234")
+            .withFieldValue("address.state", "wa")
+            .build();
+
+    Assert.assertNotNull(
+        ProtoByteUtils.getRowToProtoFromSchemaBytes(PROTO_STRING_SCHEMA, "MyMessage").apply(row));
   }
 }
