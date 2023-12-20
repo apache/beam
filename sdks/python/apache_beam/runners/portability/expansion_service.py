@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import copy
+import io
 import traceback
 
 from apache_beam import pipeline as beam_pipeline
@@ -131,4 +132,11 @@ class ExpansionServiceServicer(
           error=traceback.format_exc())
 
   def artifact_service(self):
-    return artifact_service.ArtifactRetrievalService(None)
+    return artifact_service.ArtifactRetrievalService(file_reader)
+
+
+def file_reader(filepath: str) -> io.BytesIO:
+  """Reads a file at given path and returns io.BytesIO object"""
+  with open(filepath, 'rb') as f:
+    data = f.read()
+  return io.BytesIO(data)

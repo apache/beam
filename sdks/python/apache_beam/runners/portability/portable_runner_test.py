@@ -312,8 +312,11 @@ class PortableRunnerInternalTest(unittest.TestCase):
     docker_image = environments.DockerEnvironment.default_docker_image()
     self.assertEqual(
         PortableRunner._create_environment(
-            PipelineOptions.from_dictionary({'sdk_location': 'container'})),
-        environments.DockerEnvironment(container_image=docker_image))
+            options=PipelineOptions.from_dictionary(
+                {'sdk_location': 'container'})),
+        environments.DockerEnvironment(
+            container_image=docker_image,
+            artifacts=environments.python_sdk_dependencies(PipelineOptions())))
 
   def test__create_docker_environment(self):
     docker_image = 'py-docker'
@@ -324,7 +327,9 @@ class PortableRunnerInternalTest(unittest.TestCase):
                 'environment_config': docker_image,
                 'sdk_location': 'container',
             })),
-        environments.DockerEnvironment(container_image=docker_image))
+        environments.DockerEnvironment(
+            container_image=docker_image,
+            artifacts=environments.python_sdk_dependencies(PipelineOptions())))
 
   def test__create_process_environment(self):
     self.assertEqual(
@@ -337,7 +342,11 @@ class PortableRunnerInternalTest(unittest.TestCase):
                 'sdk_location': 'container',
             })),
         environments.ProcessEnvironment(
-            'run.sh', os='linux', arch='amd64', env={'k1': 'v1'}))
+            'run.sh',
+            os='linux',
+            arch='amd64',
+            env={'k1': 'v1'},
+            artifacts=environments.python_sdk_dependencies(PipelineOptions())))
     self.assertEqual(
         PortableRunner._create_environment(
             PipelineOptions.from_dictionary({
@@ -355,7 +364,9 @@ class PortableRunnerInternalTest(unittest.TestCase):
                 'environment_config': 'localhost:50000',
                 'sdk_location': 'container',
             })),
-        environments.ExternalEnvironment('localhost:50000'))
+        environments.ExternalEnvironment(
+            'localhost:50000',
+            artifacts=environments.python_sdk_dependencies(PipelineOptions())))
     raw_config = ' {"url":"localhost:50000", "params":{"k1":"v1"}} '
     for env_config in (raw_config, raw_config.lstrip(), raw_config.strip()):
       self.assertEqual(

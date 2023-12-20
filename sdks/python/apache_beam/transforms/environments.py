@@ -125,9 +125,17 @@ class Environment(object):
         dict(resource_hints) if resource_hints else {})
 
   def __eq__(self, other):
+    equal_artifacts = True
+    for first, second in zip(self._artifacts, other._artifacts):
+      # do not compare type payload since it contains a unique hash.
+      if (first.type_urn != second.type_urn or
+          first.role_urn != second.role_urn or
+          first.role_payload != second.role_payload):
+        equal_artifacts = False
+        break
+
     return (
-        self.__class__ == other.__class__ and
-        self._artifacts == other._artifacts
+        self.__class__ == other.__class__ and equal_artifacts
         # Assuming that we don't have instances of the same Environment subclass
         # with different set of capabilities.
         and self._resource_hints == other._resource_hints)

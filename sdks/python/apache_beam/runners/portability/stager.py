@@ -165,6 +165,7 @@ class Stager(object):
                            pypi_requirements=None,  # type: Optional[List[str]]
                            populate_requirements_cache=None,  # type: Optional[Callable[[str, str, bool], None]]
                            skip_prestaged_dependencies=False,  # type: Optional[bool]
+                           log_submission_env_dependencies=True,  # type: Optional[bool]
                            ):
     """For internal use only; no backwards-compatibility guarantees.
 
@@ -186,6 +187,8 @@ class Stager(object):
             cache. Used only for testing.
           skip_prestaged_dependencies: Skip staging dependencies that can be
             added into SDK containers during prebuilding.
+          log_submission_env_dependencies: (Optional) param to stage and log
+            submission environment dependencies. Defaults to True.
 
         Returns:
           A list of ArtifactInformation to be used for staging resources.
@@ -368,8 +371,10 @@ class Stager(object):
             Stager._create_file_stage_to_artifact(
                 pickled_session_file, names.PICKLED_MAIN_SESSION_FILE))
 
-    # stage the submission environment dependencies
-    resources.extend(Stager._create_stage_submission_env_dependencies(temp_dir))
+    # stage the submission environment dependencies, if enabled.
+    if log_submission_env_dependencies:
+      resources.extend(
+          Stager._create_stage_submission_env_dependencies(temp_dir))
 
     return resources
 
