@@ -137,6 +137,40 @@ def get_test_beam_fieldtype_protos():
       schema_pb2.FieldType(
           row_type=schema_pb2.RowType(
               schema=schema_pb2.Schema(
+                  id='logical-map',
+                  fields=[
+                      schema_pb2.Field(
+                          name='logicalmapdict',
+                          type=schema_pb2.FieldType(
+                              nullable=True,
+                              logical_type=schema_pb2.LogicalType(
+                                  urn="beam:logical_type:pythonenum",
+                                  representation=schema_pb2.FieldType(
+                                      atomic_type=schema_pb2.INT32),
+                                  argument=schema_pb2.FieldValue(
+                                      map_value=schema_pb2.MapTypeValue(
+                                          # Use a single value to avoid non-deterministic map ordering
+                                          entries=[
+                                              schema_pb2.MapTypeEntry(
+                                                  key=schema_pb2.FieldValue(
+                                                      atomic_value=schema_pb2.
+                                                      AtomicTypeValue(int32=0)),
+                                                  value=schema_pb2.FieldValue(
+                                                      atomic_value=schema_pb2.
+                                                      AtomicTypeValue(
+                                                          string="A")))
+                                          ])),
+                                  argument_type=schema_pb2.FieldType(
+                                      map_type=schema_pb2.MapType(
+                                          key_type=schema_pb2.FieldType(
+                                              atomic_type=schema_pb2.INT32),
+                                          value_type=schema_pb2.FieldType(
+                                              atomic_type=schema_pb2.STRING)))))
+                      ),
+                  ]))),
+      schema_pb2.FieldType(
+          row_type=schema_pb2.RowType(
+              schema=schema_pb2.Schema(
                   id='32497414-85e8-46b7-9c90-9a9cc62fe390',
                   fields=[
                       schema_pb2.Field(name='field%d' % i, type=typ) for i,
