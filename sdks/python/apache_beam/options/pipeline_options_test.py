@@ -21,11 +21,11 @@
 
 import json
 import logging
-import mock
 import os
 import unittest
 
 import hamcrest as hc
+import mock
 from parameterized import parameterized
 
 from apache_beam.options.pipeline_options import CrossLanguageOptions
