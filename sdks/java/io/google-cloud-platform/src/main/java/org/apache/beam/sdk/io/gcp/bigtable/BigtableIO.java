@@ -1307,7 +1307,7 @@ public class BigtableIO {
               (mutationResult, exception) -> {
                 if (exception != null) {
                   if (exception instanceof NotFoundException && !((NotFoundException) exception).isRetryable()){
-                    //This case, of being an InvalidArgumentException and not retryable,
+                    //This case, of being an NotFoundException and not retryable,
                     // indicates an issue with the data, so is sent to the Error Handler
                     try {
                       badRecordRouter.route(outputReceiver, record, inputCoder,
