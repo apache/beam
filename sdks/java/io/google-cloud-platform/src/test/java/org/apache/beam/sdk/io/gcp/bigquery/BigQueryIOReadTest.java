@@ -623,7 +623,8 @@ public class BigQueryIOReadTest implements Serializable {
   }
 
   @Test
-  public void testReadTableWithInlinedTableRowsRecordArrayInSchema() throws IOException, InterruptedException {
+  public void testReadTableWithInlinedTableRowsRecordArrayInSchema()
+      throws IOException, InterruptedException {
 
     TableFieldSchema field1 = new TableFieldSchema().setName("field1").setType("STRING");
     TableFieldSchema field2 = new TableFieldSchema().setName("field2").setType("INTEGER");
@@ -633,21 +634,22 @@ public class BigQueryIOReadTest implements Serializable {
     innerFields.add(field2);
 
     // Create a schema for the outer table with a repeated (array) field
-    TableFieldSchema arrayField = new TableFieldSchema()
-       .setName("array_of_rows")
-       .setType("RECORD")
-       .setMode("REPEATED")
-       .setFields(innerFields);
+    TableFieldSchema arrayField =
+        new TableFieldSchema()
+            .setName("array_of_rows")
+            .setType("RECORD")
+            .setMode("REPEATED")
+            .setFields(innerFields);
 
     // setup
     Table someTable = new Table();
     TableSchema tableSchema = new TableSchema().setFields(Collections.singletonList(arrayField));
     someTable.setSchema(tableSchema);
     someTable.setTableReference(
-       new TableReference()
-          .setProjectId("non-executing-project")
-          .setDatasetId("schema_dataset")
-          .setTableId("schema_table"));
+        new TableReference()
+            .setProjectId("non-executing-project")
+            .setDatasetId("schema_dataset")
+            .setTableId("schema_table"));
     someTable.setNumBytes(1024L * 1024L);
     FakeDatasetService fakeDatasetService = new FakeDatasetService();
     fakeDatasetService.createDataset("non-executing-project", "schema_dataset", "", "", null);
@@ -660,20 +662,19 @@ public class BigQueryIOReadTest implements Serializable {
     outerList.add(innerRow2);
     TableRow outerRow = new TableRow().set("array_of_rows", outerList);
 
-    List<TableRow> records =
-       Lists.newArrayList(outerRow);
+    List<TableRow> records = Lists.newArrayList(outerRow);
 
     fakeDatasetService.insertAll(someTable.getTableReference(), records, null);
 
     FakeBigQueryServices fakeBqServices =
-       new FakeBigQueryServices()
-          .withJobService(new FakeJobService())
-          .withDatasetService(fakeDatasetService);
+        new FakeBigQueryServices()
+            .withJobService(new FakeJobService())
+            .withDatasetService(fakeDatasetService);
 
     BigQueryIO.TypedRead<TableRow> read =
-       BigQueryIO.readTableRowsWithSchema()
-          .from("non-executing-project:schema_dataset.schema_table")
-          .withTestServices(fakeBqServices);
+        BigQueryIO.readTableRowsWithSchema()
+            .from("non-executing-project:schema_dataset.schema_table")
+            .withTestServices(fakeBqServices);
 
     PCollection<TableRow> bqRows = p.apply(read);
 
@@ -1222,5 +1223,4 @@ public class BigQueryIOReadTest implements Serializable {
         KvCoder.of(ByteStringCoder.of(), ProtoCoder.of(Mutation.class)),
         BigQueryIO.read(parseFn).inferCoder(CoderRegistry.createDefault()));
   }
-
 }

@@ -567,11 +567,17 @@ public class FakeJobService implements JobService, Serializable {
         Schema arrayFieldSchema = getFieldSchema(avroSchema, field);
         @SuppressWarnings("unchecked")
         List<TableRow> nestedRows = (List<TableRow>) field.getValue();
-        GenericData.Array<GenericContainer> array = new GenericData.Array<>(nestedRows.size(), arrayFieldSchema);
-        array.addAll(nestedRows.stream().map(row -> toGenericContainer(row, arrayFieldSchema.getElementType())).collect(Collectors.toList()));
+        GenericData.Array<GenericContainer> array =
+            new GenericData.Array<>(nestedRows.size(), arrayFieldSchema);
+        array.addAll(
+            nestedRows.stream()
+                .map(row -> toGenericContainer(row, arrayFieldSchema.getElementType()))
+                .collect(Collectors.toList()));
         genericRecordBuilder.set(field.getKey(), array);
       } else if (field.getValue() instanceof TableRow) {
-        genericRecordBuilder.set(field.getKey(), toGenericContainer((TableRow) field.getValue(), getFieldSchema(avroSchema, field)));
+        genericRecordBuilder.set(
+            field.getKey(),
+            toGenericContainer((TableRow) field.getValue(), getFieldSchema(avroSchema, field)));
       } else {
         genericRecordBuilder.set(field.getKey(), field.getValue());
       }
@@ -580,13 +586,19 @@ public class FakeJobService implements JobService, Serializable {
   }
 
   private static boolean isATableRowCollection(Object fieldValue) {
-    return fieldValue instanceof Collection && !((Collection<?>) fieldValue).isEmpty() &&
-        ((Collection<?>) fieldValue).iterator().next() instanceof TableRow;
+    return fieldValue instanceof Collection
+        && !((Collection<?>) fieldValue).isEmpty()
+        && ((Collection<?>) fieldValue).iterator().next() instanceof TableRow;
   }
 
   private static Schema getFieldSchema(Schema avroSchema, Map.Entry<String, Object> field) {
-    return avroSchema.getFields().stream().filter(sf -> sf.name().equals(field.getKey())).map(Schema.Field::schema).reduce((a, b) -> {
-      throw new IllegalStateException("multiple fields with same name");
-    }).get();
+    return avroSchema.getFields().stream()
+        .filter(sf -> sf.name().equals(field.getKey()))
+        .map(Schema.Field::schema)
+        .reduce(
+            (a, b) -> {
+              throw new IllegalStateException("multiple fields with same name");
+            })
+        .get();
   }
 }
