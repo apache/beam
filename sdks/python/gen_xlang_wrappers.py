@@ -25,13 +25,14 @@ import os
 import re
 import subprocess
 import typing
-import yaml
-from jinja2 import Environment
-from jinja2 import FileSystemLoader
 from typing import Any
 from typing import Dict
 from typing import List
 from typing import Union
+
+import yaml
+from jinja2 import Environment
+from jinja2 import FileSystemLoader
 
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external_schematransform_provider import STANDARD_URN_PATTERN
@@ -39,8 +40,8 @@ from apache_beam.transforms.external_schematransform_provider import ExternalSch
 from apache_beam.transforms.external_schematransform_provider import ExternalSchemaTransformProvider
 from apache_beam.transforms.external_schematransform_provider import camel_case_to_snake_case
 from gen_protos import LICENSE_HEADER
-from gen_protos import find_by_ext
 from gen_protos import PYTHON_SDK_ROOT
+from gen_protos import find_by_ext
 
 SUPPORTED_SDK_DESTINATIONS = ['python']
 PYTHON_SUFFIX = "_et.py"

@@ -206,27 +206,31 @@ def generate_protos_first():
 
 
 def generate_external_transform_wrappers():
-  sdk_root = os.path.dirname(os.path.realpath(__file__))
-  if not os.path.exists(os.path.join(sdk_root, 'gen_xlang_wrappers.py')):
-    beam_root = os.path.join(sdk_root, 'apache_beam')
-    wrappers = list(find_by_ext(beam_root, '_et.py'))
+  try:
+    sdk_root = os.path.dirname(os.path.realpath(__file__))
+    if not os.path.exists(os.path.join(sdk_root, 'gen_xlang_wrappers.py')):
+      beam_root = os.path.join(sdk_root, 'apache_beam')
+      wrappers = list(find_by_ext(beam_root, '_et.py'))
 
-    if not wrappers:
-      warnings.warn(
-        'External transform wrappers have not been generated and the '
-        'generation script `gen_xlang_wrappers.py` cannot be found')
-    else:
-      warnings.warn('Skipping external transform wrapper generation as they '
+      if not wrappers:
+        warnings.warn(
+          'External transform wrappers have not been generated and the '
+          'generation script `gen_xlang_wrappers.py` cannot be found')
+      else:
+        warnings.warn('Skipping external transform wrapper generation as they '
                     'are already generated.')
-    return
-  out = subprocess.run([
-    sys.executable,
-    os.path.join('gen_xlang_wrappers.py'),
-    '--cleanup',
-    '--input-expansion-services', 'standard_expansion_services.yaml',
-    '--output-transforms-config', 'standard_external_transforms.yaml'],
-    capture_output=True, check=False)
-  print(out.stdout)
+      return
+    out = subprocess.run([
+      sys.executable,
+      os.path.join('gen_xlang_wrappers.py'),
+      '--cleanup',
+      '--input-expansion-services', 'standard_expansion_services.yaml',
+      '--output-transforms-config', 'standard_external_transforms.yaml'],
+      capture_output=True, check=False)
+    print(out.stdout)
+  except subprocess.CalledProcessError as err:
+    raise RuntimeError('Could not generate external transform wrappers due to '
+                       'error: %s', err.stderr)
 
 
 def get_portability_package_data():
@@ -386,7 +390,7 @@ if __name__ == '__main__':
               'testcontainers[mysql]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<=7.0.0',
-              'pyyaml>=3.12,<7.0.0',
+              'jinja2>=2.7.1,<4.0.0'
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',
