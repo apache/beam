@@ -95,9 +95,13 @@ jobs:
     if: ${{github.event.inputs.STAGE_JAVA_SOURCE == 'yes'}}
     runs-on: ubuntu-latest
     steps:
-      - name: Validate and mask apache id/password
+      - name: Mask Apache Password
         run: |
-          echo "::add-mask::$APACHE_PASSWORD"
+          # Workaround for Actions bug - https://github.com/actions/runner/issues/643
+          APACHE_PASS=$(jq -r '.inputs.APACHE_PASSWORD' $GITHUB_EVENT_PATH)
+          echo "::add-mask::$MY_SECRET"
+      - name: Validate apache id/password
+        run: |
           if [ "${{ github.event.inputs.APACHE_ID }}" == "" ]
           then
             echo "Must provide an apache id to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
@@ -106,8 +110,6 @@ jobs:
           then
             echo "Must provide an apache password to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
           fi
-        env:
-          APACHE_PASSWORD: ${{ github.event.inputs.APACHE_PASSWORD }}
       - name: Install Java 8
         uses: actions/setup-java@v4
         with:
@@ -159,9 +161,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Validate and mask apache id/password
+      - name: Mask Apache Password
         run: |
-          echo "::add-mask::$APACHE_PASSWORD"
+          # Workaround for Actions bug - https://github.com/actions/runner/issues/643
+          APACHE_PASS=$(jq -r '.inputs.APACHE_PASSWORD' $GITHUB_EVENT_PATH)
+          echo "::add-mask::$MY_SECRET"
+      - name: Mask apache id/password
+        run: |
           if [ "${{ github.event.inputs.APACHE_ID }}" == "" ]
           then
             echo "Must provide an apache id to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
@@ -170,8 +176,6 @@ jobs:
           then
             echo "Must provide an apache password to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
           fi
-        env:
-          APACHE_PASSWORD: ${{ github.event.inputs.APACHE_PASSWORD }}
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
