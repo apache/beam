@@ -18,10 +18,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-Welcome back to Part 2 of our in-depth series on building and managing a service for Apache Beam Flink on Kubernetes. In this segment, we're taking a closer look at the hurdles we encountered while implementing autoscaling.
-
-<!--more-->
-
 # Build a scalable, self-managed streaming infrastructure with Flink: Tackling Autoscaling Challenges - Part 2
 
 
@@ -44,6 +40,8 @@ alt="Apache Flink Beam Backlog Metrics">
 
 
 ## Overcoming challenges in checkpoint size reduction for autoscaling Beam jobs
+
+In this section we will discuss strategies for reducing the size of checkpoints in autoscaling Apache Beam jobs, focusing on efficient checkpointing in Apache Flink and optimizing bundle sizes and PipelineOptions to manage frequent checkpoint timeouts and large-scale job requirements.
 
 ### Understand the basics of checkpointing in Apache Flink
 In stream processing, maintaining state consistency and fault tolerance is crucial. Apache Flink achieves this through a process called *checkpointing*. Checkpointing periodically captures the state of a job's operators and stores it in a stable storage location, like Google Cloud Storage or AWS S3. Specifically, Flink checkpoints a job every ten seconds and allows up to one minute for this process to complete. This process is vital for ensuring that, in case of failures, the job can resume from the last checkpoint, providing exactly-once semantics and fault tolerance.
