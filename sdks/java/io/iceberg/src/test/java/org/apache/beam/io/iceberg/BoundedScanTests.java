@@ -4,6 +4,8 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.beam.io.iceberg.util.SchemaHelper;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -14,6 +16,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.data.GenericRecord;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -55,20 +58,18 @@ public class BoundedScanTests {
         .commit();
 
     PCollection<Row> output = testPipeline
-        .apply(Create.of(IcebergScan.builder()
-                .catalogName("hadoop")
-                .catalogConfiguration(ImmutableMap.of(
-                        CatalogUtil.ICEBERG_CATALOG_TYPE,CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP, // Filesystem
-                        CatalogProperties.WAREHOUSE_LOCATION, warehouse.location // Directory where our temp warehouse lives
-                ))
-                .table(simpleTable.name().replace("hadoop.","")) // Catalog name shouldn't be included
-                .scanType(IcebergScan.ScanType.TABLE) // Do a normal scan.
-                .build()).withCoder(SerializableCoder.of(IcebergScan.class)))
-        .apply(ParDo.of(new IcebergScanGeneratorFn()))
-        .apply(ParDo.of(new IcebergFileScanFn(TestFixtures.SCHEMA)))
-        .setCoder(RowCoder.of(SchemaHelper.convert(TestFixtures.SCHEMA)))
-        .apply(ParDo.of(new PrintRow()))
-        .setCoder(RowCoder.of(SchemaHelper.convert(TestFixtures.SCHEMA)));
+            .apply(Read.from(new IcebergBoundedSource(Iceberg.Scan.builder()
+            .catalog(Iceberg.Catalog.builder()
+                    .name("hadoop")
+                    .icebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+                    .warehouseLocation(warehouse.location)
+                    .build())
+            .type(Iceberg.ScanType.TABLE)
+            .table(simpleTable.name().replace("hadoop.","").split("\\."))
+            .schema(SchemaHelper.convert(TestFixtures.SCHEMA))
+            .build())))
+            .apply(ParDo.of(new PrintRow()))
+            .setCoder(RowCoder.of(SchemaHelper.convert(TestFixtures.SCHEMA)));
     PAssert.that(output);
     testPipeline.run();
 

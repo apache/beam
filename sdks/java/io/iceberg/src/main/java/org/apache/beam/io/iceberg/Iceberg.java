@@ -40,7 +40,7 @@ public class Iceberg {
 
     public abstract ImmutableList<String> getTable();
 
-    public abstract @Nullable Schema getProject();
+    public abstract Schema getSchema();
 
     public abstract @Nullable Expression getFilter();
 
@@ -68,7 +68,53 @@ public class Iceberg {
 
     public abstract @Nullable String getBranch();
 
+    public static Scan.Builder builder() {
+      return new AutoValue_Iceberg_Scan.Builder()
+              .type(ScanType.TABLE)
+              .filter(null)
+              .caseSensitive(null)
+              .options(ImmutableMap.of())
+              .snapshot(null)
+              .timestamp(null)
+              .fromSnapshotInclusive(null)
+              .fromSnapshotRefInclusive(null)
+              .fromSnapshotExclusive(null)
+              .fromSnapshotRefExclusive(null)
+              .toSnapshot(null)
+              .toSnapshotRef(null)
+              .tag(null)
+              .branch(null);
+    }
 
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder type(ScanType type);
+      public abstract Builder catalog(Catalog catalog);
+      public abstract Builder table(ImmutableList<String> table);
+
+      public Builder table(String...table) {
+        return table(ImmutableList.copyOf(table));
+      }
+
+      public abstract Builder schema(Schema schema);
+      public abstract Builder filter(@Nullable Expression filter);
+      public abstract Builder caseSensitive(@Nullable Boolean caseSensitive);
+      public abstract Builder options(ImmutableMap<String,String> options);
+      public abstract Builder snapshot(@Nullable Long snapshot);
+      public abstract Builder timestamp(@Nullable Long timestamp);
+      public abstract Builder fromSnapshotInclusive(@Nullable Long fromInclusive);
+      public abstract Builder fromSnapshotRefInclusive(@Nullable String ref);
+      public abstract Builder fromSnapshotExclusive(@Nullable Long fromExclusive);
+
+      public abstract Builder fromSnapshotRefExclusive(@Nullable String ref);
+
+      public abstract Builder toSnapshot(@Nullable Long snapshot);
+      public abstract Builder toSnapshotRef(@Nullable String ref);
+      public abstract Builder tag(@Nullable String tag);
+      public abstract Builder branch(@Nullable String branch);
+
+      public abstract Scan build();
+    }
 
   }
 
@@ -78,6 +124,7 @@ public class Iceberg {
     public abstract String getName();
 
     /* Core Properties */
+    public abstract @Nullable String getIcebergCatalogType();
     public abstract @Nullable String getCatalogImplementation();
     public abstract @Nullable String getFileIOImplementation();
     public abstract @Nullable String getWarehouseLocation();
@@ -126,6 +173,7 @@ public class Iceberg {
 
     public static Catalog.Builder builder() {
       return new AutoValue_Iceberg_Catalog.Builder()
+          .icebergCatalogType(null)
           .catalogImplementation(null)
           .fileIOImplementation(null)
           .warehouseLocation(null)
@@ -156,14 +204,15 @@ public class Iceberg {
 
     public ImmutableMap<String,String> properties() {
       return new PropertyBuilder()
-          .put(CatalogProperties.CATALOG_IMPL,getCatalogImplementation())
-          .put(CatalogProperties.FILE_IO_IMPL,getFileIOImplementation())
-          .put(CatalogProperties.WAREHOUSE_LOCATION,getWarehouseLocation())
-          .put(CatalogProperties.METRICS_REPORTER_IMPL,getMetricsReporterImplementation())
-          .put(CatalogProperties.CACHE_ENABLED,getCacheEnabled())
-          .put(CatalogProperties.CACHE_CASE_SENSITIVE,getCacheCaseSensitive())
-          .put(CatalogProperties.CACHE_EXPIRATION_INTERVAL_MS,getCacheExpirationIntervalMillis())
-          .build();
+              .put(CatalogUtil.ICEBERG_CATALOG_TYPE,getIcebergCatalogType())
+              .put(CatalogProperties.CATALOG_IMPL,getCatalogImplementation())
+              .put(CatalogProperties.FILE_IO_IMPL,getFileIOImplementation())
+              .put(CatalogProperties.WAREHOUSE_LOCATION,getWarehouseLocation())
+              .put(CatalogProperties.METRICS_REPORTER_IMPL,getMetricsReporterImplementation())
+              .put(CatalogProperties.CACHE_ENABLED,getCacheEnabled())
+              .put(CatalogProperties.CACHE_CASE_SENSITIVE,getCacheCaseSensitive())
+              .put(CatalogProperties.CACHE_EXPIRATION_INTERVAL_MS,getCacheExpirationIntervalMillis())
+      .build();
     }
 
     public org.apache.iceberg.catalog.Catalog catalog() {
@@ -179,6 +228,7 @@ public class Iceberg {
       public abstract Builder name(String name);
 
       /* Core Properties */
+      public abstract Builder icebergCatalogType(@Nullable String icebergType);
       public abstract Builder catalogImplementation(@Nullable String catalogImpl);
       public abstract Builder fileIOImplementation(@Nullable String fileIOImpl);
       public abstract Builder warehouseLocation(@Nullable String warehouse);
