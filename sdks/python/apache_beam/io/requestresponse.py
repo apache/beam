@@ -123,18 +123,18 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
     Instantiates a RequestResponseIO transform.
 
     Args:
-      caller (~apache_beam.io.requestresponseio.Caller): an implementation of
+      caller (~apache_beam.io.requestresponse.Caller): an implementation of
         `Caller` object that makes call to the API.
       timeout (float): timeout value in seconds to wait for response from API.
-      should_backoff (~apache_beam.io.requestresponseio.ShouldBackOff):
+      should_backoff (~apache_beam.io.requestresponse.ShouldBackOff):
         (Optional) provides methods for backoff.
-      repeater (~apache_beam.io.requestresponseio.Repeater): (Optional)
+      repeater (~apache_beam.io.requestresponse.Repeater): (Optional)
         provides methods to repeat requests to API.
-      cache_reader (~apache_beam.io.requestresponseio.CacheReader): (Optional)
+      cache_reader (~apache_beam.io.requestresponse.CacheReader): (Optional)
         provides methods to read external cache.
-      cache_writer (~apache_beam.io.requestresponseio.CacheWriter): (Optional)
+      cache_writer (~apache_beam.io.requestresponse.CacheWriter): (Optional)
         provides methods to write to external cache.
-      throttler (~apache_beam.io.requestresponseio.PreCallThrottler):
+      throttler (~apache_beam.io.requestresponse.PreCallThrottler):
         (Optional) provides methods to pre-throttle a request.
     """
     self._caller = caller
@@ -165,7 +165,7 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
   regulate the duration of each call, defaults to 30 seconds.
 
   Args:
-      caller (:class:`apache_beam.io.requestresponseio.Caller`): a callable
+      caller (:class:`apache_beam.io.requestresponse.Caller`): a callable
         object that invokes API call.
       timeout (float): timeout value in seconds to wait for response from API.
   """
@@ -178,12 +178,12 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
   ):
     """Initialize the _Call transform.
     Args:
-      caller (:class:`apache_beam.io.requestresponseio.Caller`): a callable
+      caller (:class:`apache_beam.io.requestresponse.Caller`): a callable
         object that invokes API call.
       timeout (float): timeout value in seconds to wait for response from API.
-      should_backoff (~apache_beam.io.requestresponseio.ShouldBackOff):
+      should_backoff (~apache_beam.io.requestresponse.ShouldBackOff):
         (Optional) provides methods for backoff.
-      repeater (~apache_beam.io.requestresponseio.Repeater): (Optional) provides
+      repeater (~apache_beam.io.requestresponse.Repeater): (Optional) provides
         methods to repeat requests to API.
     """
     self._caller = caller

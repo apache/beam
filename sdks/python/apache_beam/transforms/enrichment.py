@@ -21,14 +21,14 @@ from typing import Optional
 from typing import TypeVar
 
 import apache_beam as beam
-from apache_beam.io.requestresponseio import DEFAULT_TIMEOUT_SECS
-from apache_beam.io.requestresponseio import CacheReader
-from apache_beam.io.requestresponseio import CacheWriter
-from apache_beam.io.requestresponseio import Caller
-from apache_beam.io.requestresponseio import PreCallThrottler
-from apache_beam.io.requestresponseio import Repeater
-from apache_beam.io.requestresponseio import RequestResponseIO
-from apache_beam.io.requestresponseio import ShouldBackOff
+from apache_beam.io.requestresponse import DEFAULT_TIMEOUT_SECS
+from apache_beam.io.requestresponse import CacheReader
+from apache_beam.io.requestresponse import CacheWriter
+from apache_beam.io.requestresponse import Caller
+from apache_beam.io.requestresponse import PreCallThrottler
+from apache_beam.io.requestresponse import Repeater
+from apache_beam.io.requestresponse import RequestResponseIO
+from apache_beam.io.requestresponse import ShouldBackOff
 
 __all__ = [
     "EnrichmentSourceHandler",
@@ -59,7 +59,7 @@ def cross_join(element):
 
 
 class EnrichmentSourceHandler(Caller[InputT, OutputT]):
-  """Wrapper class for :class:`apache_beam.io.requestresponseio.Caller`.
+  """Wrapper class for :class:`apache_beam.io.requestresponse.Caller`.
 
   Ensure that the implementation of ``__call__`` method returns a tuple
   of `beam.Row`  objects.
