@@ -27,7 +27,7 @@ with beam.Pipeline(options=options) as p:
 
 ```
 Response:
-This code uses Apache Beam [KafkaIO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.kafka.html) python connector to read data from an [Apache Kafka](https://kafka.apache.org/) topic `topic` on `bootstrap_servers`.
+This code uses Apache Beam [KafkaIO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.kafka.html) Python connector to read data from an [Apache Kafka](https://kafka.apache.org/) topic `topic` on `bootstrap_servers`.
 
 The `ReadFromKafka` transform reads from a Kafka topic `topic` on `bootstrap_servers`. This is a cross-language transform that is implemented in Java and is available in Python, Go, and Typescript via X-language. Python SDK will connect to a Java expansion service to expand these transforms during pipeline execution. See [here](https://beam.apache.org/roadmap/portability/) for more information on cross-language transforms.
 
@@ -40,7 +40,7 @@ with beam.Pipeline(options=options) as p:
         )
         | "Log Data" >> Map(logging.info))
 ```
-Required arguments for `ReadFromKafka` transform are `consumer_config` and `topics`. The `consumer_config` argument is used to specify the Kafka bootstrap servers. The `topics` argument is used to specify the Kafka topic to read data from. The `with_metadata` argument is used to specify whether to include Kafka metadata in the output PCollection. The default value is `False`.
+Required arguments for the `ReadFromKafka` transform are `consumer_config` and `topics`. You can use the `consumer_config` argument to specify the Kafka bootstrap servers, the `topics` argument to specify the Kafka topic to read data from, and the `with_metadata` argument to specify whether to include Kafka metadata in the output `PCollection`. The default value is `False`.
 
 The KafkaReadOptions class is used to parse pipeline options for Kafka read transform. The `bootstrap_servers` and `topic` arguments are provided as a command line arguments. This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse pipeline options.
 

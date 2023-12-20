@@ -29,7 +29,7 @@ output = (
 
 ```
 Response:
-This code uses Apache Beam [TFRecordIO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.tfrecordio.html) connector to read data from a [TFRecord](https://www.tensorflow.org/api_docs/python/tf/data/TFRecordDataset) file matched with `file_pattern`. The `file_pattern` is provided as a command line arguments.
+This code uses Apache Beam [TFRecordIO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.tfrecordio.html) connector to read data from a [TFRecord](https://www.tensorflow.org/api_docs/python/tf/data/TFRecordDataset) file matched with `file_pattern`. The `file_pattern` is provided as a command line argument.
 
 ```python
 class TFRecordOptions(PipelineOptions):
@@ -56,7 +56,7 @@ output = (
 )
 ```
 
-[ReadFromTFRecord](https://beam.apache.org/releases/pydoc/current/apache_beam.io.tfrecordio.html#apache_beam.io.tfrecordio.ReadFromTFRecord) reads from a `TFRecord` source. By default TFRecordIO transforms use `coders.BytesCoder()`. `Map` transform applies `map_from_bytes` function to deserialize bytes to a Pythin object. Deserialized object is logged to a console. 
+[ReadFromTFRecord](https://beam.apache.org/releases/pydoc/current/apache_beam.io.tfrecordio.html#apache_beam.io.tfrecordio.ReadFromTFRecord) reads from a `TFRecord` source. By default TFRecordIO transforms use `coders.BytesCoder()`. `Map` transform applies `map_from_bytes` function to deserialize bytes to a Pythin object. Deserialized object is logged to a console.
 
 
 

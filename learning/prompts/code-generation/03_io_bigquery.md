@@ -38,7 +38,7 @@ if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
     read_table()
 ```
-ReadFromBigQuery transform also supports reading from a BigQuery query. The following python code reads data from a BigQuery query. The query is provided as a command line argument `query`. The data is logged to the console:
+`ReadFromBigQuery` transform also supports reading from a BigQuery query. The following Python code reads data from a BigQuery using SQL query. The query is provided as a command line argument `query`. The data is logged to the console:
 
 ```python
 with beam.Pipeline(options=options) as p:

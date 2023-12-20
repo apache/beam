@@ -23,7 +23,7 @@ The BigQueryIO connector supports reading from BigQuery tables, executing querie
 ```python
 output = (p | "Read table" >> ReadFromBigQuery(table=options.table))
 ```
-The `ReadFromBigQuery` transform uses a BigQuery export job to take a snapshot of the table on GCS, and then reads from each produced file. File format is Avro by default.
+The 'ReadFromBigQuery' transform uses a BigQuery export job to save table snapshot to Cloud Storage and then reads from each produced file. The default file format is AVRO.
 
 Another option would be to use a query to read data from BigQuery using a SQL query.
 

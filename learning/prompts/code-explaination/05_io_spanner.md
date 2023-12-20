@@ -40,7 +40,7 @@ with beam.Pipeline(options=options) as p:
 
 ```
 Response:
-This code uses Apache Beam [SpannerIO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.spanner.html) connector to read data from a [Cloud Spanner](https://cloud.google.com/spanner) table `example_row` from database `your-database-id` from  instance `your-instance-id`. The `your-database-id`, `your-instance-id` and `your-project-id` are provided as a command line arguments.
+This code uses Apache Beam [SpannerIO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.spanner.html) connector to read data from a [Cloud Spanner](https://cloud.google.com/spanner) table `example_row` from database `your-database-id` from  instance `your-instance-id`. The `your-database-id`, `your-instance-id`, and `your-project-id` are provided as a command line arguments.
 
 ```python
 class SpannerOptions(PipelineOptions):
@@ -64,7 +64,7 @@ class SpannerOptions(PipelineOptions):
 
 options = SpannerOptions()
 ```
-This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command line arguments. The `SpannerOptions` class defines three command line arguments `project_id`, `instance_id` and `database_id` that are used to configure `ReadFromSpanner` transform.
+This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command line arguments. The `SpannerOptions` class defines three command line arguments `project_id`, `instance_id`, and `database_id` that are used to configure `ReadFromSpanner` transform.
 
 ```python
 class ExampleRow(NamedTuple):

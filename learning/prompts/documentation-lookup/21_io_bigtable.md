@@ -1,7 +1,7 @@
 Prompt:
 Is Cloud BigTable supported in Apache Beam?
 Response:
-[Cloud Bigtable](https://cloud.google.com/bigtable) is a [Google Cloud](https://cloud.google.com/) service that provides  enterprise-grade NoSQL database service with single-digit millisecond latency, limitless scale, and 99.999% availability for large analytical and operational workloads.
+[Cloud Bigtable](https://cloud.google.com/bigtable) is a [Google Cloud](https://cloud.google.com/) service that provides enterprise-grade NoSQL database service with single-digit millisecond latency, limitless scale, and 99.999% availability for large analytical and operational workloads.
 
 Apache Beam has a built-in connector for Cloud Bigtable that allows you to read and write data from and to Bigtable:
 * [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigtable/BigtableIO.html)

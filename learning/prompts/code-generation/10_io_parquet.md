@@ -33,6 +33,6 @@ if __name__ == "__main__":
   logging.getLogger().setLevel(logging.INFO)
   run()
 ```
-ReadParquetOptions class is used to define a command line argument `--path` that specifies the path to the Parquet file. This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) for a requred `path` argument.
+`ReadParquetOptions` class is used to define a command line argument `--path` that specifies the path to the Parquet file. This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) for a requred `path` argument.
 
 Beam pipeline is created using the `ReadParquetOptions` class and the [ReadFromParquet](https://beam.apache.org/releases/pydoc/current/apache_beam.io.parquetio.html#apache_beam.io.parquetio.ReadFromParquet) transform is used to read data from the Parquet file.

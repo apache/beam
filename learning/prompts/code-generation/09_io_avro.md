@@ -34,7 +34,7 @@ if __name__ == "__main__":
   logging.getLogger().setLevel(logging.INFO)
   run()
 ```
-ReadAvroOptions class is used to define a command line argument `--path` that specifies the path to the Avro file. This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) for a requred `path` argument.
+`ReadAvroOptions` class is used to define a command line argument `--path` that specifies the path to the Avro file. This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) for a requred `path` argument.
 
 Beam pipeline is created using the `ReadAvroOptions` class and the [ReadFromAvro](https://beam.apache.org/releases/pydoc/current/apache_beam.io.avroio.html#apache_beam.io.avroio.ReadFromAvro) transform is used to read data from the Avro file.
 

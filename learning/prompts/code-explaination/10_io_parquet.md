@@ -29,7 +29,7 @@ class ReadParquetOptions(PipelineOptions):
 
   options = ReadParquetOptions()
 ```
-ReadParquetOptions class is used to define a command line argument `--path` that specifies the path to the Parquet file. This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) for a requred `path` argument.
+`ReadParquetOptions` class is used to define a command line argument `--path` that specifies the path to the Parquet file. This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) for a requred `path` argument.
 
 ```python
 with beam.Pipeline(options=options) as p:
