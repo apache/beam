@@ -39,6 +39,8 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -66,6 +68,7 @@ import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -619,6 +622,65 @@ public class BigQueryIOReadTest implements Serializable {
     p.run();
   }
 
+  @Test
+  public void testReadTableWithInlinedTableRowsRecordArrayInSchema() throws IOException, InterruptedException {
+
+    TableFieldSchema field1 = new TableFieldSchema().setName("field1").setType("STRING");
+    TableFieldSchema field2 = new TableFieldSchema().setName("field2").setType("INTEGER");
+
+    List<TableFieldSchema> innerFields = new ArrayList<>();
+    innerFields.add(field1);
+    innerFields.add(field2);
+
+    // Create a schema for the outer table with a repeated (array) field
+    TableFieldSchema arrayField = new TableFieldSchema()
+       .setName("array_of_rows")
+       .setType("RECORD")
+       .setMode("REPEATED")
+       .setFields(innerFields);
+
+    // setup
+    Table someTable = new Table();
+    TableSchema tableSchema = new TableSchema().setFields(Collections.singletonList(arrayField));
+    someTable.setSchema(tableSchema);
+    someTable.setTableReference(
+       new TableReference()
+          .setProjectId("non-executing-project")
+          .setDatasetId("schema_dataset")
+          .setTableId("schema_table"));
+    someTable.setNumBytes(1024L * 1024L);
+    FakeDatasetService fakeDatasetService = new FakeDatasetService();
+    fakeDatasetService.createDataset("non-executing-project", "schema_dataset", "", "", null);
+    fakeDatasetService.createTable(someTable);
+
+    TableRow innerRow1 = new TableRow().set("field1", null).set("field2", 123L);
+    TableRow innerRow2 = new TableRow().set("field1", "value2").set("field2", 456L);
+    List<TableRow> outerList = new ArrayList<>();
+    outerList.add(innerRow1);
+    outerList.add(innerRow2);
+    TableRow outerRow = new TableRow().set("array_of_rows", outerList);
+
+    List<TableRow> records =
+       Lists.newArrayList(outerRow);
+
+    fakeDatasetService.insertAll(someTable.getTableReference(), records, null);
+
+    FakeBigQueryServices fakeBqServices =
+       new FakeBigQueryServices()
+          .withJobService(new FakeJobService())
+          .withDatasetService(fakeDatasetService);
+
+    BigQueryIO.TypedRead<TableRow> read =
+       BigQueryIO.readTableRowsWithSchema()
+          .from("non-executing-project:schema_dataset.schema_table")
+          .withTestServices(fakeBqServices);
+
+    PCollection<TableRow> bqRows = p.apply(read);
+
+    PAssert.thatSingleton(bqRows.apply("Count rows", Count.globally())).isEqualTo(1L);
+    p.run().waitUntilFinish();
+  }
+
   static class User extends SpecificRecordBase {
     private static final org.apache.avro.Schema schema =
         org.apache.avro.SchemaBuilder.record("User")
@@ -1160,4 +1222,5 @@ public class BigQueryIOReadTest implements Serializable {
         KvCoder.of(ByteStringCoder.of(), ProtoCoder.of(Mutation.class)),
         BigQueryIO.read(parseFn).inferCoder(CoderRegistry.createDefault()));
   }
+
 }

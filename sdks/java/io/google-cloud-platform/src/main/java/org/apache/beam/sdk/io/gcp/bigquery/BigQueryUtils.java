@@ -710,16 +710,9 @@ public class BigQueryUtils {
                 + fieldType
                 + "' because the BigQuery type is a List, while the output type is not a collection.");
       }
-      boolean innerTypeIsMap =
-          fieldType.getCollectionElementType().getTypeName().equals(TypeName.MAP);
 
       return ((List<Object>) jsonBQValue)
           .stream()
-              .map(
-                  v ->
-                      (!innerTypeIsMap && v instanceof Map)
-                          ? ((Map<String, Object>) v).get("v")
-                          : v)
               .map(v -> toBeamValue(field.withType(fieldType.getCollectionElementType()), v))
               .collect(toList());
     }

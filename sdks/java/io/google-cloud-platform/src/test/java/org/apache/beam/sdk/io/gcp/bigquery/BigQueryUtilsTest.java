@@ -414,17 +414,13 @@ public class BigQueryUtilsTest {
       new TableRow()
           .set(
               "ids",
-              Arrays.asList(
-                  Collections.singletonMap("v", "123"),
-                  Collections.singletonMap("v", null),
-                  Collections.singletonMap("v", null)));
+              Arrays.asList("123", null, null));
 
   private static final TableRow BQ_ARRAY_ROW =
       new TableRow()
           .set(
               "ids",
-              Arrays.asList(
-                  Collections.singletonMap("v", "123"), Collections.singletonMap("v", "124")));
+              Arrays.asList("123", "124"));
 
   // sometimes, a TableRow array will not be of format [{v: value1}, {v: value2}, ...]
   // it will instead be of format [value1, value2, ...]
@@ -443,7 +439,7 @@ public class BigQueryUtilsTest {
 
   private static final TableRow BQ_ARRAY_ROW_ROW =
       new TableRow()
-          .set("rows", Collections.singletonList(Collections.singletonMap("v", BQ_FLAT_ROW)));
+          .set("rows", Collections.singletonList(BQ_FLAT_ROW));
 
   private static final TableSchema BQ_FLAT_TYPE =
       new TableSchema()

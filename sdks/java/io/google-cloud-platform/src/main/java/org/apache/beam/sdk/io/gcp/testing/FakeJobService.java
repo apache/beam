@@ -62,6 +62,8 @@ import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.file.FileReader;
+import org.apache.avro.generic.GenericContainer;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -548,16 +550,43 @@ public class FakeJobService implements JobService, Serializable {
         DataFileWriter<GenericRecord> tableRowWriter =
             new DataFileWriter<>(new GenericDatumWriter<GenericRecord>(avroSchema))
                 .create(avroSchema, Channels.newOutputStream(channel))) {
-      for (Map<String, Object> record : rows) {
-        GenericRecordBuilder genericRecordBuilder = new GenericRecordBuilder(avroSchema);
-        for (Map.Entry<String, Object> field : record.entrySet()) {
-          genericRecordBuilder.set(field.getKey(), field.getValue());
-        }
-        tableRowWriter.append(genericRecordBuilder.build());
+      for (TableRow record : rows) {
+        tableRowWriter.append((GenericRecord) toGenericContainer(record, avroSchema));
       }
     } catch (IOException e) {
       throw new IllegalStateException(
           String.format("Could not create destination for extract job %s", filename), e);
     }
+  }
+
+  private static GenericContainer toGenericContainer(TableRow tableRow, Schema avroSchema) {
+    GenericRecordBuilder genericRecordBuilder = new GenericRecordBuilder(avroSchema);
+    // object = [object] | string | number | boolean | null | [ string: object ]
+    for (Map.Entry<String, Object> field : tableRow.entrySet()) {
+      if (isATableRowCollection(field.getValue())) {
+        Schema arrayFieldSchema = getFieldSchema(avroSchema, field);
+        @SuppressWarnings("unchecked")
+        List<TableRow> nestedRows = (List<TableRow>) field.getValue();
+        GenericData.Array<GenericContainer> array = new GenericData.Array<>(nestedRows.size(), arrayFieldSchema);
+        array.addAll(nestedRows.stream().map(row -> toGenericContainer(row, arrayFieldSchema.getElementType())).collect(Collectors.toList()));
+        genericRecordBuilder.set(field.getKey(), array);
+      } else if (field.getValue() instanceof TableRow) {
+        genericRecordBuilder.set(field.getKey(), toGenericContainer((TableRow) field.getValue(), getFieldSchema(avroSchema, field)));
+      } else {
+        genericRecordBuilder.set(field.getKey(), field.getValue());
+      }
+    }
+    return genericRecordBuilder.build();
+  }
+
+  private static boolean isATableRowCollection(Object fieldValue) {
+    return fieldValue instanceof Collection && !((Collection<?>) fieldValue).isEmpty() &&
+        ((Collection<?>) fieldValue).iterator().next() instanceof TableRow;
+  }
+
+  private static Schema getFieldSchema(Schema avroSchema, Map.Entry<String, Object> field) {
+    return avroSchema.getFields().stream().filter(sf -> sf.name().equals(field.getKey())).map(Schema.Field::schema).reduce((a, b) -> {
+      throw new IllegalStateException("multiple fields with same name");
+    }).get();
   }
 }
