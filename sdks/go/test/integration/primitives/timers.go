@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
@@ -34,7 +33,7 @@ import (
 // Based on https://github.com/apache/beam/blob/master/runners/flink/src/test/java/org/apache/beam/runners/flink/PortableTimersExecutionTest.java
 
 func init() {
-	register.DoFn2x0[[]byte, func(beam.EventTime, string, int)](&inputFn[string, int]{})
+	register.DoFn2x0[[]byte, func(string, int)](&inputFn[string, int]{})
 	register.DoFn7x0[beam.Window, beam.EventTime, state.Provider, timers.Provider, string, int, func(kv[string, int])](&eventTimeFn{})
 	register.Emitter2[string, int]()
 	register.Emitter1[kv[string, int]]()
@@ -56,9 +55,9 @@ type inputFn[K any, V constraints.Integer] struct {
 	Inputs []kv[K, V]
 }
 
-func (fn *inputFn[K, V]) ProcessElement(_ []byte, emit func(beam.EventTime, K, V)) {
+func (fn *inputFn[K, V]) ProcessElement(_ []byte, emit func(K, V)) {
 	for _, in := range fn.Inputs {
-		emit(beam.EventTime(time.Duration(in.Value)*time.Second), in.Key, in.Value)
+		emit(in.Key, in.Value)
 	}
 }
 
@@ -86,7 +85,7 @@ func (fn *eventTimeFn) OnTimer(ctx context.Context, ts beam.EventTime, sp state.
 				panic(err)
 			}
 			if !ok {
-				panic("State must be set.")
+				panic("State must be set for key: " + key)
 			}
 			emit(kvfn(read, fn.TimerOutput))
 		default:
@@ -116,8 +115,8 @@ func timersEventTimePipelineBuilder(makeImp func(s beam.Scope) beam.PCollection)
 		offset := 5000
 		timerOutput := 4093
 
-		numKeys := 1
-		numDuplicateTimers := 2
+		numKeys := 50
+		numDuplicateTimers := 15
 
 		for key := 0; key < numKeys; key++ {
 			k := strconv.Itoa(key)
@@ -140,7 +139,6 @@ func timersEventTimePipelineBuilder(makeImp func(s beam.Scope) beam.PCollection)
 			Callback:    timers.InEventTime("Callback"),
 			MyKey:       state.MakeValueState[string]("MyKey"),
 		}, keyed)
-		// coGBKCheck[string, int](s, times, beam.CreateList(s, wantOutputs))
 		passert.EqualsList(s, times, wantOutputs)
 	}
 }

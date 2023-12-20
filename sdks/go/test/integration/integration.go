@@ -137,7 +137,7 @@ var portableFilters = []string{
 	"TestSetState",
 	"TestSetStateClear",
 
-	// The portable runner does not appear to support timers. (extra elements)
+	// The portable runner does not uniquify support timers. (extra elements)
 	// "TestTimers.*",
 }
 
@@ -188,9 +188,7 @@ var flinkFilters = []string{
 	"TestSetStateClear",
 	"TestSetState",
 
-	// Flink does not appear to support timers. (missing timer elements)
-	//"TestTimers_EventTime_Bounded", // (missing timer elements)
-	//"TestTimers_EventTime_Unbounded", // (failure when comparing on side inputs (NPE on window lookup))
+	"TestTimers_EventTime_Unbounded", // (failure when comparing on side inputs (NPE on window lookup))
 }
 
 var samzaFilters = []string{
@@ -230,8 +228,8 @@ var samzaFilters = []string{
 	// TODO(https://github.com/apache/beam/issues/26126): Java runner issue (AcitveBundle has no regsitered handler)
 	"TestDebeziumIO_BasicRead",
 
-	// Samza does not appear to support timers. (missing timer elements)
-	// "TestTimers.*",
+	// Samza does not support state.
+	"TestTimers.*",
 }
 
 var sparkFilters = []string{
@@ -264,8 +262,7 @@ var sparkFilters = []string{
 	"TestSetStateClear",
 	"TestSetState",
 
-	// Spark does not appear to support timers. (Missing all elements)
-	// "TestTimers.*",
+	"TestTimers_EventTime_Unbounded", // Side inputs in executable stage not supported.
 }
 
 var dataflowFilters = []string{
