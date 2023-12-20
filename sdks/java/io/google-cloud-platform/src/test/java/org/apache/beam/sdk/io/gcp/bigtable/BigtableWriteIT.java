@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 
 import com.google.api.gax.rpc.ServerStream;
 import com.google.bigtable.v2.Mutation;
@@ -76,7 +77,6 @@ public class BigtableWriteIT implements Serializable {
   private final String tableId =
       String.format("BigtableWriteIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date());
 
-  private final String failureTableId = tableId + "-failure";
   private String project;
 
   @Before
@@ -160,60 +160,62 @@ public class BigtableWriteIT implements Serializable {
     final int numRows = 1000;
     final List<KV<ByteString, ByteString>> testData = generateTableData(numRows);
 
-    createEmptyTable(failureTableId);
+    createEmptyTable(tableId);
 
     Pipeline p = Pipeline.create(options);
-    PCollection<KV<ByteString,Iterable<Mutation>>> mutations = p.apply(GenerateSequence.from(0).to(numRows))
-        .apply(
-            ParDo.of(
-                new DoFn<Long, KV<ByteString, Iterable<Mutation>>>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    int index = c.element().intValue();
+    PCollection<KV<ByteString, Iterable<Mutation>>> mutations =
+        p.apply(GenerateSequence.from(0).to(numRows))
+            .apply(
+                ParDo.of(
+                    new DoFn<Long, KV<ByteString, Iterable<Mutation>>>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        int index = c.element().intValue();
 
-                    String familyName = COLUMN_FAMILY_NAME;
-                    if (index % 1700 == 0 ) {
-                      familyName = "malformed";
-                    }
-                    Iterable<Mutation> mutations = ImmutableList.of(
-                        Mutation.newBuilder()
-                            .setSetCell(
-                                Mutation.SetCell.newBuilder()
-                                    .setValue(testData.get(index).getValue())
-                                    .setFamilyName(familyName))
-                            .build());
-                    c.output(KV.of(testData.get(index).getKey(), mutations));
-                  }
-                }));
-    ErrorHandler<BadRecord,PCollection<Long>> errorHandler = p.registerBadRecordErrorHandler(new ErrorSinkTransform());
+                        String familyName = COLUMN_FAMILY_NAME;
+                        if (index % 600 == 0) {
+                          familyName = "malformed";
+                        }
+                        Iterable<Mutation> mutations =
+                            ImmutableList.of(
+                                Mutation.newBuilder()
+                                    .setSetCell(
+                                        Mutation.SetCell.newBuilder()
+                                            .setValue(testData.get(index).getValue())
+                                            .setFamilyName(familyName))
+                                    .build());
+                        c.output(KV.of(testData.get(index).getKey(), mutations));
+                      }
+                    }));
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        p.registerBadRecordErrorHandler(new ErrorSinkTransform());
     mutations.apply(
-          BigtableIO.write()
-              .withProjectId(project)
-              .withInstanceId(options.getInstanceId())
-              .withTableId(failureTableId)
-              .withErrorHandler(errorHandler));
+        BigtableIO.write()
+            .withProjectId(project)
+            .withInstanceId(options.getInstanceId())
+            .withTableId(tableId)
+            .withErrorHandler(errorHandler));
 
     errorHandler.close();
-    // PAssert.thatSingleton(Objects.requireNonNull(errorHandler.getOutput())).isEqualTo(10L);
+    PAssert.thatSingleton(Objects.requireNonNull(errorHandler.getOutput())).isEqualTo(2L);
 
     p.run();
 
     // Test number of column families and column family name equality
-    Table table = getTable(failureTableId);
+    Table table = getTable(tableId);
     assertThat(table.getColumnFamilies(), Matchers.hasSize(1));
     assertThat(
         table.getColumnFamilies().stream().map((c) -> c.getId()).collect(Collectors.toList()),
         Matchers.contains(COLUMN_FAMILY_NAME));
 
     // Test table data equality
-    List<KV<ByteString, ByteString>> tableData = getTableData(failureTableId);
-    assertThat(tableData, Matchers.containsInAnyOrder(testData.toArray()));
+    List<KV<ByteString, ByteString>> tableData = getTableData(tableId);
+    assertEquals(998, tableData.size());
   }
 
   @After
   public void tearDown() throws Exception {
     deleteTable(tableId);
-    deleteTable(failureTableId);
     if (tableAdminClient != null) {
       tableAdminClient.close();
     }

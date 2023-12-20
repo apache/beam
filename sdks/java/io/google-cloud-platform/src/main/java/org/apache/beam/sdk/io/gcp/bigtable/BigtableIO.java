@@ -27,6 +27,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.api.gax.batching.BatchingException;
 import com.google.api.gax.rpc.NotFoundException;
 import com.google.auto.value.AutoValue;
+import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowFilter;
@@ -38,11 +39,15 @@ import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.function.BiConsumer;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
@@ -782,7 +787,7 @@ public class BigtableIO {
     @VisibleForTesting
     abstract BigtableServiceFactory getServiceFactory();
 
-    abstract ErrorHandler<BadRecord,?> getBadRecordErrorHandler();
+    abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
     abstract BadRecordRouter getBadRecordRouter();
 
@@ -1112,9 +1117,11 @@ public class BigtableIO {
           .build();
     }
 
-    public Write withErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler){
-      return toBuilder().setBadRecordErrorHandler(badRecordErrorHandler)
-          .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER).build();
+    public Write withErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
+      return toBuilder()
+          .setBadRecordErrorHandler(badRecordErrorHandler)
+          .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER)
+          .build();
     }
 
     @VisibleForTesting
@@ -1128,7 +1135,11 @@ public class BigtableIO {
      */
     public WriteWithResults withWriteResults() {
       return new WriteWithResults(
-          getBigtableConfig(), getBigtableWriteOptions(), getServiceFactory(), getBadRecordErrorHandler(), getBadRecordRouter());
+          getBigtableConfig(),
+          getBigtableWriteOptions(),
+          getServiceFactory(),
+          getBadRecordErrorHandler(),
+          getBadRecordRouter());
     }
 
     @Override
@@ -1166,7 +1177,8 @@ public class BigtableIO {
 
     private static final String BIGTABLE_WRITER_WAIT_TIMEOUT_MS = "bigtable_writer_wait_timeout_ms";
 
-    private static final TupleTag<BigtableWriteResult> WRITE_RESULTS = new TupleTag<>("writeResults");
+    private static final TupleTag<BigtableWriteResult> WRITE_RESULTS =
+        new TupleTag<>("writeResults");
 
     private final BigtableConfig bigtableConfig;
     private final BigtableWriteOptions bigtableWriteOptions;
@@ -1207,18 +1219,22 @@ public class BigtableIO {
         closeWaitTimeout = Duration.millis(closeWaitTimeoutMs);
       }
 
-      PCollectionTuple results = input.apply(
-          ParDo.of(
-              new BigtableWriterFn(
-                  factory,
-                  bigtableConfig,
-                  bigtableWriteOptions.toBuilder().setCloseWaitTimeout(closeWaitTimeout).build(),
-                  input.getCoder(),
-                  badRecordRouter))
-              .withOutputTags(WRITE_RESULTS, TupleTagList.of(BAD_RECORD_TAG)));
+      PCollectionTuple results =
+          input.apply(
+              ParDo.of(
+                      new BigtableWriterFn(
+                          factory,
+                          bigtableConfig,
+                          bigtableWriteOptions
+                              .toBuilder()
+                              .setCloseWaitTimeout(closeWaitTimeout)
+                              .build(),
+                          input.getCoder(),
+                          badRecordRouter))
+                  .withOutputTags(WRITE_RESULTS, TupleTagList.of(BAD_RECORD_TAG)));
 
-      badRecordErrorHandler.addErrorCollection(results.get(BAD_RECORD_TAG)
-          .setCoder(BadRecord.getCoder(input.getPipeline())));
+      badRecordErrorHandler.addErrorCollection(
+          results.get(BAD_RECORD_TAG).setCoder(BadRecord.getCoder(input.getPipeline())));
 
       return results.get(WRITE_RESULTS);
     }
@@ -1263,8 +1279,12 @@ public class BigtableIO {
 
     private final BigtableServiceFactory factory;
     private final BigtableServiceFactory.ConfigId id;
-    private final Coder<KV<ByteString,Iterable<Mutation>>> inputCoder;
+    private final Coder<KV<ByteString, Iterable<Mutation>>> inputCoder;
     private final BadRecordRouter badRecordRouter;
+
+    private Set<KV<BigtableWriteException, BoundedWindow>> badRecords = new HashSet<>();
+
+    private Set<CompletionStage<MutateRowResponse>> unbatchedWrites = new HashSet<>();
 
     // Assign serviceEntry in startBundle and clear it in tearDown.
     @Nullable private BigtableServiceEntry serviceEntry;
@@ -1273,7 +1293,7 @@ public class BigtableIO {
         BigtableServiceFactory factory,
         BigtableConfig bigtableConfig,
         BigtableWriteOptions writeOptions,
-        Coder<KV<ByteString,Iterable<Mutation>>> inputCoder,
+        Coder<KV<ByteString, Iterable<Mutation>>> inputCoder,
         BadRecordRouter badRecordRouter) {
       this.factory = factory;
       this.config = bigtableConfig;
@@ -1295,54 +1315,110 @@ public class BigtableIO {
             factory.getServiceForWriting(id, config, writeOptions, c.getPipelineOptions());
         bigtableWriter = serviceEntry.getService().openForWriting(writeOptions);
       }
+
+      badRecords = new HashSet<>();
+      unbatchedWrites = new HashSet<>();
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c, BoundedWindow window, MultiOutputReceiver outputReceiver) throws Exception {
+    public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       checkForFailures();
       KV<ByteString, Iterable<Mutation>> record = c.element();
-      bigtableWriter
-          .writeRecord(record)
-          .whenComplete(
-              (mutationResult, exception) -> {
-                if (exception != null) {
-                  if (exception instanceof NotFoundException && !((NotFoundException) exception).isRetryable()){
-                    //This case, of being an NotFoundException and not retryable,
-                    // indicates an issue with the data, so is sent to the Error Handler
-                    try {
-                      badRecordRouter.route(outputReceiver, record, inputCoder,
-                          (Exception) exception, "Failed writing data to Bigtable");
-                    } catch (Exception e) {
-                      failures.add(new BigtableWriteException(record, exception));
-                    }
-                  } else {
-                    failures.add(new BigtableWriteException(record, exception));
-                  }
-                }
-              });
+      bigtableWriter.writeRecord(record).whenComplete(handleMutationException(record, window));
       ++recordsWritten;
       seenWindows.compute(window, (key, count) -> (count != null ? count : 0) + 1);
+    }
+
+    public BiConsumer<MutateRowResponse, Throwable> handleMutationException(
+        KV<ByteString, Iterable<Mutation>> record, BoundedWindow window) {
+      return (MutateRowResponse result, Throwable exception) -> {
+        if (exception != null) {
+          if (exception instanceof IllegalStateException) {
+            // This case indicates that an individual mutation is invalid, and should not poison the
+            // batch. It can safely be handled without retrying.
+            badRecords.add(KV.of(new BigtableWriteException(record, exception), window));
+          } else if (exception instanceof NotFoundException
+              && !((NotFoundException) exception).isRetryable()) {
+            // This case, of being an NotFoundException and not retryable,
+            // indicates an issue with the data. However, we can't know if this record
+            // failed, or if it was another record in the batch. Thus, we retry each record
+            // individually.
+            retryIndividualRecord(record, window);
+          } else {
+            failures.add(new BigtableWriteException(record, exception));
+          }
+        }
+      };
+    }
+
+    public void retryIndividualRecord(
+        KV<ByteString, Iterable<Mutation>> record, BoundedWindow window) {
+      try {
+        unbatchedWrites.add(
+            bigtableWriter
+                .writeRecordWithoutBatching(record)
+                .whenComplete(
+                    (singleMutationResult, singleException) -> {
+                      if (singleException != null) {
+                        if (singleException instanceof NotFoundException
+                            && !((NotFoundException) singleException).isRetryable()) {
+                          // if we get another NotFoundException, we know this is the bad record.
+                          badRecords.add(
+                              KV.of(new BigtableWriteException(record, singleException), window));
+                        } else {
+                          failures.add(new BigtableWriteException(record, singleException));
+                        }
+                      }
+                    }));
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
       try {
-        checkForFailures();
 
         if (bigtableWriter != null) {
           try {
             bigtableWriter.close();
-          } catch (IOException e){
-            //If the writer fails due to a batching exception, but no failures were detected
-            //it means that error handling was enabled, and that errors were detected and routed
-            //to the error queue. Bigtable will successfully write other failures in the batch,
-            //so this exception should be ignored
-            if (!(e.getCause() instanceof BatchingException)){
+          } catch (IOException e) {
+            // If the writer fails due to a batching exception, but no failures were detected
+            // it means that error handling was enabled, and that errors were detected and routed
+            // to the error queue. Bigtable will successfully write other failures in the batch,
+            // so this exception should be ignored
+            if (!(e.getCause() instanceof BatchingException)) {
               throw e;
             }
           }
           bigtableWriter = null;
         }
+
+        for (CompletionStage<MutateRowResponse> unbatchedWrite : unbatchedWrites) {
+          try {
+            unbatchedWrite.toCompletableFuture().get();
+          } catch (Exception e) {
+            // ignore exceptions here, they are handled by the .whenComplete as part of the
+            // completion stage this .get exists purely to make sure all unbatched writes are
+            // complete.
+          }
+        }
+
+        for (KV<BigtableWriteException, BoundedWindow> badRecord : badRecords) {
+          try {
+            badRecordRouter.route(
+                c,
+                badRecord.getKey().getRecord(),
+                inputCoder,
+                (Exception) badRecord.getKey().getCause(),
+                "Failed to write malformed mutation to Bigtable",
+                badRecord.getValue());
+          } catch (Exception e) {
+            failures.add(badRecord.getKey());
+          }
+        }
+
+        checkForFailures();
 
         LOG.debug("Wrote {} records", recordsWritten);
 
@@ -1946,7 +2022,6 @@ public class BigtableIO {
     public KV<ByteString, Iterable<Mutation>> getRecord() {
       return record;
     }
-
   }
   /**
    * Overwrite options to determine what to do if change stream name is being reused and there
