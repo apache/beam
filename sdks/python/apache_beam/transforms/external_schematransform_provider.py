@@ -142,9 +142,9 @@ class ExternalSchemaTransformProvider:
   """Dynamically discovers Schema-aware external transforms from a given list
   of expansion services and provides them as ready PTransforms.
 
-  A :class:`ExternalSchemaTransform` subclass is generated for each external
+  An :class:`ExternalSchemaTransform` subclass is generated for each external
   transform, and is named based on what can be inferred from the URN
-  (see :param urn_pattern).
+  (see :param:`urn_pattern`).
 
   These classes are generated when :class:`ExternalSchemaTransformProvider` is
   initialized. We need to give it one or more expansion service addresses that
@@ -256,7 +256,7 @@ class ExternalSchemaTransformProvider:
 
       if skipped_urns:
         logging.info(
-            "Skipped URN(s) in %s that don't follow the pattern [%s]: %s",
+            "Skipped URN(s) in %s that don't follow the pattern \"%s\": %s",
             target,
             self._urn_pattern,
             skipped_urns)
@@ -267,6 +267,10 @@ class ExternalSchemaTransformProvider:
   def get_available(self) -> List[Tuple[str, str]]:
     """Get a list of available ExternalSchemaTransform names and identifiers"""
     return list(self._name_to_urn.items())
+
+  def get_all(self) -> Dict[str, ExternalSchemaTransform]:
+    """Get all ExternalSchemaTransforms"""
+    return self._transforms
 
   def get(self, name) -> ExternalSchemaTransform:
     """Get an ExternalSchemaTransform by its inferred class name"""

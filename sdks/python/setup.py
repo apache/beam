@@ -231,6 +231,14 @@ if __name__ == '__main__':
   # executes below.
   generate_protos_first()
 
+  # Generate external transform wrappers
+  subprocess.run([
+    sys.executable,
+    os.path.join('gen_xlang_wrappers.py'),
+    '--cleanup',
+    '--input-expansion-services', 'standard_expansion_services.yaml',
+    '--output-transforms-config', 'standard_external_transforms.yaml'])
+
   # generate cythonize extensions only if we are building a wheel or
   # building an extension or running in editable mode.
   cythonize_cmds = ('bdist_wheel', 'build_ext', 'editable_wheel')
