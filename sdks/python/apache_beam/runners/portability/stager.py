@@ -121,7 +121,7 @@ class Stager(object):
   @staticmethod
   def _create_file_stage_to_artifact(local_path, staged_name):
     return beam_runner_api_pb2.ArtifactInformation(
-        type_urn=common_urns.artifact_types.urn,
+        type_urn=common_urns.artifact_types.FILE.urn,
         type_payload=beam_runner_api_pb2.ArtifactFilePayload(
             path=local_path).SerializeToString(),
         role_urn=common_urns.artifact_roles.STAGING_TO.urn,
