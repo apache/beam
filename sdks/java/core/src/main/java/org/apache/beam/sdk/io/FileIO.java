@@ -1318,10 +1318,9 @@ public class FileIO {
     }
 
     /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler)}. */
-    public Write<DestinationT, UserT> withBadRecordErrorHandler(ErrorHandler<BadRecord, ?> errorHandler) {
-      return toBuilder()
-          .setBadRecordErrorHandler(errorHandler)
-          .build();
+    public Write<DestinationT, UserT> withBadRecordErrorHandler(
+        ErrorHandler<BadRecord, ?> errorHandler) {
+      return toBuilder().setBadRecordErrorHandler(errorHandler).build();
     }
 
     @VisibleForTesting
@@ -1428,8 +1427,7 @@ public class FileIO {
         writeFiles = writeFiles.withNoSpilling();
       }
       if (getBadRecordErrorHandler() != null) {
-        writeFiles =
-            writeFiles.withBadRecordErrorHandler(getBadRecordErrorHandler());
+        writeFiles = writeFiles.withBadRecordErrorHandler(getBadRecordErrorHandler());
       }
       return input.apply(writeFiles);
     }

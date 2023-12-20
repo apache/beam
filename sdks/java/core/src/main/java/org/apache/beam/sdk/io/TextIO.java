@@ -1007,9 +1007,7 @@ public class TextIO {
     /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler)}. */
     public TypedWrite<UserT, DestinationT> withBadRecordErrorHandler(
         ErrorHandler<BadRecord, ?> errorHandler) {
-      return toBuilder()
-          .setBadRecordErrorHandler(errorHandler)
-          .build();
+      return toBuilder().setBadRecordErrorHandler(errorHandler).build();
     }
 
     /** Don't write any output files if the PCollection is empty. */

@@ -59,7 +59,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reify;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
@@ -793,14 +792,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     try {
       return new MaybeDestination<>(getDynamicDestinations().getDestination(input), true);
     } catch (Exception e) {
-        getBadRecordRouter()
-            .route(
-                outputReceiver,
-                input,
-                inputCoder,
-                e,
-                "Unable to get dynamic destination for record");
-        return new MaybeDestination<>(null, false);
+      getBadRecordRouter()
+          .route(
+              outputReceiver, input, inputCoder, e, "Unable to get dynamic destination for record");
+      return new MaybeDestination<>(null, false);
     }
   }
 
@@ -811,14 +806,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     try {
       return getDynamicDestinations().formatRecord(input);
     } catch (Exception e) {
-        getBadRecordRouter()
-            .route(
-                outputReceiver,
-                input,
-                inputCoder,
-                e,
-                "Unable to format record for Dynamic Destination");
-        return null;
+      getBadRecordRouter()
+          .route(
+              outputReceiver,
+              input,
+              inputCoder,
+              e,
+              "Unable to format record for Dynamic Destination");
+      return null;
     }
   }
 
