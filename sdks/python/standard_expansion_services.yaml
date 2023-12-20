@@ -67,6 +67,30 @@
       name: 'ReadFromBigtable'
       destinations:
         python: 'apache_beam/io/gcp/bigtable'
+    'beam:schematransform:org.apache.beam:pubsub_read:v1':
+      name: 'ReadFromPubSub'
+      destinations:
+        python: 'apache_beam/io/gcp/pubsub'
+    'beam:schematransform:org.apache.beam:pubsub_write:v1':
+      name: 'WriteToPubSub'
+      destinations:
+        python: 'apache_beam/io/gcp/pubsub'
+    'beam:schematransform:org.apache.beam:pubsublite_read:v1':
+      name: 'ReadFromPubSubLite'
+      destinations:
+        python: 'apache_beam/io/gcp/pubsublite'
+    'beam:schematransform:org.apache.beam:pubsublite_write:v1':
+      name: 'WriteToPubSubLite'
+      destinations:
+        python: 'apache_beam/io/gcp/pubsublite'
+    'beam:schematransform:org.apache.beam:spanner_cdc_read:v1':
+      name: 'ReadFromSpannerChangeStreams'
+      destinations:
+        python: 'apache_beam/io/gcp/spanner'
+    'beam:schematransform:org.apache.beam:spanner_write:v1':
+      name: 'WriteToSpanner'
+      destinations:
+        python: 'apache_beam/io/gcp/spanner'
     'beam:schematransform:org.apache.beam:jdbc_write:v1':
       name: 'WriteToJdbc'
       destinations:
