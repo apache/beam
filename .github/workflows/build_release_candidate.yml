@@ -99,7 +99,7 @@ jobs:
         run: |
           # Workaround for Actions bug - https://github.com/actions/runner/issues/643
           APACHE_PASS=$(jq -r '.inputs.APACHE_PASSWORD' $GITHUB_EVENT_PATH)
-          echo "::add-mask::$MY_SECRET"
+          echo "::add-mask::$APACHE_PASS"
       - name: Validate apache id/password
         run: |
           if [ "${{ github.event.inputs.APACHE_ID }}" == "" ]
@@ -165,7 +165,7 @@ jobs:
         run: |
           # Workaround for Actions bug - https://github.com/actions/runner/issues/643
           APACHE_PASS=$(jq -r '.inputs.APACHE_PASSWORD' $GITHUB_EVENT_PATH)
-          echo "::add-mask::$MY_SECRET"
+          echo "::add-mask::$APACHE_PASS"
       - name: Mask apache id/password
         run: |
           if [ "${{ github.event.inputs.APACHE_ID }}" == "" ]
