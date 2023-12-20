@@ -538,7 +538,6 @@ class SchemaTranslation(object):
     from apache_beam import coders
 
     type_name = 'BeamSchema_{}'.format(schema.id.replace('-', '_'))
-    descriptions = {}
     subfields = []
     descriptions = {}
     for field in schema.fields:

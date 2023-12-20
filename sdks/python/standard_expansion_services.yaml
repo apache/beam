@@ -51,6 +51,14 @@
       name: 'StorageReadFromBigQuery'
       destinations:
         python: 'apache_beam/io/gcp/bigquery'
+    'beam:schematransform:org.apache.beam:bigquery_fileloads_write:v1':
+      name: 'FileLoadsToBigQuery'
+      destinations:
+        python: 'apache_beam/io/gcp/bigquery'
+    'beam:schematransform:org.apache.beam:bigquery_export_read:v1':
+      name: 'ExportReadFromBigQuery'
+      destinations:
+        python: 'apache_beam/io/gcp/bigquery'
     'beam:schematransform:org.apache.beam:bigtable_write:v1':
       name: 'WriteToBigtable'
       destinations:
@@ -70,6 +78,3 @@
   ignore:
     # generate_sequence is already included in the Java IO expansion service
     - 'beam:schematransform:org.apache.beam:generate_sequence:v1'
-    # Python already includes native implementations of these two:
-    - 'beam:schematransform:org.apache.beam:bigquery_fileloads_write:v1'
-    - 'beam:schematransform:org.apache.beam:bigquery_export_read:v1'
