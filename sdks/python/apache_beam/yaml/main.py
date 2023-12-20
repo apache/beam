@@ -36,7 +36,12 @@ def _configure_parser(argv):
   parser.add_argument(
       '--pipeline_spec_file',
       help='A file containing a yaml description of the pipeline to run.')
-  parser.add_argument('--json_schema_validation', default='generic')
+  parser.add_argument(
+      '--json_schema_validation',
+      default='generic',
+      help='none: do no pipeline validation against the schema; '
+      'generic: validate the pipeline shape, but not individual transforms; '
+      'per_transform: also validate the config of known transforms')
   return parser.parse_known_args(argv)
 
 
@@ -71,9 +76,7 @@ def run(argv=None):
       display_data={'yaml': pipeline_yaml}) as p:
     print("Building pipeline...")
     yaml_transform.expand_pipeline(
-        p,
-        pipeline_spec,
-        validate_schema=known_args.json_schema_validation == 'generic')
+        p, pipeline_spec, validate_schema=known_args.json_schema_validation)
     print("Running pipeline...")
 
 

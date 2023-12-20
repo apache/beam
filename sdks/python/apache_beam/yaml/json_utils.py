@@ -126,7 +126,9 @@ def beam_type_to_json_type(beam_type: schema_pb2.FieldType) -> Dict[str, Any]:
     return {
         'type': 'object',
         'properties': {
-            '__line__': 'integer', '__uuid__': {}
+            '__line__': {
+                'type': 'integer'
+            }, '__uuid__': {}
         },
         'additionalProperties': beam_type_to_json_type(
             beam_type.map_type.value_type)

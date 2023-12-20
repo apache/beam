@@ -205,7 +205,9 @@ def main():
                           'config': {
                               'type': 'object',
                               'properties': {
-                                  '__line__': 'integer',
+                                  '__line__': {
+                                      'type': 'integer'
+                                  },
                                   '__uuid__': {},
                                   **{
                                       f.name: json_utils.beam_type_to_json_type(
