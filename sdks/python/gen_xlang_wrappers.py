@@ -16,8 +16,8 @@
 #
 
 """
-Generates Python wrappers for external transforms.
-Specifically, SchemaTransforms.
+Generates Python wrappers for external transforms (specifically,
+SchemaTransforms)
 """
 
 import argparse
@@ -109,99 +109,100 @@ def generate_transform_configs(input_services, output_file):
 
   with open(input_services) as f:
     services = yaml.safe_load(f)
-    for service in services:
-      target = service['gradle_target']
+  for service in services:
+    target = service['gradle_target']
 
-      # validate expansion service destinations
-      if "destinations" not in service:
+    # validate expansion service destinations
+    if "destinations" not in service:
+      raise ValueError(
+          f"Expansion service with target [{target}] does not "
+          "specify any default destinations.")
+    service_destinations: Dict[str, str] = service['destinations']
+    for sdk in service_destinations.keys():
+      if sdk not in SUPPORTED_SDK_DESTINATIONS:
         raise ValueError(
-            f"Expansion service with target [{target}] does not "
-            "specify any default destinations.")
-      service_destinations: Dict[str, str] = service['destinations']
-      for sdk in service_destinations.keys():
-        if sdk not in SUPPORTED_SDK_DESTINATIONS:
-          raise ValueError(
-              f"Service with target {target} specifies a "
-              f"destination for an invalid SDK: {sdk}. The "
-              f"supported SDKs are {SUPPORTED_SDK_DESTINATIONS}")
+            f"Service with target {target} specifies a "
+            f"destination for an invalid SDK: {sdk}. The "
+            f"supported SDKs are {SUPPORTED_SDK_DESTINATIONS}")
 
-      # get transforms to skip, if any
-      ignore = service.get('ignore', [])
+    # get transforms to skip, if any
+    ignore = service.get('ignore', [])
 
-      # use dynamic provider to discover and populate wrapper details
-      provider = ExternalSchemaTransformProvider(
-          BeamJarExpansionService(target))
-      discovered: Dict[str, ExternalSchemaTransform] = provider.get_all()
-      for identifier, wrapper in discovered.items():
-        if identifier in ignore:
-          continue
-        # We infer the destination from the URN and service destination.
-        # For example, the Java IO expansion service defaults to Python
-        # package apache_beam/io. Kafka Write is a transform in this service
-        # with URN beam:schematransform:org.apache.beam:kafka_write:v1
-        # In this case, we infer the destination apache_beam/io/kafka_write
-        functionality_identifier = re.match(STANDARD_URN_PATTERN,
-                                            identifier).groups()[0]
-        destinations = {
-            sdk: f"{destination}/{functionality_identifier}"
-            for sdk,
-            destination in service_destinations.items()
+    # use dynamic provider to discover and populate wrapper details
+    provider = ExternalSchemaTransformProvider(
+        BeamJarExpansionService(target))
+    discovered: Dict[str, ExternalSchemaTransform] = provider.get_all()
+    for identifier, wrapper in discovered.items():
+      if identifier in ignore:
+        continue
+      # We infer the destination from the URN and service destination.
+      # For example, the Java IO expansion service defaults to Python
+      # package apache_beam/io. Kafka Write is a transform in this service
+      # with URN beam:schematransform:org.apache.beam:kafka_write:v1
+      # In this case, we infer the destination apache_beam/io/kafka_write
+      functionality_identifier = re.match(STANDARD_URN_PATTERN,
+                                          identifier).groups()[0]
+      destinations = {
+          sdk: f"{destination}/{functionality_identifier}"
+          for sdk,
+          destination in service_destinations.items()
+      }
+      name = wrapper.__name__
+
+      # apply any modifications
+      modified_transform = {}
+      if 'transforms' in service and identifier in service['transforms']:
+        modified_transform = service['transforms'][identifier]
+      if 'name' in modified_transform:
+        name = modified_transform['name']  # override the name
+      if 'destinations' in modified_transform:
+        for sdk, destination in modified_transform['destinations'].items():
+          if sdk not in SUPPORTED_SDK_DESTINATIONS:
+            raise ValueError(
+                f"Identifier {identifier} specifies a destination for "
+                f"an invalid SDK: [{sdk}]. The supported SDKs "
+                f"are {SUPPORTED_SDK_DESTINATIONS}")
+          destinations[sdk] = destination  # override the destination
+
+      # prepare information about parameters
+      fields = {}
+      for param in wrapper.configuration_schema.values():
+        tp = param.type
+        nullable = False
+        # if type is typing.Optional[...]
+        if (typing.get_origin(tp) is Union and
+            type(None) in typing.get_args(tp)):
+          nullable = True
+          # unwrap and set type to the original
+          args = typing.get_args(tp)
+          if len(args) == 2:
+            tp = args[0]
+
+        # some logic for properly setting the type name
+        # TODO(ahmedabu98): Find a way to make this logic more generic when
+        # supporting other remote SDKs. Potentially use Runner API types
+        if tp.__module__ == 'builtins':
+          tp = tp.__name__
+        elif tp.__module__ == 'typing':
+          tp = str(tp).replace("typing.", "")
+        elif tp.__module__ == 'numpy':
+          tp = "%s.%s" % (tp.__module__, tp.__name__)
+        field_info = {
+            'type': str(tp),
+            'description': param.description,
+            'nullable': nullable
         }
-        name = wrapper.__name__
+        fields[param.original_name] = field_info
 
-        # apply any modifications
-        if 'transforms' in service and identifier in service['transforms']:
-          modified_transform = service['transforms'][identifier]
-          if 'name' in modified_transform:
-            name = modified_transform['name']  # override the name
-          if 'destinations' in modified_transform:
-            for sdk, destination in modified_transform['destinations'].items():
-              if sdk not in SUPPORTED_SDK_DESTINATIONS:
-                raise ValueError(
-                    f"Identifier {identifier} specifies a destination for "
-                    f"an invalid SDK: [{sdk}]. The supported SDKs "
-                    f"are {SUPPORTED_SDK_DESTINATIONS}")
-              destinations[sdk] = destination  # override the destination
-
-        # prepare information about parameters
-        fields = {}
-        for param in wrapper.configuration_schema.values():
-          tp = param.type
-          nullable = False
-          # if type is typing.Optional[...]
-          if (typing.get_origin(tp) is Union and
-              type(None) in typing.get_args(tp)):
-            nullable = True
-            # unwrap and set type to the original
-            args = typing.get_args(tp)
-            if len(args) == 2:
-              tp = args[0]
-
-          # some logic for properly setting the type name
-          # TODO(ahmedabu98): Find a way to make this logic more generic when
-          # supporting other remote SDKs. Potentially use Runner API types
-          if tp.__module__ == 'builtins':
-            tp = tp.__name__
-          elif tp.__module__ == 'typing':
-            tp = str(tp).replace("typing.", "")
-          elif tp.__module__ == 'numpy':
-            tp = "%s.%s" % (tp.__module__, tp.__name__)
-          field_info = {
-              'type': str(tp),
-              'description': param.description,
-              'nullable': nullable
-          }
-          fields[param.original_name] = field_info
-
-        transform = {
-            'identifier': identifier,
-            'name': name,
-            'destinations': destinations,
-            'default_service': target,
-            'fields': fields,
-            'description': wrapper.description
-        }
-        transform_list.append(transform)
+      transform = {
+          'identifier': identifier,
+          'name': name,
+          'destinations': destinations,
+          'default_service': target,
+          'fields': fields,
+          'description': wrapper.description
+      }
+      transform_list.append(transform)
 
   with open(output_file, 'w') as f:
     f.write(LICENSE_HEADER.lstrip())
@@ -291,8 +292,8 @@ def write_wrappers_to_destinations(grouped_wrappers: Dict[str, List[str]]):
     with open(dest, "w") as file:
       file.write(LICENSE_HEADER.lstrip())
       file.write(
-          "# NOTE: This file contains autogenerated external transform(s) "
-          "and should not be edited by hand.\n\n")
+          "# NOTE: This file contains autogenerated external transform(s)\n"
+          "# and should not be edited by hand.\n\n")
       file.write(
           "from apache_beam.transforms.external import "
           "BeamJarExpansionService\n"
@@ -304,14 +305,40 @@ def write_wrappers_to_destinations(grouped_wrappers: Dict[str, List[str]]):
     format_command.append(dest)
 
   # format the generated files with yapf
-  subprocess.run(format_command)
+  subprocess.run(format_command, check=True)
 
 
-def delete_generated_files():
+def delete_generated_files(root_dir):
   """Scans for and deletes generated wrapper files."""
-  beam_root = os.path.join(PYTHON_SDK_ROOT, 'apache_beam')
-  for path in find_by_ext(beam_root, PYTHON_SUFFIX):
+  for path in find_by_ext(root_dir, PYTHON_SUFFIX):
     os.remove(path)
+
+
+def run_script(cleanup, input_expansion_services, output_transforms_config):
+  # Cleanup first if requested. This is needed to remove outdated wrappers.
+  if cleanup:
+    delete_generated_files(os.path.join(PYTHON_SDK_ROOT, 'apache_beam'))
+
+  # Find paths for expansion service YAML source and
+  # transform config YAML output
+  expansion_services_source = os.path.join(
+      os.path.dirname(__file__), input_expansion_services)
+  transforms_config_file = os.path.join(
+      os.path.dirname(__file__), output_transforms_config)
+
+  # Generate transform configs and output to the specified path
+  generate_transform_configs(
+      input_services=expansion_services_source,
+      output_file=transforms_config_file)
+
+  # Build and get the generated wrapper code
+  grouped_wrappers = get_wrappers_from_transform_configs(transforms_config_file)
+
+  # Write generated code to the appropriate destinations
+  write_wrappers_to_destinations(grouped_wrappers)
+
+  # Finally, delete the transform YAML config as we don't need it anymore
+  os.remove(transforms_config_file)
 
 
 if __name__ == '__main__':
@@ -337,27 +364,7 @@ if __name__ == '__main__':
           "transform configs will be stored."))
   args = parser.parse_args()
 
-  # Cleanup first if requested. This is needed to remove outdated wrappers.
-  if args.cleanup:
-    delete_generated_files()
-
-  # Find paths for expansion service YAML source and
-  # transform config YAML output
-  expansion_services_source = os.path.join(
-      os.path.dirname(__file__), args.input_expansion_services)
-  transforms_config_file = os.path.join(
-      os.path.dirname(__file__), args.output_transforms_config)
-
-  # Generate transform configs and output to the specified path
-  generate_transform_configs(
-      input_services=expansion_services_source,
-      output_file=transforms_config_file)
-
-  # Build and get the generated wrapper code
-  grouped_wrappers = get_wrappers_from_transform_configs(transforms_config_file)
-
-  # Write generated code to the appropriate destinations
-  write_wrappers_to_destinations(grouped_wrappers)
-
-  # Finally, delete the transform YAML config as we don't need it anymore
-  os.remove(transforms_config_file)
+  run_script(
+      args.cleanup,
+      args.input_expansion_services,
+      args.output_transforms_config)

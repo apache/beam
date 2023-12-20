@@ -205,6 +205,29 @@ def generate_protos_first():
                        err.stderr)
 
 
+def generate_external_transform_wrappers():
+  sdk_root = os.path.dirname(os.path.realpath(__file__))
+  if not os.path.exists(os.path.join(sdk_root, 'gen_xlang_wrappers.py')):
+    beam_root = os.path.join(sdk_root, 'apache_beam')
+    wrappers = list(find_by_ext(beam_root, '_et.py'))
+
+    if not wrappers:
+      raise RuntimeError(
+        'External transform wrappers have not been generated. Please generate'
+        'them by running `python gen_xlang_wrappers.py`')
+    warnings.warn('Skipping external transform wrapper generation as they '
+                  'are already generated.')
+    return
+  out = subprocess.run([
+    sys.executable,
+    os.path.join('gen_xlang_wrappers.py'),
+    '--cleanup',
+    '--input-expansion-services', 'standard_expansion_services.yaml',
+    '--output-transforms-config', 'standard_external_transforms.yaml'],
+    capture_output=True, check=False)
+  print(out.stdout)
+
+
 def get_portability_package_data():
   files = []
   portability_dir = Path(__file__).parent / 'apache_beam' / \
@@ -231,13 +254,8 @@ if __name__ == '__main__':
   # executes below.
   generate_protos_first()
 
-  # Generate external transform wrappers
-  subprocess.run([
-    sys.executable,
-    os.path.join('gen_xlang_wrappers.py'),
-    '--cleanup',
-    '--input-expansion-services', 'standard_expansion_services.yaml',
-    '--output-transforms-config', 'standard_external_transforms.yaml'])
+  # Generate wrappers
+  generate_external_transform_wrappers()
 
   # generate cythonize extensions only if we are building a wheel or
   # building an extension or running in editable mode.
