@@ -138,7 +138,7 @@ var portableFilters = []string{
 	"TestSetStateClear",
 
 	// The portable runner does not appear to support timers. (extra elements)
-	"TestTimers.*",
+	// "TestTimers.*",
 }
 
 var prismFilters = []string{
@@ -189,7 +189,8 @@ var flinkFilters = []string{
 	"TestSetState",
 
 	// Flink does not appear to support timers. (missing timer elements)
-	"TestTimers.*",
+	//"TestTimers_EventTime_Bounded", // (missing timer elements)
+	//"TestTimers_EventTime_Unbounded", // (failure when comparing on side inputs (NPE on window lookup))
 }
 
 var samzaFilters = []string{
@@ -230,7 +231,7 @@ var samzaFilters = []string{
 	"TestDebeziumIO_BasicRead",
 
 	// Samza does not appear to support timers. (missing timer elements)
-	"TestTimers.*",
+	// "TestTimers.*",
 }
 
 var sparkFilters = []string{
@@ -264,7 +265,7 @@ var sparkFilters = []string{
 	"TestSetState",
 
 	// Spark does not appear to support timers. (Missing all elements)
-	"TestTimers.*",
+	// "TestTimers.*",
 }
 
 var dataflowFilters = []string{

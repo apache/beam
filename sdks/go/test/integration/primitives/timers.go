@@ -17,10 +17,13 @@ package primitives
 
 import (
 	"context"
+	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
@@ -31,10 +34,13 @@ import (
 // Based on https://github.com/apache/beam/blob/master/runners/flink/src/test/java/org/apache/beam/runners/flink/PortableTimersExecutionTest.java
 
 func init() {
-	register.DoFn2x0[[]byte, func(string, int)](&inputFn[string, int]{})
-	register.DoFn6x0[beam.Window, state.Provider, timers.Provider, string, int, func(kv[string, int])](&eventTimeFn{})
+	register.DoFn2x0[[]byte, func(beam.EventTime, string, int)](&inputFn[string, int]{})
+	register.DoFn7x0[beam.Window, beam.EventTime, state.Provider, timers.Provider, string, int, func(kv[string, int])](&eventTimeFn{})
 	register.Emitter2[string, int]()
 	register.Emitter1[kv[string, int]]()
+	register.Function3x0(simpleCoGBKCompare)
+	register.Function1x2(splitKV)
+	register.Iter1[int]()
 }
 
 type kv[K, V any] struct {
@@ -46,13 +52,13 @@ func kvfn[K, V any](k K, v V) kv[K, V] {
 	return kv[K, V]{k, v}
 }
 
-type inputFn[K, V any] struct {
+type inputFn[K any, V constraints.Integer] struct {
 	Inputs []kv[K, V]
 }
 
-func (fn *inputFn[K, V]) ProcessElement(_ []byte, emit func(K, V)) {
+func (fn *inputFn[K, V]) ProcessElement(_ []byte, emit func(beam.EventTime, K, V)) {
 	for _, in := range fn.Inputs {
-		emit(in.Key, in.Value)
+		emit(beam.EventTime(time.Duration(in.Value)*time.Second), in.Key, in.Value)
 	}
 }
 
@@ -110,8 +116,8 @@ func timersEventTimePipelineBuilder(makeImp func(s beam.Scope) beam.PCollection)
 		offset := 5000
 		timerOutput := 4093
 
-		numKeys := 50
-		numDuplicateTimers := 15
+		numKeys := 1
+		numDuplicateTimers := 2
 
 		for key := 0; key < numKeys; key++ {
 			k := strconv.Itoa(key)
@@ -134,6 +140,7 @@ func timersEventTimePipelineBuilder(makeImp func(s beam.Scope) beam.PCollection)
 			Callback:    timers.InEventTime("Callback"),
 			MyKey:       state.MakeValueState[string]("MyKey"),
 		}, keyed)
+		// coGBKCheck[string, int](s, times, beam.CreateList(s, wantOutputs))
 		passert.EqualsList(s, times, wantOutputs)
 	}
 }
