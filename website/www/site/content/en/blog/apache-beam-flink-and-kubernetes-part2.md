@@ -33,7 +33,7 @@ Welcome to Part 2 of our in-depth series about building and managing a service f
 
 **What We Found:** Interestingly, we noticed that the metrics are actually being generated in `KafkaIO`, which is a part of our data pipeline that handles Kafka streams. But when we try to monitor these metrics through the Apache Flink Metric system, we can't find them. We suspected that there might be an issue with the integration (or 'wiring') between Apache Beam and Apache Flink.
 
-**Digging Deeper:** On closer inspection, we found that the metrics should be emitted during the 'Checkpointing' phase of the data stream processing. During this crucial step, the system takes a snapshot of the stream's state, and the metrics are typically metrics are generated for unbounded sources. Unbounded sources are sources that continuously stream data, like Kafka.
+**Digging Deeper:** On closer inspection, we found that the metrics should be emitted during the 'Checkpointing' phase of the data stream processing. During this crucial step, the system takes a snapshot of the stream's state, and the metrics are typically metrics that are generated for unbounded sources. Unbounded sources are sources that continuously stream data, like Kafka.
 
 **A Potential Solution:** We believe the root of the problem lies in how the metric context is set during the checkpointing phase. A disconnect appears to prevent the Beam metrics from being properly captured in the Flink Metric system. We proposed a fix for this issue, which you can review and contribute to on our GitHub pull request: [Apache Beam PR #29793](https://github.com/apache/beam/pull/29793).
 
@@ -46,7 +46,7 @@ alt="Apache Flink Beam Backlog Metrics">
 ## Overcoming challenges in checkpoint size reduction for autoscaling Beam jobs
 
 ### Understand the basics of checkpointing in Apache Flink
-In stream processing, maintaining state consistency and fault tolerance is crucial. Apache Flink achieves this through a process called *checkpointing*. It works by periodically capturing the state of a job's operators and storing it in a stable storage location, like Google Cloud Storage or AWS S3. Specifically, Flink checkpoints a job every ten seconds and allows up to one minute for this process to complete. This process is vital for ensuring that, in case of failures, the job can resume from the last checkpoint, providing exactly-once semantics and fault tolerance.
+In stream processing, maintaining state consistency and fault tolerance is crucial. Apache Flink achieves this through a process called *checkpointing*. Checkpointing periodically captures the state of a job's operators and stores it in a stable storage location, like Google Cloud Storage or AWS S3. Specifically, Flink checkpoints a job every ten seconds and allows up to one minute for this process to complete. This process is vital for ensuring that, in case of failures, the job can resume from the last checkpoint, providing exactly-once semantics and fault tolerance.
 
 ### The role of bundles in Apache Beam
 Apache Beam introduces the concept of a *bundle*. A bundle is essentially a group of elements that are processed together. This step enhances processing efficiency and throughput by reducing the overhead of handling each element separately. For more information, see [Bundling and persistence](https://beam.apache.org/documentation/runtime/model/#bundling-and-persistence). In the Flink runner [default configuration](https://beam.apache.org/releases/javadoc/2.52.0/org/apache/beam/runners/flink/FlinkPipelineOptions.html#getMaxBundleSize--), a bundle's default size is 1000 elements with a one-second timeout. However, based on our performance tests, we adjusted the bundle size to *10,000 elements with a 10-second timeout*.
@@ -68,7 +68,7 @@ We discovered that due to a specific issue (BEAM-8577), our Flink runner was inc
 
 ### Understand unaligned checkpointing
 
-In our system, we use unaligned checkpointing to speed up the process of checkpointing, which is essential for ensuring data consistency in distributed systems. However, when we activated the `finishBundleBeforeCheckpointing` feature, we began facing checkpoint timeout issues and delays in checkpointing steps. Apache Beam leverages Apache Flink's Legacy Source implementation for processing unbounded sources. In Flink, tasks are categorized into two types: source tasks and non-source tasks.
+In our system, we use unaligned checkpointing to speed up the process of checkpointing, which is essential for ensuring data consistency in distributed systems. However, when we activated the `finishBundleBeforeCheckpointing` feature, we began facing checkpoint timeout issues and delays in checkpointing steps. Apache Beam leverages Apache Flink's legacy source implementation for processing unbounded sources. In Flink, tasks are categorized into two types: source tasks and non-source tasks.
 
 - **Source tasks**: fetch data from external systems into a Flink job
 - **Non-source tasks**: process the incoming data
@@ -87,7 +87,7 @@ However, the legacy source, still used by Apache Beam's Flink Runner, operates i
 
 ### Our solution
 
-Despite its deprecation, Apache Beam's Flink Runner continues using the legacy source implementation. To address its issues, we implemented our modifications and the quick workarounds based on changes suggested in [FLINK-26759](https://issues.apache.org/jira/browse/FLINK-26759). These enhancements are detailed in our [Pull Request](#). You can also find more information about unaligned checkpoint issues in the [Flink Unaligned Checkpoint](https://blog.51cto.com/u_14286418/7000028) blog post.
+Despite its deprecation, Apache Beam's Flink Runner still uses the legacy source implementation. To address its issues, we implemented our modifications and the quick workarounds suggested in [FLINK-26759](https://issues.apache.org/jira/browse/FLINK-26759). These enhancements are detailed in our [Pull Request](#). You can also find more information about unaligned checkpoint issues in the [Flink Unaligned Checkpoint](https://blog.51cto.com/u_14286418/7000028) blog post.
 
 <img class="center-block"
 src="/images/blog/apache-beam-flink-and-kubernetes-part2/checkpoint_monitoring-history-subtasks.png"
@@ -105,7 +105,7 @@ To resolve this issue, we developed an innovative solution: an adaptive timeout 
 
 ## Unbalanced partition distribution in Beam job autoscaling
 
-At the heart of this system is the adaptive Scheduler, a component designed for rapid resource allocation. It intelligently adjusts the number of parallel tasks (parallelism) a job performs based on the availability of computing slots. These slots are like individual workstations, each capable of handling certain parts of the job.
+At the heart of this system is the adaptive scheduler, a component designed for rapid resource allocation. It intelligently adjusts the number of parallel tasks (parallelism) a job performs based on the availability of computing slots. These slots are like individual workstations, each capable of handling certain parts of the job.
 
 However, we encountered a problem. Our jobs consist of multiple independent pipelines, each needing its own set of resources. Initially, the system tended to overburden the first few workers by assigning them more tasks, while others remained underutilized. This issue was due to the way Flink allocated tasks, favoring the first workers for each pipeline.
 
@@ -123,8 +123,8 @@ With this improvement, each worker gets a fair share of tasks, leading to better
 In the world of data processing with Apache Flink, a common task is to manage and update data-processing jobs. These jobs could be either stateful, where they remember past data, or stateless, where they don't.
 
 In the past, when we needed to update or delete a Flink job managed by the Kubernetes Operator, the system saved the current state of the job using a savepoint or checkpoint. However, a crucial step was missing: the system didn't stop the job from processing new data (this is what we mean by draining the job). This oversight could lead to two major issues:
-1. **For stateful jobs:** Potential data inconsistencies, because the job might process new data that wasn't accounted for in the savepoint.
-2. **For stateless jobs:** Data duplication, because the job might reprocess data it already processed.
+1. **For stateful jobs:** potential data inconsistencies, because the job might process new data that wasn't accounted for in the savepoint
+2. **For stateless jobs:** data duplication, because the job might reprocess data it already processed
 
 ### The solution: drain function
 
