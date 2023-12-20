@@ -955,6 +955,7 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
   _SUPPORTED_STATE_TYPES = frozenset([
       'runner',
       'multimap_side_input',
+      'multimap_keys_side_input',
       'multimap_keys_values_side_input',
       'iterable_side_input',
       'bag_user_state',
