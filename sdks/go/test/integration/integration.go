@@ -126,19 +126,13 @@ var portableFilters = []string{
 	"TestFhirIO.*",
 	// OOMs currently only lead to heap dumps on Dataflow runner
 	"TestOomParDo",
-	// The portable runner does not support user state.
-	// "TestValueState",
-	// "TestValueStateWindowed",
-	// "TestValueStateClear",
-	// "TestBagState",
-	// "TestBagStateClear",
-	// "TestCombiningState",
-	// "TestMapState",
-	// "TestMapStateClear",
-	// "TestSetState",
-	// "TestSetStateClear",
+	// The portable runner does not support user map states.
+	"TestMapState",
+	"TestMapStateClear",
+	"TestSetState",
+	"TestSetStateClear",
 
-	// The portable runner does not uniquify timers. (elements re-fired)
+	// The portable runner does not uniquify timers. (data elements re-fired)
 	"TestTimers.*",
 }
 
