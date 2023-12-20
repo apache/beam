@@ -17,12 +17,9 @@ package primitives
 
 import (
 	"context"
-	"fmt"
-	"sort"
 	"strconv"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
@@ -37,8 +34,6 @@ func init() {
 	register.DoFn7x0[beam.Window, beam.EventTime, state.Provider, timers.Provider, string, int, func(kv[string, int])](&eventTimeFn{})
 	register.Emitter2[string, int]()
 	register.Emitter1[kv[string, int]]()
-	register.Function3x0(simpleCoGBKCompare)
-	register.Function1x2(splitKV)
 	register.Iter1[int]()
 }
 
