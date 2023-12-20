@@ -97,7 +97,7 @@ jobs:
     steps:
       - name: Validate and mask apache id/password
         run: |
-          echo "::add-mask::${{ github.event.inputs.APACHE_PASSWORD }}"
+          echo "::add-mask::$APACHE_PASSWORD"
           if [ "${{ github.event.inputs.APACHE_ID }}" == "" ]
           then
             echo "Must provide an apache id to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
@@ -106,6 +106,8 @@ jobs:
           then
             echo "Must provide an apache password to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
           fi
+        env:
+          APACHE_PASSWORD: ${{ github.event.inputs.APACHE_PASSWORD }}
       - name: Install Java 8
         uses: actions/setup-java@v4
         with:
@@ -149,7 +151,7 @@ jobs:
 
             svn add --force .
             svn status
-            svn commit -m "Staging Java artifacts for Apache Beam ${{ github.event.inputs.RELEASE }} RC${{ github.event.inputs.RC }}" --non-interactive --username ${{ github.event.inputs.APACHE_ID }} --password ${{ github.event.inputs.APACHE_PASSWORD }} 
+            svn commit -m "Staging Java artifacts for Apache Beam ${{ github.event.inputs.RELEASE }} RC${{ github.event.inputs.RC }}" --non-interactive --username "${{ github.event.inputs.APACHE_ID }}" --password "${{ github.event.inputs.APACHE_PASSWORD }}" 
         
   stage_python_artifacts:
     if: ${{github.event.inputs.STAGE_PYTHON_ARTIFACTS == 'yes'}}
@@ -159,7 +161,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Validate and mask apache id/password
         run: |
-          echo "::add-mask::${{ github.event.inputs.APACHE_PASSWORD }}"
+          echo "::add-mask::$APACHE_PASSWORD"
           if [ "${{ github.event.inputs.APACHE_ID }}" == "" ]
           then
             echo "Must provide an apache id to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
@@ -168,6 +170,8 @@ jobs:
           then
             echo "Must provide an apache password to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
           fi
+        env:
+          APACHE_PASSWORD: ${{ github.event.inputs.APACHE_PASSWORD }}
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -227,7 +231,7 @@ jobs:
           cd ..
           svn add --force python
           svn status
-          svn commit -m "Staging Python artifacts for Apache Beam ${RELEASE} RC${RC_NUM}" --non-interactive --username ${{ github.event.inputs.APACHE_ID }} --password ${{ github.event.inputs.APACHE_PASSWORD }}
+          svn commit -m "Staging Python artifacts for Apache Beam ${RELEASE} RC${RC_NUM}" --non-interactive --username "${{ github.event.inputs.APACHE_ID }}" --password "${{ github.event.inputs.APACHE_PASSWORD }}"
         
 
   stage_docker:
