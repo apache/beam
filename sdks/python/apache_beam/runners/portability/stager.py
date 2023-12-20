@@ -121,7 +121,7 @@ class Stager(object):
   @staticmethod
   def _create_file_stage_to_artifact(local_path, staged_name):
     return beam_runner_api_pb2.ArtifactInformation(
-        type_urn=common_urns.artifact_types.FILE.urn,
+        type_urn=common_urns.artifact_types.urn,
         type_payload=beam_runner_api_pb2.ArtifactFilePayload(
             path=local_path).SerializeToString(),
         role_urn=common_urns.artifact_roles.STAGING_TO.urn,
@@ -162,10 +162,9 @@ class Stager(object):
   def create_job_resources(options,  # type: PipelineOptions
                            temp_dir,  # type: str
                            build_setup_args=None,  # type: Optional[List[str]]
-                           pypi_requirements=None, # type: Optional[List[str]]
+                           pypi_requirements=None,  # type: Optional[List[str]]
                            populate_requirements_cache=None,  # type: Optional[Callable[[str, str, bool], None]]
-                           skip_prestaged_dependencies=False, # type: Optional[bool]
-                           log_submission_env_dependencies=True, # type: Optional[bool]
+                           skip_prestaged_dependencies=False,  # type: Optional[bool]
                            ):
     """For internal use only; no backwards-compatibility guarantees.
 
@@ -370,9 +369,7 @@ class Stager(object):
                 pickled_session_file, names.PICKLED_MAIN_SESSION_FILE))
 
     # stage the submission environment dependencies
-    if log_submission_env_dependencies:
-      resources.extend(
-          Stager._create_stage_submission_env_dependencies(temp_dir))
+    resources.extend(Stager._create_stage_submission_env_dependencies(temp_dir))
 
     return resources
 
@@ -879,19 +876,17 @@ class Stager(object):
       the staging location.
     """
     try:
-      # local_dependency_file_path = os.path.join(
-      #     temp_dir, SUBMISSION_ENV_DEPENDENCIES_FILE)
+      local_dependency_file_path = os.path.join(
+          temp_dir, SUBMISSION_ENV_DEPENDENCIES_FILE)
       dependencies = subprocess.check_output(
           [sys.executable, '-m', 'pip', 'freeze'])
-
-      os.environ.setdefault('SUBMISSION_DEPENDENCIES', str(dependencies))
-      return []
-      # with open(local_dependency_file_path, 'w') as f:
-      #   f.write(str(dependencies))
-      # return [
-      #     Stager._create_file_stage_to_artifact(
-      #         local_dependency_file_path, SUBMISSION_ENV_DEPENDENCIES_FILE)
-      # ]
+      local_python_path = f"Python Path: {sys.executable}\n"
+      with open(local_dependency_file_path, 'w') as f:
+        f.write(local_python_path + str(dependencies))
+      return [
+          Stager._create_file_stage_to_artifact(
+              local_dependency_file_path, SUBMISSION_ENV_DEPENDENCIES_FILE),
+      ]
     except Exception as e:
       _LOGGER.warning(
           "Couldn't stage a list of installed dependencies in "

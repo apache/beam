@@ -29,6 +29,7 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.portability import artifact_service
 from apache_beam.transforms import environments
 from apache_beam.transforms import external
 from apache_beam.transforms import ptransform
@@ -128,3 +129,6 @@ class ExpansionServiceServicer(
     except Exception:  # pylint: disable=broad-except
       return beam_expansion_api_pb2.ExpansionResponse(
           error=traceback.format_exc())
+
+  def artifact_service(self):
+    return artifact_service.ArtifactRetrievalService(None)
