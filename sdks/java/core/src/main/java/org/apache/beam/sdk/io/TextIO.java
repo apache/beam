@@ -180,7 +180,7 @@ import org.joda.time.Duration;
  * DynamicDestinations} interface for advanced features via {@link Write#to(DynamicDestinations)}.
  *
  * <p>Error handling for records that are malformed can be handled by using {@link
- * TypedWrite#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. See documentation in
+ * TypedWrite#withBadRecordErrorHandler(ErrorHandler)}. See documentation in
  * {@link FileIO} for details on usage
  */
 @SuppressWarnings({

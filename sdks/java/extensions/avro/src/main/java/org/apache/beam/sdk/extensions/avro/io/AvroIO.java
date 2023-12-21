@@ -341,7 +341,7 @@ import org.joda.time.Duration;
  * }</pre>
  *
  * <p>Error handling for writing records that are malformed can be handled by using {@link
- * TypedWrite#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. See documentation in
+ * TypedWrite#withBadRecordErrorHandler(ErrorHandler)}. See documentation in
  * {@link FileIO} for details on usage
  */
 @SuppressWarnings({

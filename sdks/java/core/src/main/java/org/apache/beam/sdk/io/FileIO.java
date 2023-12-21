@@ -244,19 +244,17 @@ import org.slf4j.LoggerFactory;
  * writing, it's possible for an individual record to be malformed, causing an exception. By
  * default, these exceptions are propagated to the runner, and are usually retried, though this
  * depends on the runner. Alternately, these errors can be routed to another {@link PTransform} by
- * using {@link Write#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. The
- * ErrorHandler is registered with the pipeline (see below), and the SerializableFunction lets you
- * filter which exceptions should be sent to the error handler, and which should be handled by the
- * runner. See {@link ErrorHandler} for more documentation. Of note, this error handling only
- * handles errors related to specific records. It does not handle errors related to connectivity,
- * authorization, etc. as those should be retried by the runner.
+ * using {@link Write#withBadRecordErrorHandler(ErrorHandler)}. The ErrorHandler is registered with
+ * the pipeline (see below). See {@link ErrorHandler} for more documentation. Of note, this error
+ * handling only handles errors related to specific records. It does not handle errors related to
+ * connectivity, authorization, etc. as those should be retried by the runner.
  *
  * <pre>{@code
  * PCollection<> records = ...;
  * PTransform<PCollection<BadRecord>,?> alternateSink = ...;
  * try (BadRecordErrorHandler<?> handler = pipeline.registerBadRecordErrorHandler(alternateSink) {
  *    records.apply("Write", FileIO.writeDynamic().otherConfigs()
- *        .withBadRecordErrorHandler(handler, (exception) -> true));
+ *        .withBadRecordErrorHandler(handler));
  * }
  * }</pre>
  *
