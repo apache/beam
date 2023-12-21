@@ -25,11 +25,10 @@ from typing import List
 from typing import Tuple
 
 from apache_beam.coders import Coder
-from apache_beam.coders.coders import FastCoder
 from apache_beam.typehints import typehints
 
 
-class UnionCoder(FastCoder):
+class UnionCoder(Coder):
   """Coder of Python Union."""
   def __init__(self, components):
     # type: (Iterable[Coder]) -> None
