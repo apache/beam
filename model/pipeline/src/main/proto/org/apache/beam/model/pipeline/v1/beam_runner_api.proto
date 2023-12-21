@@ -738,6 +738,10 @@ message WriteFilesPayload {
   bool runner_determined_sharding = 4;
 
   map<string, SideInput> side_inputs = 5;
+
+  // This is different from runner based sharding. This is done by the runner backend, where as runner_determined_sharding 
+  // is by the runner translator
+  bool auto_sharded = 6;
 }
 
 // Payload used by Google Cloud Pub/Sub read transform.
