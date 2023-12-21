@@ -418,13 +418,16 @@ if __name__ == '__main__':
           ],
           'dataframe': dataframe_dependency,
           'dask': [
-              # FIXME(cisaacstern): The git+ link below is where https://github.com/dask/distributed/pull/8400
-              # was merged into `distributed`. This PR is a fix for https://github.com/apache/beam/issues/29365.
+              # FIXME(cisaacstern): The git+ link below is a fix for https://github.com/apache/beam/issues/29365.
               # Installing from here to move forward with development. Before merge, this should be replaced with
-              # a lower bound release of `distributed`, once a release that includes the linked PR is available.
-              # 'dask >= 2023.XX',
-              # 'distributed >= 2023.XX',
-              'distributed @ git+https://github.com/dask/distributed.git@8c3eb6f0bf47d124c887c543599d80ff09c3f5ed',
+              # a lower bound release of `dask` that includes https://github.com/dask/dask/pull/10734.
+              # 'dask >= 2024.XX.X',
+              # 'distributed >= 2024.XX.X',
+              'dask @ git+https://github.com/cisaacstern/dask.git@tokenize-bag-groupby-key',
+              # For development, 'distributed >= 2023.12.1' should work with the above dask PR, however it can't
+              # be installed as part of a single `pip` call, since distributed releases are pinned to specific
+              # dask releases. As a workaround, distributed can be installed first, and then `.[dask]` installed
+              # second, with the `--update` / `-U` flag to replace the dask release brought in by distributed.
           ],
           'yaml': [
               'docstring-parser>=0.15,<1.0',
