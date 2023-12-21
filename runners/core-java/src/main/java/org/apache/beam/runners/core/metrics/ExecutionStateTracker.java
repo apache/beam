@@ -304,7 +304,14 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     return nextLullReportMs;
   }
 
-  void takeSample(long millisSinceLastSample) {
+  /**
+   * Called periodically by the {@link ExecutionStateSampler} to report time recorded by the
+   * tracker.
+   *
+   * @param millisSinceLastSample the time since the last sample was reported. As an approximation,
+   *     all of that time should be associated with this tracker.
+   */
+  public void takeSample(long millisSinceLastSample) {
     if (SAMPLING_UPDATER.compareAndSet(this, 0, 1)) {
       try {
         takeSampleOnce(millisSinceLastSample);

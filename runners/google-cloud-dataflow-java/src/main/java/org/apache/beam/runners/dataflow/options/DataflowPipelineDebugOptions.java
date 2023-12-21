@@ -281,6 +281,16 @@ public interface DataflowPipelineDebugOptions
   void setUnboundedReaderMaxWaitForElementsMs(Integer value);
 
   /**
+   * The desired number of initial splits for UnboundedSources. If this value is <=0, the splits
+   * will be computed based on the number of user workers.
+   */
+  @Description("The desired number of initial splits for UnboundedSources.")
+  @Default.Integer(0)
+  int getDesiredNumUnboundedSourceSplits();
+
+  void setDesiredNumUnboundedSourceSplits(int value);
+
+  /**
    * CAUTION: This option implies dumpHeapOnOOM, and has similar caveats. Specifically, heap dumps
    * can of comparable size to the default boot disk. Consider increasing the boot disk size before
    * setting this flag to true.

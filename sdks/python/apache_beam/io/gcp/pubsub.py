@@ -150,7 +150,7 @@ class PubsubMessage(object):
       containing the payload of this object.
     """
     msg = pubsub.types.PubsubMessage()
-    if len(self.data) > (10 << 20):
+    if len(self.data) > (10_000_000):
       raise ValueError('A pubsub message data field must not exceed 10MB')
     msg.data = self.data
 
@@ -179,7 +179,7 @@ class PubsubMessage(object):
     msg.ordering_key = self.ordering_key
 
     serialized = pubsub.types.PubsubMessage.serialize(msg)
-    if len(serialized) > (10 << 20):
+    if len(serialized) > (10_000_000):
       raise ValueError(
           'Serialized pubsub message exceeds the publish request limit of 10MB')
     return serialized

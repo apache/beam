@@ -22,7 +22,7 @@ import (
 )
 
 // DataSample contains property for sampled element
-type dataSample struct {
+type DataSample struct {
 	PCollectionID string
 	Timestamp     time.Time
 	Element       []byte
@@ -30,7 +30,7 @@ type dataSample struct {
 
 // DataSampler manages sampled elements based on PCollectionID
 type DataSampler struct {
-	sampleChannel chan *dataSample
+	sampleChannel chan *DataSample
 	samplesMap    sync.Map // Key: PCollectionID string, Value: *OutputSamples pointer
 	ctx           context.Context
 }
@@ -38,7 +38,7 @@ type DataSampler struct {
 // NewDataSampler inits a new Data Sampler object and returns pointer to it.
 func NewDataSampler(ctx context.Context) *DataSampler {
 	return &DataSampler{
-		sampleChannel: make(chan *dataSample, 1000),
+		sampleChannel: make(chan *DataSample, 1000),
 		ctx:           ctx,
 	}
 }
@@ -57,7 +57,7 @@ func (d *DataSampler) Process() {
 
 // GetSamples returns samples for given pCollectionID.
 // If no pCollectionID is provided, return all available samples
-func (d *DataSampler) GetSamples(pids []string) map[string][]*dataSample {
+func (d *DataSampler) GetSamples(pids []string) map[string][]*DataSample {
 	if len(pids) == 0 {
 		return d.getAllSamples()
 	}
@@ -66,7 +66,7 @@ func (d *DataSampler) GetSamples(pids []string) map[string][]*dataSample {
 
 // SendSample is called by PCollection Node to send sampled element to Data Sampler async
 func (d *DataSampler) SendSample(pCollectionID string, element []byte, timestamp time.Time) {
-	sample := dataSample{
+	sample := DataSample{
 		PCollectionID: pCollectionID,
 		Element:       element,
 		Timestamp:     timestamp,
@@ -74,8 +74,8 @@ func (d *DataSampler) SendSample(pCollectionID string, element []byte, timestamp
 	d.sampleChannel <- &sample
 }
 
-func (d *DataSampler) getAllSamples() map[string][]*dataSample {
-	var res = make(map[string][]*dataSample)
+func (d *DataSampler) getAllSamples() map[string][]*DataSample {
+	var res = make(map[string][]*DataSample)
 	d.samplesMap.Range(func(key any, value any) bool {
 		pid := key.(string)
 		samples := d.getSamples(pid)
@@ -87,8 +87,8 @@ func (d *DataSampler) getAllSamples() map[string][]*dataSample {
 	return res
 }
 
-func (d *DataSampler) getSamplesForPCollections(pids []string) map[string][]*dataSample {
-	var res = make(map[string][]*dataSample)
+func (d *DataSampler) getSamplesForPCollections(pids []string) map[string][]*DataSample {
+	var res = make(map[string][]*DataSample)
 	for _, pid := range pids {
 		samples := d.getSamples(pid)
 		if len(samples) > 0 {
@@ -98,7 +98,7 @@ func (d *DataSampler) getSamplesForPCollections(pids []string) map[string][]*dat
 	return res
 }
 
-func (d *DataSampler) addSample(sample *dataSample) {
+func (d *DataSampler) addSample(sample *DataSample) {
 	p, ok := d.samplesMap.Load(sample.PCollectionID)
 	if !ok {
 		p = &outputSamples{maxElements: 10, sampleIndex: 0}
@@ -108,7 +108,7 @@ func (d *DataSampler) addSample(sample *dataSample) {
 	outputSamples.addSample(sample)
 }
 
-func (d *DataSampler) getSamples(pCollectionID string) []*dataSample {
+func (d *DataSampler) getSamples(pCollectionID string) []*DataSample {
 	p, ok := d.samplesMap.Load(pCollectionID)
 	if !ok {
 		return nil
@@ -118,13 +118,13 @@ func (d *DataSampler) getSamples(pCollectionID string) []*dataSample {
 }
 
 type outputSamples struct {
-	elements    []*dataSample
+	elements    []*DataSample
 	mu          sync.Mutex
 	maxElements int
 	sampleIndex int
 }
 
-func (o *outputSamples) addSample(element *dataSample) {
+func (o *outputSamples) addSample(element *DataSample) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
@@ -136,7 +136,7 @@ func (o *outputSamples) addSample(element *dataSample) {
 	}
 }
 
-func (o *outputSamples) getSamples() []*dataSample {
+func (o *outputSamples) getSamples() []*DataSample {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if len(o.elements) == 0 {

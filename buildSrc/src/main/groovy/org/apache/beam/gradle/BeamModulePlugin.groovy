@@ -2205,7 +2205,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def goRootDir = "${project.rootDir}/sdks/go"
 
       // This sets the whole project Go version.
-      project.ext.goVersion = "go1.21.4"
+      project.ext.goVersion = "go1.21.5"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.

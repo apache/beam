@@ -84,7 +84,7 @@ jobs:
             -PuseWheelDistribution \
             -PkafkaBootstrapServer=10.128.0.40:9094,10.128.0.28:9094,10.128.0.165:9094 \
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: Python Test Results

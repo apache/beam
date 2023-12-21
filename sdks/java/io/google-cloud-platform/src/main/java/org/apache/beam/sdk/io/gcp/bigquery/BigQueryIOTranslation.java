@@ -26,6 +26,7 @@ import com.google.auto.service.AutoService;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest.MissingValueInterpretation;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.io.IOException;
+import java.io.InvalidClassException;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
@@ -63,9 +64,13 @@ import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @SuppressWarnings({"rawtypes", "nullness"})
 public class BigQueryIOTranslation {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryIOTranslation.class);
 
   static class BigQueryIOReadTranslator implements TransformPayloadTranslator<TypedRead<?>> {
 
@@ -184,105 +189,124 @@ public class BigQueryIOTranslation {
 
     @Override
     public TypedRead<?> fromConfigRow(Row configRow) {
-      BigQueryIO.TypedRead.Builder builder = new AutoValue_BigQueryIO_TypedRead.Builder<>();
+      try {
+        BigQueryIO.TypedRead.Builder builder = new AutoValue_BigQueryIO_TypedRead.Builder<>();
 
-      String jsonTableRef = configRow.getString("json_table_ref");
-      if (jsonTableRef != null) {
-        builder = builder.setJsonTableRef(StaticValueProvider.of(jsonTableRef));
-      }
-      String query = configRow.getString("query");
-      if (query != null) {
-        builder = builder.setQuery(StaticValueProvider.of(query));
-      }
-      Boolean validate = configRow.getBoolean("validate");
-      if (validate != null) {
-        builder = builder.setValidate(validate);
-      }
-      Boolean flattenResults = configRow.getBoolean("flatten_results");
-      if (flattenResults != null) {
-        builder = builder.setFlattenResults(flattenResults);
-      }
-      Boolean useLegacySQL = configRow.getBoolean("use_legacy_sql");
-      if (useLegacySQL != null) {
-        builder = builder.setUseLegacySql(useLegacySQL);
-      }
-      Boolean withTemplateCompatibility = configRow.getBoolean("with_template_compatibility");
-      if (withTemplateCompatibility != null) {
-        builder = builder.setWithTemplateCompatibility(withTemplateCompatibility);
-      }
-      byte[] bigqueryServicesBytes = configRow.getBytes("bigquery_services");
-      if (bigqueryServicesBytes != null) {
-        builder =
-            builder.setBigQueryServices((BigQueryServices) fromByteArray(bigqueryServicesBytes));
-      }
-      byte[] parseFnBytes = configRow.getBytes("parse_fn");
-      if (parseFnBytes != null) {
-        builder = builder.setParseFn((SerializableFunction) fromByteArray(parseFnBytes));
-      }
-      byte[] datumReaderFactoryBytes = configRow.getBytes("datum_reader_factory");
-      if (datumReaderFactoryBytes != null) {
-        builder =
-            builder.setDatumReaderFactory(
-                (SerializableFunction) fromByteArray(datumReaderFactoryBytes));
-      }
-      byte[] queryPriorityBytes = configRow.getBytes("query_priority");
-      if (queryPriorityBytes != null) {
-        builder = builder.setQueryPriority((QueryPriority) fromByteArray(queryPriorityBytes));
-      }
-      String queryLocation = configRow.getString("query_location");
-      if (queryLocation != null) {
-        builder = builder.setQueryLocation(queryLocation);
-      }
-      String queryTempDataset = configRow.getString("query_temp_dataset");
-      if (queryTempDataset != null) {
-        builder = builder.setQueryTempDataset(queryTempDataset);
-      }
-      byte[] methodBytes = configRow.getBytes("method");
-      if (methodBytes != null) {
-        builder = builder.setMethod((TypedRead.Method) fromByteArray(methodBytes));
-      }
-      byte[] formatBytes = configRow.getBytes("format");
-      if (methodBytes != null) {
-        builder = builder.setFormat((DataFormat) fromByteArray(formatBytes));
-      }
-      Collection<String> selectedFields = configRow.getArray("selected_fields");
-      if (selectedFields != null && !selectedFields.isEmpty()) {
-        builder.setSelectedFields(StaticValueProvider.of(ImmutableList.of(selectedFields)));
-      }
-      String rowRestriction = configRow.getString("row_restriction");
-      if (rowRestriction != null) {
-        builder = builder.setRowRestriction(StaticValueProvider.of(rowRestriction));
-      }
-      byte[] coderBytes = configRow.getBytes("coder");
-      if (coderBytes != null) {
-        builder = builder.setCoder((Coder) fromByteArray(coderBytes));
-      }
-      String kmsKey = configRow.getString("kms_key");
-      if (kmsKey != null) {
-        builder = builder.setKmsKey(kmsKey);
-      }
-      byte[] typeDescriptorBytes = configRow.getBytes("type_descriptor");
-      if (typeDescriptorBytes != null) {
-        builder = builder.setTypeDescriptor((TypeDescriptor) fromByteArray(typeDescriptorBytes));
-      }
-      byte[] toBeamRowFnBytes = configRow.getBytes("to_beam_row_fn");
-      if (toBeamRowFnBytes != null) {
-        builder = builder.setToBeamRowFn((ToBeamRowFunction) fromByteArray(toBeamRowFnBytes));
-      }
-      byte[] fromBeamRowFnBytes = configRow.getBytes("from_beam_row_fn");
-      if (fromBeamRowFnBytes != null) {
-        builder = builder.setFromBeamRowFn((FromBeamRowFunction) fromByteArray(fromBeamRowFnBytes));
-      }
-      Boolean useAvroLogicalTypes = configRow.getBoolean("use_avro_logical_types");
-      if (useAvroLogicalTypes != null) {
-        builder = builder.setUseAvroLogicalTypes(useAvroLogicalTypes);
-      }
-      Boolean projectionPushdownApplied = configRow.getBoolean("projection_pushdown_applied");
-      if (projectionPushdownApplied != null) {
-        builder = builder.setProjectionPushdownApplied(projectionPushdownApplied);
-      }
+        String jsonTableRef = configRow.getString("json_table_ref");
+        if (jsonTableRef != null) {
+          builder = builder.setJsonTableRef(StaticValueProvider.of(jsonTableRef));
+        }
+        String query = configRow.getString("query");
+        if (query != null) {
+          builder = builder.setQuery(StaticValueProvider.of(query));
+        }
+        Boolean validate = configRow.getBoolean("validate");
+        if (validate != null) {
+          builder = builder.setValidate(validate);
+        }
+        Boolean flattenResults = configRow.getBoolean("flatten_results");
+        if (flattenResults != null) {
+          builder = builder.setFlattenResults(flattenResults);
+        }
+        Boolean useLegacySQL = configRow.getBoolean("use_legacy_sql");
+        if (useLegacySQL != null) {
+          builder = builder.setUseLegacySql(useLegacySQL);
+        }
+        Boolean withTemplateCompatibility = configRow.getBoolean("with_template_compatibility");
+        if (withTemplateCompatibility != null) {
+          builder = builder.setWithTemplateCompatibility(withTemplateCompatibility);
+        }
+        byte[] bigqueryServicesBytes = configRow.getBytes("bigquery_services");
+        if (bigqueryServicesBytes != null) {
+          try {
+            builder =
+                builder.setBigQueryServices(
+                    (BigQueryServices) fromByteArray(bigqueryServicesBytes));
+          } catch (InvalidClassException e) {
+            LOG.warn(
+                "Could not use the provided `BigQueryServices` implementation when upgrading."
+                    + "Using the default.");
+            builder.setBigQueryServices(new BigQueryServicesImpl());
+          }
+        }
+        byte[] parseFnBytes = configRow.getBytes("parse_fn");
+        if (parseFnBytes != null) {
+          builder = builder.setParseFn((SerializableFunction) fromByteArray(parseFnBytes));
+        }
+        byte[] datumReaderFactoryBytes = configRow.getBytes("datum_reader_factory");
+        if (datumReaderFactoryBytes != null) {
+          builder =
+              builder.setDatumReaderFactory(
+                  (SerializableFunction) fromByteArray(datumReaderFactoryBytes));
+        }
+        byte[] queryPriorityBytes = configRow.getBytes("query_priority");
+        if (queryPriorityBytes != null) {
+          builder = builder.setQueryPriority((QueryPriority) fromByteArray(queryPriorityBytes));
+        }
+        String queryLocation = configRow.getString("query_location");
+        if (queryLocation != null) {
+          builder = builder.setQueryLocation(queryLocation);
+        }
+        String queryTempDataset = configRow.getString("query_temp_dataset");
+        if (queryTempDataset != null) {
+          builder = builder.setQueryTempDataset(queryTempDataset);
+        }
+        byte[] methodBytes = configRow.getBytes("method");
+        if (methodBytes != null) {
+          builder = builder.setMethod((TypedRead.Method) fromByteArray(methodBytes));
+        }
+        byte[] formatBytes = configRow.getBytes("format");
+        if (methodBytes != null) {
+          builder = builder.setFormat((DataFormat) fromByteArray(formatBytes));
+        }
+        Collection<String> selectedFields = configRow.getArray("selected_fields");
+        if (selectedFields != null && !selectedFields.isEmpty()) {
+          builder.setSelectedFields(StaticValueProvider.of(ImmutableList.of(selectedFields)));
+        }
+        String rowRestriction = configRow.getString("row_restriction");
+        if (rowRestriction != null) {
+          builder = builder.setRowRestriction(StaticValueProvider.of(rowRestriction));
+        }
+        byte[] coderBytes = configRow.getBytes("coder");
+        if (coderBytes != null) {
+          try {
+            builder = builder.setCoder((Coder) fromByteArray(coderBytes));
+          } catch (InvalidClassException e) {
+            LOG.warn(
+                "Could not use the provided `Coder` implementation when upgrading."
+                    + "Using the default.");
+          }
+        }
+        String kmsKey = configRow.getString("kms_key");
+        if (kmsKey != null) {
+          builder = builder.setKmsKey(kmsKey);
+        }
+        byte[] typeDescriptorBytes = configRow.getBytes("type_descriptor");
+        if (typeDescriptorBytes != null) {
+          builder = builder.setTypeDescriptor((TypeDescriptor) fromByteArray(typeDescriptorBytes));
+        }
+        byte[] toBeamRowFnBytes = configRow.getBytes("to_beam_row_fn");
+        if (toBeamRowFnBytes != null) {
+          builder = builder.setToBeamRowFn((ToBeamRowFunction) fromByteArray(toBeamRowFnBytes));
+        }
+        byte[] fromBeamRowFnBytes = configRow.getBytes("from_beam_row_fn");
+        if (fromBeamRowFnBytes != null) {
+          builder =
+              builder.setFromBeamRowFn((FromBeamRowFunction) fromByteArray(fromBeamRowFnBytes));
+        }
+        Boolean useAvroLogicalTypes = configRow.getBoolean("use_avro_logical_types");
+        if (useAvroLogicalTypes != null) {
+          builder = builder.setUseAvroLogicalTypes(useAvroLogicalTypes);
+        }
+        Boolean projectionPushdownApplied = configRow.getBoolean("projection_pushdown_applied");
+        if (projectionPushdownApplied != null) {
+          builder = builder.setProjectionPushdownApplied(projectionPushdownApplied);
+        }
 
-      return builder.build();
+        return builder.build();
+      } catch (InvalidClassException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 
@@ -529,239 +553,260 @@ public class BigQueryIOTranslation {
 
     @Override
     public Write<?> fromConfigRow(Row configRow) {
-      BigQueryIO.Write.Builder builder = new AutoValue_BigQueryIO_Write.Builder<>();
+      try {
+        BigQueryIO.Write.Builder builder = new AutoValue_BigQueryIO_Write.Builder<>();
 
-      String jsonTableRef = configRow.getString("json_table_ref");
-      if (jsonTableRef != null) {
-        builder = builder.setJsonTableRef(StaticValueProvider.of(jsonTableRef));
-      }
-      byte[] tableFunctionBytes = configRow.getBytes("table_function");
-      if (tableFunctionBytes != null) {
-        builder =
-            builder.setTableFunction(
-                (SerializableFunction<ValueInSingleWindow, TableDestination>)
-                    fromByteArray(tableFunctionBytes));
-      }
-      byte[] formatFunctionBytes = configRow.getBytes("format_function");
-      if (formatFunctionBytes != null) {
-        builder =
-            builder.setFormatFunction(
-                (SerializableFunction<?, TableRow>) fromByteArray(formatFunctionBytes));
-      }
-      byte[] formatRecordOnFailureFunctionBytes =
-          configRow.getBytes("format_record_on_failure_function");
-      if (tableFunctionBytes != null) {
-        builder =
-            builder.setFormatRecordOnFailureFunction(
-                (SerializableFunction<?, TableRow>)
-                    fromByteArray(formatRecordOnFailureFunctionBytes));
-      }
-      byte[] avroRowWriterFactoryBytes = configRow.getBytes("avro_row_writer_factory");
-      if (avroRowWriterFactoryBytes != null) {
-        builder =
-            builder.setAvroRowWriterFactory(
-                (AvroRowWriterFactory) fromByteArray(avroRowWriterFactoryBytes));
-      }
-      byte[] avroSchemaFactoryBytes = configRow.getBytes("avro_schema_factory");
-      if (tableFunctionBytes != null) {
-        builder =
-            builder.setAvroSchemaFactory(
-                (SerializableFunction) fromByteArray(avroSchemaFactoryBytes));
-      }
-      Boolean useAvroLogicalTypes = configRow.getBoolean("use_avro_logical_types");
-      if (useAvroLogicalTypes != null) {
-        builder = builder.setUseAvroLogicalTypes(useAvroLogicalTypes);
-      }
-      byte[] dynamicDestinationsBytes = configRow.getBytes("dynamic_destinations");
-      if (dynamicDestinationsBytes != null) {
-        builder =
-            builder.setDynamicDestinations(
-                (DynamicDestinations) fromByteArray(dynamicDestinationsBytes));
-      }
-      String jsonSchema = configRow.getString("json_schema");
-      if (jsonSchema != null) {
-        builder = builder.setJsonSchema(StaticValueProvider.of(jsonSchema));
-      }
-      String jsonTimePartitioning = configRow.getString("json_time_partitioning");
-      if (jsonTimePartitioning != null) {
-        builder = builder.setJsonTimePartitioning(StaticValueProvider.of(jsonTimePartitioning));
-      }
-      byte[] clusteringBytes = configRow.getBytes("clustering");
-      if (clusteringBytes != null) {
-        builder = builder.setClustering((Clustering) fromByteArray(clusteringBytes));
-      }
-      byte[] createDispositionBytes = configRow.getBytes("create_disposition");
-      if (createDispositionBytes != null) {
-        builder =
-            builder.setCreateDisposition((CreateDisposition) fromByteArray(createDispositionBytes));
-      }
-      byte[] writeDispositionBytes = configRow.getBytes("write_disposition");
-      if (writeDispositionBytes != null) {
-        builder =
-            builder.setWriteDisposition((WriteDisposition) fromByteArray(writeDispositionBytes));
-      }
-      Collection<byte[]> schemaUpdateOptionsData = configRow.getArray("schema_update_options");
-      if (schemaUpdateOptionsData != null) {
-        Set<SchemaUpdateOption> schemaUpdateOptions =
-            schemaUpdateOptionsData.stream()
-                .map(data -> (SchemaUpdateOption) fromByteArray(data))
-                .collect(Collectors.toSet());
-        builder = builder.setSchemaUpdateOptions(schemaUpdateOptions);
-      } else {
-        // This property is not nullable.
-        builder = builder.setSchemaUpdateOptions(Collections.emptySet());
-      }
-      String tableDescription = configRow.getString("table_description");
-      if (tableDescription != null) {
-        builder = builder.setTableDescription(tableDescription);
-      }
-      Boolean validate = configRow.getBoolean("validate");
-      if (validate != null) {
-        builder = builder.setValidate(validate);
-      }
-      byte[] bigqueryServicesBytes = configRow.getBytes("bigquery_services");
-      if (bigqueryServicesBytes != null) {
-        builder =
-            builder.setBigQueryServices((BigQueryServices) fromByteArray(bigqueryServicesBytes));
-      }
-      Integer maxFilesPerBundle = configRow.getInt32("max_files_per_bundle");
-      if (maxFilesPerBundle != null) {
-        builder = builder.setMaxFilesPerBundle(maxFilesPerBundle);
-      }
-      Long maxFileSize = configRow.getInt64("max_file_size");
-      if (maxFileSize != null) {
-        builder = builder.setMaxFileSize(maxFileSize);
-      }
-      Integer numFileShards = configRow.getInt32("num_file_shards");
-      if (numFileShards != null) {
-        builder = builder.setNumFileShards(numFileShards);
-      }
-      Integer numStorageWriteApiStreams = configRow.getInt32("num_storage_write_api_streams");
-      if (numStorageWriteApiStreams != null) {
-        builder = builder.setNumStorageWriteApiStreams(numStorageWriteApiStreams);
-      }
-      Boolean propagateSuccessfulStorageApiWrites =
-          configRow.getBoolean("propagate_successful_storage_api_writes");
-      if (propagateSuccessfulStorageApiWrites != null) {
-        builder =
-            builder.setPropagateSuccessfulStorageApiWrites(propagateSuccessfulStorageApiWrites);
-      }
-      Integer maxFilesPerPartition = configRow.getInt32("max_files_per_partition");
-      if (maxFilesPerPartition != null) {
-        builder = builder.setMaxFilesPerPartition(maxFilesPerPartition);
-      }
-      Long maxBytesPerPartition = configRow.getInt64("max_bytes_per_partition");
-      if (maxBytesPerPartition != null) {
-        builder = builder.setMaxBytesPerPartition(maxBytesPerPartition);
-      }
-      Duration triggerringFrequency = configRow.getValue("triggerring_frequency");
-      if (triggerringFrequency != null) {
-        builder =
-            builder.setTriggeringFrequency(
-                org.joda.time.Duration.millis(triggerringFrequency.toMillis()));
-      }
-      byte[] methodBytes = configRow.getBytes("method");
-      if (methodBytes != null) {
-        builder = builder.setMethod((Write.Method) fromByteArray(methodBytes));
-      }
-      String loadJobProjectId = configRow.getString("load_job_project_id");
-      if (loadJobProjectId != null) {
-        builder = builder.setLoadJobProjectId(StaticValueProvider.of(loadJobProjectId));
-      }
-      byte[] failedInsertRetryPolicyBytes = configRow.getBytes("failed_insert_retry_policy");
-      if (failedInsertRetryPolicyBytes != null) {
-        builder =
-            builder.setFailedInsertRetryPolicy(
-                (InsertRetryPolicy) fromByteArray(failedInsertRetryPolicyBytes));
-      }
-      String customGcsTempLocations = configRow.getString("custom_gcs_temp_location");
-      if (customGcsTempLocations != null) {
-        builder = builder.setCustomGcsTempLocation(StaticValueProvider.of(customGcsTempLocations));
-      }
-      Boolean extendedErrorInfo = configRow.getBoolean("extended_error_info");
-      if (extendedErrorInfo != null) {
-        builder = builder.setExtendedErrorInfo(extendedErrorInfo);
-      }
-      Boolean skipInvalidRows = configRow.getBoolean("skip_invalid_rows");
-      if (skipInvalidRows != null) {
-        builder = builder.setSkipInvalidRows(skipInvalidRows);
-      }
-      Boolean ignoreUnknownValues = configRow.getBoolean("ignore_unknown_values");
-      if (ignoreUnknownValues != null) {
-        builder = builder.setIgnoreUnknownValues(ignoreUnknownValues);
-      }
-      Boolean ignoreInsertIds = configRow.getBoolean("ignore_insert_ids");
-      if (ignoreInsertIds != null) {
-        builder = builder.setIgnoreInsertIds(ignoreInsertIds);
-      }
-      Integer maxRetryJobs = configRow.getInt32("max_retry_jobs");
-      if (maxRetryJobs != null) {
-        builder = builder.setMaxRetryJobs(maxRetryJobs);
-      }
-      String kmsKey = configRow.getString("kms_key");
-      if (kmsKey != null) {
-        builder = builder.setKmsKey(kmsKey);
-      }
-      Collection<String> primaryKey = configRow.getArray("primary_key");
-      if (primaryKey != null && !primaryKey.isEmpty()) {
-        builder = builder.setPrimaryKey(ImmutableList.of(primaryKey));
-      }
-      byte[] defaultMissingValueInterpretationsBytes =
-          configRow.getBytes("default_missing_value_interpretation");
-      if (defaultMissingValueInterpretationsBytes != null) {
-        builder =
-            builder.setDefaultMissingValueInterpretation(
-                (MissingValueInterpretation)
-                    fromByteArray(defaultMissingValueInterpretationsBytes));
-      }
-      Boolean optimizeWrites = configRow.getBoolean("optimize_writes");
-      if (optimizeWrites != null) {
-        builder = builder.setOptimizeWrites(optimizeWrites);
-      }
-      Boolean useBeamSchema = configRow.getBoolean("use_beam_schema");
-      if (useBeamSchema != null) {
-        builder = builder.setUseBeamSchema(useBeamSchema);
-      }
-      Boolean autoSharding = configRow.getBoolean("auto_sharding");
-      if (autoSharding != null) {
-        builder = builder.setAutoSharding(autoSharding);
-      }
-      Boolean propagateSuccessful = configRow.getBoolean("propagate_successful");
-      if (propagateSuccessful != null) {
-        builder = builder.setPropagateSuccessful(propagateSuccessful);
-      }
-      Boolean autoSchemaUpdate = configRow.getBoolean("auto_schema_update");
-      if (autoSchemaUpdate != null) {
-        builder = builder.setAutoSchemaUpdate(autoSchemaUpdate);
-      }
-      byte[] writeProtosClasses = configRow.getBytes("write_protos_class");
-      if (writeProtosClasses != null) {
-        builder =
-            builder.setWriteProtosClass(
-                (Class) fromByteArray(defaultMissingValueInterpretationsBytes));
-      }
-      Boolean directWriteProtos = configRow.getBoolean("direct_write_protos");
-      if (directWriteProtos != null) {
-        builder = builder.setDirectWriteProtos(directWriteProtos);
-      }
-      byte[] deterministicRecordIdFnBytes = configRow.getBytes("deterministic_record_id_fn");
-      if (deterministicRecordIdFnBytes != null) {
-        builder =
-            builder.setDeterministicRecordIdFn(
-                (SerializableFunction) fromByteArray(deterministicRecordIdFnBytes));
-      }
-      String writeTempDataset = configRow.getString("write_temp_dataset");
-      if (writeTempDataset != null) {
-        builder = builder.setWriteTempDataset(writeTempDataset);
-      }
-      byte[] rowMutationInformationFnBytes = configRow.getBytes("row_mutation_information_fn");
-      if (rowMutationInformationFnBytes != null) {
-        builder =
-            builder.setRowMutationInformationFn(
-                (SerializableFunction) fromByteArray(rowMutationInformationFnBytes));
-      }
+        String jsonTableRef = configRow.getString("json_table_ref");
+        if (jsonTableRef != null) {
+          builder = builder.setJsonTableRef(StaticValueProvider.of(jsonTableRef));
+        }
+        byte[] tableFunctionBytes = configRow.getBytes("table_function");
+        if (tableFunctionBytes != null) {
+          builder =
+              builder.setTableFunction(
+                  (SerializableFunction<ValueInSingleWindow, TableDestination>)
+                      fromByteArray(tableFunctionBytes));
+        }
+        byte[] formatFunctionBytes = configRow.getBytes("format_function");
+        if (formatFunctionBytes != null) {
+          builder =
+              builder.setFormatFunction(
+                  (SerializableFunction<?, TableRow>) fromByteArray(formatFunctionBytes));
+        }
+        byte[] formatRecordOnFailureFunctionBytes =
+            configRow.getBytes("format_record_on_failure_function");
+        if (tableFunctionBytes != null) {
+          builder =
+              builder.setFormatRecordOnFailureFunction(
+                  (SerializableFunction<?, TableRow>)
+                      fromByteArray(formatRecordOnFailureFunctionBytes));
+        }
+        byte[] avroRowWriterFactoryBytes = configRow.getBytes("avro_row_writer_factory");
+        if (avroRowWriterFactoryBytes != null) {
+          builder =
+              builder.setAvroRowWriterFactory(
+                  (AvroRowWriterFactory) fromByteArray(avroRowWriterFactoryBytes));
+        }
+        byte[] avroSchemaFactoryBytes = configRow.getBytes("avro_schema_factory");
+        if (tableFunctionBytes != null) {
+          builder =
+              builder.setAvroSchemaFactory(
+                  (SerializableFunction) fromByteArray(avroSchemaFactoryBytes));
+        }
+        Boolean useAvroLogicalTypes = configRow.getBoolean("use_avro_logical_types");
+        if (useAvroLogicalTypes != null) {
+          builder = builder.setUseAvroLogicalTypes(useAvroLogicalTypes);
+        }
+        byte[] dynamicDestinationsBytes = configRow.getBytes("dynamic_destinations");
+        if (dynamicDestinationsBytes != null) {
+          builder =
+              builder.setDynamicDestinations(
+                  (DynamicDestinations) fromByteArray(dynamicDestinationsBytes));
+        }
+        String jsonSchema = configRow.getString("json_schema");
+        if (jsonSchema != null) {
+          builder = builder.setJsonSchema(StaticValueProvider.of(jsonSchema));
+        }
+        String jsonTimePartitioning = configRow.getString("json_time_partitioning");
+        if (jsonTimePartitioning != null) {
+          builder = builder.setJsonTimePartitioning(StaticValueProvider.of(jsonTimePartitioning));
+        }
+        byte[] clusteringBytes = configRow.getBytes("clustering");
+        if (clusteringBytes != null) {
+          builder = builder.setClustering((Clustering) fromByteArray(clusteringBytes));
+        }
+        byte[] createDispositionBytes = configRow.getBytes("create_disposition");
+        if (createDispositionBytes != null) {
+          builder =
+              builder.setCreateDisposition(
+                  (CreateDisposition) fromByteArray(createDispositionBytes));
+        }
+        byte[] writeDispositionBytes = configRow.getBytes("write_disposition");
+        if (writeDispositionBytes != null) {
+          builder =
+              builder.setWriteDisposition((WriteDisposition) fromByteArray(writeDispositionBytes));
+        }
+        Collection<byte[]> schemaUpdateOptionsData = configRow.getArray("schema_update_options");
+        if (schemaUpdateOptionsData != null) {
+          Set<SchemaUpdateOption> schemaUpdateOptions =
+              schemaUpdateOptionsData.stream()
+                  .map(
+                      data -> {
+                        try {
+                          return (SchemaUpdateOption) fromByteArray(data);
+                        } catch (InvalidClassException e) {
+                          throw new RuntimeException(e);
+                        }
+                      })
+                  .collect(Collectors.toSet());
+          builder = builder.setSchemaUpdateOptions(schemaUpdateOptions);
+        } else {
+          // This property is not nullable.
+          builder = builder.setSchemaUpdateOptions(Collections.emptySet());
+        }
+        String tableDescription = configRow.getString("table_description");
+        if (tableDescription != null) {
+          builder = builder.setTableDescription(tableDescription);
+        }
+        Boolean validate = configRow.getBoolean("validate");
+        if (validate != null) {
+          builder = builder.setValidate(validate);
+        }
+        byte[] bigqueryServicesBytes = configRow.getBytes("bigquery_services");
+        if (bigqueryServicesBytes != null) {
+          try {
+            builder =
+                builder.setBigQueryServices(
+                    (BigQueryServices) fromByteArray(bigqueryServicesBytes));
+          } catch (InvalidClassException e) {
+            LOG.warn(
+                "Could not use the provided `BigQueryServices` implementation when upgrading."
+                    + "Using the default.");
+            builder.setBigQueryServices(new BigQueryServicesImpl());
+          }
+        }
+        Integer maxFilesPerBundle = configRow.getInt32("max_files_per_bundle");
+        if (maxFilesPerBundle != null) {
+          builder = builder.setMaxFilesPerBundle(maxFilesPerBundle);
+        }
+        Long maxFileSize = configRow.getInt64("max_file_size");
+        if (maxFileSize != null) {
+          builder = builder.setMaxFileSize(maxFileSize);
+        }
+        Integer numFileShards = configRow.getInt32("num_file_shards");
+        if (numFileShards != null) {
+          builder = builder.setNumFileShards(numFileShards);
+        }
+        Integer numStorageWriteApiStreams = configRow.getInt32("num_storage_write_api_streams");
+        if (numStorageWriteApiStreams != null) {
+          builder = builder.setNumStorageWriteApiStreams(numStorageWriteApiStreams);
+        }
+        Boolean propagateSuccessfulStorageApiWrites =
+            configRow.getBoolean("propagate_successful_storage_api_writes");
+        if (propagateSuccessfulStorageApiWrites != null) {
+          builder =
+              builder.setPropagateSuccessfulStorageApiWrites(propagateSuccessfulStorageApiWrites);
+        }
+        Integer maxFilesPerPartition = configRow.getInt32("max_files_per_partition");
+        if (maxFilesPerPartition != null) {
+          builder = builder.setMaxFilesPerPartition(maxFilesPerPartition);
+        }
+        Long maxBytesPerPartition = configRow.getInt64("max_bytes_per_partition");
+        if (maxBytesPerPartition != null) {
+          builder = builder.setMaxBytesPerPartition(maxBytesPerPartition);
+        }
+        Duration triggerringFrequency = configRow.getValue("triggerring_frequency");
+        if (triggerringFrequency != null) {
+          builder =
+              builder.setTriggeringFrequency(
+                  org.joda.time.Duration.millis(triggerringFrequency.toMillis()));
+        }
+        byte[] methodBytes = configRow.getBytes("method");
+        if (methodBytes != null) {
+          builder = builder.setMethod((Write.Method) fromByteArray(methodBytes));
+        }
+        String loadJobProjectId = configRow.getString("load_job_project_id");
+        if (loadJobProjectId != null) {
+          builder = builder.setLoadJobProjectId(StaticValueProvider.of(loadJobProjectId));
+        }
+        byte[] failedInsertRetryPolicyBytes = configRow.getBytes("failed_insert_retry_policy");
+        if (failedInsertRetryPolicyBytes != null) {
+          builder =
+              builder.setFailedInsertRetryPolicy(
+                  (InsertRetryPolicy) fromByteArray(failedInsertRetryPolicyBytes));
+        }
+        String customGcsTempLocations = configRow.getString("custom_gcs_temp_location");
+        if (customGcsTempLocations != null) {
+          builder =
+              builder.setCustomGcsTempLocation(StaticValueProvider.of(customGcsTempLocations));
+        }
+        Boolean extendedErrorInfo = configRow.getBoolean("extended_error_info");
+        if (extendedErrorInfo != null) {
+          builder = builder.setExtendedErrorInfo(extendedErrorInfo);
+        }
+        Boolean skipInvalidRows = configRow.getBoolean("skip_invalid_rows");
+        if (skipInvalidRows != null) {
+          builder = builder.setSkipInvalidRows(skipInvalidRows);
+        }
+        Boolean ignoreUnknownValues = configRow.getBoolean("ignore_unknown_values");
+        if (ignoreUnknownValues != null) {
+          builder = builder.setIgnoreUnknownValues(ignoreUnknownValues);
+        }
+        Boolean ignoreInsertIds = configRow.getBoolean("ignore_insert_ids");
+        if (ignoreInsertIds != null) {
+          builder = builder.setIgnoreInsertIds(ignoreInsertIds);
+        }
+        Integer maxRetryJobs = configRow.getInt32("max_retry_jobs");
+        if (maxRetryJobs != null) {
+          builder = builder.setMaxRetryJobs(maxRetryJobs);
+        }
+        String kmsKey = configRow.getString("kms_key");
+        if (kmsKey != null) {
+          builder = builder.setKmsKey(kmsKey);
+        }
+        Collection<String> primaryKey = configRow.getArray("primary_key");
+        if (primaryKey != null && !primaryKey.isEmpty()) {
+          builder = builder.setPrimaryKey(ImmutableList.of(primaryKey));
+        }
+        byte[] defaultMissingValueInterpretationsBytes =
+            configRow.getBytes("default_missing_value_interpretation");
+        if (defaultMissingValueInterpretationsBytes != null) {
+          builder =
+              builder.setDefaultMissingValueInterpretation(
+                  (MissingValueInterpretation)
+                      fromByteArray(defaultMissingValueInterpretationsBytes));
+        }
+        Boolean optimizeWrites = configRow.getBoolean("optimize_writes");
+        if (optimizeWrites != null) {
+          builder = builder.setOptimizeWrites(optimizeWrites);
+        }
+        Boolean useBeamSchema = configRow.getBoolean("use_beam_schema");
+        if (useBeamSchema != null) {
+          builder = builder.setUseBeamSchema(useBeamSchema);
+        }
+        Boolean autoSharding = configRow.getBoolean("auto_sharding");
+        if (autoSharding != null) {
+          builder = builder.setAutoSharding(autoSharding);
+        }
+        Boolean propagateSuccessful = configRow.getBoolean("propagate_successful");
+        if (propagateSuccessful != null) {
+          builder = builder.setPropagateSuccessful(propagateSuccessful);
+        }
+        Boolean autoSchemaUpdate = configRow.getBoolean("auto_schema_update");
+        if (autoSchemaUpdate != null) {
+          builder = builder.setAutoSchemaUpdate(autoSchemaUpdate);
+        }
+        byte[] writeProtosClasses = configRow.getBytes("write_protos_class");
+        if (writeProtosClasses != null) {
+          builder =
+              builder.setWriteProtosClass(
+                  (Class) fromByteArray(defaultMissingValueInterpretationsBytes));
+        }
+        Boolean directWriteProtos = configRow.getBoolean("direct_write_protos");
+        if (directWriteProtos != null) {
+          builder = builder.setDirectWriteProtos(directWriteProtos);
+        }
+        byte[] deterministicRecordIdFnBytes = configRow.getBytes("deterministic_record_id_fn");
+        if (deterministicRecordIdFnBytes != null) {
+          builder =
+              builder.setDeterministicRecordIdFn(
+                  (SerializableFunction) fromByteArray(deterministicRecordIdFnBytes));
+        }
+        String writeTempDataset = configRow.getString("write_temp_dataset");
+        if (writeTempDataset != null) {
+          builder = builder.setWriteTempDataset(writeTempDataset);
+        }
+        byte[] rowMutationInformationFnBytes = configRow.getBytes("row_mutation_information_fn");
+        if (rowMutationInformationFnBytes != null) {
+          builder =
+              builder.setRowMutationInformationFn(
+                  (SerializableFunction) fromByteArray(rowMutationInformationFnBytes));
+        }
 
-      return builder.build();
+        return builder.build();
+      } catch (InvalidClassException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 

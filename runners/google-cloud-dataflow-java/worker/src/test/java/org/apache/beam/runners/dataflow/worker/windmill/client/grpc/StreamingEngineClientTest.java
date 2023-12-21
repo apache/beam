@@ -64,6 +64,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
@@ -253,6 +254,7 @@ public class StreamingEngineClientTest {
   }
 
   @Test
+  @Ignore("https://github.com/apache/beam/issues/28957") // stuck test
   public void testOnNewWorkerMetadata_correctlyRemovesStaleWindmillServers()
       throws InterruptedException {
     streamingEngineClient =
