@@ -73,6 +73,11 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       pcoll = p | beam.Create([1])
       assert_that(pcoll, equal_to([1]))
 
+  def test_create_multiple(self):
+    with self.pipeline as p:
+      pcoll = p | beam.Create([1, 2, 3, 4])
+      assert_that(pcoll, equal_to([1, 2, 3, 4]))
+
   def test_create_and_map(self):
     def double(x):
       return x * 2
@@ -88,6 +93,14 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
     with self.pipeline as p:
       pcoll = p | beam.Create([1]) | beam.Map(double) | beam.GroupByKey()
       assert_that(pcoll, equal_to([(2, [1])]))
+
+  def test_groupby_string_keys(self):
+    with self.pipeline as p:
+      pcoll = (
+          p
+          | beam.Create([('a', 1), ('a', 2), ('b', 3), ('b', 4)])
+          | beam.GroupByKey())
+      assert_that(pcoll, equal_to([('a', [1, 2]), ('b', [3, 4])]))
 
 
 if __name__ == '__main__':
