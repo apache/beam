@@ -14,14 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# pytype: skip-file
+
 import logging
 import os
+import secrets
 import shutil
+import time
 import unittest
 
 import pytest
 import yaml
-
+from importlib import import_module
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -160,39 +164,43 @@ class AutoGenerationScriptTest(unittest.TestCase):
   This class tests the generation and regeneration operations in
   `sdks/python/gen_xlang_wrappers.py`.
   """
-  TEST_DIR = os.path.join(
-      os.path.abspath(os.path.dirname(__file__)), 'test_gen_script')
-  SERVICE_CONFIG_PATH = os.path.join(
-      TEST_DIR, "test_expansion_service_config.yaml")
-  TRANSFORMS_CONFIG_PATH = os.path.join(TEST_DIR, "test_transform_config.yaml")
+
   # tests cases will use GenerateSequence
   GEN_SEQ_IDENTIFIER = \
     'beam:schematransform:org.apache.beam:generate_sequence:v1'
 
   def setUp(self):
-    shutil.rmtree(self.TEST_DIR, ignore_errors=True)
-    os.mkdir(self.TEST_DIR)
+    self.test_dir_name = 'test_gen_script_%d_%s' % (
+        int(time.time()), secrets.token_hex(3))
+    self.test_dir = os.path.join(
+        os.path.abspath(os.path.dirname(__file__)), self.test_dir_name)
+    self.service_config_path = os.path.join(
+        self.test_dir, "test_expansion_service_config.yaml")
+    self.transform_config_path = os.path.join(
+        self.test_dir, "test_transform_config.yaml")
+    os.mkdir(self.test_dir)
 
   def tearDown(self):
-    shutil.rmtree(self.TEST_DIR)
+    shutil.rmtree(self.test_dir, ignore_errors=False)
 
   def test_script_workflow(self):
     expansion_service_config = {
         "gradle_target": 'sdks:java:io:expansion-service:shadowJar',
         'destinations': {
-            'python': 'apache_beam/transforms/test_gen_script'
+            'python': f'apache_beam/transforms/{self.test_dir_name}'
         }
     }
-    with open(self.SERVICE_CONFIG_PATH, 'w') as f:
+    with open(self.service_config_path, 'w') as f:
       yaml.dump([expansion_service_config], f)
 
     # test that transform config YAML file is created
     generate_transform_configs(
-        self.SERVICE_CONFIG_PATH, self.TRANSFORMS_CONFIG_PATH)
-    self.assertTrue(os.path.exists(self.TRANSFORMS_CONFIG_PATH))
-
+        self.service_config_path, self.transform_config_path)
+    self.assertTrue(os.path.exists(self.transform_config_path))
+    expected_destination = \
+      f'apache_beam/transforms/{self.test_dir_name}/generate_sequence'
     # test that transform config is populated correctly
-    with open(self.TRANSFORMS_CONFIG_PATH) as f:
+    with open(self.transform_config_path) as f:
       transforms = yaml.safe_load(f)
       gen_seq_config = None
       for transform in transforms:
@@ -204,50 +212,49 @@ class AutoGenerationScriptTest(unittest.TestCase):
           expansion_service_config['gradle_target'])
       self.assertEqual(gen_seq_config['name'], 'GenerateSequence')
       self.assertEqual(
-          gen_seq_config['destinations']['python'],
-          'apache_beam/transforms/test_gen_script/generate_sequence')
+          gen_seq_config['destinations']['python'], expected_destination)
       self.assertIn("end", gen_seq_config['fields'])
       self.assertIn("start", gen_seq_config['fields'])
       self.assertIn("rate", gen_seq_config['fields'])
 
     # test that the code for GenerateSequence is set to the right destination
     grouped_wrappers = get_wrappers_from_transform_configs(
-        self.TRANSFORMS_CONFIG_PATH)
-    self.assertIn(
-        'apache_beam/transforms/test_gen_script/generate_sequence',
-        grouped_wrappers)
+        self.transform_config_path)
+    self.assertIn(expected_destination, grouped_wrappers)
     # only the GenerateSequence wrapper is set to this destination
-    self.assertEqual(
-        len(
-            grouped_wrappers[
-                'apache_beam/transforms/test_gen_script/generate_sequence']),
-        1)
+    self.assertEqual(len(grouped_wrappers[expected_destination]), 1)
 
     # test that the correct destination is created
     write_wrappers_to_destinations(grouped_wrappers)
     self.assertTrue(
         os.path.exists(
-            os.path.join(self.TEST_DIR, 'generate_sequence' + PYTHON_SUFFIX)))
+            os.path.join(self.test_dir, 'generate_sequence' + PYTHON_SUFFIX)))
     # check the wrapper exists in this destination and has correct properties
-    from apache_beam.transforms.test_gen_script.generate_sequence_et import GenerateSequence
+    generate_sequence_et = import_module(
+        expected_destination.replace('/', '.') + PYTHON_SUFFIX.rstrip('.py'))
+    self.assertTrue(hasattr(generate_sequence_et, 'GenerateSequence'))
     self.assertTrue(
-        isinstance(GenerateSequence(start=0), ExternalSchemaTransform))
-    self.assertEqual(GenerateSequence.identifier, self.GEN_SEQ_IDENTIFIER)
+        isinstance(
+            generate_sequence_et.GenerateSequence(start=0),
+            ExternalSchemaTransform))
+    self.assertEqual(
+        generate_sequence_et.GenerateSequence.identifier,
+        self.GEN_SEQ_IDENTIFIER)
 
     # test that we successfully delete the destination
-    delete_generated_files(self.TEST_DIR)
+    delete_generated_files(self.test_dir)
     self.assertFalse(
         os.path.exists(
-            os.path.join(self.TEST_DIR, 'generate_sequence' + PYTHON_SUFFIX)))
+            os.path.join(self.test_dir, 'generate_sequence' + PYTHON_SUFFIX)))
 
   def test_script_workflow_with_modified_transforms(self):
     modified_name = 'ModifiedSequence'
     modified_dest = \
-      'apache_beam/transforms/test_gen_script/new_dir/modified_gen_seq'
+      f'apache_beam/transforms/{self.test_dir_name}/new_dir/modified_gen_seq'
     expansion_service_config = {
         "gradle_target": 'sdks:java:io:expansion-service:shadowJar',
         'destinations': {
-            'python': 'apache_beam/transforms/test_gen_script'
+            'python': f'apache_beam/transforms/{self.test_dir_name}'
         },
         'transforms': {
             'beam:schematransform:org.apache.beam:generate_sequence:v1': {
@@ -258,18 +265,18 @@ class AutoGenerationScriptTest(unittest.TestCase):
             }
         }
     }
-    os.mkdir(os.path.join(self.TEST_DIR, 'new_dir'))
+    os.mkdir(os.path.join(self.test_dir, 'new_dir'))
 
-    with open(self.SERVICE_CONFIG_PATH, 'w') as f:
+    with open(self.service_config_path, 'w') as f:
       yaml.dump([expansion_service_config], f)
 
     # test that transform config YAML file is successfully created
     generate_transform_configs(
-        self.SERVICE_CONFIG_PATH, self.TRANSFORMS_CONFIG_PATH)
-    self.assertTrue(os.path.exists(self.TRANSFORMS_CONFIG_PATH))
+        self.service_config_path, self.transform_config_path)
+    self.assertTrue(os.path.exists(self.transform_config_path))
 
     # test that transform config is populated correctly
-    with open(self.TRANSFORMS_CONFIG_PATH) as f:
+    with open(self.transform_config_path) as f:
       transforms = yaml.safe_load(f)
       gen_seq_config = None
       for transform in transforms:
@@ -284,7 +291,7 @@ class AutoGenerationScriptTest(unittest.TestCase):
 
     # test that the code for 'ModifiedSequence' is set to the right destination
     grouped_wrappers = get_wrappers_from_transform_configs(
-        self.TRANSFORMS_CONFIG_PATH)
+        self.transform_config_path)
     self.assertIn(modified_dest, grouped_wrappers)
     self.assertIn(modified_name, grouped_wrappers[modified_dest][0])
     # only one wrapper is set to this destination
@@ -295,27 +302,32 @@ class AutoGenerationScriptTest(unittest.TestCase):
     self.assertTrue(
         os.path.exists(
             os.path.join(
-                self.TEST_DIR, 'new_dir', 'modified_gen_seq' + PYTHON_SUFFIX)))
+                self.test_dir, 'new_dir', 'modified_gen_seq' + PYTHON_SUFFIX)))
     # check the modified wrapper exists in the modified destination
     # and check it has the correct properties
-    from apache_beam.transforms.test_gen_script.new_dir.modified_gen_seq_et import ModifiedSequence
+    modified_gen_seq_et = import_module(
+        modified_dest.replace('/', '.') + PYTHON_SUFFIX.rstrip('.py'))
     self.assertTrue(
-        isinstance(ModifiedSequence(start=0), ExternalSchemaTransform))
-    self.assertEqual(ModifiedSequence.identifier, self.GEN_SEQ_IDENTIFIER)
+        isinstance(
+            modified_gen_seq_et.ModifiedSequence(start=0),
+            ExternalSchemaTransform))
+    self.assertEqual(
+        modified_gen_seq_et.ModifiedSequence.identifier,
+        self.GEN_SEQ_IDENTIFIER)
 
     # test that we successfully delete the destination
-    delete_generated_files(self.TEST_DIR)
+    delete_generated_files(self.test_dir)
     self.assertFalse(
         os.path.exists(
             os.path.join(
-                self.TEST_DIR, 'new_dir', 'modified_gen_seq' + PYTHON_SUFFIX)))
+                self.test_dir, 'new_dir', 'modified_gen_seq' + PYTHON_SUFFIX)))
 
   def test_script_workflow_with_multiple_wrappers_same_destination(self):
-    modified_dest = 'apache_beam/transforms/test_gen_script/my_wrappers'
+    modified_dest = f'apache_beam/transforms/{self.test_dir_name}/my_wrappers'
     expansion_service_config = {
         "gradle_target": 'sdks:java:io:expansion-service:shadowJar',
         'destinations': {
-            'python': 'apache_beam/transforms/test_gen_script'
+            'python': f'apache_beam/transforms/{self.test_dir_name}'
         },
         'transforms': {
             'beam:schematransform:org.apache.beam:generate_sequence:v1': {
@@ -336,29 +348,30 @@ class AutoGenerationScriptTest(unittest.TestCase):
         }
     }
 
-    with open(self.SERVICE_CONFIG_PATH, 'w') as f:
+    with open(self.service_config_path, 'w') as f:
       yaml.dump([expansion_service_config], f)
 
     # test that transform config YAML file is successfully created
     generate_transform_configs(
-        self.SERVICE_CONFIG_PATH, self.TRANSFORMS_CONFIG_PATH)
-    self.assertTrue(os.path.exists(self.TRANSFORMS_CONFIG_PATH))
+        self.service_config_path, self.transform_config_path)
+    self.assertTrue(os.path.exists(self.transform_config_path))
 
     # test that our transform configs have the same destination
-    with open(self.TRANSFORMS_CONFIG_PATH) as f:
+    with open(self.transform_config_path) as f:
       transforms = yaml.safe_load(f)
       for transform in transforms:
         if transform['identifier'] in expansion_service_config['transforms']:
           self.assertEqual(transform['destinations']['python'], modified_dest)
 
     grouped_wrappers = get_wrappers_from_transform_configs(
-        self.TRANSFORMS_CONFIG_PATH)
+        self.transform_config_path)
     # check all 3 wrappers are set to this destination
     self.assertEqual(len(grouped_wrappers[modified_dest]), 3)
 
     # write wrappers to destination then check that all 3 exist there
     write_wrappers_to_destinations(grouped_wrappers)
-    from apache_beam.transforms.test_gen_script import my_wrappers_et
+    my_wrappers_et = import_module(
+        modified_dest.replace('/', '.') + PYTHON_SUFFIX.rstrip('.py'))
     self.assertTrue(hasattr(my_wrappers_et, 'GenerateSequence'))
     self.assertTrue(hasattr(my_wrappers_et, 'KafkaWrite'))
     self.assertTrue(hasattr(my_wrappers_et, 'KafkaRead'))
@@ -367,19 +380,19 @@ class AutoGenerationScriptTest(unittest.TestCase):
     expansion_service_config = {
         "gradle_target": 'sdks:java:io:expansion-service:shadowJar',
         'destinations': {
-            'python': 'apache_beam/io'
+            'python': f'apache_beam/transforms/{self.test_dir_name}'
         },
         'ignore': ['beam:schematransform:org.apache.beam:generate_sequence:v1']
     }
 
-    with open(self.SERVICE_CONFIG_PATH, 'w') as f:
+    with open(self.service_config_path, 'w') as f:
       yaml.dump([expansion_service_config], f)
 
     generate_transform_configs(
-        self.SERVICE_CONFIG_PATH, self.TRANSFORMS_CONFIG_PATH)
+        self.service_config_path, self.transform_config_path)
 
     # test that transform config is populated correctly
-    with open(self.TRANSFORMS_CONFIG_PATH) as f:
+    with open(self.transform_config_path) as f:
       transforms = yaml.safe_load(f)
       gen_seq_config = None
       for transform in transforms:
@@ -388,29 +401,32 @@ class AutoGenerationScriptTest(unittest.TestCase):
       self.assertIsNone(gen_seq_config)
 
   def test_run_pipeline_with_script_generated_transform(self):
+    modified_dest = f'apache_beam/transforms/{self.test_dir_name}/gen_seq'
     expansion_service_config = {
         "gradle_target": 'sdks:java:io:expansion-service:shadowJar',
         'destinations': {
-            'python': 'apache_beam/transforms/test_gen_script'
+            'python': f'apache_beam/transforms/{self.test_dir_name}'
         },
         'transforms': {
             'beam:schematransform:org.apache.beam:generate_sequence:v1': {
-                'name': 'MyGenSeq',
-                'destinations': {
-                    'python': 'apache_beam/transforms/test_gen_script/gen_seq'
+                'name': 'MyGenSeq', 'destinations': {
+                    'python': modified_dest
                 }
             }
         }
     }
-    with open(self.SERVICE_CONFIG_PATH, 'w') as f:
+    with open(self.service_config_path, 'w') as f:
       yaml.dump([expansion_service_config], f)
 
-    run_script(True, self.SERVICE_CONFIG_PATH, self.TRANSFORMS_CONFIG_PATH)
-    from apache_beam.transforms.test_gen_script.gen_seq_et import MyGenSeq
+    run_script(False, self.service_config_path, self.transform_config_path)
+
+    gen_seq_et = import_module(
+        modified_dest.replace('/', '.') + PYTHON_SUFFIX.rstrip('.py'))
 
     with beam.Pipeline() as p:
       numbers = (
-          p | MyGenSeq(start=0, end=10) | beam.Map(lambda row: row.value))
+          p | gen_seq_et.MyGenSeq(start=0, end=10)
+          | beam.Map(lambda row: row.value))
 
       assert_that(numbers, equal_to([i for i in range(10)]))
 
