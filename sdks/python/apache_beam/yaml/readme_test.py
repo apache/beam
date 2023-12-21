@@ -99,7 +99,7 @@ class FakeSql(beam.PTransform):
 
 
 class FakeReadFromPubSub(beam.PTransform):
-  def __init__(self, topic):
+  def __init__(self, topic, format, schema):
     pass
 
   def expand(self, p):
@@ -112,7 +112,7 @@ class FakeReadFromPubSub(beam.PTransform):
 
 
 class FakeWriteToPubSub(beam.PTransform):
-  def __init__(self, topic):
+  def __init__(self, topic, format):
     pass
 
   def expand(self, pcoll):

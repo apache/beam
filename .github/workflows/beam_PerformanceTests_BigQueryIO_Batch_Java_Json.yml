@@ -91,8 +91,8 @@ jobs:
             -DintegrationTestRunner=dataflow \
             -DintegrationTestPipelineOptions='[${{ env.beam_PerformanceTests_BigQueryIO_Batch_Java_Json_test_arguments_1 }}]' \
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
-        if: failure()
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

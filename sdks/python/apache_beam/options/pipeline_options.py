@@ -36,6 +36,7 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils import proto_utils
 
 __all__ = [
     'PipelineOptions',
@@ -390,6 +391,36 @@ class PipelineOptions(HasDisplayData):
 
     return result
 
+  def to_runner_api(self):
+    def to_struct_value(o):
+      if isinstance(o, (bool, int, str)):
+        return o
+      elif isinstance(o, (tuple, list)):
+        return [to_struct_value(e) for e in o]
+      elif isinstance(o, dict):
+        return {str(k): to_struct_value(v) for k, v in o.items()}
+      else:
+        return str(o)  # Best effort.
+
+    return proto_utils.pack_Struct(
+        **{
+            f'beam:option:{k}:v1': to_struct_value(v)
+            for (k, v) in self.get_all_options(
+                drop_default=True, retain_unknown_options=True).items()
+            if v is not None
+        })
+
+  @classmethod
+  def from_runner_api(cls, proto_options):
+    def from_urn(key):
+      assert key.startswith('beam:option:')
+      assert key.endswith(':v1')
+      return key[12:-3]
+
+    return cls(
+        **{from_urn(key): value
+           for (key, value) in proto_options.items()})
+
   def display_data(self):
     return self.get_all_options(drop_default=True, retain_unknown_options=True)
 
@@ -526,6 +557,18 @@ class StandardOptions(PipelineOptions):
         help='Whether to automatically generate unique transform labels '
         'for every transform. The default behavior is to raise an '
         'exception if a transform is created with a non-unique label.')
+
+
+class StreamingOptions(PipelineOptions):
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--update_compatibility_version',
+        default=None,
+        help='Attempt to produce a pipeline compatible with the given prior '
+        'version of the Beam SDK. '
+        'See for example, https://cloud.google.com/dataflow/docs/guides/'
+        'updating-a-pipeline')
 
 
 class CrossLanguageOptions(PipelineOptions):

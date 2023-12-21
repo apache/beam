@@ -17,9 +17,11 @@
 
 __all__ = ['ArtifactsFetcher']
 
+import os
 import typing
 
 import tensorflow_transform as tft
+from apache_beam.ml.transforms import base
 
 
 class ArtifactsFetcher():
@@ -28,8 +30,18 @@ class ArtifactsFetcher():
   to the TFTProcessHandlers in MLTransform.
   """
   def __init__(self, artifact_location):
-    self.artifact_location = artifact_location
-    self.transform_output = tft.TFTransformOutput(self.artifact_location)
+    files = os.listdir(artifact_location)
+    files.remove(base._ATTRIBUTE_FILE_NAME)
+    # TODO: https://github.com/apache/beam/issues/29356
+    #  Integrate ArtifactFetcher into MLTransform.
+    if len(files) > 1:
+      raise NotImplementedError(
+          "MLTransform may have been utilized alongside transforms written "
+          "in TensorFlow Transform, in conjunction with those from different "
+          "frameworks. Currently, retrieving artifacts from this "
+          "multi-framework setup is not supported.")
+    self._artifact_location = os.path.join(artifact_location, files[0])
+    self.transform_output = tft.TFTransformOutput(self._artifact_location)
 
   def get_vocab_list(
       self,

@@ -21,7 +21,7 @@ on:
   schedule:
     - cron: '0 5/6 * * *'
   pull_request_target:
-    paths: ['release/trigger_all_tests.json']
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Javadoc.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -84,7 +84,7 @@ jobs:
           path-to-root: sdks/java/javadoc/build/docs/javadoc
           base-url-path: https://beam.apache.org/releases/javadoc/current/
       - name: Upload Javadoc Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Javadoc Results
           path: '**/sdks/java/javadoc/build/docs/javadoc/**'

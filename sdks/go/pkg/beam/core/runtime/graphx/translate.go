@@ -73,6 +73,7 @@ const (
 	URNMultiCore             = "beam:protocol:multi_core_bundle_processing:v1"
 	URNWorkerStatus          = "beam:protocol:worker_status:v1"
 	URNMonitoringInfoShortID = "beam:protocol:monitoring_info_short_ids:v1"
+	URNDataSampling          = "beam:protocol:data_sampling:v1"
 
 	URNRequiresSplittableDoFn     = "beam:requirement:pardo:splittable_dofn:v1"
 	URNRequiresBundleFinalization = "beam:requirement:pardo:finalization:v1"
@@ -109,6 +110,7 @@ func goCapabilities() []string {
 		URNMonitoringInfoShortID,
 		URNBaseVersionGo,
 		URNToString,
+		URNDataSampling,
 	}
 	return append(capabilities, knownStandardCoders()...)
 }

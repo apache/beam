@@ -98,6 +98,7 @@ public class SpannerAccessor implements AutoCloseable {
           // Connect to spanner for this SpannerConfig.
           LOG.info("Connecting to {}", spannerConfig);
           self = SpannerAccessor.createAndConnect(spannerConfig);
+          LOG.info("Successfully connected to {}", spannerConfig);
           spannerAccessors.put(spannerConfig, self);
           refcounts.putIfAbsent(spannerConfig, new AtomicInteger(0));
         }

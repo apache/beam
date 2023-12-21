@@ -36,6 +36,7 @@ on:
       - 'examples/kotlin/**'
       - '.test-infra/jenkins/'
       - 'release/trigger_all_tests.json'
+      - '.github/trigger_files/beam_PreCommit_Spotless.json'
   issue_comment:
     types: [created]
   schedule:
@@ -99,7 +100,7 @@ jobs:
         with:
           gradle-command: spotlessCheck checkStyleMain checkStyleTest :buildSrc:spotlessCheck
       - name: Upload test report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: java-code-coverage-report
           path: "**/build/reports/checkstyle/*.xml"

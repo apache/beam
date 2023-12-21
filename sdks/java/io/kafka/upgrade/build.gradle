@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-import java.util.stream.Collectors
-
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.io.kafka.upgrade',

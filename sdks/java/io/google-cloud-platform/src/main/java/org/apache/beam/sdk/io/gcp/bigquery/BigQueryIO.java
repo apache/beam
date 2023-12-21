@@ -577,7 +577,7 @@ public class BigQueryIO {
   private static final String DATASET_REGEXP = "[-\\w.]{1,1024}";
 
   /** Regular expression that matches Table IDs. */
-  private static final String TABLE_REGEXP = "[-\\w$@]{1,1024}";
+  private static final String TABLE_REGEXP = "[-\\w$@ ]{1,1024}";
 
   /**
    * Matches table specifications in the form {@code "[project_id]:[dataset_id].[table_id]"} or

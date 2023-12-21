@@ -330,6 +330,8 @@ public class ElasticsearchIO {
 
     public abstract @Nullable String getKeystorePassword();
 
+    public abstract @Nullable String getPathPrefix();
+
     public abstract String getIndex();
 
     public abstract @Nullable String getType();
@@ -359,6 +361,8 @@ public class ElasticsearchIO {
       abstract Builder setKeystorePath(String keystorePath);
 
       abstract Builder setKeystorePassword(String password);
+
+      abstract Builder setPathPrefix(String pathPrefix);
 
       abstract Builder setIndex(String index);
 
@@ -500,6 +504,20 @@ public class ElasticsearchIO {
       checkArgument(password != null, "password can not be null");
       checkArgument(!password.isEmpty(), "password can not be empty");
       return builder().setPassword(password).build();
+    }
+
+    /**
+     * If Elasticsearch is not running at the root path, e.g. 'host:9200/path/to/index', specify
+     * path prefix 'path/to'.
+     *
+     * @param pathPrefix the path prefix used in Elasticsearch instance.
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
+     */
+    public ConnectionConfiguration withPathPrefix(String pathPrefix) {
+      checkArgument(pathPrefix != null, "pathPrefix can not be null");
+      checkArgument(!pathPrefix.isEmpty(), "pathPrefix can not be empty");
+      return builder().setPathPrefix(pathPrefix).build();
     }
 
     /**
@@ -678,7 +696,9 @@ public class ElasticsearchIO {
         i++;
       }
       RestClientBuilder restClientBuilder = RestClient.builder(hosts);
-
+      if (getPathPrefix() != null) {
+        restClientBuilder.setPathPrefix(getPathPrefix());
+      }
       final SSLContext sslContext = getSSLContext();
 
       if (getApiKey() != null) {

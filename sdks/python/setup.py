@@ -141,9 +141,21 @@ except ImportError:
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ['']
+elif sys.platform == 'win32' or sys.platform == 'cygwin':
+  # https://github.com/apache/beam/issues/28410 - pyarrow>=13 seeing issues
+  # on windows with error
+  # C:\arrow\cpp\src\arrow\filesystem\s3fs.cc:2904:  arrow::fs::FinalizeS3 was
+  # not called even though S3 was initialized.  This could lead to a
+  # segmentation fault at exit. Keep pyarrow<13 until this is resolved.
+  pyarrow_dependency = [
+        'pyarrow>=3.0.0,<12.0.0',
+        # NOTE: We can remove this once Beam increases the pyarrow lower bound
+        # to a version that fixes CVE.
+        'pyarrow-hotfix<1'
+    ]
 else:
   pyarrow_dependency = [
-      'pyarrow>=3.0.0,<12.0.0',
+      'pyarrow>=3.0.0,<15.0.0',
       # NOTE(https://github.com/apache/beam/issues/29392): We can remove this
       # once Beam increases the pyarrow lower bound to a version that fixes CVE.
       'pyarrow-hotfix<1'
@@ -286,6 +298,7 @@ if __name__ == '__main__':
           'httplib2>=0.8,<0.23.0',
           'js2py>=0.74,<1',
           'jsonschema>=4.0.0,<5.0.0',
+          'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
           'numpy>=1.14.3,<1.25.0',  # Update pyproject.toml as well.
@@ -320,12 +333,14 @@ if __name__ == '__main__':
       extras_require={
           'docs': [
               'Sphinx>=1.5.2,<2.0',
+              'docstring-parser>=0.15,<1.0',
               # Pinning docutils as a workaround for Sphinx issue:
               # https://github.com/sphinx-doc/sphinx/issues/9727
               'docutils==0.17.1',
               'pandas<2.0.0',
           ],
           'test': [
+              'docstring-parser>=0.15,<1.0',
               'freezegun>=0.3.12',
               'joblib>=1.0.1',
               'mock>=1.0.1,<6.0.0',
@@ -344,6 +359,7 @@ if __name__ == '__main__':
               'testcontainers[mysql]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<=7.0.0',
+              'pyyaml>=3.12,<7.0.0',
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',
@@ -357,7 +373,7 @@ if __name__ == '__main__':
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
               'google-cloud-pubsublite>=1.2.0,<2',
-              'google-cloud-storage>=2.10.0,<3',
+              'google-cloud-storage>=2.14.0,<3',
               # GCP packages required by tests
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
@@ -406,6 +422,7 @@ if __name__ == '__main__':
               'distributed >= 2022.6',
           ],
           'yaml': [
+              'docstring-parser>=0.15,<1.0',
               'pyyaml>=3.12,<7.0.0',
           ] + dataframe_dependency
       },

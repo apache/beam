@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.options;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /** Options used to configure streaming. */
 public interface StreamingOptions extends ApplicationNameOptions, PipelineOptions {
   /**
@@ -30,4 +32,13 @@ public interface StreamingOptions extends ApplicationNameOptions, PipelineOption
   boolean isStreaming();
 
   void setStreaming(boolean value);
+
+  @Description(
+      "If set, attempts to produce a pipeline compatible with this prior version of the Beam SDK."
+          + " This string should be interpreted and compared per https://semver.org/."
+          + " See, for example, https://cloud.google.com/dataflow/docs/guides/updating-a-pipeline.")
+  @Nullable
+  String getUpdateCompatibilityVersion();
+
+  void setUpdateCompatibilityVersion(@Nullable String updateCompatibilityVersion);
 }
