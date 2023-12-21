@@ -50,8 +50,6 @@ from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.runner import PipelineResult
-from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
-from apache_beam.runners.runner import PipelineResult
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.timestamp import Timestamp
 
@@ -733,6 +731,9 @@ def compute_dataflow_cost(
     if metric_name in target_metrics:
       dataflow_service_metrics[metric_name] = metric_result.result
 
+  logging.info(metrics)
+  logging.info("######################")
+  logging.info("metrics to compute cost : %s" % dataflow_service_metrics)
   cost = 0
   cost += dataflow_service_metrics.get(
       "TotalVcpuTime") / 3600 * VCPU_PER_HR_BATCH if (
