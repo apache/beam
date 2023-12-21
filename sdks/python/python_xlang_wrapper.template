@@ -19,7 +19,7 @@ class {{ class_name }}(ExternalSchemaTransform):
   {% if description %}"""
   {{ description | wordwrap(78) | replace('\n', '\n  ') }}
   """{% endif %}
-  identifier = "{{ identifier }}"
+  identifier = "{{ identifier | wordwrap(60) | replace('\n', '\" \\\n               \"') }}"
 
   def __init__(
       self,{% if parameters %}{% for param in parameters%}

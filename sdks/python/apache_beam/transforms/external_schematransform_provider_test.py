@@ -34,6 +34,7 @@ from apache_beam.transforms.external_schematransform_provider import camel_case_
 from apache_beam.transforms.external_schematransform_provider import infer_name_from_identifier
 from apache_beam.transforms.external_schematransform_provider import snake_case_to_lower_camel_case
 from apache_beam.transforms.external_schematransform_provider import snake_case_to_upper_camel_case
+
 try:
   from gen_xlang_wrappers import PYTHON_SUFFIX
   from gen_xlang_wrappers import delete_generated_files
@@ -43,6 +44,7 @@ try:
   from gen_xlang_wrappers import write_wrappers_to_destinations
 except ImportError:
   run_script = None
+
 
 class NameUtilsTest(unittest.TestCase):
   def test_snake_case_to_upper_camel_case(self):
@@ -148,10 +150,11 @@ class ExternalSchemaTransformProviderTest(unittest.TestCase):
 
 @pytest.mark.uses_io_java_expansion_service
 @unittest.skipUnless(
-  os.environ.get('EXPANSION_PORT'),
-  "EXPANSION_PORT environment var is not provided.")
-@unittest.skipIf(run_script is None,
-                 "Need access to gen_xlang_wrappers.py to run these tests")
+    os.environ.get('EXPANSION_PORT'),
+    "EXPANSION_PORT environment var is not provided.")
+@unittest.skipIf(
+    run_script is None,
+    "Need access to gen_xlang_wrappers.py to run these tests")
 class AutoGenerationScriptTest(unittest.TestCase):
   """
   This class tests the generation and regeneration operations in
@@ -226,7 +229,7 @@ class AutoGenerationScriptTest(unittest.TestCase):
         os.path.exists(
             os.path.join(self.TEST_DIR, 'generate_sequence' + PYTHON_SUFFIX)))
     # check the wrapper exists in this destination and has correct properties
-    from .test_gen_script.generate_sequence_et import GenerateSequence
+    from apache_beam.transforms.test_gen_script.generate_sequence_et import GenerateSequence
     self.assertTrue(
         isinstance(GenerateSequence(start=0), ExternalSchemaTransform))
     self.assertEqual(GenerateSequence.identifier, self.GEN_SEQ_IDENTIFIER)
@@ -295,7 +298,7 @@ class AutoGenerationScriptTest(unittest.TestCase):
                 self.TEST_DIR, 'new_dir', 'modified_gen_seq' + PYTHON_SUFFIX)))
     # check the modified wrapper exists in the modified destination
     # and check it has the correct properties
-    from .test_gen_script.new_dir.modified_gen_seq_et import ModifiedSequence
+    from apache_beam.transforms.test_gen_script.new_dir.modified_gen_seq_et import ModifiedSequence
     self.assertTrue(
         isinstance(ModifiedSequence(start=0), ExternalSchemaTransform))
     self.assertEqual(ModifiedSequence.identifier, self.GEN_SEQ_IDENTIFIER)
@@ -355,7 +358,7 @@ class AutoGenerationScriptTest(unittest.TestCase):
 
     # write wrappers to destination then check that all 3 exist there
     write_wrappers_to_destinations(grouped_wrappers)
-    from .test_gen_script import my_wrappers_et
+    from apache_beam.transforms.test_gen_script import my_wrappers_et
     self.assertTrue(hasattr(my_wrappers_et, 'GenerateSequence'))
     self.assertTrue(hasattr(my_wrappers_et, 'KafkaWrite'))
     self.assertTrue(hasattr(my_wrappers_et, 'KafkaRead'))
@@ -403,7 +406,7 @@ class AutoGenerationScriptTest(unittest.TestCase):
       yaml.dump([expansion_service_config], f)
 
     run_script(True, self.SERVICE_CONFIG_PATH, self.TRANSFORMS_CONFIG_PATH)
-    from .test_gen_script.gen_seq_et import MyGenSeq
+    from apache_beam.transforms.test_gen_script.gen_seq_et import MyGenSeq
 
     with beam.Pipeline() as p:
       numbers = (

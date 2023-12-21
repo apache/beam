@@ -21,11 +21,11 @@ SchemaTransforms)
 """
 
 import argparse
+import logging
 import os
 import re
 import subprocess
 import typing
-import warnings
 from typing import Any
 from typing import Dict
 from typing import List
@@ -311,7 +311,7 @@ def write_wrappers_to_destinations(grouped_wrappers: Dict[str, List[str]]):
   try:
     subprocess.run(format_command, check=True)
   except subprocess.CalledProcessError as err:
-    warnings.warn(
+    logging.warning(
         "Could not format the generated external transform wrappers"
         "because of error: %s",
         err.stderr)
@@ -319,6 +319,7 @@ def write_wrappers_to_destinations(grouped_wrappers: Dict[str, List[str]]):
 
 def delete_generated_files(root_dir):
   """Scans for and deletes generated wrapper files."""
+  logging.info("Deleting external transform wrappers from dir %s", root_dir)
   for path in find_by_ext(root_dir, PYTHON_SUFFIX):
     os.remove(path)
 
