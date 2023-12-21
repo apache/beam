@@ -235,7 +235,7 @@ static class ProductWeight {
         private String fruit;
         private Integer productWeight;
 
-        public WordsAlphabet(String country, String fruit, Integer productWeight) {
+        public ProductWeight(String country, String fruit, Integer productWeight) {
             this.country = country;
             this.fruit = fruit;
             this.productWeight = productWeight;
@@ -275,7 +275,7 @@ static PCollection<String> applyTransform(PCollection<String> fruits, PCollectio
                         String fruit = coGbkResult.getOnly(fruitsTag);
                         String country = coGbkResult.getOnly(countriesTag);
 
-                        out.output(new WordsAlphabet(alphabet, fruit, country).toString());
+                        out.output(new ProductWeight(alphabet, fruit, country).toString());
                     }
 
                 }));
@@ -302,7 +302,7 @@ The union takes place through the keys:
 def apply_transforms(fruits, weights):
     def cogbk_result_to_product_weight(cgbk_result):
         (country, values) = cgbk_result
-        return WordsAlphabet(values['weights'][0], values['fruits'][0], country)
+        return ProductWeight(values['weights'][0], values['fruits'][0], country)
 
     return ({'fruits': fruits, 'weights': weights}
             | beam.CoGroupByKey()
