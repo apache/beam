@@ -133,7 +133,6 @@ def get_test_beam_fieldtype_protos():
       value_type in itertools.product(all_primitives, all_primitives)
   ]
 
-
   selected_schemas = [
       schema_pb2.FieldType(
           row_type=schema_pb2.RowType(
@@ -351,36 +350,34 @@ def get_test_beam_fieldtype_protos():
       basic_map_types + \
       selected_schemas
 
+
 # Separate list of fieldtype_protos including logical types to avoid
 # testing arrow type compatibility
 def get_test_beam_fieldtype_protos_with_logical_types():
   logical_types = [
-                          schema_pb2.FieldType(
-                              nullable=True,
-                              logical_type=schema_pb2.LogicalType(
-                                  urn="beam:logical_type:pythonenum",
-                                  representation=schema_pb2.FieldType(
-                                      atomic_type=schema_pb2.INT32),
-                                  argument=schema_pb2.FieldValue(
-                                      map_value=schema_pb2.MapTypeValue(
-                                          # Use a single value to avoid non-deterministic map ordering
-                                          entries=[
-                                              schema_pb2.MapTypeEntry(
-                                                  key=schema_pb2.FieldValue(
-                                                      atomic_value=schema_pb2.
-                                                      AtomicTypeValue(int32=0)),
-                                                  value=schema_pb2.FieldValue(
-                                                      atomic_value=schema_pb2.
-                                                      AtomicTypeValue(
-                                                          string="A")))
-                                          ])),
-                                  argument_type=schema_pb2.FieldType(
-                                      map_type=schema_pb2.MapType(
-                                          key_type=schema_pb2.FieldType(
-                                              atomic_type=schema_pb2.INT32),
-                                          value_type=schema_pb2.FieldType(
-                                              atomic_type=schema_pb2.STRING)))))
-
+      schema_pb2.FieldType(
+          nullable=True,
+          logical_type=schema_pb2.LogicalType(
+              urn="beam:logical_type:pythonenum",
+              representation=schema_pb2.FieldType(atomic_type=schema_pb2.INT32),
+              argument=schema_pb2.FieldValue(
+                  map_value=schema_pb2.MapTypeValue(
+                      # Use a single value to avoid non-deterministic map ordering
+                      entries=[
+                          schema_pb2.MapTypeEntry(
+                              key=schema_pb2.FieldValue(
+                                  atomic_value=schema_pb2.AtomicTypeValue(
+                                      int32=0)),
+                              value=schema_pb2.FieldValue(
+                                  atomic_value=schema_pb2.AtomicTypeValue(
+                                      string="A")))
+                      ])),
+              argument_type=schema_pb2.FieldType(
+                  map_type=schema_pb2.MapType(
+                      key_type=schema_pb2.FieldType(
+                          atomic_type=schema_pb2.INT32),
+                      value_type=schema_pb2.FieldType(
+                          atomic_type=schema_pb2.STRING)))))
   ]
 
   selected_schemas_with_logical_types = [
@@ -419,7 +416,9 @@ def get_test_beam_fieldtype_protos_with_logical_types():
                       ),
                   ])))
   ]
-  return get_test_beam_fieldtype_protos() + selected_schemas_with_logical_types + logical_types
+  return get_test_beam_fieldtype_protos(
+  ) + selected_schemas_with_logical_types + logical_types
+
 
 def get_test_beam_schemas_protos():
   return [
@@ -581,10 +580,8 @@ class SchemaTest(unittest.TestCase):
     #for attr in dir(expected):
     #  self.assertEqual(getattr(actual, attr), getattr(expected, attr))
 
-  @parameterized.expand([
-      (fieldtype_proto, )
-      for fieldtype_proto in get_test_beam_fieldtype_protos_with_logical_types()
-  ])
+  @parameterized.expand([(fieldtype_proto, ) for fieldtype_proto in
+                         get_test_beam_fieldtype_protos_with_logical_types()])
   def test_proto_survives_typing_roundtrip(self, fieldtype_proto):
     self.assertEqual(
         fieldtype_proto,

@@ -813,9 +813,10 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
       return logical_type()
     else:
       argument = value_from_runner_api(
-        logical_type_proto.argument_type, logical_type_proto.argument)
+          logical_type_proto.argument_type, logical_type_proto.argument)
       logical_type_instance = logical_type(argument)
-      LogicalType.register_logical_type_with_argument(logical_type, logical_type_instance._language_type())
+      LogicalType.register_logical_type_with_argument(
+          logical_type, logical_type_instance._language_type())
       return logical_type_instance
 
 
