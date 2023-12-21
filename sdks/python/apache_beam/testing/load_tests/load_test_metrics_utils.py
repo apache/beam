@@ -729,10 +729,13 @@ def compute_dataflow_cost(
   for metric_result in metrics:
     metric_name = metric_result.key.metric.name
     if metric_name in target_metrics:
-      dataflow_service_metrics[metric_name] = metric_result.result
+      # Some metrics such as TotalShuffleDataProcessed gets a None value for the
+      # metric.result but when we fetch metrics using gcloud beta
+      # gcloud beta dataflow metrics list <job_id> --region <zone> --format json # pylint: disable=line-too-long
+      # it has a value but very small. This could be a bug in the metrics but
+      dataflow_service_metrics[metric_name] = (
+          metric_result.result if metric_result.result else 0)
 
-  logging.info(metrics)
-  logging.info("######################")
   logging.info("metrics to compute cost : %s" % dataflow_service_metrics)
   cost = 0
   cost += dataflow_service_metrics.get(
