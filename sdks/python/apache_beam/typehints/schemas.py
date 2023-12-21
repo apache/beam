@@ -688,6 +688,11 @@ ArgT = TypeVar('ArgT')
 class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
   _known_logical_types = LogicalTypeRegistry()
 
+  def __call__(self):
+    """Makes all LogicalType subclasses typing.Callable for <Python3.11
+    """
+    pass
+
   @classmethod
   def urn(cls):
     # type: () -> str
