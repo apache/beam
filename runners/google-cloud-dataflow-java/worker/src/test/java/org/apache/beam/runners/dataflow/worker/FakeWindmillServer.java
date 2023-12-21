@@ -80,7 +80,7 @@ class FakeWindmillServer extends WindmillServerStub {
   private final ErrorCollector errorCollector;
   private final ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> droppedStreamingCommits;
   private int commitsRequested = 0;
-  private int numGetDataRequests = 0;
+  private List<Windmill.GetDataRequest> getDataRequests = new ArrayList<>();
   private boolean isReady = true;
   private boolean dropStreamingCommits = false;
 
@@ -144,7 +144,7 @@ class FakeWindmillServer extends WindmillServerStub {
   public Windmill.GetDataResponse getData(Windmill.GetDataRequest request) {
     LOG.info("getDataRequest: {}", request.toString());
     validateGetDataRequest(request);
-    ++numGetDataRequests;
+    getDataRequests.add(request);
     GetDataResponse response = dataToOffer.getOrDefault(request);
     LOG.debug("getDataResponse: {}", response.toString());
     return response;
@@ -431,7 +431,11 @@ class FakeWindmillServer extends WindmillServerStub {
   }
 
   public int numGetDataRequests() {
-    return numGetDataRequests;
+    return getDataRequests.size();
+  }
+
+  public List<Windmill.GetDataRequest> getGetDataRequests() {
+    return getDataRequests;
   }
 
   public ArrayList<Windmill.ReportStatsRequest> getStatsReceived() {

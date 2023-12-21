@@ -507,6 +507,17 @@ class BundleBasedDirectRunner(PipelineRunner):
     from apache_beam.runners.direct.transform_evaluator import \
       TransformEvaluatorRegistry
     from apache_beam.testing.test_stream import TestStream
+    from apache_beam.transforms.external import ExternalTransform
+
+    class VerifyNoCrossLanguageTransforms(PipelineVisitor):
+      """Visitor determining whether a Pipeline uses a TestStream."""
+      def visit_transform(self, applied_ptransform):
+        if isinstance(applied_ptransform.transform, ExternalTransform):
+          raise RuntimeError(
+              "Streaming Python direct runner "
+              "does not support cross-language pipelines.")
+
+    pipeline.visit(VerifyNoCrossLanguageTransforms())
 
     # If the TestStream I/O is used, use a mock test clock.
     class TestStreamUsageVisitor(PipelineVisitor):

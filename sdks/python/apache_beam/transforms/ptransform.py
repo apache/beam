@@ -37,6 +37,8 @@ FlatMap processing functions.
 # pytype: skip-file
 
 import copy
+import functools
+import inspect
 import itertools
 import json
 import logging
@@ -1075,6 +1077,15 @@ def ptransform_fn(fn):
       _LOGGER.debug(
           'type hints for %s: %s', res.default_label(), res.get_type_hints())
     return res
+
+  # The signature of this PTransform constructor is that of fn minus the first
+  # argument (which is where the pvalue is passed during expand).
+  try:
+    callable_ptransform_factory.__signature__ = inspect.signature(  # type: ignore
+        functools.partial(fn, None))
+  except Exception:
+    # Sometimes we can't get the original signature.
+    pass
 
   return callable_ptransform_factory
 

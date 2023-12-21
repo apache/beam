@@ -286,7 +286,7 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
 
     # Create and process a fake bundle. The instruction id doesn't matter
     # here.
-    processor = BundleProcessor(descriptor, None, None)
+    processor = BundleProcessor(set(), descriptor, None, None)
 
     with self.assertRaisesRegex(RuntimeError, 'expected exception'):
       processor.process_bundle('instruction_id')

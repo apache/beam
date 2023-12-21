@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.options.Description;
@@ -88,7 +89,8 @@ public class BigQueryIOStorageReadTableRowIT {
     options = TestPipeline.testingPipelineOptions().as(BigQueryIOStorageReadTableRowOptions.class);
     String project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     options.setInputTable(project + ":" + DATASET_ID + "." + TABLE_PREFIX + tableName);
-    options.setTempLocation(options.getTempRoot() + "/temp-it/");
+    options.setTempLocation(
+        FileSystems.matchNewDirectory(options.getTempRoot(), "temp-it").toString());
   }
 
   private static void runPipeline(BigQueryIOStorageReadTableRowOptions pipelineOptions) {

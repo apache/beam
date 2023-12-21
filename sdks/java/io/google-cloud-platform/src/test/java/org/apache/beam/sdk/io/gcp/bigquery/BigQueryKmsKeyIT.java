@@ -26,6 +26,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.security.SecureRandom;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -87,7 +88,8 @@ public class BigQueryKmsKeyIT {
     String outputTableId = "testQueryAndWrite_" + method.name();
     String outputTableSpec = project + ":" + BIG_QUERY_DATASET_ID + "." + outputTableId;
 
-    options.setTempLocation(options.getTempRoot() + "/bq_it_temp");
+    options.setTempLocation(
+        FileSystems.matchNewDirectory(options.getTempRoot(), "bq_it_temp").toString());
     Pipeline p = Pipeline.create(options);
     // Reading triggers BQ query and extract jobs. Writing triggers either a load job or performs a
     // streaming insert (depending on method).

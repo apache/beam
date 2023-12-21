@@ -37,6 +37,10 @@ import (
 	"github.com/apache/beam/sdks/v2/go/test/integration/primitives"
 )
 
+func TestMain(m *testing.M) {
+	ptest.MainWithDefault(m, "testlocal")
+}
+
 func initRunner(t testing.TB) {
 	t.Helper()
 	if *jobopts.Endpoint == "" {
@@ -584,10 +588,6 @@ func init() {
 // TODO: PCollection metrics tests, in particular for element counts, in multi transform pipelines
 // There's a doubling bug since we re-use the same pcollection IDs for the source & sink, and
 // don't do any re-writing.
-
-func TestMain(m *testing.M) {
-	ptest.MainWithDefault(m, "testlocal")
-}
 
 func init() {
 	// Basic Registration

@@ -37,6 +37,7 @@ on:
       - 'runners/flink/**'
       - 'runners/java-fn-execution/**'
       - 'release/trigger_all_tests.json'
+      - '.github/trigger_files/beam_PreCommit_Java_PVR_Flink_Docker.json'
   issue_comment:
     types: [created]
   schedule:
@@ -102,8 +103,8 @@ jobs:
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
-        if: failure()
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

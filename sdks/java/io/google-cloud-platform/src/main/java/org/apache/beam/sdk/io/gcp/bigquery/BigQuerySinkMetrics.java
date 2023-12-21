@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.auto.value.AutoValue;
 import io.grpc.Status;
 import java.time.Instant;
+import java.util.List;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import javax.annotation.Nonnull;
@@ -30,6 +32,8 @@ import org.apache.beam.sdk.metrics.DelegatingHistogram;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * Helper class to create perworker metrics for BigQuery Sink stages.
@@ -41,7 +45,7 @@ import org.apache.beam.sdk.util.HistogramData;
 public class BigQuerySinkMetrics {
   private static Boolean supportMetricsDeletion = false;
 
-  private static final String METRICS_NAMESPACE = "BigQuerySink";
+  public static final String METRICS_NAMESPACE = "BigQuerySink";
 
   // Status codes
   private static final String UNKNOWN = Status.Code.UNKNOWN.toString();
@@ -79,6 +83,23 @@ public class BigQuerySinkMetrics {
   private static final char METRIC_KV_DELIMITER = ':';
   private static final char METRIC_NAME_DELIMITER = '-';
 
+  @AutoValue
+  public abstract static class ParsedMetricName {
+    public abstract String getBaseName();
+
+    public abstract ImmutableMap<String, String> getMetricLabels();
+
+    public static ParsedMetricName create(
+        String baseName, ImmutableMap<String, String> metricLabels) {
+      return new AutoValue_BigQuerySinkMetrics_ParsedMetricName(baseName, metricLabels);
+    }
+
+    public static ParsedMetricName create(String baseName) {
+      ImmutableMap<String, String> emptyMap = ImmutableMap.of();
+      return new AutoValue_BigQuerySinkMetrics_ParsedMetricName(baseName, emptyMap);
+    }
+  }
+
   /**
    * Returns a metric name that merges the baseName with metricLables formatted as.
    *
@@ -92,6 +113,44 @@ public class BigQuerySinkMetrics {
         (labelKey, labelVal) ->
             nameBuilder.append(labelKey + METRIC_KV_DELIMITER + labelVal + LABEL_DELIMITER));
     return nameBuilder.toString();
+  }
+
+  /**
+   * Parse a 'metric name' String that was created with 'createLabeledMetricName'. The input string
+   * should be formatted as.
+   *
+   * <p>'{baseName}-{metricLabelKey1}:{metricLabelVal1};...{metricLabelKeyN}:{metricLabelValN};'
+   *
+   * @param metricName
+   * @return Returns a ParsedMetricName object if the input string is properly formatted. If the
+   *     input string is empty or malformed, returns null.
+   */
+  public static @Nullable ParsedMetricName parseMetricName(String metricName) {
+    if (metricName.isEmpty()) {
+      return null;
+    }
+
+    List<String> metricNameSplit = Splitter.on(METRIC_NAME_DELIMITER).splitToList(metricName);
+    ImmutableMap.Builder<String, String> metricLabelsBuilder = ImmutableMap.builder();
+
+    if (metricNameSplit.size() == 1) {
+      return ParsedMetricName.create(metricNameSplit.get(0));
+    }
+
+    if (metricNameSplit.size() != 2) {
+      return null;
+    }
+
+    List<String> labels = Splitter.on(LABEL_DELIMITER).splitToList(metricNameSplit.get(1));
+    for (String label : labels) {
+      List<String> kv = Splitter.on(METRIC_KV_DELIMITER).splitToList(label);
+      if (kv.size() != 2) {
+        continue;
+      }
+      metricLabelsBuilder.put(kv.get(0), kv.get(1));
+    }
+
+    return ParsedMetricName.create(metricNameSplit.get(0), metricLabelsBuilder.build());
   }
 
   /**

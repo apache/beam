@@ -30,12 +30,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class WindmillStreamPoolTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final int DEFAULT_NUM_STREAMS = 10;
   private static final int NEW_STREAM_HOLDS = 2;
   private final ConcurrentHashMap<

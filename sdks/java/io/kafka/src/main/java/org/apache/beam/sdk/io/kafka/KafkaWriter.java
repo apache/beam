@@ -25,6 +25,7 @@ import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecords;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -32,6 +33,7 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.errors.SerializationException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,7 +59,7 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
   // Suppression since errors are tracked in SendCallback(), and checked in finishBundle()
   @ProcessElement
   @SuppressWarnings("FutureReturnValueIgnored")
-  public void processElement(ProcessContext ctx) throws Exception {
+  public void processElement(ProcessContext ctx, MultiOutputReceiver receiver) throws Exception {
     Producer<K, V> producer = Preconditions.checkStateNotNull(this.producer);
     checkForFailures();
 
@@ -75,19 +77,31 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
       topicName = spec.getTopic();
     }
 
-    @SuppressWarnings({"nullness", "unused"}) // Kafka library not annotated
-    Future<RecordMetadata> ignored =
-        producer.send(
-            new ProducerRecord<>(
-                topicName,
-                record.partition(),
-                timestampMillis,
-                record.key(),
-                record.value(),
-                record.headers()),
-            callback);
+    try {
+      @SuppressWarnings({"nullness", "unused"}) // Kafka library not annotated
+      Future<RecordMetadata> ignored =
+          producer.send(
+              new ProducerRecord<>(
+                  topicName,
+                  record.partition(),
+                  timestampMillis,
+                  record.key(),
+                  record.value(),
+                  record.headers()),
+              callback);
 
-    elementsWritten.inc();
+      elementsWritten.inc();
+    } catch (SerializationException e) {
+      // This exception should only occur during the key and value deserialization when
+      // creating the Kafka Record. We can catch the exception here as producer.send serializes
+      // the record before starting the future.
+      badRecordRouter.route(
+          receiver,
+          record,
+          null,
+          e,
+          "Failure serializing Key or Value of Kakfa record writing from Kafka");
+    }
   }
 
   @FinishBundle
@@ -110,6 +124,8 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
   private final WriteRecords<K, V> spec;
   private final Map<String, Object> producerConfig;
 
+  private final BadRecordRouter badRecordRouter;
+
   private transient @Nullable Producer<K, V> producer = null;
   // first exception and number of failures since last invocation of checkForFailures():
   private transient @Nullable Exception sendException = null;
@@ -121,6 +137,8 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
     this.spec = spec;
 
     this.producerConfig = new HashMap<>(spec.getProducerConfig());
+
+    this.badRecordRouter = spec.getBadRecordRouter();
 
     if (spec.getKeySerializer() != null) {
       this.producerConfig.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, spec.getKeySerializer());
