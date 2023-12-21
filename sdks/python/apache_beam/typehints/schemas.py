@@ -688,11 +688,6 @@ ArgT = TypeVar('ArgT')
 class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
   _known_logical_types = LogicalTypeRegistry()
 
-  def __call__(self):
-    """Makes all LogicalType subclasses typing.Callable for <Python3.11
-    """
-    pass
-
   @classmethod
   def urn(cls):
     # type: () -> str
@@ -1199,6 +1194,12 @@ class EnumerationTypeValue:
 class EnumerationTypeType:
   def __init__(self, values: dict):
     self.values = frozenset(values.items())
+
+  def __call__(self):
+    """Makes this typing.Callable to pass runtime typechecks in <Python3.11
+    """
+    pass
+
 
   def values(self) -> dict:
     return self.values
