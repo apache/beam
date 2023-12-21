@@ -25,6 +25,7 @@ import os
 import re
 import subprocess
 import typing
+import warnings
 from typing import Any
 from typing import Dict
 from typing import List
@@ -130,8 +131,7 @@ def generate_transform_configs(input_services, output_file):
     ignore = service.get('ignore', [])
 
     # use dynamic provider to discover and populate wrapper details
-    provider = ExternalSchemaTransformProvider(
-        BeamJarExpansionService(target))
+    provider = ExternalSchemaTransformProvider(BeamJarExpansionService(target))
     discovered: Dict[str, ExternalSchemaTransform] = provider.get_all()
     for identifier, wrapper in discovered.items():
       if identifier in ignore:
@@ -284,7 +284,7 @@ def write_wrappers_to_destinations(grouped_wrappers: Dict[str, List[str]]):
   Takes a dictionary of generated wrapper code, grouped by destination.
   For each destination, create a new file containing the respective wrapper
   classes. Each file includes the Apache License header and relevant imports.
-  Formats the generated files afterwards with yapf
+  Attempts to format the generated files afterward with yapf.
   """
   format_command = ["yapf", "--in-place", "--parallel"]
 
@@ -305,8 +305,16 @@ def write_wrappers_to_destinations(grouped_wrappers: Dict[str, List[str]]):
         file.write(wrapper + "\n")
     format_command.append(dest)
 
-  # format the generated files with yapf
-  subprocess.run(format_command, check=True)
+  # format the generated files
+  # Note: the Jinja template should follow linting and formatting rules
+  # already, but this is for good measure
+  try:
+    subprocess.run(format_command, check=True)
+  except subprocess.CalledProcessError as err:
+    warnings.warn(
+        "Could not format the generated external transform wrappers"
+        "because of error: %s",
+        err.stderr)
 
 
 def delete_generated_files(root_dir):

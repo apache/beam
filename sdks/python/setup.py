@@ -218,7 +218,7 @@ def generate_external_transform_wrappers():
           'generation script `gen_xlang_wrappers.py` cannot be found')
       else:
         warnings.warn('Skipping external transform wrapper generation as they '
-                    'are already generated.')
+                      'are already generated.')
       return
     out = subprocess.run([
       sys.executable,
