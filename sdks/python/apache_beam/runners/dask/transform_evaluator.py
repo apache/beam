@@ -41,6 +41,7 @@ from apache_beam.runners.common import _OutputHandler
 from apache_beam.runners.dask.overrides import _Create
 from apache_beam.runners.dask.overrides import _Flatten
 from apache_beam.runners.dask.overrides import _GroupByKeyOnly
+from apache_beam.transforms.sideinputs import SideInputMap
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
@@ -176,6 +177,21 @@ class ParDo(DaskBagOp):
     window_fn = main_input.windowing.windowfn if hasattr(
         main_input, "windowing") else None
 
+    # FIXME(cisaacstern): Snippet on side inputs below copied from RayRunner:
+    # https://github.com/ray-project/ray_beam_runner/blob/ecc9dba99dc9cbe51c2bbcb1fd472b288a89d1ba/ray_beam_runner/translator.py#L515-L524
+    # This does not work yet, as I am not sure how to access an interable of
+    # actual values for the side_inputs yet. Commented-out `_collection_map`
+    # and related `RayDatasetAccessor` below may provide some design insight.
+    side_inputs = []
+    for side_input in self.applied.side_inputs:
+      # side_ds = self._collection_map.get(side_input.pvalue)
+      side_inputs.append(
+          SideInputMap(
+              type(side_input),
+              side_input._view_options(),
+              # RayDatasetAccessor(side_ds, side_input._window_mapping_fn),
+          ))
+
     tagged_receivers = OneReceiver()
 
     do_fn_invoker_args = [
@@ -191,7 +207,7 @@ class ParDo(DaskBagOp):
     ]
     do_fn_invoker_kwargs = dict(
         context=DoFnContext(transform.label, state=None),
-        side_inputs=None,
+        side_inputs=side_inputs,
         input_args=args,
         input_kwargs=kwargs,
         user_state_context=None,
