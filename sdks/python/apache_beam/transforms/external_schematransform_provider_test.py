@@ -22,10 +22,11 @@ import secrets
 import shutil
 import time
 import unittest
+from importlib import import_module
 
 import pytest
 import yaml
-from importlib import import_module
+
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -47,7 +48,7 @@ try:
   from gen_xlang_wrappers import run_script
   from gen_xlang_wrappers import write_wrappers_to_destinations
 except ImportError:
-  run_script = None
+  run_script = None # type: ignore[assignment]
 
 
 class NameUtilsTest(unittest.TestCase):
