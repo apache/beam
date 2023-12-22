@@ -139,7 +139,7 @@ $`CPURate_desired = \frac{Worker_current}{Worker_new} CpuRate_current`$
 
 ## Executing Autoscaling Decision
 
-In Our Setup we use Reactive Mode which uses Adaptive Scheduler and Declarative Resources manager. We wanted to align resources with slots. As Adviced most of Flink documentation We set per vCPU one slot. Most of Our jobs uses 1 vCPU 4GB Memory combination for TaskManager. 
+In Our Setup we use Reactive Mode which uses Adaptive Scheduler and Declarative Resources manager. We wanted to align resources with slots. As Adviced most of Flink documentation We set per vCPU one slot. Most of Our jobs uses 1 vCPU 4GB Memory combination for TaskManager.
 
 Reactive Mode, a unique feature of the Adaptive Scheduler, operates under the principle of one job per cluster, a rule enforced in Application Mode. In this mode, a job is configured to utilize all available resources within the cluster. Adding a TaskManager will increase the job's scale, while removing resources will decrease it. In this setup, Flink autonomously manages the job's parallelism, always maximizing it.
 
@@ -159,8 +159,7 @@ In the kubernetes world, the call will look like this for a scale up:
 
 `kubectl scale flinkdeployment job-name --replicas=100`
 
-Rest of thing will be handled by Apache Flink. 
-
+Rest of thing will be handled by Apache Flink.
 
 # References
 
