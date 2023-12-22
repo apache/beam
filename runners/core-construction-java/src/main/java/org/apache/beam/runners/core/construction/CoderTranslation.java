@@ -21,6 +21,8 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -59,6 +61,9 @@ public class CoderTranslation {
   // This URN says that the coder is just a UDF blob this SDK understands
   // TODO: standardize such things
   public static final String JAVA_SERIALIZED_CODER_URN = "beam:coders:javasdk:0.1";
+
+  public static final List<String> KNOWN_EXTERNAL_CODERS =
+      Collections.unmodifiableList(Arrays.asList("beam:coder:pickled_python:v1"));
 
   @VisibleForTesting
   static final BiMap<Class<? extends Coder>, String> KNOWN_CODER_URNS = loadCoderURNs();
@@ -99,7 +104,21 @@ public class CoderTranslation {
     if (KNOWN_CODER_URNS.containsKey(coder.getClass())) {
       return toKnownCoder(coder, components);
     }
+
+    if (coder instanceof KnownExternalCoder) {
+      return toExternalCoder((KnownExternalCoder) coder);
+    }
+
     return toCustomCoder(coder);
+  }
+
+  private static RunnerApi.Coder toExternalCoder(KnownExternalCoder coder) {
+    return RunnerApi.Coder.newBuilder()
+        .setSpec(
+            FunctionSpec.newBuilder()
+                .setUrn(coder.getUrn())
+                .setPayload(ByteString.copyFrom(coder.getPayload())))
+        .build();
   }
 
   private static RunnerApi.Coder toKnownCoder(Coder<?> coder, SdkComponents components)
@@ -149,6 +168,9 @@ public class CoderTranslation {
       RunnerApi.Coder coder, RehydratedComponents components, TranslationContext context)
       throws IOException {
     String coderUrn = coder.getSpec().getUrn();
+    if (KNOWN_EXTERNAL_CODERS.contains(coderUrn)) {
+      return KnownExternalCoder.of(coderUrn, coder.getSpec().getPayload().toByteArray());
+    }
     List<Coder<?>> coderComponents = new ArrayList<>();
     for (String componentId : coder.getComponentCoderIdsList()) {
       // Only store coders in RehydratedComponents as long as we are not using a custom

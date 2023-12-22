@@ -160,6 +160,7 @@ public class CoderTranslationTest {
               SerializableCoder.of(Record.class),
               new RecordCoder(),
               KvCoder.of(new RecordCoder(), AvroCoder.of(Record.class)))
+          .add(KnownExternalCoder.of(CoderTranslation.KNOWN_EXTERNAL_CODERS.get(0), new byte[] {}))
           .build();
     }
 

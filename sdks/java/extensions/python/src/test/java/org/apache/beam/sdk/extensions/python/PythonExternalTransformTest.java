@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.Pipeline;
@@ -77,6 +78,34 @@ public class PythonExternalTransformTest implements Serializable {
                     .withExtraPackages(ImmutableList.of("inflection"))
                     .withOutputCoder(StringUtf8Coder.of()));
     PAssert.that(output).containsInAnyOrder("elephants", "mice", "sheep");
+    // TODO: Run this on a multi-language supporting runner.
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesPythonExpansionService.class})
+  public void consecutivePythonTransforms() {
+    Pipeline p = Pipeline.create();
+    PCollection<?> col =
+        (PCollection<?>)
+            p.apply(Create.of(-1L, 2L, 3L))
+                .apply(
+                    PythonExternalTransform.from("apache_beam.Map")
+                        .withArgs(PythonCallableSource.of("lambda x: 'negative' if x < 0 else x")));
+    col =
+        (PCollection<?>)
+            col.apply(
+                PythonExternalTransform.from("apache_beam.Map")
+                    .withArgs(PythonCallableSource.of("type")));
+    col =
+        (PCollection<?>)
+            col.apply(
+                PythonExternalTransform.from("apache_beam.Map")
+                    .withArgs(PythonCallableSource.of("str"))
+                    .withOutputCoder(StringUtf8Coder.of()));
+
+    PAssert.that((PCollection<String>) col)
+        .containsInAnyOrder(Arrays.asList("<class 'str'>", "<class 'int'>", "<class 'int'>"));
+
     // TODO: Run this on a multi-language supporting runner.
   }
 
