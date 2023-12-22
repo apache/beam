@@ -19,7 +19,9 @@ name: PostCommit Java ValidatesRunner Dataflow JavaVersions
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '30 4/8 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_ValidatesRunner_Dataflow_JavaVersions.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -50,7 +52,7 @@ env:
 
 jobs:
   beam_PostCommit_Java_ValidatesRunner_Dataflow_JavaVersions:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{matrix.java_version}}) 
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.java_version }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 480
     strategy:
@@ -61,29 +63,27 @@ jobs:
         java_version: ['11','17']
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       startswith(github.event.comment.body, 'Run Dataflow ValidatesRunner Java')
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase }} ${{matrix.java_version}}
+          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.java_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }}) ${{matrix.java_version}}
-      - name: Set up Java${{ matrix.java_version }}
-        uses: actions/setup-java@v3.8.0
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }}) ${{ matrix.java_version }}
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'temurin'
           java-version: |
             ${{ matrix.java_version }}
             8
       - name: run jar Java${{ matrix.java_version }} script
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :runners:google-cloud-dataflow-java:testJar :runners:google-cloud-dataflow-java:worker:shadowJar
-          arguments: |
-            -Dorg.gradle.java.home=$JAVA_HOME_8_X64 \
+        run: |
+          ./gradlew runners:google-cloud-dataflow-java:testJar :runners:google-cloud-dataflow-java:worker:shadowJar \
+          -Dorg.gradle.java.home=$JAVA_HOME_8_X64
       - name: run validatesRunner Java${{ matrix.java_version }} script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -100,8 +100,8 @@ jobs:
             -Dorg.gradle.java.home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
           max-workers: 12
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
-        if: failure()
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

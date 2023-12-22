@@ -17,7 +17,7 @@ name: PerformanceTests BiqQueryIO Write Python Batch
 
 on:
   schedule:
-    - cron: '0 1 * * *'
+    - cron: '30 9 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -45,13 +45,14 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
-  beam_PerformanceTests_BiqQueryIO_Write_Python_Batch_test_arguments_1: ''
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_PerformanceTests_BiqQueryIO_Write_Python_Batch:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run BigQueryIO Write Performance Test Python'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 240
@@ -61,7 +62,7 @@ jobs:
         job_name: ["beam_PerformanceTests_BiqQueryIO_Write_Python_Batch"]
         job_phrase: ["Run BigQueryIO Write Performance Test Python"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -78,9 +79,10 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/biqQueryIO_Write_Python_Batch.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/biqQueryIO_Write_Python_Batch.txt
           arguments: |
             --job_name=performance-tests-bqio-write-python-batch-10gb$(date '+%m%d%H%M%S' --utc)
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run BigQueryIO Write Batch Python Performance Test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

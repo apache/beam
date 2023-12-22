@@ -22,11 +22,11 @@ on:
     paths: ['sdks/java/extensions/sql/**','.github/workflows/beam_PreCommit_SQL_Java11.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: [sdks/java/extensions/sql/**]
+    paths: ['sdks/java/extensions/sql/**', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_SQL_Java11.json']
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '15 3/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -67,7 +67,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run SQL_Java11 PreCommit'
     steps:
@@ -78,19 +78,12 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Set up Java
-        uses: actions/setup-java@v3.8.0
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'temurin'
-          java-version: '11'
-      - name: Install Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
-      - name: Install Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
+          java-version: 11
+          python-version: 3.8
+          go-version: 1.21
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -103,12 +96,12 @@ jobs:
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
-            -PcompileAndRunTestsWithJava11 \
+            -PtestJavaVersion=11 \
             -PskipCheckerFramework \
             -Pjava11Home=$JAVA_HOME_11_X64 \
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
-        if: failure()
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"
@@ -120,7 +113,8 @@ jobs:
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'
       - name: Archive SpotBugs Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: SpotBugs Results
           path: '**/build/reports/spotbugs/*.html'
@@ -128,5 +122,5 @@ jobs:
         uses: jwgmeligmeyling/spotbugs-github-action@v1.2
         if: always()
         with:
-          name: SpotBugs
+          name: Publish SpotBugs
           path: '**/build/reports/spotbugs/*.html'

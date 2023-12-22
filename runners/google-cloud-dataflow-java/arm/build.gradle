@@ -71,15 +71,18 @@ configurations { examplesJavaIntegrationTest }
 
 dependencies {
     examplesJavaIntegrationTest project(project.path)
-    examplesJavaIntegrationTest project(path: ":runners:google-cloud-dataflow-java", configuration: "testRuntimeMigration")
+    // TODO(yathu) Include full test classpath once gradle shadow plugin support Java21
+    if (project.findProperty('testJavaVersion') == '21' || JavaVersion.current().equals(JavaVersion.VERSION_21)) {
+      examplesJavaIntegrationTest project(path: ":runners:google-cloud-dataflow-java")
+    } else {
+      examplesJavaIntegrationTest project(path: ":runners:google-cloud-dataflow-java", configuration: "testRuntimeMigration")
+    }
     examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
 }
 
 def javaVer = "java8"
-if(project.hasProperty('compileAndRunTestsWithJava17')) {
-  javaVer = "java17"
-} else if(project.hasProperty('compileAndRunTestsWithJava11')) {
-  javaVer = "java11"
+if (project.hasProperty('testJavaVersion')) {
+  javaVer = "java${project.getProperty('testJavaVersion')}"
 }
 def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
 def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
@@ -88,14 +91,14 @@ def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
 def dockerImageRoot = project.findProperty('docker-repository-root') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
 def DockerJavaMultiarchImageContainer = "${dockerImageRoot}/${project.docker_image_default_repo_prefix}${javaVer}_sdk"
 def dockerTag = project.findProperty('docker-tag') ?: new Date().format('yyyyMMddHHmmss')
-ext.DockerJavaMultiarchImageName = "${DockerJavaMultiarchImageContainer}:${dockerTag}"
+ext.DockerJavaMultiarchImageName = "${DockerJavaMultiarchImageContainer}:${dockerTag}" as String
 
 def runnerV2PipelineOptionsARM = [
   "--runner=TestDataflowRunner",
   "--project=${dataflowProject}",
   "--region=${dataflowRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
-  "--sdkContainerImage=${DockerJavaMultiarchImageContainer}:${dockerTag}",
+  "--sdkContainerImage=${project.ext.DockerJavaMultiarchImageName}",
   "--experiments=use_unified_worker,use_runner_v2",
   "--firestoreDb=${firestoreDb}",
   "--workerMachineType=t2a-standard-1",
@@ -136,4 +139,30 @@ task examplesJavaRunnerV2IntegrationTestARM(type: Test) {
   classpath = configurations.examplesJavaIntegrationTest
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
   useJUnit { }
+}
+
+// Clean up built Java images
+def cleanUpDockerJavaImages = tasks.register("cleanUpDockerJavaImages") {
+  doLast {
+    exec {
+      commandLine "docker", "rmi", "--force", "${DockerJavaMultiarchImageName}"
+    }
+    exec {
+      ignoreExitValue true
+      commandLine "gcloud", "--quiet", "container", "images", "untag", "${DockerJavaMultiarchImageName}"
+    }
+    exec {
+      ignoreExitValue true
+      commandLine "./../scripts/cleanup_untagged_gcr_images.sh", "${DockerJavaMultiarchImageContainer}"
+    }
+  }
+}
+
+afterEvaluate {
+  // Ensure all tasks which use published docker images run before they are cleaned up
+  tasks.each { t ->
+    if (t.dependsOn.contains(buildAndPushDockerJavaMultiarchContainer) && !t.name.equalsIgnoreCase('printrunnerV2PipelineOptionsARM')) {
+      t.finalizedBy cleanUpDockerJavaImages
+    }
+  }
 }

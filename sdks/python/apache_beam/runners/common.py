@@ -1929,6 +1929,12 @@ def validate_pipeline_graph(pipeline_proto):
         raise ValueError(
             "Incompatible input coder %s and output coder %s for transform %s" %
             (transform_id, input_coder, output_coder))
+    elif transform_proto.spec.urn == common_urns.primitives.ASSIGN_WINDOWS.urn:
+      if not transform_proto.inputs:
+        raise ValueError("Missing input for transform: %s" % transform_proto)
+    elif transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn:
+      if not transform_proto.inputs:
+        raise ValueError("Missing input for transform: %s" % transform_proto)
 
     for t in transform_proto.subtransforms:
       validate_transform(t)

@@ -148,14 +148,15 @@ def _create_parser(
         lambda payload: beam.Row(payload=payload))
   elif format == 'json':
     beam_schema = json_utils.json_schema_to_beam_schema(schema)
-    return beam_schema, json_utils.json_parser(beam_schema)
+    return beam_schema, json_utils.json_parser(beam_schema, schema)
   elif format == 'avro':
     beam_schema = avroio.avro_schema_to_beam_schema(schema)
     covert_to_row = avroio.avro_dict_to_beam_row(schema, beam_schema)
+    # pylint: disable=line-too-long
     return (
         beam_schema,
         lambda record: covert_to_row(
-            fastavro.schemaless_reader(io.BytesIO(record), schema)))
+            fastavro.schemaless_reader(io.BytesIO(record), schema)))  # type: ignore[call-arg]
   else:
     raise ValueError(f'Unknown format: {format}')
 
@@ -215,6 +216,8 @@ def read_from_pubsub(
 
         - raw: Produces records with a single `payload` field whose contents
             are the raw bytes of the pubsub message.
+        - avro: Parses records with a given avro schema.
+        - json: Parses records with a given json schema.
 
     schema: Schema specification for the given format.
     attributes: List of attribute keys whose values will be flattened into the
@@ -301,7 +304,7 @@ def write_to_pubsub(
     attributes_map: Optional[str] = None,
     id_attribute: Optional[str] = None,
     timestamp_attribute: Optional[str] = None):
-  """Writes messages from Cloud Pub/Sub.
+  """Writes messages to Cloud Pub/Sub.
 
   Args:
     topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
@@ -309,8 +312,12 @@ def write_to_pubsub(
       formats are
 
         - raw: Expects a message with a single field (excluding
-            attribute-related fields )whose contents are used as the raw bytes
+            attribute-related fields) whose contents are used as the raw bytes
             of the pubsub message.
+        - avro: Encodes records with a given avro schema, which may be inferred
+            from the input PCollection schema.
+        - json: Formats records with a given json schema, which may be inferred
+            from the input PCollection schema.
 
     schema: Schema specification for the given format.
     attributes: List of attribute keys whose values will be pulled out as

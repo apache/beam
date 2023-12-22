@@ -17,7 +17,7 @@ name: LoadTests Java Combine SparkStructuredStreaming Batch
 
 on:
   schedule:
-    - cron: '15 18 * * *'
+    - cron: '50 13 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -45,15 +45,14 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
-  beam_LoadTests_Java_Combine_SparkStructuredStreaming_Batch_test_arguments_1: ''
-  beam_LoadTests_Java_Combine_SparkStructuredStreaming_Batch_test_arguments_2: ''
-  beam_LoadTests_Java_Combine_SparkStructuredStreaming_Batch_test_arguments_3: ''
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_LoadTests_Java_Combine_SparkStructuredStreaming_Batch:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Java Combine SparkStructuredStreaming Batch'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 720
@@ -63,22 +62,25 @@ jobs:
         job_name: ["beam_LoadTests_Java_Combine_SparkStructuredStreaming_Batch"]
         job_phrase: ["Run Load Tests Java Combine SparkStructuredStreaming Batch"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
           test-type: load
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Combine_SparkStructuredStreaming_Batch_10b.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Combine_SparkStructuredStreaming_Batch_Fanout_4.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_Combine_SparkStructuredStreaming_Batch_Fanout_8.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_Combine_SparkStructuredStreaming_Batch_10b.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_Combine_SparkStructuredStreaming_Batch_Fanout_4.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_Combine_SparkStructuredStreaming_Batch_Fanout_8.txt
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run Combine SparkStructuredStreaming Batch Java Load Test 1 (10b records)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

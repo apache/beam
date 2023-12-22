@@ -51,7 +51,7 @@ jobs:
   beam_Publish_Beam_SDK_Snapshots:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule'
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
     name: ${{ matrix.job_name }} (${{ matrix.container_task }})
@@ -60,15 +60,26 @@ jobs:
       matrix:
         job_name: ["beam_Publish_Beam_SDK_Snapshots"]
         job_phrase: ["N/A"]
-        container_task: ["go:container", "java:container:java8", "java:container:java11", "java:container:java17", "python:container:py38", "python:container:py39", "python:container:py310", "python:container:py311"]
+        container_task:
+          - "go:container"
+          - "java:container:java8"
+          - "java:container:java11"
+          - "java:container:java17"
+          - "java:container:java21"
+          - "python:container:py38"
+          - "python:container:py39"
+          - "python:container:py310"
+          - "python:container:py311"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.container_task }})
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:
@@ -92,8 +103,10 @@ jobs:
       - name: run Publish Beam SDK Snapshots script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:${{ matrix.container_task }}:dockerTagPush
+          gradle-command: :sdks:${{ matrix.container_task }}:docker
           arguments: |
             -Pjava11Home=$JAVA_HOME_11_X64 \
             -Pdocker-repository-root=gcr.io/apache-beam-testing/beam-sdk \
-            -Pdocker-tag-list=${{ github.sha }},latest
+            -Pdocker-tag-list=${{ github.sha }},latest \
+            -Pcontainer-architecture-list=arm64,amd64 \
+            -Ppush-containers \

@@ -16,10 +16,8 @@
 name: LoadTests Java CoGBK Dataflow Batch
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
-    - cron: '30 9 * * *'
+    - cron: '10 13 * * *'
   workflow_dispatch:
 
 # Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -47,12 +45,14 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_LoadTests_Java_CoGBK_Dataflow_Batch:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Java CoGBK Dataflow Batch'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 720
@@ -62,23 +62,25 @@ jobs:
         job_name: ["beam_LoadTests_Java_CoGBK_Dataflow_Batch"]
         job_phrase: ["Run Load Tests Java CoGBK Dataflow Batch"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
           test-type: load
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_CoGBK_Dataflow_Batch_100b_Single_Key.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_CoGBK_Dataflow_Batch_100b_Multiple_Keys.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_CoGBK_Dataflow_Batch_10kB.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_CoGBK_Dataflow_Batch_2MB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Batch_100b_Single_Key.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Batch_100b_Multiple_Keys.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Batch_10kB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Batch_2MB.txt
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run CoGBK 2GB 100  byte records - single key
         uses: ./.github/actions/gradle-command-self-hosted-action

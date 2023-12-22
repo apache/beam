@@ -17,7 +17,7 @@ name: PerformanceTests TextIOIT HDFS
 
 on:
   schedule:
-    - cron: '30 7,19 * * *'
+    - cron: '10 11/12 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -45,12 +45,14 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_PerformanceTests_TextIOIT_HDFS:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Java TextIO Performance Test HDFS'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
@@ -67,6 +69,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Set k8s access
         uses: ./.github/actions/setup-k8s-access
         with:
@@ -85,7 +89,7 @@ jobs:
           test-type: performance
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/textIOIT_HDFS.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/textIOIT_HDFS.txt
           arguments: |
             --filenamePrefix=hdfs://${{ steps.install_hadoop.outputs.hadoop_IP }}:9000/TEXTIO_IT_
             --hdfsConfiguration=[{\\\"fs.defaultFS\\\":\\\"hdfs:${{ steps.install_hadoop.outputs.hadoop_IP }}:9000\\\",\\\"dfs.replication\\\":1}]

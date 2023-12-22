@@ -72,7 +72,8 @@ When creating a BigQuery input transform, users should provide either a query
 or a table. Pipeline construction will fail with a validation error if neither
 or both are specified.
 
-When reading via `ReadFromBigQuery`, bytes are returned decoded as bytes.
+When reading via `ReadFromBigQuery` using `EXPORT`,
+bytes are returned decoded as bytes.
 This is due to the fact that ReadFromBigQuery uses Avro exports by default.
 When reading from BigQuery using `apache_beam.io.BigQuerySource`, bytes are
 returned as base64-encoded bytes. To get base64-encoded bytes using
@@ -2597,6 +2598,8 @@ class StorageWriteToBigQuery(PTransform):
 
 
 class ReadFromBigQuery(PTransform):
+  # pylint: disable=line-too-long,W1401
+
   """Read data from BigQuery.
 
     This PTransform uses a BigQuery export job to take a snapshot of the table
@@ -2653,8 +2656,7 @@ class ReadFromBigQuery(PTransform):
       :data:`None`, then the temp_location parameter is used.
     bigquery_job_labels (dict): A dictionary with string labels to be passed
       to BigQuery export and query jobs created by this transform. See:
-      https://cloud.google.com/bigquery/docs/reference/rest/v2/\
-              Job#JobConfiguration
+      https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfiguration
     use_json_exports (bool): By default, this transform works by exporting
       BigQuery data into Avro files, and reading those files. With this
       parameter, the transform will instead export to JSON files. JSON files
@@ -2666,11 +2668,10 @@ class ReadFromBigQuery(PTransform):
       types (datetime.date, datetime.datetime, datetime.datetime,
       and datetime.datetime respectively). Avro exports are recommended.
       To learn more about BigQuery types, and Time-related type
-      representations, see: https://cloud.google.com/bigquery/docs/reference/\
-              standard-sql/data-types
+      representations,
+      see: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
       To learn more about type conversions between BigQuery and Avro, see:
-      https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro\
-              #avro_conversions
+      https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro\#avro_conversions
     temp_dataset (``apache_beam.io.gcp.internal.clients.bigquery.\
         DatasetReference``):
         Temporary dataset reference to use when reading from BigQuery using a
@@ -2690,8 +2691,7 @@ class ReadFromBigQuery(PTransform):
       (`PYTHON_DICT`). There is experimental support for producing a
       PCollection with a schema and yielding Beam Rows via the option
       `BEAM_ROW`. For more information on schemas, see
-      https://beam.apache.org/documentation/programming-guide/\
-      #what-is-a-schema)
+      https://beam.apache.org/documentation/programming-guide/#what-is-a-schema)
       """
   class Method(object):
     EXPORT = 'EXPORT'  #  This is currently the default.

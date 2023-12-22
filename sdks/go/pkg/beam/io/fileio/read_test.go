@@ -134,17 +134,15 @@ func TestReadMatches(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Run(tt.name, func(t *testing.T) {
-				p, s := beam.NewPipelineWithRoot()
+			p, s := beam.NewPipelineWithRoot()
 
-				col := beam.Create(s, tt.input...)
-				got := ReadMatches(s, col, tt.opts...)
+			col := beam.Create(s, tt.input...)
+			got := ReadMatches(s, col, tt.opts...)
 
-				passert.Equals(s, got, tt.want...)
-				if err := ptest.Run(p); (err != nil) != tt.wantErr {
-					t.Errorf("ReadMatches() error = %v, wantErr %v", err, tt.wantErr)
-				}
-			})
+			passert.Equals(s, got, tt.want...)
+			if err := ptest.Run(p); (err != nil) != tt.wantErr {
+				t.Errorf("ReadMatches() error = %v, wantErr %v", err, tt.wantErr)
+			}
 		})
 	}
 }

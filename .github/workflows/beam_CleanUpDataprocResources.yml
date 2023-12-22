@@ -50,12 +50,12 @@ jobs:
   beam_CleanUpDataprocResources:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule'
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
     name: "beam_CleanUpDataprocResources"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Delete leaked resources for all the jobs that generates flink clusters
         run: |
           cd ${{ github.workspace }}/.test-infra/dataproc; ./cleanup.sh -xe

@@ -50,7 +50,7 @@ permissions:
 
 jobs:
   beam_CancelStaleDataflowJobs:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}}) 
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 120
     strategy:
@@ -58,7 +58,7 @@ jobs:
         job_name: [beam_CancelStaleDataflowJobs]
         job_phrase: [Run Cancel Stale Dataflow Jobs]
     if: |
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Cancel Stale Dataflow Jobs'
     steps:
@@ -69,6 +69,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Authenticate on GCP
         id: auth
         uses: google-github-actions/auth@v1

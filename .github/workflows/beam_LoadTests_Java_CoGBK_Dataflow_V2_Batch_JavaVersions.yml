@@ -16,10 +16,8 @@
 name: LoadTests Java CoGBK Dataflow V2 Batch JavaVersions
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
-    - cron: '0 10 * * *'
+    - cron: '10 13 * * *'
   workflow_dispatch:
 
 # Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -47,17 +45,19 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_LoadTests_Java_CoGBK_Dataflow_V2_Batch_JavaVersions:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       (contains(github.event.comment.body, 'Run Load Tests Java') &&
          contains(github.event.comment.body, 'CoGBK Dataflow V2 Batch'))
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 720
-    name: ${{matrix.job_name}} (${{matrix.job_phrase_1}} ${{matrix.java_version}} ${{matrix.job_phrase_2}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }})
     strategy:
       fail-fast: false
       matrix:
@@ -66,13 +66,13 @@ jobs:
         job_phrase_2: ["CoGBK Dataflow V2 Batch"]
         java_version: ['11','17']
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase_1 }} ${{matrix.java_version}} ${{ matrix.job_phrase_2 }}
+          comment_phrase: ${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} ${{ matrix.job_phrase_1 }} ${{matrix.java_version}} ${{ matrix.job_phrase_2 }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -83,10 +83,10 @@ jobs:
           test-type: load
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_CoGBK_Dataflow_Batch_100b_Single_Key.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_CoGBK_Dataflow_Batch_100b_Multiple_Keys.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_CoGBK_Dataflow_Batch_10kB.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/java_CoGBK_Dataflow_Batch_2MB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Batch_100b_Single_Key.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Batch_100b_Multiple_Keys.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Batch_10kB.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Batch_2MB.txt
           arguments: |            
             --influxTags={\"runnerVersion\":\"v2\",\"jdk\":\"java${{ matrix.java_version }}\"}
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
@@ -95,7 +95,7 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:load-tests:run
           arguments: |
-            -PcompileAndRunTestsWithJava${{ matrix.java_version }} \
+            -PtestJavaVersion=${{ matrix.java_version }} \
             -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
@@ -105,7 +105,7 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:load-tests:run
           arguments: |
-            -PcompileAndRunTestsWithJava${{ matrix.java_version }} \
+            -PtestJavaVersion=${{ matrix.java_version }} \
             -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
@@ -115,7 +115,7 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:load-tests:run
           arguments: |
-            -PcompileAndRunTestsWithJava${{ matrix.java_version }} \
+            -PtestJavaVersion=${{ matrix.java_version }} \
             -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
@@ -125,7 +125,7 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:load-tests:run
           arguments: |
-            -PcompileAndRunTestsWithJava${{ matrix.java_version }} \
+            -PtestJavaVersion=${{ matrix.java_version }} \
             -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \

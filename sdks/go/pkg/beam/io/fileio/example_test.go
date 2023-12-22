@@ -67,19 +67,9 @@ func ExampleReadMatches() {
 	beam.Init()
 	p, s := beam.NewPipelineWithRoot()
 
-	pairFn := func(ctx context.Context, file fileio.ReadableFile, emit func(string, string)) error {
-		contents, err := file.ReadString(ctx)
-		if err != nil {
-			return err
-		}
-		emit(file.Metadata.Path, contents)
-		return nil
-	}
-
 	matches := fileio.MatchFiles(s, "gs://path/to/*.gz")
 	files := fileio.ReadMatches(s, matches)
-	pairs := beam.ParDo(s, pairFn, files)
-	debug.Print(s, pairs)
+	debug.Print(s, files)
 
 	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)

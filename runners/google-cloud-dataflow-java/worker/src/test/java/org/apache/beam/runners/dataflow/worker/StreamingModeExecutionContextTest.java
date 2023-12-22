@@ -55,6 +55,7 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
@@ -72,7 +73,9 @@ import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -82,11 +85,11 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link StreamingModeExecutionContext}. */
 @RunWith(JUnit4.class)
 public class StreamingModeExecutionContextTest {
-
-  @Mock private StateFetcher stateFetcher;
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+  @Mock private SideInputStateFetcher sideInputStateFetcher;
   @Mock private WindmillStateReader stateReader;
 
-  private StreamingModeExecutionStateRegistry executionStateRegistry =
+  private final StreamingModeExecutionStateRegistry executionStateRegistry =
       new StreamingModeExecutionStateRegistry(null);
   private StreamingModeExecutionContext executionContext;
   DataflowWorkerHarnessOptions options;
@@ -133,7 +136,7 @@ public class StreamingModeExecutionContextTest {
         null, // output watermark
         null, // synchronized processing time
         stateReader,
-        stateFetcher,
+        sideInputStateFetcher,
         outputBuilder);
 
     TimerInternals timerInternals = stepContext.timerInternals();
@@ -183,7 +186,7 @@ public class StreamingModeExecutionContextTest {
         null, // output watermark
         null, // synchronized processing time
         stateReader,
-        stateFetcher,
+        sideInputStateFetcher,
         outputBuilder);
     TimerInternals timerInternals = stepContext.timerInternals();
     assertTrue(timerTimestamp.isBefore(timerInternals.currentProcessingTime()));

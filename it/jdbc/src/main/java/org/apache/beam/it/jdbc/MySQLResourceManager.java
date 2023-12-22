@@ -49,8 +49,8 @@ public class MySQLResourceManager extends AbstractJDBCResourceManager<MySQLConta
     super(container, builder);
   }
 
-  public static MySQLResourceManager.Builder builder(String testId) {
-    return new MySQLResourceManager.Builder(testId);
+  public static Builder builder(String testId) {
+    return new Builder(testId);
   }
 
   @Override

@@ -30,6 +30,7 @@ dependencies {
   provided project(path: ":model:pipeline", configuration: "shadow")
   provided project(path: ":sdks:java:core", configuration: "shadow")
   provided project(path: ":sdks:java:transform-service:launcher", configuration: "shadow")
+  provided library.java.avro
   provided library.java.joda_time
   provided library.java.slf4j_api
   provided library.java.vendored_grpc_1_54_0
@@ -47,18 +48,24 @@ applyJavaNature(
   automaticModuleName: 'org.apache.beam.fn.harness',
   testShadowJar: true,
   shadowJarValidationExcludes: [
+    "avro/shaded/com/google/**",
+    "com/thoughtworks/paranamer/**",
     "junit/**",
     "io/github/classgraph/**",
     "nonapi/io/github/classgraph/**",
+    "org/apache/avro/**",
     "org/apache/beam/fn/harness/**",
     "org/apache/beam/model/fnexecution/**",
     "org/apache/beam/runners/core/**",
     "org/apache/beam/runners/core/construction/**",
     "org/apache/beam/sdk/extensions/avro/**",
     "org/apache/beam/sdk/fn/**",
+    "org/apache/commons/**",
     "org/checkerframework/**",
+    "org/codehaus/jackson/**",
     "org/hamcrest/**",
     "org/junit/**",
+    "org/tukaani/xz/**",
   ],
   shadowClosure:
   {
@@ -87,4 +94,5 @@ dependencies {
   shadowTestRuntimeClasspath project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:fn-execution", configuration: "testRuntimeMigration")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
+  permitUnusedDeclared library.java.avro
 }

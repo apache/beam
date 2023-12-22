@@ -213,11 +213,22 @@ public class TableRowToStorageApiProto {
           .put(TableFieldSchema.Type.JSON, "JSON")
           .build();
 
-  public static TableFieldSchema.Mode modeToProtoMode(String mode) {
-    return Optional.ofNullable(mode)
-        .map(Mode::valueOf)
-        .map(m -> MODE_MAP_JSON_PROTO.get(m))
-        .orElse(TableFieldSchema.Mode.NULLABLE);
+  public static TableFieldSchema.Mode modeToProtoMode(
+      @Nullable String defaultValueExpression, String mode) {
+    TableFieldSchema.Mode resultMode =
+        Optional.ofNullable(mode)
+            .map(Mode::valueOf)
+            .map(MODE_MAP_JSON_PROTO::get)
+            .orElse(TableFieldSchema.Mode.NULLABLE);
+    if (defaultValueExpression == null) {
+      return resultMode;
+    } else {
+      // If there is a default value expression, treat this field as if it were nullable or
+      // repeated.
+      return resultMode.equals(TableFieldSchema.Mode.REPEATED)
+          ? resultMode
+          : TableFieldSchema.Mode.NULLABLE;
+    }
   }
 
   public static String protoModeToJsonMode(TableFieldSchema.Mode protoMode) {
@@ -310,7 +321,7 @@ public class TableRowToStorageApiProto {
     if (field.getMaxLength() != null) {
       builder.setMaxLength(field.getMaxLength());
     }
-    builder.setMode(modeToProtoMode(field.getMode()));
+    builder.setMode(modeToProtoMode(field.getDefaultValueExpression(), field.getMode()));
     if (field.getPrecision() != null) {
       builder.setPrecision(field.getPrecision());
     }

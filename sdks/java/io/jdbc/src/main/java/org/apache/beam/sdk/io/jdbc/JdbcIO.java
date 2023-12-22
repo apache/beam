@@ -1288,6 +1288,12 @@ public class JdbcIO {
       return toBuilder().setPartitionColumn(partitionColumn).build();
     }
 
+    /** The number of rows to fetch from the database in the same {@link ResultSet} round-trip. */
+    public ReadWithPartitions<T, PartitionColumnT> withFetchSize(int fetchSize) {
+      checkArgument(fetchSize > 0, "fetchSize can not be less than 1");
+      return toBuilder().setFetchSize(fetchSize).build();
+    }
+
     /** Data output type is {@link Row}, and schema is auto-inferred from the database. */
     public ReadWithPartitions<T, PartitionColumnT> withRowOutput() {
       return toBuilder().setUseBeamSchema(true).build();

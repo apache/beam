@@ -61,8 +61,7 @@ public class DatastoreAsserts {
   /**
    * Creates a {@link RecordsSubject} to assert information within a list of records.
    *
-   * @param results Records in Datastore {@link com.google.cloud.datastore.Entity} format to use in
-   *     the comparison.
+   * @param results Records in Datastore {@link Entity} format to use in the comparison.
    * @return Truth subject to chain assertions.
    */
   public static RecordsSubject assertThatDatastoreRecords(Collection<Entity> results) {

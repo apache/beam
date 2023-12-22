@@ -13,11 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Performance Tests AvroIOIT
+name: PerformanceTests AvroIOIT
 
 on:
   schedule:
-    - cron: '10 1/13 * * *'
+    - cron: '10 9/12 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -45,13 +45,14 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
-  beam_PerformanceTests_AvroIOIT_test_arguments_1: ''
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_PerformanceTests_AvroIOIT:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Java AvroIO Performance Test'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
@@ -68,15 +69,18 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
           test-type: performance
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/config_AvroIOIT.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/avroIOIT.txt
           arguments: |
             --filenamePrefix=gs://temp-storage-for-perf-tests/${{ matrix.job_name }}/${{github.run_id}}/
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run integrationTest
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

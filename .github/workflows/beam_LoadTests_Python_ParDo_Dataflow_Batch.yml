@@ -16,10 +16,8 @@
 name: LoadTests Python ParDo Dataflow Batch
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
-    - cron: '30 13 * * *'
+    - cron: '10 16 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -47,12 +45,14 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_LoadTests_Python_ParDo_Dataflow_Batch:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Python ParDo Dataflow Batch'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 200
@@ -62,7 +62,7 @@ jobs:
         job_name: ["beam_LoadTests_Python_ParDo_Dataflow_Batch"]
         job_phrase: ["Run Load Tests Python ParDo Dataflow Batch"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -79,10 +79,10 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Dataflow_Batch_10_Iterations.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Dataflow_Batch_200_Iterations.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Dataflow_Batch_10_Counters.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_ParDo_Dataflow_Batch_100_Counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Dataflow_Batch_10_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Dataflow_Batch_200_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Dataflow_Batch_10_Counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Dataflow_Batch_100_Counters.txt
       - name: Set current datetime
         id: datetime
         run: |

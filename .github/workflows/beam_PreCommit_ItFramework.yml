@@ -28,10 +28,12 @@ on:
     branches: ['master', 'release-*']
     paths:
       - 'it/**'
+      - 'release/trigger_all_tests.json'
+      - '.github/trigger_files/beam_PreCommit_ItFramework.json'
   issue_comment:
     types: [created]
   schedule:
-    - cron: '10 */6 * * *'
+    - cron: '0 1/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -61,7 +63,7 @@ permissions:
   statuses: read
 jobs:
   beam_PreCommit_ItFramework:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       matrix:
@@ -70,7 +72,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run It_Framework PreCommit'
     steps:
@@ -78,7 +80,7 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{matrix.job_phrase}}
+          comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
@@ -88,8 +90,8 @@ jobs:
       - name: run ItFrameworkPrecommit script
         run: ./gradlew -p it build
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
-        if: failure()
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

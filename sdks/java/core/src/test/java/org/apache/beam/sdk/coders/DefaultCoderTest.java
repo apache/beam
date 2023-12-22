@@ -39,7 +39,7 @@ public class DefaultCoderTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @DefaultCoder(AvroCoder.class)
+  @DefaultCoder(MockDefaultCoder.class)
   private static class AvroRecord {}
 
   private static class SerializableBase implements Serializable {}
@@ -111,7 +111,7 @@ public class DefaultCoderTest {
   public void testCodersWithoutComponents() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
     registry.registerCoderProvider(new DefaultCoderProvider());
-    assertThat(registry.getCoder(AvroRecord.class), instanceOf(AvroCoder.class));
+    assertThat(registry.getCoder(AvroRecord.class), instanceOf(MockDefaultCoder.class));
     assertThat(registry.getCoder(SerializableRecord.class), instanceOf(SerializableCoder.class));
     assertThat(registry.getCoder(CustomRecord.class), instanceOf(CustomSerializableCoder.class));
     assertThat(
@@ -125,7 +125,7 @@ public class DefaultCoderTest {
     Coder<List<AvroRecord>> avroRecordCoder =
         registry.getCoder(new TypeDescriptor<List<AvroRecord>>() {});
     assertThat(avroRecordCoder, instanceOf(ListCoder.class));
-    assertThat(((ListCoder) avroRecordCoder).getElemCoder(), instanceOf(AvroCoder.class));
+    assertThat(((ListCoder) avroRecordCoder).getElemCoder(), instanceOf(MockDefaultCoder.class));
     assertThat(
         registry.getCoder(new TypeDescriptor<List<SerializableRecord>>() {}),
         Matchers.equalTo(ListCoder.of(SerializableCoder.of(SerializableRecord.class))));

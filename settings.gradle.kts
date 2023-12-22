@@ -19,13 +19,13 @@ import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionW
 
 pluginManagement {
   plugins {
-     id("org.javacc.javacc") version "3.0.0" // enable the JavaCC parser generator
+     id("org.javacc.javacc") version "3.0.2" // enable the JavaCC parser generator
   }
 }
 
 plugins {
-  id("com.gradle.enterprise") version "3.13.2"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.11.3"
+  id("com.gradle.enterprise") version "3.16"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.12.1"
 }
 
 
@@ -62,7 +62,7 @@ buildCache {
       username = System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME")
       password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
     }
-    isEnabled = true
+    isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
     isPush = isCi
   }
 }
@@ -175,6 +175,7 @@ include(":sdks:java:container:agent")
 include(":sdks:java:container:java8")
 include(":sdks:java:container:java11")
 include(":sdks:java:container:java17")
+include(":sdks:java:container:java21")
 include(":sdks:java:core")
 include(":sdks:java:core:jmh")
 include(":sdks:java:expansion-service")
@@ -246,6 +247,7 @@ include(":sdks:java:io:jdbc")
 include(":sdks:java:io:jms")
 include(":sdks:java:io:json")
 include(":sdks:java:io:kafka")
+include(":sdks:java:io:kafka:upgrade")
 include(":sdks:java:io:kinesis")
 include(":sdks:java:io:kinesis:expansion-service")
 include(":sdks:java:io:kudu")
@@ -325,12 +327,16 @@ include(":runners:google-cloud-dataflow-java:worker:windmill")
 // no dots allowed for project paths
 include("beam-test-infra-metrics")
 project(":beam-test-infra-metrics").projectDir = file(".test-infra/metrics")
+include("beam-test-infra-mock-apis")
+project(":beam-test-infra-mock-apis").projectDir = file(".test-infra/mock-apis")
 include("beam-test-infra-pipelines")
 project(":beam-test-infra-pipelines").projectDir = file(".test-infra/pipelines")
 include("beam-test-tools")
 project(":beam-test-tools").projectDir = file(".test-infra/tools")
 include("beam-test-jenkins")
 project(":beam-test-jenkins").projectDir = file(".test-infra/jenkins")
+include("beam-test-gha")
+project(":beam-test-gha").projectDir = file(".github")
 include("beam-validate-runner")
 project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")
 include("com.google.api.gax.batching")

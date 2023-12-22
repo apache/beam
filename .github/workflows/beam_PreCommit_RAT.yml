@@ -24,7 +24,7 @@ on:
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 3/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -55,7 +55,7 @@ env:
 
 jobs:
   beam_PreCommit_RAT:
-    name: ${{matrix.job_name}} (${{ matrix.job_phrase }})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       matrix:
@@ -65,7 +65,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run RAT PreCommit'
     steps:

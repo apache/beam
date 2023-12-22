@@ -17,7 +17,7 @@ name: LoadTests Go SideInput Flink Batch
 
 on:
   schedule:
-    - cron: '40 23 * * *'
+    - cron: '10 13 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -45,6 +45,8 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
   GCLOUD_ZONE: us-central1-a
   CLUSTER_NAME: beam-loadtests-go-sideinput-flink-batch-${{ github.run_id }}
   GCS_BUCKET: gs://beam-flink-cluster
@@ -60,7 +62,7 @@ jobs:
   beam_LoadTests_Go_SideInput_Flink_Batch:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Go SideInput Flink Batch'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 720
@@ -70,21 +72,23 @@ jobs:
         job_name: ["beam_LoadTests_Go_SideInput_Flink_Batch"]
         job_phrase: ["Run Load Tests Go SideInput Flink Batch"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
           test-type: load
           test-language: go
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_SideInput_Flink_Batch_First_Iterable.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/go_SideInput_Flink_Batch_Iterable.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_SideInput_Flink_Batch_First_Iterable.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_SideInput_Flink_Batch_Iterable.txt
           arguments: |
             --job_name=load-tests-go-flink-batch-sideinput-$(date '+%m%d%H%M%S' --utc)
       - name: Start Flink with parallelism 10

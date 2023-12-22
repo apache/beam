@@ -39,7 +39,7 @@ import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespaces;
-import org.apache.beam.runners.dataflow.worker.StateFetcher.SideInputState;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
 import org.apache.beam.runners.dataflow.worker.util.ListOutputManager;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
@@ -69,7 +69,9 @@ import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -79,7 +81,7 @@ import org.mockito.MockitoAnnotations;
 /** Unit tests for {@link StreamingSideInputDoFnRunner}. */
 @RunWith(JUnit4.class)
 public class StreamingSideInputDoFnRunnerTest {
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final FixedWindows WINDOW_FN = FixedWindows.of(Duration.millis(10));
 
   static TupleTag<String> mainOutputTag = new TupleTag<>();

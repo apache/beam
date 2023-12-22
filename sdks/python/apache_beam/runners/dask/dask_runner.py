@@ -40,7 +40,7 @@ from apache_beam.utils.interactive_utils import is_in_notebook
 try:
   # Added to try to prevent threading related issues, see
   # https://github.com/pytest-dev/pytest/issues/3216#issuecomment-1502451456
-  from dask import distributed
+  import dask.distributed as ddist
 except ImportError:
   distributed = {}
 
@@ -93,8 +93,9 @@ class DaskOptions(PipelineOptions):
 
 @dataclasses.dataclass
 class DaskRunnerResult(PipelineResult):
-  client: distributed.Client
-  futures: t.Sequence[distributed.Future]
+
+  client: ddist.Client
+  futures: t.Sequence[ddist.Future]
 
   def __post_init__(self):
     super().__init__(PipelineState.RUNNING)
@@ -104,9 +105,9 @@ class DaskRunnerResult(PipelineResult):
       if duration is not None:
         # Convert milliseconds to seconds
         duration /= 1000
-      for _ in distributed.as_completed(self.futures,
-                                        timeout=duration,
-                                        with_results=True):
+      for _ in ddist.as_completed(self.futures,
+                                  timeout=duration,
+                                  with_results=True):
         # without gathering results, worker errors are not raised on the client:
         # https://distributed.dask.org/en/stable/resilience.html#user-code-failures
         # so we want to gather results to raise errors client-side, but we do

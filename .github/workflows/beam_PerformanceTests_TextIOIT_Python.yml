@@ -17,7 +17,7 @@ name: PerformanceTests TextIOIT Python
 
 on:
   schedule:
-    - cron: '0 8,20 * * *'
+    - cron: '30 11 * * *'
   workflow_dispatch:
 
 # Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -45,12 +45,14 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_PerformanceTests_TextIOIT_Python:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Python TextIO Performance Test'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
@@ -60,7 +62,7 @@ jobs:
         job_name: ["beam_PerformanceTests_TextIOIT_Python"]
         job_phrase: ["Run Python TextIO Performance Test"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -77,7 +79,7 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/textIOIT_Python.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/textIOIT_Python.txt
           arguments: |
             --filename_prefix=gs://temp-storage-for-perf-tests/${{ matrix.job_name }}/${{github.run_id}}
       # The env variable is created and populated in the test-arguments-action as "beam_PerformanceTests_TextIOIT_Python_test_arguments_1"

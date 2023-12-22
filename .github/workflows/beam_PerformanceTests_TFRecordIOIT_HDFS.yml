@@ -19,7 +19,7 @@ on:
   # TODO(https://github.com/apache/beam/issues/18796) TFRecord performance test is failing only when running on hdfs.
   # We need to fix this before enabling this job on jenkins.
   # schedule:
-  #   - cron: '17 8/20 * * *'
+  #   - cron: '50 11/12 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -47,13 +47,14 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
-  beam_PerformanceTests_TFRecordIOIT_HDFS_test_arguments_1: ''
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_PerformanceTests_TFRecordIOIT_HDFS:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Java TFRecordIO Performance Test HDFS'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
@@ -70,6 +71,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Authenticate on GCP
         id: auth
         uses: google-github-actions/auth@v1
@@ -94,10 +97,11 @@ jobs:
           test-type: performance
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/TFRecordIOIT_HDFS.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/TFRecordIOIT_HDFS.txt
           arguments: |
             --filenamePrefix=hdfs://${{ steps.install_hadoop.outputs.hadoop_IP }}:9000/TEXTIO_IT_
             --hdfsConfiguration=[{\\\"fs.defaultFS\\\":\\\"hdfs:${{ steps.install_hadoop.outputs.hadoop_IP }}:9000\\\",\\\"dfs.replication\\\":1}]
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run integrationTest
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

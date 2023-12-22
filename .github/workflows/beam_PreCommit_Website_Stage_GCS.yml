@@ -22,11 +22,11 @@ on:
     paths: ['website/**','.github/workflows/beam_PreCommit_Website_Stage_GCS.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: ['website/**']
+    paths: ['website/**', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Website_Stage_GCS.json']
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '15 3/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -59,7 +59,7 @@ permissions:
 
 jobs:
   beam_PreCommit_Website_Stage_GCS:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       matrix:
@@ -69,7 +69,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Website_Stage_GCS PreCommit'
     steps:

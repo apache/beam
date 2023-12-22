@@ -30,7 +30,7 @@ import (
 // randomness for the samples.
 func TestPCollection(t *testing.T) {
 	a := &CaptureNode{UID: 1}
-	pcol := &PCollection{UID: 2, Out: a, Coder: coder.NewVarInt()}
+	pcol := &PCollection{UID: 2, Out: a, Coder: coder.NewVarInt(), WindowCoder: coder.NewGlobalWindow()}
 	// The "large" 2nd value is to ensure the values are encoded properly,
 	// and that Min & Max are behaving.
 	inputs := []any{int64(1), int64(2000000000), int64(3)}
@@ -99,7 +99,7 @@ func BenchmarkPCollection(b *testing.B) {
 			Elm:       int64(1),
 		}})
 	}
-	pcol := &PCollection{UID: 2, Out: out, Coder: coder.NewVarInt()}
+	pcol := &PCollection{UID: 2, Out: out, Coder: coder.NewVarInt(), WindowCoder: coder.NewGlobalWindow()}
 	n := &FixedRoot{UID: 3, Elements: process, Out: pcol}
 	p, err := NewPlan("a", []Unit{n, pcol, out})
 	if err != nil {

@@ -29,19 +29,20 @@ applyDockerNature()
 if (!project.hasProperty('imageJavaVersion')) {
     throw new GradleException('imageJavaVersion project property must be set')
 }
+def javaBaseImage = project.findProperty('javaBaseImage') ?: 'eclipse-temurin'
 def imageJavaVersion = project.findProperty('imageJavaVersion')
 
 description = "Apache Beam :: SDKs :: Java :: Container :: Java ${imageJavaVersion} Container"
 
 configurations {
     dockerDependency
-    sdkHarnessLauncher
+    javaHarnessLauncher
     pulledLicenses
 }
 
 dependencies {
     dockerDependency project(path: ":sdks:java:container", configuration: "dockerDependency")
-    sdkHarnessLauncher project(path: ":sdks:java:container", configuration: "sdkHarnessLauncher")
+    javaHarnessLauncher project(path: ":sdks:java:container", configuration: "javaHarnessLauncher")
 }
 
 task copyDockerfileDependencies(type: Copy) {
@@ -66,24 +67,24 @@ task copySdkHarnessLauncher(type: Copy) {
     // if licenses are required, they should be present before this task run.
     mustRunAfter ":sdks:java:container:pullLicenses"
 
-    from configurations.sdkHarnessLauncher
+    from configurations.javaHarnessLauncher
     into "build/target"
 }
 
 task copyJavaThirdPartyLicenses(type: Copy) {
-    from("${project(':sdks:java:container').buildDir}/target/third_party_licenses")
+    from project(':sdks:java:container').layout.buildDirectory.dir('target/third_party_licenses')
     into "build/target/third_party_licenses"
     dependsOn ':sdks:java:container:pullLicenses'
 }
 
 task copyGolangLicenses(type: Copy) {
-    from "${project(':release:go-licenses:java').buildDir}/output"
+    from project(':release:go-licenses:java').layout.buildDirectory.dir('output')
     into "build/target/go-licenses"
     dependsOn ':release:go-licenses:java:createLicenses'
 }
 
 task copyJdkOptions(type: Copy) {
-    if (imageJavaVersion == "17" || imageJavaVersion == "11") {
+    if (["11", "17", "21"].contains(imageJavaVersion)) {
         from "option-jamm.json"
     }
     from "java${imageJavaVersion}-security.properties"
@@ -96,11 +97,25 @@ task skipPullLicenses(type: Exec) {
     args "-c", "mkdir -p build/target/go-licenses build/target/options build/target/third_party_licenses && touch build/target/go-licenses/skip && touch build/target/third_party_licenses/skip"
 }
 
+// Java11+ container depends on the java agent project. To compile it, need a compatible JDK version:
+// lower bound 11 and upper bound imageJavaVersion
 task validateJavaHome {
-    if (imageJavaVersion == "11" || imageJavaVersion == "17") {
+    def requiredForVer = ["11", "17", "21"]
+    if (requiredForVer.contains(imageJavaVersion)) {
         doFirst {
-            if (!project.hasProperty('java17Home') && !project.hasProperty('java11Home')) {
-                throw new GradleException('java17Home or java11Home property required. Re-run with -Pjava17Home or -Pjava11Home')
+            boolean propertyFound = false
+            // enable to build agent with compatible java versions (11-requiredForVer)
+            for (def checkVer : requiredForVer) {
+                if (project.hasProperty("java${checkVer}Home")) {
+                    propertyFound = true
+                }
+                if (checkVer == imageJavaVersion) {
+                    // cannot build agent with a higher version than the docker java ver
+                    break
+                }
+            }
+            if (!propertyFound) {
+                throw new GradleException("java${imageJavaVersion}Home or compatible properties required for imageJavaVersion=${imageJavaVersion}. Re-run with -Pjava${imageJavaVersion}Home")
             }
         }
     }
@@ -122,8 +137,9 @@ docker {
     dockerfile project.file("../Dockerfile")
     files "./build/"
     buildArgs([
-            'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
-                    project.rootProject.hasProperty(["isRelease"]),
+            'pull_licenses': project.rootProject.hasProperty("docker-pull-licenses") ||
+                    project.rootProject.hasProperty("isRelease"),
+            'base_image': javaBaseImage,
             'java_version': imageJavaVersion,
     ])
     buildx useBuildx
@@ -132,8 +148,8 @@ docker {
     push pushContainers
 }
 
-if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||
-        project.rootProject.hasProperty(["isRelease"])) {
+if (project.rootProject.hasProperty("docker-pull-licenses") ||
+        project.rootProject.hasProperty("isRelease")) {
     project.logger.lifecycle('docker-pull-licenses set, creating go-licenses')
     dockerPrepare.dependsOn copyJavaThirdPartyLicenses
     dockerPrepare.dependsOn copyGolangLicenses

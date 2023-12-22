@@ -53,9 +53,11 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribut
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.CommitWorkStream;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetDataStream;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Duration;
@@ -78,7 +80,7 @@ class FakeWindmillServer extends WindmillServerStub {
   private final ErrorCollector errorCollector;
   private final ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> droppedStreamingCommits;
   private int commitsRequested = 0;
-  private int numGetDataRequests = 0;
+  private List<Windmill.GetDataRequest> getDataRequests = new ArrayList<>();
   private boolean isReady = true;
   private boolean dropStreamingCommits = false;
 
@@ -142,7 +144,7 @@ class FakeWindmillServer extends WindmillServerStub {
   public Windmill.GetDataResponse getData(Windmill.GetDataRequest request) {
     LOG.info("getDataRequest: {}", request.toString());
     validateGetDataRequest(request);
-    ++numGetDataRequests;
+    getDataRequests.add(request);
     GetDataResponse response = dataToOffer.getOrDefault(request);
     LOG.debug("getDataResponse: {}", response.toString());
     return response;
@@ -198,8 +200,7 @@ class FakeWindmillServer extends WindmillServerStub {
   }
 
   @Override
-  public GetWorkStream getWorkStream(
-      Windmill.GetWorkRequest request, GetWorkStream.WorkItemReceiver receiver) {
+  public GetWorkStream getWorkStream(Windmill.GetWorkRequest request, WorkItemReceiver receiver) {
     LOG.debug("getWorkStream: {}", request.toString());
     Instant startTime = Instant.now();
     final CountDownLatch done = new CountDownLatch(1);
@@ -207,6 +208,19 @@ class FakeWindmillServer extends WindmillServerStub {
       @Override
       public void close() {
         done.countDown();
+      }
+
+      @Override
+      public void adjustBudget(long itemsDelta, long bytesDelta) {
+        // no-op.
+      }
+
+      @Override
+      public GetWorkBudget remainingBudget() {
+        return GetWorkBudget.builder()
+            .setItems(request.getMaxItems())
+            .setBytes(request.getMaxBytes())
+            .build();
       }
 
       @Override
@@ -417,7 +431,11 @@ class FakeWindmillServer extends WindmillServerStub {
   }
 
   public int numGetDataRequests() {
-    return numGetDataRequests;
+    return getDataRequests.size();
+  }
+
+  public List<Windmill.GetDataRequest> getGetDataRequests() {
+    return getDataRequests;
   }
 
   public ArrayList<Windmill.ReportStatsRequest> getStatsReceived() {

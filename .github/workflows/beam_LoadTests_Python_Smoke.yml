@@ -16,8 +16,6 @@
 name: LoadTests Python Smoke
 
 on:
-  issue_comment:
-    types: [created]
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -45,6 +43,8 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_LoadTests_Python_Smoke:
@@ -59,7 +59,7 @@ jobs:
         job_name: ["beam_LoadTests_Python_Smoke"]
         job_phrase: ["Run Python Load Tests Smoke"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -76,8 +76,8 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_Smoke_GroupByKey_Direct.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_Smoke_GroupByKey_Dataflow.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_Smoke_GroupByKey_Direct.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_Smoke_GroupByKey_Dataflow.txt
       - name: Set current datetime
         id: datetime
         run: |

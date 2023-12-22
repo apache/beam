@@ -134,6 +134,12 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
             if (partitions != null) {
               readRows = readRows.withNumPartitions(partitions);
             }
+
+            @Nullable Short fetchSize = config.getInt16("fetchSize");
+            if (fetchSize != null) {
+              readRows = readRows.withFetchSize(fetchSize);
+            }
+
             return input.apply(readRows);
           } else {
 

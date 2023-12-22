@@ -19,7 +19,9 @@ name: PostCommit Java PVR Samza
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '15 4/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_PVR_Samza.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -50,7 +52,7 @@ env:
 
 jobs:
   beam_PostCommit_Java_PVR_Samza:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 120
     strategy:
@@ -59,7 +61,8 @@ jobs:
         job_phrase: [Run Java Samza PortableValidatesRunner]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Java Samza PortableValidatesRunner'
     steps:
       - uses: actions/checkout@v4
@@ -69,6 +72,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: run PostCommit Java Samza script
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
@@ -76,8 +81,8 @@ jobs:
         with:
             gradle-command: :runners:samza:job-server:validatesPortableRunner
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
-        if: failure()
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"
@@ -85,4 +90,6 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
+          commit: '${{ env.prsha || env.GITHUB_SHA }}'
+          comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'

@@ -32,10 +32,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <InputT> input type
  * @param <OutputT> output type
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class TimestampExtractTransform<InputT, OutputT>
     extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
 

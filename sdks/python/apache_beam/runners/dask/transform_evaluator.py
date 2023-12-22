@@ -24,6 +24,7 @@ TODO(alxr): Translate ops from https://docs.dask.org/en/latest/bag-api.html.
 """
 import abc
 import dataclasses
+import math
 import typing as t
 from dataclasses import field
 
@@ -135,7 +136,10 @@ class Create(DaskBagOp):
     assert input_bag is None, 'Create expects no input!'
     original_transform = t.cast(_Create, self.transform)
     items = original_transform.values
-    return db.from_sequence(items)
+    return db.from_sequence(
+        items,
+        partition_size=max(
+            1, math.ceil(math.sqrt(len(items)) / math.sqrt(100))))
 
 
 def apply_dofn_to_bundle(

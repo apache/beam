@@ -68,12 +68,12 @@ class SSLUtils {
       InputStream inputStream = classLoader.getResourceAsStream("resources/.keystore");
       if (inputStream != null) {
         LOG.info("Found keystore in classpath 'resources/.keystore'. Loading...");
-        ks.load(inputStream, "changeit".toCharArray());
       } else {
         LOG.info(
             "Unable to find keystore under 'resources/.keystore' in the classpath. "
                 + "Continuing with an empty keystore.");
       }
+      ks.load(inputStream, "changeit".toCharArray());
       KeyManagerFactory kmf =
           KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
       kmf.init(ks, "changeit".toCharArray());

@@ -46,6 +46,13 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.vendored_grpc_1_54_0
     implementation library.java.vendored_guava_32_1_2_jre
+    // Stage default drivers for JdbcIO schema transforms
+    implementation 'mysql:mysql-connector-java:8.0.22'
+    permitUnusedDeclared 'mysql:mysql-connector-java:8.0.22' // BEAM-11761
+    implementation 'com.oracle.database.jdbc:ojdbc8:23.2.0.0'
+    permitUnusedDeclared 'com.oracle.database.jdbc:ojdbc8:23.2.0.0' // BEAM-11761
+    implementation 'com.microsoft.sqlserver:mssql-jdbc:12.2.0.jre11'
+    permitUnusedDeclared 'com.microsoft.sqlserver:mssql-jdbc:12.2.0.jre11' // BEAM-11761
     testImplementation library.java.junit
     testImplementation library.java.mockito_core
 }

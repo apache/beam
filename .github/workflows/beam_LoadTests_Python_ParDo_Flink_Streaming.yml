@@ -16,10 +16,8 @@
 name: LoadTests Python ParDo Flink Streaming
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
-    - cron: '15 15 * * *'
+    - cron: '50 16 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -47,6 +45,8 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
   GCLOUD_ZONE: us-central1-a
   CLUSTER_NAME: beam-loadtests-python-pardo-flink-stream-${{ github.run_id }}
   GCS_BUCKET: gs://beam-flink-cluster
@@ -62,7 +62,7 @@ jobs:
   beam_LoadTests_Python_ParDo_Flink_Streaming:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Python ParDo Flink Streaming'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 720
@@ -72,7 +72,7 @@ jobs:
         job_name: ["beam_LoadTests_Python_ParDo_Flink_Streaming"]
         job_phrase: ["Run Load Tests Python ParDo Flink Streaming"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -89,11 +89,11 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python-pardo/python_ParDo_Flink_Streaming_10_Iterations.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python-pardo/python_ParDo_Flink_Streaming_200_Iterations.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python-pardo/python_ParDo_Flink_Streaming_10_Counters.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python-pardo/python_ParDo_Flink_Streaming_100_Counters.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python-pardo/python_ParDo_Flink_Streaming_5_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Flink_Streaming_10_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Flink_Streaming_200_Iterations.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Flink_Streaming_10_Counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Flink_Streaming_100_Counters.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_ParDo_Flink_Streaming_5_Iterations.txt
       - name: Start Flink with parallelism 5
         env:
           FLINK_NUM_WORKERS: 5

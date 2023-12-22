@@ -28,10 +28,12 @@ on:
     branches: ['master', 'release-*']
     paths:
       - 'runners/spark/**'
+      - 'release/trigger_all_tests.json'
+      - '.github/trigger_files/beam_PreCommit_Java_Spark3_Versions.json'
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '30 2/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -62,7 +64,7 @@ env:
 
 jobs:
   beam_PreCommit_Java_Spark3_Versions:
-    name: ${{matrix.job_name}} (${{ matrix.job_phrase }})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       matrix:
@@ -72,7 +74,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java_Spark3_Versions PreCommit'
     steps:
@@ -80,7 +82,7 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{matrix.job_phrase}}
+          comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Authenticate on GCP
@@ -90,21 +92,18 @@ jobs:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           export_default_credentials: true
-      - name: Install Java
-        uses: actions/setup-java@v3.8.0
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'zulu'
-          java-version: '8'
-          cache: 'gradle'
-          check-latest: true
+          java-version: 8
       - name: run sparkVersionsTest script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:spark:3:sparkVersionsTest
           arguments: -PdisableSpotlessCheck=true
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
-        if: failure()
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

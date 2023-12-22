@@ -234,6 +234,7 @@ class CrossLanguageSpannerIOTest(unittest.TestCase):
               database_id=self.database_id,
               project_id=self.project_id,
               table=self.table,
+              failure_mode=beam.io.gcp.spanner.FailureMode.REPORT_FAILURES,
               emulator_host=self.spanner_helper.get_emulator_host(),
           ))
 

@@ -18,6 +18,8 @@ name: Java JMH
 on:
   schedule:
     - cron: '0 0 * * 0'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_Java_JMH.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -47,17 +49,22 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   INFLUXDB_HOST: http://10.128.0.96:8086
   INFLUXDB_DATABASE: beam_test_metrics
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_Java_JMH:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule'
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 900
     name: "beam_Java_JMH"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: run the Java JMH micro-benchmark harness suite
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

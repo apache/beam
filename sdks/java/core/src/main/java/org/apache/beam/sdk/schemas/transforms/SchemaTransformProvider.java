@@ -37,6 +37,15 @@ public interface SchemaTransformProvider {
   String identifier();
 
   /**
+   * Returns a description regarding the {@link SchemaTransform} represented by the {@link
+   * SchemaTransformProvider}. Please keep the language generic (i.e. not specific to any
+   * programming language). The description may be markdown formatted.
+   */
+  default String description() {
+    return "";
+  }
+
+  /**
    * Returns the expected schema of the configuration object. Note this is distinct from the schema
    * of the transform itself.
    */

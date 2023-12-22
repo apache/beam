@@ -19,7 +19,9 @@ name: PostCommit Java Nexmark Flink
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '15 4/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_Nexmark_Flink.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -64,10 +66,12 @@ env:
     --suite=SMOKE 
     --streamTimeout=60 
     --runner=FlinkRunner
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_PostCommit_Java_Nexmark_Flink:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 240
     strategy:
@@ -79,7 +83,8 @@ jobs:
         queryLanguage: [sql, zetasql, none]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Flink Runner Nexmark Tests'
     steps:
       - uses: actions/checkout@v4
@@ -89,6 +94,8 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: run PostCommit Java Nexmark Flink (${{ matrix.streaming }} ${{ matrix.queryLanguage }}) script
         if: matrix.queryLanguage != 'none'
         uses: ./.github/actions/gradle-command-self-hosted-action

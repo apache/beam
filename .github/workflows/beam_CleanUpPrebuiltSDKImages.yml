@@ -50,7 +50,7 @@ permissions:
 
 jobs:
   beam_CleanUpPrebuiltSDKImages:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}}) 
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
     strategy:
@@ -58,17 +58,19 @@ jobs:
         job_name: [beam_CleanUpPrebuiltSDKImages]
         job_phrase: [Run Clean Prebuilt Images]
     if: |
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Clean Prebuilt Images'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Authenticate on GCP
         id: auth
         uses: google-github-actions/auth@v1

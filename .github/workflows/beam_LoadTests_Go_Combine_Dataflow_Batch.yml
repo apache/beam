@@ -13,11 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Load Tests Combine Dataflow Batch Go
+name: LoadTests Go Combine Dataflow Batch
 
 on:
   schedule:
-    - cron: '40 23 * * *'
+    - cron: '10 12 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -45,12 +45,14 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_LoadTests_Go_Combine_Dataflow_Batch:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Go Combine Dataflow Batch'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 720
@@ -60,26 +62,27 @@ jobs:
         job_name: ["beam_LoadTests_Go_Combine_Dataflow_Batch"]
         job_phrase: ["Run Load Tests Go Combine Dataflow Batch"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Prepare configs
-        #Reads config files, excludes comments, appends current date to the job_name parameter
-        id: set_configs
-        shell: bash
-        run: |
-          CURDATE=$(date '+%m%d%H%M%S' --utc)
-          CONFIG_ARR=('config_Combine_Go_Batch_10b.txt' 'config_Combine_Go_Batch_Fanout_4.txt' 'config_Combine_Go_Batch_Fanout_8.txt')
-          for INDEX in ${!CONFIG_ARR[@]}
-          do
-            CURCONFIG=$(grep -v "^#.*" ./.github/workflows/load-tests-job-configs/${CONFIG_ARR[INDEX]} | tr '\n' ' ')
-            CURCONFIG=$(echo "${CURCONFIG/load-tests-go-dataflow-batch-combine-$((INDEX + 1))-/load-tests-go-dataflow-batch-combine-$((INDEX + 1))-$CURDATE}")
-            echo "prepared_config_$((INDEX + 1))=$CURCONFIG" >> $GITHUB_OUTPUT
-          done
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+      - name: Prepare test arguments
+        uses: ./.github/actions/test-arguments-action
+        with:
+          test-type: load
+          test-language: go
+          argument-file-paths: |
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_Combine_Dataflow_Batch_10b.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_Combine_Dataflow_Batch_Fanout_4.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/go_Combine_Dataflow_Batch_Fanout_8.txt
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
+      - name: get current time
+        run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
       - name: run Combine Dataflow Batch Go Load Test 1 (single key)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -87,7 +90,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=combine \
             -Prunner=DataflowRunner \
-            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_1 }}' \
+            '-PloadTest.args=${{ env.beam_LoadTests_Go_Combine_Dataflow_Batch_test_arguments_1 }} --job_name=load-tests-go-dataflow-batch-combine-1-${{env.NOW_UTC}}' \
       - name: run Combine Dataflow Batch Go Load Test 2 (multiple keys)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -95,7 +98,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=combine \
             -Prunner=DataflowRunner \
-            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_2 }}' \
+            '-PloadTest.args=${{ env.beam_LoadTests_Go_Combine_Dataflow_Batch_test_arguments_2 }} --job_name=load-tests-go-dataflow-batch-combine-2-${{env.NOW_UTC}}' \
       - name: run Combine Dataflow Batch Go Load Test 3 (reiterate 10KB)
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -103,4 +106,4 @@ jobs:
           arguments: |
             -PloadTest.mainClass=combine \
             -Prunner=DataflowRunner \
-            '-PloadTest.args=${{ steps.set_configs.outputs.prepared_config_3 }}'
+            '-PloadTest.args=${{ env.beam_LoadTests_Go_Combine_Dataflow_Batch_test_arguments_3 }} --job_name=load-tests-go-dataflow-batch-combine-3-${{env.NOW_UTC}}'

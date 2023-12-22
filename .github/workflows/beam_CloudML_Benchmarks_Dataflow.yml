@@ -16,8 +16,6 @@
 name: CloudML Benchmarks Dataflow
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '10 21 * * *'
   workflow_dispatch:
@@ -40,19 +38,21 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_CloudML_Benchmarks_Dataflow:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run TFT Criteo Benchmarks'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 360
@@ -62,7 +62,7 @@ jobs:
         job_name: ["beam_CloudML_Benchmarks_Dataflow"]
         job_phrase: ["Run TFT Criteo Benchmarks"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -81,7 +81,7 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/beam_CloudML_Benchmarks_Dataflow_arguments.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_CloudML_Benchmarks_Dataflow_arguments.txt
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run TFT Criteo Benchmarks
         uses: ./.github/actions/gradle-command-self-hosted-action

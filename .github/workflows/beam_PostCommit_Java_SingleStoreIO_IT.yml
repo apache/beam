@@ -19,7 +19,9 @@ name: PostCommit Java SingleStoreIO IT
 
 on:
   schedule:
-    - cron: '0 */23 * * *'
+    - cron: '30 4/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_SingleStoreIO_IT.json']
   workflow_dispatch:
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
@@ -50,7 +52,7 @@ env:
 
 jobs:
   beam_PostCommit_Java_SingleStoreIO_IT:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}}) 
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
     strategy:
@@ -60,17 +62,20 @@ jobs:
         job_phrase: [Run Java SingleStoreIO_IT]
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request_target' ||
       github.event.comment.body == 'Run Java SingleStoreIO_IT'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
       - name: Authenticate on GCP
         id: auth
         uses: google-github-actions/auth@v1
@@ -99,5 +104,5 @@ jobs:
       - name: Run Java SingleStore IO IT
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:io:singlestore:integrationTest --tests org.apache.beam.sdk.io.singlestore.SingleStoreIODefaultMapperIT
+          gradle-command: :sdks:java:io:singlestore:integrationTest --tests org.apache.beam.sdk.io.singlestore.SingleStoreIODefaultMapperIT :sdks:java:io:singlestore:integrationTest --tests org.apache.beam.sdk.io.singlestore.SingleStoreIOSchemaTransformIT :sdks:java:io:singlestore:integrationTest --tests org.apache.beam.sdk.io.singlestore.SingleStoreIOConnectionAttributesIT
           arguments: --info -DintegrationTestRunner=dataflow -DintegrationTestPipelineOptions='["--tempRoot=gs://temp-storage-for-perf-tests","--project=apache-beam-testing","--runner=DataflowRunner","--singleStoreUsername=admin","--singleStorePassword=secretpass","--singleStorePort=3306","--numberOfRecords=1000", "--singleStoreServerName=${{ steps.install_singlestore.outputs.lb_ip }}"]'

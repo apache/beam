@@ -16,8 +16,6 @@
 name: Inference Python Benchmarks Dataflow
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '50 3 * * *'
   workflow_dispatch:
@@ -54,7 +52,7 @@ jobs:
   beam_Inference_Python_Benchmarks_Dataflow:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Inference Benchmarks'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 900
@@ -64,7 +62,7 @@ jobs:
         job_name: ["beam_Inference_Python_Benchmarks_Dataflow"]
         job_phrase: ["Run Inference Benchmarks"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -81,11 +79,11 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Vision_Classification_Resnet_101.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Imagenet_Classification_Resnet_152.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Language_Modeling_Bert_Base_Uncased.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Language_Modeling_Bert_Large_Uncased.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Imagenet_Classification_Resnet_152_Tesla_T4_GPU.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Vision_Classification_Resnet_101.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Imagenet_Classification_Resnet_152.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Language_Modeling_Bert_Base_Uncased.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Language_Modeling_Bert_Large_Uncased.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Imagenet_Classification_Resnet_152_Tesla_T4_GPU.txt
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: get current time
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV

@@ -16,10 +16,8 @@
 name: LoadTests Python Combine Dataflow Streaming
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
-    - cron: '10 9 * * *'
+    - cron: '50 15 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -47,12 +45,14 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_LoadTests_Python_Combine_Dataflow_Streaming:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Python Combine Dataflow Streaming'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 720
@@ -62,7 +62,7 @@ jobs:
         job_name: ["beam_LoadTests_Python_Combine_Dataflow_Streaming"]
         job_phrase: ["Run Load Tests Python Combine Dataflow Streaming"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -79,9 +79,9 @@ jobs:
           test-type: load
           test-language: python
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_Combine_Dataflow_Streaming_2GB_10_byte_records.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_Combine_Dataflow_Streaming_2GB_Fanout_4.txt
-            ${{ github.workspace }}/.github/workflows/load-tests-job-configs/python_Combine_Dataflow_Streaming_2GB_Fanout_8.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_Combine_Dataflow_Streaming_2GB_10_byte_records.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_Combine_Dataflow_Streaming_2GB_Fanout_4.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_Combine_Dataflow_Streaming_2GB_Fanout_8.txt
       - name: get current time
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
         # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"

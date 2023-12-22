@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -60,7 +62,7 @@ public class KafkaWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration> {
 
-  public static final String SUPPORTED_FORMATS_STR = "JSON,AVRO";
+  public static final String SUPPORTED_FORMATS_STR = "RAW,JSON,AVRO,PROTO";
   public static final Set<String> SUPPORTED_FORMATS =
       Sets.newHashSet(SUPPORTED_FORMATS_STR.split(","));
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
@@ -131,10 +133,30 @@ public class KafkaWriteSchemaTransformProvider
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       Schema inputSchema = input.get("input").getSchema();
-      final SerializableFunction<Row, byte[]> toBytesFn =
-          configuration.getFormat().equals("JSON")
-              ? JsonUtils.getRowToJsonBytesFunction(inputSchema)
-              : AvroUtils.getRowToAvroBytesFunction(inputSchema);
+      final SerializableFunction<Row, byte[]> toBytesFn;
+      if (configuration.getFormat().equals("RAW")) {
+        int numFields = inputSchema.getFields().size();
+        if (numFields != 1) {
+          throw new IllegalArgumentException("Expecting exactly one field, found " + numFields);
+        }
+        if (inputSchema.getField(0).getType().equals(Schema.FieldType.BYTES)) {
+          throw new IllegalArgumentException(
+              "The input schema must have exactly one field of type byte.");
+        }
+        toBytesFn = getRowToRawBytesFunction(inputSchema.getField(0).getName());
+      } else if (configuration.getFormat().equals("JSON")) {
+        toBytesFn = JsonUtils.getRowToJsonBytesFunction(inputSchema);
+      } else if (configuration.getFormat().equals("PROTO")) {
+        String descriptorPath = configuration.getFileDescriptorPath();
+        String messageName = configuration.getMessageName();
+        if (descriptorPath == null || messageName == null) {
+          throw new IllegalArgumentException(
+              "Expecting both descriptorPath and messageName to be non-null.");
+        }
+        toBytesFn = ProtoByteUtils.getRowToProtoBytes(descriptorPath, messageName);
+      } else {
+        toBytesFn = AvroUtils.getRowToAvroBytesFunction(inputSchema);
+      }
 
       final Map<String, String> configOverrides = configuration.getProducerConfigUpdates();
       PCollectionTuple outputTuple =
@@ -161,6 +183,19 @@ public class KafkaWriteSchemaTransformProvider
       return PCollectionRowTuple.of(
           "errors", outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
     }
+  }
+
+  public static SerializableFunction<Row, byte[]> getRowToRawBytesFunction(String rowFieldName) {
+    return new SimpleFunction<Row, byte[]>() {
+      @Override
+      public byte[] apply(Row input) {
+        byte[] rawBytes = input.getBytes(rowFieldName);
+        if (rawBytes == null) {
+          throw new NullPointerException();
+        }
+        return rawBytes;
+      }
+    };
   }
 
   @Override
@@ -198,6 +233,18 @@ public class KafkaWriteSchemaTransformProvider
     public abstract String getBootstrapServers();
 
     @SchemaFieldDescription(
+        "The path to the Protocol Buffer File Descriptor Set file. This file is used for schema"
+            + " definition and message serialization.")
+    @Nullable
+    public abstract String getFileDescriptorPath();
+
+    @SchemaFieldDescription(
+        "The name of the Protocol Buffer message to be used for schema"
+            + " extraction and data conversion.")
+    @Nullable
+    public abstract String getMessageName();
+
+    @SchemaFieldDescription(
         "A list of key-value pairs that act as configuration parameters for Kafka producers."
             + " Most of these configurations will not be needed, but if you need to customize your Kafka producer,"
             + " you may use this. See a detailed list:"
@@ -217,6 +264,10 @@ public class KafkaWriteSchemaTransformProvider
       public abstract Builder setTopic(String topic);
 
       public abstract Builder setBootstrapServers(String bootstrapServers);
+
+      public abstract Builder setFileDescriptorPath(String fileDescriptorPath);
+
+      public abstract Builder setMessageName(String messageName);
 
       public abstract Builder setProducerConfigUpdates(Map<String, String> producerConfigUpdates);
 
