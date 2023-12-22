@@ -47,7 +47,7 @@ try:
   from gen_xlang_wrappers import run_script
   from gen_xlang_wrappers import write_wrappers_to_destinations
 except ImportError:
-  run_script = None # type: ignore[assignment]
+  run_script = None  # type: ignore[assignment]
 
 
 class NameUtilsTest(unittest.TestCase):
