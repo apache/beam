@@ -125,20 +125,28 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
           | beam.GroupByKey())
       assert_that(pcoll, equal_to([(2, [1, 1]), (4, [2, 2]), (6, [3])]))
 
-  def test_map_with_side_inputs(self):
+  def test_map_with_positional_side_input(self):
     def mult_by(x, y):
       return x * y
 
     with self.pipeline as p:
-      pcoll = p | beam.Create([1]) | beam.Map(mult_by, 3)
+      side = p | "side" >> beam.Create([3])
+      pcoll = (
+          p
+          | "main" >> beam.Create([1])
+          | beam.Map(mult_by, beam.pvalue.AsSingleton(side)))
       assert_that(pcoll, equal_to([3]))
 
-  def test_map_with_named_side_inputs(self):
+  def test_map_with_keyword_side_input(self):
     def mult_by(x, y):
       return x * y
 
     with self.pipeline as p:
-      pcoll = p | beam.Create([1]) | beam.Map(mult_by, y=3)
+      side = p | "side" >> beam.Create([3])
+      pcoll = (
+          p
+          | "main" >> beam.Create([1])
+          | beam.Map(mult_by, y=beam.pvalue.AsSingleton(side)))
       assert_that(pcoll, equal_to([3]))
 
   def test_groupby_with_fixed_windows(self):
