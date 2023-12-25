@@ -54,10 +54,16 @@ public class WatermarkPolicyTest {
     when(b.getApproximateArrivalTimestamp()).thenReturn(time2);
 
     assertThat(policy.getWatermark()).isEqualTo(BoundedWindow.TIMESTAMP_MIN_VALUE);
+
     policy.update(a);
     assertThat(policy.getWatermark()).isEqualTo(time1);
+    // for arrival time policy record timestamp is same as watermark
+    assertThat(policy.getTimestamp(a)).isEqualTo(time1);
+
     policy.update(b);
     assertThat(policy.getWatermark()).isEqualTo(time2);
+    // for arrival time policy record timestamp is same as watermark
+    assertThat(policy.getTimestamp(b)).isEqualTo(time2);
   }
 
   @Test
@@ -78,11 +84,19 @@ public class WatermarkPolicyTest {
 
     policy.update(a);
     assertThat(policy.getWatermark()).isEqualTo(time1);
+    // for arrival time policy record timestamp is same as watermark
+    assertThat(policy.getTimestamp(a)).isEqualTo(time1);
+
     policy.update(b);
     assertThat(policy.getWatermark()).isEqualTo(time2);
+    // for arrival time policy record timestamp is same as watermark
+    assertThat(policy.getTimestamp(b)).isEqualTo(time2);
+
     policy.update(c);
     // watermark doesn't go back in time
     assertThat(policy.getWatermark()).isEqualTo(time2);
+    // for arrival time policy record timestamp is same as watermark
+    assertThat(policy.getTimestamp(c)).isEqualTo(time2);
   }
 
   @Test
@@ -146,8 +160,10 @@ public class WatermarkPolicyTest {
 
     policy.update(a);
     assertThat(policy.getWatermark()).isEqualTo(time1.plus(Duration.standardMinutes(1)));
+    assertThat(policy.getTimestamp(a)).isEqualTo(time1.plus(Duration.standardMinutes(1)));
     policy.update(b);
     assertThat(policy.getWatermark()).isEqualTo(time2.plus(Duration.standardMinutes(1)));
+    assertThat(policy.getTimestamp(b)).isEqualTo(time2.plus(Duration.standardMinutes(1)));
   }
 
   @Test
