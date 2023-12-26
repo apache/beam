@@ -362,7 +362,7 @@ def get_test_beam_fieldtype_protos_with_logical_types():
               representation=schema_pb2.FieldType(atomic_type=schema_pb2.INT32),
               argument=schema_pb2.FieldValue(
                   map_value=schema_pb2.MapTypeValue(
-                      # Use a single value to avoid non-deterministic map ordering
+                      # avoid non-deterministic map ordering
                       entries=[
                           schema_pb2.MapTypeEntry(
                               key=schema_pb2.FieldValue(
@@ -396,7 +396,7 @@ def get_test_beam_fieldtype_protos_with_logical_types():
                                       atomic_type=schema_pb2.INT32),
                                   argument=schema_pb2.FieldValue(
                                       map_value=schema_pb2.MapTypeValue(
-                                          # Use a single value to avoid non-deterministic map ordering
+                                          # 1 entry; avoid ordering
                                           entries=[
                                               schema_pb2.MapTypeEntry(
                                                   key=schema_pb2.FieldValue(
