@@ -711,6 +711,7 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
     representing the type parameterized by the argument should be returned.
 
     The returned type should be a subclass of LanguageT"""
+    return type(f'LanguageT.__name__')
     raise NotImplementedError()
 
   @classmethod
@@ -1196,10 +1197,9 @@ class EnumerationTypeType:
     self.values = frozenset(values.items())
 
   def __call__(self):
-    """Makes this typing.Callable to pass runtime typechecks in <Python3.11
+    """Makes this typing.Callable for <Python3.11
     """
     pass
-
 
   def values(self) -> dict:
     return self.values
@@ -1249,7 +1249,7 @@ class EnumerationType(LogicalType[EnumerationTypeValue, np.int32, dict]):
   @classmethod
   def argument_type(cls):
     # type: () -> type
-    return dict[np.int32, str]
+    return Dict[np.int32, str]
 
   def argument(self):
     # type: () -> ArgT
