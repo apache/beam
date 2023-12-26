@@ -290,7 +290,7 @@ class MetricsReader(object):
               submit_timestamp=time.time(),
               metric_id=metric_id,
               value=total_cost,
-              label='cost')
+              label='cost').as_dict()
       ])
       self._add_job_id_to_metrics(insert_dicts, job_id)
 
