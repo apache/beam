@@ -109,9 +109,9 @@ jobs:
         env:
           MULTIARCH_TAG: ${{ steps.set_tag.outputs.TAG }}
           USER: github-actions
-      - name: Archive code coverage results
+      - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
-        if: always()
+        if: failure()
         with:
-          name: python-code-coverage-report
+          name: Python ${{ matrix.python_version }} Test Results
           path: "**/pytest*.xml"
