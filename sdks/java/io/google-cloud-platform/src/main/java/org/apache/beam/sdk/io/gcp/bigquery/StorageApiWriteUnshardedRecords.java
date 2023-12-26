@@ -670,10 +670,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   BigQuerySinkMetrics.throwableToGRPCCodeString(failedContext.getError());
 
               if (failedContext.getError() != null
-                  && failedContext.getError() instanceof Exceptions.AppendSerializtionError) {
-                Exceptions.AppendSerializtionError error =
+                  && failedContext.getError() instanceof Exceptions.AppendSerializationError) {
+                Exceptions.AppendSerializationError error =
                     Preconditions.checkStateNotNull(
-                        (Exceptions.AppendSerializtionError) failedContext.getError());
+                        (Exceptions.AppendSerializationError) failedContext.getError());
 
                 Set<Integer> failedRowIndices = error.getRowIndexToErrorMessage().keySet();
                 for (int failedIndex : failedRowIndices) {
@@ -1167,7 +1167,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
     @Override
     public Duration getAllowedTimestampSkew() {
-      return Duration.millis(Long.MAX_VALUE);
+      return Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
     }
   }
 }

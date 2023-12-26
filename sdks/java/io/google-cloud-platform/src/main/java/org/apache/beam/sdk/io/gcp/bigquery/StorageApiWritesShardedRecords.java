@@ -662,10 +662,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             // failedInserts
             // PCollection, and retry with the remaining rows.
             if (failedContext.getError() != null
-                && failedContext.getError() instanceof Exceptions.AppendSerializtionError) {
-              Exceptions.AppendSerializtionError error =
+                && failedContext.getError() instanceof Exceptions.AppendSerializationError) {
+              Exceptions.AppendSerializationError error =
                   Preconditions.checkArgumentNotNull(
-                      (Exceptions.AppendSerializtionError) failedContext.getError());
+                      (Exceptions.AppendSerializationError) failedContext.getError());
 
               Set<Integer> failedRowIndices = error.getRowIndexToErrorMessage().keySet();
               for (int failedIndex : failedRowIndices) {
