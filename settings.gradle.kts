@@ -19,12 +19,12 @@ import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionW
 
 pluginManagement {
   plugins {
-     id("org.javacc.javacc") version "3.0.0" // enable the JavaCC parser generator
+     id("org.javacc.javacc") version "3.0.2" // enable the JavaCC parser generator
   }
 }
 
 plugins {
-  id("com.gradle.enterprise") version "3.15.1"
+  id("com.gradle.enterprise") version "3.16"
   id("com.gradle.common-custom-user-data-gradle-plugin") version "1.12.1"
 }
 

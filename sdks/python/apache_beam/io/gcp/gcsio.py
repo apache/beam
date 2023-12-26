@@ -40,6 +40,7 @@ from google.cloud.exceptions import NotFound
 from google.cloud.storage.fileio import BlobReader
 from google.cloud.storage.fileio import BlobWriter
 
+from apache_beam import version as beam_version
 from apache_beam.internal.gcp import auth
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -111,7 +112,11 @@ class GcsIO(object):
       if credentials:
         storage_client = storage.Client(
             credentials=credentials.get_google_auth_credentials(),
-            project=pipeline_options.view_as(GoogleCloudOptions).project)
+            project=pipeline_options.view_as(GoogleCloudOptions).project,
+            extra_headers={
+                "User-Agent": "apache-beam/%s (GPN:Beam)" %
+                beam_version.__version__
+            })
       else:
         storage_client = storage.Client.create_anonymous_client()
     self.client = storage_client

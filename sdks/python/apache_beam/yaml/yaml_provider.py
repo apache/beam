@@ -451,7 +451,8 @@ class InlineProvider(Provider):
 
     docs = self.get_docs(typ)
     return (
-        empty_if_none(docs.short_description) + '\n\n' +
+        empty_if_none(docs.short_description) +
+        ('\n\n' if docs.blank_after_short_description else '\n') +
         empty_if_none(docs.long_description)).strip() or None
 
   def get_docs(self, typ):
@@ -852,10 +853,11 @@ class RenamingProvider(Provider):
         ])
 
   def description(self, typ):
-    return self._underlying_provider.description(typ)
+    return self._underlying_provider.description(self._transforms[typ])
 
   def requires_inputs(self, typ, args):
-    return self._underlying_provider.requires_inputs(typ, args)
+    return self._underlying_provider.requires_inputs(
+        self._transforms[typ], args)
 
   def create_transform(
       self,
