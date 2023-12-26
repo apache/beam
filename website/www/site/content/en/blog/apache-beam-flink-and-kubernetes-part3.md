@@ -23,7 +23,7 @@ limitations under the License.
 
 Welcome to the third and final part of our blog series on building a scalable, self-managed streaming infrastructure with Beam and Flink. In our previous post, we delved into the scale of our streaming platforms, highlighting our capacity to manage over 40,000 streaming jobs and process upwards of 10 million events per second. This impressive scale sets the stage for the challenge we address today: the intricate task of resource allocation in a dynamic streaming environment.
 
-In this blog post [Talat Uyarer (Architect / Senior Principal Engineer)](https://www.linkedin.com/in/talatuyarer/), [Rishabh Kedia (Principal Engineer)](https://www.linkedin.com/in/rishabhkedia/) describe more details about our Autoscaler. Imagine a scenario where your streaming system is inundated with fluctuating workloads. Our case presents a unique challenge, as our customers, equipped with firewalls distributed globally, generate logs at various times of the day. This results in workloads that not only vary by time but also escalate over time due to changes in settings or the addition of new cybersecurity solutions from PANW. Furthermore, updates to our codebase necessitate rolling out changes across all streaming jobs, leading to a temporary surge in demand as the system processes unprocessed data.
+In this blog post [Talat Uyarer (Architect / Senior Principal Engineer)](https://www.linkedin.com/in/talatuyarer/) and [Rishabh Kedia (Principal Engineer)](https://www.linkedin.com/in/rishabhkedia/) describe more details about our Autoscaler. Imagine a scenario where your streaming system is inundated with fluctuating workloads. Our case presents a unique challenge, as our customers, equipped with firewalls distributed globally, generate logs at various times of the day. This results in workloads that not only vary by time but also escalate over time due to changes in settings or the addition of new cybersecurity solutions from PANW. Furthermore, updates to our codebase necessitate rolling out changes across all streaming jobs, leading to a temporary surge in demand as the system processes unprocessed data.
 
 <img class="center-block"
 src="/images/blog/apache-beam-flink-and-kubernetes-part3/resource-allocation.png"
@@ -50,7 +50,7 @@ When we're overseeing a system like Apache Beam jobs on Flink, it's crucial to i
 
 Remember, we're aiming for a universal solution applicable to any workload and pipeline. While specific problems might benefit from unique signals, our focus here is on creating a one-size-fits-all approach.
 
-In Flink, tasks form the basic execution unit and consist of one or more operators, such as map, filter, or reduce. Flink optimizes performance by chaining these operators into single tasks when possible, minimizing overheads like thread context switching and network I/O. Your pipeline, when optimized, turns into a directed acyclic graph of stages, each processing elements based on your code. Don't confuse stages with physical machines — they're separate concepts. In Our job we mesuare backlog information by using Apache Beam's [`backlog_bytes` and `backlog_elements`](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/metrics/SourceMetrics.java#L32) metrics.
+In Flink, tasks form the basic execution unit and consist of one or more operators, such as map, filter, or reduce. Flink optimizes performance by chaining these operators into single tasks when possible, minimizing overheads like thread context switching and network I/O. Your pipeline, when optimized, turns into a directed acyclic graph of stages, each processing elements based on your code. Don't confuse stages with physical machines — they're separate concepts. In our job we measure backlog information by using Apache Beam's [`backlog_bytes` and `backlog_elements`](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/metrics/SourceMetrics.java#L32) metrics.
 
 <img class="center-block"
 src="/images/blog/apache-beam-flink-and-kubernetes-part3/flink-operator-chaining.png"
@@ -139,7 +139,7 @@ $`CPURate_desired = \frac{Worker_current}{Worker_new} CpuRate_current`$
 
 ## Executing Autoscaling Decision
 
-In Our Setup we use Reactive Mode which uses Adaptive Scheduler and Declarative Resources manager. We wanted to align resources with slots. As Adviced most of Flink documentation We set per vCPU one slot. Most of Our jobs uses 1 vCPU 4GB Memory combination for TaskManager.
+In our setup we use Reactive Mode which uses Adaptive Scheduler and Declarative Resources manager. We wanted to align resources with slots. As Advised in most of the Flink documentation we set one per vCPU slot. Most of our jobs use 1 vCPU 4GB Memory combination for TaskManager.
 
 Reactive Mode, a unique feature of the Adaptive Scheduler, operates under the principle of one job per cluster, a rule enforced in Application Mode. In this mode, a job is configured to utilize all available resources within the cluster. Adding a TaskManager will increase the job's scale, while removing resources will decrease it. In this setup, Flink autonomously manages the job's parallelism, always maximizing it.
 
@@ -159,7 +159,7 @@ In the kubernetes world, the call will look like this for a scale up:
 
 `kubectl scale flinkdeployment job-name --replicas=100`
 
-Rest of thing will be handled by Apache Flink.
+Apache Flink will handle the rest of the work needed to scale up.
 
 # References
 
