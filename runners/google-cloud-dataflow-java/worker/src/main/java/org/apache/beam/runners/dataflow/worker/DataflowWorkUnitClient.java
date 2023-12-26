@@ -31,14 +31,22 @@ import com.google.api.services.dataflow.model.LeaseWorkItemRequest;
 import com.google.api.services.dataflow.model.LeaseWorkItemResponse;
 import com.google.api.services.dataflow.model.ReportWorkItemStatusRequest;
 import com.google.api.services.dataflow.model.ReportWorkItemStatusResponse;
+import com.google.api.services.dataflow.model.SendWorkerMessagesRequest;
+import com.google.api.services.dataflow.model.SendWorkerMessagesResponse;
+import com.google.api.services.dataflow.model.StreamingScalingReport;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
+import com.google.api.services.dataflow.model.WorkerMessage;
+import com.google.api.services.dataflow.model.WorkerMessageResponse;
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
@@ -268,5 +276,43 @@ class DataflowWorkUnitClient implements WorkUnitClient {
     WorkItemServiceState state = result.getWorkItemServiceStates().get(0);
     logger.debug("ReportWorkItemStatus result: {}", state);
     return state;
+  }
+
+  /** Reports the autoscaling signals to dataflow */
+  @Override
+  public WorkerMessageResponse reportWorkerMessage(StreamingScalingReport report)
+      throws IOException {
+    DateTime endTime = DateTime.now();
+    logger.debug("Reporting WorkMessageResponse");
+    Map<String, String> labels =
+        new HashMap<String, String>(
+            ImmutableMap.of("JOB_ID", options.getJobId(), "WORKER_ID", options.getWorkerId()));
+    WorkerMessage msg =
+        new WorkerMessage()
+            .setTime(toCloudTime(endTime))
+            .setStreamingScalingReport(report)
+            .setLabels(labels);
+    SendWorkerMessagesRequest request =
+        new SendWorkerMessagesRequest()
+            .setLocation(options.getRegion())
+            .setWorkerMessages(Collections.singletonList(msg));
+    SendWorkerMessagesResponse result =
+        dataflow
+            .projects()
+            .locations()
+            .workerMessages(options.getProject(), options.getRegion(), request)
+            .execute();
+    if (result == null) {
+      logger.warn("Worker Message response is null");
+      throw new IOException("Got null Worker Message response");
+    }
+
+    // Currently no response is expected
+    if (result.getWorkerMessageResponses() == null) {
+      return new WorkerMessageResponse();
+    }
+    WorkerMessageResponse response = result.getWorkerMessageResponses().get(0);
+    logger.debug("Worker Message Response result: {}", response);
+    return response;
   }
 }

@@ -26,6 +26,7 @@ import com.google.api.services.dataflow.model.MapTask;
 import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
+import com.google.api.services.dataflow.model.StreamingScalingReport;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -1748,6 +1749,14 @@ public class StreamingDataflowWorker {
     maxOutstandingBundles.addValue(workUnitExecutor.maximumElementsOutstanding());
   }
 
+  private void sendWorkerMessage() throws IOException {
+    LOG.info("[chengedward] creating StreamingScalingReport");
+    StreamingScalingReport activeThreadsReport =
+        new StreamingScalingReport().setActiveThreadCount(workUnitExecutor.activeCount());
+    LOG.info("[chengedward] streaming active threads: " + workUnitExecutor.activeCount());
+    workUnitClient.reportWorkerMessage(activeThreadsReport);
+  }
+
   @VisibleForTesting
   public void reportPeriodicWorkerUpdates() {
     updateVMMetrics();
@@ -1758,6 +1767,13 @@ public class StreamingDataflowWorker {
       LOG.warn("Failed to send periodic counter updates", e);
     } catch (Exception e) {
       LOG.error("Unexpected exception while trying to send counter updates", e);
+    }
+    try {
+      sendWorkerMessage();
+    } catch (IOException e) {
+      LOG.warn("Failed to send worker messages", e);
+    } catch (Exception e) {
+      LOG.error("Unexpected exception while trying to send worker messages", e);
     }
   }
 
