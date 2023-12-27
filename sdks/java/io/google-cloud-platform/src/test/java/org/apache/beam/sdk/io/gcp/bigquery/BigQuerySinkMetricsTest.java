@@ -144,7 +144,7 @@ public class BigQuerySinkMetricsTest {
 
     int notFoundVal = Status.Code.NOT_FOUND.value();
     Throwable grpcError =
-        new Exceptions.AppendSerializtionError(notFoundVal, "Test Error", "Stream name", null);
+        new Exceptions.AppendSerializationError(notFoundVal, "Test Error", "Stream name", null);
     assertThat(BigQuerySinkMetrics.throwableToGRPCCodeString(grpcError), equalTo("NOT_FOUND"));
   }
 
@@ -220,7 +220,7 @@ public class BigQuerySinkMetricsTest {
     c.setOperationEndTime(t1.plusMillis(5));
     int notFoundVal = Status.Code.NOT_FOUND.value();
     Throwable grpcError =
-        new Exceptions.AppendSerializtionError(notFoundVal, "Test Error", "Stream name", null);
+        new Exceptions.AppendSerializationError(notFoundVal, "Test Error", "Stream name", null);
     c.setError(grpcError);
 
     // Test disabled SupportMetricsDeletion
