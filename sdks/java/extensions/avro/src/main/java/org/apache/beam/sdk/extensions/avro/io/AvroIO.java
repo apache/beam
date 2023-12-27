@@ -341,8 +341,8 @@ import org.joda.time.Duration;
  * }</pre>
  *
  * <p>Error handling for writing records that are malformed can be handled by using {@link
- * TypedWrite#withBadRecordErrorHandler(ErrorHandler)}. See documentation in
- * {@link FileIO} for details on usage
+ * TypedWrite#withBadRecordErrorHandler(ErrorHandler)}. See documentation in {@link FileIO} for
+ * details on usage
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -1724,9 +1724,7 @@ public class AvroIO {
       return toBuilder().setMetadata(ImmutableMap.copyOf(metadata)).build();
     }
 
-    /**
-     * See {@link FileIO.Write#withBadRecordErrorHandler(ErrorHandler)} for details on usage.
-     */
+    /** See {@link FileIO.Write#withBadRecordErrorHandler(ErrorHandler)} for details on usage. */
     public TypedWrite<UserT, DestinationT, OutputT> withBadRecordErrorHandler(
         ErrorHandler<BadRecord, ?> errorHandler) {
       return toBuilder().setBadRecordErrorHandler(errorHandler).build();
