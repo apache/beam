@@ -285,13 +285,12 @@ class MetricsReader(object):
       total_cost = compute_dataflow_cost(
           result=result, is_streaming_pipeline=self.is_streaming_pipeline)
       # we might need time.sleep here.
-      insert_dicts.append([
+      insert_dicts.append(
           Metric(
               submit_timestamp=time.time(),
               metric_id=metric_id,
               value=total_cost,
-              label='cost').as_dict()
-      ])
+              label='cost').as_dict())
       self._add_job_id_to_metrics(insert_dicts, job_id)
 
     if len(insert_dicts) > 0:
