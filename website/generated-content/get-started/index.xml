@@ -4874,6 +4874,7 @@ limitations under the License.
 &lt;/li>
 &lt;li>&lt;a href="#code-examples">Code Examples&lt;/a>
 &lt;ul>
+&lt;li>&lt;a href="#dataflow-cookbook">Dataflow Cookbook&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#java-2">Java&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#python-2">Python&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#beam-playground">Beam Playground&lt;/a>&lt;/li>
@@ -4993,11 +4994,14 @@ complexity. Beam Katas are available for both Java and Python SDKs.&lt;/p>
 &lt;li>&lt;a href="https://www.jetbrains.com/help/education/learner-start-guide.html?section=Introduction%20to%20Python#explore_course">Learn more&lt;/a> about how to use the Education product&lt;/li>
 &lt;/ul>
 &lt;h2 id="code-examples">Code Examples&lt;/h2>
+&lt;h3 id="dataflow-cookbook">Dataflow Cookbook&lt;/h3>
+&lt;p>The &lt;a href="https://github.com/GoogleCloudPlatform/dataflow-cookbook">cookbook&lt;/a> includes examples in Java, Python, and Scala (via Scio), provides ready-to-launch and self-contained Beam pipelines.&lt;/p>
 &lt;h3 id="java-2">Java&lt;/h3>
 &lt;ul>
 &lt;li>&lt;strong>&lt;a href="https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/cookbook">Snippets 1&lt;/a>&lt;/strong> - Commonly-used data analysis patterns such as how to use &lt;a href="https://cloud.google.com/bigquery">BigQuery&lt;/a>, a CombinePerKey transform, remove duplicate lines in files, filtering, joining PCollections, getting the maximum value of a PCollection, etc.&lt;/li>
 &lt;li>&lt;strong>&lt;a href="https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/common">Snippets 2&lt;/a>&lt;/strong> - Additional examples on common tasks such as configuring &lt;a href="https://cloud.google.com/bigquery">BigQuery&lt;/a>, &lt;a href="https://cloud.google.com/pubsub/">PubSub&lt;/a>, writing one file per window, etc.&lt;/li>
 &lt;li>&lt;strong>&lt;a href="https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/complete">Complete Examples&lt;/a>&lt;/strong> - End-to-end example pipelines such as an auto complete, a streaming word extract, calculating the Term Frequency-Inverse Document Frequency (&lt;a href="https://en.wikipedia.org/wiki/Tf%E2%80%93idf">TF-IDF&lt;/a>), getting the top Wikipedia sessions, traffic max lane flow, traffic routes, etc.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://github.com/GoogleCloudPlatform/cloud-code-samples/tree/v1/java/java-dataflow-samples/read-pubsub-write-bigquery">Pub/Sub to BigQuery&lt;/a>&lt;/strong> - A complete example demonstrates using Apache Beam on Dataflow to convert JSON encoded Pub/Sub subscription message strings into structured data and write that data to a BigQuery table.&lt;/li>
 &lt;/ul>
 &lt;h3 id="python-2">Python&lt;/h3>
 &lt;ul>
