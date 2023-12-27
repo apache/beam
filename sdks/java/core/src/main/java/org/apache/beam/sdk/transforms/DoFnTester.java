@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -582,6 +583,15 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo) {
+      outputWindowedValue(mainOutputTag, output, timestamp, windows, paneInfo);
+    }
+
+    @Override
     public <T> void output(TupleTag<T> tag, T output) {
       outputWithTimestamp(tag, output, element.getTimestamp());
     }
@@ -590,6 +600,18 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       getMutableOutput(tag)
           .add(ValueInSingleWindow.of(output, timestamp, element.getWindow(), element.getPane()));
+    }
+
+    @Override
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo) {
+      for (BoundedWindow w : windows) {
+        getMutableOutput(tag).add(ValueInSingleWindow.of(output, timestamp, w, paneInfo));
+      }
     }
   }
 

@@ -41,6 +41,7 @@ from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import external_transforms_pb2
+from apache_beam.portability.api import schema_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import artifact_service
 from apache_beam.transforms import environments
@@ -51,6 +52,7 @@ from apache_beam.typehints import row_type
 from apache_beam.typehints.schemas import named_fields_to_schema
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import named_tuple_to_schema
+from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import Union
 from apache_beam.typehints.typehints import UnionConstraint
@@ -450,8 +452,24 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
         schema = named_tuple_from_schema(proto_config.config_schema)
       except Exception as exn:
         if ignore_errors:
-          logging.info("Bad schema for %s: %s", identifier, str(exn)[:250])
-          continue
+          truncated_schema = schema_pb2.Schema()
+          truncated_schema.CopyFrom(proto_config.config_schema)
+          for field in truncated_schema.fields:
+            try:
+              typing_from_runner_api(field.type)
+            except Exception:
+              if field.type.nullable:
+                # Set it to an empty placeholder type.
+                field.type.CopyFrom(
+                    schema_pb2.FieldType(
+                        nullable=True,
+                        row_type=schema_pb2.RowType(
+                            schema=schema_pb2.Schema())))
+          try:
+            schema = named_tuple_from_schema(truncated_schema)
+          except Exception as exn:
+            logging.info("Bad schema for %s: %s", identifier, str(exn)[:250])
+            continue
         else:
           raise
 
@@ -1049,6 +1067,7 @@ class BeamJarExpansionService(JavaJarExpansionService):
       append_args=None):
     path_to_jar = subprocess_server.JavaJarServer.path_to_beam_jar(
         gradle_target, gradle_appendix)
+    self.gradle_target = gradle_target
     super().__init__(
         path_to_jar, extra_args, classpath=classpath, append_args=append_args)
 

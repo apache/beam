@@ -58,7 +58,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.MetricsLogger;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.internal.CustomSources;
@@ -288,6 +287,8 @@ public class StreamingDataflowWorker {
   // Possibly overridden by streaming engine config.
   private int maxWorkItemCommitBytes = Integer.MAX_VALUE;
 
+  private final DataflowExecutionStateSampler sampler = DataflowExecutionStateSampler.instance();
+
   @VisibleForTesting
   StreamingDataflowWorker(
       List<MapTask> mapTasks,
@@ -514,12 +515,8 @@ public class StreamingDataflowWorker {
   }
 
   /** Sets the stage name and workId of the current Thread for logging. */
-  private static void setUpWorkLoggingContext(Windmill.WorkItem workItem, String computationId) {
-    String workIdBuilder =
-        Long.toHexString(workItem.getShardingKey())
-            + '-'
-            + Long.toHexString(workItem.getWorkToken());
-    DataflowWorkerLoggingMDC.setWorkId(workIdBuilder);
+  private static void setUpWorkLoggingContext(String workId, String computationId) {
+    DataflowWorkerLoggingMDC.setWorkId(workId);
     DataflowWorkerLoggingMDC.setStageName(computationId);
   }
 
@@ -580,7 +577,7 @@ public class StreamingDataflowWorker {
     memoryMonitorThread.start();
     dispatchThread.start();
     commitThread.start();
-    ExecutionStateSampler.instance().start();
+    sampler.start();
 
     // Periodically report workers counters and other updates.
     globalWorkerUpdatesTimer = executorSupplier.apply("GlobalWorkerUpdatesTimer");
@@ -952,7 +949,7 @@ public class StreamingDataflowWorker {
     final ByteString key = workItem.getKey();
     work.setState(State.PROCESSING);
 
-    setUpWorkLoggingContext(workItem, computationId);
+    setUpWorkLoggingContext(work.getLatencyTrackingId(), computationId);
 
     LOG.debug("Starting processing for {}:\n{}", computationId, work);
 
@@ -998,7 +995,7 @@ public class StreamingDataflowWorker {
             (InstructionOutputNode) Iterables.getOnlyElement(mapTaskNetwork.successors(readNode));
         DataflowExecutionContext.DataflowExecutionStateTracker executionStateTracker =
             new DataflowExecutionContext.DataflowExecutionStateTracker(
-                ExecutionStateSampler.instance(),
+                sampler,
                 stageInfo
                     .executionStateRegistry()
                     .getState(
@@ -1008,7 +1005,7 @@ public class StreamingDataflowWorker {
                         ScopedProfiler.INSTANCE.emptyScope()),
                 stageInfo.deltaCounters(),
                 options,
-                computationId);
+                work.getLatencyTrackingId());
         StreamingModeExecutionContext context =
             new StreamingModeExecutionContext(
                 pendingDeltaCounters,
@@ -1167,7 +1164,8 @@ public class StreamingDataflowWorker {
 
       // Add the output to the commit queue.
       work.setState(State.COMMIT_QUEUED);
-      outputBuilder.addAllPerWorkItemLatencyAttributions(work.getLatencyAttributions());
+      outputBuilder.addAllPerWorkItemLatencyAttributions(
+          work.getLatencyAttributions(false, work.getLatencyTrackingId(), sampler));
 
       WorkItemCommitRequest commitRequest = outputBuilder.build();
       int byteLimit = maxWorkItemCommitBytes;
@@ -1297,6 +1295,7 @@ public class StreamingDataflowWorker {
         stageInfo.timerProcessingMsecs().addValue(processingTimeMsecs);
       }
 
+      sampler.resetForWorkId(work.getLatencyTrackingId());
       DataflowWorkerLoggingMDC.setWorkId(null);
       DataflowWorkerLoggingMDC.setStageName(null);
     }
@@ -1894,7 +1893,7 @@ public class StreamingDataflowWorker {
         clock.get().minus(Duration.millis(options.getActiveWorkRefreshPeriodMillis()));
 
     for (Map.Entry<String, ComputationState> entry : computationMap.entrySet()) {
-      active.put(entry.getKey(), entry.getValue().getKeysToRefresh(refreshDeadline));
+      active.put(entry.getKey(), entry.getValue().getKeysToRefresh(refreshDeadline, sampler));
     }
 
     metricTrackingWindmillServer.refreshActiveWork(active);

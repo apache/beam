@@ -55,12 +55,14 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 @RunWith(JUnit4.class)
 public class GrpcGetWorkerMetadataStreamTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final String IPV6_ADDRESS_1 = "2001:db8:0000:bac5:0000:0000:fed0:81a2";
   private static final String IPV6_ADDRESS_2 = "2001:db8:0000:bac5:0000:0000:fed0:82a3";
   private static final List<WorkerMetadataResponse.Endpoint> DIRECT_PATH_ENDPOINTS =

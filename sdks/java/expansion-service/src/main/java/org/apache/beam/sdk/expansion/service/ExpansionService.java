@@ -767,6 +767,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         transformProvider.getAllProviders()) {
       SchemaTransformConfig.Builder schemaTransformConfigBuilder =
           SchemaTransformConfig.newBuilder();
+      schemaTransformConfigBuilder.setDescription(provider.description());
       schemaTransformConfigBuilder.setConfigSchema(
           SchemaTranslation.schemaToProto(provider.configurationSchema(), true));
       schemaTransformConfigBuilder.addAllInputPcollectionNames(provider.inputCollectionNames());

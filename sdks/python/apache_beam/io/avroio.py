@@ -75,8 +75,15 @@ __all__ = [
 
 
 class ReadFromAvro(PTransform):
-  """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading avro
-  files."""
+  """A `PTransform` for reading records from avro files.
+
+  Each record of the resulting PCollection will contain
+  a single record read from a source. Records that are of simple types will be
+  mapped to beam Rows with a single `record` field containing the records
+  value. Records that are of Avro type ``RECORD`` will be mapped to Beam rows
+  that comply with the schema contained in the Avro file that contains those
+  records.
+  """
   def __init__(
       self,
       file_pattern=None,
@@ -355,7 +362,10 @@ _create_avro_source = _FastAvroSource
 
 
 class WriteToAvro(beam.transforms.PTransform):
-  """A ``PTransform`` for writing avro files."""
+  """A ``PTransform`` for writing avro files.
+
+  If the input has a schema, a corresponding avro schema will be automatically
+  generated and used to write the output records."""
   def __init__(
       self,
       file_path_prefix,

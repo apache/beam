@@ -55,7 +55,10 @@ import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -239,6 +242,37 @@ public class Create<T> {
   public static <T> TimestampedValues<T> timestamped(
       TimestampedValue<T> elem, @SuppressWarnings("unchecked") TimestampedValue<T>... elems) {
     return timestamped(ImmutableList.<TimestampedValue<T>>builder().add(elem).add(elems).build());
+  }
+
+  /**
+   * Returns a new {@link Create.WindowedValues} transform that produces a {@link PCollection}
+   * containing the elements of the provided {@code Iterable} with the specified windowing metadata.
+   *
+   * <p>The argument should not be modified after this is called.
+   *
+   * <p>By default, {@code Create.WindowedValues} can automatically determine the {@code Coder} to
+   * use if all elements have the same non-parameterized run-time class, and a default coder is
+   * registered for that class. See {@link CoderRegistry} for details on how defaults are
+   * determined. Otherwise, use {@link Create.WindowedValues#withCoder} to set the coder explicitly.
+   *
+   * <p>Likewise, the window coder can be inferred if the window type is registered with the {@link
+   * CoderRegistry}. Otherwise, use {@link Create.WindowedValues#withWindowCoder(Coder)} to set the
+   * window coder explicitly.
+   */
+  public static <T> WindowedValues<T> windowedValues(Iterable<WindowedValue<T>> elems) {
+    return new WindowedValues<>(elems, Optional.absent(), Optional.absent(), Optional.absent());
+  }
+
+  /**
+   * Returns a new {@link Create.WindowedValues} transform that produces a {@link PCollection}
+   * containing the specified elements with the specified windowing metadata.
+   *
+   * <p>The arguments should not be modified after this is called.
+   */
+  @SafeVarargs
+  public static <T> WindowedValues<T> windowedValues(
+      WindowedValue<T> elem, @SuppressWarnings("unchecked") WindowedValue<T>... elems) {
+    return windowedValues(ImmutableList.<WindowedValue<T>>builder().add(elem).add(elems).build());
   }
 
   /**
@@ -723,6 +757,163 @@ public class Create<T> {
       @ProcessElement
       public void processElement(@Element TimestampedValue<T> element, OutputReceiver<T> r) {
         r.outputWithTimestamp(element.getValue(), element.getTimestamp());
+      }
+    }
+  }
+
+  /**
+   * A {@code PTransform} that creates a {@code PCollection} whose elements have associated
+   * windowing metadata.
+   */
+  public static class WindowedValues<T> extends PTransform<PBegin, PCollection<T>> {
+
+    /**
+     * Returns a {@link Create.WindowedValues} PTransform like this one that uses the given {@code
+     * Coder<T>} to decode each of the objects into a value of type {@code T}.
+     *
+     * <p>By default, {@code Create.TimestampedValues} can automatically determine the {@code Coder}
+     * to use if all elements have the same non-parameterized run-time class, and a default coder is
+     * registered for that class. See {@link CoderRegistry} for details on how defaults are
+     * determined.
+     *
+     * <p>Note that for {@link Create.WindowedValues with no elements}, the {@link VoidCoder} is
+     * used.
+     */
+    public WindowedValues<T> withCoder(Coder<T> coder) {
+      return new WindowedValues<>(windowedValues, Optional.of(coder), windowCoder, typeDescriptor);
+    }
+
+    /**
+     * Returns a {@link Create.WindowedValues} PTransform like this one that uses the given {@code
+     * Coder<T>} to decode each of the objects into a value of type {@code T}.
+     *
+     * <p>By default, {@code Create.WindowedValues} can automatically determine the {@code Coder} to
+     * use if all elements have the same non-parameterized run-time class, and a default coder is
+     * registered for that class. See {@link CoderRegistry} for details on how defaults are
+     * determined.
+     *
+     * <p>Note that for {@link Create.WindowedValues with no elements}, the {@link
+     * GlobalWindow.Coder} is used.
+     */
+    public WindowedValues<T> withWindowCoder(Coder<? extends BoundedWindow> windowCoder) {
+      return new WindowedValues<>(
+          windowedValues, elementCoder, Optional.of(windowCoder), typeDescriptor);
+    }
+
+    /**
+     * Returns a {@link Create.WindowedValues} PTransform like this one that uses the given {@code
+     * Schema} to represent objects.
+     */
+    public WindowedValues<T> withSchema(
+        Schema schema,
+        TypeDescriptor<T> typeDescriptor,
+        SerializableFunction<T, Row> toRowFunction,
+        SerializableFunction<Row, T> fromRowFunction) {
+      return withCoder(SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction));
+    }
+
+    /**
+     * Returns a {@link Create.WindowedValues} PTransform like this one that uses the given {@code
+     * TypeDescriptor<T>} to determine the {@code Coder} to use to decode each of the objects into a
+     * value of type {@code T}. Note that a default coder must be registered for the class described
+     * in the {@code TypeDescriptor<T>}.
+     *
+     * <p>By default, {@code Create.TimestampedValues} can automatically determine the {@code Coder}
+     * to use if all elements have the same non-parameterized run-time class, and a default coder is
+     * registered for that class. See {@link CoderRegistry} for details on how defaults are
+     * determined.
+     *
+     * <p>Note that for {@link Create.WindowedValues} with no elements, the {@link VoidCoder} is
+     * used.
+     */
+    public WindowedValues<T> withType(TypeDescriptor<T> type) {
+      return new WindowedValues<>(windowedValues, elementCoder, windowCoder, Optional.of(type));
+    }
+
+    @Override
+    public PCollection<T> expand(PBegin input) {
+      try {
+        Coder<T> coder = null;
+        CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
+        SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
+        if (elementCoder.isPresent()) {
+          coder = elementCoder.get();
+        } else if (typeDescriptor.isPresent()) {
+          try {
+            coder =
+                SchemaCoder.of(
+                    schemaRegistry.getSchema(typeDescriptor.get()),
+                    typeDescriptor.get(),
+                    schemaRegistry.getToRowFunction(typeDescriptor.get()),
+                    schemaRegistry.getFromRowFunction(typeDescriptor.get()));
+          } catch (NoSuchSchemaException e) {
+            // No schema registered.
+          }
+          if (coder == null) {
+            coder = coderRegistry.getCoder(typeDescriptor.get());
+          }
+        } else {
+          Iterable<T> rawElements = Iterables.transform(windowedValues, WindowedValue::getValue);
+          coder = getDefaultCreateCoder(coderRegistry, schemaRegistry, rawElements);
+        }
+
+        Coder<? extends BoundedWindow> windowCoder;
+        if (this.windowCoder.isPresent()) {
+          windowCoder = this.windowCoder.get();
+        } else if (Iterables.isEmpty(windowedValues)) {
+          windowCoder = GlobalWindow.Coder.INSTANCE;
+        } else {
+          Iterable<? extends BoundedWindow> rawWindows =
+              Iterables.concat(Iterables.transform(windowedValues, WindowedValue::getWindows));
+          windowCoder = getDefaultCreateCoder(coderRegistry, schemaRegistry, rawWindows);
+        }
+
+        PCollection<WindowedValue<T>> intermediate =
+            Pipeline.applyTransform(
+                input,
+                Create.of(windowedValues)
+                    .withCoder(WindowedValue.getFullCoder(coder, windowCoder)));
+
+        PCollection<T> output = intermediate.apply(ParDo.of(new ConvertWindowedValues<>()));
+        output.setCoder(coder);
+        return output;
+      } catch (CannotProvideCoderException e) {
+        throw new IllegalArgumentException(
+            "Unable to infer a coder and no Coder was specified. "
+                + "Please set a coder by invoking CreateTimestamped.withCoder() explicitly.",
+            e);
+      }
+    }
+
+    /////////////////////////////////////////////////////////////////////////////
+
+    /** The timestamped elements of the resulting PCollection. */
+    private final transient Iterable<WindowedValue<T>> windowedValues;
+
+    /** The coder used to encode the values to and from a binary representation. */
+    private final transient Optional<Coder<T>> elementCoder;
+
+    private final Optional<Coder<? extends BoundedWindow>> windowCoder;
+
+    /** The value type. */
+    private final transient Optional<TypeDescriptor<T>> typeDescriptor;
+
+    private WindowedValues(
+        Iterable<WindowedValue<T>> windowedValues,
+        Optional<Coder<T>> elementCoder,
+        Optional<Coder<? extends BoundedWindow>> windowCoder,
+        Optional<TypeDescriptor<T>> typeDescriptor) {
+      this.windowedValues = windowedValues;
+      this.elementCoder = elementCoder;
+      this.windowCoder = windowCoder;
+      this.typeDescriptor = typeDescriptor;
+    }
+
+    private static class ConvertWindowedValues<T> extends DoFn<WindowedValue<T>, T> {
+      @ProcessElement
+      public void processElement(@Element WindowedValue<T> element, OutputReceiver<T> r) {
+        r.outputWindowedValue(
+            element.getValue(), element.getTimestamp(), element.getWindows(), element.getPane());
       }
     }
   }

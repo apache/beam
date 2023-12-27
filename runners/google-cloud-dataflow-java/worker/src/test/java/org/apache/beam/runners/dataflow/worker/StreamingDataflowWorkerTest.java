@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -174,6 +175,7 @@ import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -195,7 +197,6 @@ import org.slf4j.LoggerFactory;
 // released (2.11.0)
 @SuppressWarnings("unused")
 public class StreamingDataflowWorkerTest {
-
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorkerTest.class);
   private static final IntervalWindow DEFAULT_WINDOW =
       new IntervalWindow(new Instant(1234), Duration.millis(1000));
@@ -3274,7 +3275,8 @@ public class StreamingDataflowWorkerTest {
     work.setState(Work.State.COMMITTING);
     clock.sleep(Duration.millis(60));
 
-    Iterator<LatencyAttribution> it = work.getLatencyAttributions().iterator();
+    Iterator<LatencyAttribution> it =
+        work.getLatencyAttributions(false, "", DataflowExecutionStateSampler.instance()).iterator();
     assertTrue(it.hasNext());
     LatencyAttribution lat = it.next();
     assertSame(State.QUEUED, lat.getState());
@@ -3487,12 +3489,19 @@ public class StreamingDataflowWorkerTest {
 
     worker.stop();
 
-    assertEquals(
-        workItemCommitRequest.get((long) workToken).getPerWorkItemLatencyAttributions(0),
+    LatencyAttribution.Builder expectedActiveLA =
         LatencyAttribution.newBuilder()
             .setState(State.ACTIVE)
-            .setTotalDurationMillis(dofnWaitTimeMs)
-            .build());
+            .setTotalDurationMillis(dofnWaitTimeMs);
+    assertThat(
+        workItemCommitRequest.get((long) workToken).getPerWorkItemLatencyAttributions(0),
+        hasProperty("state", Matchers.equalTo(State.ACTIVE)));
+    assertThat(
+        workItemCommitRequest.get((long) workToken).getPerWorkItemLatencyAttributions(0),
+        hasProperty("totalDurationMillis", Matchers.equalTo(1000L)));
+    assertThat(
+        workItemCommitRequest.get((long) workToken).getPerWorkItemLatencyAttributions(0),
+        hasProperty("activeLatencyBreakdown"));
     if (streamingEngine) {
       // Initial fake latency provided to FakeWindmillServer when invoke receiveWork in
       // GetWorkStream().
@@ -3503,6 +3512,75 @@ public class StreamingDataflowWorkerTest {
               .setTotalDurationMillis(1000)
               .build());
     }
+  }
+
+  @Test
+  public void testDoFnLatencyBreakdownsReportedOnCommit() throws Exception {
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(StringUtf8Coder.of()),
+            makeDoFnInstruction(new SlowDoFn(), 0, StringUtf8Coder.of()),
+            makeSinkInstruction(StringUtf8Coder.of(), 0));
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    options.setActiveWorkRefreshPeriodMillis(100);
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
+    worker.start();
+
+    server.whenGetWorkCalled().thenReturn(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0)));
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+    Windmill.WorkItemCommitRequest commit = result.get(0L);
+
+    Windmill.LatencyAttribution.Builder laBuilder =
+        LatencyAttribution.newBuilder().setState(State.ACTIVE).setTotalDurationMillis(100);
+    for (LatencyAttribution la : commit.getPerWorkItemLatencyAttributionsList()) {
+      if (la.getState() == State.ACTIVE) {
+        assertThat(la.getActiveLatencyBreakdownCount(), equalTo(1));
+        assertThat(
+            la.getActiveLatencyBreakdown(0).getUserStepName(), equalTo(DEFAULT_PARDO_USER_NAME));
+        Assert.assertTrue(la.getActiveLatencyBreakdown(0).hasProcessingTimesDistribution());
+        Assert.assertFalse(la.getActiveLatencyBreakdown(0).hasActiveMessageMetadata());
+      }
+    }
+
+    worker.stop();
+  }
+
+  @Test
+  public void testDoFnActiveMessageMetadataReportedOnHeartbeat() throws Exception {
+    if (!streamingEngine) {
+      return;
+    }
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(StringUtf8Coder.of()),
+            makeDoFnInstruction(new SlowDoFn(), 0, StringUtf8Coder.of()),
+            makeSinkInstruction(StringUtf8Coder.of(), 0));
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    options.setActiveWorkRefreshPeriodMillis(10);
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
+    worker.start();
+
+    server.whenGetWorkCalled().thenReturn(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0)));
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+
+    assertThat(server.numGetDataRequests(), greaterThan(0));
+    Windmill.GetDataRequest heartbeat = server.getGetDataRequests().get(2);
+
+    for (LatencyAttribution la :
+        heartbeat.getRequests(0).getRequests(0).getLatencyAttributionList()) {
+      if (la.getState() == State.ACTIVE) {
+        assertTrue(la.getActiveLatencyBreakdownCount() > 0);
+        assertTrue(la.getActiveLatencyBreakdown(0).hasActiveMessageMetadata());
+      }
+    }
+
+    worker.stop();
   }
 
   @Test

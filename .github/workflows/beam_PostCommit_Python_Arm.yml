@@ -114,10 +114,10 @@ jobs:
           MULTIARCH_TAG: ${{ steps.set_tag.outputs.TAG }}
           USER: github-actions
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: Python Test Results
+          name: Python ${{ matrix.python_version }} Test Results
           path: '**/pytest*.xml'
       - name: Publish Python Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2

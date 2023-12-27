@@ -680,7 +680,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
           }
           if (!rowIndexToErrorMessage.isEmpty()) {
             return ApiFutures.immediateFailedFuture(
-                new Exceptions.AppendSerializtionError(
+                new Exceptions.AppendSerializationError(
                     Code.INVALID_ARGUMENT.getNumber(),
                     "Append serialization failed for writer: " + streamName,
                     stream.streamName,

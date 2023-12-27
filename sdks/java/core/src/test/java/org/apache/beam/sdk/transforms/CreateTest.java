@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -57,7 +58,11 @@ import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create.Values.CreateSource;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -240,6 +245,22 @@ public class CreateTest {
     }
   }
 
+  private static class FormatMetadata extends DoFn<String, String> {
+    @ProcessElement
+    public void processElement(
+        @Element String e,
+        @Timestamp Instant timestamp,
+        BoundedWindow w,
+        PaneInfo p,
+        OutputReceiver<String> o) {
+      o.output(formatMetadata(e, timestamp, w, p));
+    }
+  }
+
+  private static String formatMetadata(String s, Instant timestamp, BoundedWindow w, PaneInfo p) {
+    return s + ":" + timestamp.getMillis() + ":" + w + ":" + p;
+  }
+
   @Test
   @Category(NeedsRunner.class)
   public void testCreateTimestamped() {
@@ -319,6 +340,66 @@ public class CreateTest {
                 TimestampedValue.of(new Record2(), new Instant(0)))
             .withType(new TypeDescriptor<Record>() {});
     assertThat(p.apply(values).getCoder(), equalTo(coder));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testCreateWindowedValues() {
+    List<WindowedValue<String>> data =
+        Arrays.asList(
+            WindowedValue.of("a", new Instant(1L), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
+            WindowedValue.of("b", new Instant(2L), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
+            WindowedValue.of(
+                "c", new Instant(3L), GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING));
+
+    // The easiest way to directly check the created PCollection with PAssert and without relying on
+    // other
+    // mechanisms than built-in DoFn processing is to dump it all to a string.
+    List<String> formattedData =
+        data.stream()
+            .flatMap(
+                (WindowedValue<String> windowedValue) ->
+                    windowedValue.getWindows().stream()
+                        .map(
+                            (BoundedWindow w) ->
+                                formatMetadata(
+                                    windowedValue.getValue(),
+                                    windowedValue.getTimestamp(),
+                                    w,
+                                    windowedValue.getPane())))
+            .collect(Collectors.toList());
+
+    PCollection<String> output =
+        p.apply(Create.windowedValues(data).withWindowCoder(GlobalWindow.Coder.INSTANCE))
+            .apply(ParDo.of(new FormatMetadata()));
+
+    PAssert.that(output).containsInAnyOrder(formattedData);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testCreateWindowedValuesEmpty() {
+    PCollection<String> output =
+        p.apply(
+            Create.windowedValues(new ArrayList<WindowedValue<String>>())
+                .withCoder(StringUtf8Coder.of()));
+
+    PAssert.that(output).empty();
+    p.run();
+  }
+
+  @Test
+  public void testCreateWindowedValuesEmptyUnspecifiedCoder() {
+    p.enableAbandonedNodeEnforcement(false);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("determine a default Coder");
+    thrown.expectMessage("Create.empty(Coder)");
+    thrown.expectMessage("Create.empty(TypeDescriptor)");
+    thrown.expectMessage("withCoder(Coder)");
+    thrown.expectMessage("withType(TypeDescriptor)");
+    p.apply(Create.windowedValues(new ArrayList<>()));
   }
 
   @Test

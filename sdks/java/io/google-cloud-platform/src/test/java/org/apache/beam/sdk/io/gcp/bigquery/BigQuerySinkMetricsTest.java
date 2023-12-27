@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
@@ -36,6 +38,7 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Test;
@@ -141,7 +144,7 @@ public class BigQuerySinkMetricsTest {
 
     int notFoundVal = Status.Code.NOT_FOUND.value();
     Throwable grpcError =
-        new Exceptions.AppendSerializtionError(notFoundVal, "Test Error", "Stream name", null);
+        new Exceptions.AppendSerializationError(notFoundVal, "Test Error", "Stream name", null);
     assertThat(BigQuerySinkMetrics.throwableToGRPCCodeString(grpcError), equalTo("NOT_FOUND"));
   }
 
@@ -217,7 +220,7 @@ public class BigQuerySinkMetricsTest {
     c.setOperationEndTime(t1.plusMillis(5));
     int notFoundVal = Status.Code.NOT_FOUND.value();
     Throwable grpcError =
-        new Exceptions.AppendSerializtionError(notFoundVal, "Test Error", "Stream name", null);
+        new Exceptions.AppendSerializationError(notFoundVal, "Test Error", "Stream name", null);
     c.setError(grpcError);
 
     // Test disabled SupportMetricsDeletion
@@ -300,5 +303,46 @@ public class BigQuerySinkMetricsTest {
     assertThat(
         testContainer.perWorkerHistograms.get(KV.of(histogramName, bucketType)).values,
         containsInAnyOrder(Double.valueOf(15.0)));
+  }
+
+  @Test
+  public void testParseMetricName_noLabels() {
+    String baseMetricName = "baseMetricName";
+    BigQuerySinkMetrics.ParsedMetricName metricName =
+        BigQuerySinkMetrics.ParsedMetricName.create(baseMetricName);
+
+    assertThat(BigQuerySinkMetrics.parseMetricName(baseMetricName), equalTo(metricName));
+  }
+
+  @Test
+  public void testParseMetricName_successfulLabels() {
+    String metricName = "baseLabel-key1:val1;key2:val2;key3:val3;";
+    ImmutableMap<String, String> metricLabels =
+        ImmutableMap.of("key1", "val1", "key2", "val2", "key3", "val3");
+    BigQuerySinkMetrics.ParsedMetricName expectedName =
+        BigQuerySinkMetrics.ParsedMetricName.create("baseLabel", metricLabels);
+
+    assertThat(BigQuerySinkMetrics.parseMetricName(metricName), equalTo(expectedName));
+  }
+
+  @Test
+  public void testParseMetricName_malformedMetricName() {
+    String malformedMetricName = "baseLabel-key1:val1-key2:val2";
+    assertThat(BigQuerySinkMetrics.parseMetricName(malformedMetricName), is(nullValue()));
+  }
+
+  @Test
+  public void testParseMetricName_malformedMetricLabels() {
+    String metricName = "baseLabel-key1:val1:malformedField;key2:val2;";
+    ImmutableMap<String, String> metricLabels = ImmutableMap.of("key2", "val2");
+    BigQuerySinkMetrics.ParsedMetricName expectedName =
+        BigQuerySinkMetrics.ParsedMetricName.create("baseLabel", metricLabels);
+
+    assertThat(BigQuerySinkMetrics.parseMetricName(metricName), equalTo(expectedName));
+  }
+
+  @Test
+  public void testParseMetricName_emptyString() {
+    assertThat(BigQuerySinkMetrics.parseMetricName(""), is(nullValue()));
   }
 }

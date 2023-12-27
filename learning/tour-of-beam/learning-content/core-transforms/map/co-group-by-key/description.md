@@ -235,7 +235,7 @@ static class ProductWeight {
         private String fruit;
         private Integer productWeight;
 
-        public WordsAlphabet(String country, String fruit, Integer productWeight) {
+        public ProductWeight(String country, String fruit, Integer productWeight) {
             this.country = country;
             this.fruit = fruit;
             this.productWeight = productWeight;
@@ -275,7 +275,7 @@ static PCollection<String> applyTransform(PCollection<String> fruits, PCollectio
                         String fruit = coGbkResult.getOnly(fruitsTag);
                         String country = coGbkResult.getOnly(countriesTag);
 
-                        out.output(new WordsAlphabet(alphabet, fruit, country).toString());
+                        out.output(new ProductWeight(alphabet, fruit, country).toString());
                     }
 
                 }));
@@ -284,42 +284,28 @@ static PCollection<String> applyTransform(PCollection<String> fruits, PCollectio
 {{end}}
 {{if (eq .Sdk "python")}}
 ```
-weight := beam.ParDo(s, func(_ []byte, emit func(string, int)){
-		emit("brazil", 1000)
-		emit("australia", 150)
-		emit("canada", 340)
-}, beam.Impulse(s))
-
-fruits := beam.ParDo(s, func(_ []byte, emit func(string, string)){
-		emit("australia", "cherry")
-		emit("brazil", "apple")
-		emit("canada", "banan")
-}, beam.Impulse(s))
+fruits = p | 'Fruits' >> beam.Create([('australia', 'cherry'), ('brazil', 'apple'), ('canada', 'banana')])
+weights = p | 'Countries' >> beam.Create([('australia', 1000), ('brazil', 150), ('canada', 340)])
 ```
 
-Change `Alphabet` to `ProductWeight`:
+Change `alphabet` to `product_weight`:
 ```
-type WordsAlphabet struct {
-	Country string
-	Fruit string
-	ProductWeight int
-}
+class ProductWeight:
+    def __init__(self, product_weight, fruit, country):
+        self.product_weight = product_weight
+        self.fruit = fruit
+        self.country = country
 ```
 
 The union takes place through the keys:
 ```
-func applyTransform(s beam.Scope, fruits beam.PCollection, countries beam.PCollection) beam.PCollection {
-	grouped := beam.CoGroupByKey(s, fruits, countries)
-	return beam.ParDo(s, func(key string, weightIter func(*int) bool, fruitIter func(*string) bool, emit func(string)) {
+def apply_transforms(fruits, weights):
+    def cogbk_result_to_product_weight(cgbk_result):
+        (country, values) = cgbk_result
+        return ProductWeight(values['weights'][0], values['fruits'][0], country)
 
-	wa := &WordsAlphabet{
-		Country: key,
-	}
-	weightIter(&wa.ProductWeight)
-	fruitIter(&wa.Fruit)
-    emit(wa.String())
-
-	}, grouped)
-}
+    return ({'fruits': fruits, 'weights': weights}
+            | beam.CoGroupByKey()
+            | beam.Map(cogbk_result_to_product_weight))
 ```
 {{end}}

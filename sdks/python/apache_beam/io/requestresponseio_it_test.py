@@ -23,10 +23,13 @@ from typing import Union
 
 import urllib3
 
+import apache_beam as beam
 from apache_beam.io.requestresponseio import Caller
+from apache_beam.io.requestresponseio import RequestResponseIO
 from apache_beam.io.requestresponseio import UserCodeExecutionException
 from apache_beam.io.requestresponseio import UserCodeQuotaException
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.testing.test_pipeline import TestPipeline
 
 _HTTP_PATH = '/v1/echo'
 _PAYLOAD = base64.b64encode(bytes('payload', 'utf-8'))
@@ -86,7 +89,6 @@ class EchoHTTPCaller(Caller):
         ``UserCodeExecutionException``, ``UserCodeTimeoutException``,
         or a ``UserCodeQuotaException``.
         """
-
     try:
       resp = urllib3.request(
           "POST",
@@ -104,8 +106,8 @@ class EchoHTTPCaller(Caller):
 
       if resp.status == 429:  # Too Many Requests
         raise UserCodeQuotaException(resp.reason)
-
-      raise UserCodeExecutionException(resp.reason)
+      else:
+        raise UserCodeExecutionException(resp.status, resp.reason, request)
 
     except urllib3.exceptions.HTTPError as e:
       raise UserCodeExecutionException(e)
@@ -166,6 +168,16 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
     req = EchoRequest(id='i-dont-exist-quota-id', payload=_PAYLOAD)
     self.assertRaisesRegex(
         UserCodeExecutionException, "Not Found", lambda: client(req))
+
+  def test_request_response_io(self):
+    client, options = EchoHTTPCallerTestIT._get_client_and_options()
+    req = EchoRequest(id=options.never_exceed_quota_id, payload=_PAYLOAD)
+    with TestPipeline(is_integration_test=True) as test_pipeline:
+      output = (
+          test_pipeline
+          | 'Create PCollection' >> beam.Create([req])
+          | 'RRIO Transform' >> RequestResponseIO(client))
+      self.assertIsNotNone(output)
 
 
 if __name__ == '__main__':

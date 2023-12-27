@@ -51,4 +51,10 @@ public class PipelineUtilsTest {
     String name = "create-job-name";
     assertEquals(name, extractJobName(createJobName(name)));
   }
+
+  @Test
+  public void testCreateExtractJobNameWithRandomChars() {
+    String name = "create-job-name";
+    assertEquals(name, extractJobName(createJobName(name, 8)));
+  }
 }

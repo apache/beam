@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -413,22 +414,40 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      checkTimestamp(elem.getTimestamp(), timestamp);
       outputWithTimestamp(mainOutputTag, output, timestamp);
+    }
+
+    @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo) {
+      outputWindowedValue(mainOutputTag, output, timestamp, windows, paneInfo);
     }
 
     @Override
     public <T> void output(TupleTag<T> tag, T output) {
       checkNotNull(tag, "Tag passed to output cannot be null");
-      outputWindowedValue(tag, elem.withValue(output));
+      SimpleDoFnRunner.this.outputWindowedValue(tag, elem.withValue(output));
     }
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       checkNotNull(tag, "Tag passed to outputWithTimestamp cannot be null");
       checkTimestamp(elem.getTimestamp(), timestamp);
-      outputWindowedValue(
-          tag, WindowedValue.of(output, timestamp, elem.getWindows(), elem.getPane()));
+      outputWindowedValue(tag, output, timestamp, elem.getWindows(), elem.getPane());
+    }
+
+    @Override
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo) {
+      SimpleDoFnRunner.this.outputWindowedValue(
+          tag, WindowedValue.of(output, timestamp, windows, paneInfo));
     }
 
     @Override
@@ -839,15 +858,37 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo) {
+      outputWindowedValue(mainOutputTag, output, timestamp, windows, paneInfo);
+    }
+
+    @Override
     public <T> void output(TupleTag<T> tag, T output) {
       checkTimestamp(timestamp(), timestamp);
-      outputWindowedValue(tag, WindowedValue.of(output, timestamp, window(), PaneInfo.NO_FIRING));
+      outputWithTimestamp(tag, output, timestamp);
     }
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       checkTimestamp(timestamp(), timestamp);
-      outputWindowedValue(tag, WindowedValue.of(output, timestamp, window(), PaneInfo.NO_FIRING));
+      outputWindowedValue(
+          tag, output, timestamp, Collections.singleton(window()), PaneInfo.NO_FIRING);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo) {
+      checkTimestamp(timestamp(), timestamp);
+      SimpleDoFnRunner.this.outputWindowedValue(
+          tag, WindowedValue.of(output, timestamp, windows, paneInfo));
     }
 
     @Override
@@ -1046,15 +1087,37 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo) {
+      outputWindowedValue(mainOutputTag, output, timestamp, windows, paneInfo);
+    }
+
+    @Override
     public <T> void output(TupleTag<T> tag, T output) {
       checkTimestamp(this.timestamp, timestamp);
-      outputWindowedValue(tag, WindowedValue.of(output, timestamp, window(), PaneInfo.NO_FIRING));
+      outputWithTimestamp(tag, output, timestamp);
     }
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       checkTimestamp(this.timestamp, timestamp);
-      outputWindowedValue(tag, WindowedValue.of(output, timestamp, window(), PaneInfo.NO_FIRING));
+      outputWindowedValue(
+          tag, output, timestamp, Collections.singleton(window()), PaneInfo.NO_FIRING);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo) {
+      checkTimestamp(this.timestamp, timestamp);
+      SimpleDoFnRunner.this.outputWindowedValue(
+          tag, WindowedValue.of(output, timestamp, windows, paneInfo));
     }
 
     @Override

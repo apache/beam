@@ -48,6 +48,17 @@ from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_provider import dicts_to_rows
 
 
+def normalize_mapping(spec):
+  """
+  Normalizes various fields for mapping transforms.
+  """
+  if spec['type'] == 'MapToFields':
+    config = spec.get('config')
+    if isinstance(config.get('drop'), str):
+      config['drop'] = [config['drop']]
+  return spec
+
+
 def _check_mapping_arguments(
     transform_name, expression=None, callable=None, name=None, path=None):
   # Argument checking
@@ -326,6 +337,28 @@ def maybe_with_exception_handling_transform_fn(transform_fn):
 
 
 class _Explode(beam.PTransform):
+  """Explodes (aka unnest/flatten) one or more fields producing multiple rows.
+
+  Given one or more fields of iterable type, produces multiple rows, one for
+  each value of that field. For example, a row of the form `('a', [1, 2, 3])`
+  would expand to `('a', 1)`, `('a', 2')`, and `('a', 3)` when exploded on
+  the second field.
+
+  This is akin to a `FlatMap` when paired with the MapToFields transform.
+
+  Args:
+      fields: The list of fields to expand.
+      cross_product: If multiple fields are specified, indicates whether the
+          full cross-product of combinations should be produced, or if the
+          first element of the first field corresponds to the first element
+          of the second field, etc. For example, the row
+          `(['a', 'b'], [1, 2])` would expand to the four rows
+          `('a', 1)`, `('a', 2)`, `('b', 1)`, and `('b', 2)` when
+          `cross_product` is set to `true` but only the two rows
+          `('a', 1)` and `('b', 2)` when it is set to `false`.
+          Only meaningful (and required) if multiple rows are specified.
+      error_handling: Whether and how to handle errors during iteration.
+  """
   def __init__(
       self,
       fields: Union[str, Collection[str]],
@@ -431,8 +464,6 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
       raise ValueError("Can only use expressions on a schema'd input.") from exn
     input_schema = {}
 
-  if isinstance(drop, str):
-    drop = [drop]
   if drop and not append:
     raise ValueError("Can only drop fields if append is true.")
   for name in drop:

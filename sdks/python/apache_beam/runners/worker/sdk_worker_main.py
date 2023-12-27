@@ -103,10 +103,9 @@ def create_harness(environment, dry_run=False):
   pickle_library = sdk_pipeline_options.view_as(SetupOptions).pickle_library
   pickler.set_library(pickle_library)
 
-  if 'SEMI_PERSISTENT_DIRECTORY' in environment:
-    semi_persistent_directory = environment['SEMI_PERSISTENT_DIRECTORY']
-  else:
-    semi_persistent_directory = None
+  semi_persistent_directory = environment.get('SEMI_PERSISTENT_DIRECTORY', None)
+  runner_capabilities = frozenset(
+      environment.get('RUNNER_CAPABILITIES', '').split())
 
   _LOGGER.info('semi_persistent_directory: %s', semi_persistent_directory)
   _worker_id = environment.get('WORKER_ID', None)
@@ -167,7 +166,8 @@ def create_harness(environment, dry_run=False):
           sdk_pipeline_options.view_as(ProfilingOptions)),
       enable_heap_dump=enable_heap_dump,
       data_sampler=data_sampler,
-      deferred_exception=deferred_exception)
+      deferred_exception=deferred_exception,
+      runner_capabilities=runner_capabilities)
   return fn_log_handler, sdk_harness, sdk_pipeline_options
 
 

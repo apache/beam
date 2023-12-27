@@ -54,7 +54,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncodin
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
@@ -69,6 +71,7 @@ import org.mockito.MockitoAnnotations;
   "FutureReturnValueIgnored",
 })
 public class WindmillStateReaderTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final VarIntCoder INT_CODER = VarIntCoder.of();
 
   private static final String COMPUTATION = "computation";

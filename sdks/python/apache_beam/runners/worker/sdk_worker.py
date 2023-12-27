@@ -174,6 +174,7 @@ class SdkHarness(object):
       # Unrecoverable SDK harness initialization error (if any)
       # that should be reported to the runner when proocessing the first bundle.
       deferred_exception=None, # type: Optional[Exception]
+      runner_capabilities=frozenset(), # type: FrozenSet[str]
   ):
     # type: (...) -> None
     self._alive = True
@@ -202,6 +203,7 @@ class SdkHarness(object):
         self._state_cache, credentials)
     self._profiler_factory = profiler_factory
     self.data_sampler = data_sampler
+    self.runner_capabilities = runner_capabilities
 
     def default_factory(id):
       # type: (str) -> beam_fn_api_pb2.ProcessBundleDescriptor
@@ -212,6 +214,7 @@ class SdkHarness(object):
     self._fns = KeyedDefaultDict(default_factory)
     # BundleProcessor cache across all workers.
     self._bundle_processor_cache = BundleProcessorCache(
+        self.runner_capabilities,
         state_handler_factory=self._state_handler_factory,
         data_channel_factory=self._data_channel_factory,
         fns=self._fns,
@@ -419,12 +422,14 @@ class BundleProcessorCache(object):
 
   def __init__(
       self,
+      runner_capabilities,  # type: FrozenSet[str]
       state_handler_factory,  # type: StateHandlerFactory
       data_channel_factory,  # type: data_plane.DataChannelFactory
       fns,  # type: MutableMapping[str, beam_fn_api_pb2.ProcessBundleDescriptor]
       data_sampler=None,  # type: Optional[data_sampler.DataSampler]
   ):
     # type: (...) -> None
+    self.runner_capabilities = runner_capabilities
     self.fns = fns
     self.state_handler_factory = state_handler_factory
     self.data_channel_factory = data_channel_factory
@@ -484,10 +489,18 @@ class BundleProcessorCache(object):
         pass
 
     # Make sure we instantiate the processor while not holding the lock.
+
+    # Reduce risks of concurrent modifications of the same protos
+    # captured in bundle descriptor when the same bundle descriptor is used
+    # in different instructions.
+    pbd = beam_fn_api_pb2.ProcessBundleDescriptor()
+    pbd.MergeFrom(self.fns[bundle_descriptor_id])
+
     processor = bundle_processor.BundleProcessor(
-        self.fns[bundle_descriptor_id],
+        self.runner_capabilities,
+        pbd,
         self.state_handler_factory.create_state_handler(
-            self.fns[bundle_descriptor_id].state_api_service_descriptor),
+            pbd.state_api_service_descriptor),
         self.data_channel_factory,
         self.data_sampler)
     with self._lock:
@@ -583,11 +596,12 @@ class BundleProcessorCache(object):
     # type: () -> None
     def shutdown_inactive_bundle_processors():
       # type: () -> None
-      for descriptor_id, last_access_time in self.last_access_times.items():
-        if (time.time() - last_access_time >
-            DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S):
-          BundleProcessorCache._shutdown_cached_bundle_processors(
-              self.cached_bundle_processors[descriptor_id])
+      with self._lock:
+        for descriptor_id, last_access_time in self.last_access_times.items():
+          if (time.time() - last_access_time >
+              DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S):
+            BundleProcessorCache._shutdown_cached_bundle_processors(
+                self.cached_bundle_processors[descriptor_id])
 
     self.periodic_shutdown = PeriodicThread(
         DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S,

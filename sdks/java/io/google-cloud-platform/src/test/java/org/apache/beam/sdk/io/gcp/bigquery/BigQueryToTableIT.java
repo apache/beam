@@ -39,6 +39,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -118,7 +119,8 @@ public class BigQueryToTableIT {
   private BigQueryToTableOptions setupLegacyQueryTest(String outputTable) {
     BigQueryToTableOptions options =
         TestPipeline.testingPipelineOptions().as(BigQueryToTableOptions.class);
-    options.setTempLocation(options.getTempRoot() + "/bq_it_temp");
+    options.setTempLocation(
+        FileSystems.matchNewDirectory(options.getTempRoot(), "bq_it_temp").toString());
     options.setQuery("SELECT * FROM (SELECT \"apple\" as fruit), (SELECT \"orange\" as fruit),");
     options.setOutput(outputTable);
     options.setOutputSchema(BigQueryToTableIT.LEGACY_QUERY_TABLE_SCHEMA);
@@ -128,7 +130,8 @@ public class BigQueryToTableIT {
   private BigQueryToTableOptions setupNewTypesQueryTest(String outputTable) {
     BigQueryToTableOptions options =
         TestPipeline.testingPipelineOptions().as(BigQueryToTableOptions.class);
-    options.setTempLocation(options.getTempRoot() + "/bq_it_temp");
+    options.setTempLocation(
+        FileSystems.matchNewDirectory(options.getTempRoot(), "bq_it_temp").toString());
     options.setQuery(
         String.format(
             "SELECT bytes, date, time FROM [%s:%s.%s]",
@@ -140,7 +143,8 @@ public class BigQueryToTableIT {
 
   private BigQueryToTableOptions setupStandardQueryTest(String outputTable) {
     BigQueryToTableOptions options = this.setupLegacyQueryTest(outputTable);
-    options.setTempLocation(options.getTempRoot() + "/bq_it_temp");
+    options.setTempLocation(
+        FileSystems.matchNewDirectory(options.getTempRoot(), "bq_it_temp").toString());
     options.setQuery(
         "SELECT * FROM (SELECT \"apple\" as fruit) UNION ALL (SELECT \"orange\" as fruit)");
     options.setUsingStandardSql(true);

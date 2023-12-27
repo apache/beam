@@ -52,11 +52,29 @@ from apache_beam.yaml import yaml_provider
 def read_from_text(path: str):
   # TODO(yaml): Consider passing the filename and offset, possibly even
   # by default.
+
+  """Reads lines from a text files.
+
+  The resulting PCollection consists of rows with a single string filed named
+  "line."
+
+  Args:
+    path (str): The file path to read from.  The path can contain glob
+      characters such as ``*`` and ``?``.
+  """
   return beam_io.ReadFromText(path) | beam.Map(lambda s: beam.Row(line=s))
 
 
 @beam.ptransform_fn
 def write_to_text(pcoll, path: str):
+  """Writes a PCollection to a (set of) text files(s).
+
+  The input must be a PCollection whose schema has exactly one field.
+
+  Args:
+      path (str): The file path to write to. The files written will
+        begin with this prefix, followed by a shard identifier.
+  """
   try:
     field_names = [
         name for name,
@@ -76,6 +94,11 @@ def write_to_text(pcoll, path: str):
 
 def read_from_bigquery(
     query=None, table=None, row_restriction=None, fields=None):
+  """Reads data from BigQuery.
+
+  Exactly one of table or query must be set.
+  If query is set, neither row_restriction nor fields should be set.
+  """
   if query is None:
     assert table is not None
   else:
@@ -95,6 +118,7 @@ def write_to_bigquery(
     create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
     write_disposition=BigQueryDisposition.WRITE_APPEND,
     error_handling=None):
+  """Writes data to a BigQuery table."""
   class WriteToBigQueryHandlingErrors(beam.PTransform):
     def default_label(self):
       return 'WriteToBigQuery'

@@ -99,11 +99,15 @@ public abstract class AbstractJDBCResourceManager<T extends JdbcDatabaseContaine
     return password;
   }
 
+  public int getPort() {
+    return this.getPort(getJDBCPort());
+  }
+
   @Override
   public synchronized String getUri() {
     return String.format(
         "jdbc:%s://%s:%d/%s",
-        getJDBCPrefix(), this.getHost(), this.getPort(getJDBCPort()), this.getDatabaseName());
+        getJDBCPrefix(), this.getHost(), this.getPort(), this.getDatabaseName());
   }
 
   public abstract String getJDBCPrefix();
