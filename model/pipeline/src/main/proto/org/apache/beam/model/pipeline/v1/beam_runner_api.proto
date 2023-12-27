@@ -39,9 +39,9 @@ message BeamConstants {
     // All timestamps of elements or window boundaries must be within
     // the interval [MIN_TIMESTAMP_MILLIS, MAX_TIMESTAMP_MILLIS].
     // The smallest representable timestamp of an element or a window boundary.
-    MIN_TIMESTAMP_MILLIS = 0 [(beam_constant) = "-9223372036854775"];
+    MIN_TIMESTAMP_MILLIS = 0 [(beam_constant) = "-62135596800000"];
     // The largest representable timestamp of an element or a window boundary.
-    MAX_TIMESTAMP_MILLIS = 1 [(beam_constant) =  "9223372036854775"];
+    MAX_TIMESTAMP_MILLIS = 1 [(beam_constant) =  "253402300799000"];
 
     // The maximum timestamp for the global window.
     // Triggers use max timestamp to set timers' timestamp. Timers fire when
@@ -50,7 +50,7 @@ message BeamConstants {
     // One standard day is subtracted from MAX_TIMESTAMP_MILLIS to make sure
     // the max timestamp is smaller than MAX_TIMESTAMP_MILLIS even after rounding up
     // to seconds or minutes.
-    GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS = 2 [(beam_constant) = "9223371950454775"];
+    GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS = 2 [(beam_constant) = "253402214399000"];
   }
 }
 
