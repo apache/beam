@@ -1004,7 +1004,9 @@ public class TextIO {
       return toBuilder().setNoSpilling(true).build();
     }
 
-    /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler)}. */
+    /**
+     * See {@link FileIO.Write#withBadRecordErrorHandler(ErrorHandler)} for details on usage
+     */
     public TypedWrite<UserT, DestinationT> withBadRecordErrorHandler(
         ErrorHandler<BadRecord, ?> errorHandler) {
       return toBuilder().setBadRecordErrorHandler(errorHandler).build();

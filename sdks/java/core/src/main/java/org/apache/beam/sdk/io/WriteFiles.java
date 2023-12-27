@@ -349,11 +349,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   }
 
   /**
-   * Configures a new {@link WriteFiles} with an ErrorHandler. For configuring an ErrorHandler, see
-   * {@link ErrorHandler}. Whenever a record is formatted, or a lookup for a dynamic destination is
-   * performed, and that operation fails, the exception is passed to the error handler. This is
-   * intended to handle any errors related to the data of a record, but not any connectivity or IO
-   * errors related to the literal writing of a record.
+   * See {@link FileIO.Write#withBadRecordErrorHandler(ErrorHandler)} for details on usage
    */
   public WriteFiles<UserT, DestinationT, OutputT> withBadRecordErrorHandler(
       ErrorHandler<BadRecord, ?> errorHandler) {
@@ -540,11 +536,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                     .withSideInputs(getSideInputs())
                     .withOutputTags(
                         writtenRecordsTag,
-                        TupleTagList.of(ImmutableList.of(unwrittenRecordsTag, BAD_RECORD_TAG))));
+                        TupleTagList.of(ImmutableList.of(BAD_RECORD_TAG))));
         addErrorCollection(writeTuple);
-        writeTuple
-            .get(unwrittenRecordsTag)
-            .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()));
         return writeTuple.get(writtenRecordsTag).setCoder(fileResultCoder);
       }
 
