@@ -348,9 +348,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     return toBuilder().setSkipIfEmpty(true).build();
   }
 
-  /**
-   * See {@link FileIO.Write#withBadRecordErrorHandler(ErrorHandler)} for details on usage
-   */
+  /** See {@link FileIO.Write#withBadRecordErrorHandler(ErrorHandler)} for details on usage. */
   public WriteFiles<UserT, DestinationT, OutputT> withBadRecordErrorHandler(
       ErrorHandler<BadRecord, ?> errorHandler) {
     return toBuilder()
@@ -535,8 +533,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                 ParDo.of(new WriteUnshardedTempFilesFn(null, destinationCoder, inputCoder))
                     .withSideInputs(getSideInputs())
                     .withOutputTags(
-                        writtenRecordsTag,
-                        TupleTagList.of(ImmutableList.of(BAD_RECORD_TAG))));
+                        writtenRecordsTag, TupleTagList.of(ImmutableList.of(BAD_RECORD_TAG))));
         addErrorCollection(writeTuple);
         return writeTuple.get(writtenRecordsTag).setCoder(fileResultCoder);
       }

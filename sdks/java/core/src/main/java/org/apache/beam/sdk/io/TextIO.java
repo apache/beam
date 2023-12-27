@@ -180,8 +180,8 @@ import org.joda.time.Duration;
  * DynamicDestinations} interface for advanced features via {@link Write#to(DynamicDestinations)}.
  *
  * <p>Error handling for records that are malformed can be handled by using {@link
- * TypedWrite#withBadRecordErrorHandler(ErrorHandler)}. See documentation in
- * {@link FileIO} for details on usage
+ * TypedWrite#withBadRecordErrorHandler(ErrorHandler)}. See documentation in {@link FileIO} for
+ * details on usage
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -1004,9 +1004,7 @@ public class TextIO {
       return toBuilder().setNoSpilling(true).build();
     }
 
-    /**
-     * See {@link FileIO.Write#withBadRecordErrorHandler(ErrorHandler)} for details on usage
-     */
+    /** See {@link FileIO.Write#withBadRecordErrorHandler(ErrorHandler)} for details on usage. */
     public TypedWrite<UserT, DestinationT> withBadRecordErrorHandler(
         ErrorHandler<BadRecord, ?> errorHandler) {
       return toBuilder().setBadRecordErrorHandler(errorHandler).build();

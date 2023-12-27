@@ -1318,8 +1318,8 @@ public class FileIO {
 
     /**
      * Configures a new {@link Write} with an ErrorHandler. For configuring an ErrorHandler, see
-     * {@link ErrorHandler}. Whenever a record is formatted, or a lookup for a dynamic destination is
-     * performed, and that operation fails, the exception is passed to the error handler. This is
+     * {@link ErrorHandler}. Whenever a record is formatted, or a lookup for a dynamic destination
+     * is performed, and that operation fails, the exception is passed to the error handler. This is
      * intended to handle any errors related to the data of a record, but not any connectivity or IO
      * errors related to the literal writing of a record.
      */

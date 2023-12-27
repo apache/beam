@@ -1725,7 +1725,7 @@ public class AvroIO {
     }
 
     /**
-     * See {@link FileIO.Write#withBadRecordErrorHandler(ErrorHandler)} for details on usage
+     * See {@link FileIO.Write#withBadRecordErrorHandler(ErrorHandler)} for details on usage.
      */
     public TypedWrite<UserT, DestinationT, OutputT> withBadRecordErrorHandler(
         ErrorHandler<BadRecord, ?> errorHandler) {
