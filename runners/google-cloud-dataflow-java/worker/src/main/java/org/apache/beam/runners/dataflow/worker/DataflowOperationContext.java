@@ -381,7 +381,7 @@ public class DataflowOperationContext implements OperationContext {
 
     /** Last time when a full thread dump was performed. */
     private long lastFullThreadDumpMillis = 0;
-    
+
     /** Last time when a full thread dump was performed at bundle level. */
     private long lastFullThreadDumpMillisForBundle = 0;
 
