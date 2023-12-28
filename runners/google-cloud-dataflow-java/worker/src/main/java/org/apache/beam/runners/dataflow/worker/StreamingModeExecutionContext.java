@@ -112,6 +112,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
   private UnboundedSource.UnboundedReader<?> activeReader;
   private volatile long backlogBytes;
+  private Supplier<Boolean> workIsFailed;
 
   public StreamingModeExecutionContext(
       CounterFactory counterFactory,
@@ -135,11 +136,16 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.stateNameMap = ImmutableMap.copyOf(stateNameMap);
     this.stateCache = stateCache;
     this.backlogBytes = UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
+    this.workIsFailed = () -> { return Boolean.FALSE; };
   }
 
   @VisibleForTesting
   public long getBacklogBytes() {
     return backlogBytes;
+  }
+
+  public boolean workIsFailed() {
+    return this.workIsFailed.get();
   }
 
   public void start(

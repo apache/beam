@@ -97,6 +97,10 @@ public class ComputationState implements AutoCloseable {
     }
   }
 
+  public void failWork(long shardedKey, long workToken, long cacheToken) {
+    activeWorkState.failWorkForKey(shardedKey, workToken, cacheToken);
+  }
+
   /**
    * Marks the work for the given shardedKey as complete. Schedules queued work for the key if any.
    */
@@ -122,6 +126,11 @@ public class ComputationState implements AutoCloseable {
   /** Adds any work started before the refreshDeadline to the GetDataRequest builder. */
   public List<Windmill.KeyedGetDataRequest> getKeysToRefresh(Instant refreshDeadline) {
     return activeWorkState.getKeysToRefresh(refreshDeadline);
+  }
+
+  /** Gets HeartbeatRequests for any work started before refreshDeadline. */
+  public List<Windmill.HeartbeatRequest> getKeyHeartbeats(Instant refreshDeadline) {
+    return activeWorkState.getKeyHeartbeats(refreshDeadline);
   }
 
   public void printActiveWork(PrintWriter writer) {

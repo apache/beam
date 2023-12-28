@@ -120,6 +120,10 @@ public class Work implements Runnable {
     return list;
   }
 
+  public boolean isFailed() {
+    return currentState.state() == Work.State.FAILED;
+  }
+
   boolean isStuckCommittingAt(Instant stuckCommitDeadline) {
     return currentState.state() == Work.State.COMMITTING
         && currentState.startTime().isBefore(stuckCommitDeadline);
@@ -135,7 +139,8 @@ public class Work implements Runnable {
     GET_WORK_IN_TRANSIT_TO_DISPATCHER(
         Windmill.LatencyAttribution.State.GET_WORK_IN_TRANSIT_TO_DISPATCHER),
     GET_WORK_IN_TRANSIT_TO_USER_WORKER(
-        Windmill.LatencyAttribution.State.GET_WORK_IN_TRANSIT_TO_USER_WORKER);
+        Windmill.LatencyAttribution.State.GET_WORK_IN_TRANSIT_TO_USER_WORKER),
+    FAILED(Windmill.LatencyAttribution.State.FAILED);
 
     private final Windmill.LatencyAttribution.State latencyAttributionState;
 

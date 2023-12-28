@@ -495,7 +495,7 @@ public class StreamingDataflowWorker {
   public static StreamingDataflowWorker fromDataflowWorkerHarnessOptions(
       DataflowWorkerHarnessOptions options) throws IOException {
 
-    return new StreamingDataflowWorker(
+    StreamingDataflowWorker worker = new StreamingDataflowWorker(
         Collections.emptyList(),
         IntrinsicMapTaskExecutorFactory.defaultFactory(),
         new DataflowWorkUnitClient(options, LOG),
@@ -506,6 +506,8 @@ public class StreamingDataflowWorker {
         (threadName) ->
             Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat(threadName).build()));
+    options.as(StreamingDataflowWorkerOptions.class).getWindmillServerStub().setProcessHeartbeatResponses(worker::handleHeartbeatResponses);
+    return worker;
   }
 
   private static void sleep(int millis) {
@@ -946,6 +948,10 @@ public class StreamingDataflowWorker {
       final @Nullable Instant outputDataWatermark,
       final @Nullable Instant synchronizedProcessingTime,
       final Work work) {
+    if (work.isFailed()) {
+      LOG.error("Not processing failed work.");
+      return;
+    }
     final Windmill.WorkItem workItem = work.getWorkItem();
     final String computationId = computationState.getComputationId();
     final ByteString key = workItem.getKey();
@@ -1095,7 +1101,8 @@ public class StreamingDataflowWorker {
                     work.setState(State.PROCESSING);
                   }
                 };
-              });
+              },
+              work::isFailed);
       SideInputStateFetcher localSideInputStateFetcher = sideInputStateFetcher.byteTrackingView();
 
       // If the read output KVs, then we can decode Windmill's byte key into a userland
@@ -1138,7 +1145,11 @@ public class StreamingDataflowWorker {
       // Blocks while executing work.
       executionState.workExecutor().execute();
 
-      // Reports source bytes processed to workitemcommitrequest if available.
+      // TODO(crites): Make a custom exception (that doesn't get retried locally).
+      if (work.isFailed()) {
+        throw new KeyTokenInvalidException(key.toStringUtf8());
+      }
+      // Reports source bytes processed to WorkItemCommitRequest if available.
       try {
         long sourceBytesProcessed = 0;
         HashMap<String, ElementCounter> counters =
@@ -1364,6 +1375,7 @@ public class StreamingDataflowWorker {
   // Adds the commit to the commitStream if it fits, returning true iff it is consumed.
   private boolean addCommitToStream(Commit commit, CommitWorkStream commitStream) {
     Preconditions.checkNotNull(commit);
+    if (commit.work().isFailed()) return true;
     final ComputationState state = commit.computationState();
     final Windmill.WorkItemCommitRequest request = commit.request();
     final int size = commit.getSize();
@@ -1865,6 +1877,15 @@ public class StreamingDataflowWorker {
     }
   }
 
+  public void handleHeartbeatResponses(List<Windmill.ComputationHeartbeatResponse> responses) {
+    for (Windmill.ComputationHeartbeatResponse computationHeartbeatResponse : responses) {
+      for (Windmill.HeartbeatResponse heartbeatResponse : computationHeartbeatResponse.getHeartbeatResponsesList()) {
+        computationMap.get(computationHeartbeatResponse.getComputationId()).failWork(
+            heartbeatResponse.getShardingKey(), heartbeatResponse.getWorkToken(), heartbeatResponse.getCacheToken());
+      }
+    }
+  }
+
   /**
    * Sends a GetData request to Windmill for all sufficiently old active work.
    *
@@ -1874,14 +1895,19 @@ public class StreamingDataflowWorker {
    */
   private void refreshActiveWork() {
     Map<String, List<Windmill.KeyedGetDataRequest>> active = new HashMap<>();
+    Map<String, List<Windmill.HeartbeatRequest>> heartbeats = new HashMap<>();
     Instant refreshDeadline =
         clock.get().minus(Duration.millis(options.getActiveWorkRefreshPeriodMillis()));
 
     for (Map.Entry<String, ComputationState> entry : computationMap.entrySet()) {
-      active.put(entry.getKey(), entry.getValue().getKeysToRefresh(refreshDeadline));
+      if (DataflowRunner.hasExperiment(options, "send_new_heartbeat_requests")) {
+        heartbeats.put(entry.getKey(), entry.getValue().getKeyHeartbeats(refreshDeadline));
+      } else {
+        active.put(entry.getKey(), entry.getValue().getKeysToRefresh(refreshDeadline));
+      }
     }
 
-    metricTrackingWindmillServer.refreshActiveWork(active);
+    metricTrackingWindmillServer.refreshActiveWork(active, heartbeats);
   }
 
   private void invalidateStuckCommits() {

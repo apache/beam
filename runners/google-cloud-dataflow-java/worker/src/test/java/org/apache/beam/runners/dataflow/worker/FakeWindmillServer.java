@@ -46,6 +46,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationCommitWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
@@ -83,6 +84,7 @@ class FakeWindmillServer extends WindmillServerStub {
   private int numGetDataRequests = 0;
   private boolean isReady = true;
   private boolean dropStreamingCommits = false;
+  private Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses;
 
   public FakeWindmillServer(ErrorCollector errorCollector) {
     workToOffer =
@@ -102,7 +104,13 @@ class FakeWindmillServer extends WindmillServerStub {
     this.errorCollector = errorCollector;
     statsReceived = new ArrayList<>();
     droppedStreamingCommits = new ConcurrentHashMap<>();
+    processHeartbeatResponses = (responses) -> {};
   }
+
+  @Override
+  public void setProcessHeartbeatResponses(Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
+    this.processHeartbeatResponses = processHeartbeatResponses;
+  };
 
   public void setDropStreamingCommits(boolean dropStreamingCommits) {
     this.dropStreamingCommits = dropStreamingCommits;
@@ -114,6 +122,11 @@ class FakeWindmillServer extends WindmillServerStub {
 
   public ResponseQueue<GetDataRequest, GetDataResponse> whenGetDataCalled() {
     return dataToOffer;
+  }
+
+  public void sendFailedHeartbeats(List<Windmill.ComputationHeartbeatResponse> responses) {
+    LOG.error("sendFailedHeartbeats");
+    getDataStream().onHeartbeatResponse(responses);
   }
 
   public ResponseQueue<Windmill.CommitWorkRequest, Windmill.CommitWorkResponse>
@@ -313,6 +326,15 @@ class FakeWindmillServer extends WindmillServerStub {
                   .addAllRequests(entry.getValue()));
         }
         getData(builder.build());
+      }
+
+      @Override
+      public void onHeartbeatResponse(List<ComputationHeartbeatResponse> responses) {
+        LOG.error("onHeartbeatResponse");
+        for (ComputationHeartbeatResponse response : responses) {
+          LOG.error("response: " + response);
+        }
+        processHeartbeatResponses.accept(responses);
       }
 
       @Override

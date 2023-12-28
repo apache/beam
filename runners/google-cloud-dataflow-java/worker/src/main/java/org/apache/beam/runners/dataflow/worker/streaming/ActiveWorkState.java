@@ -33,7 +33,9 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -117,6 +119,20 @@ final class ActiveWorkState {
     // Queue the work for later processing.
     workQueue.addLast(work);
     return ActivateWorkResult.QUEUED;
+  }
+
+  synchronized void failWorkForKey(long shardedKey, long workToken, long cacheToken) {
+    for (Entry<ShardedKey, Deque<Work>> entry : activeWork.entrySet()) {
+      if (shardedKey == entry.getKey().shardingKey()) {
+        for (Work queuedWork : entry.getValue()) {
+          WorkItem workItem = queuedWork.getWorkItem();
+          if (workItem.getWorkToken() == workToken && workItem.getCacheToken() == cacheToken) {
+            LOG.error("failing work " + shardedKey + " " + workToken + " " + cacheToken);
+            queuedWork.setState(Work.State.FAILED);
+          }
+        }
+      }
+    }
   }
 
   /**
@@ -233,6 +249,29 @@ final class ActiveWorkState {
                     .build());
   }
 
+  synchronized ImmutableList<HeartbeatRequest> getKeyHeartbeats(Instant refreshDeadline) {
+    return activeWork.entrySet().stream()
+        .flatMap(entry -> toHeartbeatRequestStream(entry, refreshDeadline))
+        .collect(toImmutableList());
+  }
+
+  private static Stream<HeartbeatRequest> toHeartbeatRequestStream(
+      Entry<ShardedKey, Deque<Work>> shardedKeyAndWorkQueue, Instant refreshDeadline) {
+    ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
+    Deque<Work> workQueue = shardedKeyAndWorkQueue.getValue();
+
+    return workQueue.stream()
+        .filter(work -> work.getStartTime().isBefore(refreshDeadline))
+        .map(
+            work ->
+                Windmill.HeartbeatRequest.newBuilder()
+                    .setShardingKey(shardedKey.shardingKey())
+                    .setWorkToken(work.getWorkItem().getWorkToken())
+                    .setCacheToken(work.getWorkItem().getCacheToken())
+                    .addAllLatencyAttribution(work.getLatencyAttributions())
+                    .build());
+  }
+
   synchronized void printActiveWork(PrintWriter writer, Instant now) {
     writer.println(
         "<table border=\"1\" "
@@ -245,7 +284,7 @@ final class ActiveWorkState {
     for (Map.Entry<ShardedKey, Deque<Work>> entry : activeWork.entrySet()) {
       Queue<Work> workQueue = Preconditions.checkNotNull(entry.getValue());
       Work activeWork = Preconditions.checkNotNull(workQueue.peek());
-      Windmill.WorkItem workItem = activeWork.getWorkItem();
+      WorkItem workItem = activeWork.getWorkItem();
       if (activeWork.isCommitPending()) {
         if (++commitsPendingCount >= MAX_PRINTABLE_COMMIT_PENDING_KEYS) {
           continue;

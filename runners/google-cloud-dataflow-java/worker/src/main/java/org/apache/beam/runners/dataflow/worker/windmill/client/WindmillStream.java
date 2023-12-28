@@ -60,6 +60,8 @@ public interface WindmillStream {
 
     /** Tells windmill processing is ongoing for the given keys. */
     void refreshActiveWork(Map<String, List<Windmill.KeyedGetDataRequest>> active);
+
+    void onHeartbeatResponse(List<Windmill.ComputationHeartbeatResponse> responses);
   }
 
   /** Interface for streaming CommitWorkRequests to Windmill. */

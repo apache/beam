@@ -839,6 +839,10 @@ public class WorkerCustomSources {
             || context.isSinkFullHintSet()) {
           return false;
         }
+        if (context.workIsFailed()) {
+          context.invalidateCache();
+          return false;
+        }
         try {
           if (reader.advance()) {
             elemsRead++;

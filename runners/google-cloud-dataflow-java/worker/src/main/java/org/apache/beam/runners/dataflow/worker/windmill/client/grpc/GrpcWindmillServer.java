@@ -28,13 +28,16 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOptions;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkResponse;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetConfigRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetConfigResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataRequest;
@@ -93,6 +96,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   private final StreamingEngineThrottleTimers throttleTimers;
   private Duration maxBackoff;
   private @Nullable WindmillApplianceGrpc.WindmillApplianceBlockingStub syncApplianceStub;
+  private Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
 
   private GrpcWindmillServer(
       StreamingDataflowWorkerOptions options, GrpcDispatcherClient grpcDispatcherClient) {
@@ -118,7 +122,13 @@ public final class GrpcWindmillServer extends WindmillServerStub {
 
     this.dispatcherClient = grpcDispatcherClient;
     this.syncApplianceStub = null;
+    this.processHeartbeatResponses = (responses) -> {};
   }
+
+  @Override
+  public void setProcessHeartbeatResponses(Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
+    this.processHeartbeatResponses = processHeartbeatResponses;
+  };
 
   private static StreamingDataflowWorkerOptions testOptions(boolean enableStreamingEngine) {
     StreamingDataflowWorkerOptions options =
@@ -319,7 +329,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   @Override
   public GetDataStream getDataStream() {
     return windmillStreamFactory.createGetDataStream(
-        dispatcherClient.getDispatcherStub(), throttleTimers.getDataThrottleTimer());
+        dispatcherClient.getDispatcherStub(), throttleTimers.getDataThrottleTimer(), this.processHeartbeatResponses);
   }
 
   @Override

@@ -113,6 +113,15 @@ class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
     }
 
     @Override
+    public boolean advance() throws IOException {
+      if (context.workIsFailed()) {
+        context.invalidateCache();
+        return false;
+      }
+      return super.advance();
+    }
+
+    @Override
     protected WindowedValue<T> decodeMessage(Windmill.Message message) throws IOException {
       T value;
       InputStream data = message.getData().newInput();

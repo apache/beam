@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Ve
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
@@ -32,8 +33,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
@@ -64,6 +68,7 @@ public final class GrpcGetDataStream
   private final ThrottleTimer getDataThrottleTimer;
   private final JobHeader jobHeader;
   private final int streamingRpcBatchLimit;
+  private Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
 
   private GrpcGetDataStream(
       Function<StreamObserver<StreamingGetDataResponse>, StreamObserver<StreamingGetDataRequest>>
@@ -75,7 +80,8 @@ public final class GrpcGetDataStream
       ThrottleTimer getDataThrottleTimer,
       JobHeader jobHeader,
       AtomicLong idGenerator,
-      int streamingRpcBatchLimit) {
+      int streamingRpcBatchLimit,
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     super(
         startGetDataRpcFn, backoff, streamObserverFactory, streamRegistry, logEveryNStreamFailures);
     this.idGenerator = idGenerator;
@@ -84,6 +90,7 @@ public final class GrpcGetDataStream
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
     this.batches = new ConcurrentLinkedDeque<>();
     this.pending = new ConcurrentHashMap<>();
+    this.processHeartbeatResponses = processHeartbeatResponses;
   }
 
   public static GrpcGetDataStream create(
@@ -96,7 +103,8 @@ public final class GrpcGetDataStream
       ThrottleTimer getDataThrottleTimer,
       JobHeader jobHeader,
       AtomicLong idGenerator,
-      int streamingRpcBatchLimit) {
+      int streamingRpcBatchLimit,
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     GrpcGetDataStream getDataStream =
         new GrpcGetDataStream(
             startGetDataRpcFn,
@@ -107,7 +115,8 @@ public final class GrpcGetDataStream
             getDataThrottleTimer,
             jobHeader,
             idGenerator,
-            streamingRpcBatchLimit);
+            streamingRpcBatchLimit,
+            processHeartbeatResponses);
     getDataStream.startStream();
     return getDataStream;
   }
@@ -138,6 +147,7 @@ public final class GrpcGetDataStream
     checkArgument(chunk.getRequestIdCount() == chunk.getSerializedResponseCount());
     checkArgument(chunk.getRemainingBytesForResponse() == 0 || chunk.getRequestIdCount() == 1);
     getDataThrottleTimer.stop();
+    onHeartbeatResponse(chunk.getComputationHeartbeatResponseList());
 
     for (int i = 0; i < chunk.getRequestIdCount(); ++i) {
       AppendableInputStream responseStream = pending.get(chunk.getRequestId(i));
@@ -195,6 +205,11 @@ public final class GrpcGetDataStream
     if (builderBytes > 0) {
       send(builder.build());
     }
+  }
+
+  @Override
+  public void onHeartbeatResponse(List<Windmill.ComputationHeartbeatResponse> responses) {
+    processHeartbeatResponses.accept(responses);
   }
 
   @Override
@@ -277,7 +292,7 @@ public final class GrpcGetDataStream
         waitForSendLatch.await();
       }
       // Finalize the batch so that no additional requests will be added.  Leave the batch in the
-      // queue so that a subsequent batch will wait for it's completion.
+      // queue so that a subsequent batch will wait for its completion.
       synchronized (batches) {
         verify(batch == batches.peekFirst());
         batch.markFinalized();

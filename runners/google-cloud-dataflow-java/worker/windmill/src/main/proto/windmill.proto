@@ -76,6 +76,7 @@ message LatencyAttribution {
     // GetWorkResponse and ends with the user worker receiving the
     // GetWorkResponse.
     GET_WORK_IN_TRANSIT_TO_USER_WORKER = 7;
+    FAILED = 8;
   }
   optional State state = 1;
   optional int64 total_duration_millis = 2;
@@ -491,6 +492,8 @@ message GetDataRequest {
   // Assigned worker id for the instance.
   optional string worker_id = 6;
 
+  // SE only. Will only be set by compatible client
+  repeated ComputationHeartbeatRequest computation_heartbeat_request = 7;
   // DEPRECATED
   repeated GlobalDataId global_data_to_fetch = 2;
 }
@@ -520,6 +523,47 @@ message ComputationGetDataResponse {
 message GetDataResponse {
   repeated ComputationGetDataResponse data = 1;
   repeated GlobalData global_data = 2;
+  // Only set if ComputationHeartbeatRequest was sent, prior versions do not
+  // expect a response for heartbeats. SE only
+  repeated ComputationHeartbeatResponse computation_heartbeat_response = 3;
+}
+
+// Heartbeats
+//
+// Heartbeats are sent over the GetData stream in Streaming Engine and
+// indicates the work item that the user worker has previously received from
+// GetWork but not yet committed with CommitWork.
+// Note that implicit heartbeats not expecting a response may be sent as
+// special KeyedGetDataRequests see function KeyedGetDataRequestIsHeartbeat.
+// TODO(b/110711474) Add which beam version will utilize this
+// [SDK 2.XX and above][Legacy Worker and SE only]
+message HeartbeatRequest {
+  optional fixed64 sharding_key = 1;
+  optional fixed64 work_token = 2;
+  optional fixed64 cache_token = 3;
+  // See the design doc at go/se-latency-attribution-p0.
+  repeated LatencyAttribution latency_attribution = 4;
+}
+
+// Responses for heartbeat requests, indicating which work is no longer valid
+// on the windmill worker and may be dropped/cancelled in the client.
+// TODO(b/110711474) Add which beam version will utilize this
+// [SDK 2.XX and above][Legacy Worker and SE only]
+message HeartbeatResponse {
+  optional fixed64 sharding_key = 1;
+  optional fixed64 work_token = 2;
+  optional fixed64 cache_token = 3;
+  optional bool failed = 4;
+}
+
+message ComputationHeartbeatRequest {
+  optional string computation_id = 1;
+  repeated HeartbeatRequest heartbeat_requests = 2;
+}
+
+message ComputationHeartbeatResponse {
+  optional string computation_id = 1;
+  repeated HeartbeatResponse heartbeat_responses = 2;
 }
 
 // CommitWork
@@ -768,6 +812,17 @@ message StreamingGetDataResponse {
   repeated bytes serialized_response = 2;
   // Remaining bytes field applies only to the last serialized_response
   optional int64 remaining_bytes_for_response = 3;
+
+  // Work item fingerprints available only for complete items. So if
+  // remaining_bytes_for_response > 0 the size of farmhash_fingerprint array is
+  // one less than the size of serialized_response as the fingerprint for the
+  // last message is not yet available.
+  // Will not be populated when heartbeat_response is set.
+  repeated uint64 farmhash_fingerprint = 4;
+
+  // Only set if ComputationHeartbeatRequest was sent, prior versions do not
+  // expect a response for heartbeats.
+  repeated ComputationHeartbeatResponse computation_heartbeat_response = 5;
 }
 
 message StreamingCommitWorkRequest {

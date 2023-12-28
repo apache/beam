@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
@@ -239,7 +240,8 @@ public class MetricTrackingWindmillServerStub {
   }
 
   /** Tells windmill processing is ongoing for the given keys. */
-  public void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active) {
+  public void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active,
+                                Map<String, List<HeartbeatRequest>> heartbeats) {
     activeHeartbeats.set(active.size());
     try {
       if (useStreamingRequests) {
@@ -251,13 +253,19 @@ public class MetricTrackingWindmillServerStub {
         } finally {
           streamPool.releaseStream(stream);
         }
-      } else if (!active.isEmpty()) {
+      } else if (!active.isEmpty() || !heartbeats.isEmpty()) {
         Windmill.GetDataRequest.Builder builder = Windmill.GetDataRequest.newBuilder();
         for (Map.Entry<String, List<KeyedGetDataRequest>> entry : active.entrySet()) {
           builder.addRequests(
               Windmill.ComputationGetDataRequest.newBuilder()
                   .setComputationId(entry.getKey())
                   .addAllRequests(entry.getValue()));
+        }
+        for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+          builder.addComputationHeartbeatRequest(
+              Windmill.ComputationHeartbeatRequest.newBuilder()
+                  .setComputationId(entry.getKey())
+                  .addAllHeartbeatRequests(entry.getValue()));
         }
         server.getData(builder.build());
       }

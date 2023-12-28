@@ -21,6 +21,7 @@ import static org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWi
 
 import com.google.auto.value.AutoBuilder;
 import java.io.PrintWriter;
+import java.util.List;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -32,6 +33,8 @@ import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints;
@@ -152,7 +155,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   }
 
   public GetDataStream createGetDataStream(
-      CloudWindmillServiceV1Alpha1Stub stub, ThrottleTimer getDataThrottleTimer) {
+      CloudWindmillServiceV1Alpha1Stub stub, ThrottleTimer getDataThrottleTimer,
+      Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses) {
     return GrpcGetDataStream.create(
         responseObserver -> withDeadline(stub).getDataStream(responseObserver),
         grpcBackOff.get(),
@@ -162,7 +166,13 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         getDataThrottleTimer,
         jobHeader,
         streamIdGenerator,
-        streamingRpcBatchLimit);
+        streamingRpcBatchLimit,
+        processHeartbeatResponses);
+  }
+
+  public GetDataStream createGetDataStream(
+      CloudWindmillServiceV1Alpha1Stub stub, ThrottleTimer getDataThrottleTimer) {
+    return createGetDataStream(stub, getDataThrottleTimer, (response) -> {});
   }
 
   public CommitWorkStream createCommitWorkStream(
