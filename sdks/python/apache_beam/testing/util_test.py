@@ -147,7 +147,7 @@ class UtilTest(unittest.TestCase):
         assert_that(p | Create([]), is_not_empty())
 
   def test_equal_to_per_window_passes(self):
-    start = int(MIN_TIMESTAMP.micros // 1e6) - 5
+    start = int(MIN_TIMESTAMP.micros // 1e6)
     end = start + 20
     expected = {
         window.IntervalWindow(start, end): [('k', [1])],
@@ -204,7 +204,7 @@ class UtilTest(unittest.TestCase):
                     reify_windows=True)
 
   def test_equal_to_per_window_succeeds_no_reify_windows(self):
-    start = int(MIN_TIMESTAMP.micros // 1e6) - 5
+    start = int(MIN_TIMESTAMP.micros // 1e6)
     end = start + 20
     expected = {
         window.IntervalWindow(start, end): [('k', [1])],

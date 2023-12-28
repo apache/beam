@@ -492,7 +492,7 @@ class CodersTest(unittest.TestCase):
         coders.VarIntCoder(), coders.GlobalWindowCoder())
     # Test binary representation
     self.assertEqual(
-        b'\x7f\xdf;dZ\x1c\xac\t\x00\x00\x00\x01\x0f\x01',
+        b'\x7f\xff\xc7|\xed\xd3(\x00\x00\x00\x00\x01\x0f\x01',
         coder.encode(window.GlobalWindows.windowed_value(1)))
 
     # Test decoding large timestamp
