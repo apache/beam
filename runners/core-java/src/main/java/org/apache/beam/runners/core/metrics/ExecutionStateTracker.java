@@ -333,7 +333,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   }
 
   /** Return true if time in bundle start is greater than BUNDLE_LULL_REPORT_MS. */
-  public bool shouldReportBundleLull() {
+  public boolean shouldReportBundleLull() {
     return millisSinceBundleStart > nextBundleLullReportMs;
   }
   
@@ -354,7 +354,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     }
   }
 
-  protected void reportBundleLull(string customLogMessage) {
+  protected void reportBundleLull(String customLogMessage) {
     if (currentState != null) {
       currentState.reportBundleLull(trackedThread, customLogMessage, millisSinceBundleStart);
       nextBundleLullReportMs += BUNDLE_LULL_REPORT_MS;
