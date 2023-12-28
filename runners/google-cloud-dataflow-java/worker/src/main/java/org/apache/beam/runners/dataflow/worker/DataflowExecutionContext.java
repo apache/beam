@@ -300,7 +300,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       elementExecutionTracker.takeSample(millisSinceLastSample);
       super.takeSampleOnce(millisSinceLastSample);
       if (super.shouldReportBundleLull()) {
-        StringBuilder dataflowExecutionTrackerLog = "";
+        StringBuilder dataflowExecutionTrackerLog = new StringBuilder();
         if (this.activeMessageMetadata != null) {
           dataflowExecutionTrackerLog.append(
               "Current user step name: " + getActiveMessageMetadata().get().userStepName() + "\n");
