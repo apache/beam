@@ -55,25 +55,25 @@ func (fn *inputFn[K, V]) ProcessElement(_ []byte, emit func(K, V)) {
 }
 
 type eventTimeFn struct {
-	Foo    timers.EventTime
-	Sizzle state.Value[string]
+	Callback timers.EventTime
+	MyKey    state.Value[string]
 
 	Offset      int
 	TimerOutput int
 }
 
 func (fn *eventTimeFn) ProcessElement(w beam.Window, sp state.Provider, tp timers.Provider, key string, value int, emit func(kv[string, int])) {
-	fn.Foo.Set(tp, w.MaxTimestamp().ToTime())
-	fn.Sizzle.Write(sp, key)
+	fn.Callback.Set(tp, w.MaxTimestamp().ToTime())
+	fn.MyKey.Write(sp, key)
 	emit(kvfn(key, value+fn.Offset))
 }
 
 func (fn *eventTimeFn) OnTimer(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider, key string, timer timers.Context, emit func(kv[string, int])) {
 	switch timer.Family {
-	case fn.Foo.Family:
+	case fn.Callback.Family:
 		switch timer.Tag {
 		case "":
-			read, ok, err := fn.Sizzle.Read(sp)
+			read, ok, err := fn.MyKey.Read(sp)
 			if err != nil {
 				panic(err)
 			}
@@ -83,8 +83,8 @@ func (fn *eventTimeFn) OnTimer(ctx context.Context, ts beam.EventTime, sp state.
 			emit(kvfn(read, fn.TimerOutput))
 		}
 	default:
-		if fn.Foo.Family != timer.Family || timer.Tag != "" {
-			panic("unexpected timer family: " + timer.Family + " tag:" + timer.Tag + " want: " + fn.Foo.Family)
+		if fn.Callback.Family != timer.Family || timer.Tag != "" {
+			panic("unexpected timer family: " + timer.Family + " tag:" + timer.Tag + " want: " + fn.Callback.Family)
 		}
 	}
 }
@@ -125,6 +125,8 @@ func TimersEventTime(makeImp func(s beam.Scope) beam.PCollection) func(s beam.Sc
 		times := beam.ParDo(s, &eventTimeFn{
 			Offset:      offset,
 			TimerOutput: timerOutput,
+			Callback:    timers.InEventTime("Callback"),
+			MyKey:       state.MakeValueState[string]("MyKey"),
 		}, keyed)
 		passert.EqualsList(s, times, wantOutputs)
 	}
