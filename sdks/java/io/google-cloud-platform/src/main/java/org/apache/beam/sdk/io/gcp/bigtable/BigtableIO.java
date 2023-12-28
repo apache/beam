@@ -1333,11 +1333,7 @@ public class BigtableIO {
         KV<ByteString, Iterable<Mutation>> record, BoundedWindow window) {
       return (MutateRowResponse result, Throwable exception) -> {
         if (exception != null) {
-          if (exception instanceof IllegalStateException) {
-            // This case indicates that an individual mutation is invalid, and should not poison the
-            // batch. It can safely be handled without retrying.
-            badRecords.add(KV.of(new BigtableWriteException(record, exception), window));
-          } else if (exception instanceof NotFoundException
+          if (exception instanceof NotFoundException
               && !((NotFoundException) exception).isRetryable()) {
             // This case, of being an NotFoundException and not retryable,
             // indicates an issue with the data. However, we can't know if this record

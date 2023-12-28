@@ -156,7 +156,7 @@ public class BigtableWriteIT implements Serializable {
   }
 
   @Test
-  public void testE2EBigtableWriteWithFailures() throws Exception {
+  public void testE2EBigtableWriteWithInvalidColumnFamilyFailures() throws Exception {
     final int numRows = 1000;
     final List<KV<ByteString, ByteString>> testData = generateTableData(numRows);
 
