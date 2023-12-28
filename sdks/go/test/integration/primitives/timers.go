@@ -32,7 +32,7 @@ import (
 
 func init() {
 	register.DoFn2x0[[]byte, func(string, int)](&inputFn[string, int]{})
-	register.DoFn7x0[beam.Window, beam.EventTime, state.Provider, timers.Provider, string, int, func(kv[string, int])](&eventTimeFn{})
+	register.DoFn6x0[beam.Window, state.Provider, timers.Provider, string, int, func(kv[string, int])](&eventTimeFn{})
 	register.Emitter2[string, int]()
 	register.Emitter1[kv[string, int]]()
 	register.Iter1[int]()
