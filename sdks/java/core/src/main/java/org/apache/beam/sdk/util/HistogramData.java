@@ -46,9 +46,9 @@ public class HistogramData implements Serializable {
   private long[] buckets;
   private long numBoundedBucketRecords;
   private long numTopRecords;
-  private double topRecordsMean;
+  private double topRecordsSum;
   private long numBottomRecords;
-  private double bottomRecordsMean;
+  private double bottomRecordsSum;
 
   @GuardedBy("this")
   private double sumOfSquaredDeviations;
@@ -66,9 +66,9 @@ public class HistogramData implements Serializable {
     this.buckets = new long[bucketType.getNumBuckets()];
     this.numBoundedBucketRecords = 0;
     this.numTopRecords = 0;
-    this.topRecordsMean = 0;
+    this.topRecordsSum = 0;
     this.numBottomRecords = 0;
-    this.bottomRecordsMean = 0;
+    this.bottomRecordsSum = 0;
     this.mean = 0;
     this.sumOfSquaredDeviations = 0;
   }
@@ -155,9 +155,9 @@ public class HistogramData implements Serializable {
       }
 
       incTopBucketCount(other.numTopRecords);
-      this.topRecordsMean = other.topRecordsMean;
+      this.topRecordsSum = other.topRecordsSum;
       incBottomBucketCount(other.numBottomRecords);
-      this.bottomRecordsMean = other.bottomRecordsMean;
+      this.bottomRecordsSum = other.bottomRecordsSum;
       for (int i = 0; i < other.buckets.length; i++) {
         incBucketCount(i, other.buckets[i]);
       }
@@ -187,9 +187,9 @@ public class HistogramData implements Serializable {
     this.buckets = new long[bucketType.getNumBuckets()];
     this.numBoundedBucketRecords = 0;
     this.numTopRecords = 0;
-    this.topRecordsMean = 0;
+    this.topRecordsSum = 0;
     this.numBottomRecords = 0;
-    this.bottomRecordsMean = 0;
+    this.bottomRecordsSum = 0;
     this.mean = 0;
     this.sumOfSquaredDeviations = 0;
   }
@@ -240,7 +240,7 @@ public class HistogramData implements Serializable {
   }
 
   /**
-   * Increment the {@code numTopRecords} and update {@code topRecordsMean} when a new overflow value
+   * Increment the {@code numTopRecords} and update {@code topRecordsSum} when a new overflow value
    * is recorded. This function should only be called when a Histogram is recording a value greater
    * than the upper bound of it's largest bucket.
    *
@@ -248,27 +248,19 @@ public class HistogramData implements Serializable {
    */
   private synchronized void recordTopRecordsValue(double value) {
     numTopRecords++;
-    if (numTopRecords == 1) {
-      topRecordsMean = value;
-    } else {
-      topRecordsMean = topRecordsMean + (value - topRecordsMean) / numTopRecords;
-    }
+    topRecordsSum += value;
   }
 
   /**
-   * Increment the {@code numBottomRecords} and update {@code bottomRecordsMean} when a new
-   * underflow value is recorded. This function should only be called when a Histogram is recording
-   * a value smaller than the lowerbound bound of it's smallest bucket.
+   * Increment the {@code numBottomRecords} and update {@code bottomRecordsSum} when a new underflow
+   * value is recorded. This function should only be called when a Histogram is recording a value
+   * smaller than the lowerbound bound of it's smallest bucket.
    *
    * @param value
    */
   private synchronized void recordBottomRecordsValue(double value) {
     numBottomRecords++;
-    if (numBottomRecords == 1) {
-      bottomRecordsMean = value;
-    } else {
-      bottomRecordsMean = bottomRecordsMean + (value - bottomRecordsMean) / numBottomRecords;
-    }
+    bottomRecordsSum += value;
   }
 
   public synchronized long getTotalCount() {
@@ -301,7 +293,7 @@ public class HistogramData implements Serializable {
   }
 
   public synchronized double getTopBucketMean() {
-    return topRecordsMean;
+    return numTopRecords == 0 ? 0 : topRecordsSum / numTopRecords;
   }
 
   public synchronized long getBottomBucketCount() {
@@ -309,7 +301,7 @@ public class HistogramData implements Serializable {
   }
 
   public synchronized double getBottomBucketMean() {
-    return bottomRecordsMean;
+    return numBottomRecords == 0 ? 0 : bottomRecordsSum / numBottomRecords;
   }
 
   public synchronized double getMean() {

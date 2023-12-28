@@ -359,7 +359,7 @@ public class HistogramDataTest {
   public void testGetAndReset_resetSucceeds() {
     // Records values from [20, 50) in three buckets that have width 10.
     HistogramData originalHistogram = HistogramData.linear(20, 10, 3);
-    originalHistogram.record(15.0, 25.0, 35.0, 45.0);
+    originalHistogram.record(15.0, 25.0, 35.0, 45.0, 55.0);
     originalHistogram.getAndReset();
 
     HistogramData emptyHistogramData = HistogramData.linear(20, 10, 3);
