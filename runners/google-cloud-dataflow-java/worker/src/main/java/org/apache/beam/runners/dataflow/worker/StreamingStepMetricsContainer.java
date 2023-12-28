@@ -21,6 +21,8 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeCell;
@@ -56,8 +58,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   private MetricsMap<MetricName, DeltaCounterCell> counters =
       new MetricsMap<>(DeltaCounterCell::new);
 
-  private MetricsMap<MetricName, DeltaCounterCell> perWorkerCounters =
-      new MetricsMap<>(DeltaCounterCell::new);
+  private ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters = new ConcurrentHashMap<>();
 
   private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
 
@@ -88,7 +89,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   @Override
   public Counter getPerWorkerCounter(MetricName metricName) {
     if (enablePerWorkerMetrics) {
-      return perWorkerCounters.get(metricName);
+      return new RemoveSafeDeltaCounterCell(metricName, perWorkerCounters);
     } else {
       return MetricsContainer.super.getPerWorkerCounter(metricName);
     }
