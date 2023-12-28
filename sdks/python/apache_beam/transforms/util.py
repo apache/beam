@@ -70,6 +70,7 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.sharded_key_type import ShardedKeyType
+from apache_beam.utils import shared
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.sharded_key import ShardedKey
@@ -748,6 +749,32 @@ def _pardo_stateful_batch_elements(
   return _StatefulBatchElementsDoFn()
 
 
+class SharedKey():
+  """A class that holds a per-process UUID used to key elements for streaming
+  BatchElements. 
+  """
+  def __init__(self):
+    self.key = uuid.uuid4().hex
+
+
+def load_shared_key():
+  return SharedKey()
+
+
+class WithSharedKey(DoFn):
+  """A DoFn that keys elements with a per-process UUID. Used in streaming
+  BatchElements.  
+  """
+  def __init__(self):
+    self.shared_handle = shared.Shared()
+
+  def setup(self):
+    self.key = self.shared_handle.acquire(load_shared_key, "WithSharedKey").key
+
+  def process(self, element):
+    yield (self.key, element)
+
+
 @typehints.with_input_types(T)
 @typehints.with_output_types(List[T])
 class BatchElements(PTransform):
@@ -826,7 +853,7 @@ class BatchElements(PTransform):
       raise NotImplementedError("Requires stateful processing (BEAM-2687)")
     elif self._max_batch_dur is not None:
       coder = coders.registry.get_coder(pcoll)
-      return pcoll | WithKeys(0) | ParDo(
+      return pcoll | ParDo(WithSharedKey()) | ParDo(
           _pardo_stateful_batch_elements(
               coder,
               self._batch_size_estimator,

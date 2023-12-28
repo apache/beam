@@ -729,9 +729,7 @@ public class WriteFilesTest {
         p.registerBadRecordErrorHandler(new ErrorSinkTransform());
     int numShards = autosharding ? 0 : 2;
     WriteFiles<String, Integer, String> writeFiles =
-        WriteFiles.to(sink)
-            .withNumShards(numShards)
-            .withBadRecordErrorHandler(errorHandler, (e) -> true);
+        WriteFiles.to(sink).withNumShards(numShards).withBadRecordErrorHandler(errorHandler);
 
     PCollection<String> input = p.apply(Create.timestamped(inputs, timestamps));
     WriteFilesResult<Integer> res;

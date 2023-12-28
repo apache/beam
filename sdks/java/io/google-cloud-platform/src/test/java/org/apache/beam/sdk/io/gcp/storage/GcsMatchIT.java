@@ -144,7 +144,8 @@ public class GcsMatchIT {
   public static void setUp() throws Exception {
     options = TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
     assertNotNull(options.getTempRoot());
-    options.setTempLocation(options.getTempRoot() + "/GcsMatchIT");
+    options.setTempLocation(
+        FileSystems.matchNewDirectory(options.getTempRoot(), "GcsMatchIT").toString());
     GcsOptions gcsOptions = options.as(GcsOptions.class);
     String dstFolderName =
         gcsOptions.getGcpTempLocation()

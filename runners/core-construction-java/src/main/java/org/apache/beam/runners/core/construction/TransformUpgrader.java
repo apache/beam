@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InvalidClassException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
@@ -49,12 +50,16 @@ import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannelBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A utility class that allows upgrading transforms of a given pipeline using the Beam Transform
  * Service.
  */
 public class TransformUpgrader implements AutoCloseable {
+
+  private static final Logger LOG = LoggerFactory.getLogger(TransformUpgrader.class);
   private static final String UPGRADE_NAMESPACE = "transform:upgrade:";
 
   private ExpansionServiceClientFactory clientFactory;
@@ -405,10 +410,16 @@ public class TransformUpgrader implements AutoCloseable {
    *     method.
    * @return re-generated object.
    */
-  public static Object fromByteArray(byte[] bytes) {
+  public static Object fromByteArray(byte[] bytes) throws InvalidClassException {
     try (ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
         ObjectInputStream in = new ObjectInputStream(bis)) {
       return in.readObject();
+    } catch (InvalidClassException e) {
+      LOG.info(
+          "An object cannot be re-generated from the provided byte array. Caller may use the "
+              + "default value for the parameter when upgrading. Underlying error: "
+              + e);
+      throw e;
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

@@ -1336,6 +1336,18 @@ Release Manager
 [1] https://github.com/apache/beam/pull/123
 ```
 
+### Update the Java starter repo
+
+After the new Beam release is published, the Java starter project needs to have its version manually upgraded.
+To do this, create a PR like https://github.com/apache/beam-starter-java/pull/94 (with the appropriate version
+number).
+
+#### (Optional) Update the remaining starter repos
+
+You can also update the versions in https://github.com/apache/beam-starter-python and
+https://github.com/apache/beam-starter-go if you would like. This is optional because dependabot will automatically
+open a PR to do this if you don't.
+
 ### Update Beam Playground
 
 After new Beam Release is published, Beam Playground can be updated following the steps below:

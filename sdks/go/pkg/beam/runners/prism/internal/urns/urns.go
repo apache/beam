@@ -51,6 +51,7 @@ var (
 	reqUrn     = toUrn[pipepb.StandardRequirements_Enum]()
 	runProcUrn = toUrn[pipepb.StandardRunnerProtocols_Enum]()
 	envUrn     = toUrn[pipepb.StandardEnvironments_Environments]()
+	usUrn      = toUrn[pipepb.StandardUserStateTypes_Enum]()
 )
 
 var (
@@ -92,6 +93,10 @@ var (
 	// Side Input access patterns
 	SideInputIterable = siUrn(pipepb.StandardSideInputTypes_ITERABLE)
 	SideInputMultiMap = siUrn(pipepb.StandardSideInputTypes_MULTIMAP)
+
+	// UserState kinds
+	UserStateBag      = usUrn(pipepb.StandardUserStateTypes_BAG)
+	UserStateMultiMap = usUrn(pipepb.StandardUserStateTypes_MULTIMAP)
 
 	// WindowsFns
 	WindowFnGlobal  = quickUrn(pipepb.GlobalWindowsPayload_PROPERTIES)

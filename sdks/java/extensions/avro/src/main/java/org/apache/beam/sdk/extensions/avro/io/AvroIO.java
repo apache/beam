@@ -341,8 +341,8 @@ import org.joda.time.Duration;
  * }</pre>
  *
  * <p>Error handling for writing records that are malformed can be handled by using {@link
- * TypedWrite#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. See documentation in
- * {@link FileIO} for details on usage
+ * TypedWrite#withBadRecordErrorHandler(ErrorHandler)}. See documentation in {@link FileIO} for
+ * details on usage
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -1435,6 +1435,8 @@ public class AvroIO {
 
     abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
+    abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
+
     abstract @Nullable SerializableFunction<Exception, Boolean> getBadRecordMatcher();
 
     /**
@@ -1501,9 +1503,6 @@ public class AvroIO {
 
       abstract Builder<UserT, DestinationT, OutputT> setBadRecordErrorHandler(
           @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
-
-      abstract Builder<UserT, DestinationT, OutputT> setBadRecordMatcher(
-          @Nullable SerializableFunction<Exception, Boolean> badRecordMatcher);
 
       abstract TypedWrite<UserT, DestinationT, OutputT> build();
     }
@@ -1729,20 +1728,10 @@ public class AvroIO {
       return toBuilder().setMetadata(ImmutableMap.copyOf(metadata)).build();
     }
 
-    /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. */
+    /** See {@link FileIO.Write#withBadRecordErrorHandler(ErrorHandler)} for details on usage. */
     public TypedWrite<UserT, DestinationT, OutputT> withBadRecordErrorHandler(
         ErrorHandler<BadRecord, ?> errorHandler) {
-      return withBadRecordErrorHandler(errorHandler, (e) -> true);
-    }
-
-    /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. */
-    public TypedWrite<UserT, DestinationT, OutputT> withBadRecordErrorHandler(
-        ErrorHandler<BadRecord, ?> errorHandler,
-        SerializableFunction<Exception, Boolean> badRecordMatcher) {
-      return toBuilder()
-          .setBadRecordErrorHandler(errorHandler)
-          .setBadRecordMatcher(badRecordMatcher)
-          .build();
+      return toBuilder().setBadRecordErrorHandler(errorHandler).build();
     }
 
     DynamicAvroDestinations<UserT, DestinationT, OutputT> resolveDynamicDestinations() {
@@ -1814,8 +1803,8 @@ public class AvroIO {
       if (getNoSpilling()) {
         write = write.withNoSpilling();
       }
-      if (getBadRecordErrorHandler() != null && getBadRecordMatcher() != null) {
-        write = write.withBadRecordErrorHandler(getBadRecordErrorHandler(), getBadRecordMatcher());
+      if (getBadRecordErrorHandler() != null) {
+        write = write.withBadRecordErrorHandler(getBadRecordErrorHandler());
       }
       return input.apply("Write", write);
     }

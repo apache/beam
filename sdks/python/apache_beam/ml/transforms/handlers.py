@@ -388,7 +388,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
         transformed_types[name] = typing.Sequence[bytes]  # type: ignore[assignment]
     return transformed_types
 
-  def process_data(
+  def expand(
       self, raw_data: beam.PCollection[tft_process_handler_input_type]
   ) -> beam.PCollection[tft_process_handler_output_type]:
     """
@@ -513,7 +513,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
 
       # The schema only contains the columns that are transformed.
       transformed_dataset = (
-          transformed_dataset | "ConvertToRowType" >>
+          transformed_dataset
+          | "ConvertToRowType" >>
           beam.Map(lambda x: beam.Row(**x)).with_output_types(row_type))
-
       return transformed_dataset

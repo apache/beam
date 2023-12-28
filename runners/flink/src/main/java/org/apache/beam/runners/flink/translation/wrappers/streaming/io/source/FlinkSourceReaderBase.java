@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io.source;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -42,7 +40,6 @@ import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainerWithoutAccumulator;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.compat.FlinkSourceCompat;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -149,19 +146,11 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
     // Add all the source splits being actively read.
     beamSourceReaders.forEach(
         (splitId, readerAndOutput) -> {
-          Source.Reader<T> reader = readerAndOutput.reader;
-          if (reader instanceof BoundedSource.BoundedReader) {
-            // Sometimes users may decide to run a bounded source in streaming mode as "finite
-            // stream."
-            // For bounded source, the checkpoint granularity is the entire source split.
-            // So, in case of failure, all the data from this split will be consumed again.
-            splitsState.add(new FlinkSourceSplit<>(splitId, reader.getCurrentSource()));
-          } else if (reader instanceof UnboundedSource.UnboundedReader) {
-            // The checkpoint for unbounded sources is fine granular.
-            byte[] checkpointState =
-                getAndEncodeCheckpointMark((UnboundedSource.UnboundedReader<OutputT>) reader);
-            splitsState.add(
-                new FlinkSourceSplit<>(splitId, reader.getCurrentSource(), checkpointState));
+          try {
+            splitsState.add(getReaderCheckpoint(splitId, readerAndOutput));
+          } catch (IOException e) {
+            throw new IllegalStateException(
+                String.format("Failed to get checkpoint for split %d", splitId), e);
           }
         });
     return splitsState;
@@ -228,9 +217,17 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
    */
   protected abstract CompletableFuture<Void> isAvailableForAliveReaders();
 
+  /** Create {@link FlinkSourceSplit} for given {@code splitId}. */
+  protected abstract FlinkSourceSplit<T> getReaderCheckpoint(
+      int splitId, ReaderAndOutput readerAndOutput) throws IOException;
+
+  /** Create {@link Source.Reader} for given {@link FlinkSourceSplit}. */
+  protected abstract Source.Reader<T> createReader(@Nonnull FlinkSourceSplit<T> sourceSplit)
+      throws IOException;
+
   // ----------------- protected helper methods for subclasses --------------------
 
-  protected Optional<ReaderAndOutput> createAndTrackNextReader() throws IOException {
+  protected final Optional<ReaderAndOutput> createAndTrackNextReader() throws IOException {
     FlinkSourceSplit<T> sourceSplit = sourceSplits.poll();
     if (sourceSplit != null) {
       Source.Reader<T> reader = createReader(sourceSplit);
@@ -241,7 +238,7 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
     return Optional.empty();
   }
 
-  protected void finishSplit(int splitIndex) throws IOException {
+  protected final void finishSplit(int splitIndex) throws IOException {
     ReaderAndOutput readerAndOutput = beamSourceReaders.remove(splitIndex);
     if (readerAndOutput != null) {
       LOG.info("Finished reading from split {}", readerAndOutput.splitId);
@@ -252,7 +249,7 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
     }
   }
 
-  protected boolean checkIdleTimeoutAndMaybeStartCountdown() {
+  protected final boolean checkIdleTimeoutAndMaybeStartCountdown() {
     if (idleTimeoutMs <= 0) {
       idleTimeoutFuture.complete(null);
     } else if (!idleTimeoutCountingDown) {
@@ -262,7 +259,7 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
     return idleTimeoutFuture.isDone();
   }
 
-  protected boolean noMoreSplits() {
+  protected final boolean noMoreSplits() {
     return noMoreSplits;
   }
 
@@ -307,49 +304,6 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
 
   protected static void ignoreReturnValue(Object o) {
     // do nothing.
-  }
-  // ------------------------------ private methods ------------------------------
-
-  @SuppressWarnings("unchecked")
-  private <CheckpointMarkT extends UnboundedSource.CheckpointMark>
-      byte[] getAndEncodeCheckpointMark(UnboundedSource.UnboundedReader<OutputT> reader) {
-    UnboundedSource<OutputT, CheckpointMarkT> source =
-        (UnboundedSource<OutputT, CheckpointMarkT>) reader.getCurrentSource();
-    CheckpointMarkT checkpointMark = (CheckpointMarkT) reader.getCheckpointMark();
-    Coder<CheckpointMarkT> coder = source.getCheckpointMarkCoder();
-    try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-      coder.encode(checkpointMark, baos);
-      return baos.toByteArray();
-    } catch (IOException ioe) {
-      throw new RuntimeException("Failed to encode checkpoint mark.", ioe);
-    }
-  }
-
-  private Source.Reader<T> createReader(@Nonnull FlinkSourceSplit<T> sourceSplit)
-      throws IOException {
-    Source<T> beamSource = sourceSplit.getBeamSplitSource();
-    if (beamSource instanceof BoundedSource) {
-      return ((BoundedSource<T>) beamSource).createReader(pipelineOptions);
-    } else if (beamSource instanceof UnboundedSource) {
-      return createUnboundedSourceReader(beamSource, sourceSplit.getSplitState());
-    } else {
-      throw new IllegalStateException("Unknown source type " + beamSource.getClass());
-    }
-  }
-
-  private <CheckpointMarkT extends UnboundedSource.CheckpointMark>
-      Source.Reader<T> createUnboundedSourceReader(
-          Source<T> beamSource, @Nullable byte[] splitState) throws IOException {
-    UnboundedSource<T, CheckpointMarkT> unboundedSource =
-        (UnboundedSource<T, CheckpointMarkT>) beamSource;
-    Coder<CheckpointMarkT> coder = unboundedSource.getCheckpointMarkCoder();
-    if (splitState == null) {
-      return unboundedSource.createReader(pipelineOptions, null);
-    } else {
-      try (ByteArrayInputStream bais = new ByteArrayInputStream(splitState)) {
-        return unboundedSource.createReader(pipelineOptions, coder.decode(bais));
-      }
-    }
   }
 
   // -------------------- protected helper class ---------------------

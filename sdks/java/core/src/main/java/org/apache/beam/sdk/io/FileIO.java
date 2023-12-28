@@ -242,21 +242,20 @@ import org.slf4j.LoggerFactory;
  *
  * <p>When using dynamic destinations, or when using a formatting function to format a record for
  * writing, it's possible for an individual record to be malformed, causing an exception. By
- * default, these exceptions are propagated to the runner, and are usually retried, though this
- * depends on the runner. Alternately, these errors can be routed to another {@link PTransform} by
- * using {@link Write#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. The
- * ErrorHandler is registered with the pipeline (see below), and the SerializableFunction lets you
- * filter which exceptions should be sent to the error handler, and which should be handled by the
- * runner. See {@link ErrorHandler} for more documentation. Of note, this error handling only
- * handles errors related to specific records. It does not handle errors related to connectivity,
- * authorization, etc. as those should be retried by the runner.
+ * default, these exceptions are propagated to the runner causing the bundle to fail. These are
+ * usually retried, though this depends on the runner. Alternately, these errors can be routed to
+ * another {@link PTransform} by using {@link Write#withBadRecordErrorHandler(ErrorHandler)}. The
+ * ErrorHandler is registered with the pipeline (see below). See {@link ErrorHandler} for more
+ * documentation. Of note, this error handling only handles errors related to specific records. It
+ * does not handle errors related to connectivity, authorization, etc. as those should be retried by
+ * the runner.
  *
  * <pre>{@code
  * PCollection<> records = ...;
  * PTransform<PCollection<BadRecord>,?> alternateSink = ...;
  * try (BadRecordErrorHandler<?> handler = pipeline.registerBadRecordErrorHandler(alternateSink) {
  *    records.apply("Write", FileIO.writeDynamic().otherConfigs()
- *        .withBadRecordErrorHandler(handler, (exception) -> true));
+ *        .withBadRecordErrorHandler(handler));
  * }
  * }</pre>
  *
@@ -1042,8 +1041,6 @@ public class FileIO {
 
     abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
-    abstract @Nullable SerializableFunction<Exception, Boolean> getBadRecordMatcher();
-
     abstract Builder<DestinationT, UserT> toBuilder();
 
     @AutoValue.Builder
@@ -1092,9 +1089,6 @@ public class FileIO {
 
       abstract Builder<DestinationT, UserT> setBadRecordErrorHandler(
           @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
-
-      abstract Builder<DestinationT, UserT> setBadRecordMatcher(
-          @Nullable SerializableFunction<Exception, Boolean> badRecordMatcher);
 
       abstract Write<DestinationT, UserT> build();
     }
@@ -1322,20 +1316,16 @@ public class FileIO {
       return toBuilder().setNoSpilling(true).build();
     }
 
-    /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. */
+    /**
+     * Configures a new {@link Write} with an ErrorHandler. For configuring an ErrorHandler, see
+     * {@link ErrorHandler}. Whenever a record is formatted, or a lookup for a dynamic destination
+     * is performed, and that operation fails, the exception is passed to the error handler. This is
+     * intended to handle any errors related to the data of a record, but not any connectivity or IO
+     * errors related to the literal writing of a record.
+     */
     public Write<DestinationT, UserT> withBadRecordErrorHandler(
         ErrorHandler<BadRecord, ?> errorHandler) {
-      return withBadRecordErrorHandler(errorHandler, (e) -> true);
-    }
-
-    /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. */
-    public Write<DestinationT, UserT> withBadRecordErrorHandler(
-        ErrorHandler<BadRecord, ?> errorHandler,
-        SerializableFunction<Exception, Boolean> badRecordMatcher) {
-      return toBuilder()
-          .setBadRecordErrorHandler(errorHandler)
-          .setBadRecordMatcher(badRecordMatcher)
-          .build();
+      return toBuilder().setBadRecordErrorHandler(errorHandler).build();
     }
 
     @VisibleForTesting
@@ -1442,8 +1432,7 @@ public class FileIO {
         writeFiles = writeFiles.withNoSpilling();
       }
       if (getBadRecordErrorHandler() != null) {
-        writeFiles =
-            writeFiles.withBadRecordErrorHandler(getBadRecordErrorHandler(), getBadRecordMatcher());
+        writeFiles = writeFiles.withBadRecordErrorHandler(getBadRecordErrorHandler());
       }
       return input.apply(writeFiles);
     }

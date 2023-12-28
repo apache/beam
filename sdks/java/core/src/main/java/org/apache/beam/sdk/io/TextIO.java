@@ -180,8 +180,8 @@ import org.joda.time.Duration;
  * DynamicDestinations} interface for advanced features via {@link Write#to(DynamicDestinations)}.
  *
  * <p>Error handling for records that are malformed can be handled by using {@link
- * TypedWrite#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. See documentation in
- * {@link FileIO} for details on usage
+ * TypedWrite#withBadRecordErrorHandler(ErrorHandler)}. See documentation in {@link FileIO} for
+ * details on usage
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -716,8 +716,6 @@ public class TextIO {
 
     abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
-    abstract @Nullable SerializableFunction<Exception, Boolean> getBadRecordMatcher();
-
     abstract Builder<UserT, DestinationT> toBuilder();
 
     @AutoValue.Builder
@@ -766,9 +764,6 @@ public class TextIO {
 
       abstract Builder<UserT, DestinationT> setBadRecordErrorHandler(
           @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
-
-      abstract Builder<UserT, DestinationT> setBadRecordMatcher(
-          @Nullable SerializableFunction<Exception, Boolean> badRecordMatcher);
 
       abstract TypedWrite<UserT, DestinationT> build();
     }
@@ -1009,20 +1004,10 @@ public class TextIO {
       return toBuilder().setNoSpilling(true).build();
     }
 
-    /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. */
+    /** See {@link FileIO.Write#withBadRecordErrorHandler(ErrorHandler)} for details on usage. */
     public TypedWrite<UserT, DestinationT> withBadRecordErrorHandler(
         ErrorHandler<BadRecord, ?> errorHandler) {
-      return withBadRecordErrorHandler(errorHandler, (e) -> true);
-    }
-
-    /** See {@link WriteFiles#withBadRecordErrorHandler(ErrorHandler, SerializableFunction)}. */
-    public TypedWrite<UserT, DestinationT> withBadRecordErrorHandler(
-        ErrorHandler<BadRecord, ?> errorHandler,
-        SerializableFunction<Exception, Boolean> badRecordMatcher) {
-      return toBuilder()
-          .setBadRecordErrorHandler(errorHandler)
-          .setBadRecordMatcher(badRecordMatcher)
-          .build();
+      return toBuilder().setBadRecordErrorHandler(errorHandler).build();
     }
 
     /** Don't write any output files if the PCollection is empty. */
@@ -1116,7 +1101,7 @@ public class TextIO {
         write = write.withNoSpilling();
       }
       if (getBadRecordErrorHandler() != null) {
-        write = write.withBadRecordErrorHandler(getBadRecordErrorHandler(), getBadRecordMatcher());
+        write = write.withBadRecordErrorHandler(getBadRecordErrorHandler());
       }
       if (getSkipIfEmpty()) {
         write = write.withSkipIfEmpty();

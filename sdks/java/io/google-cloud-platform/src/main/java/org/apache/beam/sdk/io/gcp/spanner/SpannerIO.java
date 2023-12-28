@@ -56,6 +56,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -102,9 +103,11 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.WithTimestamps;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -852,6 +855,11 @@ public class SpannerIO {
       return withReadOperation(getReadOperation().withIndex(index));
     }
 
+    /**
+     * Note that {@link PartitionOptions} are currently ignored. See <a
+     * href="https://cloud.google.com/spanner/docs/reference/rpc/google.spanner.v1#google.spanner.v1.PartitionOptions">
+     * PartitionOptions in RPC documents</a>
+     */
     public Read withPartitionOptions(PartitionOptions partitionOptions) {
       return withReadOperation(getReadOperation().withPartitionOptions(partitionOptions));
     }
@@ -1997,6 +2005,15 @@ public class SpannerIO {
       public void outputWithTimestamp(Iterable<MutationGroup> output, Instant timestamp) {
         c.output(output, timestamp, GlobalWindow.INSTANCE);
       }
+
+      @Override
+      public void outputWindowedValue(
+          Iterable<MutationGroup> output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo) {
+        throw new UnsupportedOperationException("outputWindowedValue not supported");
+      }
     }
   }
 
@@ -2165,6 +2182,7 @@ public class SpannerIO {
           // fall through and retry individual mutationGroups.
         } else if (failureMode == FailureMode.FAIL_FAST) {
           mutationGroupsWriteFail.inc(mutations.size());
+          LOG.error("Failed to write a batch of mutation groups", e);
           throw e;
         } else {
           throw new IllegalArgumentException("Unknown failure mode " + failureMode);

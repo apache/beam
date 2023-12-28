@@ -59,7 +59,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reify;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
@@ -175,7 +174,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .setSkipIfEmpty(false)
         .setBadRecordErrorHandler(new DefaultErrorHandler<>())
         .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
-        .setBadRecordMatcher((e) -> true)
         .build();
   }
 
@@ -202,8 +200,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
   public abstract BadRecordRouter getBadRecordRouter();
-
-  public abstract SerializableFunction<Exception, Boolean> getBadRecordMatcher();
 
   abstract Builder<UserT, DestinationT, OutputT> toBuilder();
 
@@ -236,9 +232,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     abstract Builder<UserT, DestinationT, OutputT> setBadRecordRouter(
         BadRecordRouter badRecordRouter);
-
-    abstract Builder<UserT, DestinationT, OutputT> setBadRecordMatcher(
-        SerializableFunction<Exception, Boolean> badRecordMatcher);
 
     abstract WriteFiles<UserT, DestinationT, OutputT> build();
   }
@@ -355,13 +348,12 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     return toBuilder().setSkipIfEmpty(true).build();
   }
 
+  /** See {@link FileIO.Write#withBadRecordErrorHandler(ErrorHandler)} for details on usage. */
   public WriteFiles<UserT, DestinationT, OutputT> withBadRecordErrorHandler(
-      ErrorHandler<BadRecord, ?> errorHandler,
-      SerializableFunction<Exception, Boolean> badRecordMatcher) {
+      ErrorHandler<BadRecord, ?> errorHandler) {
     return toBuilder()
         .setBadRecordErrorHandler(errorHandler)
         .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER)
-        .setBadRecordMatcher(badRecordMatcher)
         .build();
   }
 
@@ -541,12 +533,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                 ParDo.of(new WriteUnshardedTempFilesFn(null, destinationCoder, inputCoder))
                     .withSideInputs(getSideInputs())
                     .withOutputTags(
-                        writtenRecordsTag,
-                        TupleTagList.of(ImmutableList.of(unwrittenRecordsTag, BAD_RECORD_TAG))));
+                        writtenRecordsTag, TupleTagList.of(ImmutableList.of(BAD_RECORD_TAG))));
         addErrorCollection(writeTuple);
-        writeTuple
-            .get(unwrittenRecordsTag)
-            .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()));
         return writeTuple.get(writtenRecordsTag).setCoder(fileResultCoder);
       }
 
@@ -794,18 +782,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     try {
       return new MaybeDestination<>(getDynamicDestinations().getDestination(input), true);
     } catch (Exception e) {
-      if (getBadRecordMatcher().apply(e)) {
-        getBadRecordRouter()
-            .route(
-                outputReceiver,
-                input,
-                inputCoder,
-                e,
-                "Unable to get dynamic destination for record");
-        return new MaybeDestination<>(null, false);
-      } else {
-        throw e;
-      }
+      getBadRecordRouter()
+          .route(
+              outputReceiver, input, inputCoder, e, "Unable to get dynamic destination for record");
+      return new MaybeDestination<>(null, false);
     }
   }
 
@@ -816,18 +796,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     try {
       return getDynamicDestinations().formatRecord(input);
     } catch (Exception e) {
-      if (getBadRecordMatcher().apply(e)) {
-        getBadRecordRouter()
-            .route(
-                outputReceiver,
-                input,
-                inputCoder,
-                e,
-                "Unable to format record for Dynamic Destination");
-        return null;
-      } else {
-        throw e;
-      }
+      getBadRecordRouter()
+          .route(
+              outputReceiver,
+              input,
+              inputCoder,
+              e,
+              "Unable to format record for Dynamic Destination");
+      return null;
     }
   }
 

@@ -98,8 +98,8 @@ jobs:
             -PpythonVersion=${{ matrix.python_version }} \
             -PskipNonPythonTask=false \
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
-        if: failure()
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"
