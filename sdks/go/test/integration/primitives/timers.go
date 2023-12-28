@@ -18,6 +18,7 @@ package primitives
 import (
 	"context"
 	"strconv"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
@@ -46,7 +47,7 @@ func kvfn[K, V any](k K, v V) kv[K, V] {
 	return kv[K, V]{k, v}
 }
 
-type inputFn[K any, V constraints.Integer] struct {
+type inputFn[K, V any] struct {
 	Inputs []kv[K, V]
 }
 
