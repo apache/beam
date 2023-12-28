@@ -18,12 +18,14 @@ package primitives
 import (
 	"context"
 	"strconv"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/periodic"
 )
 
 // Based on https://github.com/apache/beam/blob/master/runners/flink/src/test/java/org/apache/beam/runners/flink/PortableTimersExecutionTest.java
@@ -81,23 +83,27 @@ func (fn *eventTimeFn) OnTimer(ctx context.Context, ts beam.EventTime, sp state.
 				panic("State must be set.")
 			}
 			emit(kvfn(read, fn.TimerOutput))
+		default:
+			panic("unexpected timer tag: " + timer.Family + " tag:" + timer.Tag + " want: \"\", for key:" + key)
 		}
 	default:
 		if fn.Callback.Family != timer.Family || timer.Tag != "" {
-			panic("unexpected timer family: " + timer.Family + " tag:" + timer.Tag + " want: " + fn.Callback.Family)
+			panic("unexpected timer family: " + timer.Family + " tag:" + timer.Tag + " want: " + fn.Callback.Family + ", for key:" + key)
 		}
 	}
 }
 
-// TimersEventTime takes in an impulse transform and then validates
-// event time timer execution.
+// TimersEventTime takes in an impulse transform and produces a pipeline construction
+// function that validates EventTime timers.
 //
 // The impulse is provided outside to swap between a bounded impulse, and
 // an unbounded one, because the Go SDK uses that to determine if a pipeline
 // is "streaming" or not. This matters at least for executions on Dataflow.
 //
-// Regardless,the pipelines should pass.
-func TimersEventTime(makeImp func(s beam.Scope) beam.PCollection) func(s beam.Scope) {
+// The test produces some number of key value elements, with various event time offsets,
+// expecting that a single timer event is what fires. The test validates that all the
+// input elements, and the timer elements have been emitted.
+func timersEventTimePipelineBuilder(makeImp func(s beam.Scope) beam.PCollection) func(s beam.Scope) {
 	return func(s beam.Scope) {
 		var inputs, wantOutputs []kv[string, int]
 
@@ -130,4 +136,17 @@ func TimersEventTime(makeImp func(s beam.Scope) beam.PCollection) func(s beam.Sc
 		}, keyed)
 		passert.EqualsList(s, times, wantOutputs)
 	}
+}
+
+// TimersEventTime_Bounded validates event time timers in a bounded pipeline.
+func TimersEventTime_Bounded(s beam.Scope) {
+	timersEventTimePipelineBuilder(beam.Impulse)(s)
+}
+
+// TimersEventTime_Bounded validates event time timers in an unbounded pipeline.
+func TimersEventTime_Unbounded(s beam.Scope) {
+	timersEventTimePipelineBuilder(func(s beam.Scope) beam.PCollection {
+		now := time.Now()
+		return periodic.Impulse(s, now, now.Add(10*time.Second), 0, false)
+	})(s)
 }
