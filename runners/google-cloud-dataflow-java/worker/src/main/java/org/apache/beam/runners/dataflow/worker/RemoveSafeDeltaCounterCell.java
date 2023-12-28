@@ -45,7 +45,7 @@ public class RemoveSafeDeltaCounterCell implements Counter, MetricCell<Long> {
    * @param countersMap The underlying {@code map} used to store this metric.
    */
   public RemoveSafeDeltaCounterCell(
-      @Nonnull MetricName metricName, ConcurrentHashMap<MetricName, AtomicLong> countersMap) {
+      MetricName metricName, ConcurrentHashMap<MetricName, AtomicLong> countersMap) {
     this.metricName = metricName;
     this.countersMap = countersMap;
   }
