@@ -206,7 +206,7 @@ progress:
 		}
 	}
 	// Tentative Data is ready, commit it to the main datastore.
-	slog.Debug("Execute: commiting data", "bundle", rb, slog.Any("outputsWithData", maps.Keys(b.OutputData.Raw)), slog.Any("outputs", maps.Keys(s.OutputsToCoders)))
+	slog.Debug("Execute: committing data", "bundle", rb, slog.Any("outputsWithData", maps.Keys(b.OutputData.Raw)), slog.Any("outputs", maps.Keys(s.OutputsToCoders)))
 
 	// Tally metrics immeadiately so they're available before
 	// pipeline termination.
