@@ -375,6 +375,11 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
       transitionsAtLastSample = transitionsAtThisSample;
     }
     updateMillisSinceLastTransition(millisSinceLastSample, state);
+    updateMillisSinceBundleStart(millisSinceLastSample, state);
+  }
+
+  @SuppressWarnings("NonAtomicVolatileUpdate")
+  private void updateMillisSinceBundleStart(long millisSinceLastSample, ExecutionState state) {
     millisSinceBundleStart += millisSinceLastSample;
   }
 
