@@ -336,7 +336,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   public boolean shouldReportBundleLull() {
     return millisSinceBundleStart > nextBundleLullReportMs;
   }
-  
+
   /**
    * Called periodically by the {@link ExecutionStateSampler} to report time recorded by the
    * tracker.
