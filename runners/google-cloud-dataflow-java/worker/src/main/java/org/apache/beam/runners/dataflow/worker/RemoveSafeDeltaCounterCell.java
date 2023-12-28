@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
-import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.DirtyState;
 import org.apache.beam.runners.core.metrics.MetricCell;
@@ -34,8 +33,17 @@ import org.apache.beam.sdk.metrics.MetricName;
 public class RemoveSafeDeltaCounterCell implements Counter, MetricCell<Long> {
 
   private final MetricName metricName;
+  /**
+   * This class does not own {@code countersMap} and only operates on a single key in the map
+   * specified by {@code metricName}. These opeations include the {@link Counter} interface along
+   * with the {@code deleteIfZero} method.
+   */
   private final ConcurrentHashMap<MetricName, AtomicLong> countersMap;
 
+  /**
+   * @param metricName Specifies which metric this counter refers to.
+   * @param countersMap The underlying {@code map} used to store this metric.
+   */
   public RemoveSafeDeltaCounterCell(
       @Nonnull MetricName metricName, ConcurrentHashMap<MetricName, AtomicLong> countersMap) {
     this.metricName = metricName;
