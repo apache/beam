@@ -98,6 +98,7 @@ class PipelineTask(str, Enum):
   TextClassification = 'text-classification'
   TextGeneration = 'text-generation'
   Text2TextGeneration = 'text2text-generation'
+  TextToAudio = 'text-to-audio'
   TokenClassification = 'token-classification'
   Translation = 'translation'
   VideoClassification = 'video-classification'
@@ -220,9 +221,9 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
       *,
       inference_fn: Optional[Callable[..., Iterable[PredictionResult]]] = None,
       load_model_args: Optional[Dict[str, Any]] = None,
-      inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
+      max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
       **kwargs):
     """
@@ -248,12 +249,10 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
       load_model_args (Dict[str, Any]): (Optional) Keyword arguments to provide
         load options while loading models from Hugging Face Hub.
         Defaults to None.
-      inference_args (Dict[str, Any]): (Optional) Non-batchable arguments
-        required as inputs to the model's inference function. Unlike Tensors
-        in `batch`, these parameters will not be dynamically batched.
-        Defaults to None.
       min_batch_size: the minimum batch size to use when batching inputs.
       max_batch_size: the maximum batch size to use when batching inputs.
+      max_batch_duration_secs: the maximum amount of time to buffer a batch
+        before emitting; used in streaming contexts.
       large_model: set to true if your model is large enough to run into
         memory pressure if you load multiple copies. Given a model that
         consumes N memory and a machine with W cores and M memory, you should
@@ -269,13 +268,14 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
     self._device = device
     self._inference_fn = inference_fn
     self._model_config_args = load_model_args if load_model_args else {}
-    self._inference_args = inference_args if inference_args else {}
     self._batching_kwargs = {}
     self._env_vars = kwargs.get("env_vars", {})
     if min_batch_size is not None:
       self._batching_kwargs["min_batch_size"] = min_batch_size
     if max_batch_size is not None:
       self._batching_kwargs["max_batch_size"] = max_batch_size
+    if max_batch_duration_secs is not None:
+      self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
     self._large_model = large_model
     self._framework = framework
 
@@ -287,7 +287,7 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
     model = self._model_class.from_pretrained(
         self._model_uri, **self._model_config_args)
     if self._framework == 'pt':
-      if self._device == "GPU" and is_gpu_available_torch:
+      if self._device == "GPU" and is_gpu_available_torch():
         model.to(torch.device("cuda"))
       if callable(getattr(model, 'requires_grad_', None)):
         model.requires_grad_(False)
@@ -401,9 +401,9 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
       *,
       inference_fn: Optional[Callable[..., Iterable[PredictionResult]]] = None,
       load_model_args: Optional[Dict[str, Any]] = None,
-      inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
+      max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
       **kwargs):
     """
@@ -429,12 +429,10 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
       load_model_args (Dict[str, Any]): (Optional) keyword arguments to provide
         load options while loading models from Hugging Face Hub.
         Defaults to None.
-      inference_args (Dict[str, Any]): (Optional) Non-batchable arguments
-        required as inputs to the model's inference function. Unlike Tensors
-        in `batch`, these parameters will not be dynamically batched.
-        Defaults to None.
       min_batch_size: the minimum batch size to use when batching inputs.
       max_batch_size: the maximum batch size to use when batching inputs.
+      max_batch_duration_secs: the maximum amount of time to buffer a batch
+        before emitting; used in streaming contexts.
       large_model: set to true if your model is large enough to run into
         memory pressure if you load multiple copies. Given a model that
         consumes N memory and a machine with W cores and M memory, you should
@@ -450,13 +448,14 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
     self._device = device
     self._inference_fn = inference_fn
     self._model_config_args = load_model_args if load_model_args else {}
-    self._inference_args = inference_args if inference_args else {}
     self._batching_kwargs = {}
     self._env_vars = kwargs.get("env_vars", {})
     if min_batch_size is not None:
       self._batching_kwargs["min_batch_size"] = min_batch_size
     if max_batch_size is not None:
       self._batching_kwargs["max_batch_size"] = max_batch_size
+    if max_batch_duration_secs is not None:
+      self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
     self._large_model = large_model
     self._framework = ""
 
@@ -570,21 +569,18 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
   def __init__(
       self,
       task: Union[str, PipelineTask] = "",
-      model=None,
+      model: str = "",
       *,
+      device: Optional[str] = None,
       inference_fn: PipelineInferenceFn = _default_pipeline_inference_fn,
       load_pipeline_args: Optional[Dict[str, Any]] = None,
-      inference_args: Optional[Dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
+      max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
       **kwargs):
     """
     Implementation of the ModelHandler interface for Hugging Face Pipelines.
-
-    **Note:** To specify which device to use (CPU/GPU),
-    use the load_pipeline_args with key-value as you would do in the usual
-    Hugging Face pipeline. Ex: load_pipeline_args={'device':0})
 
     Example Usage model::
       pcoll | RunInference(HuggingFacePipelineModelHandler(
@@ -593,18 +589,31 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     Args:
       task (str or enum.Enum): task supported by HuggingFace Pipelines.
         Accepts a string task or an enum.Enum from PipelineTask.
-      model : path to pretrained model on Hugging Face Models Hub to use custom
-        model for the chosen task. If the model already defines the task then
-        no need to specify the task parameter.
+      model (str): path to the pretrained *model-id* on Hugging Face Models Hub
+        to use custom model for the chosen task. If the `model` already defines
+        the task then no need to specify the `task` parameter.
+        Use the *model-id* string instead of an actual model here.
+        Model-specific kwargs for `from_pretrained(..., **model_kwargs)` can be
+        specified with `model_kwargs` using `load_pipeline_args`.
+
+        Example Usage::
+          model_handler = HuggingFacePipelineModelHandler(
+            task="text-generation", model="meta-llama/Llama-2-7b-hf",
+            load_pipeline_args={'model_kwargs':{'quantization_map':config}})
+
+      device (str): the device (`"CPU"` or `"GPU"`) on which you wish to run
+        the pipeline. Defaults to GPU. If GPU is not available then it falls
+        back to CPU. You can also use advanced option like `device_map` with
+        key-value pair as you would do in the usual Hugging Face pipeline using
+        `load_pipeline_args`. Ex: load_pipeline_args={'device_map':auto}).
       inference_fn: the inference function to use during RunInference.
         Default is _default_pipeline_inference_fn.
       load_pipeline_args (Dict[str, Any]): keyword arguments to provide load
         options while loading pipelines from Hugging Face. Defaults to None.
-      inference_args (Dict[str, Any]): Non-batchable arguments
-        required as inputs to the model's inference function.
-        Defaults to None.
       min_batch_size: the minimum batch size to use when batching inputs.
       max_batch_size: the maximum batch size to use when batching inputs.
+      max_batch_duration_secs: the maximum amount of time to buffer a batch
+        before emitting; used in streaming contexts.
       large_model: set to true if your model is large enough to run into
         memory pressure if you load multiple copies. Given a model that
         consumes N memory and a machine with W cores and M memory, you should
@@ -619,7 +628,6 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     self._model = model
     self._inference_fn = inference_fn
     self._load_pipeline_args = load_pipeline_args if load_pipeline_args else {}
-    self._inference_args = inference_args if inference_args else {}
     self._batching_kwargs = {}
     self._framework = "torch"
     self._env_vars = kwargs.get('env_vars', {})
@@ -627,8 +635,38 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
       self._batching_kwargs['min_batch_size'] = min_batch_size
     if max_batch_size is not None:
       self._batching_kwargs['max_batch_size'] = max_batch_size
+    if max_batch_duration_secs is not None:
+      self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
     self._large_model = large_model
+
+    # Check if the device is specified twice. If true then the device parameter
+    # of model handler is overridden.
+    self._deduplicate_device_value(device)
     _validate_constructor_args_hf_pipeline(self._task, self._model)
+
+  def _deduplicate_device_value(self, device: Optional[str]):
+    current_device = device.upper() if device else None
+    if (current_device and current_device != 'CPU' and current_device != 'GPU'):
+      raise ValueError(
+          f"Invalid device value: {device}. Please specify "
+          "either CPU or GPU. Defaults to GPU if no value "
+          "is provided.")
+    if 'device' not in self._load_pipeline_args:
+      if current_device == 'CPU':
+        self._load_pipeline_args['device'] = 'cpu'
+      else:
+        if is_gpu_available_torch():
+          self._load_pipeline_args['device'] = 'cuda:1'
+        else:
+          _LOGGER.warning(
+              "HuggingFaceModelHandler specified a 'GPU' device, "
+              "but GPUs are not available. Switching to CPU.")
+          self._load_pipeline_args['device'] = 'cpu'
+    else:
+      if current_device:
+        raise ValueError(
+            '`device` specified in `load_pipeline_args`. `device` '
+            'parameter for HuggingFacePipelineModelHandler will be ignored.')
 
   def load_model(self):
     """Loads and initializes the pipeline for processing."""

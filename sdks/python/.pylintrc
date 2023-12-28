@@ -116,7 +116,6 @@ disable =
   missing-docstring,
   modified-iterating-list, 
   multiple-statements,
-  missing-timeout, #TODO(https://github.com/apache/beam/issues/28240) Enable and fix warnings
   no-self-use,
   no-else-break,
   no-else-continue,
@@ -140,7 +139,6 @@ disable =
   stop-iteration-return,
   super-init-not-called,
   superfluous-parens,
-  typevar-name-mismatch, #TODO(https://github.com/apache/beam/issues/28241) Enable and fix warnings
   try-except-raise,
   undefined-variable,
   unexpected-keyword-arg,
@@ -160,7 +158,6 @@ disable =
   use-dict-literal,
   unused-wildcard-import,
   useless-object-inheritance,
-  useless-with-lock, #TODO(https://github.com/apache/beam/issues/28242) Enable and fix warnings
   wildcard-import,
   wrong-import-order,
 

@@ -28,8 +28,15 @@ final class BigQueryIOMetadata {
 
   private @Nullable String beamJobId;
 
-  private BigQueryIOMetadata(@Nullable String beamJobId) {
+  private @Nullable String beamJobName;
+
+  private @Nullable String beamWorkerId;
+
+  private BigQueryIOMetadata(
+      @Nullable String beamJobId, @Nullable String beamJobName, @Nullable String beamWorkerId) {
     this.beamJobId = beamJobId;
+    this.beamJobName = beamJobName;
+    this.beamWorkerId = beamWorkerId;
   }
 
   private static final Pattern VALID_CLOUD_LABEL_PATTERN =
@@ -41,17 +48,24 @@ final class BigQueryIOMetadata {
    */
   public static BigQueryIOMetadata create() {
     String dataflowJobId = GceMetadataUtil.fetchDataflowJobId();
+    String dataflowJobName = GceMetadataUtil.fetchDataflowJobName();
+    String dataflowWorkerId = GceMetadataUtil.fetchDataflowWorkerId();
+
     // If a Dataflow job id is returned on GCE metadata. Then it means
     // this program is running on a Dataflow GCE VM.
-    boolean isDataflowRunner = dataflowJobId != null && !dataflowJobId.isEmpty();
+    boolean isDataflowRunner = !dataflowJobId.isEmpty();
 
     String beamJobId = null;
+    String beamJobName = null;
+    String beamWorkerId = null;
     if (isDataflowRunner) {
       if (BigQueryIOMetadata.isValidCloudLabel(dataflowJobId)) {
         beamJobId = dataflowJobId;
+        beamJobName = dataflowJobName;
+        beamWorkerId = dataflowWorkerId;
       }
     }
-    return new BigQueryIOMetadata(beamJobId);
+    return new BigQueryIOMetadata(beamJobId, beamJobName, beamWorkerId);
   }
 
   public Map<String, String> addAdditionalJobLabels(Map<String, String> jobLabels) {
@@ -68,10 +82,24 @@ final class BigQueryIOMetadata {
     return this.beamJobId;
   }
 
+  /*
+   * Returns the beam job name. Can be null if it is not running on Dataflow.
+   */
+  public @Nullable String getBeamJobName() {
+    return this.beamJobName;
+  }
+
+  /*
+   * Returns the beam worker id. Can be null if it is not running on Dataflow.
+   */
+  public @Nullable String getBeamWorkerId() {
+    return this.beamWorkerId;
+  }
+
   /**
    * Returns true if label_value is a valid cloud label string. This function can return false in
    * cases where the label value is valid. However, it will not return true in a case where the
-   * lavel value is invalid. This is because a stricter set of allowed characters is used in this
+   * label value is invalid. This is because a stricter set of allowed characters is used in this
    * validator, because foreign language characters are not accepted. Thus, this should not be used
    * as a generic validator for all cloud labels.
    *

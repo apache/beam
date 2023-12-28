@@ -72,7 +72,8 @@ When creating a BigQuery input transform, users should provide either a query
 or a table. Pipeline construction will fail with a validation error if neither
 or both are specified.
 
-When reading via `ReadFromBigQuery`, bytes are returned decoded as bytes.
+When reading via `ReadFromBigQuery` using `EXPORT`,
+bytes are returned decoded as bytes.
 This is due to the fact that ReadFromBigQuery uses Avro exports by default.
 When reading from BigQuery using `apache_beam.io.BigQuerySource`, bytes are
 returned as base64-encoded bytes. To get base64-encoded bytes using
@@ -1310,7 +1311,7 @@ class _ReadReadRowsResponsesWithFastAvro():
   def __next__(self):
     try:
       return fastavro.schemaless_reader(self.bytes_reader, self.avro_schema)
-    except StopIteration:
+    except (StopIteration, EOFError):
       self.read_rows_response = next(self.read_rows_iterator, None)
       if self.read_rows_response is not None:
         self.bytes_reader = io.BytesIO(
@@ -1869,6 +1870,7 @@ class WriteToBigQuery(PTransform):
       # TODO(https://github.com/apache/beam/issues/20712): Switch the default
       # when the feature is mature.
       with_auto_sharding=False,
+      num_storage_api_streams=0,
       ignore_unknown_columns=False,
       load_job_project_id=None,
       max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE,
@@ -2018,6 +2020,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         determined number of shards to write to BigQuery. This can be used for
         all of FILE_LOADS, STREAMING_INSERTS, and STORAGE_WRITE_API. Only
         applicable to unbounded input.
+      num_storage_api_streams: Specifies the number of write streams that the
+        Storage API sink will use. This parameter is only applicable when
+        writing unbounded data.
       ignore_unknown_columns: Accept rows that contain values that do not match
         the schema. The unknown values are ignored. Default is False,
         which treats unknown values as errors. This option is only valid for
@@ -2060,6 +2065,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.use_at_least_once = use_at_least_once
     self.expansion_service = expansion_service
     self.with_auto_sharding = with_auto_sharding
+    self._num_storage_api_streams = num_storage_api_streams
     self.insert_retry_strategy = insert_retry_strategy
     self._validate = validate
     self._temp_file_format = temp_file_format or bigquery_tools.FileFormat.JSON
@@ -2259,6 +2265,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
               triggering_frequency=triggering_frequency,
               use_at_least_once=self.use_at_least_once,
               with_auto_sharding=self.with_auto_sharding,
+              num_storage_api_streams=self._num_storage_api_streams,
               expansion_service=self.expansion_service))
 
       if is_rows:
@@ -2521,6 +2528,7 @@ class StorageWriteToBigQuery(PTransform):
       triggering_frequency=0,
       use_at_least_once=False,
       with_auto_sharding=False,
+      num_storage_api_streams=0,
       expansion_service=None):
     """Initialize a StorageWriteToBigQuery transform.
 
@@ -2558,6 +2566,7 @@ class StorageWriteToBigQuery(PTransform):
     self._triggering_frequency = triggering_frequency
     self._use_at_least_once = use_at_least_once
     self._with_auto_sharding = with_auto_sharding
+    self._num_storage_api_streams = num_storage_api_streams
     self._expansion_service = (
         expansion_service or _default_io_expansion_service())
     self.schematransform_config = SchemaAwareExternalTransform.discover_config(
@@ -2569,6 +2578,7 @@ class StorageWriteToBigQuery(PTransform):
         expansion_service=self._expansion_service,
         rearrange_based_on_discovery=True,
         autoSharding=self._with_auto_sharding,
+        numStreams=self._num_storage_api_streams,
         createDisposition=self._create_disposition,
         table=self._table,
         triggeringFrequencySeconds=self._triggering_frequency,
@@ -2588,6 +2598,8 @@ class StorageWriteToBigQuery(PTransform):
 
 
 class ReadFromBigQuery(PTransform):
+  # pylint: disable=line-too-long,W1401
+
   """Read data from BigQuery.
 
     This PTransform uses a BigQuery export job to take a snapshot of the table
@@ -2644,8 +2656,7 @@ class ReadFromBigQuery(PTransform):
       :data:`None`, then the temp_location parameter is used.
     bigquery_job_labels (dict): A dictionary with string labels to be passed
       to BigQuery export and query jobs created by this transform. See:
-      https://cloud.google.com/bigquery/docs/reference/rest/v2/\
-              Job#JobConfiguration
+      https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfiguration
     use_json_exports (bool): By default, this transform works by exporting
       BigQuery data into Avro files, and reading those files. With this
       parameter, the transform will instead export to JSON files. JSON files
@@ -2657,11 +2668,10 @@ class ReadFromBigQuery(PTransform):
       types (datetime.date, datetime.datetime, datetime.datetime,
       and datetime.datetime respectively). Avro exports are recommended.
       To learn more about BigQuery types, and Time-related type
-      representations, see: https://cloud.google.com/bigquery/docs/reference/\
-              standard-sql/data-types
+      representations,
+      see: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
       To learn more about type conversions between BigQuery and Avro, see:
-      https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro\
-              #avro_conversions
+      https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro\#avro_conversions
     temp_dataset (``apache_beam.io.gcp.internal.clients.bigquery.\
         DatasetReference``):
         Temporary dataset reference to use when reading from BigQuery using a
@@ -2681,8 +2691,7 @@ class ReadFromBigQuery(PTransform):
       (`PYTHON_DICT`). There is experimental support for producing a
       PCollection with a schema and yielding Beam Rows via the option
       `BEAM_ROW`. For more information on schemas, see
-      https://beam.apache.org/documentation/programming-guide/\
-      #what-is-a-schema)
+      https://beam.apache.org/documentation/programming-guide/#what-is-a-schema)
       """
   class Method(object):
     EXPORT = 'EXPORT'  #  This is currently the default.

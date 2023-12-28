@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.impl;
 import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.config.CalciteConnectionProperty.SCHEMA_FACTORY;
 import static org.apache.beam.vendor.calcite.v1_28_0.org.codehaus.commons.compiler.CompilerFactoryFactory.getDefaultCompilerFactory;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -103,8 +102,6 @@ public class JdbcDriver extends Driver {
     // register JDBC driver
     INSTANCE.register();
   }
-
-  public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   @Override
   protected AvaticaFactory createFactory() {

@@ -32,8 +32,11 @@ import yaml
 from yaml.loader import SafeLoader
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml.yaml_combine import normalize_combine
+from apache_beam.yaml.yaml_mapping import normalize_mapping
 
 __all__ = ["YamlTransform"]
 
@@ -74,6 +77,28 @@ def memoize_method(func):
 def only_element(xs):
   x, = xs
   return x
+
+
+# These allow a user to explicitly pass no input to a transform (i.e. use it
+# as a root transform) without an error even if the transform is not known to
+# handle it.
+def explicitly_empty():
+  return {'__explicitly_empty__': None}
+
+
+def is_explicitly_empty(io):
+  return io == explicitly_empty()
+
+
+def is_empty(io):
+  return not io or is_explicitly_empty(io)
+
+
+def empty_if_explicitly_empty(io):
+  if is_explicitly_empty(io):
+    return {}
+  else:
+    return io
 
 
 class SafeLineLoader(SafeLoader):
@@ -186,7 +211,7 @@ class Scope(LightweightScope):
       # TODO(yaml): Also trace through outputs and composites.
       for transform in self._transforms:
         if transform['type'] != 'composite':
-          for input in transform.get('input').values():
+          for input in empty_if_explicitly_empty(transform['input']).values():
             transform_id, _ = self.get_transform_id_and_output_name(input)
             self._all_followers[transform_id].append(transform['__uuid__'])
     return self._all_followers[self.get_transform_id(transform_name)]
@@ -203,6 +228,8 @@ class Scope(LightweightScope):
       outputs = self.get_outputs(transform)
       if output in outputs:
         return outputs[output]
+      elif len(outputs) == 1 and outputs[next(iter(outputs))].tag == output:
+        return outputs[next(iter(outputs))]
       else:
         raise ValueError(
             f'Unknown output {repr(output)} '
@@ -324,6 +351,12 @@ class Scope(LightweightScope):
       raise ValueError(
           'Config for transform at %s must be a mapping.' %
           identify_object(spec))
+
+    if (not input_pcolls and not is_explicitly_empty(spec.get('input', {})) and
+        provider.requires_inputs(spec['type'], config)):
+      raise ValueError(
+          f'Missing inputs for transform at {identify_object(spec)}')
+
     try:
       # pylint: disable=undefined-loop-variable
       ptransform = provider.create_transform(
@@ -402,7 +435,7 @@ def expand_leaf_transform(spec, scope):
   spec = normalize_inputs_outputs(spec)
   inputs_dict = {
       key: scope.get_pcollection(value)
-      for (key, value) in spec['input'].items()
+      for (key, value) in empty_if_explicitly_empty(spec['input']).items()
   }
   input_type = spec.get('input_type', 'default')
   if input_type == 'list':
@@ -432,6 +465,8 @@ def expand_leaf_transform(spec, scope):
     return {f'out{ix}': pcoll for (ix, pcoll) in enumerate(outputs)}
   elif isinstance(outputs, beam.PCollection):
     return {'out': outputs}
+  elif outputs is None:
+    return {}
   else:
     raise ValueError(
         f'Transform {identify_object(spec)} returned an unexpected type '
@@ -442,10 +477,10 @@ def expand_composite_transform(spec, scope):
   spec = normalize_inputs_outputs(normalize_source_sink(spec))
 
   inner_scope = Scope(
-      scope.root, {
+      scope.root,
+      {
           key: scope.get_pcollection(value)
-          for key,
-          value in spec['input'].items()
+          for (key, value) in empty_if_explicitly_empty(spec['input']).items()
       },
       spec['transforms'],
       yaml_provider.merge_providers(
@@ -470,8 +505,7 @@ def expand_composite_transform(spec, scope):
     _LOGGER.info("Expanding %s ", identify_object(spec))
     return ({
         key: scope.get_pcollection(value)
-        for key,
-        value in spec['input'].items()
+        for (key, value) in empty_if_explicitly_empty(spec['input']).items()
     } or scope.root) | scope.unique_name(spec, None) >> CompositePTransform()
 
 
@@ -493,15 +527,30 @@ def chain_as_composite(spec):
     raise TypeError(
         f"Chain at {identify_object(spec)} missing transforms property.")
   has_explicit_outputs = 'output' in spec
-  composite_spec = normalize_inputs_outputs(spec)
+  composite_spec = normalize_inputs_outputs(tag_explicit_inputs(spec))
   new_transforms = []
   for ix, transform in enumerate(composite_spec['transforms']):
-    if any(io in transform for io in ('input', 'output', 'input', 'output')):
-      raise ValueError(
-          f'Transform {identify_object(transform)} is part of a chain, '
-          'must have implicit inputs and outputs.')
+    if any(io in transform for io in ('input', 'output')):
+      if (ix == 0 and 'input' in transform and 'output' not in transform and
+          is_explicitly_empty(transform['input'])):
+        # This is OK as source clause sets an explicitly empty input.
+        pass
+      else:
+        raise ValueError(
+            f'Transform {identify_object(transform)} is part of a chain, '
+            'must have implicit inputs and outputs.')
     if ix == 0:
-      transform['input'] = {key: key for key in composite_spec['input'].keys()}
+      if is_explicitly_empty(transform.get('input', None)):
+        pass
+      elif is_explicitly_empty(composite_spec['input']):
+        transform['input'] = composite_spec['input']
+      elif is_empty(composite_spec['input']):
+        del composite_spec['input']
+      else:
+        transform['input'] = {
+            key: key
+            for key in composite_spec['input'].keys()
+        }
     else:
       transform['input'] = new_transforms[-1]['__uuid__']
     new_transforms.append(transform)
@@ -554,6 +603,8 @@ def normalize_source_sink(spec):
   spec = dict(spec)
   spec['transforms'] = list(spec.get('transforms', []))
   if 'source' in spec:
+    if 'input' not in spec['source']:
+      spec['source']['input'] = explicitly_empty()
     spec['transforms'].insert(0, spec.pop('source'))
   if 'sink' in spec:
     spec['transforms'].append(spec.pop('sink'))
@@ -563,6 +614,13 @@ def normalize_source_sink(spec):
 def preprocess_source_sink(spec):
   if spec['type'] in ('chain', 'composite'):
     return normalize_source_sink(spec)
+  else:
+    return spec
+
+
+def tag_explicit_inputs(spec):
+  if 'input' in spec and not SafeLineLoader.strip_metadata(spec['input']):
+    return dict(spec, input=explicitly_empty())
   else:
     return spec
 
@@ -611,7 +669,7 @@ def push_windowing_to_roots(spec):
   scope = LightweightScope(spec['transforms'])
   consumed_outputs_by_transform = collections.defaultdict(set)
   for transform in spec['transforms']:
-    for _, input_ref in transform['input'].items():
+    for _, input_ref in empty_if_explicitly_empty(transform['input']).items():
       try:
         transform_id, output = scope.get_transform_id_and_output_name(input_ref)
         consumed_outputs_by_transform[transform_id].add(output)
@@ -620,7 +678,7 @@ def push_windowing_to_roots(spec):
         pass
 
   for transform in spec['transforms']:
-    if not transform['input'] and 'windowing' not in transform:
+    if is_empty(transform['input']) and 'windowing' not in transform:
       transform['windowing'] = spec['windowing']
       transform['__consumed_outputs'] = consumed_outputs_by_transform[
           transform['__uuid__']]
@@ -647,7 +705,7 @@ def preprocess_windowing(spec):
     spec = push_windowing_to_roots(spec)
 
   windowing = spec.pop('windowing')
-  if spec['input']:
+  if not is_empty(spec['input']):
     # Apply the windowing to all inputs by wrapping it in a transform that
     # first applies windowing and then applies the original transform.
     original_inputs = spec['input']
@@ -778,7 +836,7 @@ def ensure_errors_consumed(spec):
           raise ValueError(
               f'Missing output in error_handling of {identify_object(t)}')
         to_handle[t['__uuid__'], config['error_handling']['output']] = t
-      for _, input in t['input'].items():
+      for _, input in empty_if_explicitly_empty(t['input']).items():
         if input not in spec['input']:
           consumed.add(scope.get_transform_id_and_output_name(input))
     for error_pcoll, t in to_handle.items():
@@ -815,7 +873,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
 
   def apply(phase, spec):
     spec = phase(spec)
-    if spec['type'] in {'composite', 'chain'}:
+    if spec['type'] in {'composite', 'chain'} and 'transforms' in spec:
       spec = dict(
           spec, transforms=[apply(phase, t) for t in spec['transforms']])
     return spec
@@ -827,14 +885,33 @@ def preprocess(spec, verbose=False, known_transforms=None):
     if known_transforms:
       if spec['type'] not in known_transforms:
         raise ValueError(
-            f'Unknown type or missing provider for {identify_object(spec)}')
+            'Unknown type or missing provider '
+            f'for type {spec["type"]} for {identify_object(spec)}')
     return spec
+
+  def preprocess_langauges(spec):
+    if spec['type'] in ('Filter', 'MapToFields', 'Combine'):
+      language = spec.get('config', {}).get('language', 'generic')
+      new_type = spec['type'] + '-' + language
+      if known_transforms and new_type not in known_transforms:
+        if language == 'generic':
+          raise ValueError(f'Missing language for {identify_object(spec)}')
+        else:
+          raise ValueError(
+              f'Unknown language {language} for {identify_object(spec)}')
+      return dict(spec, type=new_type, name=spec.get('name', spec['type']))
+    else:
+      return spec
 
   for phase in [
       ensure_transforms_have_types,
+      normalize_mapping,
+      normalize_combine,
+      preprocess_langauges,
       ensure_transforms_have_providers,
       preprocess_source_sink,
       preprocess_chain,
+      tag_explicit_inputs,
       normalize_inputs_outputs,
       preprocess_flattened_inputs,
       ensure_errors_consumed,
@@ -854,32 +931,54 @@ class YamlTransform(beam.PTransform):
   def __init__(self, spec, providers={}):  # pylint: disable=dangerous-default-value
     if isinstance(spec, str):
       spec = yaml.load(spec, Loader=SafeLineLoader)
+    if isinstance(providers, dict):
+      providers = {
+          key: yaml_provider.as_provider_list(key, value)
+          for (key, value) in providers.items()
+      }
     # TODO(BEAM-26941): Validate as a transform.
     self._providers = yaml_provider.merge_providers(
-        {
-            key: yaml_provider.as_provider_list(key, value)
-            for (key, value) in providers.items()
-        },
-        yaml_provider.standard_providers())
+        providers, yaml_provider.standard_providers())
     self._spec = preprocess(spec, known_transforms=self._providers.keys())
+    self._was_chain = spec['type'] == 'chain'
 
   def expand(self, pcolls):
     if isinstance(pcolls, beam.pvalue.PBegin):
       root = pcolls
+      pipeline = root.pipeline
       pcolls = {}
     elif isinstance(pcolls, beam.PCollection):
       root = pcolls.pipeline
+      pipeline = root
       pcolls = {'input': pcolls}
+      if not self._spec['input']:
+        self._spec['input'] = {'input': 'input'}
+        if self._was_chain and self._spec['transforms']:
+          # This should have been copied as part of the composite-to-chain.
+          self._spec['transforms'][0]['input'] = self._spec['input']
     else:
       root = next(iter(pcolls.values())).pipeline
+      pipeline = root
+      if not self._spec['input']:
+        self._spec['input'] = {name: name for name in pcolls.keys()}
+    python_provider = yaml_provider.InlineProvider({})
+
+    options = pipeline.options.view_as(GoogleCloudOptions)
+    if not options.labels:
+      options.labels = []
+    options.labels += ["yaml=true"]
+
     result = expand_transform(
         self._spec,
         Scope(
             root,
             pcolls,
-            transforms=[],
+            transforms=[self._spec],
             providers=self._providers,
-            input_providers={}))
+            input_providers={
+                pcoll: python_provider
+                for pcoll in pcolls.values()
+            }))
     if len(result) == 1:
       return only_element(result.values())
     else:

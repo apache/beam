@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.TestBigQueryOptions.BIGQUERY_EARLY_ROLLOUT_REGION;
+
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.options.Description;
@@ -52,7 +55,13 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BigQueryIOStorageReadTableRowIT {
 
-  private static final String DATASET_ID = "big_query_import_export";
+  private static final String DATASET_ID =
+      TestPipeline.testingPipelineOptions()
+              .as(TestBigQueryOptions.class)
+              .getBigQueryLocation()
+              .equals(BIGQUERY_EARLY_ROLLOUT_REGION)
+          ? "big_query_import_export_day0"
+          : "big_query_import_export";
   private static final String TABLE_PREFIX = "parallel_read_table_row_";
 
   private BigQueryIOStorageReadTableRowOptions options;
@@ -67,12 +76,11 @@ public class BigQueryIOStorageReadTableRowIT {
     void setInputTable(String table);
   }
 
-  private static class TableRowToKVPairFn extends SimpleFunction<TableRow, KV<String, String>> {
+  private static class TableRowToKVPairFn extends SimpleFunction<TableRow, KV<Integer, String>> {
     @Override
-    public KV<String, String> apply(TableRow input) {
-      CharSequence sampleString = (CharSequence) input.get("sample_string");
-      String key = sampleString != null ? sampleString.toString() : "null";
-      return KV.of(key, BigQueryHelpers.toJsonString(input));
+    public KV<Integer, String> apply(TableRow input) {
+      Integer rowId = Integer.parseInt((String) input.get("id"));
+      return KV.of(rowId, BigQueryHelpers.toJsonString(input));
     }
   }
 
@@ -81,13 +89,14 @@ public class BigQueryIOStorageReadTableRowIT {
     options = TestPipeline.testingPipelineOptions().as(BigQueryIOStorageReadTableRowOptions.class);
     String project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     options.setInputTable(project + ":" + DATASET_ID + "." + TABLE_PREFIX + tableName);
-    options.setTempLocation(options.getTempRoot() + "/temp-it/");
+    options.setTempLocation(
+        FileSystems.matchNewDirectory(options.getTempRoot(), "temp-it").toString());
   }
 
   private static void runPipeline(BigQueryIOStorageReadTableRowOptions pipelineOptions) {
     Pipeline pipeline = Pipeline.create(pipelineOptions);
 
-    PCollection<KV<String, String>> jsonTableRowsFromExport =
+    PCollection<KV<Integer, String>> jsonTableRowsFromExport =
         pipeline
             .apply(
                 "ExportTable",
@@ -96,7 +105,7 @@ public class BigQueryIOStorageReadTableRowIT {
                     .withMethod(Method.EXPORT))
             .apply("MapExportedRows", MapElements.via(new TableRowToKVPairFn()));
 
-    PCollection<KV<String, String>> jsonTableRowsFromDirectRead =
+    PCollection<KV<Integer, String>> jsonTableRowsFromDirectRead =
         pipeline
             .apply(
                 "DirectReadTable",
@@ -108,16 +117,16 @@ public class BigQueryIOStorageReadTableRowIT {
     final TupleTag<String> exportTag = new TupleTag<>();
     final TupleTag<String> directReadTag = new TupleTag<>();
 
-    PCollection<KV<String, Set<String>>> unmatchedRows =
+    PCollection<KV<Integer, Set<String>>> unmatchedRows =
         KeyedPCollectionTuple.of(exportTag, jsonTableRowsFromExport)
             .and(directReadTag, jsonTableRowsFromDirectRead)
             .apply(CoGroupByKey.create())
             .apply(
                 ParDo.of(
-                    new DoFn<KV<String, CoGbkResult>, KV<String, Set<String>>>() {
+                    new DoFn<KV<Integer, CoGbkResult>, KV<Integer, Set<String>>>() {
                       @ProcessElement
-                      public void processElement(ProcessContext c) throws Exception {
-                        KV<String, CoGbkResult> element = c.element();
+                      public void processElement(ProcessContext c) {
+                        KV<Integer, CoGbkResult> element = c.element();
 
                         // Add all the exported rows for the key to a collection.
                         Set<String> uniqueRows = new HashSet<>();
@@ -147,20 +156,20 @@ public class BigQueryIOStorageReadTableRowIT {
   }
 
   @Test
-  public void testBigQueryStorageReadTableRow1() throws Exception {
-    setUpTestEnvironment("1");
+  public void testBigQueryStorageReadTableRow100() {
+    setUpTestEnvironment("100");
     runPipeline(options);
   }
 
   @Test
-  public void testBigQueryStorageReadTableRow10k() throws Exception {
-    setUpTestEnvironment("10k");
+  public void testBigQueryStorageReadTableRow1k() {
+    setUpTestEnvironment("1K");
     runPipeline(options);
   }
 
   @Test
-  public void testBigQueryStorageReadTableRow100k() throws Exception {
-    setUpTestEnvironment("100k");
+  public void testBigQueryStorageReadTableRow10k() {
+    setUpTestEnvironment("10K");
     runPipeline(options);
   }
 }

@@ -43,8 +43,6 @@ lint.dependsOn mypyPy38
 
 apply from: "../common.gradle"
 
-// TODO(https://github.com/apache/beam/issues/20051): Remove this once tox uses isolated builds.
-testPy38Cython.mustRunAfter testPython38, testPy38CloudCoverage
 
 
 // PyCoverage Precommit runs test suites that evaluate test coverage and compatibility of
@@ -143,6 +141,10 @@ toxTask "testPy38transformers-430", "py38-transformers-430", "${posargs}"
 test.dependsOn "testPy38transformers-430"
 preCommitPyCoverage.dependsOn "testPy38transformers-430"
 
+toxTask "testPy38embeddingsMLTransform", "py38-embeddings", "${posargs}"
+test.dependsOn "testPy38embeddingsMLTransform"
+preCommitPyCoverage.dependsOn "testPy38embeddingsMLTransform"
+
 toxTask "whitespacelint", "whitespacelint", "${posargs}"
 
 task archiveFilesToLint(type: Zip) {
@@ -153,6 +155,8 @@ task archiveFilesToLint(type: Zip) {
     include "**/*.md"
     include "**/build.gradle"
     include '**/build.gradle.kts'
+    exclude '**/build/**' // intermediate build directory
+    exclude 'website/www/site/themes/docsy/**' // fork to google/docsy
     exclude "**/node_modules/*"
     exclude "**/.gogradle/*"
   }

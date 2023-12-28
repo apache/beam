@@ -37,12 +37,24 @@ public class PipelineUtilsTest {
 
   @Test
   public void testCreateJobNameWithUppercase() {
-    assertThat(createJobName("testWithUpperCase")).matches("test-with-upper-case" + "-\\d{17}");
+    assertThat(createJobName("testWithUpperCase")).matches("test-with-upper-case-\\d{17}");
+  }
+
+  @Test
+  public void testCreateJobNameWithUppercaseSuffix() {
+    assertThat(createJobName("testWithUpperCase", 8))
+        .matches("test-with-upper-case-\\d{17}-[a-z0-9]{8}");
   }
 
   @Test
   public void testCreateExtractJobName() {
     String name = "create-job-name";
     assertEquals(name, extractJobName(createJobName(name)));
+  }
+
+  @Test
+  public void testCreateExtractJobNameWithRandomChars() {
+    String name = "create-job-name";
+    assertEquals(name, extractJobName(createJobName(name, 8)));
   }
 }

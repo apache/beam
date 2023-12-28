@@ -40,7 +40,6 @@ class YamlMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
           type: MapToFields
-          input: input
           config:
               language: python
               fields:
@@ -62,7 +61,6 @@ class YamlMappingTest(unittest.TestCase):
       result = elements | YamlTransform(
           '''
           type: MapToFields
-          input: input
           config:
               fields: {}
               append: true
@@ -82,18 +80,17 @@ class YamlMappingTest(unittest.TestCase):
       elements = p | beam.Create(DATA)
       result = elements | YamlTransform(
           '''
-          type: MapToFields
-          input: input
+          type: Filter
           config:
               language: python
-              fields:
-                label: label
               keep: "rank > 0"
           ''')
       assert_that(
-          result, equal_to([
-              beam.Row(label='37a'),
-              beam.Row(label='389a'),
+          result
+          | beam.Map(lambda named_tuple: beam.Row(**named_tuple._asdict())),
+          equal_to([
+              beam.Row(label='37a', conductor=37, rank=1),
+              beam.Row(label='389a', conductor=389, rank=2),
           ]))
 
   def test_explode(self):
@@ -105,15 +102,18 @@ class YamlMappingTest(unittest.TestCase):
       ])
       result = elements | YamlTransform(
           '''
-          type: MapToFields
-          input: input
-          config:
-              language: python
-              append: true
-              fields:
-                range: "range(a)"
-              explode: [range, b]
-              cross_product: true
+          type: chain
+          transforms:
+            - type: MapToFields
+              config:
+                  language: python
+                  append: true
+                  fields:
+                    range: "range(a)"
+            - type: Explode
+              config:
+                  fields: [range, b]
+                  cross_product: true
           ''')
       assert_that(
           result,
@@ -131,6 +131,27 @@ class YamlMappingTest(unittest.TestCase):
               beam.Row(a=3, b='y', c=.125, range=1),
               beam.Row(a=3, b='y', c=.125, range=2),
           ]))
+
+  def test_validate_explicit_types(self):
+    with self.assertRaisesRegex(TypeError, r'.*violates schema.*'):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        elements = p | beam.Create([
+            beam.Row(a=2, b='abc', c=.25),
+            beam.Row(a=3, b='xy', c=.125),
+        ])
+        result = elements | YamlTransform(
+            '''
+            type: MapToFields
+            input: input
+            config:
+              language: python
+              fields:
+                bad:
+                  expression: "a + c"
+                  output_type: string  # This is a lie.
+            ''')
+        self.assertEqual(result.element_type._fields[0][1], str)
 
 
 YamlMappingDocTest = createTestSuite(

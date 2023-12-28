@@ -28,8 +28,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.AnyOfEnvironmentPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ArtifactInformation;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
@@ -94,7 +97,8 @@ public class Environments {
   public enum JavaVersion {
     java8("java", "1.8", 8),
     java11("java11", "11", 11),
-    java17("java17", "17", 17);
+    java17("java17", "17", 17),
+    java21("java21", "21", 21);
 
     // Legacy name, as used in container image
     private final String legacyName;
@@ -119,6 +123,7 @@ public class Environments {
       return this.specification;
     }
 
+    /** Return the LTS java version given the Java specification version. */
     public static JavaVersion forSpecification(String specification) {
       for (JavaVersion ver : JavaVersion.values()) {
         if (ver.specification.equals(specification)) {
@@ -137,7 +142,7 @@ public class Environments {
         }
       }
       LOG.warn(
-          "unsupported Java version: {}, falling back to: {}",
+          "Unsupported Java version: {}, falling back to: {}",
           specification,
           fallback.specification);
       return fallback;
@@ -287,6 +292,50 @@ public class Environments {
         .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS))
         .setPayload(builder.build().toByteString())
         .build();
+  }
+
+  public static Environment createAnyOfEnvironment(Environment... environments) {
+    AnyOfEnvironmentPayload.Builder payload = AnyOfEnvironmentPayload.newBuilder();
+    for (Environment environment : environments) {
+      payload.addEnvironments(environment);
+    }
+    return Environment.newBuilder()
+        .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.ANYOF))
+        .setPayload(payload.build().toByteString())
+        .build();
+  }
+
+  public static List<Environment> expandAnyOfEnvironments(Environment environment) {
+    return Stream.of(environment)
+        .flatMap(
+            env -> {
+              if (BeamUrns.getUrn(StandardEnvironments.Environments.ANYOF)
+                  .equals(environment.getUrn())) {
+                try {
+                  return AnyOfEnvironmentPayload.parseFrom(environment.getPayload())
+                      .getEnvironmentsList().stream()
+                      .flatMap(subenv -> expandAnyOfEnvironments(subenv).stream());
+                } catch (InvalidProtocolBufferException exn) {
+                  throw new RuntimeException(exn);
+                }
+              } else {
+                return Stream.of(env);
+              }
+            })
+        .collect(Collectors.toList());
+  }
+
+  public static Environment resolveAnyOfEnvironment(
+      Environment environment, String... preferredEnvironmentTypes) {
+    List<Environment> allEnvironments = expandAnyOfEnvironments(environment);
+    for (String urn : preferredEnvironmentTypes) {
+      for (Environment env : allEnvironments) {
+        if (urn.equals(env.getUrn())) {
+          return env;
+        }
+      }
+    }
+    return allEnvironments.iterator().next();
   }
 
   public static Optional<Environment> getEnvironment(String ptransformId, Components components) {

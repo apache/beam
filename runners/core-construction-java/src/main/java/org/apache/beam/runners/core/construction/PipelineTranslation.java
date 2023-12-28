@@ -102,6 +102,21 @@ public class PipelineTranslation {
       // TODO(JIRA-5649): Don't even emit these transforms in the generated protos.
       res = elideDeprecatedViews(res);
     }
+
+    ExternalTranslationOptions externalTranslationOptions =
+        pipeline.getOptions().as(ExternalTranslationOptions.class);
+    List<String> urnsToOverride = externalTranslationOptions.getTransformsToOverride();
+    if (urnsToOverride.size() > 0) {
+      try (TransformUpgrader upgrader = TransformUpgrader.of()) {
+        res =
+            upgrader.upgradeTransformsViaTransformService(
+                res, urnsToOverride, externalTranslationOptions);
+      } catch (Exception e) {
+        throw new RuntimeException(
+            "Could not override the transforms with URNs " + urnsToOverride, e);
+      }
+    }
+
     // Validate that translation didn't produce an invalid pipeline.
     PipelineValidator.validate(res);
     return res;

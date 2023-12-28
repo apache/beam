@@ -461,6 +461,7 @@ public final class BigQueryResourceManager implements ResourceManager {
                   projectId, dataset.getDatasetId().getDataset(), table.getTableId().getTable()));
         }
         bigQuery.delete(dataset.getDatasetId());
+        dataset = null;
       }
     } catch (Exception e) {
       throw new BigQueryResourceManagerException("Failed to delete resources.", e);

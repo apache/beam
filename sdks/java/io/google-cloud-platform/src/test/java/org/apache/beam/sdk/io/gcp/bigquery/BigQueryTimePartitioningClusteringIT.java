@@ -24,9 +24,12 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -38,8 +41,10 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -49,7 +54,15 @@ import org.junit.runners.JUnit4;
 public class BigQueryTimePartitioningClusteringIT {
   private static final String WEATHER_SAMPLES_TABLE =
       "apache-beam-testing.samples.weather_stations";
-  private static final String DATASET_NAME = "BigQueryTimePartitioningIT";
+
+  private static String project;
+  private static final BigqueryClient BQ_CLIENT =
+      new BigqueryClient("BigQueryTimePartitioningClusteringIT");
+  private static final String DATASET_NAME =
+      "BigQueryTimePartitioningIT_"
+          + System.currentTimeMillis()
+          + "_"
+          + new SecureRandom().nextInt(32);
   private static final TimePartitioning TIME_PARTITIONING =
       new TimePartitioning().setField("date").setType("DAY");
   private static final Clustering CLUSTERING =
@@ -64,12 +77,28 @@ public class BigQueryTimePartitioningClusteringIT {
   private Bigquery bqClient;
   private BigQueryClusteringITOptions options;
 
+  @BeforeClass
+  public static void setupTestEnvironment() throws Exception {
+    project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    BQ_CLIENT.createNewDataset(
+        project,
+        DATASET_NAME,
+        null,
+        TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class).getBigQueryLocation());
+  }
+
   @Before
   public void setUp() {
     PipelineOptionsFactory.register(BigQueryClusteringITOptions.class);
     options = TestPipeline.testingPipelineOptions().as(BigQueryClusteringITOptions.class);
-    options.setTempLocation(options.getTempRoot() + "/temp-it/");
+    options.setTempLocation(
+        FileSystems.matchNewDirectory(options.getTempRoot(), "temp-it").toString());
     bqClient = BigqueryClient.getNewBigqueryClient(options.getAppName());
+  }
+
+  @AfterClass
+  public static void cleanup() {
+    BQ_CLIENT.deleteDataset(project, DATASET_NAME);
   }
 
   /** Customized PipelineOptions for BigQueryClustering Integration Test. */
@@ -110,8 +139,7 @@ public class BigQueryTimePartitioningClusteringIT {
 
     @Override
     public TableDestination getDestination(ValueInSingleWindow<TableRow> element) {
-      return new TableDestination(
-          String.format("%s.%s", DATASET_NAME, tableName), null, TIME_PARTITIONING, CLUSTERING);
+      return new TableDestination(tableName, null, TIME_PARTITIONING, CLUSTERING);
     }
 
     @Override
@@ -176,6 +204,7 @@ public class BigQueryTimePartitioningClusteringIT {
   @Test
   public void testE2EBigQueryClusteringTableFunction() throws Exception {
     String tableName = "weather_stations_clustered_table_function_" + System.currentTimeMillis();
+    String destination = String.format("%s.%s", DATASET_NAME, tableName);
 
     Pipeline p = Pipeline.create(options);
 
@@ -185,11 +214,7 @@ public class BigQueryTimePartitioningClusteringIT {
             BigQueryIO.writeTableRows()
                 .to(
                     (ValueInSingleWindow<TableRow> vsw) ->
-                        new TableDestination(
-                            String.format("%s.%s", DATASET_NAME, tableName),
-                            null,
-                            TIME_PARTITIONING,
-                            CLUSTERING))
+                        new TableDestination(destination, null, TIME_PARTITIONING, CLUSTERING))
                 .withClustering()
                 .withSchema(SCHEMA)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
@@ -206,6 +231,7 @@ public class BigQueryTimePartitioningClusteringIT {
   public void testE2EBigQueryClusteringDynamicDestinations() throws Exception {
     String tableName =
         "weather_stations_clustered_dynamic_destinations_" + System.currentTimeMillis();
+    String destination = String.format("%s.%s", DATASET_NAME, tableName);
 
     Pipeline p = Pipeline.create(options);
 
@@ -213,7 +239,7 @@ public class BigQueryTimePartitioningClusteringIT {
         .apply(ParDo.of(new KeepStationNumberAndConvertDate()))
         .apply(
             BigQueryIO.writeTableRows()
-                .to(new ClusteredDestinations(tableName))
+                .to(new ClusteredDestinations(destination))
                 .withClustering()
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));

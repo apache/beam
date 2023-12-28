@@ -35,6 +35,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
+import com.google.api.core.ApiFuture;
+import com.google.api.core.SettableApiFuture;
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
@@ -48,7 +50,12 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
+import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
+import com.google.cloud.bigquery.storage.v1.Exceptions;
+import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.DescriptorProtos;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -124,14 +131,18 @@ import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.PeriodicImpulse;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -3102,6 +3113,104 @@ public class BigQueryIOWriteTest implements Serializable {
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(Iterables.toArray(rows, TableRow.class)));
+  }
+
+  public static class ThrowingFakeDatasetServices extends FakeDatasetService {
+    @Override
+    public BigQueryServices.StreamAppendClient getStreamAppendClient(
+        String streamName,
+        DescriptorProtos.DescriptorProto descriptor,
+        boolean useConnectionPool,
+        AppendRowsRequest.MissingValueInterpretation missingValueInterpretation) {
+      return new BigQueryServices.StreamAppendClient() {
+        @Override
+        public ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows) {
+          Map<Integer, String> errorMap = new HashMap<>();
+          for (int i = 0; i < rows.getSerializedRowsCount(); i++) {
+            errorMap.put(i, "some serialization error");
+          }
+          SettableApiFuture<AppendRowsResponse> appendResult = SettableApiFuture.create();
+          appendResult.setException(
+              new Exceptions.AppendSerializationError(
+                  404, "some description", "some stream", errorMap));
+          return appendResult;
+        }
+
+        @Override
+        public com.google.cloud.bigquery.storage.v1.@Nullable TableSchema getUpdatedSchema() {
+          return null;
+        }
+
+        @Override
+        public void pin() {}
+
+        @Override
+        public void unpin() {}
+
+        @Override
+        public void close() {}
+      };
+    }
+  }
+
+  @Test
+  public void testStorageWriteReturnsAppendSerializationError() throws Exception {
+    assumeTrue(useStorageApi);
+    assumeTrue(useStreaming);
+    p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdRecordCount(5);
+
+    TableSchema schema =
+        new TableSchema()
+            .setFields(Arrays.asList(new TableFieldSchema().setType("INTEGER").setName("long")));
+    Table fakeTable = new Table();
+    TableReference ref =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId("table-id");
+    fakeTable.setSchema(schema);
+    fakeTable.setTableReference(ref);
+
+    ThrowingFakeDatasetServices throwingService = new ThrowingFakeDatasetServices();
+    throwingService.createTable(fakeTable);
+
+    int numRows = 100;
+
+    WriteResult res =
+        p.apply(
+                PeriodicImpulse.create()
+                    .startAt(Instant.ofEpochMilli(0))
+                    .stopAfter(Duration.millis(numRows - 1))
+                    .withInterval(Duration.millis(1)))
+            .apply(
+                "Convert to longs",
+                MapElements.into(TypeDescriptor.of(TableRow.class))
+                    .via(instant -> new TableRow().set("long", instant.getMillis())))
+            .apply(
+                BigQueryIO.writeTableRows()
+                    .to(ref)
+                    .withSchema(schema)
+                    .withTestServices(
+                        new FakeBigQueryServices()
+                            .withDatasetService(throwingService)
+                            .withJobService(fakeJobService)));
+
+    PCollection<Integer> numErrors =
+        res.getFailedStorageApiInserts()
+            .apply(
+                "Count errors",
+                MapElements.into(TypeDescriptors.integers())
+                    .via(err -> err.getErrorMessage().equals("some serialization error") ? 1 : 0))
+            .apply(
+                Window.<Integer>into(new GlobalWindows())
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .discardingFiredPanes()
+                    .withAllowedLateness(Duration.ZERO))
+            .apply(Sum.integersGlobally());
+
+    PAssert.that(numErrors).containsInAnyOrder(numRows);
+
+    p.run().waitUntilFinish();
   }
 
   @Test

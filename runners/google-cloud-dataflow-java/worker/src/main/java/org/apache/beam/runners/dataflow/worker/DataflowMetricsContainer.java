@@ -22,9 +22,11 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Gauge;
+import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.util.HistogramData;
 
 /**
  * An implementation of {@link MetricsContainer} that reads the current execution state (tracked in
@@ -57,6 +59,11 @@ public class DataflowMetricsContainer implements MetricsContainer {
   }
 
   @Override
+  public Counter getPerWorkerCounter(MetricName metricName) {
+    return getCurrentContainer().getPerWorkerCounter(metricName);
+  }
+
+  @Override
   public Distribution getDistribution(MetricName metricName) {
     return getCurrentContainer().getDistribution(metricName);
   }
@@ -64,5 +71,11 @@ public class DataflowMetricsContainer implements MetricsContainer {
   @Override
   public Gauge getGauge(MetricName metricName) {
     return getCurrentContainer().getGauge(metricName);
+  }
+
+  @Override
+  public Histogram getPerWorkerHistogram(
+      MetricName metricName, HistogramData.BucketType bucketType) {
+    return getCurrentContainer().getPerWorkerHistogram(metricName, bucketType);
   }
 }

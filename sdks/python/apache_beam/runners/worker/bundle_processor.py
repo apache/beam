@@ -227,8 +227,13 @@ class DataInputOperation(RunnerIOOperation):
         if self.index == self.stop - 1:
           return
         self.index += 1
-      decoded_value = self.windowed_coder_impl.decode_from_stream(
-          input_stream, True)
+      try:
+        decoded_value = self.windowed_coder_impl.decode_from_stream(
+            input_stream, True)
+      except Exception as exn:
+        raise ValueError(
+            "Error decoding input stream with coder " +
+            str(self.windowed_coder)) from exn
       self.output(decoded_value)
 
   def monitoring_infos(self, transform_id, tag_to_pcollection_id):
@@ -373,12 +378,18 @@ coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(
 
 
 class StateBackedSideInputMap(object):
+
+  _BULK_READ_LIMIT = 100
+  _BULK_READ_FULLY = "fully"
+  _BULK_READ_PARTIALLY = "partially"
+
   def __init__(self,
                state_handler,  # type: sdk_worker.CachingStateHandler
                transform_id,  # type: str
                tag,  # type: Optional[str]
                side_input_data,  # type: pvalue.SideInputData
-               coder  # type: WindowedValueCoder
+               coder,  # type: WindowedValueCoder
+               use_bulk_read = False,  # type: bool
               ):
     # type: (...) -> None
     self._state_handler = state_handler
@@ -389,6 +400,7 @@ class StateBackedSideInputMap(object):
     self._target_window_coder = coder.window_coder
     # TODO(robertwb): Limit the cache size.
     self._cache = {}  # type: Dict[BoundedWindow, Any]
+    self._use_bulk_read = use_bulk_read
 
   def __getitem__(self, window):
     target_window = self._side_input_data.window_mapping_fn(window)
@@ -412,12 +424,55 @@ class StateBackedSideInputMap(object):
                 side_input_id=self._tag,
                 window=self._target_window_coder.encode(target_window),
                 key=b''))
+        kv_iter_state_key = beam_fn_api_pb2.StateKey(
+            multimap_keys_values_side_input=beam_fn_api_pb2.StateKey.
+            MultimapKeysValuesSideInput(
+                transform_id=self._transform_id,
+                side_input_id=self._tag,
+                window=self._target_window_coder.encode(target_window)))
         cache = {}
-        key_coder_impl = self._element_coder.key_coder().get_impl()
+        key_coder = self._element_coder.key_coder()
+        key_coder_impl = key_coder.get_impl()
         value_coder = self._element_coder.value_coder()
+        use_bulk_read = self._use_bulk_read
 
         class MultiMap(object):
+          _bulk_read = None
+          _lock = threading.Lock()
+
           def __getitem__(self, key):
+            if use_bulk_read:
+              if self._bulk_read is None:
+                with self._lock:
+                  if self._bulk_read is None:
+                    try:
+                      # Attempt to bulk read the key-values over the iterable
+                      # protocol which, if supported, can be much more efficient
+                      # than point lookups if it fits into memory.
+                      for ix, (k, vs) in enumerate(_StateBackedIterable(
+                          state_handler,
+                          kv_iter_state_key,
+                          coders.TupleCoder(
+                              (key_coder, coders.IterableCoder(value_coder))))):
+                        cache[k] = vs
+                        if ix > StateBackedSideInputMap._BULK_READ_LIMIT:
+                          self._bulk_read = (
+                              StateBackedSideInputMap._BULK_READ_PARTIALLY)
+                          break
+                      else:
+                        # We reached the end of the iteration without breaking.
+                        self._bulk_read = (
+                            StateBackedSideInputMap._BULK_READ_FULLY)
+                    except Exception:
+                      _LOGGER.error(
+                          "Iterable access of map side inputs unsupported.",
+                          exc_info=True)
+                      self._bulk_read = (
+                          StateBackedSideInputMap._BULK_READ_PARTIALLY)
+
+              if (self._bulk_read == StateBackedSideInputMap._BULK_READ_FULLY):
+                return cache.get(key, [])
+
             if key not in cache:
               keyed_state_key = beam_fn_api_pb2.StateKey()
               keyed_state_key.CopyFrom(state_key)
@@ -425,6 +480,7 @@ class StateBackedSideInputMap(object):
                   key_coder_impl.encode_nested(key))
               cache[key] = _StateBackedIterable(
                   state_handler, keyed_state_key, value_coder)
+
             return cache[key]
 
           def __reduce__(self):
@@ -864,6 +920,7 @@ class BundleProcessor(object):
   """ A class for processing bundles of elements. """
 
   def __init__(self,
+               runner_capabilities,  # type: FrozenSet[str]
                process_bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
                state_handler,  # type: sdk_worker.CachingStateHandler
                data_channel_factory,  # type: data_plane.DataChannelFactory
@@ -874,11 +931,14 @@ class BundleProcessor(object):
     """Initialize a bundle processor.
 
     Args:
+      runner_capabilities (``FrozenSet[str]``): The set of capabilities of the
+        runner with which we will be interacting
       process_bundle_descriptor (``beam_fn_api_pb2.ProcessBundleDescriptor``):
         a description of the stage that this ``BundleProcessor``is to execute.
       state_handler (CachingStateHandler).
       data_channel_factory (``data_plane.DataChannelFactory``).
     """
+    self.runner_capabilities = runner_capabilities
     self.process_bundle_descriptor = process_bundle_descriptor
     self.state_handler = state_handler
     self.data_channel_factory = data_channel_factory
@@ -920,12 +980,14 @@ class BundleProcessor(object):
   ):
     # type: (...) -> collections.OrderedDict[str, operations.DoOperation]
     transform_factory = BeamTransformFactory(
+        self.runner_capabilities,
         descriptor,
         self.data_channel_factory,
         self.counter_factory,
         self.state_sampler,
         self.state_handler,
-        self.data_sampler)
+        self.data_sampler,
+    )
 
     self.timers_info = transform_factory.extract_timers_info()
 
@@ -1211,6 +1273,7 @@ class ExecutionContext:
 class BeamTransformFactory(object):
   """Factory for turning transform_protos into executable operations."""
   def __init__(self,
+               runner_capabilities,  # type: FrozenSet[str]
                descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
                data_channel_factory,  # type: data_plane.DataChannelFactory
                counter_factory,  # type: counters.CounterFactory
@@ -1218,6 +1281,7 @@ class BeamTransformFactory(object):
                state_handler,  # type: sdk_worker.CachingStateHandler
                data_sampler,  # type: Optional[data_sampler.DataSampler]
               ):
+    self.runner_capabilities = runner_capabilities
     self.descriptor = descriptor
     self.data_channel_factory = data_channel_factory
     self.counter_factory = counter_factory
@@ -1643,8 +1707,11 @@ def _create_pardo_operation(
             transform_id,
             tag,
             si,
-            input_tags_to_coders[tag]) for tag,
-        si in tagged_side_inputs
+            input_tags_to_coders[tag],
+            use_bulk_read=(
+                common_urns.runner_protocols.MULTIMAP_KEYS_VALUES_SIDE_INPUT.urn
+                in factory.runner_capabilities))
+        for (tag, si) in tagged_side_inputs
     ]
   else:
     side_input_maps = []

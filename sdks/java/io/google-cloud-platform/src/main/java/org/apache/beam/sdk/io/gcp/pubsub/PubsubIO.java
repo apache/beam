@@ -194,7 +194,7 @@ public class PubsubIO {
 
   private static final Pattern PUBSUB_NAME_REGEXP = Pattern.compile("[a-zA-Z][-._~%+a-zA-Z0-9]+");
 
-  static final int PUBSUB_MESSAGE_MAX_TOTAL_SIZE = 10 << 20;
+  static final int PUBSUB_MESSAGE_MAX_TOTAL_SIZE = 10_000_000;
 
   private static final int PUBSUB_NAME_MIN_LENGTH = 3;
   private static final int PUBSUB_NAME_MAX_LENGTH = 255;
@@ -202,6 +202,9 @@ public class PubsubIO {
   private static final String SUBSCRIPTION_RANDOM_TEST_PREFIX = "_random/";
   private static final String SUBSCRIPTION_STARTING_SIGNAL = "_starting_signal/";
   private static final String TOPIC_DEV_NULL_TEST_NAME = "/topics/dev/null";
+
+  public static final String ENABLE_CUSTOM_PUBSUB_SINK = "enable_custom_pubsub_sink";
+  public static final String ENABLE_CUSTOM_PUBSUB_SOURCE = "enable_custom_pubsub_source";
 
   private static void validateProjectName(String project) {
     Matcher match = PROJECT_ID_REGEXP.matcher(project);

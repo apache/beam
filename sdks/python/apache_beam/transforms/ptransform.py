@@ -37,6 +37,8 @@ FlatMap processing functions.
 # pytype: skip-file
 
 import copy
+import functools
+import inspect
 import itertools
 import json
 import logging
@@ -1076,6 +1078,15 @@ def ptransform_fn(fn):
           'type hints for %s: %s', res.default_label(), res.get_type_hints())
     return res
 
+  # The signature of this PTransform constructor is that of fn minus the first
+  # argument (which is where the pvalue is passed during expand).
+  try:
+    callable_ptransform_factory.__signature__ = inspect.signature(  # type: ignore
+        functools.partial(fn, None))
+  except Exception:
+    # Sometimes we can't get the original signature.
+    pass
+
   return callable_ptransform_factory
 
 
@@ -1100,6 +1111,22 @@ class _NamedPTransform(PTransform):
 
   def expand(self, pvalue):
     raise RuntimeError("Should never be expanded directly.")
+
+  def __getattr__(self, attr):
+    transform_attr = getattr(self.transform, attr)
+    if callable(transform_attr):
+
+      @wraps(transform_attr)
+      def wrapper(*args, **kwargs):
+        result = transform_attr(*args, **kwargs)
+        if isinstance(result, PTransform):
+          return _NamedPTransform(result, self.label)
+        else:
+          return result
+
+      return wrapper
+    else:
+      return transform_attr
 
 
 # Defined here to avoid circular import issues for Beam library transforms.

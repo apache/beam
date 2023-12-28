@@ -1,0 +1,112 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Publish Beam SDK Snapshots
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+
+#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
+  cancel-in-progress: true
+
+env:
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  docker_registry: gcr.io
+
+jobs:
+  beam_Publish_Beam_SDK_Snapshots:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 100
+    name: ${{ matrix.job_name }} (${{ matrix.container_task }})
+    strategy:
+      fail-fast: false
+      matrix:
+        job_name: ["beam_Publish_Beam_SDK_Snapshots"]
+        job_phrase: ["N/A"]
+        container_task:
+          - "go:container"
+          - "java:container:java8"
+          - "java:container:java11"
+          - "java:container:java17"
+          - "java:container:java21"
+          - "python:container:py38"
+          - "python:container:py39"
+          - "python:container:py310"
+          - "python:container:py311"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{ matrix.job_phrase }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.container_task }})
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Authenticate on GCP
+        uses: google-github-actions/setup-gcloud@v0
+        with:
+          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          export_default_credentials: true
+      - name: GCloud Docker credential helper
+        run: |
+          gcloud auth configure-docker ${{ env.docker_registry }}
+      - name: Setup Java environment
+        if: ${{ startsWith(matrix.container_task, 'java') }}
+        uses: ./.github/actions/setup-environment-action
+        with:
+          java-version: 11
+      - name: Setup Python environment
+        if: ${{ startsWith(matrix.container_task, 'python') }}
+        uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: '3.8'
+      - name: run Publish Beam SDK Snapshots script
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:${{ matrix.container_task }}:docker
+          arguments: |
+            -Pjava11Home=$JAVA_HOME_11_X64 \
+            -Pdocker-repository-root=gcr.io/apache-beam-testing/beam-sdk \
+            -Pdocker-tag-list=${{ github.sha }},latest \
+            -Pcontainer-architecture-list=arm64,amd64 \
+            -Ppush-containers \

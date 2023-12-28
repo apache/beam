@@ -21,12 +21,14 @@ various PTransforms."""
 
 import collections
 import hashlib
+import inspect
 import json
+import logging
 import os
+import re
 import subprocess
 import sys
 import urllib.parse
-import uuid
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -34,6 +36,7 @@ from typing import Iterable
 from typing import Mapping
 from typing import Optional
 
+import docstring_parser
 import yaml
 from yaml.loader import SafeLoader
 
@@ -47,6 +50,8 @@ from apache_beam.transforms import window
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
+from apache_beam.typehints.schemas import named_tuple_to_schema
+from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.utils import python_callable
 from apache_beam.utils import subprocess_server
 from apache_beam.version import __version__ as beam_version
@@ -64,6 +69,22 @@ class Provider:
   def provided_transforms(self) -> Iterable[str]:
     """Returns a list of transform type names this provider can handle."""
     raise NotImplementedError(type(self))
+
+  def config_schema(self, type):
+    return None
+
+  def description(self, type):
+    return None
+
+  def requires_inputs(self, typ: str, args: Mapping[str, Any]) -> bool:
+    """Returns whether this transform requires inputs.
+
+    Specifically, if this returns True and inputs are not provided than an error
+    will be thrown.
+
+    This is best-effort, primarily for better and earlier error messages.
+    """
+    return not typ.startswith('Read')
 
   def create_transform(
       self,
@@ -91,9 +112,9 @@ class Provider:
     # E.g. we could look at the the expected environments themselves.
     # Possibly, we could provide multiple expansions and have the runner itself
     # choose the actual implementation based on fusion (and other) criteria.
-    return (
-        self.underlying_provider()._affinity(other) +
-        other.underlying_provider()._affinity(self))
+    a = self.underlying_provider()
+    b = other.underlying_provider()
+    return a._affinity(b) + b._affinity(a)
 
   def _affinity(self, other: "Provider"):
     if self is other or self == other:
@@ -129,7 +150,7 @@ class ExternalProvider(Provider):
   def provided_transforms(self):
     return self._urns.keys()
 
-  def create_transform(self, type, args, yaml_create_transform):
+  def schema_transforms(self):
     if callable(self._service):
       self._service = self._service()
     if self._schema_transforms is None:
@@ -142,8 +163,28 @@ class ExternalProvider(Provider):
       except Exception:
         # It's possible this service doesn't vend schema transforms.
         self._schema_transforms = {}
+    return self._schema_transforms
+
+  def config_schema(self, type):
+    if self._urns[type] in self.schema_transforms():
+      return named_tuple_to_schema(
+          self.schema_transforms()[self._urns[type]].configuration_schema)
+
+  def description(self, type):
+    if self._urns[type] in self.schema_transforms():
+      return self.schema_transforms()[self._urns[type]].description
+
+  def requires_inputs(self, typ, args):
+    if self._urns[typ] in self.schema_transforms():
+      return bool(self.schema_transforms()[self._urns[typ]].inputs)
+    else:
+      return super().requires_inputs(typ, args)
+
+  def create_transform(self, type, args, yaml_create_transform):
+    if callable(self._service):
+      self._service = self._service()
     urn = self._urns[type]
-    if urn in self._schema_transforms:
+    if urn in self.schema_transforms():
       return external.SchemaAwareExternalTransform(
           urn, self._service, rearrange_based_on_discovery=True, **args)
     else:
@@ -190,6 +231,7 @@ class ExternalProvider(Provider):
   def register_provider_type(cls, type_name):
     def apply(constructor):
       cls._provider_types[type_name] = constructor
+      return constructor
 
     return apply
 
@@ -359,8 +401,9 @@ def fix_pycallable():
 
 
 class InlineProvider(Provider):
-  def __init__(self, transform_factories):
+  def __init__(self, transform_factories, no_input_transforms=()):
     self._transform_factories = transform_factories
+    self._no_input_transforms = set(no_input_transforms)
 
   def available(self):
     return True
@@ -371,11 +414,69 @@ class InlineProvider(Provider):
   def provided_transforms(self):
     return self._transform_factories.keys()
 
+  def config_schema(self, typ):
+    factory = self._transform_factories[typ]
+    if isinstance(factory, type) and issubclass(factory, beam.PTransform):
+      # https://bugs.python.org/issue40897
+      params = dict(inspect.signature(factory.__init__).parameters)
+      if 'self' in params:
+        del params['self']
+    else:
+      params = inspect.signature(factory).parameters
+
+    def type_of(p):
+      t = p.annotation
+      if t == p.empty:
+        return Any
+      else:
+        return t
+
+    docs = {
+        param.arg_name: param.description
+        for param in self.get_docs(typ).params
+    }
+
+    names_and_types = [
+        (name, typing_to_runner_api(type_of(p))) for name, p in params.items()
+    ]
+    return schema_pb2.Schema(
+        fields=[
+            schema_pb2.Field(name=name, type=type, description=docs.get(name))
+            for (name, type) in names_and_types
+        ])
+
+  def description(self, typ):
+    def empty_if_none(s):
+      return s or ''
+
+    docs = self.get_docs(typ)
+    return (
+        empty_if_none(docs.short_description) +
+        ('\n\n' if docs.blank_after_short_description else '\n') +
+        empty_if_none(docs.long_description)).strip() or None
+
+  def get_docs(self, typ):
+    docstring = self._transform_factories[typ].__doc__ or ''
+    # These "extra" docstring parameters are not relevant for YAML and mess
+    # up the parsing.
+    docstring = re.sub(
+        r'Pandas Parameters\s+-----.*', '', docstring, flags=re.S)
+    return docstring_parser.parse(
+        docstring, docstring_parser.DocstringStyle.GOOGLE)
+
   def create_transform(self, type, args, yaml_create_transform):
     return self._transform_factories[type](**args)
 
   def to_json(self):
     return {'type': "InlineProvider"}
+
+  def requires_inputs(self, typ, args):
+    if typ in self._no_input_transforms:
+      return False
+    elif hasattr(self._transform_factories[typ], '_yaml_requires_inputs'):
+      return self._transform_factories[typ]._yaml_requires_inputs
+    else:
+      return super().requires_inputs(typ, args)
 
 
 class MetaInlineProvider(InlineProvider):
@@ -383,11 +484,57 @@ class MetaInlineProvider(InlineProvider):
     return self._transform_factories[type](yaml_create_transform, **args)
 
 
+class SqlBackedProvider(Provider):
+  def __init__(
+      self,
+      transforms: Mapping[str, Callable[..., beam.PTransform]],
+      sql_provider: Optional[Provider] = None):
+    self._transforms = transforms
+    if sql_provider is None:
+      sql_provider = beam_jar(
+          urns={'Sql': 'beam:external:java:sql:v1'},
+          gradle_target='sdks:java:extensions:sql:expansion-service:shadowJar')
+    self._sql_provider = sql_provider
+
+  def sql_provider(self):
+    return self._sql_provider
+
+  def provided_transforms(self):
+    return self._transforms.keys()
+
+  def available(self):
+    return self.sql_provider().available()
+
+  def cache_artifacts(self):
+    return self.sql_provider().cache_artifacts()
+
+  def underlying_provider(self):
+    return self.sql_provider()
+
+  def to_json(self):
+    return {'type': "SqlBackedProvider"}
+
+  def create_transform(
+      self, typ: str, args: Mapping[str, Any],
+      yaml_create_transform: Any) -> beam.PTransform:
+    return self._transforms[typ](
+        lambda query: self.sql_provider().create_transform(
+            'Sql', {'query': query}, yaml_create_transform),
+        **args)
+
+
 PRIMITIVE_NAMES_TO_ATOMIC_TYPE = {
     py_type.__name__: schema_type
     for (py_type, schema_type) in schemas.PRIMITIVE_TO_ATOMIC_TYPE.items()
     if py_type.__module__ != 'typing'
 }
+
+
+def element_to_rows(e):
+  if isinstance(e, dict):
+    return dicts_to_rows(e)
+  else:
+    return beam.Row(element=dicts_to_rows(e))
 
 
 def dicts_to_rows(o):
@@ -400,7 +547,7 @@ def dicts_to_rows(o):
 
 
 def create_builtin_provider():
-  def create(elements: Iterable[Any], reshuffle: bool = True):
+  def create(elements: Iterable[Any], reshuffle: Optional[bool] = True):
     """Creates a collection containing a specified set of elements.
 
     YAML/JSON-style mappings will be interpreted as Beam rows. For example::
@@ -414,54 +561,48 @@ def create_builtin_provider():
     Args:
         elements: The set of elements that should belong to the PCollection.
             YAML/JSON-style mappings will be interpreted as Beam rows.
-        reshuffle (optional): Whether to introduce a reshuffle if there is more
-            than one element in the collection. Defaults to True.
+        reshuffle (optional): Whether to introduce a reshuffle (to possibly
+            redistribute the work) if there is more than one element in the
+            collection. Defaults to True.
     """
-    return beam.Create(dicts_to_rows(elements), reshuffle)
-
-  def with_schema(**args):
-    # TODO: This is preliminary.
-    def parse_type(spec):
-      if spec in PRIMITIVE_NAMES_TO_ATOMIC_TYPE:
-        return schema_pb2.FieldType(
-            atomic_type=PRIMITIVE_NAMES_TO_ATOMIC_TYPE[spec])
-      elif isinstance(spec, list):
-        if len(spec) != 1:
-          raise ValueError("Use single-element lists to denote list types.")
-        else:
-          return schema_pb2.FieldType(
-              iterable_type=schema_pb2.IterableType(
-                  element_type=parse_type(spec[0])))
-      elif isinstance(spec, dict):
-        return schema_pb2.FieldType(
-            iterable_type=schema_pb2.RowType(schema=parse_schema(spec[0])))
-      else:
-        raise ValueError("Unknown schema type: {spec}")
-
-    def parse_schema(spec):
-      return schema_pb2.Schema(
-          fields=[
-              schema_pb2.Field(name=key, type=parse_type(value), id=ix)
-              for (ix, (key, value)) in enumerate(spec.items())
-          ],
-          id=str(uuid.uuid4()))
-
-    named_tuple = schemas.named_tuple_from_schema(parse_schema(args))
-    names = list(args.keys())
-
-    def extract_field(x, name):
-      if isinstance(x, dict):
-        return x[name]
-      else:
-        return getattr(x, name)
-
-    return 'WithSchema(%s)' % ', '.join(names) >> beam.Map(
-        lambda x: named_tuple(*[extract_field(x, name) for name in names])
-    ).with_output_types(named_tuple)
+    return beam.Create([element_to_rows(e) for e in elements],
+                       reshuffle=reshuffle is not False)
 
   # Or should this be posargs, args?
   # pylint: disable=dangerous-default-value
-  def fully_qualified_named_transform(constructor, args=(), kwargs={}):
+  def fully_qualified_named_transform(
+      constructor: str,
+      args: Optional[Iterable[Any]] = (),
+      kwargs: Optional[Mapping[str, Any]] = {}):
+    """A Python PTransform identified by fully qualified name.
+
+    This allows one to import, construct, and apply any Beam Python transform.
+    This can be useful for using transforms that have not yet been exposed
+    via a YAML interface. Note, however, that conversion may be required if this
+    transform does not accept or produce Beam Rows.
+
+    For example,
+
+        type: PyTransform
+        config:
+          constructor: apache_beam.pkg.mod.SomeClass
+          args: [1, 'foo']
+          kwargs:
+             baz: 3
+
+    can be used to access the transform
+    `apache_beam.pkg.mod.SomeClass(1, 'foo', baz=3)`.
+
+    Args:
+        constructor: Fully qualified name of a callable used to construct the
+            transform.  Often this is a class such as
+            `apache_beam.pkg.mod.SomeClass` but it can also be a function or
+            any other callable that returns a PTransform.
+        args: A list of parameters to pass to the callable as positional
+            arguments.
+        kwargs: A list of parameters to pass to the callable as keyword
+            arguments.
+    """
     with FullyQualifiedNamedTransform.with_filter('*'):
       return constructor >> FullyQualifiedNamedTransform(
           constructor, args, kwargs)
@@ -470,6 +611,19 @@ def create_builtin_provider():
   # exactly zero or one PCollection in yaml (as they would be interpreted as
   # PBegin and the PCollection itself respectively).
   class Flatten(beam.PTransform):
+    """Flattens multiple PCollections into a single PCollection.
+
+    The elements of the resulting PCollection will be the (disjoint) union of
+    all the elements of all the inputs.
+
+    Note that in YAML transforms can always take a list of inputs which will
+    be implicitly flattened.
+    """
+    def __init__(self):
+      # Suppress the "label" argument from the superclass for better docs.
+      # pylint: disable=useless-parent-delegation
+      super().__init__()
+
     def expand(self, pcolls):
       if isinstance(pcolls, beam.PCollection):
         pipeline_arg = {}
@@ -483,6 +637,24 @@ def create_builtin_provider():
       return pcolls | beam.Flatten(**pipeline_arg)
 
   class WindowInto(beam.PTransform):
+    # pylint: disable=line-too-long
+
+    """A window transform assigning windows to each element of a PCollection.
+
+    The assigned windows will affect all downstream aggregating operations,
+    which will aggregate by window as well as by key.
+
+    See [the Beam documentation on windowing](https://beam.apache.org/documentation/programming-guide/#windowing)
+    for more details.
+
+    Note that any Yaml transform can have a
+    [windowing parameter](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/README.md#windowing),
+    which is applied to its inputs (if any) or outputs (if there are no inputs)
+    which means that explicit WindowInto operations are not typically needed.
+
+    Args:
+      windowing: the type and parameters of the windowing to perform
+    """
     def __init__(self, windowing):
       self._window_transform = self._parse_window_spec(windowing)
 
@@ -508,30 +680,26 @@ def create_builtin_provider():
       # TODO: Triggering, etc.
       return beam.WindowInto(window_fn)
 
-  return InlineProvider(
-      dict({
-          'Create': create,
-          'PyMap': lambda fn: beam.Map(
-              python_callable.PythonCallableWithSource(fn)),
-          'PyMapTuple': lambda fn: beam.MapTuple(
-              python_callable.PythonCallableWithSource(fn)),
-          'PyFlatMap': lambda fn: beam.FlatMap(
-              python_callable.PythonCallableWithSource(fn)),
-          'PyFlatMapTuple': lambda fn: beam.FlatMapTuple(
-              python_callable.PythonCallableWithSource(fn)),
-          'PyFilter': lambda keep: beam.Filter(
-              python_callable.PythonCallableWithSource(keep)),
-          'PyTransform': fully_qualified_named_transform,
-          'PyToRow': lambda fields: beam.Select(
-              **{
-                  name: python_callable.PythonCallableWithSource(fn)
-                  for (name, fn) in fields.items()
-              }),
-          'WithSchema': with_schema,
-          'Flatten': Flatten,
-          'WindowInto': WindowInto,
-          'GroupByKey': beam.GroupByKey,
-      }))
+  def LogForTesting():
+    """Logs each element of its input PCollection.
+
+    The output of this transform is a copy of its input for ease of use in
+    chain-style pipelines.
+    """
+    def log_and_return(x):
+      logging.info(x)
+      return x
+
+    return beam.Map(log_and_return)
+
+  return InlineProvider({
+      'Create': create,
+      'LogForTesting': LogForTesting,
+      'PyTransform': fully_qualified_named_transform,
+      'Flatten': Flatten,
+      'WindowInto': WindowInto,
+  },
+                        no_input_transforms=('Create', ))
 
 
 class PypiExpansionService:
@@ -622,7 +790,7 @@ class PypiExpansionService:
 
 @ExternalProvider.register_provider_type('renaming')
 class RenamingProvider(Provider):
-  def __init__(self, transforms, mappings, underlying_provider):
+  def __init__(self, transforms, mappings, underlying_provider, defaults=None):
     if isinstance(underlying_provider, dict):
       underlying_provider = ExternalProvider.provider_from_spec(
           underlying_provider)
@@ -631,13 +799,65 @@ class RenamingProvider(Provider):
     for transform in transforms.keys():
       if transform not in mappings:
         raise ValueError(f'Missing transform {transform} in mappings.')
-    self._mappings = mappings
+    self._mappings = self.expand_mappings(mappings)
+    self._defaults = defaults or {}
+
+  @staticmethod
+  def expand_mappings(mappings):
+    if not isinstance(mappings, dict):
+      raise ValueError(
+          "RenamingProvider mappings must be dict of transform "
+          "mappings.")
+    for key, value in mappings.items():
+      if isinstance(value, str):
+        if value not in mappings.keys():
+          raise ValueError(
+              "RenamingProvider transform mappings must be dict or "
+              "specify transform that has mappings within same "
+              "provider.")
+        mappings[key] = mappings[value]
+    return mappings
 
   def available(self) -> bool:
     return self._underlying_provider.available()
 
   def provided_transforms(self) -> Iterable[str]:
     return self._transforms.keys()
+
+  def config_schema(self, type):
+    underlying_schema = self._underlying_provider.config_schema(
+        self._transforms[type])
+    if underlying_schema is None:
+      return None
+    defaults = self._defaults.get(type, {})
+    underlying_schema_fields = {f.name: f for f in underlying_schema.fields}
+    missing = set(self._mappings[type].values()) - set(
+        underlying_schema_fields.keys())
+    if missing:
+      raise ValueError(
+          f"Mapping destinations {missing} for {type} are not in the "
+          f"underlying config schema {list(underlying_schema_fields.keys())}")
+
+    def with_name(
+        original: schema_pb2.Field, new_name: str) -> schema_pb2.Field:
+      result = schema_pb2.Field()
+      result.CopyFrom(original)
+      result.name = new_name
+      return result
+
+    return schema_pb2.Schema(
+        fields=[
+            with_name(underlying_schema_fields[dest], src)
+            for (src, dest) in self._mappings[type].items()
+            if dest not in defaults
+        ])
+
+  def description(self, typ):
+    return self._underlying_provider.description(self._transforms[typ])
+
+  def requires_inputs(self, typ, args):
+    return self._underlying_provider.requires_inputs(
+        self._transforms[typ], args)
 
   def create_transform(
       self,
@@ -653,6 +873,9 @@ class RenamingProvider(Provider):
         mappings.get(key, key): value
         for key, value in args.items()
     }
+    for key, value in self._defaults.get(typ, {}).items():
+      if key not in remapped_args:
+        remapped_args[key] = value
     return self._underlying_provider.create_transform(
         self._transforms[typ], remapped_args, yaml_create_transform)
 
@@ -662,6 +885,9 @@ class RenamingProvider(Provider):
 
   def underlying_provider(self):
     return self._underlying_provider.underlying_provider()
+
+  def cache_artifacts(self):
+    self._underlying_provider.cache_artifacts()
 
 
 def parse_providers(provider_specs):
@@ -684,19 +910,24 @@ def merge_providers(*provider_sets):
           transform_type: [provider]
           for transform_type in provider.provided_transforms()
       }
+    elif isinstance(provider_set, list):
+      provider_set = merge_providers(*provider_set)
     for transform_type, providers in provider_set.items():
       result[transform_type].extend(providers)
   return result
 
 
 def standard_providers():
-  from apache_beam.yaml.yaml_mapping import create_mapping_provider
+  from apache_beam.yaml.yaml_combine import create_combine_providers
+  from apache_beam.yaml.yaml_mapping import create_mapping_providers
   from apache_beam.yaml.yaml_io import io_providers
   with open(os.path.join(os.path.dirname(__file__),
                          'standard_providers.yaml')) as fin:
     standard_providers = yaml.load(fin, Loader=SafeLoader)
+
   return merge_providers(
       create_builtin_provider(),
-      create_mapping_provider(),
+      create_mapping_providers(),
+      create_combine_providers(),
       io_providers(),
       parse_providers(standard_providers))

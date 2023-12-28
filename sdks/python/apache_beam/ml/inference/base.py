@@ -143,7 +143,7 @@ class KeyModelPathMapping(Generic[KeyT]):
   information see the KeyedModelHandler documentation
   https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.KeyedModelHandler
   documentation and the website section on model updates
-  https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
+  https://beam.apache.org/documentation/ml/about-ml/#automatic-model-refresh
   """
   keys: List[KeyT]
   update_path: str
@@ -224,7 +224,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     used when a ModelHandler represents a single model, not multiple models.
     This will be true in most cases. For more information see the website
     section on model updates
-    https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
+    https://beam.apache.org/documentation/ml/about-ml/#automatic-model-refresh
     """
     pass
 
@@ -239,7 +239,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     the KeyedModelHandler documentation
     https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.KeyedModelHandler
     documentation and the website section on model updates
-    https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
+    https://beam.apache.org/documentation/ml/about-ml/#automatic-model-refresh
     """
     pass
 
@@ -452,7 +452,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     KeyedModelHandlers support Automatic Model Refresh to update your model
     to a newer version without stopping your streaming pipeline. For an
     overview of this feature, see
-    https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
+    https://beam.apache.org/documentation/ml/about-ml/#automatic-model-refresh
 
 
     To use this feature with a KeyedModelHandler that has many models per key,
@@ -465,7 +465,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     will update the model corresponding to keys 'k1' and 'k2' with path
     'update/path/1' and the model corresponding to 'k3' with 'update/path/2'.
     In order to do a side input update: (1) all restrictions mentioned in
-    https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
+    https://beam.apache.org/documentation/ml/about-ml/#automatic-model-refresh
     must be met, (2) all update_paths must be non-empty, even if they are not
     being updated from their original values, and (3) the set of keys
     originally defined cannot change. This means that if originally you have
@@ -482,6 +482,12 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     from the cohort. When model updates occur, the metrics will be reported in
     the form `<cohort_key>-<model id>-<metric_name>`.
 
+    Loading multiple models at the same time can increase the risk of an out of
+    memory (OOM) exception. To avoid this issue, use the parameter
+    `max_models_per_worker_hint` to limit the number of models that are loaded
+    at the same time. For more information about memory management, see
+    `Use a keyed `ModelHandler <https://beam.apache.org/documentation/ml/about-ml/#use-a-keyed-modelhandler-object>_`.  # pylint: disable=line-too-long
+
 
     Args:
       unkeyed: Either (a) an implementation of ModelHandler that does not
@@ -491,7 +497,8 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
         models can be held in memory at one time per worker process. For
         example, if your worker has 8 GB of memory provisioned and your workers
         take up 1 GB each, you should set this to 7 to allow all models to sit
-        in memory with some buffer.
+        in memory with some buffer. For more information about memory management,
+        see `Use a keyed `ModelHandler <https://beam.apache.org/documentation/ml/about-ml/#use-a-keyed-modelhandler-object>_`.  # pylint: disable=line-too-long
     """
     self._metrics_collectors: Dict[str, _MetricsCollector] = {}
     self._default_metrics_collector: _MetricsCollector = None
@@ -505,7 +512,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
             'postprocessing functions defined into a keyed model handler. All '
             'pre/postprocessing functions must be defined on the outer model'
             'handler.')
-      self._env_vars = unkeyed._env_vars
+      self._env_vars = getattr(unkeyed, '_env_vars', {})
       self._unkeyed = unkeyed
       return
 
@@ -546,7 +553,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
             'overriding the KeyedModelHandler.batch_elements_kwargs() method.',
             hints,
             batch_kwargs)
-      env_vars = mh._env_vars
+      env_vars = getattr(mh, '_env_vars', {})
       if len(env_vars) > 0:
         logging.warning(
             'mh %s defines the following _env_vars which will be ignored %s. '
@@ -809,7 +816,7 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
           'pre/postprocessing functions must be defined on the outer model'
           'handler.')
     self._unkeyed = unkeyed
-    self._env_vars = unkeyed._env_vars
+    self._env_vars = getattr(unkeyed, '_env_vars', {})
 
   def load_model(self) -> ModelT:
     return self._unkeyed.load_model()
@@ -888,7 +895,7 @@ class _PreProcessingModelHandler(Generic[ExampleT,
       preprocess_fn: the preprocessing function to use.
     """
     self._base = base
-    self._env_vars = base._env_vars
+    self._env_vars = getattr(base, '_env_vars', {})
     self._preprocess_fn = preprocess_fn
 
   def load_model(self) -> ModelT:
@@ -944,7 +951,7 @@ class _PostProcessingModelHandler(Generic[ExampleT,
       postprocess_fn: the preprocessing function to use.
     """
     self._base = base
-    self._env_vars = base._env_vars
+    self._env_vars = getattr(base, '_env_vars', {})
     self._postprocess_fn = postprocess_fn
 
   def load_model(self) -> ModelT:
@@ -1025,7 +1032,6 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
     self._clock = clock
     self._metrics_namespace = metrics_namespace
     self._model_metadata_pcoll = model_metadata_pcoll
-    self._enable_side_input_loading = self._model_metadata_pcoll is not None
     self._with_exception_handling = False
     self._watch_model_pattern = watch_model_pattern
     self._kwargs = kwargs
@@ -1126,12 +1132,12 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
             self._model_handler,
             self._clock,
             self._metrics_namespace,
-            self._enable_side_input_loading,
+            self._model_metadata_pcoll is not None,
             self._model_tag),
         self._inference_args,
         beam.pvalue.AsSingleton(
             self._model_metadata_pcoll,
-        ) if self._enable_side_input_loading else None).with_resource_hints(
+        ) if self._model_metadata_pcoll else None).with_resource_hints(
             **resource_hints)
 
     if self._with_exception_handling:
@@ -1426,7 +1432,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       self._side_input_path = si_model_metadata.model_id
       self._metrics_collector = self.get_metrics_collector(
           prefix=si_model_metadata.model_name)
-      with threading.Lock():
+      lock = threading.Lock()
+      with lock:
         self.update_model(si_model_metadata.model_id)
         return self._run_inference(batch, inference_args)
 

@@ -42,7 +42,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"os"
 
 	// common runner flag.
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
@@ -140,6 +139,8 @@ var portableFilters = []string{
 }
 
 var prismFilters = []string{
+	// The prism runner does not yet support Java's CoGBK.
+	"TestXLang_CoGroupBy",
 	// The prism runner does not support the TestStream primitive
 	"TestTestStream.*",
 	// The trigger and pane tests uses TestStream
@@ -157,17 +158,6 @@ var prismFilters = []string{
 	"TestFhirIO.*",
 	// OOMs currently only lead to heap dumps on Dataflow runner
 	"TestOomParDo",
-	// The prism runner does not support user state.
-	"TestValueState",
-	"TestValueStateWindowed",
-	"TestValueStateClear",
-	"TestBagState",
-	"TestBagStateClear",
-	"TestCombiningState",
-	"TestMapState",
-	"TestMapStateClear",
-	"TestSetState",
-	"TestSetStateClear",
 }
 
 var flinkFilters = []string{
@@ -300,12 +290,6 @@ var dataflowFilters = []string{
 func CheckFilters(t *testing.T) {
 	if !ptest.MainCalled() {
 		panic("ptest.Main() has not been called: please override TestMain to ensure that the integration test runs properly.")
-	}
-
-	// TODO(https://github.com/apache/beam/issues/28227): Grant github-actions service account permission to healthcare.fhirStores.create.
-	var user = os.Getenv("USER")
-	if user == "github-actions" {
-		dataflowFilters = append(dataflowFilters, "TestFhirIO.*")
 	}
 
 	// Check for sickbaying first.

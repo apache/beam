@@ -99,6 +99,16 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
   }
 
   @Override
+  public String description() {
+    return String.format(
+        "Writes data to BigQuery using the Storage Write API (https://cloud.google.com/bigquery/docs/write-api)."
+            + "\n\nThis expects a single PCollection of Beam Rows and outputs two dead-letter queues (DLQ) that "
+            + "contain failed rows. The first DLQ has tag [%s] and contains the failed rows. The second DLQ has "
+            + "tag [%s] and contains failed rows and along with their respective errors.",
+        FAILED_ROWS_TAG, FAILED_ROWS_WITH_ERRORS_TAG);
+  }
+
+  @Override
   public List<String> inputCollectionNames() {
     return Collections.singletonList(INPUT_ROWS_TAG);
   }
@@ -176,6 +186,15 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
             !Strings.isNullOrEmpty(this.getErrorHandling().getOutput()),
             invalidConfigMessage + "Output must not be empty if error handling specified.");
       }
+
+      if (this.getAutoSharding() != null
+          && this.getAutoSharding()
+          && this.getNumStreams() != null) {
+        checkArgument(
+            this.getNumStreams() == 0,
+            invalidConfigMessage
+                + "Cannot set a fixed number of streams when auto-sharding is enabled. Please pick only one of the two options.");
+      }
     }
 
     /**
@@ -218,10 +237,16 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     public abstract Boolean getUseAtLeastOnceSemantics();
 
     @SchemaFieldDescription(
-        "This option enables using a dynamically determined number of shards to write to "
+        "This option enables using a dynamically determined number of Storage Write API streams to write to "
             + "BigQuery. Only applicable to unbounded data.")
     @Nullable
     public abstract Boolean getAutoSharding();
+
+    @SchemaFieldDescription(
+        "Specifies the number of write streams that the Storage API sink will use. "
+            + "This parameter is only applicable when writing unbounded data.")
+    @Nullable
+    public abstract Integer getNumStreams();
 
     @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
     @Nullable
@@ -242,6 +267,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       public abstract Builder setUseAtLeastOnceSemantics(Boolean use);
 
       public abstract Builder setAutoSharding(Boolean autoSharding);
+
+      public abstract Builder setNumStreams(Integer numStreams);
 
       public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
@@ -321,13 +348,23 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       if (inputRows.isBounded() == IsBounded.UNBOUNDED) {
         Long triggeringFrequency = configuration.getTriggeringFrequencySeconds();
         Boolean autoSharding = configuration.getAutoSharding();
-        write =
-            write.withTriggeringFrequency(
-                (triggeringFrequency == null || triggeringFrequency <= 0)
-                    ? DEFAULT_TRIGGERING_FREQUENCY
-                    : Duration.standardSeconds(triggeringFrequency));
-        // use default value true for autoSharding if not configured for STORAGE_WRITE_API
-        if (autoSharding == null || autoSharding) {
+        int numStreams = configuration.getNumStreams() == null ? 0 : configuration.getNumStreams();
+        boolean useAtLeastOnceSemantics =
+            configuration.getUseAtLeastOnceSemantics() == null
+                ? false
+                : configuration.getUseAtLeastOnceSemantics();
+        // Triggering frequency is only applicable for exactly-once
+        if (!useAtLeastOnceSemantics) {
+          write =
+              write.withTriggeringFrequency(
+                  (triggeringFrequency == null || triggeringFrequency <= 0)
+                      ? DEFAULT_TRIGGERING_FREQUENCY
+                      : Duration.standardSeconds(triggeringFrequency));
+        }
+        // set num streams if specified, otherwise default to autoSharding
+        if (numStreams > 0) {
+          write = write.withNumStorageWriteApiStreams(numStreams);
+        } else if (autoSharding == null || autoSharding) {
           write = write.withAutoSharding();
         }
       }

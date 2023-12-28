@@ -31,27 +31,34 @@ Parquet file.
 # pytype: skip-file
 
 from functools import partial
+from typing import Iterator
 
 from packaging import version
 
 from apache_beam.io import filebasedsink
 from apache_beam.io import filebasedsource
 from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.iobase import RangeTracker
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
+from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import window
+from apache_beam.typehints import schemas
 
 try:
   import pyarrow as pa
   import pyarrow.parquet as pq
+  # pylint: disable=ungrouped-imports
+  from apache_beam.typehints import arrow_type_compatibility
 except ImportError:
   pa = None
   pq = None
   ARROW_MAJOR_VERSION = None
+  arrow_type_compatibility = None
 else:
   base_pa_version = version.parse(pa.__version__).base_version
   ARROW_MAJOR_VERSION, _, _ = map(int, base_pa_version.split('.'))
@@ -146,6 +153,24 @@ class _RowDictionariesToArrowTable(DoFn):
     self._record_batches_byte_size = self._record_batches_byte_size + size
 
 
+class _ArrowTableToBeamRows(DoFn):
+  def __init__(self, beam_type):
+    self._beam_type = beam_type
+
+  @DoFn.yields_batches
+  def process(self, element) -> Iterator[pa.Table]:
+    yield element
+
+  def infer_output_type(self, input_type):
+    return self._beam_type
+
+
+class _BeamRowsToArrowTable(DoFn):
+  @DoFn.yields_elements
+  def process_batch(self, element: pa.Table) -> Iterator[pa.Table]:
+    yield element
+
+
 class ReadFromParquetBatched(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading
      Parquet files as a `PCollection` of `pyarrow.Table`. This `PTransform` is
@@ -191,7 +216,7 @@ class ReadFromParquetBatched(PTransform):
     """
 
     super().__init__()
-    self._source = _create_parquet_source(
+    self._source = _ParquetSource(
         file_pattern,
         min_bundle_size,
         validate=validate,
@@ -206,11 +231,14 @@ class ReadFromParquetBatched(PTransform):
 
 
 class ReadFromParquet(PTransform):
-  """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading
-     Parquet files as a `PCollection` of dictionaries. This `PTransform` is
-     currently experimental. No backward-compatibility guarantees."""
+  """A `PTransform` for reading Parquet files."""
   def __init__(
-      self, file_pattern=None, min_bundle_size=0, validate=True, columns=None):
+      self,
+      file_pattern=None,
+      min_bundle_size=0,
+      validate=True,
+      columns=None,
+      as_rows=False):
     """Initializes :class:`ReadFromParquet`.
 
     Uses source ``_ParquetSource`` to read a set of Parquet files defined by
@@ -255,17 +283,38 @@ class ReadFromParquet(PTransform):
       columns (List[str]): list of columns that will be read from files.
         A column name may be a prefix of a nested field, e.g. 'a' will select
         'a.b', 'a.c', and 'a.d.e'
+      as_rows (bool): whether to output a schema'd PCollection of Beam rows
+        rather than Python dictionaries.
     """
     super().__init__()
-    self._source = _create_parquet_source(
+    self._source = _ParquetSource(
         file_pattern,
         min_bundle_size,
         validate=validate,
         columns=columns,
     )
+    if as_rows:
+      if columns is None:
+        filter_schema = lambda schema: schema
+      else:
+        top_level_columns = set(c.split('.')[0] for c in columns)
+        filter_schema = lambda schema: schema_pb2.Schema(
+            fields=[f for f in schema.fields if f.name in top_level_columns])
+      path = FileSystems.match([file_pattern], [1])[0].metadata_list[0].path
+      with FileSystems.open(path) as fin:
+        self._schema = filter_schema(
+            arrow_type_compatibility.beam_schema_from_arrow_schema(
+                pq.read_schema(fin)))
+    else:
+      self._schema = None
 
   def expand(self, pvalue):
-    return pvalue | Read(self._source) | ParDo(_ArrowTableToRowDictionaries())
+    arrow_batches = pvalue | Read(self._source)
+    if self._schema is None:
+      return arrow_batches | ParDo(_ArrowTableToRowDictionaries())
+    else:
+      return arrow_batches | ParDo(
+          _ArrowTableToBeamRows(schemas.named_tuple_from_schema(self._schema)))
 
   def display_data(self):
     return {'source_dd': self._source}
@@ -305,9 +354,7 @@ class ReadAllFromParquetBatched(PTransform):
     """
     super().__init__()
     source_from_file = partial(
-        _create_parquet_source,
-        min_bundle_size=min_bundle_size,
-        columns=columns)
+        _ParquetSource, min_bundle_size=min_bundle_size, columns=columns)
     self._read_all_files = filebasedsource.ReadAllFiles(
         True,
         CompressionTypes.UNCOMPRESSED,
@@ -331,17 +378,6 @@ class ReadAllFromParquet(PTransform):
   def expand(self, pvalue):
     return pvalue | self._read_batches | ParDo(
         _ArrowTableToRowDictionaries(), with_filename=self._with_filename)
-
-
-def _create_parquet_source(
-    file_pattern=None, min_bundle_size=0, validate=False, columns=None):
-  return \
-    _ParquetSource(
-        file_pattern=file_pattern,
-        min_bundle_size=min_bundle_size,
-        validate=validate,
-        columns=columns,
-    )
 
 
 class _ParquetUtils(object):
@@ -370,7 +406,8 @@ class _ParquetUtils(object):
 class _ParquetSource(filebasedsource.FileBasedSource):
   """A source for reading Parquet files.
   """
-  def __init__(self, file_pattern, min_bundle_size, validate, columns):
+  def __init__(
+      self, file_pattern, min_bundle_size=0, validate=False, columns=None):
     super().__init__(
         file_pattern=file_pattern,
         min_bundle_size=min_bundle_size,
@@ -421,16 +458,16 @@ class _ParquetSource(filebasedsource.FileBasedSource):
         yield table
 
 
+_create_parquet_source = _ParquetSource
+
+
 class WriteToParquet(PTransform):
   """A ``PTransform`` for writing parquet files.
-
-    This ``PTransform`` is currently experimental. No backward-compatibility
-    guarantees.
   """
   def __init__(
       self,
       file_path_prefix,
-      schema,
+      schema=None,
       row_group_buffer_size=64 * 1024 * 1024,
       record_batch_size=1000,
       codec='none',
@@ -534,10 +571,19 @@ class WriteToParquet(PTransform):
       )
 
   def expand(self, pcoll):
-    return pcoll | ParDo(
-        _RowDictionariesToArrowTable(
-            self._schema, self._row_group_buffer_size,
-            self._record_batch_size)) | Write(self._sink)
+    if self._schema is None:
+      try:
+        beam_schema = schemas.schema_from_element_type(pcoll.element_type)
+      except TypeError as exn:
+        raise ValueError(
+            "A schema is required to write non-schema'd data.") from exn
+      self._sink._schema = (
+          arrow_type_compatibility.arrow_schema_from_beam_schema(beam_schema))
+      convert_fn = _BeamRowsToArrowTable()
+    else:
+      convert_fn = _RowDictionariesToArrowTable(
+          self._schema, self._row_group_buffer_size, self._record_batch_size)
+    return pcoll | ParDo(convert_fn) | Write(self._sink)
 
   def display_data(self):
     return {

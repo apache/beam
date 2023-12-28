@@ -53,6 +53,8 @@ import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The {@code PCollectionConsumerRegistry} is used to maintain a collection of consuming
@@ -97,6 +99,7 @@ public class PCollectionConsumerRegistry {
   private final ProcessBundleDescriptor processBundleDescriptor;
   private final RehydratedComponents rehydratedComponents;
   private final @Nullable DataSampler dataSampler;
+  private static final Logger LOG = LoggerFactory.getLogger(PCollectionConsumerRegistry.class);
 
   public PCollectionConsumerRegistry(
       ExecutionStateTracker stateTracker,
@@ -242,6 +245,26 @@ public class PCollectionConsumerRegistry {
         });
   }
 
+  private static <T> void logAndRethrow(
+      Exception e,
+      ExecutionState executionState,
+      ExecutionStateTracker executionStateTracker,
+      String ptransformId,
+      @Nullable OutputSampler<T> outputSampler,
+      @Nullable ElementSample<T> elementSample)
+      throws Exception {
+    ExecutionStateSampler.ExecutionStateTrackerStatus status = executionStateTracker.getStatus();
+    String processBundleId = status == null ? null : status.getProcessBundleId();
+    if (outputSampler != null) {
+      outputSampler.exception(elementSample, e, ptransformId, processBundleId);
+    }
+
+    if (executionState.error()) {
+      LOG.error("Failed to process element for bundle \"{}\"", processBundleId, e);
+    }
+    throw e;
+  }
+
   /**
    * A wrapping {@code FnDataReceiver<WindowedValue<T>>} which counts the number of elements
    * consumed by the original {@code FnDataReceiver<WindowedValue<T>> consumer} and sets up metrics
@@ -324,13 +347,8 @@ public class PCollectionConsumerRegistry {
       try {
         this.delegate.accept(input);
       } catch (Exception e) {
-        if (outputSampler != null) {
-          ExecutionStateSampler.ExecutionStateTrackerStatus status =
-              executionStateTracker.getStatus();
-          String processBundleId = status == null ? null : status.getProcessBundleId();
-          outputSampler.exception(elementSample, e, ptransformId, processBundleId);
-        }
-        throw e;
+        logAndRethrow(
+            e, executionState, executionStateTracker, ptransformId, outputSampler, elementSample);
       } finally {
         executionState.deactivate();
       }
@@ -419,14 +437,13 @@ public class PCollectionConsumerRegistry {
         try {
           consumerAndMetadata.getConsumer().accept(input);
         } catch (Exception e) {
-          if (outputSampler != null) {
-            ExecutionStateSampler.ExecutionStateTrackerStatus status =
-                consumerAndMetadata.getExecutionStateTracker().getStatus();
-            String processBundleId = status == null ? null : status.getProcessBundleId();
-            outputSampler.exception(
-                elementSample, e, consumerAndMetadata.getPTransformId(), processBundleId);
-          }
-          throw e;
+          logAndRethrow(
+              e,
+              state,
+              consumerAndMetadata.getExecutionStateTracker(),
+              consumerAndMetadata.getPTransformId(),
+              outputSampler,
+              elementSample);
         } finally {
           state.deactivate();
         }

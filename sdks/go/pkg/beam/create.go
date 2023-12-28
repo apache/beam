@@ -112,11 +112,6 @@ func createList(s Scope, values []any, t reflect.Type) (PCollection, error) {
 
 // TODO(herohde) 6/26/2017: make 'create' a SDF once supported. See BEAM-2421.
 
-func init() {
-	register.DoFn2x1[[]byte, func(T), error]((*createFn)(nil))
-	register.Emitter1[T]()
-}
-
 type createFn struct {
 	Values [][]byte    `json:"values"`
 	Type   EncodedType `json:"type"`

@@ -344,7 +344,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * @param millisSinceLastSample the time since the last sample was reported. As an approximation,
    *     all of that time should be associated with this tracker.
    */
-  void takeSample(long millisSinceLastSample) {
+  public void takeSample(long millisSinceLastSample) {
     if (SAMPLING_UPDATER.compareAndSet(this, 0, 1)) {
       try {
         takeSampleOnce(millisSinceLastSample);

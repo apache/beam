@@ -66,7 +66,7 @@ public interface FirestoreOptions extends PipelineOptions {
    */
   @Description("Firestore endpoint (host and port)")
   @Default.String("batch-firestore.googleapis.com:443")
-  String getHost();
+  String getFirestoreHost();
 
   /**
    * Define a host port pair to allow connecting to a Cloud Firestore instead of the default live
@@ -74,5 +74,5 @@ public interface FirestoreOptions extends PipelineOptions {
    *
    * @param host the host and port to connect to
    */
-  void setHost(String host);
+  void setFirestoreHost(String host);
 }

@@ -101,10 +101,19 @@ footer {
     color: var(--beam-white);
 }
 
+#page-container {
+    position: relative;
+    min-height: 100vh;
+}
+  
+#content-wrap {
+    padding-bottom: 2.5rem;    /* Footer height */
+}
+
 .container {
     width: 100%;
     margin: 0 auto;
-    padding: 80px 20px 40px;
+    padding: 40px 20px 0px;
 }
 
 .child {
@@ -130,6 +139,53 @@ footer {
 .main-table th,
 .main-table td {
     padding: 12px 15px;
+}
+
+/* Tooltip container */
+.tooltip {
+    display: inline-block;
+    border-bottom: 1px dotted var(--beam-black);
+}
+
+/* Tooltip text */
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: max-content;
+    max-width: 400px;
+    background-color: var(--dark-grey);
+    color: var(--beam-white);
+    text-align: left;
+    padding: 5px 10px;
+    border-radius: 6px;
+
+    /* Position the tooltip text */
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -60px;
+
+    /* Fade in tooltip */
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+/* Tooltip arrow */
+.tooltip .tooltiptext::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 18%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: var(--dark-grey) transparent transparent transparent;
+}
+
+/* Show the tooltip text when you mouse over the tooltip container */
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
 }
 
 @media screen and (max-width: 550px) {

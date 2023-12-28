@@ -594,6 +594,69 @@ public class BigtableServiceImplTest {
     Mockito.verify(mockCallMetric, Mockito.times(3)).call("ok");
   }
 
+  /** This test verifies that a refill request is sent before we read all the rows in the buffer. */
+  @Test
+  public void testRefillOnLowWatermark() throws IOException {
+    int segmentSize = 30;
+    RowSet.Builder ranges = RowSet.newBuilder();
+    // generate 3 pages of rows
+    ranges.addRowRanges(
+        generateRowRange(
+            generateByteString(DEFAULT_PREFIX, 0),
+            generateByteString(DEFAULT_PREFIX, segmentSize * 3)));
+
+    List<List<Row>> expectedResults =
+        ImmutableList.of(
+            generateSegmentResult(DEFAULT_PREFIX, 0, segmentSize),
+            generateSegmentResult(DEFAULT_PREFIX, segmentSize, segmentSize),
+            generateSegmentResult(DEFAULT_PREFIX, segmentSize * 2, segmentSize),
+            ImmutableList.of());
+
+    // Set up Callable to be returned by stub.createReadRowsCallable()
+    ServerStreamingCallable<Query, Row> mockCallable = Mockito.mock(ServerStreamingCallable.class);
+    // Return multiple answers when mockCallable is called
+    doAnswer(new MultipleAnswer<Row>(expectedResults))
+        .when(mockCallable)
+        .call(any(Query.class), any(ResponseObserver.class), any(ApiCallContext.class));
+    when(mockStub.createReadRowsCallable(any(RowAdapter.class))).thenReturn(mockCallable);
+    ServerStreamingCallable<Query, Row> callable =
+        mockStub.createReadRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
+    // Set up client to return callable
+    when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
+
+    RetrySettings retrySettings =
+        bigtableDataSettings.getStubSettings().bulkReadRowsSettings().getRetrySettings();
+    BigtableService.Reader underTest =
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(
+            mockBigtableDataClient,
+            bigtableDataSettings.getProjectId(),
+            bigtableDataSettings.getInstanceId(),
+            TABLE_ID,
+            ranges.build(),
+            RowFilter.getDefaultInstance(),
+            segmentSize,
+            DEFAULT_BYTE_SEGMENT_SIZE,
+            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
+            Duration.millis(retrySettings.getTotalTimeout().toMillis()),
+            mockCallMetric);
+
+    Assert.assertTrue(underTest.start());
+
+    int refillWatermark = Math.max(1, (int) (segmentSize * 0.1));
+
+    Assert.assertTrue(refillWatermark > 1);
+
+    // Make sure refill happens on the second page. At this point, there
+    // should be 3 calls made on the callable.
+    for (int i = 0; i < segmentSize * 2 - refillWatermark + 1; i++) {
+      underTest.getCurrentRow();
+      underTest.advance();
+    }
+
+    verify(callable, times(3))
+        .call(queryCaptor.capture(), any(ResponseObserver.class), any(ApiCallContext.class));
+  }
+
   /**
    * This test checks that the buffer will stop filling up once the byte limit is reached. It will
    * cancel the controller after reached the limit. This test completes one fill and contains one
@@ -747,18 +810,26 @@ public class BigtableServiceImplTest {
    * @throws InterruptedException
    */
   @Test
-  public void testWrite() throws IOException, InterruptedException {
+  public void testWrite() throws IOException {
     doReturn(mockBatcher).when(mockBigtableDataClient).newBulkMutationBatcher(any());
+    SettableApiFuture<Void> fakeFuture = SettableApiFuture.create();
+    when(mockBatcher.closeAsync()).thenReturn(fakeFuture);
     ArgumentCaptor<RowMutationEntry> captor = ArgumentCaptor.forClass(RowMutationEntry.class);
     ApiFuture<Void> fakeResponse = SettableApiFuture.create();
-    when(mockBatcher.add(any(RowMutationEntry.class))).thenReturn(fakeResponse);
+    when(mockBatcher.add(any(RowMutationEntry.class)))
+        .thenAnswer(
+            invocation -> {
+              fakeFuture.set(null);
+              return fakeResponse;
+            });
 
     BigtableService.Writer underTest =
         new BigtableServiceImpl.BigtableWriterImpl(
             mockBigtableDataClient,
             bigtableDataSettings.getProjectId(),
             bigtableDataSettings.getInstanceId(),
-            TABLE_ID);
+            TABLE_ID,
+            Duration.millis(60000));
 
     ByteString key = ByteString.copyFromUtf8("key");
     Mutation mutation =
@@ -780,7 +851,6 @@ public class BigtableServiceImplTest {
     assertEquals(
         "Family", captor.getValue().toProto().getMutations(0).getSetCell().getFamilyName());
     underTest.close();
-    verify(mockBatcher, times(1)).flush();
   }
 
   private void verifyMetricWasSet(String method, String status, long count) {

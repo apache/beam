@@ -17,14 +17,23 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.runners.core.metrics.ExecutionStateTracker.PROCESS_STATE_NAME;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.IntSummaryStatistics;
+import java.util.Map;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionState;
+import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -110,5 +119,72 @@ public class DataflowExecutionContextTest {
 
     // AutoRegistrationClassNotActive class is not registered as registrar for the same is disabled.
     assertFalse(AutoRegistrationClassNotActive.WAS_CALLED);
+  }
+
+  @Test
+  public void testDataflowExecutionStateTrackerRecordsActiveMessageMetadata() throws IOException {
+    DataflowExecutionContext.DataflowExecutionStateTracker tracker =
+        new DataflowExecutionContext.DataflowExecutionStateTracker(
+            ExecutionStateSampler.instance(), null, null, PipelineOptionsFactory.create(), "");
+    StreamingModeExecutionState state =
+        new StreamingModeExecutionState(
+            NameContextsForTests.nameContextForTest(),
+            PROCESS_STATE_NAME,
+            null,
+            NoopProfileScope.NOOP,
+            null);
+
+    Closeable closure = tracker.enterState(state);
+
+    // After entering a process state, we should have an active message tracked.
+    ActiveMessageMetadata expectedMetadata =
+        ActiveMessageMetadata.create(NameContextsForTests.nameContextForTest().userName(), 1l);
+    assertTrue(tracker.getActiveMessageMetadata().isPresent());
+    Assert.assertEquals(
+        expectedMetadata.userStepName(), tracker.getActiveMessageMetadata().get().userStepName());
+
+    closure.close();
+
+    // Once the state closes, the active message should get cleared.
+    assertFalse(tracker.getActiveMessageMetadata().isPresent());
+  }
+
+  @Test
+  public void testDataflowExecutionStateTrackerRecordsCompletedProcessingTimes()
+      throws IOException {
+    DataflowExecutionContext.DataflowExecutionStateTracker tracker =
+        new DataflowExecutionContext.DataflowExecutionStateTracker(
+            ExecutionStateSampler.instance(), null, null, PipelineOptionsFactory.create(), "");
+
+    // Enter a processing state
+    StreamingModeExecutionState state =
+        new StreamingModeExecutionState(
+            NameContextsForTests.nameContextForTest(),
+            PROCESS_STATE_NAME,
+            null,
+            NoopProfileScope.NOOP,
+            null);
+    tracker.enterState(state);
+    // Enter a new processing state
+    StreamingModeExecutionState newState =
+        new StreamingModeExecutionState(
+            NameContextsForTests.nameContextForTest(),
+            PROCESS_STATE_NAME,
+            null,
+            NoopProfileScope.NOOP,
+            null);
+    tracker.enterState(newState);
+
+    // The first completed state should be recorded and the new state should be active.
+    Map<String, IntSummaryStatistics> gotProcessingTimes = tracker.getProcessingTimesByStepCopy();
+    Assert.assertEquals(1, gotProcessingTimes.size());
+    Assert.assertEquals(
+        new HashSet<>(Arrays.asList(NameContextsForTests.nameContextForTest().userName())),
+        gotProcessingTimes.keySet());
+    ActiveMessageMetadata expectedMetadata =
+        ActiveMessageMetadata.create(NameContextsForTests.nameContextForTest().userName(), 1l);
+    assertTrue(tracker.getActiveMessageMetadata().isPresent());
+    Assert.assertEquals(
+        expectedMetadata.userStepName(), tracker.getActiveMessageMetadata().get().userStepName());
   }
 }

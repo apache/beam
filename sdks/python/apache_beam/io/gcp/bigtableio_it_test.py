@@ -49,6 +49,13 @@ except ImportError as e:
   HttpError = None
 
 
+def instance_prefix(instance):
+  datestr = "".join(filter(str.isdigit, str(datetime.utcnow().date())))
+  instance_id = '%s-%s-%s' % (instance, datestr, secrets.token_hex(4))
+  assert len(instance_id) < 34, "instance id length needs to be within [6, 33]"
+  return instance_id
+
+
 @pytest.mark.uses_gcp_java_expansion_service
 @pytest.mark.uses_transform_service
 @unittest.skipUnless(
@@ -65,8 +72,7 @@ class TestReadFromBigTableIT(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
     self.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
-    instance_id = '%s-%s-%s' % (
-        self.INSTANCE, str(int(time.time())), secrets.token_hex(3))
+    instance_id = instance_prefix(self.INSTANCE)
 
     self.client = client.Client(admin=True, project=self.project)
     # create cluster and instance
@@ -96,7 +102,7 @@ class TestReadFromBigTableIT(unittest.TestCase):
       self.table.delete()
       self.instance.delete()
     except HttpError:
-      _LOGGER.debug(
+      _LOGGER.warning(
           "Failed to clean up table [%s] and instance [%s]",
           self.table.table_id,
           self.instance.instance_id)
@@ -160,8 +166,7 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     cls.args = cls.test_pipeline.get_full_options_as_args()
     cls.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
-    instance_id = '%s-%s-%s' % (
-        cls.INSTANCE, str(int(time.time())), secrets.token_hex(3))
+    instance_id = instance_prefix(cls.INSTANCE)
 
     cls.client = client.Client(admin=True, project=cls.project)
     # create cluster and instance
@@ -190,7 +195,7 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
       _LOGGER.info("Deleting table [%s]", self.table.table_id)
       self.table.delete()
     except HttpError:
-      _LOGGER.debug("Failed to clean up table [%s]", self.table.table_id)
+      _LOGGER.warning("Failed to clean up table [%s]", self.table.table_id)
 
   @classmethod
   def tearDownClass(cls):
@@ -198,7 +203,7 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
       _LOGGER.info("Deleting instance [%s]", cls.instance.instance_id)
       cls.instance.delete()
     except HttpError:
-      _LOGGER.debug(
+      _LOGGER.warning(
           "Failed to clean up instance [%s]", cls.instance.instance_id)
 
   def run_pipeline(self, rows):
@@ -223,6 +228,9 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     row1_col2_cell = Cell(b'val1-2', 200_000_000)
     row2_col1_cell = Cell(b'val2-1', 100_000_000)
     row2_col2_cell = Cell(b'val2-2', 200_000_000)
+    # When setting this cell, we won't set a timestamp. We expect the timestamp
+    # to default to -1, and Bigtable will set it to system time at insertion.
+    row2_col1_no_timestamp = Cell(b'val2-2-notimestamp', time.time())
     # rows sent to write transform
     row1.set_cell(
         'col_fam', b'col-1', row1_col1_cell.value, row1_col1_cell.timestamp)
@@ -232,6 +240,8 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
         'col_fam', b'col-1', row2_col1_cell.value, row2_col1_cell.timestamp)
     row2.set_cell(
         'col_fam', b'col-2', row2_col2_cell.value, row2_col2_cell.timestamp)
+    # don't set a timestamp here. it should default to -1
+    row2.set_cell('col_fam', b'col-no-timestamp', row2_col1_no_timestamp.value)
 
     self.run_pipeline([row1, row2])
 
@@ -248,6 +258,19 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
         row2_col1_cell, actual_row2.find_cells('col_fam', b'col-1')[0])
     self.assertEqual(
         row2_col2_cell, actual_row2.find_cells('col_fam', b'col-2')[0])
+
+    # check mutation that doesn't have a timestamp set is handled properly:
+    self.assertEqual(
+        row2_col1_no_timestamp.value,
+        actual_row2.find_cells('col_fam', b'col-no-timestamp')[0].value)
+    # Bigtable sets timestamp as insertion time, which is later than the
+    # time.time() we set when creating this test case
+    cell_timestamp = actual_row2.find_cells('col_fam',
+                                            b'col-no-timestamp')[0].timestamp
+    self.assertTrue(
+        row2_col1_no_timestamp.timestamp < cell_timestamp,
+        msg="Expected cell with unset timestamp to have ingestion time "
+        f"attached, but was {cell_timestamp}")
 
   def test_delete_cells_mutation(self):
     col_fam = self.table.column_family('col_fam')

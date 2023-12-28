@@ -16,12 +16,6 @@
 name: Python ValidatesContainer Dataflow ARM
 
 on:
-  issue_comment:
-    types: [created]
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths: ["sdks/python/**",".github/workflows/beam_Python_ValidatesContainer_Dataflow_ARM.yml"]
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
@@ -44,7 +38,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -54,7 +48,7 @@ env:
 
 jobs:
   beam_Python_ValidatesContainer_Dataflow_ARM:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{ matrix.python_version }})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
     strategy:
       fail-fast: false
       matrix:
@@ -63,27 +57,23 @@ jobs:
         python_version: ['3.8','3.9','3.10','3.11']
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.comment.body, 'Run Python ValidatesContainer Dataflow ARM')
 
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
-      - name: Install Python
-        uses: actions/setup-python@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
           python-version: ${{ matrix.python_version }}
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          cache-read-only: false
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: Authenticate on GCP
@@ -119,8 +109,9 @@ jobs:
         env:
           MULTIARCH_TAG: ${{ steps.set_tag.outputs.TAG }}
           USER: github-actions
-      - name: Archive code coverage results
-        uses: actions/upload-artifact@v3
+      - name: Archive Python Test Results
+        uses: actions/upload-artifact@v4
+        if: failure()
         with:
-          name: python-code-coverage-report
+          name: Python ${{ matrix.python_version }} Test Results
           path: "**/pytest*.xml"

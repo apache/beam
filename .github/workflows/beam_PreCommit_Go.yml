@@ -19,14 +19,14 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ['model/**', 'sdks/go.**', 'release/**', '.github/workflows/beam_PreCommit_Go.yml']
+    paths: ['model/**', 'sdks/go.mod', 'sdks/go.sum', 'sdks/go/**', 'release/**', '.github/workflows/beam_PreCommit_Go.yml']
   pull_request_target:
-    branches: ['master', 'release-*' ]
-    paths: ['model/**', 'sdks/go.**', 'release/**']
+    branches: ['master', 'release-*']
+    paths: ['model/**', 'sdks/go.mod', 'sdks/go.sum', 'sdks/go/**', 'release/**', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Go.json']
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 1/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -47,7 +47,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -67,30 +67,22 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Go PreCommit'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Install Java
-        uses: actions/setup-java@v3.8.0
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'zulu'
-          java-version: '8'
-      - name: Install Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          cache-read-only: false
+          java-version: 8
+          go-version: 1.21
       - name: run goPreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

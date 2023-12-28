@@ -907,7 +907,7 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'sort_index',
-            lambda df: df.sort_index(axis, **kwargs),
+            lambda df: df.sort_index(axis=axis, **kwargs),
             [self._expr],
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Arbitrary(),
@@ -1388,7 +1388,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     Only the default, ``method=None``, is allowed."""
     if level is not None:
       raise NotImplementedError('per-level align')
-    if method is not None:
+    if method is not None and method != lib.no_default:
       raise frame_base.WontImplementError(
           f"align(method={method!r}) is not supported because it is "
           "order sensitive. Only align(method=None) is supported.",
@@ -1471,8 +1471,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     index = pd.Index([], dtype=index_dtype)
     proxy = self._expr.proxy().copy()
     proxy.index = index
-    proxy = proxy.append(
-        pd.Series([1], index=np.asarray(['0']).astype(proxy.index.dtype)))
+    proxy = pd.concat([
+        proxy,
+        pd.Series([1], index=np.asarray(['0']).astype(proxy.index.dtype))
+    ])
 
     idx_func = expressions.ComputedExpression(
         'idx_func',
@@ -1899,7 +1901,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
-  @frame_base.populate_defaults(pd.Series)
+  @frame_base.populate_defaults(
+      pd.Series, removed_args=['inplace'] if PD_VERSION >= (2, 0) else None)
   @frame_base.maybe_inplace
   def set_axis(self, labels, **kwargs):
     # TODO: assigning the index is generally order-sensitive, but we could
@@ -2345,8 +2348,13 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
     result = column.groupby(column, dropna=dropna).size()
 
-    # groupby.size() names the index, which we don't need
-    result.index.name = None
+    # Pandas 2 introduces new naming for the results.
+    if PD_VERSION >= (2, 0):
+      result.index.name = getattr(self, "name", None)
+      result.name = "proportion" if normalize else "count"
+    else:
+      # groupby.size() names the index, which we don't need
+      result.index.name = None
 
     if normalize:
       return result / column.length()
@@ -2572,7 +2580,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
           "align(copy=False) is not supported because it might be an inplace "
           "operation depending on the data. Please prefer the default "
           "align(copy=True).")
-    if method is not None:
+    if method is not None and method != lib.no_default:
       raise frame_base.WontImplementError(
           f"align(method={method!r}) is not supported because it is "
           "order sensitive. Only align(method=None) is supported.",
@@ -2673,7 +2681,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.populate_defaults(
+      pd.DataFrame,
+      removed_args=['inplace'] if PD_VERSION >= (2, 0) else None)
   @frame_base.maybe_inplace
   def set_axis(self, labels, axis, **kwargs):
     if axis in ('index', 0):
@@ -2687,7 +2697,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
               'set_axis',
-              lambda df: df.set_axis(labels, axis, **kwargs),
+              lambda df: df.set_axis(labels, axis=axis, **kwargs),
               [self._expr],
               requires_partition_by=partitionings.Arbitrary(),
               preserves_partition_by=partitionings.Arbitrary()))
@@ -2968,6 +2978,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   agg = aggregate
 
   applymap = frame_base._elementwise_method('applymap', base=pd.DataFrame)
+  if PD_VERSION >= (2, 1):
+    map = frame_base._elementwise_method('map', base=pd.DataFrame)
   add_prefix = frame_base._elementwise_method('add_prefix', base=pd.DataFrame)
   add_suffix = frame_base._elementwise_method('add_suffix', base=pd.DataFrame)
 
@@ -4002,11 +4014,17 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       columns = subset or list(self.columns)
 
       if dropna:
-        dropped = self.dropna()
+        # Must include subset here because otherwise we spuriously drop NAs due
+        # to columns outside our subset.
+        dropped = self.dropna(subset=subset)
       else:
         dropped = self
 
       result = dropped.groupby(columns, dropna=dropna).size()
+
+      # Pandas 2 introduces new naming for the results.
+      if PD_VERSION >= (2,0):
+        result.name = "proportion" if normalize else "count"
 
       if normalize:
         return result/dropped.length()
@@ -4578,8 +4596,9 @@ def _liftable_agg(meth, postagg_meth=None):
       return _unliftable_agg(meth)(self, *args, **kwargs)
 
     to_group = self._ungrouped.proxy().index
-    is_categorical_grouping = any(to_group.get_level_values(i).is_categorical()
-                                  for i in self._grouping_indexes)
+    is_categorical_grouping = any(
+        isinstance(to_group.get_level_values(i).dtype, pd.CategoricalDtype)
+        for i in self._grouping_indexes)
     groupby_kwargs = self._kwargs
     group_keys = self._group_keys
 
@@ -4631,8 +4650,9 @@ def _unliftable_agg(meth):
 
     to_group = self._ungrouped.proxy().index
     group_keys = self._group_keys
-    is_categorical_grouping = any(to_group.get_level_values(i).is_categorical()
-                                  for i in self._grouping_indexes)
+    is_categorical_grouping = any(
+        isinstance(to_group.get_level_values(i).dtype, pd.CategoricalDtype)
+        for i in self._grouping_indexes)
 
     groupby_kwargs = self._kwargs
     project = _maybe_project_func(self._projection)
@@ -4915,9 +4935,9 @@ class _DeferredILoc(object):
 
 
 class _DeferredStringMethods(frame_base.DeferredBase):
-  @frame_base.with_docs_from(pd.core.strings.StringMethods)
-  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
-  @frame_base.populate_defaults(pd.core.strings.StringMethods)
+  @frame_base.with_docs_from(pd.Series.str)
+  @frame_base.args_to_kwargs(pd.Series.str)
+  @frame_base.populate_defaults(pd.Series.str)
   def cat(self, others, join, **kwargs):
     """If defined, ``others`` must be a :class:`DeferredSeries` or a ``list`` of
     ``DeferredSeries``."""
@@ -4957,8 +4977,8 @@ class _DeferredStringMethods(frame_base.DeferredBase):
             requires_partition_by=requires,
             preserves_partition_by=partitionings.Arbitrary()))
 
-  @frame_base.with_docs_from(pd.core.strings.StringMethods)
-  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  @frame_base.with_docs_from(pd.Series.str)
+  @frame_base.args_to_kwargs(pd.Series.str)
   def repeat(self, repeats):
     """``repeats`` must be an ``int`` or a :class:`DeferredSeries`. Lists are
     not supported because they make this operation order-sensitive."""
@@ -4995,8 +5015,8 @@ class _DeferredStringMethods(frame_base.DeferredBase):
       raise TypeError("str.repeat(repeats=) value must be an int or a "
                       f"DeferredSeries (encountered {type(repeats)}).")
 
-  @frame_base.with_docs_from(pd.core.strings.StringMethods)
-  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  @frame_base.with_docs_from(pd.Series.str)
+  @frame_base.args_to_kwargs(pd.Series.str)
   def get_dummies(self, **kwargs):
     """
     Series must be categorical dtype. Please cast to ``CategoricalDtype``
@@ -5078,9 +5098,9 @@ class _DeferredStringMethods(frame_base.DeferredBase):
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Arbitrary()))
 
-  @frame_base.with_docs_from(pd.core.strings.StringMethods)
-  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
-  @frame_base.populate_defaults(pd.core.strings.StringMethods)
+  @frame_base.with_docs_from(pd.Series.str)
+  @frame_base.args_to_kwargs(pd.Series.str)
+  @frame_base.populate_defaults(pd.Series.str)
   def split(self, **kwargs):
     """
     Like other non-deferred methods, dtype must be CategoricalDtype.
@@ -5089,9 +5109,9 @@ class _DeferredStringMethods(frame_base.DeferredBase):
     """
     return self._split_helper(rsplit=False, **kwargs)
 
-  @frame_base.with_docs_from(pd.core.strings.StringMethods)
-  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
-  @frame_base.populate_defaults(pd.core.strings.StringMethods)
+  @frame_base.with_docs_from(pd.Series.str)
+  @frame_base.args_to_kwargs(pd.Series.str)
+  @frame_base.populate_defaults(pd.Series.str)
   def rsplit(self, **kwargs):
     """
     Like other non-deferred methods, dtype must be CategoricalDtype.
@@ -5169,17 +5189,17 @@ def make_str_func(method):
   return func
 
 for method in ELEMENTWISE_STRING_METHODS:
-  if not hasattr(pd.core.strings.StringMethods, method):
+  if not hasattr(pd.Series.str, method):
     # older versions (1.0.x) don't support some of these methods
     continue
   setattr(_DeferredStringMethods,
           method,
           frame_base._elementwise_method(make_str_func(method),
                                          name=method,
-                                         base=pd.core.strings.StringMethods))
+                                         base=pd.Series.str))
 
 for method in NON_ELEMENTWISE_STRING_METHODS:
-  if not hasattr(pd.core.strings.StringMethods, method):
+  if not hasattr(pd.Series.str, method):
     # older versions (1.0.x) don't support some of these methods
     continue
   setattr(_DeferredStringMethods,
@@ -5187,7 +5207,7 @@ for method in NON_ELEMENTWISE_STRING_METHODS:
           frame_base._proxy_method(
               make_str_func(method),
               name=method,
-              base=pd.core.strings.StringMethods,
+              base=pd.Series.str,
               requires_partition_by=partitionings.Arbitrary(),
               preserves_partition_by=partitionings.Singleton()))
 
@@ -5361,11 +5381,12 @@ ELEMENTWISE_DATETIME_PROPERTIES = [
   'second',
   'time',
   'timetz',
-  'week',
   'weekday',
-  'weekofyear',
   'year',
 ]
+# Pandas 2 removed these.
+if PD_VERSION < (2, 0):
+  ELEMENTWISE_DATETIME_PROPERTIES += ['week', 'weekofyear']
 
 for method in ELEMENTWISE_DATETIME_PROPERTIES:
   setattr(_DeferredDatetimeMethods,

@@ -42,7 +42,8 @@ import (
 )
 
 var supportedRequirements = map[string]struct{}{
-	urns.RequirementSplittableDoFn: {},
+	urns.RequirementSplittableDoFn:     {},
+	urns.RequirementStatefulProcessing: {},
 }
 
 // TODO, move back to main package, and key off of executor handlers?
@@ -68,6 +69,8 @@ type Job struct {
 	key     string
 	jobName string
 
+	artifactEndpoint string
+
 	Pipeline *pipepb.Pipeline
 	options  *structpb.Struct
 
@@ -86,6 +89,14 @@ type Job struct {
 	CancelFn context.CancelCauseFunc
 
 	metrics metricsStore
+}
+
+func (j *Job) ArtifactEndpoint() string {
+	return j.artifactEndpoint
+}
+
+func (j *Job) PipelineOptions() *structpb.Struct {
+	return j.options
 }
 
 // ContributeTentativeMetrics returns the datachannel read index, and any unknown monitoring short ids.
@@ -111,6 +122,10 @@ func (j *Job) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("key", j.key),
 		slog.String("name", j.jobName))
+}
+
+func (j *Job) JobKey() string {
+	return j.key
 }
 
 func (j *Job) SendMsg(msg string) {

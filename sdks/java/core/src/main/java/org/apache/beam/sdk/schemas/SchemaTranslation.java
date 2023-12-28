@@ -56,6 +56,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -74,7 +75,23 @@ public class SchemaTranslation {
   private static final Logger LOG = LoggerFactory.getLogger(SchemaTranslation.class);
 
   private static final String URN_BEAM_LOGICAL_DECIMAL = FixedPrecisionNumeric.BASE_IDENTIFIER;
-  private static final String URN_BEAM_LOGICAL_JAVASDK = "beam:logical_type:javasdk:v1";
+
+  private static String getLogicalTypeUrn(String identifier) {
+    if (identifier.startsWith("beam:logical_type:")) {
+      return identifier;
+    } else {
+      String filtered = identifier.replaceAll("[^0-9A-Za-z_]", "").toLowerCase();
+      if (!Strings.isNullOrEmpty(filtered)) {
+        // urn for non-standard Java SDK logical types are assigned with javasdk_<identifier>
+        return String.format("beam:logical_type:javasdk_%s:v1", filtered);
+      } else {
+        // raw "javasdk" name should only be a last resort. Types defined in Beam should have their
+        // own URN.
+        return "beam:logical_type:javasdk:v1";
+      }
+    }
+  }
+
   private static final String URN_BEAM_LOGICAL_MILLIS_INSTANT =
       SchemaApi.LogicalTypes.Enum.MILLIS_INSTANT
           .getValueDescriptor()
@@ -84,18 +101,18 @@ public class SchemaTranslation {
   // TODO(https://github.com/apache/beam/issues/19715): Populate this with a LogicalTypeRegistrar,
   // which includes a way to construct
   // the LogicalType given an argument.
-  private static final ImmutableMap<String, Class<? extends LogicalType<?, ?>>>
-      STANDARD_LOGICAL_TYPES =
-          ImmutableMap.<String, Class<? extends LogicalType<?, ?>>>builder()
-              .put(FixedPrecisionNumeric.IDENTIFIER, FixedPrecisionNumeric.class)
-              .put(MicrosInstant.IDENTIFIER, MicrosInstant.class)
-              .put(SchemaLogicalType.IDENTIFIER, SchemaLogicalType.class)
-              .put(PythonCallable.IDENTIFIER, PythonCallable.class)
-              .put(FixedBytes.IDENTIFIER, FixedBytes.class)
-              .put(VariableBytes.IDENTIFIER, VariableBytes.class)
-              .put(FixedString.IDENTIFIER, FixedString.class)
-              .put(VariableString.IDENTIFIER, VariableString.class)
-              .build();
+  @VisibleForTesting
+  static final ImmutableMap<String, Class<? extends LogicalType<?, ?>>> STANDARD_LOGICAL_TYPES =
+      ImmutableMap.<String, Class<? extends LogicalType<?, ?>>>builder()
+          .put(FixedPrecisionNumeric.IDENTIFIER, FixedPrecisionNumeric.class)
+          .put(MicrosInstant.IDENTIFIER, MicrosInstant.class)
+          .put(SchemaLogicalType.IDENTIFIER, SchemaLogicalType.class)
+          .put(PythonCallable.IDENTIFIER, PythonCallable.class)
+          .put(FixedBytes.IDENTIFIER, FixedBytes.class)
+          .put(VariableBytes.IDENTIFIER, VariableBytes.class)
+          .put(FixedString.IDENTIFIER, FixedString.class)
+          .put(VariableString.IDENTIFIER, VariableString.class)
+          .build();
 
   public static SchemaApi.Schema schemaToProto(Schema schema, boolean serializeLogicalType) {
     String uuid = schema.getUUID() != null ? schema.getUUID().toString() : "";
@@ -179,11 +196,7 @@ public class SchemaTranslation {
                     fieldValueToProto(logicalType.getArgumentType(), logicalType.getArgument()));
           }
         } else {
-          // TODO(https://github.com/apache/beam/issues/19715): "javasdk" types should only
-          // be a last resort. Types defined in Beam should have their own URN, and there
-          // should be a mechanism for users to register their own types by URN.
-          String urn =
-              identifier.startsWith("beam:logical_type:") ? identifier : URN_BEAM_LOGICAL_JAVASDK;
+          String urn = getLogicalTypeUrn(identifier);
           logicalTypeBuilder =
               SchemaApi.LogicalType.newBuilder()
                   .setRepresentation(
@@ -429,15 +442,22 @@ public class SchemaTranslation {
         } else if (urn.equals(URN_BEAM_LOGICAL_DECIMAL)) {
           return FieldType.DECIMAL;
         } else if (urn.startsWith("beam:logical_type:")) {
-          try {
-            return FieldType.logicalType(
-                (LogicalType)
-                    SerializableUtils.deserializeFromByteArray(
-                        logicalType.getPayload().toByteArray(), "logicalType"));
-          } catch (IllegalArgumentException e) {
-            LOG.warn(
-                "Unable to deserialize the logical type {} from proto. Mark as UnknownLogicalType.",
-                urn);
+          if (!logicalType.getPayload().isEmpty()) {
+            // logical type has a payload, try to recover the instance by deserialization
+            try {
+              return FieldType.logicalType(
+                  (LogicalType)
+                      SerializableUtils.deserializeFromByteArray(
+                          logicalType.getPayload().toByteArray(), "logicalType"));
+            } catch (IllegalArgumentException e) {
+              LOG.warn(
+                  "Unable to deserialize the logical type {} from proto. Mark as UnknownLogicalType.",
+                  urn);
+            }
+          } else {
+            // logical type does not have a payload. This happens when it is passed xlang.
+            // TODO(yathu) it appears this path is called heavily, consider cache the instance
+            LOG.debug("Constructing non-standard logical type {} as UnknownLogicalType", urn);
           }
         }
         // assemble an UnknownLogicalType

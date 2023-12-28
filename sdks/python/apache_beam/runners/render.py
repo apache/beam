@@ -78,6 +78,8 @@ try:
 except ImportError:
   gcsio = None  # type: ignore
 
+_LOGGER = logging.getLogger(__name__)
+
 # From the Beam site, circa November 2022.
 DEFAULT_EDGE_STYLE = 'color="#ff570b"'
 DEFAULT_TRANSFORM_STYLE = (
@@ -128,12 +130,6 @@ class RenderOptions(pipeline_options.PipelineOptions):
         action='store_true',
         help='Set to also log input pipeline proto to stdout.')
     return parser
-
-  def __init__(self, *args, render_testing=False, **kwargs):
-    super().__init__(*args, **kwargs)
-    if self.render_port < 0 and not self.render_output and not render_testing:
-      raise ValueError(
-          'At least one of --render_port or --render_output must be provided.')
 
 
 class PipelineRenderer:
@@ -342,7 +338,7 @@ class PipelineRenderer:
     }
 
   def render_data(self):
-    logging.info("Re-rendering pipeline...")
+    _LOGGER.info("Re-rendering pipeline...")
     layout = self.layout_dot()
     if self.options.render_output:
       for path in self.options.render_output:
@@ -352,10 +348,10 @@ class PipelineRenderer:
             input=layout,
             check=False)
         if result.returncode:
-          logging.error(
+          _LOGGER.error(
               "Failed render pipeline as %r: exit %s", path, result.returncode)
         else:
-          logging.info("Rendered pipeline as %r", path)
+          _LOGGER.info("Rendered pipeline as %r", path)
     return self.page_callback_data(layout)
 
   def render_json(self):
@@ -404,15 +400,19 @@ class RenderRunner(runner.PipelineRunner):
   # (such as counters, stage completion status, or possibly even PCollection
   # samples) queryable and/or displayed.  This could evolve into a full Beam
   # UI.
-  def run_pipeline(self, pipeline_object, options, pipeline_proto=None):
-    if not pipeline_proto:
-      pipeline_proto = pipeline_object.to_runner_api()
+  def run_pipeline(self, pipeline_object, options):
+    return self.run_portable_pipeline(pipeline_object.to_runner_api(), options)
+
+  def run_portable_pipeline(self, pipeline_proto, options):
     render_options = options.view_as(RenderOptions)
+    if render_options.render_port < 0 and not render_options.render_output:
+      raise ValueError(
+          'At least one of --render_port or --render_output must be provided.')
     if render_options.log_proto:
-      logging.info(pipeline_proto)
+      _LOGGER.info(pipeline_proto)
     renderer = PipelineRenderer(pipeline_proto, render_options)
     try:
-      subprocess.run(['dotX', '-V'], capture_output=True, check=True)
+      subprocess.run(['dot', '-V'], capture_output=True, check=True)
     except FileNotFoundError as exn:
       # If dot is not available, we can at least output the raw .dot files.
       dot_files = [
@@ -422,7 +422,7 @@ class RenderRunner(runner.PipelineRunner):
       for output in dot_files:
         with open(output, 'w') as fout:
           fout.write(renderer.to_dot())
-          logging.info("Wrote pipeline as %s", output)
+          _LOGGER.info("Wrote pipeline as %s", output)
 
       non_dot_files = set(render_options.render_output) - set(dot_files)
       if non_dot_files:
@@ -543,17 +543,16 @@ def render_one(options):
     pipeline_proto = beam_runner_api_pb2.Pipeline()
     pipeline_proto.ParseFromString(content)
 
-  RenderRunner().run_pipeline(
-      None, pipeline_options.PipelineOptions(**vars(options)), pipeline_proto)
+  RenderRunner().run_portable_pipeline(
+      pipeline_proto, pipeline_options.PipelineOptions(**vars(options)))
 
 
 def run_server(options):
   class RenderBeamJob(local_job_service.BeamJob):
     def _invoke_runner(self):
-      return RenderRunner().run_pipeline(
-          None,
-          pipeline_options.PipelineOptions(**vars(options)),
-          self._pipeline_proto)
+      return RenderRunner().run_portable_pipeline(
+          self._pipeline_proto,
+          pipeline_options.PipelineOptions(**vars(options)))
 
   with tempfile.TemporaryDirectory() as staging_dir:
     job_servicer = local_job_service.LocalJobServicer(

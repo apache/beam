@@ -105,7 +105,7 @@ artifacts.
 When you use the `write_artifact_location` parameter, the `MLTransform` class runs the
 specified transformations on the dataset and then creates artifacts from these
 transformations. The artifacts are stored in the location that you specify in
-the `write_artifact_location` parameter or in the `MLTransform` output.
+the `write_artifact_location` parameter.
 
 Write mode is useful when you want to store the results of your transformations
 for future use. For example, if you apply the same transformations on a
@@ -120,8 +120,7 @@ The following examples demonstrate how write mode works.
     The `ComputeAndApplyVocabulary`
     transform outputs the indices of the vocabulary to the vocabulary file.
 -   The `ScaleToZScore` transform calculates the mean and variance over the entire dataset
-    and then normalizes the entire dataset using the mean and variance. The
-    mean and variance are outputted by the `MLTransform` operation.
+    and then normalizes the entire dataset using the mean and variance.
     When you use the `write_artifact_location` parameter, these
     values are stored as a `tensorflow` graph in the location specified by
     the `write_artifact_location` parameter value. You can reuse the values in read mode

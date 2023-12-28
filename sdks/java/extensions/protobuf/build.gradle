@@ -35,6 +35,8 @@ ext.summary = "Add support to Apache Beam for Google Protobuf."
 dependencies {
   implementation library.java.byte_buddy
   implementation library.java.vendored_guava_32_1_2_jre
+  implementation library.java.commons_compress
+  implementation library.java.slf4j_api
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.protobuf_java
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")

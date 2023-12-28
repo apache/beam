@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -79,6 +80,8 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 		streamCond: sync.NewCond(&sync.Mutex{}),
 		RootCtx:    rootCtx,
 		CancelFn:   cancelFn,
+
+		artifactEndpoint: s.Endpoint(),
 	}
 
 	// Queue initial state of the job.
@@ -91,27 +94,32 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 		return nil, err
 	}
 	var errs []error
-	check := func(feature string, got, want any) {
-		if got != want {
-			err := unimplementedError{
-				feature: feature,
-				value:   got,
+	check := func(feature string, got any, wants ...any) {
+		for _, want := range wants {
+			if got == want {
+				return
 			}
-			errs = append(errs, err)
 		}
+
+		err := unimplementedError{
+			feature: feature,
+			value:   got,
+		}
+		errs = append(errs, err)
 	}
 
 	// Inspect Transforms for unsupported features.
 	bypassedWindowingStrategies := map[string]bool{}
 	ts := job.Pipeline.GetComponents().GetTransforms()
-	for _, t := range ts {
+	for tid, t := range ts {
 		urn := t.GetSpec().GetUrn()
 		switch urn {
 		case urns.TransformImpulse,
-			urns.TransformParDo,
 			urns.TransformGBK,
 			urns.TransformFlatten,
 			urns.TransformCombinePerKey,
+			urns.TransformCombineGlobally,      // Used by Java SDK
+			urns.TransformCombineGroupedValues, // Used by Java SDK
 			urns.TransformAssignWindows:
 		// Very few expected transforms types for submitted pipelines.
 		// Most URNs are for the runner to communicate back to the SDK for execution.
@@ -132,6 +140,22 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 				wsID := pcs[col].GetWindowingStrategyId()
 				bypassedWindowingStrategies[wsID] = true
 			}
+
+		case urns.TransformParDo:
+			var pardo pipepb.ParDoPayload
+			if err := proto.Unmarshal(t.GetSpec().GetPayload(), &pardo); err != nil {
+				return nil, fmt.Errorf("unable to unmarshal ParDoPayload for %v - %q: %w", tid, t.GetUniqueName(), err)
+			}
+
+			// Validate all the state features
+			for _, spec := range pardo.GetStateSpecs() {
+				check("StateSpec.Protocol.Urn", spec.GetProtocol().GetUrn(), urns.UserStateBag, urns.UserStateMultiMap)
+			}
+			// Validate all the timer features
+			for _, spec := range pardo.GetTimerFamilySpecs() {
+				check("TimerFamilySpecs.TimeDomain.Urn", spec.GetTimeDomain())
+			}
+
 		case "":
 			// Composites can often have no spec
 			if len(t.GetSubtransforms()) > 0 {
@@ -152,7 +176,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 			check("WindowingStrategy.MergeStatus", ws.GetMergeStatus(), pipepb.MergeStatus_NON_MERGING)
 		}
 		if !bypassedWindowingStrategies[wsID] {
-			check("WindowingStrategy.OnTimeBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY)
+			check("WindowingStrategy.OnTimeBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY, pipepb.OnTimeBehavior_FIRE_ALWAYS)
 			check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW)
 			// Non nil triggers should fail.
 			if ws.GetTrigger().GetDefault() == nil {

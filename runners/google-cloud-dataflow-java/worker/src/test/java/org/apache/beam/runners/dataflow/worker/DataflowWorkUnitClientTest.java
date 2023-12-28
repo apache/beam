@@ -34,6 +34,7 @@ import com.google.api.services.dataflow.model.MapTask;
 import com.google.api.services.dataflow.model.SeqMapTask;
 import com.google.api.services.dataflow.model.WorkItem;
 import java.io.IOException;
+import java.util.Optional;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
@@ -42,7 +43,6 @@ import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.Before;
@@ -50,6 +50,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -60,7 +61,12 @@ import org.slf4j.LoggerFactory;
 /** Unit tests for {@link DataflowWorkUnitClient}. */
 @RunWith(JUnit4.class)
 public class DataflowWorkUnitClientTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
   private static final Logger LOG = LoggerFactory.getLogger(DataflowWorkUnitClientTest.class);
+  private static final String PROJECT_ID = "TEST_PROJECT_ID";
+  private static final String JOB_ID = "TEST_JOB_ID";
+  private static final String WORKER_ID = "TEST_WORKER_ID";
   @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
   @Rule public TestRule restoreLogging = new RestoreDataflowLoggingMDC();
   @Rule public ExpectedException expectedException = ExpectedException.none();
@@ -68,10 +74,6 @@ public class DataflowWorkUnitClientTest {
   @Mock private MockHttpTransport transport;
   @Mock private MockLowLevelHttpRequest request;
   private DataflowWorkerHarnessOptions pipelineOptions;
-
-  private static final String PROJECT_ID = "TEST_PROJECT_ID";
-  private static final String JOB_ID = "TEST_JOB_ID";
-  private static final String WORKER_ID = "TEST_WORKER_ID";
 
   @Before
   public void setUp() throws Exception {
@@ -104,10 +106,10 @@ public class DataflowWorkUnitClientTest {
             .fromString(request.getContentAsString(), LeaseWorkItemRequest.class);
     assertEquals(WORKER_ID, actualRequest.getWorkerId());
     assertEquals(
-        ImmutableList.<String>of(WORKER_ID, "remote_source", "custom_source"),
+        ImmutableList.of(WORKER_ID, "remote_source", "custom_source"),
         actualRequest.getWorkerCapabilities());
     assertEquals(
-        ImmutableList.<String>of("map_task", "seq_map_task", "remote_source_task"),
+        ImmutableList.of("map_task", "seq_map_task", "remote_source_task"),
         actualRequest.getWorkItemTypes());
     assertEquals("1234", DataflowWorkerLoggingMDC.getWorkId());
   }
@@ -151,17 +153,17 @@ public class DataflowWorkUnitClientTest {
 
     WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
 
-    assertEquals(Optional.absent(), client.getWorkItem());
+    assertEquals(Optional.empty(), client.getWorkItem());
 
     LeaseWorkItemRequest actualRequest =
         Transport.getJsonFactory()
             .fromString(request.getContentAsString(), LeaseWorkItemRequest.class);
     assertEquals(WORKER_ID, actualRequest.getWorkerId());
     assertEquals(
-        ImmutableList.<String>of(WORKER_ID, "remote_source", "custom_source"),
+        ImmutableList.of(WORKER_ID, "remote_source", "custom_source"),
         actualRequest.getWorkerCapabilities());
     assertEquals(
-        ImmutableList.<String>of("map_task", "seq_map_task", "remote_source_task"),
+        ImmutableList.of("map_task", "seq_map_task", "remote_source_task"),
         actualRequest.getWorkItemTypes());
   }
 
@@ -175,17 +177,17 @@ public class DataflowWorkUnitClientTest {
 
     WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
 
-    assertEquals(Optional.absent(), client.getWorkItem());
+    assertEquals(Optional.empty(), client.getWorkItem());
 
     LeaseWorkItemRequest actualRequest =
         Transport.getJsonFactory()
             .fromString(request.getContentAsString(), LeaseWorkItemRequest.class);
     assertEquals(WORKER_ID, actualRequest.getWorkerId());
     assertEquals(
-        ImmutableList.<String>of(WORKER_ID, "remote_source", "custom_source"),
+        ImmutableList.of(WORKER_ID, "remote_source", "custom_source"),
         actualRequest.getWorkerCapabilities());
     assertEquals(
-        ImmutableList.<String>of("map_task", "seq_map_task", "remote_source_task"),
+        ImmutableList.of("map_task", "seq_map_task", "remote_source_task"),
         actualRequest.getWorkItemTypes());
   }
 
@@ -195,17 +197,17 @@ public class DataflowWorkUnitClientTest {
 
     WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
 
-    assertEquals(Optional.absent(), client.getWorkItem());
+    assertEquals(Optional.empty(), client.getWorkItem());
 
     LeaseWorkItemRequest actualRequest =
         Transport.getJsonFactory()
             .fromString(request.getContentAsString(), LeaseWorkItemRequest.class);
     assertEquals(WORKER_ID, actualRequest.getWorkerId());
     assertEquals(
-        ImmutableList.<String>of(WORKER_ID, "remote_source", "custom_source"),
+        ImmutableList.of(WORKER_ID, "remote_source", "custom_source"),
         actualRequest.getWorkerCapabilities());
     assertEquals(
-        ImmutableList.<String>of("map_task", "seq_map_task", "remote_source_task"),
+        ImmutableList.of("map_task", "seq_map_task", "remote_source_task"),
         actualRequest.getWorkItemTypes());
   }
 

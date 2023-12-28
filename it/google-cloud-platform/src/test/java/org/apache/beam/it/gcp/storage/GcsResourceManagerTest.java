@@ -71,7 +71,7 @@ public final class GcsResourceManagerTest {
   @Mock private Blob blob;
   private GcsResourceManager gcsClient;
 
-  private static final String ARTIFACT_NAME = "test-artifact.txt";
+  private static final String ARTIFACT_NAME = "test-artifact.json";
   private static final Path LOCAL_PATH;
   private static final byte[] TEST_ARTIFACT_CONTENTS;
 

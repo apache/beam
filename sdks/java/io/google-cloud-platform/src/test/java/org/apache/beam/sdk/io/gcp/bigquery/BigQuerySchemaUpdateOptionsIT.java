@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
@@ -87,7 +88,11 @@ public class BigQuerySchemaUpdateOptionsIT {
   @BeforeClass
   public static void setupTestEnvironment() throws Exception {
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-    BQ_CLIENT.createNewDataset(project, BIG_QUERY_DATASET_ID);
+    BQ_CLIENT.createNewDataset(
+        project,
+        BIG_QUERY_DATASET_ID,
+        null,
+        TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class).getBigQueryLocation());
   }
 
   @AfterClass
@@ -146,7 +151,8 @@ public class BigQuerySchemaUpdateOptionsIT {
       List<List<String>> expectedResult)
       throws Exception {
     Options options = TestPipeline.testingPipelineOptions().as(Options.class);
-    options.setTempLocation(options.getTempRoot() + "/bq_it_temp");
+    options.setTempLocation(
+        FileSystems.matchNewDirectory(options.getTempRoot(), "bq_it_temp").toString());
 
     Pipeline p = Pipeline.create(options);
     Create.Values<TableRow> input = Create.<TableRow>of(rowToInsert);
@@ -260,7 +266,8 @@ public class BigQuerySchemaUpdateOptionsIT {
     }
 
     Options options = TestPipeline.testingPipelineOptions().as(Options.class);
-    options.setTempLocation(options.getTempRoot() + "/bq_it_temp");
+    options.setTempLocation(
+        FileSystems.matchNewDirectory(options.getTempRoot(), "bq_it_temp").toString());
 
     Pipeline p = Pipeline.create(options);
 

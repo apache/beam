@@ -1,0 +1,129 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: PerformanceTests Kafka IO
+
+on:
+  schedule:
+    - cron: '10 10/12 * * *'
+  workflow_dispatch:
+
+#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: write
+  checks: write
+  contents: read
+  deployments: read
+  id-token: none
+  issues: write
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  cancel-in-progress: true
+
+env:
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
+
+jobs:
+  beam_PerformanceTests_Kafka_IO:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
+      github.event.comment.body == 'Run Java KafkaIO Performance Test'
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 120
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    strategy:
+      matrix:
+        job_name: ["beam_PerformanceTests_Kafka_IO"]
+        job_phrase: ["Run Java KafkaIO Performance Test"]
+    env:
+      KAFKA_SERVICE_PORT: 32400
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{ matrix.job_phrase }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+      - name: Authenticate on GCP
+        id: auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+      - name: Set k8s access
+        uses: ./.github/actions/setup-k8s-access
+        with:
+          cluster_name: io-datastores
+          k8s_namespace: ${{ matrix.job_name }}-${{ github.run_id }}
+      - name: Install Kafka
+        id: install_kafka
+        run: |
+          cd ${{ github.workspace }}/.test-infra/kubernetes/kafka-cluster/
+          kubectl apply -R -f ${{ github.workspace }}/.test-infra/kubernetes/kafka-cluster/
+      - name: Set up Kafka brokers
+        id: set_brokers
+        run: |
+          declare -a kafka_service_brokers
+          for INDEX in {0..2}; do
+            kubectl wait svc/outside-${INDEX} --for=jsonpath='{.status.loadBalancer.ingress[0].ip}' --timeout=120s
+            kafka_service_brokers[$INDEX]=$(kubectl get svc outside-${INDEX} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            echo "KAFKA_SERVICE_BROKER_${INDEX}=${kafka_service_brokers[$INDEX]}" >> $GITHUB_OUTPUT
+          done
+      - name: Prepare test arguments
+        uses: ./.github/actions/test-arguments-action
+        with:
+          test-type: performance
+          test-language: java
+          argument-file-paths: |
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/kafka_IO_Streaming.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/kafka_IO_Batch.txt
+          arguments: |
+            --kafkaBootstrapServerAddresses=${{ steps.set_brokers.outputs.KAFKA_SERVICE_BROKER_0 }}:${{ env.KAFKA_SERVICE_PORT }},${{ steps.set_brokers.outputs.KAFKA_SERVICE_BROKER_1 }}:${{ env.KAFKA_SERVICE_PORT }},${{ steps.set_brokers.outputs.KAFKA_SERVICE_BROKER_2 }}:${{ env.KAFKA_SERVICE_PORT }}
+      # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
+      - name: Run Java KafkaIO Performance Streaming Test
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:io:kafka:integrationTest
+          arguments: |
+            --tests org.apache.beam.sdk.io.kafka.KafkaIOIT.testKafkaIOReadsAndWritesCorrectlyInStreaming \
+            --info \
+            -DintegrationTestRunner=dataflow \
+            -DintegrationTestPipelineOptions='[${{env.beam_PerformanceTests_Kafka_IO_test_arguments_1}}]' \
+      - name: Run Java KafkaIO Performance Batch Test
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:io:kafka:integrationTest
+          arguments: |
+            --tests org.apache.beam.sdk.io.kafka.KafkaIOIT.testKafkaIOReadsAndWritesCorrectlyInBatch \
+            --info \
+            -DintegrationTestRunner=dataflow \
+            -DintegrationTestPipelineOptions='[${{env.beam_PerformanceTests_Kafka_IO_test_arguments_2}}]'

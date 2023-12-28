@@ -32,7 +32,7 @@ COPY sdks/python /app/sdks/python
 COPY model /app/model
 
 # This step should look like setupVirtualenv minus virtualenv creation.
-RUN pip install --no-cache-dir tox -r sdks/python/build-requirements.txt
+RUN pip install --no-cache-dir tox
 
 # Add Azurite's self-signed cert to the global CA cert store.
 COPY cert.pem /usr/local/share/ca-certificates/azurite.crt

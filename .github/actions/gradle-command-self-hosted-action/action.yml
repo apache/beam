@@ -24,12 +24,6 @@ inputs:
     required: false
     description: 'Gradle options'
     default: ''
-  default-arguments:
-    required: false
-    description: 'Default gradle switches' # Copied from CommonJobProperties.groovy'
-    default: |
-      --continue -Dorg.gradle.jvmargs=-Xms2g -Dorg.gradle.jvmargs=-Xmx6g \
-      -Dorg.gradle.vfs.watch=false -Pdocker-pull-licenses
   max-workers:
     required: false
     description: 'Max number of workers'
@@ -41,11 +35,12 @@ runs:
     - name: Run Gradle Command
       shell: bash
       run: |
-        # Removing settings.xml is a workaround to avoid a decryption issue
-        # of Beam's gradle-command-action plugin and github's provided
-        # maven settings.xml file
+        # This step is a workaround to avoid a decryption issue of Beam's
+        # net.linguica.gradle.maven.settings plugin and github's provided maven
+        # settings.xml file
         if [ -f ~/.m2/settings.xml ]; then
           rm ~/.m2/settings.xml
         fi
-        ./gradlew ${{ inputs.gradle-command }} --max-workers=${{ inputs.max-workers }} ${{ inputs.arguments }} \
-        ${{ inputs.default-arguments }}
+        ./gradlew ${{ inputs.gradle-command }} --max-workers=${{ inputs.max-workers }} --continue \
+         -Dorg.gradle.jvmargs=-Xms2g -Dorg.gradle.jvmargs=-Xmx6g -Dorg.gradle.vfs.watch=false -Pdocker-pull-licenses \
+        ${{ inputs.arguments }}

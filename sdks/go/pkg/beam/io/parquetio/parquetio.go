@@ -96,7 +96,7 @@ func (a *parquetReadFn) ProcessElement(ctx context.Context, file fileio.Readable
 }
 
 // Write writes a PCollection<parquetStruct> to .parquet file.
-// Write expects a type t of struct with parquet tags
+// Write expects elements of a struct type with parquet tags
 // For example:
 //
 //	type Student struct {
@@ -108,7 +108,8 @@ func (a *parquetReadFn) ProcessElement(ctx context.Context, file fileio.Readable
 //	  Day     int32   `parquet:"name=day, type=INT32, convertedtype=DATE"`
 //	  Ignored int32   //without parquet tag and won't write
 //	}
-func Write(s beam.Scope, filename string, t reflect.Type, col beam.PCollection) {
+func Write(s beam.Scope, filename string, col beam.PCollection) {
+	t := col.Type().Type()
 	s = s.Scope("parquetio.Write")
 	filesystem.ValidateScheme(filename)
 	pre := beam.AddFixedKey(s, col)

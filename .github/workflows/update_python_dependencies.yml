@@ -38,7 +38,7 @@ jobs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3        
+        uses: actions/checkout@v4        
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
@@ -48,9 +48,15 @@ jobs:
     name: Update Python Dependencies
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup environment
-        uses: ./.github/actions/setup-self-hosted-action
+        uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: |
+            3.8
+            3.9
+          java-version: 8
+          go-version: 1.21
       - name: Update Python Dependencies
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

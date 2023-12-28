@@ -35,7 +35,6 @@ this module in your notebook or application code.
 # pytype: skip-file
 
 import logging
-import warnings
 from datetime import timedelta
 from typing import Dict
 from typing import List
@@ -496,11 +495,6 @@ class Clusters:
       dcm = self.pipelines.pop(p, None)
       if dcm:
         dcm.pipelines.remove(p)
-        warnings.filterwarnings(
-            'ignore',
-            'options is deprecated since First stable release. References to '
-            '<pipeline>.options will not be supported',
-            category=DeprecationWarning)
         p_flink_options = p.options.view_as(FlinkRunnerOptions)
         p_flink_options.flink_master = '[auto]'
         p_flink_options.flink_version = None

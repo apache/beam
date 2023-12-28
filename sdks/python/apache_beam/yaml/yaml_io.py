@@ -23,19 +23,82 @@ Note that in the case that they overlap with other (likely Java)
 implementations of the same transforms, the configs must be kept in sync.
 """
 
+import io
 import os
+from typing import Any
+from typing import Callable
+from typing import Iterable
+from typing import List
+from typing import Mapping
+from typing import Optional
+from typing import Tuple
 
+import fastavro
 import yaml
 
 import apache_beam as beam
+import apache_beam.io as beam_io
 from apache_beam.io import ReadFromBigQuery
 from apache_beam.io import WriteToBigQuery
+from apache_beam.io import avroio
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
+from apache_beam.portability.api import schema_pb2
+from apache_beam.typehints import schemas
+from apache_beam.yaml import json_utils
+from apache_beam.yaml import yaml_mapping
 from apache_beam.yaml import yaml_provider
+
+
+def read_from_text(path: str):
+  # TODO(yaml): Consider passing the filename and offset, possibly even
+  # by default.
+
+  """Reads lines from a text files.
+
+  The resulting PCollection consists of rows with a single string filed named
+  "line."
+
+  Args:
+    path (str): The file path to read from.  The path can contain glob
+      characters such as ``*`` and ``?``.
+  """
+  return beam_io.ReadFromText(path) | beam.Map(lambda s: beam.Row(line=s))
+
+
+@beam.ptransform_fn
+def write_to_text(pcoll, path: str):
+  """Writes a PCollection to a (set of) text files(s).
+
+  The input must be a PCollection whose schema has exactly one field.
+
+  Args:
+      path (str): The file path to write to. The files written will
+        begin with this prefix, followed by a shard identifier.
+  """
+  try:
+    field_names = [
+        name for name,
+        _ in schemas.named_fields_from_element_type(pcoll.element_type)
+    ]
+  except Exception as exn:
+    raise ValueError(
+        "WriteToText requires an input schema with exactly one field.") from exn
+  if len(field_names) != 1:
+    raise ValueError(
+        "WriteToText requires an input schema with exactly one field, got %s" %
+        field_names)
+  sole_field_name, = field_names
+  return pcoll | beam.Map(
+      lambda x: str(getattr(x, sole_field_name))) | beam.io.WriteToText(path)
 
 
 def read_from_bigquery(
     query=None, table=None, row_restriction=None, fields=None):
+  """Reads data from BigQuery.
+
+  Exactly one of table or query must be set.
+  If query is set, neither row_restriction nor fields should be set.
+  """
   if query is None:
     assert table is not None
   else:
@@ -55,6 +118,7 @@ def write_to_bigquery(
     create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
     write_disposition=BigQueryDisposition.WRITE_APPEND,
     error_handling=None):
+  """Writes data to a BigQuery table."""
   class WriteToBigQueryHandlingErrors(beam.PTransform):
     def default_label(self):
       return 'WriteToBigQuery'
@@ -97,20 +161,253 @@ def write_to_bigquery(
   return WriteToBigQueryHandlingErrors()
 
 
+def _create_parser(
+    format,
+    schema: Any) -> Tuple[schema_pb2.Schema, Callable[[bytes], beam.Row]]:
+  if format == 'raw':
+    if schema:
+      raise ValueError('raw format does not take a schema')
+    return (
+        schema_pb2.Schema(fields=[schemas.schema_field('payload', bytes)]),
+        lambda payload: beam.Row(payload=payload))
+  elif format == 'json':
+    beam_schema = json_utils.json_schema_to_beam_schema(schema)
+    return beam_schema, json_utils.json_parser(beam_schema, schema)
+  elif format == 'avro':
+    beam_schema = avroio.avro_schema_to_beam_schema(schema)
+    covert_to_row = avroio.avro_dict_to_beam_row(schema, beam_schema)
+    # pylint: disable=line-too-long
+    return (
+        beam_schema,
+        lambda record: covert_to_row(
+            fastavro.schemaless_reader(io.BytesIO(record), schema)))  # type: ignore[call-arg]
+  else:
+    raise ValueError(f'Unknown format: {format}')
+
+
+def _create_formatter(
+    format, schema: Any,
+    beam_schema: schema_pb2.Schema) -> Callable[[beam.Row], bytes]:
+  if format == 'raw':
+    if schema:
+      raise ValueError('raw format does not take a schema')
+    field_names = [field.name for field in beam_schema.fields]
+    if len(field_names) != 1:
+      raise ValueError(f'Expecting exactly one field, found {field_names}')
+    return lambda row: getattr(row, field_names[0])
+  elif format == 'json':
+    return json_utils.json_formater(beam_schema)
+  elif format == 'avro':
+    avro_schema = schema or avroio.beam_schema_to_avro_schema(beam_schema)
+    from_row = avroio.beam_row_to_avro_dict(avro_schema, beam_schema)
+
+    def formatter(row):
+      buffer = io.BytesIO()
+      fastavro.schemaless_writer(buffer, avro_schema, from_row(row))
+      buffer.seek(0)
+      return buffer.read()
+
+    return formatter
+  else:
+    raise ValueError(f'Unknown format: {format}')
+
+
+@beam.ptransform_fn
+@yaml_mapping.maybe_with_exception_handling_transform_fn
+def read_from_pubsub(
+    root,
+    *,
+    topic: Optional[str] = None,
+    subscription: Optional[str] = None,
+    format: str,
+    schema: Optional[Any] = None,
+    attributes: Optional[Iterable[str]] = None,
+    attributes_map: Optional[str] = None,
+    id_attribute: Optional[str] = None,
+    timestamp_attribute: Optional[str] = None):
+  """Reads messages from Cloud Pub/Sub.
+
+  Args:
+    topic: Cloud Pub/Sub topic in the form
+      "projects/<project>/topics/<topic>". If provided, subscription must be
+      None.
+    subscription: Existing Cloud Pub/Sub subscription to use in the
+      form "projects/<project>/subscriptions/<subscription>". If not
+      specified, a temporary subscription will be created from the specified
+      topic. If provided, topic must be None.
+    format: The expected format of the message payload.  Currently suported
+      formats are
+
+        - raw: Produces records with a single `payload` field whose contents
+            are the raw bytes of the pubsub message.
+        - avro: Parses records with a given avro schema.
+        - json: Parses records with a given json schema.
+
+    schema: Schema specification for the given format.
+    attributes: List of attribute keys whose values will be flattened into the
+      output message as additional fields.  For example, if the format is `raw`
+      and attributes is `["a", "b"]` then this read will produce elements of
+      the form `Row(payload=..., a=..., b=...)`.
+    attribute_map: Name of a field in which to store the full set of attributes
+      associated with this message.  For example, if the format is `raw` and
+      `attribute_map` is set to `"attrs"` then this read will produce elements
+      of the form `Row(payload=..., attrs=...)` where `attrs` is a Map type
+      of string to string.
+      If both `attributes` and `attribute_map` are set, the overlapping
+      attribute values will be present in both the flattened structure and the
+      attribute map.
+    id_attribute: The attribute on incoming Pub/Sub messages to use as a unique
+      record identifier. When specified, the value of this attribute (which
+      can be any string that uniquely identifies the record) will be used for
+      deduplication of messages. If not provided, we cannot guarantee
+      that no duplicate data will be delivered on the Pub/Sub stream. In this
+      case, deduplication of the stream will be strictly best effort.
+    timestamp_attribute: Message value to use as element timestamp. If None,
+      uses message publishing time as the timestamp.
+
+      Timestamp values should be in one of two formats:
+
+      - A numerical value representing the number of milliseconds since the
+        Unix epoch.
+      - A string in RFC 3339 format, UTC timezone. Example:
+        ``2015-10-29T23:41:41.123Z``. The sub-second component of the
+        timestamp is optional, and digits beyond the first three (i.e., time
+        units smaller than milliseconds) may be ignored.
+  """
+  if topic and subscription:
+    raise TypeError('Only one of topic and subscription may be specified.')
+  elif not topic and not subscription:
+    raise TypeError('One of topic or subscription may be specified.')
+  payload_schema, parser = _create_parser(format, schema)
+  extra_fields: List[schema_pb2.Field] = []
+  if not attributes and not attributes_map:
+    mapper = lambda msg: parser(msg)
+  else:
+    if isinstance(attributes, str):
+      attributes = [attributes]
+    if attributes:
+      extra_fields.extend(
+          [schemas.schema_field(attr, str) for attr in attributes])
+    if attributes_map:
+      extra_fields.append(
+          schemas.schema_field(attributes_map, Mapping[str, str]))
+
+    def mapper(msg):
+      values = parser(msg.data).as_dict()
+      if attributes:
+        # Should missing attributes be optional or parse errors?
+        for attr in attributes:
+          values[attr] = msg.attributes[attr]
+      if attributes_map:
+        values[attributes_map] = msg.attributes
+      return beam.Row(**values)
+
+  output = (
+      root
+      | beam.io.ReadFromPubSub(
+          topic=topic,
+          subscription=subscription,
+          with_attributes=bool(attributes or attributes_map),
+          id_label=id_attribute,
+          timestamp_attribute=timestamp_attribute)
+      | 'ParseMessage' >> beam.Map(mapper))
+  output.element_type = schemas.named_tuple_from_schema(
+      schema_pb2.Schema(fields=list(payload_schema.fields) + extra_fields))
+  return output
+
+
+@beam.ptransform_fn
+@yaml_mapping.maybe_with_exception_handling_transform_fn
+def write_to_pubsub(
+    pcoll,
+    *,
+    topic: str,
+    format: str,
+    schema: Optional[Any] = None,
+    attributes: Optional[Iterable[str]] = None,
+    attributes_map: Optional[str] = None,
+    id_attribute: Optional[str] = None,
+    timestamp_attribute: Optional[str] = None):
+  """Writes messages to Cloud Pub/Sub.
+
+  Args:
+    topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
+    format: How to format the message payload.  Currently suported
+      formats are
+
+        - raw: Expects a message with a single field (excluding
+            attribute-related fields) whose contents are used as the raw bytes
+            of the pubsub message.
+        - avro: Encodes records with a given avro schema, which may be inferred
+            from the input PCollection schema.
+        - json: Formats records with a given json schema, which may be inferred
+            from the input PCollection schema.
+
+    schema: Schema specification for the given format.
+    attributes: List of attribute keys whose values will be pulled out as
+      PubSub message attributes.  For example, if the format is `raw`
+      and attributes is `["a", "b"]` then elements of the form
+      `Row(any_field=..., a=..., b=...)` will result in PubSub messages whose
+      payload has the contents of any_field and whose attribute will be
+      populated with the values of `a` and `b`.
+    attribute_map: Name of a string-to-string map field in which to pull a set
+      of attributes associated with this message.  For example, if the format
+      is `raw` and `attribute_map` is set to `"attrs"` then elements of the form
+      `Row(any_field=..., attrs=...)` will result in PubSub messages whose
+      payload has the contents of any_field and whose attribute will be
+      populated with the values from attrs.
+      If both `attributes` and `attribute_map` are set, the union of attributes
+      from these two sources will be used to populate the PubSub message
+      attributes.
+    id_attribute: If set, will set an attribute for each Cloud Pub/Sub message
+      with the given name and a unique value. This attribute can then be used
+      in a ReadFromPubSub PTransform to deduplicate messages.
+    timestamp_attribute: If set, will set an attribute for each Cloud Pub/Sub
+      message with the given name and the message's publish time as the value.
+  """
+  input_schema = schemas.schema_from_element_type(pcoll.element_type)
+
+  extra_fields: List[str] = []
+  if isinstance(attributes, str):
+    attributes = [attributes]
+  if attributes:
+    extra_fields.extend(attributes)
+  if attributes_map:
+    extra_fields.append(attributes_map)
+
+  def attributes_extractor(row):
+    if attributes_map:
+      attribute_values = dict(getattr(row, attributes_map))
+    else:
+      attribute_values = {}
+    if attributes:
+      attribute_values.update({attr: getattr(row, attr) for attr in attributes})
+    return attribute_values
+
+  schema_names = set(f.name for f in input_schema.fields)
+  missing_attribute_names = set(extra_fields) - schema_names
+  if missing_attribute_names:
+    raise ValueError(
+        f'Attribute fields {missing_attribute_names} '
+        f'not found in schema fields {schema_names}')
+
+  payload_schema = schema_pb2.Schema(
+      fields=[
+          field for field in input_schema.fields
+          if field.name not in extra_fields
+      ])
+  formatter = _create_formatter(format, schema, payload_schema)
+  return (
+      pcoll | beam.Map(
+          lambda row: beam.io.gcp.pubsub.PubsubMessage(
+              formatter(row), attributes_extractor(row)))
+      | beam.io.WriteToPubSub(
+          topic,
+          with_attributes=True,
+          id_label=id_attribute,
+          timestamp_attribute=timestamp_attribute))
+
+
 def io_providers():
   with open(os.path.join(os.path.dirname(__file__), 'standard_io.yaml')) as fin:
-    explicit_ios = yaml_provider.parse_providers(
-        yaml.load(fin, Loader=yaml.SafeLoader))
-
-  # TOOD(yaml): We should make all top-level IOs explicit.
-  # This will be a chance to clean up the APIs and align them with their
-  # Java implementations.
-  # PythonTransform can be used to get the "raw" transforms for any others.
-  implicit_ios = yaml_provider.InlineProvider({
-      key: getattr(beam.io, key)
-      for key in dir(beam.io)
-      if (key.startswith('ReadFrom') or key.startswith('WriteTo')) and
-      key not in explicit_ios
-  })
-
-  return yaml_provider.merge_providers(explicit_ios, implicit_ios)
+    return yaml_provider.parse_providers(yaml.load(fin, Loader=yaml.SafeLoader))

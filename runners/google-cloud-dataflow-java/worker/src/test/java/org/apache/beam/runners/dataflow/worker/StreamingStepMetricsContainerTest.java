@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.longToSplitInt;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
 
@@ -33,7 +34,12 @@ import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.O
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.NoOpCounter;
+import org.apache.beam.sdk.metrics.NoOpHistogram;
+import org.apache.beam.sdk.util.HistogramData;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -43,7 +49,7 @@ import org.junit.runners.JUnit4;
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class StreamingStepMetricsContainerTest {
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private MetricsContainerRegistry registry = StreamingStepMetricsContainer.createRegistry();
 
   private MetricsContainer c1 = registry.getContainer("s1");
@@ -177,5 +183,23 @@ public class StreamingStepMetricsContainerTest {
                         .setMax(longToSplitInt(3))
                         .setMin(longToSplitInt(3))
                         .setSum(longToSplitInt(3)))));
+  }
+
+  @Test
+  public void testPerWorkerMetrics() {
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(false);
+    MetricsContainer metricsContainer = registry.getContainer("test_step");
+    assertThat(
+        metricsContainer.getPerWorkerCounter(name1), sameInstance(NoOpCounter.getInstance()));
+    HistogramData.BucketType testBucket = HistogramData.LinearBuckets.of(1, 1, 1);
+    assertThat(
+        metricsContainer.getPerWorkerHistogram(name1, testBucket),
+        sameInstance(NoOpHistogram.getInstance()));
+
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
+    assertThat(metricsContainer.getPerWorkerCounter(name1), not(instanceOf(NoOpCounter.class)));
+    assertThat(
+        metricsContainer.getPerWorkerHistogram(name1, testBucket),
+        not(instanceOf(NoOpHistogram.class)));
   }
 }

@@ -25,13 +25,13 @@ transform.
 This transform allows you to make predictions and inference on data with machine learning (ML) models.
 The model handler abstracts the user from the configuration needed for
 specific frameworks, such as Tensorflow, PyTorch, and others. For a full list of supported frameworks,
-see the Apache Beam [Machine Learning](https://beam.apache.org/documentation/sdks/python-machine-learning) page.
+see the [About Beam ML](https://beam.apache.org/documentation/ml/about-ml/) page.
 
 ## Using The Notebooks
 
 These notebooks illustrate ways to use Apache Beam's RunInference transforms, as well as different
-use cases for [ModelHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.ModelHandler) implementations.
-Beam comes with [multiple ModelHandler implementations](https://beam.apache.org/documentation/sdks/python-machine-learning/#modify-a-pipeline-to-use-an-ml-model).
+use cases for [`ModelHandler`](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.ModelHandler) implementations.
+Beam comes with [multiple `ModelHandler` implementations](https://beam.apache.org/documentation/ml/about-ml/#modify-a-python-pipeline-to-use-an-ml-model).
 
 ### Loading the Notebooks
 
@@ -57,6 +57,7 @@ This section contains the following example notebooks.
 * [Apache Beam RunInference with Hugging Face](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_huggingface.ipynb)
 * [Apache Beam RunInference with XGBoost](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_xgboost.ipynb)
 * [Use RunInference with TFX](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_tensorflow_with_tfx.ipynb)
+* [Use RunInference with a remotely deployed Vertex AI endpoint](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_vertex_ai.ipynb)
 * [Use RunInference in Apache Beam](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_pytorch_tensorflow_sklearn.ipynb)
 * [Use RunInference with a LLM](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_generative_ai.ipynb)
 * [Use RunInference with Beam's windowing semantics](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_windowing.ipynb)
@@ -67,8 +68,10 @@ This section contains the following example notebooks.
 * [Remote inference](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/custom_remote_inference.ipynb)
 
 ### Machine Learning Use Cases
-* [Image Processing with Apache Beam](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/image_processing_tensorflow.ipynb)
-* [Natural Language Processing with Apache Beam](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/nlp_tensorflow_streaming.ipynb)
+
+* [Image processing with Apache Beam](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/image_processing_tensorflow.ipynb)
+* [Natural language processing with Apache Beam](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/nlp_tensorflow_streaming.ipynb)
+* [Speech emotion recognition with Apache Beam](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/speech_emotion_tensorflow.ipynb)
 
 ### Automatic Model Refresh
 
@@ -77,6 +80,7 @@ This section contains the following example notebooks.
 ### Multi-model pipelines
 
 * [Ensemble model using an image captioning and ranking](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_multi_model.ipynb)
+* [Run ML inference with multiple differently-trained models](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/per_key_models.ipynb)
 
 ### Model Evaluation
 
@@ -84,4 +88,5 @@ This section contains the following example notebooks.
 
 ### Data processing
 
+* [Preprocess data with MLTransform](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/mltransform_basic.ipynb)
 * [Preprocessing with the Apache Beam DataFrames API](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/dataframe_api_preprocessing.ipynb)

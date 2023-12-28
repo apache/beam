@@ -594,11 +594,9 @@ class Stager(object):
             '".tar", ".tar.gz", ".whl" or ".zip" instead of %s' % package)
       if os.path.basename(package).endswith('.whl'):
         _LOGGER.warning(
-            'The .whl package "%s" is provided in --extra_package. '
-            'This functionality is not officially supported. Since wheel '
-            'packages are binary distributions, this package must be '
-            'binary-compatible with the worker environment (e.g. Python 2.7 '
-            'running on an x64 Linux host).' % package)
+            'The .whl package "%s" provided in --extra_package '
+            'must be binary-compatible with the worker runtime environment.' %
+            package)
 
       if not os.path.isfile(package):
         if Stager._is_remote_path(package):
@@ -773,15 +771,30 @@ class Stager(object):
     try:
       os.chdir(os.path.dirname(setup_file))
       if build_setup_args is None:
-        build_setup_args = [
-            Stager._get_python_executable(),
-            os.path.basename(setup_file),
-            'sdist',
-            '--dist-dir',
-            temp_dir
-        ]
-      _LOGGER.info('Executing command: %s', build_setup_args)
-      processes.check_output(build_setup_args)
+        # if build is installed in the user env, use it to
+        # build the sdist else fallback to legacy setup.py sdist call.
+        try:
+          build_setup_args = [
+              Stager._get_python_executable(),
+              '-m',
+              'build',
+              '--sdist',
+              '--outdir',
+              temp_dir,
+              os.path.dirname(setup_file),
+          ]
+          _LOGGER.info('Executing command: %s', build_setup_args)
+          processes.check_output(build_setup_args)
+        except RuntimeError:
+          build_setup_args = [
+              Stager._get_python_executable(),
+              os.path.basename(setup_file),
+              'sdist',
+              '--dist-dir',
+              temp_dir
+          ]
+          _LOGGER.info('Executing command: %s', build_setup_args)
+          processes.check_output(build_setup_args)
       output_files = glob.glob(os.path.join(temp_dir, '*.tar.gz'))
       if not output_files:
         raise RuntimeError(

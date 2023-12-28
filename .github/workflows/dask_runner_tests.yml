@@ -29,7 +29,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
   cancel-in-progress: true
 
 jobs:
@@ -39,22 +39,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 3.8
-      - name: Get build dependencies
-        working-directory: ./sdks/python
-        run: pip install pip setuptools --upgrade && pip install -r build-requirements.txt
       - name: Build source
         working-directory: ./sdks/python
-        run: python setup.py sdist
+        run: pip install -U build && python -m build --sdist
       - name: Rename source file
         working-directory: ./sdks/python/dist
         run: mv $(ls | grep "apache-beam.*tar\.gz") apache-beam-source.tar.gz
       - name: Upload compressed sources as artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: python_sdk_source
           path: sdks/python/dist/apache-beam-source.tar.gz
@@ -73,14 +70,11 @@ jobs:
         ]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.params.py_ver }}
-      - name: Get build dependencies
-        working-directory: ./sdks/python
-        run: pip install -r build-requirements.txt
       - name: Install tox
         run: pip install tox
       - name: Install SDK with dask
@@ -95,7 +89,7 @@ jobs:
         working-directory: ./sdks/python
         run: tox -c tox.ini -e ${{ matrix.params.tox_env }}-win-dask
       - name: Upload test logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: pytest-${{matrix.os}}-${{matrix.params.py_ver}}

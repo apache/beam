@@ -173,6 +173,30 @@ tasks.register("ulrValidatesRunner") {
   }
 }
 
+// ValidatesRunner tests for Prism. Runs tests in the integration directory
+// with prism in docker mod to validate that the runner behaves as expected.
+task prismValidatesRunner {
+  group = "Verification"
+
+  dependsOn ":sdks:go:test:goBuild"
+  dependsOn ":sdks:go:container:docker"
+  dependsOn ":sdks:java:container:java8:docker"
+  dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
+  doLast {
+    def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
+        "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+    ]
+    def options = [
+        "--runner prism",
+        "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
+    ]
+    exec {
+      executable "sh"
+      args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
+    }
+  }
+}
+
 // A method for configuring a cross-language validates runner test task,
 // intended to be used in calls to createCrossLanguageValidatesRunnerTask.
 ext.goIoValidatesRunnerTask = { proj, name, scriptOpts, pipelineOpts ->

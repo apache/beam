@@ -72,7 +72,7 @@ class FrameBaseTest(unittest.TestCase):
 
   def test_args_to_kwargs(self):
     class Base(object):
-      def func(self, a=1, b=2, c=3):
+      def func(self, a=1, b=2, c=3, *, kw_only=4):
         pass
 
     class Proxy(object):
@@ -87,6 +87,9 @@ class FrameBaseTest(unittest.TestCase):
     self.assertEqual(proxy.func(2, 4, 6), {'a': 2, 'b': 4, 'c': 6})
     self.assertEqual(proxy.func(2, c=6), {'a': 2, 'c': 6})
     self.assertEqual(proxy.func(c=6, a=2), {'a': 2, 'c': 6})
+    self.assertEqual(proxy.func(2, kw_only=20), {'a': 2, 'kw_only': 20})
+    with self.assertRaises(TypeError):  # got too many positioned arguments
+      proxy.func(2, 4, 6, 8)
 
   def test_args_to_kwargs_populates_defaults(self):
     class Base(object):
@@ -128,6 +131,63 @@ class FrameBaseTest(unittest.TestCase):
     with self.assertRaises(TypeError):  # missing 1 required positional argument
       proxy.func_removed_args()
     self.assertEqual(proxy.func_removed_args(12, d=100), {'a': 12, 'd': 100})
+
+  def test_args_to_kwargs_populates_default_handles_kw_only(self):
+    class Base(object):
+      def func(self, a, b=2, c=3, *, kw_only=4):
+        pass
+
+    class ProxyUsesKwOnly(object):
+      @frame_base.args_to_kwargs(Base)
+      @frame_base.populate_defaults(Base)
+      def func(self, a, kw_only, **kwargs):
+        return dict(kwargs, a=a, kw_only=kw_only)
+
+    proxy = ProxyUsesKwOnly()
+
+    # pylint: disable=too-many-function-args,no-value-for-parameter
+    with self.assertRaises(TypeError):  # missing 1 required positional argument
+      proxy.func()
+
+    self.assertEqual(proxy.func(100), {'a': 100, 'kw_only': 4})
+    self.assertEqual(
+        proxy.func(2, 4, 6, kw_only=8), {
+            'a': 2, 'b': 4, 'c': 6, 'kw_only': 8
+        })
+    with self.assertRaises(TypeError):
+      proxy.func(2, 4, 6, 8)  # got too many positioned arguments
+
+    class ProxyDoesntUseKwOnly(object):
+      @frame_base.args_to_kwargs(Base)
+      @frame_base.populate_defaults(Base)
+      def func(self, a, **kwargs):
+        return dict(kwargs, a=a)
+
+    proxy = ProxyDoesntUseKwOnly()
+
+    # pylint: disable=too-many-function-args,no-value-for-parameter
+    with self.assertRaises(TypeError):  # missing 1 required positional argument
+      proxy.func()
+    self.assertEqual(proxy.func(100), {'a': 100})
+    self.assertEqual(
+        proxy.func(2, 4, 6, kw_only=8), {
+            'a': 2, 'b': 4, 'c': 6, 'kw_only': 8
+        })
+
+  def test_populate_defaults_overwrites_copy(self):
+    class Base(object):
+      def func(self, a=1, b=2, c=3, *, copy=None):
+        pass
+
+    class Proxy(object):
+      @frame_base.args_to_kwargs(Base)
+      @frame_base.populate_defaults(Base)
+      def func(self, a, copy, **kwargs):
+        return dict(kwargs, a=a, copy=copy)
+
+    proxy = Proxy()
+    self.assertEqual(proxy.func(), {'a': 1, 'copy': True})
+    self.assertEqual(proxy.func(copy=False), {'a': 1, 'copy': False})
 
 
 if __name__ == '__main__':

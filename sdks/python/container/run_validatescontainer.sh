@@ -59,7 +59,7 @@ ARCH=${3:-"x86"}
 IMAGE_NAME="${IMAGE_PREFIX}python${PY_VERSION}_sdk"
 CONTAINER_PROJECT="sdks:python:container:py${PY_VERSION//.}"  # Note: we substitute away the dot in the version.
 PY_INTERPRETER="python${PY_VERSION}"
-TEST_SUITE_TAG="it_validatescontainer"
+MACHINE_TYPE_ARGS=""
 
 XUNIT_FILE="pytest-$IMAGE_NAME.xml"
 
@@ -88,12 +88,9 @@ if [[ "$ARCH" == "x86" ]]; then
   # Push the container
   gcloud docker -- push $CONTAINER:$TAG
 elif [[ "$ARCH" == "ARM" ]]; then
-  # Note: ARM test suites only run on github actions, where multi-arch Python SDK containers are already pushed during build.
-  # Reset the test suite tag to run ARM pipelines.
-  TEST_SUITE_TAG="it_dataflow_arm"
-
   # Reset the multi-arch Python SDK container image tag.
   TAG=$MULTIARCH_TAG
+  MACHINE_TYPE_ARGS="--machine_type=t2a-standard-1"
 else
   printf "Please give a valid CPU architecture, either x86 or ARM."
   exit 1
@@ -126,7 +123,7 @@ SDK_LOCATION=$2
 
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
 pytest -o log_cli=True -o log_level=Info -o junit_suite_name=$IMAGE_NAME \
-  -m=$TEST_SUITE_TAG \
+  -m=it_validatescontainer \
   --numprocesses=1 \
   --timeout=1800 \
   --junitxml=$XUNIT_FILE \
@@ -142,6 +139,7 @@ pytest -o log_cli=True -o log_level=Info -o junit_suite_name=$IMAGE_NAME \
     --output=$GCS_LOCATION/output \
     --sdk_location=$SDK_LOCATION \
     --num_workers=1 \
+    $MACHINE_TYPE_ARGS \
     --docker_registry_push_url=$PREBUILD_SDK_CONTAINER_REGISTRY_PATH"
 
 echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"

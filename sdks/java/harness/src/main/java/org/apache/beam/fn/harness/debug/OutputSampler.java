@@ -60,14 +60,19 @@ public class OutputSampler<T> {
   // Index into the buffer of where to overwrite samples.
   private int resampleIndex = 0;
 
+  // If true, only takes samples when exceptions in UDFs occur.
+  private final Boolean onlySampleExceptions;
+
   @Nullable private final Coder<T> valueCoder;
 
   @Nullable private final Coder<WindowedValue<T>> windowedValueCoder;
 
-  public OutputSampler(Coder<?> coder, int maxElements, int sampleEveryN) {
+  public OutputSampler(
+      Coder<?> coder, int maxElements, int sampleEveryN, boolean onlySampleExceptions) {
     this.maxElements = maxElements;
     this.sampleEveryN = sampleEveryN;
     this.buffer = new ArrayList<>(this.maxElements);
+    this.onlySampleExceptions = onlySampleExceptions;
 
     // The samples taken and encoded should match exactly to the specification from the
     // ProcessBundleDescriptor. The coder given can either be a WindowedValueCoder, in which the
@@ -103,7 +108,7 @@ public class OutputSampler<T> {
 
     ElementSample<T> elementSample =
         new ElementSample<>(ThreadLocalRandom.current().nextInt(), element);
-    if (samples > 10 && samples % sampleEveryN != 0) {
+    if (onlySampleExceptions || (samples > 10 && samples % sampleEveryN != 0)) {
       return elementSample;
     }
 

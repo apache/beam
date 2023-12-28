@@ -17,7 +17,7 @@
 ###############################################################################
 
 ARG py_version
-FROM python:"${py_version}"-bullseye as beam
+FROM python:"${py_version}"-bookworm as beam
 LABEL Author "Apache Beam <dev@beam.apache.org>"
 ARG TARGETOS
 ARG TARGETARCH
@@ -45,7 +45,7 @@ RUN  \
        && \
     rm -rf /var/lib/apt/lists/* && \
 
-    pip install --upgrade setuptools && \
+    pip install --upgrade pip setuptools wheel && \
 
     # Install required packages for Beam Python SDK and common dependencies used by users.
     # use --no-deps to ensure the list includes all transitive dependencies.

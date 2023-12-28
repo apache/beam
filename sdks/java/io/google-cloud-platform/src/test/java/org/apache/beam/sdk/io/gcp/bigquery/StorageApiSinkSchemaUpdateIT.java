@@ -121,17 +121,21 @@ public class StorageApiSinkSchemaUpdateIT {
   // an updated schema. If that happens consistently, just increase these two numbers
   // to give it more time.
   // Total number of rows written to the sink
-  private static final int TOTAL_N = 60;
+  private static final int TOTAL_N = 70;
   // Number of rows with the original schema
-  private static final int ORIGINAL_N = 50;
+  private static final int ORIGINAL_N = 60;
 
   private final Random randomGenerator = new Random();
+
+  // used when test suite specifies a particular GCP location for BigQuery operations
+  private static String bigQueryLocation;
 
   @BeforeClass
   public static void setUpTestEnvironment() throws IOException, InterruptedException {
     // Create one BQ dataset for all test cases.
-    LOG.info("Creating dataset {}.", BIG_QUERY_DATASET_ID);
-    BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID);
+    bigQueryLocation =
+        TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class).getBigQueryLocation();
+    BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID, null, bigQueryLocation);
   }
 
   @AfterClass
@@ -459,7 +463,8 @@ public class StorageApiSinkSchemaUpdateIT {
                 String.format("SELECT COUNT(DISTINCT(id)), COUNT(id) FROM [%s]", tableSpec),
                 PROJECT,
                 true,
-                false));
+                false,
+                bigQueryLocation));
 
     int distinctCount = Integer.parseInt((String) queryResponse.get("f0_"));
     int totalCount = Integer.parseInt((String) queryResponse.get("f1_"));
@@ -479,7 +484,7 @@ public class StorageApiSinkSchemaUpdateIT {
       throws IOException, InterruptedException {
     List<TableRow> actualRows =
         BQ_CLIENT.queryUnflattened(
-            String.format("SELECT * FROM [%s]", tableSpec), PROJECT, true, false);
+            String.format("SELECT * FROM [%s]", tableSpec), PROJECT, true, false, bigQueryLocation);
 
     for (TableRow row : actualRows) {
       // Rows written to the table should not have the extra field if

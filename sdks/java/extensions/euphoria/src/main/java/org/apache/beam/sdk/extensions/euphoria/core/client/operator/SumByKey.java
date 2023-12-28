@@ -73,6 +73,8 @@ import org.joda.time.Duration;
  *   <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
  *   <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.CONSTANT, repartitions = 1)
@@ -80,6 +82,7 @@ import org.joda.time.Duration;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<KeyT, Long>>
     implements CompositeOperator<InputT, KV<KeyT, Long>> {
 

@@ -59,7 +59,7 @@ import org.junit.Test;
  * -DfailIfNoTests=false".
  *
  * <p>Example trigger command for specific test: "mvn test -pl it/google-cloud-platform -am \
- * -Dtest="BigTableIOLT#testWriteAndRead" -Dconfiguration=local -Dproject=[gcpProject] \
+ * -Dtest="BigTableIOLT#testBigtableWriteAndRead" -Dconfiguration=local -Dproject=[gcpProject] \
  * -DartifactBucket=[temp bucket] -DfailIfNoTests=false".
  */
 public class BigTableIOLT extends IOLoadTestBase {
@@ -67,7 +67,7 @@ public class BigTableIOLT extends IOLoadTestBase {
   private static final String COLUMN_FAMILY_NAME = "cf";
   private static final long TABLE_MAX_AGE_MINUTES = 100L;
 
-  private static BigtableResourceManager resourceManager;
+  private BigtableResourceManager resourceManager;
   private static final String READ_ELEMENT_METRIC_NAME = "read_count";
   private Configuration configuration;
   private String tableId;
@@ -114,9 +114,7 @@ public class BigTableIOLT extends IOLoadTestBase {
 
   /** Run integration test with configurations specified by TestProperties. */
   @Test
-  public void testWriteAndRead() throws IOException {
-    final String readPCollection = "Counting element.out0";
-    final String writePCollection = "Map records.out0";
+  public void testBigtableWriteAndRead() throws IOException {
 
     tableId = generateTableId(testName);
     resourceManager.createTable(
@@ -149,8 +147,10 @@ public class BigTableIOLT extends IOLoadTestBase {
     // export metrics
     MetricsConfiguration metricsConfig =
         MetricsConfiguration.builder()
-            .setInputPCollection(writePCollection)
-            .setOutputPCollection(readPCollection)
+            .setInputPCollection("Map records.out0")
+            .setInputPCollectionV2("Map records/ParMultiDo(MapToBigTableFormat).out0")
+            .setOutputPCollection("Counting element.out0")
+            .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
             .build();
     try {
       exportMetricsToBigQuery(writeInfo, getMetrics(writeInfo, metricsConfig));
@@ -174,7 +174,7 @@ public class BigTableIOLT extends IOLoadTestBase {
         .apply("Write to BigTable", writeIO);
 
     PipelineLauncher.LaunchConfig options =
-        PipelineLauncher.LaunchConfig.builder("test-bigtable-write")
+        PipelineLauncher.LaunchConfig.builder("write-bigtable")
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(writePipeline)
             .addParameter("runner", configuration.getRunner())
@@ -196,7 +196,7 @@ public class BigTableIOLT extends IOLoadTestBase {
         .apply("Counting element", ParDo.of(new CountingFn<>(READ_ELEMENT_METRIC_NAME)));
 
     PipelineLauncher.LaunchConfig options =
-        PipelineLauncher.LaunchConfig.builder("test-bigtable-read")
+        PipelineLauncher.LaunchConfig.builder("read-bigtable")
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(readPipeline)
             .addParameter("runner", configuration.getRunner())
@@ -205,7 +205,7 @@ public class BigTableIOLT extends IOLoadTestBase {
     return pipelineLauncher.launch(project, region, options);
   }
 
-  /** Options for Bigquery IO load test. */
+  /** Options for BigtableIO load test. */
   @AutoValue
   abstract static class Configuration {
     abstract Long getNumRows();

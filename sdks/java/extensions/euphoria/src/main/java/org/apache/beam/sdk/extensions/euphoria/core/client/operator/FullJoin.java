@@ -52,11 +52,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
  *   <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class FullJoin {
 
   /**

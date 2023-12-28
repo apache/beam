@@ -257,8 +257,10 @@ print(s.getsockname()[1])
 s.close()
 "
 
+TMPDIR=$(mktemp -d)
+
 # Set up environment based on runner.
-if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$RUNNER" == "portable" ]]; then
+if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$RUNNER" == "portable" || "$RUNNER" == "prism" ]]; then
   if [[ -z "$ENDPOINT" ]]; then
     JOB_PORT=$(python3 -c "$SOCKET_SCRIPT")
     ENDPOINT="localhost:$JOB_PORT"
@@ -288,6 +290,14 @@ if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$
       python3 \
           -m apache_beam.runners.portability.local_job_service_main \
           --port $JOB_PORT &
+    elif [[ "$RUNNER" == "prism" ]]; then
+      PRISMBIN=$TMPDIR/prismbin
+      cd sdks
+      ./go/run_with_go_version.sh build -o $PRISMBIN go/cmd/prism/*.go
+      $PRISMBIN \
+      --serve_http=false \
+      --job_port $JOB_PORT &
+      cd ..
     else
       echo "Unknown runner: $RUNNER"
       exit 1;
@@ -340,7 +350,6 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   gcloud --version
 
   # ensure gcloud is version 186 or above
-  TMPDIR=$(mktemp -d)
   gcloud_ver=$(gcloud -v | head -1 | awk '{print $4}')
   if [[ "$gcloud_ver" < "186" ]]
   then
@@ -402,6 +411,7 @@ fi
 ARGS="$ARGS -p $SIMULTANEOUS"
 
 # Assemble test arguments and pipeline options.
+ARGS="$ARGS -v"
 ARGS="$ARGS -timeout $TIMEOUT"
 ARGS="$ARGS --runner=$RUNNER"
 ARGS="$ARGS --project=$DATAFLOW_PROJECT"
@@ -449,9 +459,9 @@ if [[ "$RUNNER" == "dataflow" ]]; then
     docker rmi $JAVA_CONTAINER:$JAVA_TAG || echo "Failed to remove container"
     gcloud --quiet container images delete $JAVA_CONTAINER:$JAVA_TAG || echo "Failed to delete container"
   fi
-
-  # Clean up tempdir
-  rm -rf $TMPDIR
 fi
+
+# Clean up tempdir
+rm -rf $TMPDIR
 
 exit $TEST_EXIT_CODE

@@ -30,14 +30,14 @@ on:
 jobs:
   python_run_change_point_analysis:
     name: Run Change Point Analysis.
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04, main]
     permissions:
       issues: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 3.8
       - name: Authenticate on GCP
@@ -46,9 +46,6 @@ jobs:
         with:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           export_default_credentials: true
-      - name: Get Apache Beam Build dependencies
-        working-directory: ./sdks/python
-        run: pip install pip setuptools --upgrade && pip install -r build-requirements.txt
       - name: Install Apache Beam
         working-directory: ./sdks/python
         run: pip install -e .[gcp,test]
@@ -59,8 +56,15 @@ jobs:
       - name: Run Change Point Analysis.
         working-directory: ./sdks/python/apache_beam/testing/analyzers
         shell: bash
-        run: python perf_analysis.py
+        run: python perf_analysis.py --config_file_path=./tests_config.yaml --save_alert_metadata
         if: github.event_name != 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Change Point Analysis.
+        working-directory: ./sdks/python/apache_beam/testing/analyzers
+        shell: bash
+        run: python perf_analysis.py --config_file_path=./tests_config.yaml
+        if: github.event_name == 'pull_request'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Run change point analysis tests.

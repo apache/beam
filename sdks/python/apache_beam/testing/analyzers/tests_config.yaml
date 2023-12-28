@@ -16,10 +16,10 @@
 #
 
 # for the unique key to define a test, please use the following format:
-# {test_name}-{metric_name}
+# {test_id}-{metric_name}
 
 pytorch_image_classification_benchmarks-resnet152-mean_inference_batch_latency_micro_secs:
-  test_description:
+  test_description: |
     Pytorch image classification on 50k images of size 224 x 224 with resnet 152.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L63
     Test dashboard - http://metrics.beam.apache.org/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=2
@@ -30,7 +30,7 @@ pytorch_image_classification_benchmarks-resnet152-mean_inference_batch_latency_m
   metric_name: mean_inference_batch_latency_micro_secs
 
 pytorch_image_classification_benchmarks-resnet101-mean_load_model_latency_milli_secs:
-  test_description:
+  test_description: |
     Pytorch image classification on 50k images of size 224 x 224 with resnet 101.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L34
     Test dashboard - http://metrics.beam.apache.org/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
@@ -41,7 +41,7 @@ pytorch_image_classification_benchmarks-resnet101-mean_load_model_latency_milli_
   metric_name: mean_load_model_latency_milli_secs
 
 pytorch_image_classification_benchmarks-resnet101-mean_inference_batch_latency_micro_secs:
-  test_description:
+  test_description: |
     Pytorch image classification on 50k images of size 224 x 224 with resnet 101.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L34
     Test dashboard - http://metrics.beam.apache.org/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=2
@@ -52,7 +52,7 @@ pytorch_image_classification_benchmarks-resnet101-mean_inference_batch_latency_m
   metric_name: mean_inference_batch_latency_micro_secs
 
 pytorch_image_classification_benchmarks-resnet152-GPU-mean_inference_batch_latency_micro_secs:
-  test_description:
+  test_description: |
     Pytorch image classification on 50k images of size 224 x 224 with resnet 152 with Tesla T4 GPU.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L151
     Test dashboard - http://metrics.beam.apache.org/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
@@ -63,7 +63,7 @@ pytorch_image_classification_benchmarks-resnet152-GPU-mean_inference_batch_laten
   metric_name: mean_inference_batch_latency_micro_secs
 
 pytorch_image_classification_benchmarks-resnet152-GPU-mean_load_model_latency_milli_secs:
-  test_description:
+  test_description: |
     Pytorch image classification on 50k images of size 224 x 224 with resnet 152 with Tesla T4 GPU.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L151
     Test dashboard - http://metrics.beam.apache.org/d/ZpS8Uf44z/python-ml-runinference-benchmarks?orgId=1&viewPanel=7
@@ -74,7 +74,7 @@ pytorch_image_classification_benchmarks-resnet152-GPU-mean_load_model_latency_mi
   metric_name: mean_load_model_latency_milli_secs
 
 pytorch_image_classification_benchmarks-resnet152-GPU-mean_inference_batch_latency_micro_secs:
-  test_description:
+  test_description: |
     Pytorch image classification on 50k images of size 224 x 224 with resnet 152 with Tesla T4 GPU.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/.test-infra/jenkins/job_InferenceBenchmarkTests_Python.groovy#L151).
     Test dashboard - http://metrics.beam.apache.org/d/ZpS8Uf44z/python-ml-runinference-benchmarks?from=now-90d&to=now&viewPanel=2
@@ -85,7 +85,7 @@ pytorch_image_classification_benchmarks-resnet152-GPU-mean_inference_batch_laten
   metric_name: mean_inference_batch_latency_micro_secs
 
 test_cloudml_benchmark_cirteo_no_shuffle_10GB-runtime_sec:
-  test_description:
+  test_description: |
     TFT Criteo test on 10 GB data with no Reshuffle.
     Test link - [Test link](https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/sdks/python/apache_beam/testing/benchmarks/cloudml/cloudml_benchmark_test.py#L82)
   metrics_dataset: beam_cloudml
@@ -94,10 +94,200 @@ test_cloudml_benchmark_cirteo_no_shuffle_10GB-runtime_sec:
   metric_name: runtime_sec
 
 test_cloudml_benchmark_criteo_10GB-runtime_sec:
-  test_description:
+  test_description: |
     TFT Criteo test on 10 GB data.
     Test link - https://github.com/apache/beam/blob/42d0a6e3564d8b9c5d912428a6de18fb22a13ac1/sdks/python/apache_beam/testing/benchmarks/cloudml/cloudml_benchmark_test.py#LL104C7-L104C41
   metrics_dataset: beam_cloudml
   metrics_table: cloudml_benchmark_criteo_10GB
   project: apache-beam-testing
   metric_name: runtime_sec
+
+# Python Combine load tests at http://metrics.beam.apache.org/d/WNzYt13Zk/combine-load-tests?orgId=1
+combine_python_batch_2gb_10_byte_records:
+  test_description: |
+    Combine Python Load Test 2 GB 10 byte records
+    Test link - https://github.com/apache/beam/blob/5e38decf9e723a385057131b01bbd33d8c60bda3/.test-infra/jenkins/job_LoadTests_Combine_Python.groovy#L76C24-L76C65
+    Test dashboard - http://metrics.beam.apache.org/d/WNzYt13Zk/combine-load-tests?orgId=1&from=now-90d&to=now&var-processingType=batch&var-sdk=python&viewPanel=2
+  test_target: apache_beam.testing.load_tests.combine_test
+  metrics_dataset: load_test
+  metrics_table: python_dataflow_batch_combine_1
+  metric_name: runtime
+  project: apache-beam-testing
+
+combine_python_batch_2gb_fanout_4:
+  test_description: |
+    Combine Python Load test - 2GB Fanout 4
+    Test link - https://github.com/apache/beam/blob/5e38decf9e723a385057131b01bbd33d8c60bda3/.test-infra/jenkins/job_LoadTests_Combine_Python.groovy#L52
+    Test Dashboard - http://metrics.beam.apache.org/d/WNzYt13Zk/combine-load-tests?orgId=1&from=now-90d&to=now&var-processingType=batch&var-sdk=python&viewPanel=4
+  test_target: apache_beam.testing.load_tests.combine_test
+  metrics_dataset: load_test
+  metrics_table: python_dataflow_batch_combine_4
+  metric_name: runtime
+  project: apache-beam-testing
+
+combine_python_batch_2gb_fanout_8:
+  test_description: |
+    Combine Python Load test - 2GB Fanout 8
+  test_target: apache_beam.testing.load_tests.combine_test
+  metrics_dataset: load_test
+  metrics_table: python_dataflow_batch_combine_5
+  metric_name: runtime
+  project: apache-beam-testing
+
+# Python Batch GBK load tests at http://metrics.beam.apache.org/d/UYZ-oJ3Zk/gbk-load-tests?orgId=1&var-processingType=batch&var-sdk=python&from=now-90d&to=now
+gbk_python_batch_load_test_2gb_of_10B_records:
+  test_description: |
+    GroupByKey Python Load test - 2GB of 10B records
+    python | GBK | Small records (10B)
+    Test Dashboard - http://metrics.beam.apache.org/d/UYZ-oJ3Zk/gbk-load-tests?orgId=1&var-processingType=batch&var-sdk=python&from=now-90d&to=now&viewPanel=2
+    Test link - https://github.com/apache/beam/blob/5e38decf9e723a385057131b01bbd33d8c60bda3/.test-infra/jenkins/job_LoadTests_GBK_Python.groovy#L36C25-L36C72
+  test_target: apache_beam.testing.load_tests.group_by_key_test
+  metrics_table: python_dataflow_batch_gbk_1
+  metrics_dataset: load_test
+  metric_name: runtime
+  project: apache-beam-testing
+
+gbk_python_batch_load_test_2gb_of_100B_records:
+  test_description: |
+    GroupByKey Python Load test - 2GB of 100B records
+    python | GBK | Medium records (100B)
+    Test Dashboard - http://metrics.beam.apache.org/d/UYZ-oJ3Zk/gbk-load-tests?orgId=1&var-processingType=batch&var-sdk=python&from=now-90d&to=now&viewPanel=3
+    Test link - https://github.com/apache/beam/blob/5e38decf9e723a385057131b01bbd33d8c60bda3/.test-infra/jenkins/job_LoadTests_GBK_Python.groovy#L60
+  test_target: apache_beam.testing.load_tests.group_by_key_test
+  metrics_table: python_dataflow_batch_gbk_2
+  metrics_dataset: load_test
+  metric_name: runtime
+  project: apache-beam-testing
+
+gbk_python_batch_load_test_2gb_of_100KB_records:
+  test_description: |
+    GroupByKey Python Load test - 2GB of 100kB records
+    python | GBK | Large records (100kB)
+    Test Dashboard - http://metrics.beam.apache.org/d/UYZ-oJ3Zk/gbk-load-tests?orgId=1&var-processingType=batch&var-sdk=python&from=now-6M&to=now&viewPanel=4&inspect=4
+    Test link - https://github.com/apache/beam/blob/5e38decf9e723a385057131b01bbd33d8c60bda3/.test-infra/jenkins/job_LoadTests_GBK_Python.groovy#L83
+  test_target: apache_beam.testing.load_tests.group_by_key_test
+  metrics_table: python_dataflow_batch_gbk_3
+  metrics_dataset: load_test
+  metric_name: runtime
+  project: apache-beam-testing
+
+gbk_python_batch_load_test_fanout_4_times_with_2GB_10byte_records_total:
+# this test looks little noisy. Remove this if it causes too many false
+# positives.
+  test_description: |
+    GroupByKey Python Load test - fanout 4 times with 2GB 10-byte records total
+    python | GBK | Fanout 4
+    Test Dashboard - http://metrics.beam.apache.org/d/UYZ-oJ3Zk/gbk-load-tests?orgId=1&var-processingType=batch&var-sdk=python&from=now-90d&to=now&viewPanel=5
+    Test link - https://github.com/apache/beam/blob/5e38decf9e723a385057131b01bbd33d8c60bda3/.test-infra/jenkins/job_LoadTests_GBK_Python.groovy#L106
+  test_target: apache_beam.testing.load_tests.group_by_key_test
+  metrics_table: python_dataflow_batch_gbk_4
+  metrics_dataset: load_test
+  metric_name: runtime
+  project: apache-beam-testing
+
+
+gbk_python_batch_load_test_fanout_8_times_with_2GB_10byte_records_total:
+# this test looks little noisy. Remove this if it causes too many false
+# positives.
+  test_description: |
+    GroupByKey Python Load test - fanout 8 times with 2GB 10-byte records total
+    python | GBK | Fanout 8
+    Test Dashboard - http://metrics.beam.apache.org/d/UYZ-oJ3Zk/gbk-load-tests?orgId=1&var-processingType=batch&var-sdk=python&from=now-90d&to=now&viewPanel=6
+    Test link - https://github.com/apache/beam/blob/5e38decf9e723a385057131b01bbd33d8c60bda3/.test-infra/jenkins/job_LoadTests_GBK_Python.groovy#L129
+  metrics_table: python_dataflow_batch_gbk_5
+  metrics_dataset: load_test
+  metric_name: runtime
+  project: apache-beam-testing
+
+# Python SideInput load tests at http://metrics.beam.apache.org/d/-E9aGlFGk/side-input-load-tests?orgId=1&from=now-90d&to=now
+
+sideinpts_python_batch_1gb_1kb_10workers_1000window_1key_percent_dict:
+  test_description: |
+    python | Side Input | 1 GB dictionary, 1% of keys, 1000 fixed windows
+    Test Link - https://github.com/apache/beam/blob/5e38decf9e723a385057131b01bbd33d8c60bda3/.test-infra/jenkins/job_LoadTests_SideInput_Python.groovy#L120
+    Test Dashboard - http://metrics.beam.apache.org/d/-E9aGlFGk/side-input-load-tests?orgId=1&from=now-90d&to=now&viewPanel=8
+  metrics_table: python_dataflow_batch_sideinput_7
+  metrics_dataset: load_test
+  metric_name: runtime
+  project: apache-beam-testing
+
+
+sideinpts_python_batch_1gb_1kb_10workers_1000window_99key_percent_dict:
+  test_description: |
+    python | Side Input | 1 GB dictionary, 99% of keys, 1000 fixed windows
+    Test Link - https://github.com/apache/beam/blob/5e38decf9e723a385057131b01bbd33d8c60bda3/.test-infra/jenkins/job_LoadTests_SideInput_Python.groovy#L133
+    Test Dashboard - http://metrics.beam.apache.org/d/-E9aGlFGk/side-input-load-tests?orgId=1&from=now-90d&to=now&viewPanel=9
+  metrics_table: python_dataflow_batch_sideinput_8
+  metrics_dataset: load_test
+  metric_name: runtime
+  project: apache-beam-testing
+
+sideinpts_python_batch_10gb_1kb_10workers_1000window_first_iterable:
+  test_description: |
+    python | Side Input | 10 GB iterable, 1% of elements, 1000 fixed windows
+    Test Link - https://github.com/apache/beam/blob/5e38decf9e723a385057131b01bbd33d8c60bda3/.test-infra/jenkins/job_LoadTests_SideInput_Python.groovy#L146
+    Test Dashboard - http://metrics.beam.apache.org/d/-E9aGlFGk/side-input-load-tests?orgId=1&from=now-90d&to=now&viewPanel=10
+  metrics_table: python_dataflow_batch_sideinput_9
+  metrics_dataset: load_test
+  metric_name: runtime
+  project: apache-beam-testing
+
+
+sideinpts_python_batch_10gb_1kb_10workers_1000window_first_iterable:
+  test_description: |
+    python | Side Input | 10 GB iterable, all elements, 1000 fixed windows
+    Test Link - https://github.com/apache/beam/blob/5e38decf9e723a385057131b01bbd33d8c60bda3/.test-infra/jenkins/job_LoadTests_SideInput_Python.groovy#L159
+    Test Dashboard - http://metrics.beam.apache.org/d/-E9aGlFGk/side-input-load-tests?orgId=1&from=now-90d&to=now&viewPanel=11
+  metrics_table: python_dataflow_batch_sideinput_10
+  metrics_dataset: load_test
+  metric_name: runtime
+  project: apache-beam-testing
+
+# Python CoGBK load tests at http://metrics.beam.apache.org/d/fK0U4JqWz/cogbk-load-tests?orgId=1&var-processingType=batch&var-sdk=python
+
+cogbk_python_batch_load_test_2GB_of_100B_records_with_a_single_key:
+  test_description: |
+    CoGroupByKey Python Load test - 2GB of 100B records with a single key
+    python | coGBK | 100B records with a single key
+    Test Link - https://github.com/apache/beam/blob/5e38decf9e723a385057131b01bbd33d8c60bda3/.test-infra/jenkins/job_LoadTests_coGBK_Python.groovy#L32C25-L32C76
+    Test Dashboard - http://metrics.beam.apache.org/d/fK0U4JqWz/cogbk-load-tests?orgId=1&var-processingType=batch&var-sdk=python&viewPanel=2
+  test_target: apache_beam.testing.load_tests.co_group_by_key_test
+  metrics_table: python_dataflow_batch_cogbk_1
+  metrics_dataset: load_test
+  metric_name: runtime
+  project: apache-beam-testing
+
+cogbk_python_batch_load_test_2GB_of_100B_records_with_a_multiple_key:
+  test_description: |
+    CoGroupByKey Python Load test - 2GB of 100B records with multiple keys
+    python | coGBK | 100B records with multiple keys
+
+    Test Link - https://github.com/apache/beam/blob/5e38decf9e723a385057131b01bbd33d8c60bda3/.test-infra/jenkins/job_LoadTests_coGBK_Python.groovy#L64
+
+    Test Dashboard - http://metrics.beam.apache.org/d/fK0U4JqWz/cogbk-load-tests?orgId=1&var-processingType=batch&var-sdk=python&viewPanel=3
+  metrics_table: python_dataflow_batch_cogbk_2
+  metrics_dataset: load_test
+  metric_name: runtime
+  project: apache-beam-testing
+
+cogbk_python_batch_load_test_reiterate_4times_10KB_values:
+  test_description: |
+    CoGroupByKey Python Load test - reiterate 4 times 10kB values
+    python | coGBK | reiteration 10kB value
+    Test Link - https://github.com/apache/beam/blob/5e38decf9e723a385057131b01bbd33d8c60bda3/.test-infra/jenkins/job_LoadTests_coGBK_Python.groovy#L96
+    Test Dashboard - http://metrics.beam.apache.org/d/fK0U4JqWz/cogbk-load-tests?orgId=1&var-processingType=batch&var-sdk=python&viewPanel=4
+  metrics_table: python_dataflow_batch_cogbk_3
+  metrics_dataset: load_test
+  metric_name: runtime
+  project: apache-beam-testing
+
+cogbk_python_batch_load_test_reiterate_4times_2MB_values:
+  test_description: |
+    CoGroupByKey Python Load test - reiterate 4 times 2 MB values
+    python | coGBK | reiteration 2MB value
+    Test Link - https://github.com/apache/beam/blob/5e38decf9e723a385057131b01bbd33d8c60bda3/.test-infra/jenkins/job_LoadTests_coGBK_Python.groovy#L128
+    Test Dashboard - http://metrics.beam.apache.org/d/fK0U4JqWz/cogbk-load-tests?orgId=1&var-processingType=batch&var-sdk=python&viewPanel=5
+  metrics_table: python_dataflow_batch_cogbk_4
+  metrics_dataset: load_test
+  metric_name: runtime
+  project: apache-beam-testing

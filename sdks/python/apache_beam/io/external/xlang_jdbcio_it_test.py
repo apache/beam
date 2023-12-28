@@ -17,6 +17,7 @@
 
 # pytype: skip-file
 
+import datetime
 import logging
 import time
 import typing
@@ -60,7 +61,8 @@ JdbcTestRow = typing.NamedTuple(
     "JdbcTestRow",
     [("f_id", int), ("f_float", float), ("f_char", str), ("f_varchar", str),
      ("f_bytes", bytes), ("f_varbytes", bytes), ("f_timestamp", Timestamp),
-     ("f_decimal", Decimal)],
+     ("f_decimal", Decimal), ("f_date", datetime.date),
+     ("f_time", datetime.time)],
 )
 coders.registry.register_coder(JdbcTestRow, coders.RowCoder)
 
@@ -132,7 +134,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
         "f_float DOUBLE PRECISION, " + "f_char CHAR(10), " +
         "f_varchar VARCHAR(10), " + f"f_bytes {binary_type[0]}, " +
         f"f_varbytes {binary_type[1]}, " + "f_timestamp TIMESTAMP(3), " +
-        "f_decimal DECIMAL(10, 2))")
+        "f_decimal DECIMAL(10, 2), " + "f_date DATE, " + "f_time TIME(3))")
     inserted_rows = [
         JdbcTestRow(
             i,
@@ -144,7 +146,11 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
             # In alignment with Java Instant which supports milli precision.
             Timestamp.of(seconds=round(time.time(), 3)),
             # Test both positive and negative numbers.
-            Decimal(f'{i-1}.23')) for i in range(ROW_COUNT)
+            Decimal(f'{i-1}.23'),
+            # Test both date before or after EPOCH
+            datetime.date(1969 + i, i % 12 + 1, i % 31 + 1),
+            datetime.time(i % 24, i % 60, i % 60, (i * 1000) % 1_000_000))
+        for i in range(ROW_COUNT)
     ]
     expected_row = []
     for row in inserted_rows:
@@ -163,7 +169,9 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
               f_bytes,
               row.f_bytes,
               row.f_timestamp,
-              row.f_decimal))
+              row.f_decimal,
+              row.f_date,
+              row.f_time))
 
     with TestPipeline() as p:
       p.not_use_test_runner_api = True

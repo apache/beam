@@ -40,6 +40,7 @@ import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
@@ -73,7 +74,7 @@ public class BigtableResourceManagerTest {
   private static final StorageType CLUSTER_STORAGE_TYPE = StorageType.SSD;
 
   private BigtableResourceManager testManager;
-  private Iterable<BigtableResourceManagerCluster> cluster;
+  private List<BigtableResourceManagerCluster> cluster;
 
   @Before
   public void setUp() throws IOException {
@@ -442,6 +443,7 @@ public class BigtableResourceManagerTest {
     setupReadyTable();
 
     testManager.createTable(TABLE_ID, ImmutableList.of("cf1"));
+
     when(bigtableResourceManagerClientFactory.bigtableTableAdminClient().exists(anyString()))
         .thenReturn(true);
     testManager.readTable(TABLE_ID);

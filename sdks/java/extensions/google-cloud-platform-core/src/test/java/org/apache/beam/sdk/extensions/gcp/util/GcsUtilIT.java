@@ -26,6 +26,7 @@ import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.testing.UsesKms;
@@ -53,7 +54,8 @@ public class GcsUtilIT {
     // Using a KMS key is necessary to trigger multi-part rewrites (bucket is created
     // with a bucket default key).
     assertNotNull(options.getTempRoot());
-    options.setTempLocation(options.getTempRoot() + "/testRewriteMultiPart");
+    options.setTempLocation(
+        FileSystems.matchNewDirectory(options.getTempRoot(), "testRewriteMultiPart").toString());
 
     GcsOptions gcsOptions = options.as(GcsOptions.class);
     GcsUtil gcsUtil = gcsOptions.getGcsUtil();

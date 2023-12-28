@@ -21,16 +21,22 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeCell;
+import org.apache.beam.runners.core.metrics.HistogramCell;
 import org.apache.beam.runners.core.metrics.MetricsMap;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Gauge;
+import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
@@ -47,13 +53,20 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
 
   private final String stepName;
 
+  private static Boolean enablePerWorkerMetrics;
+
   private MetricsMap<MetricName, DeltaCounterCell> counters =
       new MetricsMap<>(DeltaCounterCell::new);
+
+  private ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters = new ConcurrentHashMap<>();
 
   private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
 
   private MetricsMap<MetricName, DeltaDistributionCell> distributions =
       new MetricsMap<>(DeltaDistributionCell::new);
+
+  private MetricsMap<KV<MetricName, HistogramData.BucketType>, HistogramCell> perWorkerHistograms =
+      new MetricsMap<>(HistogramCell::new);
 
   private StreamingStepMetricsContainer(String stepName) {
     this.stepName = stepName;
@@ -74,6 +87,15 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   }
 
   @Override
+  public Counter getPerWorkerCounter(MetricName metricName) {
+    if (enablePerWorkerMetrics) {
+      return new RemoveSafeDeltaCounterCell(metricName, perWorkerCounters);
+    } else {
+      return MetricsContainer.super.getPerWorkerCounter(metricName);
+    }
+  }
+
+  @Override
   public Distribution getDistribution(MetricName metricName) {
     return distributions.get(metricName);
   }
@@ -81,6 +103,16 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   @Override
   public Gauge getGauge(MetricName metricName) {
     return gauges.get(metricName);
+  }
+
+  @Override
+  public Histogram getPerWorkerHistogram(
+      MetricName metricName, HistogramData.BucketType bucketType) {
+    if (enablePerWorkerMetrics) {
+      return perWorkerHistograms.get(KV.of(metricName, bucketType));
+    } else {
+      return MetricsContainer.super.getPerWorkerHistogram(metricName, bucketType);
+    }
   }
 
   public Iterable<CounterUpdate> extractUpdates() {
@@ -141,5 +173,9 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
     return metricsContainerRegistry
         .getContainers()
         .transformAndConcat(StreamingStepMetricsContainer::extractUpdates);
+  }
+
+  public static void setEnablePerWorkerMetrics(Boolean enablePerWorkerMetrics) {
+    StreamingStepMetricsContainer.enablePerWorkerMetrics = enablePerWorkerMetrics;
   }
 }

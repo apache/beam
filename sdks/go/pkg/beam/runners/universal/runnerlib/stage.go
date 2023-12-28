@@ -44,7 +44,7 @@ func Stage(ctx context.Context, id, endpoint, binary, st string) (retrievalToken
 	defer cc.Close()
 
 	if err := StageViaPortableAPI(ctx, cc, binary, st); err == nil {
-		return "", nil
+		return st, nil
 	}
 	log.Warnf(ctx, "unable to stage with PortableAPI: %v; falling back to legacy", err)
 

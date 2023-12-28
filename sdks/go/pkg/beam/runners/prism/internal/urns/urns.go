@@ -51,13 +51,16 @@ var (
 	reqUrn     = toUrn[pipepb.StandardRequirements_Enum]()
 	runProcUrn = toUrn[pipepb.StandardRunnerProtocols_Enum]()
 	envUrn     = toUrn[pipepb.StandardEnvironments_Environments]()
+	usUrn      = toUrn[pipepb.StandardUserStateTypes_Enum]()
 )
 
 var (
 	// SDK transforms.
 	TransformParDo                = ptUrn(pipepb.StandardPTransforms_PAR_DO)
 	TransformCombinePerKey        = ctUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY)
+	TransformCombineGlobally      = ctUrn(pipepb.StandardPTransforms_COMBINE_GLOBALLY)
 	TransformReshuffle            = ctUrn(pipepb.StandardPTransforms_RESHUFFLE)
+	TransformCombineGroupedValues = cmbtUrn(pipepb.StandardPTransforms_COMBINE_GROUPED_VALUES)
 	TransformPreCombine           = cmbtUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY_PRECOMBINE)
 	TransformMerge                = cmbtUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY_MERGE_ACCUMULATORS)
 	TransformExtract              = cmbtUrn(pipepb.StandardPTransforms_COMBINE_PER_KEY_EXTRACT_OUTPUTS)
@@ -90,6 +93,10 @@ var (
 	// Side Input access patterns
 	SideInputIterable = siUrn(pipepb.StandardSideInputTypes_ITERABLE)
 	SideInputMultiMap = siUrn(pipepb.StandardSideInputTypes_MULTIMAP)
+
+	// UserState kinds
+	UserStateBag      = usUrn(pipepb.StandardUserStateTypes_BAG)
+	UserStateMultiMap = usUrn(pipepb.StandardUserStateTypes_MULTIMAP)
 
 	// WindowsFns
 	WindowFnGlobal  = quickUrn(pipepb.GlobalWindowsPayload_PROPERTIES)

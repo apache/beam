@@ -47,6 +47,7 @@ from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_a
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
+from apache_beam.transforms import environments
 from apache_beam.typehints import typehints
 from apache_beam.utils import processes
 from apache_beam.utils.interactive_utils import is_in_notebook
@@ -96,10 +97,6 @@ class DataflowRunner(PipelineRunner):
 
   def is_fnapi_compatible(self):
     return False
-
-  def apply(self, transform, input, options):
-    _check_and_add_missing_options(options)
-    return super().apply(transform, input, options)
 
   @staticmethod
   def poll_for_job_completion(
@@ -359,6 +356,8 @@ class DataflowRunner(PipelineRunner):
           'Google Cloud Dataflow runner not available, '
           'please install apache_beam[gcp]')
 
+    _check_and_add_missing_options(options)
+
     # Convert all side inputs into a form acceptable to Dataflow.
     if pipeline:
       pipeline.visit(self.combinefn_visitor())
@@ -382,7 +381,6 @@ class DataflowRunner(PipelineRunner):
       self.proto_pipeline = pipeline_proto
 
     else:
-      from apache_beam.transforms import environments
       if options.view_as(SetupOptions).prebuild_sdk_container_engine:
         # if prebuild_sdk_container_engine is specified we will build a new sdk
         # container image with dependencies pre-installed and use that image,
@@ -415,6 +413,12 @@ class DataflowRunner(PipelineRunner):
       # Snapshot the pipeline in a portable proto.
       self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
           return_context=True, default_environment=self._default_environment)
+
+    # Dataflow can only handle Docker environments.
+    for env_id, env in self.proto_pipeline.components.environments.items():
+      self.proto_pipeline.components.environments[env_id].CopyFrom(
+          environments.resolve_anyof_environment(
+              env, common_urns.environments.DOCKER.urn))
 
     # Optimize the pipeline if it not streaming and the pre_optimize
     # experiment is set.
@@ -493,10 +497,6 @@ class DataflowRunner(PipelineRunner):
       return coders.WindowedValueCoder(
           coders.registry.get_coder(typehint), window_coder=window_coder)
     return coders.registry.get_coder(typehint)
-
-  # TODO(srohde): Remove this after internal usages have been removed.
-  def apply_GroupByKey(self, transform, pcoll, options):
-    return transform.expand(pcoll)
 
   def _verify_gbk_coders(self, transform, pcoll):
     # Infer coder of parent.
@@ -583,6 +583,18 @@ def _check_and_add_missing_options(options):
     debug_options.add_experiment('enable_prime')
   elif debug_options.lookup_experiment('enable_prime'):
     dataflow_service_options.append('enable_prime')
+
+  sdk_location = options.view_as(SetupOptions).sdk_location
+  if 'dev' in beam.version.__version__ and sdk_location == 'default':
+    raise ValueError(
+        "You are submitting a pipeline with Apache Beam Python SDK "
+        f"{beam.version.__version__}. "
+        "When launching Dataflow jobs with an unreleased (dev) SDK, "
+        "please provide an SDK distribution in the --sdk_location option "
+        "to use a consistent SDK version at "
+        "pipeline submission and runtime. To ignore this error and use "
+        "an SDK preinstalled in the default Dataflow dev runtime environment "
+        "or in a custom container image, use --sdk_location=container.")
 
   # Streaming only supports using runner v2 (aka unified worker).
   # Runner v2 only supports using streaming engine (aka windmill service)

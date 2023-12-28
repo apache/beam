@@ -70,9 +70,12 @@ def extract_prediction(response):
     recommendationengine is None,
     "Recommendations AI dependencies not installed.")
 class RecommendationAIIT(unittest.TestCase):
+  test_ran = False
+
   def test_create_catalog_item(self):
 
     with TestPipeline(is_integration_test=True) as p:
+      RecommendationAIIT.test_ran = True
       output = (
           p | 'Create data' >> beam.Create([CATALOG_ITEM])
           | 'Create CatalogItem' >>
@@ -85,6 +88,7 @@ class RecommendationAIIT(unittest.TestCase):
     USER_EVENT = {"event_type": "page-visit", "user_info": {"visitor_id": "1"}}
 
     with TestPipeline(is_integration_test=True) as p:
+      RecommendationAIIT.test_ran = True
       output = (
           p | 'Create data' >> beam.Create([USER_EVENT]) | 'Create UserEvent' >>
           recommendations_ai.WriteUserEvent(project=GCP_TEST_PROJECT)
@@ -96,6 +100,7 @@ class RecommendationAIIT(unittest.TestCase):
     USER_EVENT = {"event_type": "page-visit", "user_info": {"visitor_id": "1"}}
 
     with TestPipeline(is_integration_test=True) as p:
+      RecommendationAIIT.test_ran = True
       output = (
           p | 'Create data' >> beam.Create([USER_EVENT])
           | 'Predict UserEvent' >> recommendations_ai.PredictUserEvent(
@@ -106,6 +111,9 @@ class RecommendationAIIT(unittest.TestCase):
 
   @classmethod
   def tearDownClass(cls):
+    if not cls.test_ran:
+      raise unittest.SkipTest('all test skipped')
+
     client = recommendationengine.CatalogServiceClient()
     parent = (
         f'projects/{GCP_TEST_PROJECT}/locations/'

@@ -39,7 +39,7 @@ public class GroupIntoBatchesTranslation {
   static class GroupIntoBatchesTranslator
       implements TransformPayloadTranslator<GroupIntoBatches<?, ?>> {
     @Override
-    public String getUrn(GroupIntoBatches<?, ?> transform) {
+    public String getUrn() {
       return PTransformTranslation.GROUP_INTO_BATCHES_URN;
     }
 
@@ -61,7 +61,7 @@ public class GroupIntoBatchesTranslation {
   static class ShardedGroupIntoBatchesTranslator
       implements TransformPayloadTranslator<GroupIntoBatches<?, ?>.WithShardedKey> {
     @Override
-    public String getUrn(GroupIntoBatches<?, ?>.WithShardedKey transform) {
+    public String getUrn() {
       return PTransformTranslation.GROUP_INTO_BATCHES_WITH_SHARDED_KEY_URN;
     }
 

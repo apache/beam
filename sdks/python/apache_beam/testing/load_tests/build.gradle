@@ -59,7 +59,7 @@ task run(type: Exec, dependsOn: installGcpTest) {
     ignoreExitValue true
 
     doLast {
-        if (execResult.exitValue != 0) {
+        if (executionResult.get().exitValue != 0) {
             throw new GradleException('error occurred')
         }
     }

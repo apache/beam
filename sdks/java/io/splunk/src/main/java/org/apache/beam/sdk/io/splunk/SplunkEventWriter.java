@@ -33,8 +33,9 @@ import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
-import java.time.Instant;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.beam.repackaged.core.org.apache.commons.compress.utils.IOUtils;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult;
@@ -53,8 +54,11 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.InetAddresses;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.InternetDomainName;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -70,7 +74,7 @@ import org.slf4j.LoggerFactory;
 })
 abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWriteError> {
 
-  private static final Integer DEFAULT_BATCH_COUNT = 1;
+  private static final Integer DEFAULT_BATCH_COUNT = 10;
   private static final Boolean DEFAULT_DISABLE_CERTIFICATE_VALIDATION = false;
   private static final Boolean DEFAULT_ENABLE_BATCH_LOGS = true;
   private static final Boolean DEFAULT_ENABLE_GZIP_HTTP_COMPRESSION = true;
@@ -97,6 +101,13 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
   private static final String BUFFER_STATE_NAME = "buffer";
   private static final String COUNT_STATE_NAME = "count";
   private static final String TIME_ID_NAME = "expiry";
+
+  private static final Pattern URL_PATTERN = Pattern.compile("^http(s?)://([^:]+)(:[0-9]+)?$");
+
+  @VisibleForTesting
+  protected static final String INVALID_URL_FORMAT_MESSAGE =
+      "Invalid url format. Url format should match PROTOCOL://HOST[:PORT], where PORT is optional. "
+          + "Supported Protocols are http and https. eg: http://hostname:8088";
 
   @StateId(BUFFER_STATE_NAME)
   private final StateSpec<BagState<SplunkEvent>> buffer = StateSpecs.bag();
@@ -139,6 +150,7 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
   public void setup() {
 
     checkArgument(url().isAccessible(), "url is required for writing events.");
+    checkArgument(isValidUrlFormat(url().get()), INVALID_URL_FORMAT_MESSAGE);
     checkArgument(token().isAccessible(), "Access token is required for writing events.");
 
     // Either user supplied or default batchCount.
@@ -287,7 +299,7 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
         response = publisher.execute(events);
 
         if (!response.isSuccessStatusCode()) {
-          UNSUCCESSFUL_WRITE_LATENCY_MS.update(System.nanoTime() - startTime);
+          UNSUCCESSFUL_WRITE_LATENCY_MS.update(nanosToMillis(System.nanoTime() - startTime));
           FAILED_WRITES.inc(countState.read());
           int statusCode = response.getStatusCode();
           if (statusCode >= 400 && statusCode < 500) {
@@ -305,7 +317,7 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
               events, response.getStatusMessage(), response.getStatusCode(), receiver);
 
         } else {
-          SUCCESSFUL_WRITE_LATENCY_MS.update(Instant.now().toEpochMilli() - startTime);
+          SUCCESSFUL_WRITE_LATENCY_MS.update(nanosToMillis(System.nanoTime() - startTime));
           SUCCESS_WRITES.inc(countState.read());
           VALID_REQUESTS.inc();
           SUCCESSFUL_WRITE_BATCH_SIZE.update(countState.read());
@@ -321,7 +333,7 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
             e.getStatusCode(),
             e.getContent(),
             e.getStatusMessage());
-        UNSUCCESSFUL_WRITE_LATENCY_MS.update(System.nanoTime() - startTime);
+        UNSUCCESSFUL_WRITE_LATENCY_MS.update(nanosToMillis(System.nanoTime() - startTime));
         FAILED_WRITES.inc(countState.read());
         int statusCode = e.getStatusCode();
         if (statusCode >= 400 && statusCode < 500) {
@@ -336,7 +348,7 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
 
       } catch (IOException ioe) {
         LOG.error("Error writing to Splunk: {}", ioe.getMessage());
-        UNSUCCESSFUL_WRITE_LATENCY_MS.update(System.nanoTime() - startTime);
+        UNSUCCESSFUL_WRITE_LATENCY_MS.update(nanosToMillis(System.nanoTime() - startTime));
         FAILED_WRITES.inc(countState.read());
         INVALID_REQUESTS.inc();
 
@@ -350,8 +362,21 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
         bufferState.clear();
         countState.clear();
 
-        if (response != null) {
-          response.disconnect();
+        // We've observed cases where errors at this point can cause the pipeline to keep retrying
+        // the same events over and over (e.g. from Dataflow Runner's Pub/Sub implementation). Since
+        // the events have either been published or wrapped for error handling, we can safely
+        // ignore this error, though there may or may not be a leak of some type depending on
+        // HttpResponse's implementation. However, any potential leak would still happen if we let
+        // the exception fall through, so this isn't considered a major issue.
+        try {
+          if (response != null) {
+            response.ignore();
+          }
+        } catch (IOException e) {
+          LOG.warn(
+              "Error ignoring response from Splunk. Messages should still have published, but there"
+                  + " might be a connection leak.",
+              e);
         }
       }
     }
@@ -426,6 +451,26 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
     }
   }
 
+  @VisibleForTesting
+  static boolean isValidUrlFormat(String url) {
+    Matcher matcher = URL_PATTERN.matcher(url);
+    if (matcher.find()) {
+      String host = matcher.group(2);
+      return InetAddresses.isInetAddress(host) || InternetDomainName.isValid(host);
+    }
+    return false;
+  }
+
+  /**
+   * Converts Nanoseconds to Milliseconds.
+   *
+   * @param ns time in nanoseconds
+   * @return time in milliseconds
+   */
+  private static long nanosToMillis(long ns) {
+    return Math.round(((double) ns) / 1e6);
+  }
+
   @AutoValue.Builder
   abstract static class Builder {
 
@@ -458,6 +503,9 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
      */
     Builder withUrl(ValueProvider<String> url) {
       checkArgument(url != null, "withURL(url) called with null input.");
+      if (url.isAccessible()) {
+        checkArgument(isValidUrlFormat(url.get()), INVALID_URL_FORMAT_MESSAGE);
+      }
       return setUrl(url);
     }
 
@@ -469,6 +517,7 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
      */
     Builder withUrl(String url) {
       checkArgument(url != null, "withURL(url) called with null input.");
+      checkArgument(isValidUrlFormat(url), INVALID_URL_FORMAT_MESSAGE);
       return setUrl(ValueProvider.StaticValueProvider.of(url));
     }
 

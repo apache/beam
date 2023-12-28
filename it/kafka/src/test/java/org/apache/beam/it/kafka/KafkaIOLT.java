@@ -175,7 +175,7 @@ public final class KafkaIOLT extends IOLoadTestBase {
         .apply("Write to Kafka", writeIO.withTopic(kafkaTopic));
 
     PipelineLauncher.LaunchConfig options =
-        PipelineLauncher.LaunchConfig.builder("test-kafka-write")
+        PipelineLauncher.LaunchConfig.builder("write-kafka")
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(writePipeline)
             .addParameter("runner", configuration.getRunner())
@@ -195,7 +195,7 @@ public final class KafkaIOLT extends IOLoadTestBase {
         .apply("Counting element", ParDo.of(new CountingFn<>(READ_ELEMENT_METRIC_NAME)));
 
     PipelineLauncher.LaunchConfig options =
-        PipelineLauncher.LaunchConfig.builder("test-kafka-read")
+        PipelineLauncher.LaunchConfig.builder("read-kafka")
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(readPipeline)
             .addParameter("runner", configuration.getRunner())

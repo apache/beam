@@ -143,7 +143,7 @@ class CrossLanguageKafkaIOTest(unittest.TestCase):
       self.run_kafka_write(pipeline_creator)
       self.run_kafka_read(pipeline_creator, None)
 
-  @pytest.mark.uses_io_expansion_service
+  @pytest.mark.uses_io_java_expansion_service
   @unittest.skipUnless(
       os.environ.get('EXPANSION_PORT'),
       "EXPANSION_PORT environment var is not provided.")
@@ -162,7 +162,7 @@ class CrossLanguageKafkaIOTest(unittest.TestCase):
     self.run_kafka_write(pipeline_creator)
     self.run_kafka_read(pipeline_creator, b'key')
 
-  @pytest.mark.uses_io_expansion_service
+  @pytest.mark.uses_io_java_expansion_service
   @unittest.skipUnless(
       os.environ.get('EXPANSION_PORT'),
       "EXPANSION_PORT environment var is not provided.")

@@ -42,10 +42,12 @@ on:
       - 'runners/reference/**'
       - 'sdks/python/**'
       - 'release/**'
+      - 'release/trigger_all_tests.json'
+      - '.github/trigger_files/beam_PreCommit_Portable_Python.json'
   issue_comment:
     types: [created]
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '30 2/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -66,7 +68,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.body || github.event.sender.login}}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -76,7 +78,7 @@ env:
 
 jobs:
   beam_PreCommit_Portable_Python:
-    name: ${{matrix.job_name}} (${{matrix.job_phrase}} ${{matrix.python_version}})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
     timeout-minutes: 120
     runs-on: ['self-hosted', ubuntu-20.04, main]
     strategy:
@@ -88,28 +90,22 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       startsWith(github.event.comment.body, 'Run Portable_Python PreCommit')
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{matrix.job_phrase}} ${{matrix.python_version}}
+          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
-      - name: Install Java
-        uses: actions/setup-java@v3.8.0
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'zulu'
-          java-version: '8'
-          cache: 'gradle'
-          check-latest: true
-      - name: Install Python
-        uses: actions/setup-python@v4
-        with:
+          java-version: 8
           python-version: |
-            ${{matrix.python_version}}
+            ${{ matrix.python_version }}
             3.8
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean

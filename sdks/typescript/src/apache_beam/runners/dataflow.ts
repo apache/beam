@@ -33,6 +33,8 @@ export function dataflowRunner(runnerOptions: {
       options: Object = {}
     ): Promise<PipelineResult> {
       var augmentedOptions = { experiments: [] as string[], ...options };
+      augmentedOptions.experiments.push("use_runner_v2");
+      augmentedOptions.experiments.push("use_portable_job_submission");
       augmentedOptions.experiments.push("use_sibling_sdk_workers");
       return new PortableRunner(
         runnerOptions as any,

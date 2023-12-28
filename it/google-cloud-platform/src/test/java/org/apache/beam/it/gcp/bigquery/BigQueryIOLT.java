@@ -99,11 +99,7 @@ public final class BigQueryIOLT extends IOLoadTestBase {
   private static final String READ_ELEMENT_METRIC_NAME = "read_count";
   private Configuration configuration;
   private String tempLocation;
-
   private TableSchema schema;
-
-  private static final String READ_PCOLLECTION = "Counting element.out0";
-  private static final String WRITE_PCOLLECTION = "Map records.out0";
 
   @Rule public TestPipeline writePipeline = TestPipeline.create();
   @Rule public TestPipeline readPipeline = TestPipeline.create();
@@ -268,7 +264,7 @@ public final class BigQueryIOLT extends IOLoadTestBase {
                 .withCustomGcsTempLocation(ValueProvider.StaticValueProvider.of(tempLocation)));
 
     PipelineLauncher.LaunchConfig options =
-        PipelineLauncher.LaunchConfig.builder("test-bigquery-write")
+        PipelineLauncher.LaunchConfig.builder("write-bigquery")
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(writePipeline)
             .addParameter("runner", configuration.runner)
@@ -284,7 +280,10 @@ public final class BigQueryIOLT extends IOLoadTestBase {
 
     // export metrics
     MetricsConfiguration metricsConfig =
-        MetricsConfiguration.builder().setInputPCollection(WRITE_PCOLLECTION).build();
+        MetricsConfiguration.builder()
+            .setInputPCollection("Map records.out0")
+            .setInputPCollectionV2("Map records/ParMultiDo(MapKVToV).out0")
+            .build();
     try {
       exportMetricsToBigQuery(launchInfo, getMetrics(launchInfo, metricsConfig));
     } catch (ParseException | InterruptedException e) {
@@ -301,7 +300,7 @@ public final class BigQueryIOLT extends IOLoadTestBase {
         .apply("Counting element", ParDo.of(new CountingFn<>(READ_ELEMENT_METRIC_NAME)));
 
     PipelineLauncher.LaunchConfig options =
-        PipelineLauncher.LaunchConfig.builder("test-bigquery-read")
+        PipelineLauncher.LaunchConfig.builder("read-bigquery")
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(readPipeline)
             .addParameter("runner", configuration.runner)
@@ -326,7 +325,10 @@ public final class BigQueryIOLT extends IOLoadTestBase {
 
     // export metrics
     MetricsConfiguration metricsConfig =
-        MetricsConfiguration.builder().setOutputPCollection(READ_PCOLLECTION).build();
+        MetricsConfiguration.builder()
+            .setOutputPCollection("Counting element.out0")
+            .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
+            .build();
     try {
       exportMetricsToBigQuery(launchInfo, getMetrics(launchInfo, metricsConfig));
     } catch (ParseException | InterruptedException e) {

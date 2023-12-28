@@ -143,6 +143,29 @@ task postCommitIT {
   }
 }
 
+task postCommitArmIT {
+  def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
+  dependsOn 'initializeForDataflowJob'
+  dependsOn ":sdks:python:container:py${pyversion}:docker"
+
+  doLast {
+    def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
+    def argMap = [
+        "test_opts": testOpts,
+        "sdk_location": project.ext.sdkLocation,
+        "suite": "postCommitIT-df${pythonVersionSuffix}",
+        "collect": "it_postcommit",
+        "py_version": project.ext.pythonVersion,
+        "arch": "ARM"
+    ]
+    def cmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
 task postCommitSickbay {
   dependsOn 'initializeForDataflowJob'
 
@@ -417,8 +440,9 @@ task vertexAIInferenceTest {
       def argMap = [
           "test_opts": testOpts,
           "suite": "VertexAITests-df-py${pythonVersionSuffix}",
-          "collect": "uses_vertex_ai and it_postcommit" ,
-          "runner": "TestDataflowRunner"
+          "collect": "vertex_ai_postcommit" ,
+          "runner": "TestDataflowRunner",
+          "requirements_file": "$requirementsFile"
       ]
       def cmdArgs = mapToArgString(argMap)
       exec {
