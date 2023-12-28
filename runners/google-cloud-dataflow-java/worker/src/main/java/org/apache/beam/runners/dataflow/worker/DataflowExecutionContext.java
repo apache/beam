@@ -285,6 +285,25 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     protected void takeSampleOnce(long millisSinceLastSample) {
       elementExecutionTracker.takeSample(millisSinceLastSample);
       super.takeSampleOnce(millisSinceLastSample);
+      if (super.shouldReportBundleLull()) {
+        StringBuilder dataflowExecutionTrackerLog = "";
+        if (this.activeMessageMetadata != null) {
+          dataflowExecutionTrackerLog.append(
+              "Current user step name: " + getActiveMessageMetadata().get().userStepName() + "\n");
+          dataflowExecutionTrackerLog.append(
+              "Time spent in this step(millis): "
+                  + (System.currentTimeMillis() - getActiveMessageMetadata().get().startTime())
+                  + "\n");
+        }
+        dataflowExecutionTrackerLog.append("Processing times in each step(millis):\n");
+        for (Map.Entry<String, IntSummaryStatistics> entry :
+            this.processingTimesByStep.entrySet()) {
+          dataflowExecutionTrackerLog.append("Step name: " + entry.getKey() + "\n");
+          dataflowExecutionTrackerLog.append(
+              "Time spent in this step: " + entry.getValue().toString() + "\n");
+        }
+        super.reportBundleLull(dataflowExecutionTrackerLog.toString());
+      }
     }
 
     @Override

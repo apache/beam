@@ -55,6 +55,9 @@ public class ExecutionStateTrackerTest {
 
     @Override
     public void reportLull(Thread trackedThread, long millis) {}
+
+    @Override
+    public void reportBundleLull(Thread trackedThread, String customLogMessage, long millis) {}
   }
 
   private final TestExecutionState testExecutionState = new TestExecutionState("activity");

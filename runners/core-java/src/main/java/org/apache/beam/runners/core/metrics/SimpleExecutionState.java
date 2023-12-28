@@ -149,9 +149,38 @@ public class SimpleExecutionState extends ExecutionState {
     return message.toString();
   }
 
+  @VisibleForTesting
+  public String getBundleLullMessage(Thread trackedThread, Duration millis) {
+    // TODO(ajamato): Share getLullMessage code with DataflowExecutionState.
+    String userStepName =
+        this.labelsMetadata.getOrDefault(MonitoringInfoConstants.Labels.PTRANSFORM, null);
+    StringBuilder message = new StringBuilder();
+    message.append("Operation ongoing");
+    if (userStepName != null) {
+      message.append(" in bundle ").append(userStepName);
+    }
+    message
+        .append(" for at least ")
+        .append(formatDuration(millis))
+        .append(" without outputting or completing ")
+        .append(getStateName());
+    message.append("\n");
+
+    StackTraceElement[] fullTrace = trackedThread.getStackTrace();
+    for (StackTraceElement e : fullTrace) {
+      message.append("  at ").append(e).append("\n");
+    }
+    return message.toString();
+  }
+
   @Override
   public void reportLull(Thread trackedThread, long millis) {
     LOG.warn(getLullMessage(trackedThread, Duration.millis(millis)));
+  }
+
+  @Override
+  public void reportBundleLull(Thread trackedThread, String customLogMessage, long millis) {
+    LOG.warn(getBundleLullMessage(trackedThread, Duration.millis(millis)));
   }
 
   @VisibleForTesting

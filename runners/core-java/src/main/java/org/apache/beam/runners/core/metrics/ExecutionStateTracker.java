@@ -46,6 +46,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
       new ConcurrentHashMap<>();
 
   private static final long LULL_REPORT_MS = TimeUnit.MINUTES.toMillis(5);
+  private static final long BUNDLE_LULL_REPORT_MS = TimeUnit.MINUTES.toMillis(10);
   private static final AtomicIntegerFieldUpdater<ExecutionStateTracker> SAMPLING_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(ExecutionStateTracker.class, "sampling");
 
@@ -97,6 +98,17 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
      */
     public abstract void reportLull(Thread trackedThread, long millis);
 
+    /**
+     * Called when a lull has been detected since the start of bundle processing. This indicates
+     * that more than {@link #BUNDLE_LULL_REPORT_MS} has been spent in the same state without any
+     * transitions.
+     *
+     * @param trackedThread The execution thread that is in a lull.
+     * @param millis The milliseconds since the state was most recently entered.
+     */
+    public abstract void reportBundleLull(
+        Thread trackedThread, String customLogMessage, long millis);
+
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass()).add("stateName", stateName).toString();
@@ -139,8 +151,17 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    */
   private volatile long millisSinceLastTransition = 0;
 
+  /**
+   * The number of milliseconds since the {@link ExecutionStateTracker} initial state.
+   *
+   * <p>This variable is updated by the Sampling thread, and read by the Progress Reporting thread,
+   * thus it being marked volatile.
+   */
+  private volatile long millisSinceBundleStart = 0;
+
   private long transitionsAtLastSample = 0;
   private long nextLullReportMs = LULL_REPORT_MS;
+  private long nextBundleLullReportMs = BUNDLE_LULL_REPORT_MS;
 
   public ExecutionStateTracker(ExecutionStateSampler sampler) {
     this.sampler = sampler;
@@ -155,8 +176,10 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     currentState = null;
     numTransitions = 0;
     millisSinceLastTransition = 0;
+    millisSinceBundleStart = 0;
     transitionsAtLastSample = 0;
     nextLullReportMs = LULL_REPORT_MS;
+    nextBundleLullReportMs = BUNDLE_LULL_REPORT_MS;
   }
 
   @VisibleForTesting
@@ -294,6 +317,11 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     return millisSinceLastTransition;
   }
 
+  /** Return the time since the initial state. */
+  public long getMillisSinceBundleStart() {
+    return millisSinceBundleStart;
+  }
+
   /** Return the number of transitions since the last sample. */
   public long getTransitionsAtLastSample() {
     return transitionsAtLastSample;
@@ -304,6 +332,18 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     return nextLullReportMs;
   }
 
+  /** Return true if time in bundle start is greater than BUNDLE_LULL_REPORT_MS. */
+  public bool shouldReportBundleLull() {
+    return millisSinceBundleStart > nextBundleLullReportMs;
+  }
+  
+  /**
+   * Called periodically by the {@link ExecutionStateSampler} to report time recorded by the
+   * tracker.
+   *
+   * @param millisSinceLastSample the time since the last sample was reported. As an approximation,
+   *     all of that time should be associated with this tracker.
+   */
   void takeSample(long millisSinceLastSample) {
     if (SAMPLING_UPDATER.compareAndSet(this, 0, 1)) {
       try {
@@ -311,6 +351,13 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
       } finally {
         SAMPLING_UPDATER.set(this, 0);
       }
+    }
+  }
+
+  protected void reportBundleLull(string customLogMessage) {
+    if (currentState != null) {
+      currentState.reportBundleLull(trackedThread, customLogMessage, millisSinceBundleStart);
+      nextBundleLullReportMs += BUNDLE_LULL_REPORT_MS;
     }
   }
 
@@ -328,6 +375,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
       transitionsAtLastSample = transitionsAtThisSample;
     }
     updateMillisSinceLastTransition(millisSinceLastSample, state);
+    millisSinceBundleStart += millisSinceLastSample;
   }
 
   @SuppressWarnings("NonAtomicVolatileUpdate")

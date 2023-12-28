@@ -271,6 +271,23 @@ public class DataflowOperationContext implements OperationContext {
       return message.toString();
     }
 
+    protected String getBundleLullMessage(Thread trackedThread, Duration lullDuration) {
+      StringBuilder message = new StringBuilder();
+      message.append("Operation ongoing");
+      if (getStepName() != null) {
+        message.append(" in bundle ").append(getStepName().userName());
+      }
+      message
+          .append(" for at least ")
+          .append(formatDuration(lullDuration))
+          .append(" without outputting or completing")
+          .append(getStateName());
+      message.append("\n");
+
+      message.append(getStackTraceForLullMessage(trackedThread.getStackTrace()));
+      return message.toString();
+    }
+
     @Override
     public void reportLull(Thread trackedThread, long millis) {
       // If we're not logging warnings, nothing to report.
@@ -307,6 +324,44 @@ public class DataflowOperationContext implements OperationContext {
       }
     }
 
+    @Override
+    public void reportBundleLull(Thread trackedThread, String customLogMessage, long millis) {
+      // If we're not logging warnings, nothing to report.
+      if (!LOG.isWarnEnabled()) {
+        return;
+      }
+
+      Duration lullDuration = Duration.millis(millis);
+
+      // Since the lull reporting executes in the sampler thread, it won't automatically inherit the
+      // context of the current step. To ensure things are logged correctly, we get the currently
+      // registered DataflowWorkerLoggingHandler and log directly in the desired context.
+      LogRecord logRecord =
+          new LogRecord(
+              Level.WARNING,
+              (customLogMessage + "\n" + getBundleLullMessage(trackedThread, lullDuration)));
+      logRecord.setLoggerName(DataflowOperationContext.LOG.getName());
+
+      // Publish directly in the context of this specific ExecutionState.
+      DataflowWorkerLoggingHandler dataflowLoggingHandler =
+          DataflowWorkerLoggingInitializer.getLoggingHandler();
+      dataflowLoggingHandler.publish(this, logRecord);
+
+      if (shouldLogFullThreadDumpForBundle(lullDuration)) {
+        Map<Thread, StackTraceElement[]> threadSet = Thread.getAllStackTraces();
+        for (Map.Entry<Thread, StackTraceElement[]> entry : threadSet.entrySet()) {
+          Thread thread = entry.getKey();
+          StackTraceElement[] stackTrace = entry.getValue();
+          StringBuilder message = new StringBuilder();
+          message.append(thread.toString()).append(":\n");
+          message.append(getStackTraceForLullMessage(stackTrace));
+          logRecord = new LogRecord(Level.INFO, message.toString());
+          logRecord.setLoggerName(DataflowOperationContext.LOG.getName());
+          dataflowLoggingHandler.publish(this, logRecord);
+        }
+      }
+    }
+
     /**
      * The time interval between two full thread dump. (A full thread dump is performed at most once
      * every 20 minutes.)
@@ -316,8 +371,14 @@ public class DataflowOperationContext implements OperationContext {
     /** The minimum lull duration to perform a full thread dump. */
     private static final long LOG_LULL_FULL_THREAD_DUMP_LULL_MS = 20 * 60 * 1000;
 
+    /** The minimum lull duration to perform a full thread dump. */
+    private static final long LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS = 20 * 60 * 1000;
+
     /** Last time when a full thread dump was performed. */
     private long lastFullThreadDumpMillis = 0;
+    
+    /** Last time when a full thread dump was performed at bundle level. */
+    private long lastFullThreadDumpMillisForBundle = 0;
 
     private boolean shouldLogFullThreadDump(Duration lullDuration) {
       if (lullDuration.getMillis() < LOG_LULL_FULL_THREAD_DUMP_LULL_MS) {
@@ -326,6 +387,18 @@ public class DataflowOperationContext implements OperationContext {
       long now = clock.currentTimeMillis();
       if (lastFullThreadDumpMillis + LOG_LULL_FULL_THREAD_DUMP_INTERVAL_MS < now) {
         lastFullThreadDumpMillis = now;
+        return true;
+      }
+      return false;
+    }
+
+    private boolean shouldLogFullThreadDumpForBundle(Duration lullDuration) {
+      if (lullDuration.getMillis() < LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS) {
+        return false;
+      }
+      long now = clock.currentTimeMillis();
+      if (lastFullThreadDumpMillisForBundle + LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS < now) {
+        lastFullThreadDumpMillisForBundle = now;
         return true;
       }
       return false;
