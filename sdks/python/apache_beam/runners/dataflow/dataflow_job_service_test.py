@@ -24,10 +24,8 @@ from apache_beam.runners.portability import local_job_service
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
-try:
-  from apache_beam.runners.dataflow.internal import apiclient
-except ImportError:
-  apiclient = None  # type: ignore
+from apache_beam.runners.dataflow.internal import apiclient
+
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -48,6 +46,7 @@ class DirectPipelineResultTest(unittest.TestCase):
           temp_location='gs://bucket/dir',
           region='us-central1',
           dry_run=True,
+          template_location='gs://bucket/dir'
       )
       with beam.Pipeline(options=options) as p:
         _ = p | beam.Create([1, 2, 3]) | beam.Map(lambda x: x * x)
