@@ -342,12 +342,9 @@ public class DataflowOperationContext implements OperationContext {
       // context of the current step. To ensure things are logged correctly, we get the currently
       // registered DataflowWorkerLoggingHandler and log directly in the desired context.
       LogRecord logRecord =
-          new LogRecord(
-              Level.WARNING, getBundleLullMessage(trackedThread, lullDuration));
+          new LogRecord(Level.WARNING, getBundleLullMessage(trackedThread, lullDuration));
       logRecord.setLoggerName(DataflowOperationContext.LOG.getName());
-      LogRecord customLogRecord =
-          new LogRecord(
-              Level.WARNING, customLogMessage);
+      LogRecord customLogRecord = new LogRecord(Level.WARNING, customLogMessage);
       customLogRecord.setLoggerName(DataflowOperationContext.LOG.getName());
 
       // Publish directly in the context of this specific ExecutionState.
