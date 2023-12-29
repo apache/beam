@@ -309,7 +309,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
                   + (System.currentTimeMillis() - getActiveMessageMetadata().get().startTime())
                   + "\n");
         }
-        dataflowExecutionTrackerLog.append("Processing times in each step(millis):\n");
+        dataflowExecutionTrackerLog.append("Processing times in each step(millis)\n");
         for (Map.Entry<String, IntSummaryStatistics> entry :
             this.processingTimesByStep.entrySet()) {
           dataflowExecutionTrackerLog.append("Step name: " + entry.getKey() + "\n");

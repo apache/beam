@@ -343,14 +343,19 @@ public class DataflowOperationContext implements OperationContext {
       // registered DataflowWorkerLoggingHandler and log directly in the desired context.
       LogRecord logRecord =
           new LogRecord(
-              Level.WARNING,
-              (customLogMessage + "\n" + getBundleLullMessage(trackedThread, lullDuration)));
+              Level.WARNING, getBundleLullMessage(trackedThread, lullDuration));
       logRecord.setLoggerName(DataflowOperationContext.LOG.getName());
+      LogRecord customLogRecord =
+          new LogRecord(
+              Level.WARNING, customLogMessage);
+      customLogRecord.setLoggerName(DataflowOperationContext.LOG.getName());
 
       // Publish directly in the context of this specific ExecutionState.
       DataflowWorkerLoggingHandler dataflowLoggingHandler =
           DataflowWorkerLoggingInitializer.getLoggingHandler();
       dataflowLoggingHandler.publish(this, logRecord);
+      dataflowLoggingHandler.publish(this, customLogRecord);
+
 
       if (shouldLogFullThreadDumpForBundle(lullDuration)) {
         Map<Thread, StackTraceElement[]> threadSet = Thread.getAllStackTraces();
