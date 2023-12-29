@@ -19,11 +19,11 @@ import argparse
 import logging
 import sys
 
+from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.runners.dataflow import dataflow_runner
 from apache_beam.runners.portability import local_job_service
 from apache_beam.runners.portability import local_job_service_main
 from apache_beam.runners.portability import portable_runner
-from apache_beam.portability.api import beam_job_api_pb2
 
 
 class DataflowBeamJob(local_job_service.BeamJob):
