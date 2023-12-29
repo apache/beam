@@ -24,8 +24,10 @@ from apache_beam.runners.portability import local_job_service
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
-from apache_beam.runners.dataflow.internal import apiclient
-
+try:
+  from apache_beam.runners.dataflow.internal import apiclient
+except ImportError:
+  apiclient = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
