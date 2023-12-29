@@ -35,8 +35,8 @@ class DataflowBeamJob(local_job_service.BeamJob):
     runner = dataflow_runner.DataflowRunner()
     self.result = runner.run_pipeline(
         None, self.pipeline_options(), self._pipeline_proto)
-    # The result can be None if there is no need to send a request to the service (e.g.
-    # template creation).
+    # The result can be None if there is no need to send a request
+    # to the service (e.g. template creation).
     if not getattr(self.result, 'has_job', None):
       self.set_state(beam_job_api_pb2.JobState.DONE)
       return self.result

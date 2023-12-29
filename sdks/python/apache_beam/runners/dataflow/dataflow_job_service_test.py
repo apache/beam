@@ -48,7 +48,7 @@ class DirectPipelineResultTest(unittest.TestCase):
           temp_location='gs://bucket/dir',
           region='us-central1',
           dry_run=True,
-          template_location='gs://bucket/dir'
+          template_location='gs://bucket/dir',
       )
       with beam.Pipeline(options=options) as p:
         _ = p | beam.Create([1, 2, 3]) | beam.Map(lambda x: x * x)
