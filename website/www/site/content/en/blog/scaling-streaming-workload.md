@@ -27,7 +27,7 @@ limitations under the License.
 
 Scaling a streaming workload is critical for ensuring that a pipeline can handle large amounts of data being processed, while minimizing latency and executing efficiently. Without proper scaling, a pipeline may experience performance issues or even fail entirely, delaying the time to insights for the business.
 
-When using Apache Beam, developing a streaming pipeline can be made easy given the support for the sources and sinks needed by the workload. One can focus on the needed processing (transformations, enrichments or aggregations) and setting the right configurations on each case.
+Given the Apache Beam support for the sources and sinks needed by the workload, developing a streaming pipeline can be easy. You can focus on the processing (transformations, enrichments, or aggregations) and on setting the right configurations for each case.
 
 However, it is important to identify the key performance bottlenecks and make sure that the pipeline has the resources it needs to handle the load efficiently. This may involve right-sizing the number of workers, understanding the settings needed for the source and sinks of the pipeline, optimizing the processing logic, and even the transport formats in use.
 
