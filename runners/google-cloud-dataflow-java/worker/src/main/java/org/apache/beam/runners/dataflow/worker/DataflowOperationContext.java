@@ -356,7 +356,6 @@ public class DataflowOperationContext implements OperationContext {
       dataflowLoggingHandler.publish(this, logRecord);
       dataflowLoggingHandler.publish(this, customLogRecord);
 
-
       if (shouldLogFullThreadDumpForBundle(lullDuration)) {
         Map<Thread, StackTraceElement[]> threadSet = Thread.getAllStackTraces();
         for (Map.Entry<Thread, StackTraceElement[]> entry : threadSet.entrySet()) {
