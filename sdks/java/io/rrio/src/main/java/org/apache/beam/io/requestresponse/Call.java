@@ -46,7 +46,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Duration;
@@ -113,16 +112,6 @@ class Call<RequestT, ResponseT>
   }
 
   /**
-   * Configures {@link Call} with features required to execute user custom {@link Caller}
-   * implementations. {@link VisibleForTesting} to test whether {@link RequestResponseIO} adequately
-   * instantiates {@link Call} with the correct {@link Configuration}.
-   */
-  @VisibleForTesting
-  Configuration<RequestT, ResponseT> getConfiguration() {
-    return configuration;
-  }
-
-  /**
    * Sets the {@link SetupTeardown} to the {@link Call} {@link PTransform} instance. Checks for
    * {@link SerializableUtils#ensureSerializable} serializable errors.
    */
@@ -158,9 +147,15 @@ class Call<RequestT, ResponseT>
     private final CallerWithTimeout<RequestT, ResponseT> caller;
     private final SetupTeardownWithTimeout setupTeardown;
     private final Configuration<RequestT, ResponseT> configuration;
+    private @MonotonicNonNull Counter requestsCounter = null;
+    private @MonotonicNonNull Counter responsesCounter = null;
+    private @MonotonicNonNull Counter failuresCounter = null;
     private @MonotonicNonNull Counter callCounter = null;
     private @MonotonicNonNull Counter setupCounter = null;
     private @MonotonicNonNull Counter teardownCounter = null;
+    private @MonotonicNonNull Counter backoffCounter = null;
+    private @MonotonicNonNull Counter sleeperCounter = null;
+    private @MonotonicNonNull Counter shouldBackoffCounter = null;
 
     private transient @MonotonicNonNull ExecutorService executor;
 
@@ -179,27 +174,51 @@ class Call<RequestT, ResponseT>
 
     private void setupMetrics() {
       Monitoring monitoring = configuration.getMonitoringConfiguration();
+      if (monitoring.getCountRequests()) {
+        requestsCounter = Metrics.counter(Call.class, Monitoring.REQUESTS_COUNTER_NAME);
+      }
+      if (monitoring.getCountResponses()) {
+        responsesCounter = Metrics.counter(Call.class, Monitoring.RESPONSES_COUNTER_NAME);
+      }
+      if (monitoring.getCountFailures()) {
+        failuresCounter = Metrics.counter(Call.class, Monitoring.FAILURES_COUNTER_NAME);
+      }
       if (monitoring.getCountCalls()) {
         callCounter =
-            Metrics.counter(
-                Call.class, configuration.getCaller().getClass().getSimpleName() + "_call");
+            Metrics.counter(Call.class, Monitoring.callCounterNameOf(configuration.getCaller()));
       }
       if (monitoring.getCountSetup()) {
         setupCounter =
             Metrics.counter(
-                Call.class, configuration.getSetupTeardown().getClass().getSimpleName() + "_setup");
+                Call.class, Monitoring.setupCounterNameOf(configuration.getSetupTeardown()));
       }
       if (monitoring.getCountTeardown()) {
         teardownCounter =
             Metrics.counter(
+                Call.class, Monitoring.teardownCounterNameOf(configuration.getSetupTeardown()));
+      }
+      if (monitoring.getCountBackoffs()) {
+        backoffCounter =
+            Metrics.counter(
                 Call.class,
-                configuration.getSetupTeardown().getClass().getSimpleName() + "_teardown");
+                Monitoring.backoffCounterNameOf(configuration.getBackOffSupplier().get()));
+      }
+      if (monitoring.getCountSleeps()) {
+        sleeperCounter =
+            Metrics.counter(
+                Call.class,
+                Monitoring.sleeperCounterNameOf(configuration.getSleeperSupplier().get()));
+      }
+      if (monitoring.getCountShouldBackoff()) {
+        shouldBackoffCounter =
+            Metrics.counter(
+                Call.class,
+                Monitoring.shouldBackoffCounterName(configuration.getCallShouldBackoff()));
       }
     }
 
     private void setupWithoutRepeat() throws UserCodeExecutionException {
       if (setupCounter != null) {
-        // still needed by checker
         checkStateNotNull(setupCounter).inc();
       }
       this.setupTeardown.setup();
@@ -228,6 +247,9 @@ class Call<RequestT, ResponseT>
 
       if (this.configuration.getCallShouldBackoff().value()) {
         try {
+          if (backoffCounter != null) {
+            checkStateNotNull(backoffCounter).inc();
+          }
           sleeper.sleep(backOff.nextBackOffMillis());
         } catch (InterruptedException ignored) {
         } catch (IOException e) {
@@ -242,13 +264,14 @@ class Call<RequestT, ResponseT>
               .setThrowableFunction(
                   ignored -> {
                     if (setupCounter != null) {
-                      // still needed by checker
                       checkStateNotNull(setupCounter).inc();
                     }
                     this.setupTeardown.setup();
                     return null;
                   })
-              .build();
+              .build()
+              .withBackoffCounter(backoffCounter)
+              .withSleeperCounter(sleeperCounter);
 
       repeater.apply(null);
     }
@@ -256,7 +279,6 @@ class Call<RequestT, ResponseT>
     private void performTeardown() throws UserCodeExecutionException {
       if (!configuration.getShouldRepeat()) {
         if (teardownCounter != null) {
-          // still needed by checker
           checkStateNotNull(teardownCounter).inc();
         }
         setupTeardown.teardown();
@@ -273,13 +295,14 @@ class Call<RequestT, ResponseT>
               .setThrowableFunction(
                   ignored -> {
                     if (teardownCounter != null) {
-                      // still needed by checker
                       checkStateNotNull(teardownCounter).inc();
                     }
                     setupTeardown.teardown();
                     return null;
                   })
-              .build();
+              .build()
+              .withBackoffCounter(backoffCounter)
+              .withSleeperCounter(sleeperCounter);
 
       repeater.apply(null);
     }
@@ -315,11 +338,24 @@ class Call<RequestT, ResponseT>
     public void process(@Element @NonNull RequestT request, MultiOutputReceiver receiver)
         throws JsonProcessingException {
 
+      if (requestsCounter != null) {
+        checkStateNotNull(requestsCounter).inc();
+      }
+
       BackOff backOff = configuration.getBackOffSupplier().get();
       Sleeper sleeper = configuration.getSleeperSupplier().get();
 
       if (configuration.getCallShouldBackoff().value()) {
+        if (shouldBackoffCounter != null) {
+          checkStateNotNull(shouldBackoffCounter).inc();
+        }
+        if (backoffCounter != null) {
+          checkStateNotNull(backoffCounter).inc();
+        }
         try {
+          if (sleeperCounter != null) {
+            checkStateNotNull(sleeperCounter).inc();
+          }
           sleeper.sleep(backOff.nextBackOffMillis());
         } catch (InterruptedException ignored) {
         } catch (IOException e) {
@@ -336,27 +372,39 @@ class Call<RequestT, ResponseT>
           // TODO(damondouglas): https://github.com/apache/beam/issues/29248
           ResponseT response = caller.call(request);
           receiver.get(responseTag).output(response);
+          if (responsesCounter != null) {
+            checkStateNotNull(responsesCounter).inc();
+          }
         } catch (UserCodeExecutionException e) {
+          if (failuresCounter != null) {
+            checkStateNotNull(failuresCounter).inc();
+          }
           receiver.get(failureTag).output(ApiIOError.of(e, request));
         }
 
         return;
       }
 
-      Repeater.Builder<RequestT, ResponseT> repeaterBuilder =
+      Repeater<RequestT, ResponseT> repeater =
           Repeater.<RequestT, ResponseT>builder()
               .setSleeper(sleeper)
               .setBackOff(backOff)
-              .setThrowableFunction(caller::call);
-
-      if (callCounter != null) {
-        repeaterBuilder = repeaterBuilder.setCallCounter(callCounter);
-      }
+              .setThrowableFunction(caller::call)
+              .build()
+              .withSleeperCounter(sleeperCounter)
+              .withBackoffCounter(backoffCounter)
+              .withCallCounter(callCounter);
 
       try {
-        ResponseT response = repeaterBuilder.build().apply(request);
+        ResponseT response = repeater.apply(request);
         receiver.get(responseTag).output(response);
+        if (responsesCounter != null) {
+          checkStateNotNull(responsesCounter).inc();
+        }
       } catch (UserCodeExecutionException e) {
+        if (failuresCounter != null) {
+          checkStateNotNull(failuresCounter).inc();
+        }
         receiver.get(failureTag).output(ApiIOError.of(e, request));
       }
     }

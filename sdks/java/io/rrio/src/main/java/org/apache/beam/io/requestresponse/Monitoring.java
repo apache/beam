@@ -19,17 +19,120 @@ package org.apache.beam.io.requestresponse;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Optional;
+import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metric;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
 
 /**
  * Configures {@link Metric}s throughout various features of {@link RequestResponseIO}. By default,
  * all monitoring is turned off.
+ *
+ * <pre>
+ * Cache metrics are not yet supported. See <a href="https://github.com/apache/beam/issues/29888">https://github.com/apache/beam/issues/29888</a>
+ * </pre>
  */
 @AutoValue
 public abstract class Monitoring implements Serializable {
+
+  private static final String SEPARATOR = "_";
+
+  /** Counter name for the number of requests received by the {@link Call} transform. */
+  static final String REQUESTS_COUNTER_NAME = "requests";
+
+  /** Counter name for the number of responses emitted by the {@link Call} transform. */
+  static final String RESPONSES_COUNTER_NAME = "responses";
+
+  /** Counter name for the number of failures emitted by the {@link Call} transform. */
+  static final String FAILURES_COUNTER_NAME = "failures";
+
+  /** Counter name for the number of cache read attempts. */
+  static final String CACHE_READ_REQUESTS_COUNTER_NAME = metricNameOf("cache", "read", "requests");
+
+  /**
+   * Counter name for the number of null requests and response associations received during cache
+   * reads.
+   */
+  static final String CACHE_READ_NULL_COUNTER_NAME = metricNameOf("cache", "read", "nulls");
+
+  /**
+   * Counter name for the number of non-null requests and response associations received during
+   * cache reads.
+   */
+  static final String CACHE_READ_NON_NULL_COUNTER_NAME =
+      metricNameOf("cache", "read", "non", "nulls");
+
+  /** Counter name for the number of failures encountered during cache reads. */
+  static final String CACHE_READ_FAILURES_COUNTER_NAME = metricNameOf("cache", "read", "failures");
+
+  /** Counter name for the number of cache write attempts. */
+  static final String CACHE_WRITE_REQUESTS_COUNTER_NAME =
+      metricNameOf("cache", "write", "requests");
+
+  /** Counter name for the number of successful cache writes. */
+  static final String CACHE_WRITE_SUCCESSES_COUNTER_NAME =
+      metricNameOf("cache", "write", "successes");
+
+  /** Counter name for the number of failures encountered during cache writes. */
+  static final String CACHE_WRITE_FAILURES_COUNTER_NAME =
+      metricNameOf("cache", "write", "failures");
+
+  private static final String CALL_COUNTER_NAME = metricNameOf("call", "invocations");
+  private static final String SETUP_COUNTER_NAME = metricNameOf("setup", "invocations");
+  private static final String TEARDOWN_COUNTER_NAME = metricNameOf("teardowns", "invocations");
+  private static final String BACKOFF_COUNTER_NAME = "backoffs";
+  private static final String SLEEPER_COUNTER_NAME = "sleeps";
+  private static final String SHOULD_BACKOFF_COUNTER_NAME =
+      metricNameOf("should", "backoff", "count");
+
+  /** Derives a {@link Counter} name for a {@link Caller#call} invocation count. */
+  static String callCounterNameOf(Caller<?, ?> instance) {
+    return metricNameOf(instance.getClass(), CALL_COUNTER_NAME);
+  }
+
+  /** Derives a {@link Counter} name for a {@link SetupTeardown#setup} invocation count. */
+  static String setupCounterNameOf(SetupTeardown instance) {
+    return metricNameOf(instance.getClass(), SETUP_COUNTER_NAME);
+  }
+
+  /** Derives a {@link Counter} name for a {@link SetupTeardown#teardown} invocation count. */
+  static String teardownCounterNameOf(SetupTeardown instance) {
+    return metricNameOf(instance.getClass(), TEARDOWN_COUNTER_NAME);
+  }
+
+  /** Derives a {@link Counter} name for a {@link BackOff#nextBackOffMillis} invocation count. */
+  static String backoffCounterNameOf(BackOff instance) {
+    return metricNameOf(instance.getClass(), BACKOFF_COUNTER_NAME);
+  }
+
+  /** Derives a {@link Counter} name for a {@link Sleeper#sleep} invocation count. */
+  static String sleeperCounterNameOf(Sleeper instance) {
+    return metricNameOf(instance.getClass(), SLEEPER_COUNTER_NAME);
+  }
+
+  /**
+   * Derives a {@link Counter} name for counts of when {@link CallShouldBackoff#value} is found
+   * true.
+   */
+  static String shouldBackoffCounterName(CallShouldBackoff<?> instance) {
+    return metricNameOf(instance.getClass(), SHOULD_BACKOFF_COUNTER_NAME);
+  }
+
+  private static String metricNameOf(String... segments) {
+    return String.join(SEPARATOR, Arrays.asList(segments));
+  }
+
+  private static String metricNameOf(Class<?> clazz, String suffix) {
+    String simpleName =
+        CaseFormat.UPPER_CAMEL
+            .converterTo(CaseFormat.LOWER_UNDERSCORE)
+            .convert(clazz.getSimpleName());
+    return simpleName + SEPARATOR + suffix;
+  }
 
   public static Builder builder() {
     return new AutoValue_Monitoring.Builder();
@@ -57,6 +160,12 @@ public abstract class Monitoring implements Serializable {
 
   /** Count invocations of {@link BackOff#nextBackOffMillis}. */
   public abstract Boolean getCountBackoffs();
+
+  /** Count invocations of {@link Sleeper#sleep}. */
+  public abstract Boolean getCountSleeps();
+
+  /** Count when {@link CallShouldBackoff#value} is found true. */
+  public abstract Boolean getCountShouldBackoff();
 
   /** Count number of attempts to read from the {@link Cache}. */
   public abstract Boolean getCountCacheReadRequests();
@@ -92,13 +201,26 @@ public abstract class Monitoring implements Serializable {
         .setCountSetup(true)
         .setCountTeardown(true)
         .setCountBackoffs(true)
-        .setCountCacheReadRequests(true)
-        .setCountCacheReadNulls(true)
-        .setCountCacheReadNonNulls(true)
-        .setCountCacheReadFailures(true)
-        .setCountCacheWriteRequests(true)
-        .setCountCacheWriteSuccesses(true)
-        .setCountCacheWriteFailures(true)
+        .setCountSleeps(true)
+        .setCountShouldBackoff(true)
+        .build()
+        .withCountCaching(true);
+  }
+
+  /** Turns on all monitoring except for cache related metrics. */
+  public Monitoring withEverythingCountedExceptedCaching() {
+    return withEverythingCounted().withCountCaching(false);
+  }
+
+  private Monitoring withCountCaching(boolean value) {
+    return toBuilder()
+        .setCountCacheReadRequests(value)
+        .setCountCacheReadNulls(value)
+        .setCountCacheReadNonNulls(value)
+        .setCountCacheReadFailures(value)
+        .setCountCacheWriteRequests(value)
+        .setCountCacheWriteSuccesses(value)
+        .setCountCacheWriteFailures(value)
         .build();
   }
 
@@ -120,6 +242,10 @@ public abstract class Monitoring implements Serializable {
     public abstract Builder setCountTeardown(Boolean value);
 
     public abstract Builder setCountBackoffs(Boolean value);
+
+    public abstract Builder setCountSleeps(Boolean value);
+
+    public abstract Builder setCountShouldBackoff(Boolean value);
 
     public abstract Builder setCountCacheReadRequests(Boolean value);
 
@@ -148,6 +274,10 @@ public abstract class Monitoring implements Serializable {
     abstract Optional<Boolean> getCountTeardown();
 
     abstract Optional<Boolean> getCountBackoffs();
+
+    abstract Optional<Boolean> getCountSleeps();
+
+    abstract Optional<Boolean> getCountShouldBackoff();
 
     abstract Optional<Boolean> getCountCacheReadRequests();
 
@@ -186,6 +316,12 @@ public abstract class Monitoring implements Serializable {
       }
       if (!getCountBackoffs().isPresent()) {
         setCountBackoffs(false);
+      }
+      if (!getCountSleeps().isPresent()) {
+        setCountSleeps(false);
+      }
+      if (!getCountShouldBackoff().isPresent()) {
+        setCountShouldBackoff(false);
       }
       if (!getCountCacheReadRequests().isPresent()) {
         setCountCacheReadRequests(false);

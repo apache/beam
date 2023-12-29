@@ -42,6 +42,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -269,6 +270,12 @@ public class RequestResponseIO<RequestT, ResponseT>
       PTransform<PCollection<RequestT>, Result<RequestT>> throttle) {
     return new RequestResponseIO<>(
         rrioConfiguration.toBuilder().setThrottle(throttle).build(), callConfiguration);
+  }
+
+  /** Exposes the transform's {@link Call.Configuration} for testing. */
+  @VisibleForTesting
+  Call.Configuration<RequestT, ResponseT> getCallConfiguration() {
+    return callConfiguration;
   }
 
   /**

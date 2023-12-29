@@ -20,18 +20,20 @@ package org.apache.beam.io.requestresponse;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
@@ -44,6 +46,7 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -54,16 +57,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class RequestResponseIOTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
-  private static final TypeDescriptor<Request> REQUEST_TYPE = TypeDescriptor.of(Request.class);
   private static final TypeDescriptor<Response> RESPONSE_TYPE = TypeDescriptor.of(Response.class);
   private static final SchemaProvider SCHEMA_PROVIDER = new AutoValueSchema();
-
-  private static final Coder<Request> REQUEST_CODER =
-      SchemaCoder.of(
-          checkStateNotNull(SCHEMA_PROVIDER.schemaFor(REQUEST_TYPE)),
-          REQUEST_TYPE,
-          checkStateNotNull(SCHEMA_PROVIDER.toRowFunction(REQUEST_TYPE)),
-          checkStateNotNull(SCHEMA_PROVIDER.fromRowFunction(REQUEST_TYPE)));
 
   private static final Coder<Response> RESPONSE_CODER =
       SchemaCoder.of(
@@ -73,15 +68,15 @@ public class RequestResponseIOTest {
           checkStateNotNull(SCHEMA_PROVIDER.fromRowFunction(RESPONSE_TYPE)));
 
   @Test
-  public void givenCallerOnly_thenProcessesRequestsOnly() {
-    Result<Response> result =
-        requests()
-            .apply(
-                "rrio",
-                RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER)
-                    .withMonitoringConfiguration(Monitoring.builder().setCountCalls(true)
-                            .setCountSetup(true)
-                            .build()));
+  public void givenCallerOnly_thenProcessesRequestsWithDefaultFeatures() {
+    Caller<Request, Response> caller = new CallerImpl();
+
+    RequestResponseIO<Request, Response> transform =
+        RequestResponseIO.of(caller, RESPONSE_CODER)
+            .withMonitoringConfiguration(
+                Monitoring.builder().build().withEverythingCountedExceptedCaching());
+
+    Result<Response> result = requests().apply("rrio", transform);
 
     PAssert.that(result.getFailures()).empty();
     PAssert.that(result.getResponses()).containsInAnyOrder(responses());
@@ -89,23 +84,59 @@ public class RequestResponseIOTest {
     PipelineResult pipelineResult = pipeline.run();
     MetricResults metrics = pipelineResult.metrics();
     pipelineResult.waitUntilFinish();
-    assertThat(
-        getCounterResult(metrics, Call.class, CallerImpl.class.getSimpleName() + "_call"),
-        equalTo(1L));
 
     assertThat(
-            getCounterResult(metrics, Call.class, Call.NoopSetupTeardown.class.getSimpleName() + "_setup"),
-            equalTo(1L));
+        getCounterResult(metrics, Call.class, Monitoring.REQUESTS_COUNTER_NAME), equalTo(1L));
+    assertThat(
+        getCounterResult(metrics, Call.class, Monitoring.RESPONSES_COUNTER_NAME), equalTo(1L));
+
+    assertThat(
+        getCounterResult(metrics, Call.class, Monitoring.callCounterNameOf(caller)), equalTo(1L));
+
+    assertThat(
+        getCounterResult(
+            metrics, Call.class, Monitoring.setupCounterNameOf(new Call.NoopSetupTeardown())),
+        equalTo(1L));
+
+    // We expect remaining metrics to be 0.
+    assertThat(
+        getCounterResult(metrics, Call.class, Monitoring.FAILURES_COUNTER_NAME), equalTo(0L));
+
+    assertThat(
+        getCounterResult(
+            metrics,
+            Call.class,
+            Monitoring.shouldBackoffCounterName(
+                transform.getCallConfiguration().getCallShouldBackoff())),
+        equalTo(0L));
+
+    assertThat(
+        getCounterResult(
+            metrics,
+            Call.class,
+            Monitoring.sleeperCounterNameOf(
+                transform.getCallConfiguration().getSleeperSupplier().get())),
+        equalTo(0L));
+
+    assertThat(
+        getCounterResult(
+            metrics,
+            Call.class,
+            Monitoring.backoffCounterNameOf(
+                transform.getCallConfiguration().getBackOffSupplier().get())),
+        equalTo(0L));
   }
 
   @Test
   public void givenCallerAndSetupTeardown_thenCallerInvokesSetupTeardown() {
     Result<Response> result =
-            requests().apply("rrio", RequestResponseIO.ofCallerAndSetupTeardown(new CallerSetupTeardownImpl(), RESPONSE_CODER)
-                    .withMonitoringConfiguration(Monitoring.builder()
-                            .setCountCalls(true)
-                            .setCountSetup(true)
-                            .build()));
+        requests()
+            .apply(
+                "rrio",
+                RequestResponseIO.ofCallerAndSetupTeardown(
+                        new CallerSetupTeardownImpl(), RESPONSE_CODER)
+                    .withMonitoringConfiguration(
+                        Monitoring.builder().setCountCalls(true).setCountSetup(true).build()));
 
     PAssert.that(result.getFailures()).empty();
     PAssert.that(result.getResponses()).containsInAnyOrder(responses());
@@ -113,18 +144,28 @@ public class RequestResponseIOTest {
     PipelineResult pipelineResult = pipeline.run();
     MetricResults metricResults = pipelineResult.metrics();
     pipelineResult.waitUntilFinish();
-    String counterNamePrefix = CallerSetupTeardownImpl.class.getSimpleName();
-    assertThat(getCounterResult(metricResults, Call.class, counterNamePrefix + "_call"), equalTo(1L));
-    assertThat(getCounterResult(metricResults, Call.class, counterNamePrefix + "_setup"), equalTo(1L));
+
+    assertThat(
+        getCounterResult(
+            metricResults, Call.class, Monitoring.callCounterNameOf(new CallerSetupTeardownImpl())),
+        equalTo(1L));
+
+    assertThat(
+        getCounterResult(
+            metricResults,
+            Call.class,
+            Monitoring.setupCounterNameOf(new CallerSetupTeardownImpl())),
+        equalTo(1L));
   }
 
   @Test
   public void givenDefaultConfiguration_shouldRepeatFailedRequests() {
     Result<Response> result =
-            requests().apply("rrio", RequestResponseIO.of(new CallerImpl(1), RESPONSE_CODER)
-                    .withMonitoringConfiguration(Monitoring.builder()
-                            .setCountCalls(true)
-                            .build()));
+        requests()
+            .apply(
+                "rrio",
+                RequestResponseIO.of(new CallerImpl(1), RESPONSE_CODER)
+                    .withMonitoringConfiguration(Monitoring.builder().setCountCalls(true).build()));
 
     PAssert.that(result.getFailures()).empty();
     PAssert.that(result.getResponses()).containsInAnyOrder(responses());
@@ -133,50 +174,169 @@ public class RequestResponseIOTest {
     MetricResults metrics = pipelineResult.metrics();
     pipelineResult.waitUntilFinish();
     assertThat(
-            getCounterResult(metrics, Call.class, CallerImpl.class.getSimpleName() + "_call"),
-            equalTo(2L));
+        getCounterResult(metrics, Call.class, Monitoring.callCounterNameOf(new CallerImpl())),
+        equalTo(2L));
+  }
+
+  @Test
+  public void givenDefaultConfiguration_usesDefaultBackoffSupplier() {
+    Caller<Request, Response> caller = new CallerImpl(1);
+
+    requests()
+        .apply(
+            "rrio",
+            RequestResponseIO.of(caller, RESPONSE_CODER)
+                .withMonitoringConfiguration(Monitoring.builder().setCountBackoffs(true).build()));
+
+    PipelineResult pipelineResult = pipeline.run();
+    MetricResults metrics = pipelineResult.metrics();
+    pipelineResult.waitUntilFinish();
+    assertThat(
+        getCounterResult(
+            metrics,
+            Call.class,
+            Monitoring.backoffCounterNameOf(new DefaultSerializableBackoffSupplier().get())),
+        equalTo(1L));
+  }
+
+  @Test
+  public void givenDefaultConfiguration_usesDefaultSleeper() {
+    Caller<Request, Response> caller = new CallerImpl(1);
+
+    requests()
+        .apply(
+            "rrio",
+            RequestResponseIO.of(caller, RESPONSE_CODER)
+                .withMonitoringConfiguration(Monitoring.builder().setCountSleeps(true).build()));
+
+    PipelineResult pipelineResult = pipeline.run();
+    MetricResults metrics = pipelineResult.metrics();
+    pipelineResult.waitUntilFinish();
+    assertThat(
+        getCounterResult(metrics, Call.class, Monitoring.sleeperCounterNameOf(Sleeper.DEFAULT)),
+        equalTo(1L));
+  }
+
+  @Test
+  public void givenDefaultConfiguration_usesDefaultCallShouldBackoff() {
+    Caller<Request, Response> caller = new CallerImpl();
+
+    RequestResponseIO<Request, Response> transform = RequestResponseIO.of(caller, RESPONSE_CODER);
+    // We prime the default implementation so that we guarantee value() == true during the test.
+    CallShouldBackoffBasedOnRejectionProbability<Response> shouldBackoffImpl =
+        (CallShouldBackoffBasedOnRejectionProbability<Response>)
+            transform.getCallConfiguration().getCallShouldBackoff();
+    shouldBackoffImpl.setThreshold(0);
+    shouldBackoffImpl.update(new UserCodeExecutionException(""));
+
+    requests()
+        .apply(
+            "rrio",
+            transform
+                .withCallShouldBackoff(shouldBackoffImpl)
+                .withMonitoringConfiguration(
+                    Monitoring.builder().setCountShouldBackoff(true).build()));
+
+    PipelineResult pipelineResult = pipeline.run();
+    MetricResults metrics = pipelineResult.metrics();
+    pipelineResult.waitUntilFinish();
+    assertThat(
+        getCounterResult(
+            metrics, Call.class, Monitoring.shouldBackoffCounterName(shouldBackoffImpl)),
+        equalTo(1L));
+  }
+
+  @Test
+  public void givenWithoutRepeater_shouldNotRepeatRequests() {
+    Result<Response> result =
+        requests()
+            .apply(
+                "rrio",
+                RequestResponseIO.of(new CallerImpl(1), RESPONSE_CODER)
+                    .withoutRepeater()
+                    .withMonitoringConfiguration(
+                        Monitoring.builder().setCountCalls(true).setCountFailures(true).build()));
+
+    PAssert.that(result.getResponses()).empty();
+
+    PipelineResult pipelineResult = pipeline.run();
+    MetricResults metrics = pipelineResult.metrics();
+    pipelineResult.waitUntilFinish();
 
     assertThat(
-            getCounterResult(metrics, Call.class, Call.NoopSetupTeardown.class.getSimpleName() + "_setup"),
-            equalTo(1L));
+        getCounterResult(metrics, Call.class, Monitoring.callCounterNameOf(new CallerImpl())),
+        equalTo(1L));
+
+    assertThat(
+        getCounterResult(metrics, Call.class, Monitoring.FAILURES_COUNTER_NAME), equalTo(1L));
   }
 
   @Test
-  public void givenDefaultConfiguration_usesDefaultBackoffSupplier() {}
+  public void givenCustomCallShouldBackoff_thenComputeUsingCustom() {
+    CustomCallShouldBackoff<Response> customCallShouldBackoff = new CustomCallShouldBackoff<>();
+    requests()
+        .apply(
+            "rrio",
+            RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER)
+                .withCallShouldBackoff(customCallShouldBackoff));
+
+    PipelineResult pipelineResult = pipeline.run();
+    MetricResults metrics = pipelineResult.metrics();
+    pipelineResult.waitUntilFinish();
+
+    assertThat(
+        getCounterResult(
+            metrics,
+            customCallShouldBackoff.getClass(),
+            customCallShouldBackoff.getCounterName().getName()),
+        greaterThan(0L));
+  }
 
   @Test
-  public void givenDefaultConfiguration_usesDefaultSleeper() {}
+  public void givenCustomSleeper_thenSleepBehaviorCustom() {
+    CustomSleeperSupplier customSleeperSupplier = new CustomSleeperSupplier();
+    requests()
+        .apply(
+            "rrio",
+            RequestResponseIO.of(new CallerImpl(100), RESPONSE_CODER)
+                .withSleeperSupplier(customSleeperSupplier));
+
+    PipelineResult pipelineResult = pipeline.run();
+    MetricResults metrics = pipelineResult.metrics();
+    pipelineResult.waitUntilFinish();
+    assertThat(
+        getCounterResult(
+            metrics,
+            customSleeperSupplier.getClass(),
+            customSleeperSupplier.getCounterName().getName()),
+        greaterThan(0L));
+  }
 
   @Test
-  public void givenDefaultConfiguration_usesDefaultCallShouldBackoff() {}
+  public void givenCustomBackoff_thenBackoffBehaviorCustom() {
+    CustomBackOffSupplier customBackOffSupplier = new CustomBackOffSupplier();
+    requests()
+        .apply(
+            "rrio",
+            RequestResponseIO.of(new CallerImpl(100), RESPONSE_CODER)
+                .withBackOffSupplier(customBackOffSupplier));
 
-  @Test
-  public void givenWithTimeout_overridesDefaultTimeout() {}
+    PipelineResult pipelineResult = pipeline.run();
+    MetricResults metrics = pipelineResult.metrics();
+    pipelineResult.waitUntilFinish();
+    assertThat(
+        getCounterResult(
+            metrics,
+            customBackOffSupplier.getClass(),
+            customBackOffSupplier.getCounterName().getName()),
+        greaterThan(0L));
+  }
 
-  @Test
-  public void givenWithoutRepeater_shouldNotRepeatRequests() {}
-
-  @Test
-  public void givenCustomCallShouldBackoff_thenShouldBackoffEvaluationCustom() {}
-
-  @Test
-  public void givenCustomSleeper_thenSleepBehaviorCustom() {}
-
-  @Test
-  public void givenCustomBackoff_thenBackoffBehaviorCustom() {}
-
+  // TODO(damondouglas): Count metrics of caching after https://github.com/apache/beam/issues/29888
+  // resolves.
   @Ignore
   @Test
-  public void givenWithCache_thenRequestsResponsesCached() {
-    System.out.println(Request.builder().build());
-    System.out.println(Response.builder().build());
-    System.out.println(new CallerSetupTeardownImpl());
-    System.out.println(new CallerImpl());
-    System.out.println(new CustomSleeperSupplier());
-    System.out.println(new CustomBackOffSupplier());
-    System.out.println(new CustomCallShouldBackoff<Response>());
-    System.out.println(REQUEST_CODER);
-  }
+  public void givenWithCache_thenRequestsResponsesCachedUsingCustom() {}
 
   private PCollection<Request> requests() {
     return pipeline.apply(
@@ -248,7 +408,9 @@ public class RequestResponseIOTest {
 
   private static class CallerImpl implements Caller<Request, Response> {
     private int numErrors = 0;
-    private CallerImpl(){}
+
+    private CallerImpl() {}
+
     private CallerImpl(int numErrors) {
       this.numErrors = numErrors;
     }
@@ -267,6 +429,8 @@ public class RequestResponseIOTest {
   }
 
   private static class CustomCallShouldBackoff<ResponseT> implements CallShouldBackoff<ResponseT> {
+    private final Counter counter =
+        Metrics.counter(CustomCallShouldBackoff.class, "custom_counter");
 
     @Override
     public void update(UserCodeExecutionException exception) {}
@@ -276,19 +440,31 @@ public class RequestResponseIOTest {
 
     @Override
     public boolean value() {
+      counter.inc();
       return false;
+    }
+
+    MetricName getCounterName() {
+      return counter.getName();
     }
   }
 
   private static class CustomSleeperSupplier implements SerializableSupplier<Sleeper> {
+    private final Counter counter = Metrics.counter(CustomSleeperSupplier.class, "custom_counter");
 
     @Override
     public Sleeper get() {
-      return millis -> {};
+      return millis -> counter.inc();
+    }
+
+    MetricName getCounterName() {
+      return counter.getName();
     }
   }
 
   private static class CustomBackOffSupplier implements SerializableSupplier<BackOff> {
+
+    private final Counter counter = Metrics.counter(CustomBackOffSupplier.class, "custom_counter");
 
     @Override
     public BackOff get() {
@@ -298,25 +474,31 @@ public class RequestResponseIOTest {
 
         @Override
         public long nextBackOffMillis() throws IOException {
+          counter.inc();
           return 0;
         }
       };
     }
+
+    MetricName getCounterName() {
+      return counter.getName();
+    }
   }
 
-  private static Long getCounterResult(MetricResults metrics, Class<?> clazz, String name) {
+  private static Long getCounterResult(MetricResults metrics, Class<?> namespace, String name) {
     MetricQueryResults metricQueryResults =
         metrics.queryMetrics(
-            MetricsFilter.builder().addNameFilter(MetricNameFilter.named(clazz, name)).build());
-    return getCounterResult(metricQueryResults.getCounters(), clazz, name);
+            MetricsFilter.builder().addNameFilter(MetricNameFilter.named(namespace, name)).build());
+    return getCounterResult(metricQueryResults.getCounters(), namespace, name);
   }
 
   private static Long getCounterResult(
-      Iterable<MetricResult<Long>> counters, Class<?> clazz, String name) {
+      Iterable<MetricResult<Long>> counters, Class<?> namespace, String name) {
     Long result = 0L;
     for (MetricResult<Long> counter : counters) {
       MetricName metricName = counter.getName();
-      if (metricName.getNamespace().equals(clazz.getName()) && metricName.getName().equals(name)) {
+      if (metricName.getNamespace().equals(namespace.getName())
+          && metricName.getName().equals(name)) {
         result = counter.getCommitted();
       }
     }

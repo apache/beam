@@ -63,6 +63,38 @@ abstract class Repeater<InputT, OutputT> {
   /** Counts invocations of {@link Caller#call}. */
   abstract @Nullable Counter getCallCounter();
 
+  /** Convenience setter for {@link Builder#setCallCounter}. */
+  Repeater<InputT, OutputT> withCallCounter(@Nullable Counter value) {
+    if (value == null) {
+      return this;
+    }
+    return toBuilder().setCallCounter(checkStateNotNull(value)).build();
+  }
+
+  /** Counts invocations of {@link BackOff#nextBackOffMillis}. */
+  abstract @Nullable Counter getBackoffCounter();
+
+  /** Convenience setter for {@link Builder#setBackoffCounter}. */
+  Repeater<InputT, OutputT> withBackoffCounter(@Nullable Counter value) {
+    if (value == null) {
+      return this;
+    }
+    return toBuilder().setBackoffCounter(checkStateNotNull(value)).build();
+  }
+
+  /** Counts invocations of {@link Sleeper#sleep}. */
+  abstract @Nullable Counter getSleeperCounter();
+
+  /** Convenience setter for {@link Builder#setSleeperCounter}. */
+  Repeater<InputT, OutputT> withSleeperCounter(@Nullable Counter value) {
+    if (value == null) {
+      return this;
+    }
+    return toBuilder().setSleeperCounter(checkStateNotNull(value)).build();
+  }
+
+  abstract Builder<InputT, OutputT> toBuilder();
+
   /**
    * Applies the {@link InputT} to the {@link ThrowableFunction}, returning the {@link OutputT} if
    * successful. If the function throws an exception that {@link
@@ -76,20 +108,27 @@ abstract class Repeater<InputT, OutputT> {
     long waitFor = 0L;
     while (waitFor != BackOff.STOP) {
       try {
-        getSleeper().sleep(waitFor);
+        if (waitFor > 0L) {
+          if (getSleeperCounter() != null) {
+            checkStateNotNull(getSleeperCounter()).inc();
+          }
+          getSleeper().sleep(waitFor);
+        }
         if (getCallCounter() != null) {
-          // still needed by checker
           checkStateNotNull(getCallCounter()).inc();
         }
         return getThrowableFunction().apply(input);
       } catch (UserCodeExecutionException e) {
-        if (!RequestResponseIO.REPEATABLE_ERROR_TYPES.contains(e.getClass())) {
+        if (!e.shouldRepeat()) {
           throw e;
         }
         latestError = Optional.of(e);
       } catch (InterruptedException ignored) {
       }
       try {
+        if (getBackoffCounter() != null) {
+          checkStateNotNull(getBackoffCounter()).inc();
+        }
         waitFor = getBackOff().nextBackOffMillis();
       } catch (IOException e) {
         throw new UserCodeExecutionException(e);
@@ -127,6 +166,10 @@ abstract class Repeater<InputT, OutputT> {
     abstract Optional<BackOff> getBackOff();
 
     abstract Builder<InputT, OutputT> setCallCounter(Counter value);
+
+    abstract Builder<InputT, OutputT> setBackoffCounter(Counter value);
+
+    abstract Builder<InputT, OutputT> setSleeperCounter(Counter value);
 
     abstract Repeater<InputT, OutputT> autoBuild();
 
