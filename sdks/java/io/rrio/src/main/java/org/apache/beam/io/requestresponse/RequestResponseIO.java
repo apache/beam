@@ -20,21 +20,12 @@ package org.apache.beam.io.requestresponse;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.Serializable;
-import java.net.URI;
-import java.util.List;
 import java.util.Set;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Triple;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.Keys;
@@ -51,7 +42,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -110,34 +100,13 @@ public class RequestResponseIO<RequestT, ResponseT>
           UserCodeTimeoutException.class,
           UserCodeQuotaException.class);
 
-  /**
-   * static final Strings below are {@link VisibleForTesting} to test composite pipeline
-   * construction of {@link RequestResponseIO}.
-   */
-  @VisibleForTesting static final String ROOT_NAME = RequestResponseIO.class.getSimpleName();
+  private static final String CALL_NAME = Call.class.getSimpleName();
 
-  @VisibleForTesting static final String CALL_NAME = Call.class.getSimpleName();
+  private static final String CACHE_READ_NAME = "CacheRead";
 
-  @VisibleForTesting static final String CACHE_READ_NAME = "CacheRead";
+  private static final String CACHE_WRITE_NAME = "CacheWrite";
 
-  @VisibleForTesting static final String CACHE_WRITE_NAME = "CacheWrite";
-
-  @VisibleForTesting static final String THROTTLE_NAME = "Throttle";
-
-  /**
-   * {@link VisibleForTesting} to test {@link RequestResponseIO} composite transform construction
-   * without exposing {@link WrappedAssociatingRequestResponseCaller}.
-   */
-  @VisibleForTesting
-  static final String WRAPPED_CALLER = WrappedAssociatingRequestResponseCaller.class.getName();
-
-  /**
-   * {@link VisibleForTesting} to test {@link RequestResponseIO} composite transform construction
-   * without exposing {@link WrappedAssociatingRequestResponseCallShouldBackoff}.
-   */
-  @VisibleForTesting
-  static final String WRAPPED_CALL_SHOULD_BACKOFF =
-      WrappedAssociatingRequestResponseCallShouldBackoff.class.getName();
+  private static final String THROTTLE_NAME = "Throttle";
 
   private final TupleTag<ResponseT> responseTag = new TupleTag<ResponseT>() {};
   private final TupleTag<ApiIOError> failureTag = new TupleTag<ApiIOError>() {};
@@ -263,72 +232,31 @@ public class RequestResponseIO<RequestT, ResponseT>
   }
 
   /**
-   * Configures {@link RequestResponseIO} to use a <a href="https://redis.io">Redis</a> cache to
-   * configure {@link #withCacheRead} and {@link #withCacheWrite}, to read and write {@link
-   * RequestT} and {@link ResponseT} pairs. {@link RequestResponseIO} by default does not cache. The
-   * purpose of the cache is to offload {@link RequestT}s from the API and instead return the {@link
-   * ResponseT} if the association is known. Since the {@link RequestT}s and {@link ResponseT}s need
-   * encoding and decoding, checks are made whether the requestTCoder and {@link
-   * Configuration#getResponseTCoder} are {@link Coder#verifyDeterministic}. <strong>This feature is
-   * only appropriate for API reads such as HTTP list, get, etc.</strong>
+   * Configures {@link RequestResponseIO} for reading and writing {@link RequestT} and {@link
+   * ResponseT} pairs using a cache. {@link RequestResponseIO}, by default, does not interact with a
+   * cache.
    *
-   * <pre>Below describes the parameters in more detail and their usage.</pre>
+   * <pre>When reading, the transform {@link Flatten}s the {@link ResponseT} {@link PCollection}
+   * of successful pairs with that resulting from API calls of {@link RequestT}s of unsuccessful pairs.
+   * </pre>
    *
-   * <ul>
-   *   <li>{@code URI uri} - the {@link URI} of the Redis instance.
-   *   <li>{@code Coder<RequestT> requestTCoder} - the {@link RequestT} {@link Coder} to encode and
-   *       decode {@link RequestT}s during cache read and writes.
-   *   <li>{@code Duration expiry} - the duration to hold {@link RequestT} and {@link ResponseT}
-   *       pairs in the cache.
-   * </ul>
+   * <pre>When writing, the transform {@link Flatten}s the {@link ResponseT} {@link PCollection} of
+   *    successful pairs with that resulting from API calls of {@link RequestT}s.
+   * </pre>
    */
-  public RequestResponseIO<RequestT, ResponseT> withRedisCache(
-      URI uri, Coder<RequestT> requestTCoder, Duration expiry) throws NonDeterministicException {
-
-    requestTCoder.verifyDeterministic();
-    rrioConfiguration.getResponseTCoder().verifyDeterministic();
-
-    PTransform<PCollection<RequestT>, Result<KV<RequestT, @Nullable ResponseT>>> cacheRead =
-        Cache.<RequestT, @Nullable ResponseT>readUsingRedis(
-            new RedisClient(uri),
-            requestTCoder,
-            new CacheResponseCoder<>(rrioConfiguration.getResponseTCoder()));
-
-    PTransform<PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>> cacheWrite =
-        // Type arguments needed to resolve "error: [assignment] incompatible types in assignment."
-        Cache.<RequestT, ResponseT>writeUsingRedis(
-            expiry,
-            new RedisClient(uri),
-            requestTCoder,
-            new CacheResponseCoder<>(rrioConfiguration.getResponseTCoder()));
-
-    return withCacheRead(cacheRead).withCacheWrite(cacheWrite);
+  public RequestResponseIO<RequestT, ResponseT> withCache(Cache.Pair<RequestT, ResponseT> pair) {
+    return new RequestResponseIO<>(
+        rrioConfiguration
+            .toBuilder()
+            .setCacheRead(pair.getRead())
+            .setCacheWrite(pair.getWrite())
+            .build(),
+        callConfiguration);
   }
 
-  /**
-   * Configures {@link RequestResponseIO} for reading {@link RequestT} and {@link ResponseT} pairs
-   * from a cache. The transform {@link Flatten}s the {@link ResponseT} {@link PCollection} of
-   * successful pairs with that resulting from API calls of {@link RequestT}s of unsuccessful pairs.
-   * It is intended for this method and {@link #withCacheWrite} to be used together. Default for
-   * {@link RequestResponseIO} is to not read from a cache.
-   */
-  public RequestResponseIO<RequestT, ResponseT> withCacheRead(
-      PTransform<PCollection<RequestT>, Result<KV<RequestT, @Nullable ResponseT>>> cacheRead) {
+  public RequestResponseIO<RequestT, ResponseT> withMonitoringConfiguration(Monitoring value) {
     return new RequestResponseIO<>(
-        rrioConfiguration.toBuilder().setCacheRead(cacheRead).build(), callConfiguration);
-  }
-
-  /**
-   * Configures {@link RequestResponseIO} for writing {@link RequestT} and {@link ResponseT} pairs
-   * to a cache. The transform applies a result of {@link Call} to the {@link PTransform} supplied
-   * by this method. It is intended for this method and {@link #withCacheRead} to be used together.
-   * Default for {@link RequestResponseIO} is to not write to a cache.
-   */
-  public RequestResponseIO<RequestT, ResponseT> withCacheWrite(
-      PTransform<PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>>
-          cacheWrite) {
-    return new RequestResponseIO<>(
-        rrioConfiguration.toBuilder().setCacheWrite(cacheWrite).build(), callConfiguration);
+        rrioConfiguration, callConfiguration.toBuilder().setMonitoringConfiguration(value).build());
   }
 
   /**
@@ -582,11 +510,28 @@ public class RequestResponseIO<RequestT, ResponseT>
     return Pair.of(responseList, failureList);
   }
 
+  /**
+   * The {@link PartitionFn} used by {@link #expandCacheRead} to separate non-null {@link ResponseT}
+   * value {@link KV}s from null ones. This is so that {@link RequestT}s associated with non-null
+   * {@link ResponseT}s are not forwarded to the {@link Caller} and {@link PCollection} of the
+   * associated {@link ResponseT}s flatten and merge with the final result output.
+   */
   private static class PartitionCacheReadsFn<RequestT, ResponseT>
       implements PartitionFn<KV<RequestT, ResponseT>> {
+
+    /** Used as input into {@link Partition#of}. */
     private static final int NUM_PARTITIONS = 2;
 
+    /**
+     * Prevents supplying the wrong index when calling {@link PCollectionList#get} for the
+     * associated request and non-null response KVs.
+     */
     private static final int NON_NULL_PARTITION = 0;
+
+    /**
+     * Prevents supplying the wrong index when calling {@link PCollectionList#get} for the
+     * associated request and null response KVs.
+     */
     private static final int NULL_PARTITION = 1;
 
     @Override
@@ -598,6 +543,12 @@ public class RequestResponseIO<RequestT, ResponseT>
     }
   }
 
+  /**
+   * Used by {@link #expandCallWithOptionalCacheWrites}, in the setting of a non-null {@link
+   * Configuration#getCacheWrite}, to wrap the original {@link Caller} so that it returns a {@link
+   * KV} of {@link RequestT}s and their associated {@link ResponseT}s for use as input into the
+   * {@link Configuration#getCacheWrite} {@link PTransform}.
+   */
   private static class WrappedAssociatingRequestResponseCaller<RequestT, ResponseT>
       implements Caller<RequestT, KV<RequestT, ResponseT>> {
 
@@ -614,6 +565,11 @@ public class RequestResponseIO<RequestT, ResponseT>
     }
   }
 
+  /**
+   * Required by {@link #expandCallWithOptionalCacheWrites}, in the setting of a non-null {@link
+   * Configuration#getCacheWrite}, to match the signature of {@link CallShouldBackoff} with the
+   * corresponding {@link WrappedAssociatingRequestResponseCaller}.
+   */
   private static class WrappedAssociatingRequestResponseCallShouldBackoff<RequestT, ResponseT>
       implements CallShouldBackoff<KV<RequestT, ResponseT>> {
     private final CallShouldBackoff<ResponseT> basis;
@@ -635,36 +591,6 @@ public class RequestResponseIO<RequestT, ResponseT>
     @Override
     public boolean value() {
       return basis.value();
-    }
-  }
-
-  /** Resolves checker error: incompatible argument for parameter ResponseT Coder. */
-  private static class CacheResponseCoder<ResponseT> extends CustomCoder<@Nullable ResponseT> {
-    private final NullableCoder<ResponseT> basis;
-
-    private CacheResponseCoder(Coder<ResponseT> basis) {
-      this.basis = NullableCoder.of(basis);
-    }
-
-    @Override
-    public void encode(@Nullable ResponseT value, OutputStream outStream)
-        throws CoderException, IOException {
-      basis.encode(value, outStream);
-    }
-
-    @Override
-    public @Nullable ResponseT decode(InputStream inStream) throws CoderException, IOException {
-      return basis.decode(inStream);
-    }
-
-    @Override
-    public List<? extends Coder<?>> getCoderArguments() {
-      return basis.getCoderArguments();
-    }
-
-    @Override
-    public void verifyDeterministic() throws NonDeterministicException {
-      basis.verifyDeterministic();
     }
   }
 }

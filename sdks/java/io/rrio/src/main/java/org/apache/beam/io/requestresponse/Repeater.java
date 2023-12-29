@@ -17,12 +17,16 @@
  */
 package org.apache.beam.io.requestresponse;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.Optional;
+import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Repeats a method invocation when it encounters an error, pausing invocations using {@link
@@ -56,6 +60,9 @@ abstract class Repeater<InputT, OutputT> {
    */
   abstract BackOff getBackOff();
 
+  /** Counts invocations of {@link Caller#call}. */
+  abstract @Nullable Counter getCallCounter();
+
   /**
    * Applies the {@link InputT} to the {@link ThrowableFunction}, returning the {@link OutputT} if
    * successful. If the function throws an exception that {@link
@@ -70,6 +77,10 @@ abstract class Repeater<InputT, OutputT> {
     while (waitFor != BackOff.STOP) {
       try {
         getSleeper().sleep(waitFor);
+        if (getCallCounter() != null) {
+          // still needed by checker
+          checkStateNotNull(getCallCounter()).inc();
+        }
         return getThrowableFunction().apply(input);
       } catch (UserCodeExecutionException e) {
         if (!RequestResponseIO.REPEATABLE_ERROR_TYPES.contains(e.getClass())) {
@@ -114,6 +125,8 @@ abstract class Repeater<InputT, OutputT> {
     abstract Builder<InputT, OutputT> setBackOff(BackOff value);
 
     abstract Optional<BackOff> getBackOff();
+
+    abstract Builder<InputT, OutputT> setCallCounter(Counter value);
 
     abstract Repeater<InputT, OutputT> autoBuild();
 

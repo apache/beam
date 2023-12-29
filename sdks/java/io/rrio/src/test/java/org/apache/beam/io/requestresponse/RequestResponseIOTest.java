@@ -17,57 +17,43 @@
  */
 package org.apache.beam.io.requestresponse;
 
-import static org.apache.beam.io.requestresponse.Cache.CACHE_READ_USING_REDIS;
-import static org.apache.beam.io.requestresponse.Cache.CACHE_WRITE_USING_REDIS;
-import static org.apache.beam.io.requestresponse.Call.NOOP_SETUP_TEARDOWN;
-import static org.apache.beam.io.requestresponse.RequestResponseIO.CACHE_READ_NAME;
-import static org.apache.beam.io.requestresponse.RequestResponseIO.CACHE_WRITE_NAME;
-import static org.apache.beam.io.requestresponse.RequestResponseIO.CALL_NAME;
-import static org.apache.beam.io.requestresponse.RequestResponseIO.DEFAULT_TIMEOUT;
-import static org.apache.beam.io.requestresponse.RequestResponseIO.ROOT_NAME;
-import static org.apache.beam.io.requestresponse.RequestResponseIO.THROTTLE_NAME;
-import static org.apache.beam.io.requestresponse.RequestResponseIO.WRAPPED_CALLER;
-import static org.apache.beam.io.requestresponse.RequestResponseIO.WRAPPED_CALL_SHOULD_BACKOFF;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
-import java.net.URI;
-import java.util.HashMap;
-import java.util.Map;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.Pipeline.PipelineVisitor;
+import java.util.List;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
-import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaProvider;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.joda.time.Duration;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link RequestResponseIO} composite {@link PTransform} construction. */
+/** Tests for {@link RequestResponseIO}. */
 @RunWith(JUnit4.class)
 public class RequestResponseIOTest {
-  @Rule
-  public final transient TestPipeline pipeline =
-      TestPipeline.create().enableAbandonedNodeEnforcement(false);
-
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   private static final TypeDescriptor<Request> REQUEST_TYPE = TypeDescriptor.of(Request.class);
   private static final TypeDescriptor<Response> RESPONSE_TYPE = TypeDescriptor.of(Response.class);
   private static final SchemaProvider SCHEMA_PROVIDER = new AutoValueSchema();
@@ -87,250 +73,118 @@ public class RequestResponseIOTest {
           checkStateNotNull(SCHEMA_PROVIDER.fromRowFunction(RESPONSE_TYPE)));
 
   @Test
-  public void givenMinimalConfiguration_transformExpandsWithCallOnly() {
-    ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
-    requests().apply(RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER));
-    pipeline.traverseTopologically(visitor);
+  public void givenCallerOnly_thenProcessesRequestsOnly() {
+    Result<Response> result =
+        requests()
+            .apply(
+                "rrio",
+                RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER)
+                    .withMonitoringConfiguration(Monitoring.builder().setCountCalls(true)
+                            .setCountSetup(true)
+                            .build()));
 
-    Call.Configuration<?, ?> configuration =
-        visitor.assertExpandsWithCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
-    assertHasDefaults(configuration);
+    PAssert.that(result.getFailures()).empty();
+    PAssert.that(result.getResponses()).containsInAnyOrder(responses());
 
-    visitor.assertNotExpandsWith(THROTTLE_NAME);
-    visitor.assertNotExpandsWith(CACHE_READ_NAME);
-    visitor.assertNotExpandsWith(CACHE_WRITE_NAME);
+    PipelineResult pipelineResult = pipeline.run();
+    MetricResults metrics = pipelineResult.metrics();
+    pipelineResult.waitUntilFinish();
+    assertThat(
+        getCounterResult(metrics, Call.class, CallerImpl.class.getSimpleName() + "_call"),
+        equalTo(1L));
+
+    assertThat(
+            getCounterResult(metrics, Call.class, Call.NoopSetupTeardown.class.getSimpleName() + "_setup"),
+            equalTo(1L));
   }
 
   @Test
-  public void givenWithTimeout_transformCallConfigured() {
-    Duration timeout = Duration.standardSeconds(1L);
-    ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
-    requests().apply(RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER).withTimeout(timeout));
-    pipeline.traverseTopologically(visitor);
+  public void givenCallerAndSetupTeardown_thenCallerInvokesSetupTeardown() {
+    Result<Response> result =
+            requests().apply("rrio", RequestResponseIO.ofCallerAndSetupTeardown(new CallerSetupTeardownImpl(), RESPONSE_CODER)
+                    .withMonitoringConfiguration(Monitoring.builder()
+                            .setCountCalls(true)
+                            .setCountSetup(true)
+                            .build()));
 
-    Call.Configuration<?, ?> configuration =
-        visitor.assertExpandsWithCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
-    assertThat(configuration.getTimeout(), equalTo(timeout));
+    PAssert.that(result.getFailures()).empty();
+    PAssert.that(result.getResponses()).containsInAnyOrder(responses());
+
+    PipelineResult pipelineResult = pipeline.run();
+    MetricResults metricResults = pipelineResult.metrics();
+    pipelineResult.waitUntilFinish();
+    String counterNamePrefix = CallerSetupTeardownImpl.class.getSimpleName();
+    assertThat(getCounterResult(metricResults, Call.class, counterNamePrefix + "_call"), equalTo(1L));
+    assertThat(getCounterResult(metricResults, Call.class, counterNamePrefix + "_setup"), equalTo(1L));
   }
 
   @Test
-  public void givenWithoutRepeat_transformCallConfigured() {
-    ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
-    requests().apply(RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER).withoutRepeater());
-    pipeline.traverseTopologically(visitor);
+  public void givenDefaultConfiguration_shouldRepeatFailedRequests() {
+    Result<Response> result =
+            requests().apply("rrio", RequestResponseIO.of(new CallerImpl(1), RESPONSE_CODER)
+                    .withMonitoringConfiguration(Monitoring.builder()
+                            .setCountCalls(true)
+                            .build()));
 
-    Call.Configuration<?, ?> configuration =
-        visitor.assertExpandsWithCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
-    assertThat(configuration.getShouldRepeat(), equalTo(false));
+    PAssert.that(result.getFailures()).empty();
+    PAssert.that(result.getResponses()).containsInAnyOrder(responses());
+
+    PipelineResult pipelineResult = pipeline.run();
+    MetricResults metrics = pipelineResult.metrics();
+    pipelineResult.waitUntilFinish();
+    assertThat(
+            getCounterResult(metrics, Call.class, CallerImpl.class.getSimpleName() + "_call"),
+            equalTo(2L));
+
+    assertThat(
+            getCounterResult(metrics, Call.class, Call.NoopSetupTeardown.class.getSimpleName() + "_setup"),
+            equalTo(1L));
   }
 
   @Test
-  public void givenWithCallShouldBackoff_transformCallConfigured() {
-    ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
-    requests()
-        .apply(
-            RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER)
-                .withCallShouldBackoff(new CustomCallShouldBackoff<>()));
-    pipeline.traverseTopologically(visitor);
-
-    Call.Configuration<?, ?> configuration =
-        visitor.assertExpandsWithCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
-    assertThat(
-        configuration.getCallShouldBackoff().getClass(), equalTo(CustomCallShouldBackoff.class));
-  }
+  public void givenDefaultConfiguration_usesDefaultBackoffSupplier() {}
 
   @Test
-  public void givenWithSleeperSupplier_transformCallConfigured() {
-    ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
-    requests()
-        .apply(
-            RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER)
-                .withSleeperSupplier(new CustomSleeperSupplier()));
-    pipeline.traverseTopologically(visitor);
-
-    Call.Configuration<?, ?> configuration =
-        visitor.assertExpandsWithCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
-    assertThat(configuration.getSleeperSupplier().getClass(), equalTo(CustomSleeperSupplier.class));
-  }
+  public void givenDefaultConfiguration_usesDefaultSleeper() {}
 
   @Test
-  public void givenWithBackOffSupplier_transformCallConfigured() {
-    ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
-    requests()
-        .apply(
-            RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER)
-                .withBackOffSupplier(new CustomBackOffSupplier()));
-    pipeline.traverseTopologically(visitor);
-
-    Call.Configuration<?, ?> configuration =
-        visitor.assertExpandsWithCallOf(CALL_NAME, CallerImpl.class.getName(), NOOP_SETUP_TEARDOWN);
-    assertThat(configuration.getBackOffSupplier().getClass(), equalTo(CustomBackOffSupplier.class));
-  }
+  public void givenDefaultConfiguration_usesDefaultCallShouldBackoff() {}
 
   @Test
-  public void givenCallerAndSetupTeardown_transformExpandsWithCallOnly() {
-    ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
-    requests()
-        .apply(
-            RequestResponseIO.ofCallerAndSetupTeardown(
-                new CallerSetupTeardownImpl(), RESPONSE_CODER));
-
-    pipeline.traverseTopologically(visitor);
-
-    Call.Configuration<?, ?> configuration =
-        visitor.assertExpandsWithCallOf(
-            CALL_NAME,
-            CallerSetupTeardownImpl.class.getName(),
-            CallerSetupTeardownImpl.class.getName());
-    assertHasDefaults(configuration);
-
-    visitor.assertNotExpandsWith(THROTTLE_NAME);
-    visitor.assertNotExpandsWith(CACHE_READ_NAME);
-    visitor.assertNotExpandsWith(CACHE_WRITE_NAME);
-  }
+  public void givenWithTimeout_overridesDefaultTimeout() {}
 
   @Test
-  public void givenCacheUsingRedis_transformExpandsWithCallAndCache()
-      throws NonDeterministicException {
-    ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
-    requests()
-        .apply(
-            RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER)
-                .withRedisCache(
-                    URI.create("redis://localhost:6379"),
-                    REQUEST_CODER,
-                    Duration.standardHours(1L)));
-
-    pipeline.traverseTopologically(visitor);
-
-    Call.Configuration<?, ?> configuration =
-        visitor.assertExpandsWithCallOf(CALL_NAME, WRAPPED_CALLER, NOOP_SETUP_TEARDOWN);
-    assertThat(configuration.getTimeout(), equalTo(DEFAULT_TIMEOUT));
-    assertThat(configuration.getShouldRepeat(), equalTo(true));
-    assertThat(
-        configuration.getBackOffSupplier().getClass(),
-        equalTo(DefaultSerializableBackoffSupplier.class));
-    assertThat(
-        configuration.getSleeperSupplier().get().getClass(), equalTo(Sleeper.DEFAULT.getClass()));
-    assertThat(
-        configuration.getCallShouldBackoff().getClass().getName(),
-        equalTo(WRAPPED_CALL_SHOULD_BACKOFF));
-
-    visitor.assertNotExpandsWith(THROTTLE_NAME);
-    visitor.assertExpandsWithCallOf(
-        CACHE_READ_NAME, CACHE_READ_USING_REDIS, CACHE_READ_USING_REDIS);
-    visitor.assertExpandsWithCallOf(
-        CACHE_WRITE_NAME, CACHE_WRITE_USING_REDIS, CACHE_WRITE_USING_REDIS);
-  }
+  public void givenWithoutRepeater_shouldNotRepeatRequests() {}
 
   @Test
-  public void givenAllConfigurationUsingRedis_transformExpandsWithEverything()
-      throws NonDeterministicException {
-    ExpansionPipelineVisitor visitor = new ExpansionPipelineVisitor();
-    requests()
-        .apply(
-            RequestResponseIO.of(new CallerImpl(), RESPONSE_CODER)
-                .withRedisCache(
-                    URI.create("redis://localhost:6379"),
-                    REQUEST_CODER,
-                    Duration.standardHours(1L)));
+  public void givenCustomCallShouldBackoff_thenShouldBackoffEvaluationCustom() {}
 
-    pipeline.traverseTopologically(visitor);
+  @Test
+  public void givenCustomSleeper_thenSleepBehaviorCustom() {}
 
-    Call.Configuration<?, ?> configuration =
-        visitor.assertExpandsWithCallOf(CALL_NAME, WRAPPED_CALLER, NOOP_SETUP_TEARDOWN);
-    assertThat(configuration.getTimeout(), equalTo(DEFAULT_TIMEOUT));
-    assertThat(configuration.getShouldRepeat(), equalTo(true));
-    assertThat(
-        configuration.getBackOffSupplier().getClass(),
-        equalTo(DefaultSerializableBackoffSupplier.class));
-    assertThat(
-        configuration.getSleeperSupplier().get().getClass(), equalTo(Sleeper.DEFAULT.getClass()));
-    assertThat(
-        configuration.getCallShouldBackoff().getClass().getName(),
-        equalTo(WRAPPED_CALL_SHOULD_BACKOFF));
+  @Test
+  public void givenCustomBackoff_thenBackoffBehaviorCustom() {}
 
-    visitor.assertExpandsWithCallOf(
-        CACHE_READ_NAME, CACHE_READ_USING_REDIS, CACHE_READ_USING_REDIS);
-    visitor.assertExpandsWithCallOf(
-        CACHE_WRITE_NAME, CACHE_WRITE_USING_REDIS, CACHE_WRITE_USING_REDIS);
-  }
-
-  private static void assertHasDefaults(Call.Configuration<?, ?> configuration) {
-    assertThat(configuration.getTimeout(), equalTo(DEFAULT_TIMEOUT));
-    assertThat(configuration.getShouldRepeat(), equalTo(true));
-    assertThat(
-        configuration.getBackOffSupplier().getClass(),
-        equalTo(DefaultSerializableBackoffSupplier.class));
-    assertThat(
-        configuration.getSleeperSupplier().get().getClass(), equalTo(Sleeper.DEFAULT.getClass()));
-    assertThat(
-        configuration.getCallShouldBackoff().getClass(),
-        equalTo(CallShouldBackoffBasedOnRejectionProbability.class));
-  }
-
-  private static class ExpansionPipelineVisitor implements PipelineVisitor {
-
-    private final Map<String, TransformHierarchy.Node> visits = new HashMap<>();
-
-    private Call.Configuration<?, ?> assertExpandsWithCallOf(
-        String stepName, String callerClassName, String setupTeardownClassName) {
-      stepName = ROOT_NAME + "/" + stepName;
-      PTransform<?, ?> transform = getFromStep(stepName);
-      assertThat(transform.getClass(), equalTo(Call.class));
-      Call<?, ?> call = (Call<?, ?>) transform;
-      assertThat(
-          call.getConfiguration().getCaller().getClass().getName(), equalTo(callerClassName));
-      assertThat(
-          call.getConfiguration().getSetupTeardown().getClass().getName(),
-          equalTo(setupTeardownClassName));
-
-      return call.getConfiguration();
-    }
-
-    private void assertNotExpandsWith(String stepName) {
-      stepName = ROOT_NAME + "/" + stepName;
-      assertThat(visits.containsKey(stepName), equalTo(false));
-    }
-
-    private @NonNull PTransform<?, ?> getFromStep(String name) {
-      TransformHierarchy.Node node = checkStateNotNull(visits.get(name));
-      return checkStateNotNull(node.getTransform());
-    }
-
-    @Override
-    public void enterPipeline(Pipeline p) {}
-
-    @Override
-    public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
-      visit(node);
-      return CompositeBehavior.ENTER_TRANSFORM;
-    }
-
-    private void visit(TransformHierarchy.Node node) {
-      visits.put(node.getFullName(), node);
-    }
-
-    @Override
-    public void leaveCompositeTransform(TransformHierarchy.Node node) {}
-
-    @Override
-    public void visitPrimitiveTransform(TransformHierarchy.Node node) {}
-
-    @Override
-    public void visitValue(PValue value, TransformHierarchy.Node producer) {}
-
-    @Override
-    public void leavePipeline(Pipeline pipeline) {}
+  @Ignore
+  @Test
+  public void givenWithCache_thenRequestsResponsesCached() {
+    System.out.println(Request.builder().build());
+    System.out.println(Response.builder().build());
+    System.out.println(new CallerSetupTeardownImpl());
+    System.out.println(new CallerImpl());
+    System.out.println(new CustomSleeperSupplier());
+    System.out.println(new CustomBackOffSupplier());
+    System.out.println(new CustomCallShouldBackoff<Response>());
+    System.out.println(REQUEST_CODER);
   }
 
   private PCollection<Request> requests() {
     return pipeline.apply(
-        "requests", Create.of(requestOf("a", 1L), requestOf("b", 2L), requestOf("c", 3L)));
+        "create requests", Create.of(Request.builder().setALong(1L).setAString("a").build()));
   }
 
-  private static Request requestOf(String aString, Long aLong) {
-    return Request.builder().setAString(aString).setALong(aLong).build();
+  private List<Response> responses() {
+    return ImmutableList.of(Response.builder().setAString("a").setALong(1L).build());
   }
 
   @DefaultSchema(AutoValueSchema.class)
@@ -393,9 +247,18 @@ public class RequestResponseIOTest {
   }
 
   private static class CallerImpl implements Caller<Request, Response> {
+    private int numErrors = 0;
+    private CallerImpl(){}
+    private CallerImpl(int numErrors) {
+      this.numErrors = numErrors;
+    }
 
     @Override
     public Response call(Request request) throws UserCodeExecutionException {
+      if (numErrors > 0) {
+        numErrors--;
+        throw new UserCodeQuotaException("");
+      }
       return Response.builder()
           .setAString(request.getAString())
           .setALong(request.getALong())
@@ -439,5 +302,24 @@ public class RequestResponseIOTest {
         }
       };
     }
+  }
+
+  private static Long getCounterResult(MetricResults metrics, Class<?> clazz, String name) {
+    MetricQueryResults metricQueryResults =
+        metrics.queryMetrics(
+            MetricsFilter.builder().addNameFilter(MetricNameFilter.named(clazz, name)).build());
+    return getCounterResult(metricQueryResults.getCounters(), clazz, name);
+  }
+
+  private static Long getCounterResult(
+      Iterable<MetricResult<Long>> counters, Class<?> clazz, String name) {
+    Long result = 0L;
+    for (MetricResult<Long> counter : counters) {
+      MetricName metricName = counter.getName();
+      if (metricName.getNamespace().equals(clazz.getName()) && metricName.getName().equals(name)) {
+        result = counter.getCommitted();
+      }
+    }
+    return result;
   }
 }

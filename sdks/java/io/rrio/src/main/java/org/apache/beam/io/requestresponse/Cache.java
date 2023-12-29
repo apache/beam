@@ -21,33 +21,90 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /** Transforms for reading and writing request/response associations to a cache. */
-final class Cache {
+public final class Cache {
 
   /**
-   * {@link VisibleForTesting} to test {@link RequestResponseIO} composite transform construction
-   * without exposing {@link UsingRedis.Read}.
+   * Builds a {@link Pair} using a <a href="https://redis.io">Redis</a> cache to read and write
+   * {@link RequestT} and {@link ResponseT} pairs. The purpose of the cache is to offload {@link
+   * RequestT}s from the API and instead return the {@link ResponseT} if the association is known.
+   * Since the {@link RequestT}s and {@link ResponseT}s need encoding and decoding, checks are made
+   * whether the requestTCoder and responseTCoders are {@link Coder#verifyDeterministic}.
+   * <strong>This feature is only appropriate for API reads such as HTTP list, get, etc.</strong>
+   *
+   * <pre>Below describes the parameters in more detail and their usage.</pre>
+   *
+   * <ul>
+   *   <li>{@code URI uri} - the {@link URI} of the Redis instance.
+   *   <li>{@code Coder<RequestT> requestTCoder} - the {@link RequestT} {@link Coder} to encode and
+   *       decode {@link RequestT}s during cache read and writes.
+   *   <li>{@code Duration expiry} - the duration to hold {@link RequestT} and {@link ResponseT}
+   *       pairs in the cache.
+   * </ul>
    */
-  @VisibleForTesting
-  static final String CACHE_READ_USING_REDIS = Cache.UsingRedis.Read.class.getName();
+  public static <RequestT, ResponseT> Pair<RequestT, ResponseT> usingRedis(
+      URI uri, Coder<RequestT> requestTCoder, Coder<ResponseT> responseTCoder, Duration expiry)
+      throws NonDeterministicException {
+    PTransform<PCollection<RequestT>, Result<KV<RequestT, @Nullable ResponseT>>> read =
+        Cache.<RequestT, @Nullable ResponseT>readUsingRedis(
+            new RedisClient(uri), requestTCoder, new CacheResponseCoder<>(responseTCoder));
+
+    PTransform<PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>> write =
+        // Type arguments needed to resolve "error: [assignment] incompatible types in assignment."
+        Cache.<RequestT, ResponseT>writeUsingRedis(
+            expiry, new RedisClient(uri), requestTCoder, new CacheResponseCoder<>(responseTCoder));
+
+    return Pair.<RequestT, ResponseT>of(read, write);
+  }
 
   /**
-   * {@link VisibleForTesting} to test {@link RequestResponseIO} composite transform construction
-   * without exposing {@link UsingRedis.Write}.
+   * A simple POJO that holds both cache read and write {@link PTransform}s. Functionally, these go
+   * together and must at times be instantiated using the same inputs.
    */
-  @VisibleForTesting
-  static final String CACHE_WRITE_USING_REDIS = Cache.UsingRedis.Write.class.getName();
+  public static class Pair<RequestT, ResponseT> {
+    private final PTransform<PCollection<RequestT>, Result<KV<RequestT, @Nullable ResponseT>>> read;
+    private final PTransform<PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>>
+        write;
+
+    public static <RequestT, ResponseT> Pair<RequestT, ResponseT> of(
+        PTransform<PCollection<RequestT>, Result<KV<RequestT, @Nullable ResponseT>>> read,
+        PTransform<PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>> write) {
+      return new Pair<>(read, write);
+    }
+
+    private Pair(
+        PTransform<PCollection<RequestT>, Result<KV<RequestT, @Nullable ResponseT>>> read,
+        PTransform<PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>> write) {
+      this.read = read;
+      this.write = write;
+    }
+
+    public PTransform<PCollection<RequestT>, Result<KV<RequestT, @Nullable ResponseT>>> getRead() {
+      return read;
+    }
+
+    public PTransform<PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>>
+        getWrite() {
+      return write;
+    }
+  }
 
   /**
    * Instantiates a {@link Call} {@link PTransform} that reads {@link RequestT} {@link ResponseT}
@@ -150,16 +207,16 @@ final class Cache {
       this.responseTCoder = responseTCoder;
     }
 
-    private Read<RequestT, @Nullable ResponseT> read() {
+    Read<RequestT, @Nullable ResponseT> read() {
       return new Read<>(requestTCoder, responseTCoder, client);
     }
 
-    private Write<RequestT, ResponseT> write(Duration expiry) {
+    Write<RequestT, ResponseT> write(Duration expiry) {
       return new Write<>(expiry, requestTCoder, responseTCoder, client);
     }
 
     /** Reads associated {@link RequestT} {@link ResponseT} using a {@link RedisClient}. */
-    private static class Read<RequestT, @Nullable ResponseT>
+    static class Read<RequestT, @Nullable ResponseT>
         implements Caller<RequestT, KV<RequestT, @Nullable ResponseT>>, SetupTeardown {
 
       private final Coder<RequestT> requestTCoder;
@@ -206,7 +263,7 @@ final class Cache {
       }
     }
 
-    private static class Write<RequestT, ResponseT>
+    static class Write<RequestT, ResponseT>
         implements Caller<KV<RequestT, ResponseT>, KV<RequestT, ResponseT>>, SetupTeardown {
       private final Duration expiry;
       private final Coder<RequestT> requestTCoder;
@@ -248,6 +305,36 @@ final class Cache {
       public void teardown() throws UserCodeExecutionException {
         client.teardown();
       }
+    }
+  }
+
+  /** Resolves checker error: incompatible argument for parameter ResponseT Coder. */
+  private static class CacheResponseCoder<ResponseT> extends CustomCoder<@Nullable ResponseT> {
+    private final NullableCoder<ResponseT> basis;
+
+    private CacheResponseCoder(Coder<ResponseT> basis) {
+      this.basis = NullableCoder.of(basis);
+    }
+
+    @Override
+    public void encode(@Nullable ResponseT value, OutputStream outStream)
+        throws CoderException, IOException {
+      basis.encode(value, outStream);
+    }
+
+    @Override
+    public @Nullable ResponseT decode(InputStream inStream) throws CoderException, IOException {
+      return basis.decode(inStream);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return basis.getCoderArguments();
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      basis.verifyDeterministic();
     }
   }
 }

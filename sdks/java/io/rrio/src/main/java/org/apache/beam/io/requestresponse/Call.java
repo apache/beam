@@ -32,6 +32,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -55,12 +57,6 @@ import org.joda.time.Duration;
  */
 class Call<RequestT, ResponseT>
     extends PTransform<@NonNull PCollection<RequestT>, @NonNull Result<ResponseT>> {
-
-  /**
-   * {@link VisibleForTesting} to test {@link RequestResponseIO} composite transform construction
-   * without exposing {@link NoopSetupTeardown}.
-   */
-  @VisibleForTesting static final String NOOP_SETUP_TEARDOWN = NoopSetupTeardown.class.getName();
 
   /**
    * Instantiates a {@link Call} {@link PTransform} with the required {@link Caller} and {@link
@@ -162,6 +158,9 @@ class Call<RequestT, ResponseT>
     private final CallerWithTimeout<RequestT, ResponseT> caller;
     private final SetupTeardownWithTimeout setupTeardown;
     private final Configuration<RequestT, ResponseT> configuration;
+    private @MonotonicNonNull Counter callCounter = null;
+    private @MonotonicNonNull Counter setupCounter = null;
+    private @MonotonicNonNull Counter teardownCounter = null;
 
     private transient @MonotonicNonNull ExecutorService executor;
 
@@ -178,7 +177,31 @@ class Call<RequestT, ResponseT>
       this.configuration = configuration;
     }
 
+    private void setupMetrics() {
+      Monitoring monitoring = configuration.getMonitoringConfiguration();
+      if (monitoring.getCountCalls()) {
+        callCounter =
+            Metrics.counter(
+                Call.class, configuration.getCaller().getClass().getSimpleName() + "_call");
+      }
+      if (monitoring.getCountSetup()) {
+        setupCounter =
+            Metrics.counter(
+                Call.class, configuration.getSetupTeardown().getClass().getSimpleName() + "_setup");
+      }
+      if (monitoring.getCountTeardown()) {
+        teardownCounter =
+            Metrics.counter(
+                Call.class,
+                configuration.getSetupTeardown().getClass().getSimpleName() + "_teardown");
+      }
+    }
+
     private void setupWithoutRepeat() throws UserCodeExecutionException {
+      if (setupCounter != null) {
+        // still needed by checker
+        checkStateNotNull(setupCounter).inc();
+      }
       this.setupTeardown.setup();
     }
 
@@ -188,6 +211,9 @@ class Call<RequestT, ResponseT>
      */
     @Setup
     public void setup() throws UserCodeExecutionException {
+
+      setupMetrics();
+
       this.executor = Executors.newSingleThreadExecutor();
       caller.setExecutor(executor);
       setupTeardown.setExecutor(executor);
@@ -215,6 +241,10 @@ class Call<RequestT, ResponseT>
               .setSleeper(sleeper)
               .setThrowableFunction(
                   ignored -> {
+                    if (setupCounter != null) {
+                      // still needed by checker
+                      checkStateNotNull(setupCounter).inc();
+                    }
                     this.setupTeardown.setup();
                     return null;
                   })
@@ -225,6 +255,10 @@ class Call<RequestT, ResponseT>
 
     private void performTeardown() throws UserCodeExecutionException {
       if (!configuration.getShouldRepeat()) {
+        if (teardownCounter != null) {
+          // still needed by checker
+          checkStateNotNull(teardownCounter).inc();
+        }
         setupTeardown.teardown();
         return;
       }
@@ -238,6 +272,10 @@ class Call<RequestT, ResponseT>
               .setSleeper(sleeper)
               .setThrowableFunction(
                   ignored -> {
+                    if (teardownCounter != null) {
+                      // still needed by checker
+                      checkStateNotNull(teardownCounter).inc();
+                    }
                     setupTeardown.teardown();
                     return null;
                   })
@@ -291,6 +329,10 @@ class Call<RequestT, ResponseT>
 
       if (!configuration.getShouldRepeat()) {
         try {
+          if (callCounter != null) {
+            // still needed by null checker
+            checkStateNotNull(callCounter).inc();
+          }
           // TODO(damondouglas): https://github.com/apache/beam/issues/29248
           ResponseT response = caller.call(request);
           receiver.get(responseTag).output(response);
@@ -301,15 +343,18 @@ class Call<RequestT, ResponseT>
         return;
       }
 
-      Repeater<RequestT, ResponseT> repeater =
+      Repeater.Builder<RequestT, ResponseT> repeaterBuilder =
           Repeater.<RequestT, ResponseT>builder()
               .setSleeper(sleeper)
               .setBackOff(backOff)
-              .setThrowableFunction(caller::call)
-              .build();
+              .setThrowableFunction(caller::call);
+
+      if (callCounter != null) {
+        repeaterBuilder = repeaterBuilder.setCallCounter(callCounter);
+      }
 
       try {
-        ResponseT response = repeater.apply(request);
+        ResponseT response = repeaterBuilder.build().apply(request);
         receiver.get(responseTag).output(response);
       } catch (UserCodeExecutionException e) {
         receiver.get(failureTag).output(ApiIOError.of(e, request));
@@ -377,6 +422,8 @@ class Call<RequestT, ResponseT>
      */
     abstract SerializableSupplier<BackOff> getBackOffSupplier();
 
+    abstract Monitoring getMonitoringConfiguration();
+
     abstract Builder<RequestT, ResponseT> toBuilder();
 
     @AutoValue.Builder
@@ -419,6 +466,10 @@ class Call<RequestT, ResponseT>
 
       abstract Optional<SerializableSupplier<BackOff>> getBackOffSupplier();
 
+      abstract Builder<RequestT, ResponseT> setMonitoringConfiguration(Monitoring value);
+
+      abstract Optional<Monitoring> getMonitoringConfiguration();
+
       abstract Configuration<RequestT, ResponseT> autoBuild();
 
       final Configuration<RequestT, ResponseT> build() {
@@ -446,12 +497,16 @@ class Call<RequestT, ResponseT>
           setBackOffSupplier(new DefaultSerializableBackoffSupplier());
         }
 
+        if (!getMonitoringConfiguration().isPresent()) {
+          setMonitoringConfiguration(Monitoring.builder().build());
+        }
+
         return autoBuild();
       }
     }
   }
 
-  private static class NoopSetupTeardown implements SetupTeardown {
+  static class NoopSetupTeardown implements SetupTeardown {
 
     @Override
     public void setup() throws UserCodeExecutionException {
