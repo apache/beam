@@ -145,6 +145,7 @@ export class PCollection<T> {
     return this.apply(
       withName(
         "flatMap(" + extractName(fn) + ")",
+        // @ts-ignore
         parDo<T, OutputT, ContextT>(
           {
             process: function (element: T, context: ContextT) {

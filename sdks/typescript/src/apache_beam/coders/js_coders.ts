@@ -35,6 +35,7 @@ export class BsonObjectCoder<T> implements Coder<T> {
   static URN = "beam:coder:bsonjs:v1";
 
   encode(element: T, writer: Writer, context: Context) {
+    // @ts-ignore
     const buff = BSON.serialize(element);
     writer.bytes(buff);
   }

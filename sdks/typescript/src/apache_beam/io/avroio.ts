@@ -45,6 +45,7 @@ export function writeToAvro<T>(filePath: string, options: { schema: Schema }) {
       );
     }
     return pcoll.applyAsync(
+      // @ts-ignore
       schemaio<beam.PCollection<T>, {}>(
         "writeToAvro",
         "beam:transform:org.apache.beam:schemaio_avro_write:v1",

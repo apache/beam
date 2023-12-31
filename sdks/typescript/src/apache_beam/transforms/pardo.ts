@@ -88,7 +88,7 @@ export interface DoFn<InputT, OutputT, ContextT = undefined> {
 export function parDo<
   InputT,
   OutputT,
-  ContextT extends Object | undefined = undefined
+  ContextT = undefined
 >(
   doFn: DoFn<InputT, OutputT, ContextT>,
   context: ContextT = undefined!
@@ -107,7 +107,7 @@ export function parDo<
     if (typeof context === "object") {
       contextCopy = Object.create(context as Object) as any;
       const components = pipeline.context.components;
-      for (const [name, value] of Object.entries(context)) {
+      for (const [name, value] of Object.entries(context as object)) {
         if (value instanceof SideInputParam) {
           const inputName = "side." + name;
           transformProto.inputs[inputName] = value.pcoll.getId();
