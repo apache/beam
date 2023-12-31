@@ -8,11 +8,11 @@
     "moduleResolution": "node",
     "plugins": [
       {
-        "transform": "ts-closure-transform",
+        "transform": "@triplewhale/ts-closure-transform",
         "import": "beforeTransform"
       },
       {
-        "transform": "ts-closure-transform",
+        "transform": "@triplewhale/ts-closure-transform",
         "import": "afterTransform",
         "after": true
       }

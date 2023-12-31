@@ -121,10 +121,10 @@ function writeToPubSubRaw(
 
 export function writeToPubSub(topic: string, options: WriteOptions = {}) {
   return async function writeToPubSub(dataPColl: beam.PCollection<Uint8Array>) {
-    return dataPColl //
-      .map((data) =>
+    return dataPColl
+      .map(withName("writeToPubSubEncode", (data) =>
         PubSub.protos.google.pubsub.v1.PubsubMessage.encode({ data }).finish()
-      )
+      ))
       .apply(internal.withCoderInternal(new BytesCoder()))
       .applyAsync(writeToPubSubRaw(topic, options));
   };

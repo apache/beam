@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import * as serialize_closures from "serialize-closures";
+import * as serialize_closures from "@triplewhale/serialize-closures";
 
 const registeredModules: string[] = [];
 export const registeredObjects: serialize_closures.BuiltinRecord[] = [];
