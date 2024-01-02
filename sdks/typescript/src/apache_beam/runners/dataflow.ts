@@ -30,7 +30,7 @@ export function dataflowRunner(runnerOptions: {
   return new (class extends Runner {
     async runPipeline(
       pipeline: Pipeline,
-      options: Object = {}
+      options: Object = {},
     ): Promise<PipelineResult> {
       var augmentedOptions = { experiments: [] as string[], ...options };
       augmentedOptions.experiments.push("use_runner_v2");
@@ -40,8 +40,8 @@ export function dataflowRunner(runnerOptions: {
         runnerOptions as any,
         PythonService.forModule(
           "apache_beam.runners.dataflow.dataflow_job_service",
-          ["--port", "{{PORT}}"]
-        )
+          ["--port", "{{PORT}}"],
+        ),
       ).runPipeline(pipeline, augmentedOptions);
     }
   })();

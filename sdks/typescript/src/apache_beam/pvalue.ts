@@ -50,7 +50,7 @@ export class Root {
   }
 
   async applyAsync<OutputT extends PValue<any>>(
-    transform: AsyncPTransform<Root, OutputT>
+    transform: AsyncPTransform<Root, OutputT>,
   ) {
     if (!(transform instanceof AsyncPTransformClass)) {
       transform = new AsyncPTransformClassFromCallable(transform);
@@ -88,7 +88,7 @@ export class PCollection<T> {
   }
 
   apply<OutputT extends PValue<any>>(
-    transform: PTransform<PCollection<T>, OutputT>
+    transform: PTransform<PCollection<T>, OutputT>,
   ) {
     if (!(transform instanceof PTransformClass)) {
       transform = new PTransformClassFromCallable(transform);
@@ -97,7 +97,7 @@ export class PCollection<T> {
   }
 
   applyAsync<OutputT extends PValue<any>>(
-    transform: AsyncPTransform<PCollection<T>, OutputT>
+    transform: AsyncPTransform<PCollection<T>, OutputT>,
   ) {
     if (!(transform instanceof AsyncPTransformClass)) {
       transform = new AsyncPTransformClassFromCallable(transform);
@@ -109,7 +109,7 @@ export class PCollection<T> {
     fn:
       | (ContextT extends undefined ? (element: T) => OutputT : never)
       | ((element: T, context: ContextT) => OutputT),
-    context: ContextT = undefined!
+    context: ContextT = undefined!,
   ): PCollection<OutputT> {
     if (extractContext(fn)) {
       context = { ...extractContext(fn), ...context };
@@ -127,9 +127,9 @@ export class PCollection<T> {
                 : fn(element, context);
             },
           },
-          context
-        )
-      )
+          context,
+        ),
+      ),
     );
   }
 
@@ -137,7 +137,7 @@ export class PCollection<T> {
     fn:
       | (ContextT extends undefined ? (element: T) => Iterable<OutputT> : never)
       | ((element: T, context: ContextT) => Iterable<OutputT>),
-    context: ContextT = undefined!
+    context: ContextT = undefined!,
   ): PCollection<OutputT> {
     if (extractContext(fn)) {
       context = { ...extractContext(fn), ...context };
@@ -156,9 +156,9 @@ export class PCollection<T> {
                 : fn(element, context);
             },
           },
-          context
-        )
-      )
+          context,
+        ),
+      ),
     );
   }
 
@@ -185,7 +185,7 @@ export type PValue<T> =
  */
 export function flattenPValue<T>(
   pValue: PValue<T>,
-  prefix: string = ""
+  prefix: string = "",
 ): { [key: string]: PCollection<T> } {
   const result: { [key: string]: PCollection<any> } = {};
   if (pValue === null || pValue === undefined) {
@@ -232,7 +232,7 @@ class PValueWrapper<T extends PValue<any>> {
 
   apply<O extends PValue<any>>(
     transform: PTransform<T, O>,
-    root: Root | null = null
+    root: Root | null = null,
   ) {
     if (!(transform instanceof PTransformClass)) {
       transform = new PTransformClassFromCallable(transform);
@@ -242,14 +242,14 @@ class PValueWrapper<T extends PValue<any>> {
 
   async applyAsync<O extends PValue<any>>(
     transform: AsyncPTransform<T, O>,
-    root: Root | null = null
+    root: Root | null = null,
   ) {
     if (!(transform instanceof AsyncPTransformClass)) {
       transform = new AsyncPTransformClassFromCallable(transform);
     }
     return await this.pipeline(root).applyAsyncTransform(
       transform,
-      this.pvalue
+      this.pvalue,
     );
   }
 
@@ -265,20 +265,20 @@ class PValueWrapper<T extends PValue<any>> {
 
 class PTransformClassFromCallable<
   InputT extends PValue<any>,
-  OutputT extends PValue<any>
+  OutputT extends PValue<any>,
 > extends PTransformClass<InputT, OutputT> {
   expander: (
     input: InputT,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
+    transformProto: runnerApi.PTransform,
   ) => OutputT;
 
   constructor(
     expander: (
       input: InputT,
       pipeline: Pipeline,
-      transformProto: runnerApi.PTransform
-    ) => OutputT
+      transformProto: runnerApi.PTransform,
+    ) => OutputT,
   ) {
     super(extractName(expander));
     this.expander = expander;
@@ -287,7 +287,7 @@ class PTransformClassFromCallable<
   expandInternal(
     input: InputT,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
+    transformProto: runnerApi.PTransform,
   ) {
     return this.expander(input, pipeline, transformProto);
   }
@@ -295,20 +295,20 @@ class PTransformClassFromCallable<
 
 class AsyncPTransformClassFromCallable<
   InputT extends PValue<any>,
-  OutputT extends PValue<any>
+  OutputT extends PValue<any>,
 > extends AsyncPTransformClass<InputT, OutputT> {
   expander: (
     input: InputT,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
+    transformProto: runnerApi.PTransform,
   ) => Promise<OutputT>;
 
   constructor(
     expander: (
       input: InputT,
       pipeline: Pipeline,
-      transformProto: runnerApi.PTransform
-    ) => Promise<OutputT>
+      transformProto: runnerApi.PTransform,
+    ) => Promise<OutputT>,
   ) {
     super(extractName(expander));
     this.expander = expander;
@@ -317,7 +317,7 @@ class AsyncPTransformClassFromCallable<
   async expandInternalAsync(
     input: InputT,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
+    transformProto: runnerApi.PTransform,
   ) {
     return this.expander(input, pipeline, transformProto);
   }

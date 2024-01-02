@@ -25,12 +25,12 @@ import * as protobufjs from "protobufjs";
 
 export function schemaio<
   InputT extends beam.PValue<any>,
-  OutputT extends beam.PValue<any>
+  OutputT extends beam.PValue<any>,
 >(
   name,
   urn,
   config,
-  configSchema: Schema | undefined = undefined
+  configSchema: Schema | undefined = undefined,
 ): beam.AsyncPTransform<InputT, OutputT> {
   // Location is separate for historical reasons.
   let maybeLocation: { location?: string } = {};
@@ -58,8 +58,8 @@ export function schemaio<
       urn,
       { config: encodedConfig, ...maybeLocation, ...maybeSchema },
       serviceProviderFromJavaGradleTarget(
-        "sdks:java:io:google-cloud-platform:expansion-service:shadowJar"
-      )
-    )
+        "sdks:java:io:google-cloud-platform:expansion-service:shadowJar",
+      ),
+    ),
   );
 }
