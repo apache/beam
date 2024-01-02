@@ -1435,8 +1435,6 @@ public class AvroIO {
 
     abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
-    abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
-
     abstract @Nullable SerializableFunction<Exception, Boolean> getBadRecordMatcher();
 
     /**

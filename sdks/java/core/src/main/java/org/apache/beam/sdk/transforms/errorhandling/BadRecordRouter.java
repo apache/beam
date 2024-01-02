@@ -43,7 +43,7 @@ public interface BadRecordRouter extends Serializable {
       throws Exception;
 
   <RecordT> void route(
-      DoFn<?,?>.FinishBundleContext c,
+      DoFn<?, ?>.FinishBundleContext c,
       RecordT record,
       @Nullable Coder<RecordT> coder,
       @Nullable Exception exception,
@@ -79,7 +79,7 @@ public interface BadRecordRouter extends Serializable {
 
     @Override
     public <RecordT> void route(
-        DoFn<?,?>.FinishBundleContext c,
+        DoFn<?, ?>.FinishBundleContext c,
         RecordT record,
         @Nullable Coder<RecordT> coder,
         @Nullable Exception exception,
@@ -120,14 +120,18 @@ public interface BadRecordRouter extends Serializable {
 
     @Override
     public <RecordT> void route(
-        DoFn<?,?>.FinishBundleContext c,
+        DoFn<?, ?>.FinishBundleContext c,
         RecordT record,
         @Nullable Coder<RecordT> coder,
         @Nullable Exception exception,
         String description,
         BoundedWindow window)
         throws Exception {
-      c.output(BAD_RECORD_TAG,BadRecord.fromExceptionInformation(record, coder, exception, description),window.maxTimestamp(),window);
+      c.output(
+          BAD_RECORD_TAG,
+          BadRecord.fromExceptionInformation(record, coder, exception, description),
+          window.maxTimestamp(),
+          window);
     }
   }
 }
