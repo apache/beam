@@ -25,19 +25,19 @@ limitations under the License.
     src="/images/blog/scaling-streaming-workload/0-intro.png"
     alt="Streaming Processing">
 
-Scaling a streaming workload is critical for ensuring that a pipeline can handle large amounts of data being processed, while minimizing latency and executing efficiently. Without proper scaling, a pipeline may experience performance issues or even fail entirely, delaying the time to insights for the business.
+Scaling a streaming workload is critical for ensuring that a pipeline can process large amounts of data while also minimizing latency and executing efficiently. Without proper scaling, a pipeline may experience performance issues or even fail entirely, delaying the time to insights for the business.
 
 Given the Apache Beam support for the sources and sinks needed by the workload, developing a streaming pipeline can be easy. You can focus on the processing (transformations, enrichments, or aggregations) and on setting the right configurations for each case.
 
 However, you need to identify the key performance bottlenecks and make sure that the pipeline has the resources it needs to handle the load efficiently. This can involve right-sizing the number of workers, understanding the settings needed for the source and sinks of the pipeline, optimizing the processing logic, and even determining the transport formats.
 
-This article aims to illustrate how to manage the problem of scaling and optimizing a streaming workload developed in Apache Beam and run on Google Cloud using Dataflow. The goal is to reach one million events per second, while also minimizing latency and resource use during execution. The workload uses Pub/Sub as the streaming source and BigQuery as the sink. We plan to describe the reasoning behind the configuration settings and code changes we used to help the workload achieve the desired scale and beyond.
+This article illustrates how to manage the problem of scaling and optimizing a streaming workload developed in Apache Beam and run on Google Cloud using Dataflow. The goal is to reach one million events per second, while also minimizing latency and resource use during execution. The workload uses Pub/Sub as the streaming source and BigQuery as the sink. We describe the reasoning behind the configuration settings and code changes we used to help the workload achieve the desired scale and beyond.
 
-Finally, it is worth mentioning that the progression described in this article maps to the evolution of a real-life workload, with simplifications. After the initial business requirements for the pipeline were achieved, the focus shifted to optimizing the performance and reducing the resources needed for the pipeline execution.
+The progression described in this article maps to the evolution of a real-life workload, with simplifications. After the initial business requirements for the pipeline were achieved, the focus shifted to optimizing the performance and reducing the resources needed for the pipeline execution.
 
 ## Execution setup
 
-For this article, we created a test suite that creates the necessary components for the pipelines to execute. You can find the code in [this Github repository](https://github.com/prodriguezdefino/apache-beam-streaming-tests). You can find the subsequent changes that are introduced on every run  [in the https://github.com/prodriguezdefino/apache-beam-streaming-tests/tree/main/scaling-streaming-workload-blog folder](https://github.com/prodriguezdefino/apache-beam-streaming-tests/tree/main/scaling-streaming-workload-blog) as scripts that can be run to achieve similar results.
+For this article, we created a test suite that creates the necessary components for the pipelines to execute. You can find the code in [this Github repository](https://github.com/prodriguezdefino/apache-beam-streaming-tests). You can find the subsequent changes that are introduced on every run  in the [`https://github.com/prodriguezdefino/apache-beam-streaming-tests/tree/main/scaling-streaming-workload-blog`](https://github.com/prodriguezdefino/apache-beam-streaming-tests/tree/main/scaling-streaming-workload-blog) folder as scripts that you can run to achieve similar results.
 
 All of the execution scripts can also execute a Terraform-based automation to create a Pub/Sub topic and subscription as well as a BigQuery dataset and table to run the workload. Also, it launches two pipelines: one data generation pipeline that pushes events to the Pub/Sub topic, and an ingestion pipeline that demonstrates the potential improvement points.
 
@@ -74,15 +74,15 @@ Focusing on the ingestion pipeline, our [workload](https://github.com/prodriguez
 
 The pipeline we used for the tests is highly configurable. For more details about how to tweak the ingestion, see the [options](https://github.com/prodriguezdefino/apache-beam-streaming-tests/blob/main/canonical-streaming-pipelines/src/main/java/com/google/cloud/pso/beam/pipelines/StreamingSourceToBigQuery.java#L39) in the file. No code changes are needed on any of our steps. The execution scripts take care of the configurations needed.
 
-Although these tests are focused on reading data from Pub/Sub, the ingestion pipeline is capable of reading data from a generic streaming source. The repository contains other [examples](https://github.com/prodriguezdefino/apache-beam-streaming-tests/tree/main/example-suite-scripts) that show how to launch this same test suite reading data from PubSubLite and Kafka. In all cases, the pipeline automation sets up the streaming infrastructure.
+Although these tests are focused on reading data from Pub/Sub, the ingestion pipeline is capable of reading data from a generic streaming source. The repository contains other [examples](https://github.com/prodriguezdefino/apache-beam-streaming-tests/tree/main/example-suite-scripts) that show how to launch this same test suite reading data from Pub/Sub Lite and Kafka. In all cases, the pipeline automation sets up the streaming infrastructure.
 
-Finally, you can see in the [configuration options](https://github.com/prodriguezdefino/apache-beam-ptransforms/blob/a0dd229081625c7b593512543614daf995a9f870/common/src/main/java/com/google/cloud/pso/beam/common/formats/options/TransportFormatOptions.java) that the pipeline supports many transport format options for the input, such as Thrift, Avro, and JSON. This suite focuses on Thrift, because it is a common open source format, and because it generates a format transformation need (the intent is to put some strain in the workload processing). You can run similar tests for Avro and JSON input data. The streaming data generator pipeline can generate random data for the [three supported formats](https://github.com/prodriguezdefino/apache-beam-streaming-tests/tree/main/streaming-data-generator/src/main/java/com/google/cloud/pso/beam/generator/formats) by walking directly on the schema (Avro and JSON) or IDL (Thrift) provided for execution.
+Finally, you can see in the [configuration options](https://github.com/prodriguezdefino/apache-beam-ptransforms/blob/a0dd229081625c7b593512543614daf995a9f870/common/src/main/java/com/google/cloud/pso/beam/common/formats/options/TransportFormatOptions.java) that the pipeline supports many transport format options for the input, such as Thrift, Avro, and JSON. This suite focuses on Thrift, because it is a common open source format, and because it generates a format transformation need. The intent is to put some strain in the workload processing. You can run similar tests for Avro and JSON input data. The streaming data generator pipeline can generate random data for the [three supported formats](https://github.com/prodriguezdefino/apache-beam-streaming-tests/tree/main/streaming-data-generator/src/main/java/com/google/cloud/pso/beam/generator/formats) by walking directly on the schema (Avro and JSON) or IDL (Thrift) provided for execution.
 
 ## First run: default settings
 
-The default values for the execution writes the data to BigQuery using `STREAMING_INSERTS` mode for `BigQueryIO`.  This mode correlates with the [`tableData insertAll` API](https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/insertAll) for BigQuery. This API supports data in JSON format. From the Apache Beam perspective, using the `BigQueryIO.writeTableRows` method lets us resolve the writes into BigQuery.
+The default values for the execution writes the data to BigQuery using `STREAMING_INSERTS` mode for `BigQueryIO`. This mode correlates with the [`tableData insertAll` API](https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/insertAll) for BigQuery. This API supports data in JSON format. From the Apache Beam perspective, using the `BigQueryIO.writeTableRows` method lets us resolve the writes into BigQuery.
 
-For our ingestion pipeline, the Thrift format needs to be transformed into `TableRow`. To do that, we need to translate the Thrift IDL into a BigQuery table schema. That can be achieved by translating the Thrift IDL into an Avro schema, and then using Beam utilities to translate the table schema for BigQuery. We can do this at bootstrap. The schema transformation is cached at the DoFn level.
+For our ingestion pipeline, the Thrift format needs to be transformed into `TableRow`. To do that, we need to translate the Thrift IDL into a BigQuery table schema. That can be achieved by translating the Thrift IDL into an Avro schema, and then using Beam utilities to translate the table schema for BigQuery. We can do this at bootstrap. The schema transformation is cached at the `DoFn` level.
 
 After setting up the data generation and ingestion pipelines, and after letting the pipelines run for some minutes, we see that the pipeline is unable to sustain the desired throughput.
 
@@ -115,11 +115,11 @@ This is good, but we should take a look at the throughput per stage numbers to u
     src="/images/blog/scaling-streaming-workload/2-skeys-throughput.png"
     alt="Throughput">
 
-Although the performance has clearly improved, and the Pub/Sub backlog no longer increases monotonically, we are still far from the goal of processing one million events per second (1 GB/s) for our ingestion pipeline. In fact, the throughput metrics jump all over the time, indicating that bottlenecks are preventing the processing from scaling further.
+Although the performance has clearly improved, and the Pub/Sub backlog no longer increases monotonically, we are still far from the goal of processing one million events per second (1 GB/s) for our ingestion pipeline. In fact, the throughput metrics jump all over, indicating that bottlenecks are preventing the processing from scaling further.
 
 ## Third run: unleash autoscale
 
-Luckily for us, when writing into BigQuery, we can autoscale the writes. This step simplifies the configuration so that we don't have to guess on the right number of shards. We switched the pipeline’s configuration and enabled this setting for the next [launch script](https://github.com/prodriguezdefino/apache-beam-streaming-tests/blob/main/scaling-streaming-workload-blog/3-ps2bq-si-tr-streamingautoshard.sh).
+Luckily for us, when writing into BigQuery, we can autoscale the writes. This step simplifies the configuration so that we don't have to guess the right number of shards. We switched the pipeline’s configuration and enabled this setting for the next [launch script](https://github.com/prodriguezdefino/apache-beam-streaming-tests/blob/main/scaling-streaming-workload-blog/3-ps2bq-si-tr-streamingautoshard.sh).
 
 <img class="center-block"
     src="/images/blog/scaling-streaming-workload/3-autoshard-parallelism.png"
@@ -158,17 +158,17 @@ Looking at the input size, right before the identity UDF execution, the data for
 
 When we inspect the `StoreInBigQuery` transform, we see that the majority of the wall time is spent on the actual writes. Also, the wall time spent converting data to the destination format (`TableRows`) compared with how much is spent in the actual writes is quite large: 13 times bigger for the writes. To improve this behavior, we can switch the pipeline write mode.
 
-## Fourth run: in with the new (using StorageWrites API)
+## Fourth run: in with the new
 
-Enabling the `StorageWrite` API for this pipeline is straightforward. We set the write mode as `STORAGE_WRITE_API` and define a write triggering frequency. For this test, we write data at most every ten seconds. The write triggering frequency controls how long the per-stream data accumulate. A higher number defines a larger output to be written after the stream assignment but also imposes a larger end-to-end latency for every element read from Pub/Sub. Similar to the `STREAMING_WRITES` configuration, `BigQueryIO` can handle autosharding for the writes, which we already demonstrated to be the best setting for performance.
+In this run, we use  the `StorageWrite` API. Enabling the `StorageWrite` API for this pipeline is straightforward. We set the write mode as `STORAGE_WRITE_API` and define a write triggering frequency. For this test, we write data at most every ten seconds. The write triggering frequency controls how long the per-stream data accumulate. A higher number defines a larger output to be written after the stream assignment but also imposes a larger end-to-end latency for every element read from Pub/Sub. Similar to the `STREAMING_WRITES` configuration, `BigQueryIO` can handle autosharding for the writes, which we already demonstrated to be the best setting for performance.
 
-After both pipelines become stable, the performance benefits seen when using the `StorageWrites` API in `BigQueryIO` are apparent. After enabling the new implementation, the wall time rate between the format transformation and write operation decreases. The wall time spent on writes is only about 34 percent larger than the format transformation.
+After both pipelines become stable, the performance benefits seen when using the `StorageWrite` API in `BigQueryIO` are apparent. After enabling the new implementation, the wall time rate between the format transformation and write operation decreases. The wall time spent on writes is only about 34 percent larger than the format transformation.
 
 <img class="center-block"
     src="/images/blog/scaling-streaming-workload/4-format-transformation.png"
     alt="Translation Overhead">
 
-After stabilization, the pipeline throughput is also quite smooth. This enables the runner to quickly and steadily downscale the pipeline resources needed to sustain the desired throughput.
+After stabilization, the pipeline throughput is also quite smooth. The runner can quickly and steadily downscale the pipeline resources needed to sustain the desired throughput.
 
 <img class="center-block"
     src="/images/blog/scaling-streaming-workload/4-throughput.png"
@@ -182,7 +182,7 @@ Looking at the resource scale needed to process the data, another dramatic impro
 
 We can use the data generation pipeline as reference. This pipeline only needs to randomly generate data and write the events to Pub/Sub. It runs steadily with an average of 40 workers. The improvements on the ingestion pipeline using the right configuration for the workload makes it closer to those resources needed for the generation.
 
-Similar to the streaming inserts-based pipeline, writing the data into BigQuery requires running a format translation, from Thrift to `TableRow` in the former and from Thrift to Protocol Buffers (protobuf) on the latter. Because we are using the `BigQueryIO.writeTableRows` method, we add another step in the format translation. Because the `TableRow` format also increases the size of the `PCollection` being processed, we want to see if we can improve this step.
+Similar to the streaming inserts-based pipeline, writing the data into BigQuery requires running a format translation, from Thrift to `TableRow` in the former and from Thrift to Protocol Buffers (protobuf) in the latter. Because we are using the `BigQueryIO.writeTableRows` method, we add another step in the format translation. Because the `TableRow` format also increases the size of the `PCollection` being processed, we want to see if we can improve this step.
 
 
 ## Fifth run: a better write format
@@ -228,7 +228,7 @@ We see further gains when we look at resource utilization. We need less CPU time
     src="/images/blog/scaling-streaming-workload/6-ingestion-scale.png"
     alt="Resources">
 
-This pipeline improves upon the previous run, running steadily on 42 workers when throughput is stable. Given the worker configuration used (`nd2-standard-4), and the volume throughput of the workload process ( about 1 GB/s), we are achieving about 6 MB/s throughput per CPU core, which is quite impressive for a streaming pipeline with exactly-once semantics.
+This pipeline improves upon the previous run, running steadily on 42 workers when throughput is stable. Given the worker configuration used (`nd2-standard-4`), and the volume throughput of the workload process (about 1 GB/s), we are achieving about 6 MB/s throughput per CPU core, which is quite impressive for a streaming pipeline with exactly-once semantics.
 
 <img class="center-block"
     src="/images/blog/scaling-streaming-workload/6-latencies.png"
@@ -248,13 +248,13 @@ From a high-level perspective, writes into BigQuery are made in batches, which a
     src="/images/blog/scaling-streaming-workload/7-previous-data-input.png"
     alt="Read data size">
 
-Looking at the previous pipeline execution, the total data being processed from Streaming Engine for the pipeline is larger than the data being read from Pub/Sub. For example, 7 TB of data is read from Pub/Sub, whereas the processing of data for the whole execution of the pipeline moves 25 TB of data to and from Streaming Engine.
+Looking at the previous pipeline execution, the total data being processed for the pipeline by Streaming Engine is larger than the data being read from Pub/Sub. For example, 7 TB of data is read from Pub/Sub, whereas the processing of data for the whole execution of the pipeline moves 25 TB of data to and from Streaming Engine.
 
 <img class="center-block"
     src="/images/blog/scaling-streaming-workload/7-previous-shuffle-total.png"
     alt="Streamed data size">
 
-In the cases where data consistency is not a hard requirement for the ingestion, we can relax the BigQueryIO write mode to use an at-least-once semantic. By doing this, the implementation will avoid shuffling and grouping data for the writes, but this decision may cause a small number of repeated rows being written into the destination table (this could happen in case of append errors, infrequent worker restarts, and other even less frequent errors).
+When data consistency is not a hard requirement for ingestion, you can use at-least-once semantics with `BigQueryIO` write mode. This implementation avoids shuffling and grouping data for the writes. However, this change might cause a small number of repeated rows to be written into the destination table. This can happen with append errors, infrequent worker restarts, and other even less frequent errors.
 
 Therefore, we add the configuration to use `STORAGE_API_AT_LEAST_ONCE` write mode. To instruct the `StorageWrite` client to reuse connections while writing data, we also add the configuration flag `–useStorageApiConnectionPool`. This configuration option only works with `STORAGE_API_AT_LEAST_ONCE` mode, and it reduces the occurrences of warnings similars to `Storage Api write delay more than 8 seconds`.
 
@@ -282,7 +282,7 @@ This configuration also has impressively low latency for the end-to-end processi
 
 ## Recap
 
-Optimizing Apache Beam streaming workloads for low latency and efficient execution requires careful analysis, decision-making, and the right configurations.
+Optimizing Apache Beam streaming workloads for low latency and efficient execution requires careful analysis and decision-making, and the right configurations.
 
 Considering the scenario discussed in this article, it is essential to consider factors like overall CPU utilization, throughput and latency per stage, `PCollection` sizes, wall time per stage, write mode, and transport formats, in addition to writing the right pipeline for the workload.
 
