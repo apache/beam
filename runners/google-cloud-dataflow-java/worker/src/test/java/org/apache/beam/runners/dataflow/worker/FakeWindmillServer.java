@@ -46,9 +46,11 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationCommitWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataResponse;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
@@ -317,7 +319,8 @@ class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active) {
+      public void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active,
+                                    Map<String, List<HeartbeatRequest>> heartbeats) {
         Windmill.GetDataRequest.Builder builder = Windmill.GetDataRequest.newBuilder();
         for (Map.Entry<String, List<KeyedGetDataRequest>> entry : active.entrySet()) {
           builder.addRequests(
@@ -325,6 +328,13 @@ class FakeWindmillServer extends WindmillServerStub {
                   .setComputationId(entry.getKey())
                   .addAllRequests(entry.getValue()));
         }
+        for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+          builder.addComputationHeartbeatRequest(
+              ComputationHeartbeatRequest.newBuilder()
+                  .setComputationId(entry.getKey())
+                  .addAllHeartbeatRequests(entry.getValue()));
+        }
+
         getData(builder.build());
       }
 

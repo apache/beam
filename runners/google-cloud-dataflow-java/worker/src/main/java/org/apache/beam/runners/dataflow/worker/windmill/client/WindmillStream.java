@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.joda.time.Instant;
 
@@ -59,7 +60,8 @@ public interface WindmillStream {
     Windmill.GlobalData requestGlobalData(Windmill.GlobalDataRequest request);
 
     /** Tells windmill processing is ongoing for the given keys. */
-    void refreshActiveWork(Map<String, List<Windmill.KeyedGetDataRequest>> active);
+    void refreshActiveWork(Map<String, List<Windmill.KeyedGetDataRequest>> active,
+                           Map<String, List<HeartbeatRequest>> heartbeats);
 
     void onHeartbeatResponse(List<Windmill.ComputationHeartbeatResponse> responses);
   }

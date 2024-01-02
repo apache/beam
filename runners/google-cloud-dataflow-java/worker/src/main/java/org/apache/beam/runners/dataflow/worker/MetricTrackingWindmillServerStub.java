@@ -249,23 +249,19 @@ public class MetricTrackingWindmillServerStub {
         // we trigger health checks for the stream even when it is idle.
         GetDataStream stream = streamPool.getStream();
         try {
-          stream.refreshActiveWork(active);
+          stream.refreshActiveWork(active, heartbeats);
         } finally {
           streamPool.releaseStream(stream);
         }
-      } else if (!active.isEmpty() || !heartbeats.isEmpty()) {
+      } else if (!active.isEmpty()) {
+        // Note: We don't send HeartbeatRequest's if we aren't using streaming requests since
+        // it's not supported by appliance.
         Windmill.GetDataRequest.Builder builder = Windmill.GetDataRequest.newBuilder();
         for (Map.Entry<String, List<KeyedGetDataRequest>> entry : active.entrySet()) {
           builder.addRequests(
               Windmill.ComputationGetDataRequest.newBuilder()
                   .setComputationId(entry.getKey())
                   .addAllRequests(entry.getValue()));
-        }
-        for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
-          builder.addComputationHeartbeatRequest(
-              Windmill.ComputationHeartbeatRequest.newBuilder()
-                  .setComputationId(entry.getKey())
-                  .addAllHeartbeatRequests(entry.getValue()));
         }
         server.getData(builder.build());
       }

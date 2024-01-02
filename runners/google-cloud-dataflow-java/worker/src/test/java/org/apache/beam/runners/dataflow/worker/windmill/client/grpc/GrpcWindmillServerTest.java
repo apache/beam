@@ -44,6 +44,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Al
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationWorkItemMetadata;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkStreamTimingInfo;
@@ -52,6 +53,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
@@ -743,7 +745,7 @@ public class GrpcWindmillServerTest {
     while (true) {
       Thread.sleep(100);
       int tmpErrorsBeforeClose = errorsBeforeClose.get();
-      // wait for at least 1 errors before close
+      // wait for at least 1 error before close
       if (tmpErrorsBeforeClose > 0) {
         break;
       }
@@ -764,7 +766,7 @@ public class GrpcWindmillServerTest {
     while (true) {
       Thread.sleep(100);
       int tmpErrorsAfterClose = errorsAfterClose.get();
-      // wait for at least 1 errors after close
+      // wait for at least 1 error after close
       if (tmpErrorsAfterClose > 0) {
         break;
       }
@@ -785,7 +787,7 @@ public class GrpcWindmillServerTest {
     assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
   }
 
-  private List<KeyedGetDataRequest> makeHeartbeatRequest(List<String> keys) {
+  private List<KeyedGetDataRequest> makeGetDataHeartbeatRequest(List<String> keys) {
     List<KeyedGetDataRequest> result = new ArrayList<>();
     for (String key : keys) {
       result.add(
@@ -797,10 +799,24 @@ public class GrpcWindmillServerTest {
     return result;
   }
 
+  private List<HeartbeatRequest> makeHeartbeatRequest(List<String> keys) {
+    List<HeartbeatRequest> result = new ArrayList<>();
+    for (String key : keys) {
+      result.add(
+          Windmill.HeartbeatRequest.newBuilder()
+              .setShardingKey(key.hashCode())
+              .setWorkToken(0)
+              .setCacheToken(0)
+              .build());
+    }
+    return result;
+  }
+
   @Test
   public void testStreamingGetDataHeartbeats() throws Exception {
     // This server records the heartbeats observed but doesn't respond.
-    final Map<String, List<KeyedGetDataRequest>> heartbeats = new HashMap<>();
+    final Map<String, List<KeyedGetDataRequest>> getDataHeartbeats = new HashMap<>();
+    final Map<String, List<HeartbeatRequest>> heartbeatRequests = new HashMap<>();
 
     serviceRegistry.addService(
         new CloudWindmillServiceV1Alpha1ImplBase() {
@@ -825,18 +841,28 @@ public class GrpcWindmillServerTest {
                                 .build()));
                     sawHeader = true;
                   } else {
-                    LOG.info("Received {} heartbeats", chunk.getStateRequestCount());
+                    LOG.info("Received {} getDataHeartbeats", chunk.getStateRequestCount());
+                    LOG.info("Received {} computationHeartbeatRequests", chunk.getComputationHeartbeatRequestCount());
                     errorCollector.checkThat(
                         chunk.getSerializedSize(), Matchers.lessThanOrEqualTo(STREAM_CHUNK_SIZE));
                     errorCollector.checkThat(chunk.getRequestIdCount(), Matchers.is(0));
 
-                    synchronized (heartbeats) {
+                    synchronized (getDataHeartbeats) {
                       for (ComputationGetDataRequest request : chunk.getStateRequestList()) {
                         errorCollector.checkThat(request.getRequestsCount(), Matchers.is(1));
-                        heartbeats.putIfAbsent(request.getComputationId(), new ArrayList<>());
-                        heartbeats
+                        getDataHeartbeats.putIfAbsent(request.getComputationId(),
+                            new ArrayList<>());
+                        getDataHeartbeats
                             .get(request.getComputationId())
                             .add(request.getRequestsList().get(0));
+                      }
+                    }
+                    synchronized (heartbeatRequests) {
+                      for (ComputationHeartbeatRequest request : chunk.getComputationHeartbeatRequestList()) {
+                        heartbeatRequests.putIfAbsent(request.getComputationId(), new ArrayList<>());
+                        for (HeartbeatRequest heartbeat : request.getHeartbeatRequestsList()) {
+                          heartbeatRequests.get(request.getComputationId()).add(heartbeat);
+                        }
                       }
                     }
                   }
@@ -857,6 +883,7 @@ public class GrpcWindmillServerTest {
         });
 
     Map<String, List<KeyedGetDataRequest>> activeMap = new HashMap<>();
+    Map<String, List<HeartbeatRequest>> heartbeatRequestMap = new HashMap<>();
     List<String> computation1Keys = new ArrayList<>();
     List<String> computation2Keys = new ArrayList<>();
 
@@ -864,22 +891,33 @@ public class GrpcWindmillServerTest {
       computation1Keys.add("Computation1Key" + i);
       computation2Keys.add("Computation2Key" + largeString(i * 20));
     }
-    activeMap.put("Computation1", makeHeartbeatRequest(computation1Keys));
-    activeMap.put("Computation2", makeHeartbeatRequest(computation2Keys));
+    activeMap.put("Computation1", makeGetDataHeartbeatRequest(computation1Keys));
+    activeMap.put("Computation2", makeGetDataHeartbeatRequest(computation2Keys));
+    heartbeatRequestMap.put("Computation1", makeHeartbeatRequest(computation1Keys));
+    heartbeatRequestMap.put("Computation2", makeHeartbeatRequest(computation2Keys));
 
     GetDataStream stream = client.getDataStream();
-    stream.refreshActiveWork(activeMap);
+    stream.refreshActiveWork(activeMap, heartbeatRequestMap);
     stream.close();
     assertTrue(stream.awaitTermination(60, TimeUnit.SECONDS));
 
-    while (true) {
+    boolean receivedAllGetDataHeartbeats = false;
+    boolean receivedAllHeartbeatRequests = false;
+    while (!receivedAllGetDataHeartbeats || !receivedAllHeartbeatRequests) {
       Thread.sleep(100);
-      synchronized (heartbeats) {
-        if (heartbeats.size() != activeMap.size()) {
+      synchronized (getDataHeartbeats) {
+        if (getDataHeartbeats.size() != activeMap.size()) {
           continue;
         }
-        assertEquals(heartbeats, activeMap);
-        break;
+        assertEquals(getDataHeartbeats, activeMap);
+        receivedAllGetDataHeartbeats = true;
+      }
+      synchronized (heartbeatRequests) {
+        if (heartbeatRequests.size() != heartbeatRequestMap.size()) {
+          continue;
+        }
+        assertEquals(heartbeatRequests, heartbeatRequestMap);
+        receivedAllHeartbeatRequests = true;
       }
     }
   }
@@ -887,7 +925,7 @@ public class GrpcWindmillServerTest {
   @Test
   public void testThrottleSignal() throws Exception {
     // This server responds with work items until the throttleMessage limit is hit at which point it
-    // returns RESROUCE_EXHAUSTED errors for throttleTime msecs after which it resumes sending
+    // returns RESOURCE_EXHAUSTED errors for throttleTime msecs after which it resumes sending
     // work items.
     final int throttleTime = 2000;
     final int throttleMessage = 15;

@@ -949,7 +949,7 @@ public class StreamingDataflowWorker {
       final @Nullable Instant synchronizedProcessingTime,
       final Work work) {
     if (work.isFailed()) {
-      LOG.error("Not processing failed work.");
+      LOG.error("crites: Not processing failed work.");
       return;
     }
     final Windmill.WorkItem workItem = work.getWorkItem();
@@ -1879,6 +1879,7 @@ public class StreamingDataflowWorker {
 
   public void handleHeartbeatResponses(List<Windmill.ComputationHeartbeatResponse> responses) {
     for (Windmill.ComputationHeartbeatResponse computationHeartbeatResponse : responses) {
+      LOG.error("crites: got response: " + computationHeartbeatResponse.toString());
       for (Windmill.HeartbeatResponse heartbeatResponse : computationHeartbeatResponse.getHeartbeatResponsesList()) {
         computationMap.get(computationHeartbeatResponse.getComputationId()).failWork(
             heartbeatResponse.getShardingKey(), heartbeatResponse.getWorkToken(), heartbeatResponse.getCacheToken());

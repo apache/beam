@@ -800,6 +800,8 @@ message StreamingGetDataRequest {
   repeated fixed64 request_id = 1;
   repeated GlobalDataRequest global_data_request = 3;
   repeated ComputationGetDataRequest state_request = 4;
+  // Will only be set by compatible client
+  repeated ComputationHeartbeatRequest computation_heartbeat_request = 5;
 }
 
 message StreamingGetDataResponse {

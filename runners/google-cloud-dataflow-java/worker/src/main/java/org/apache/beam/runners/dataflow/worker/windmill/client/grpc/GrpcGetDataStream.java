@@ -37,9 +37,11 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
@@ -181,7 +183,8 @@ public final class GrpcGetDataStream
   }
 
   @Override
-  public void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active) {
+  public void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active,
+                                Map<String, List<HeartbeatRequest>> heartbeats) {
     long builderBytes = 0;
     StreamingGetDataRequest.Builder builder = StreamingGetDataRequest.newBuilder();
     for (Map.Entry<String, List<KeyedGetDataRequest>> entry : active.entrySet()) {
@@ -202,6 +205,25 @@ public final class GrpcGetDataStream
                 .addRequests(request));
       }
     }
+    for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+      for (HeartbeatRequest request : entry.getValue()) {
+        // Calculate the bytes with some overhead for proto encoding.
+        long bytes = (long) entry.getKey().length() + request.getSerializedSize() + 10;
+        if (builderBytes > 0
+            && (builderBytes + bytes > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE
+            || builder.getRequestIdCount() >= streamingRpcBatchLimit)) {
+          send(builder.build());
+          builderBytes = 0;
+          builder.clear();
+        }
+        builderBytes += bytes;
+        builder.addComputationHeartbeatRequest(
+            ComputationHeartbeatRequest.newBuilder()
+                .setComputationId(entry.getKey())
+                .addHeartbeatRequests(request));
+      }
+    }
+
     if (builderBytes > 0) {
       send(builder.build());
     }
