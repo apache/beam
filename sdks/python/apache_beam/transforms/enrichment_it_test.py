@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+import time
 import unittest
 from typing import NamedTuple
 from typing import Tuple
@@ -29,27 +29,35 @@ from apache_beam.io.requestresponse import UserCodeQuotaException
 from apache_beam.io.requestresponse_it_test import _PAYLOAD
 from apache_beam.io.requestresponse_it_test import EchoITOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import BeamAssertException
 from apache_beam.transforms.enrichment import Enrichment
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 
-class Request(NamedTuple):
+class _Request(NamedTuple):
   """Simple request type to store id and payload for requests."""
   id: str  # mock API quota id
   payload: bytes  # byte payload
 
 
-class SampleHTTPEnrichment(EnrichmentSourceHandler[Request, beam.Row]):
+def _custom_join(element):
+  """custom_join returns the id and resp_payload along with a timestamp"""
+  right_dict = element[1].as_dict()
+  right_dict['timestamp'] = time.time()
+  return beam.Row(**right_dict)
+
+
+class SampleHTTPEnrichment(EnrichmentSourceHandler[_Request, beam.Row]):
   """Implements ``EnrichmentSourceHandler`` to call the ``EchoServiceGrpc``'s
   HTTP handler.
   """
   def __init__(self, url: str):
     self.url = url + '/v1/echo'  # append path to the mock API.
 
-  def __call__(self, request: Request, *args, **kwargs):
+  def __call__(self, request: _Request, *args, **kwargs):
     """Overrides ``Caller``'s call method invoking the
-    ``EchoServiceGrpc``'s HTTP handler with an ``EchoRequest``, returning
-    either a successful ``EchoResponse`` or throwing either a
+    ``EchoServiceGrpc``'s HTTP handler with an ``_Request``, returning
+    either a successful ``Tuple[beam.Row,beam.Row]`` or throwing either a
     ``UserCodeExecutionException``, ``UserCodeTimeoutException``,
     or a ``UserCodeQuotaException``.
     """
@@ -79,6 +87,24 @@ class SampleHTTPEnrichment(EnrichmentSourceHandler[Request, beam.Row]):
       raise UserCodeExecutionException(e)
 
 
+class ValidateFields(beam.DoFn):
+  """ValidateFields validates if a PCollection of `beam.Row`
+  has certain fields."""
+  def __init__(self, fields):
+    self._fields = fields
+
+  def process(self, element: beam.Row):
+    element_dict = element.as_dict()
+    if len(element_dict.keys()) != 3:
+      raise BeamAssertException(
+          "Expected three fields in enriched pcollection:"
+          " id, payload and resp_payload")
+
+    for field in self._fields:
+      if field not in element_dict or element_dict[field] is None:
+        raise BeamAssertException(f"Expected a not None field: {field}")
+
+
 @pytest.mark.it_postcommit
 class TestEnrichment(unittest.TestCase):
   options: Union[EchoITOptions, None] = None
@@ -98,14 +124,30 @@ class TestEnrichment(unittest.TestCase):
     return cls.client, cls.options
 
   def test_http_enrichment(self):
+    """Tests Enrichment Transform against the Mock-API HTTP endpoint
+    with the default cross join."""
     client, options = TestEnrichment._get_client_and_options()
-    req = Request(id=options.never_exceed_quota_id, payload=_PAYLOAD)
+    req = _Request(id=options.never_exceed_quota_id, payload=_PAYLOAD)
+    fields = ['id', 'payload', 'resp_payload']
     with TestPipeline(is_integration_test=True) as test_pipeline:
-      output = (
+      _ = (
           test_pipeline
           | 'Create PCollection' >> beam.Create([req])
-          | 'Enrichment Transform' >> Enrichment(client))
-      self.assertIsNotNone(output)
+          | 'Enrichment Transform' >> Enrichment(client)
+          | 'Assert Fields' >> beam.ParDo(ValidateFields(fields=fields)))
+
+  def test_http_enrichment_custom_join(self):
+    """Tests Enrichment Transform against the Mock-API HTTP endpoint
+    with a custom join function."""
+    client, options = TestEnrichment._get_client_and_options()
+    req = _Request(id=options.never_exceed_quota_id, payload=_PAYLOAD)
+    fields = ['id', 'resp_payload', 'timestamp']
+    with TestPipeline(is_integration_test=True) as test_pipeline:
+      _ = (
+          test_pipeline
+          | 'Create PCollection' >> beam.Create([req])
+          | 'Enrichment Transform' >> Enrichment(client, join_fn=_custom_join)
+          | 'Assert Fields' >> beam.ParDo(ValidateFields(fields=fields)))
 
 
 if __name__ == '__main__':

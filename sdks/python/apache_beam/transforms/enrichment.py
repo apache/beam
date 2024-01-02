@@ -33,6 +33,7 @@ from apache_beam.io.requestresponse import ShouldBackOff
 __all__ = [
     "EnrichmentSourceHandler",
     "Enrichment",
+    "cross_join",
 ]
 
 InputT = TypeVar('InputT')
@@ -64,7 +65,6 @@ class EnrichmentSourceHandler(Caller[InputT, OutputT]):
   Ensure that the implementation of ``__call__`` method returns a tuple
   of `beam.Row`  objects.
   """
-
   pass
 
 
