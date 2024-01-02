@@ -1435,8 +1435,6 @@ public class AvroIO {
 
     abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
-    abstract @Nullable SerializableFunction<Exception, Boolean> getBadRecordMatcher();
-
     /**
      * The codec used to encode the blocks in the Avro file. String value drawn from those in
      * https://avro.apache.org/docs/1.7.7/api/java/org/apache/avro/file/CodecFactory.html
