@@ -214,7 +214,7 @@ export class Worker {
       request.request.processBundle.processBundleDescriptorId;
     try {
       if (!this.processBundleDescriptors.has(descriptorId)) {
-        const call = this.controlClient.getProcessBundleDescriptor(
+        return this.controlClient.getProcessBundleDescriptor(
           {
             processBundleDescriptorId: descriptorId,
           },
@@ -242,10 +242,9 @@ export class Worker {
             }
           },
         );
-        return;
       }
 
-      const processor = this.aquireBundleProcessor(descriptorId);
+      const processor = this.acquireBundleProcessor(descriptorId);
       this.activeBundleProcessors.set(request.instructionId, processor);
       await processor.process(request.instructionId);
       const monitoringData = processor.monitoringData(this.metricsShortIdCache);
@@ -278,7 +277,7 @@ export class Worker {
     }
   }
 
-  aquireBundleProcessor(descriptorId: string) {
+  acquireBundleProcessor(descriptorId: string) {
     if (!this.bundleProcessors.has(descriptorId)) {
       this.bundleProcessors.set(descriptorId, []);
     }
