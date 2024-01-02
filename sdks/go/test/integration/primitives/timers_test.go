@@ -24,12 +24,12 @@ import (
 
 func TestTimers_EventTime_Bounded(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.BuildAndRun(t, TimersEventTime_Bounded)
+	ptest.BuildAndRun(t, TimersEventTimeBounded)
 }
 
 func TestTimers_EventTime_Unbounded(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.BuildAndRun(t, TimersEventTime_Unbounded)
+	ptest.BuildAndRun(t, TimersEventTimeUnbounded)
 }
 
 // TODO(https://github.com/apache/beam/issues/29772): Add ProcessingTime Timer tests.
