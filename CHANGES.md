@@ -63,6 +63,8 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Adding support for Tuples DataType in ClickHouse (Java) ([#29715](https://github.com/apache/beam/pull/29715)).
+
 
 ## New Features / Improvements
 
@@ -101,7 +103,7 @@
 * Added support for handling bad records to KafkaIO (Java) ([#29546](https://github.com/apache/beam/pull/29546))
 * Add support for generating text embeddings in MLTransform for Vertex AI and Hugging Face Hub models.([#29564](https://github.com/apache/beam/pull/29564))
 * NATS IO connector added (Go) ([#29000](https://github.com/apache/beam/issues/29000)).
-* Adding support for LowCardinality and Tuples DataType in ClickHouse (Java) ([#29533](https://github.com/apache/beam/pull/29533), [#29715](https://github.com/apache/beam/pull/29715)).
+* Adding support for LowCardinality (Java) ([#29533](https://github.com/apache/beam/pull/29533)).
 
 ## New Features / Improvements
 
