@@ -555,6 +555,13 @@ message ParDoPayload {
   reserved 6;
 }
 
+// Defines special DoFn FunctionSpec URNs that identifies non-regular payloads.
+message DoFnURNs {
+  enum Enum {
+    WASM_COMPILED_DOFN = 0 [(beam_urn) = "beam:dofn:wasm:1.0"];
+  }
+}
+
 message StateSpec {
   // TODO(BEAM-13930): Deprecate and remove these state specs
   oneof spec {
