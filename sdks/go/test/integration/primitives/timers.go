@@ -35,6 +35,7 @@ func init() {
 	register.DoFn6x0[beam.Window, state.Provider, timers.Provider, string, int, func(kv[string, int])](&eventTimeFn{})
 	register.Emitter2[string, int]()
 	register.Emitter1[kv[string, int]]()
+	register.Iter1[int]()
 }
 
 type kv[K, V any] struct {
@@ -80,7 +81,7 @@ func (fn *eventTimeFn) OnTimer(ctx context.Context, ts beam.EventTime, sp state.
 				panic(err)
 			}
 			if !ok {
-				panic("State must be set.")
+				panic("State must be set for key: " + key)
 			}
 			emit(kvfn(read, fn.TimerOutput))
 		default:

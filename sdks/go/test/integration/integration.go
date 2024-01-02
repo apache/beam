@@ -103,6 +103,7 @@ var directFilters = []string{
 	"TestMapStateClear",
 	"TestSetState",
 	"TestSetStateClear",
+	"TestTimers.*", // no timer support for the go direct runner.
 }
 
 var portableFilters = []string{
@@ -125,19 +126,13 @@ var portableFilters = []string{
 	"TestFhirIO.*",
 	// OOMs currently only lead to heap dumps on Dataflow runner
 	"TestOomParDo",
-	// The portable runner does not support user state.
-	"TestValueState",
-	"TestValueStateWindowed",
-	"TestValueStateClear",
-	"TestBagState",
-	"TestBagStateClear",
-	"TestCombiningState",
+	// The portable runner does not support user map states.
 	"TestMapState",
 	"TestMapStateClear",
 	"TestSetState",
 	"TestSetStateClear",
 
-	// The portable runner does not appear to support timers. (extra elements)
+	// The portable runner does not uniquify timers. (data elements re-fired)
 	"TestTimers.*",
 }
 
@@ -188,8 +183,7 @@ var flinkFilters = []string{
 	"TestSetStateClear",
 	"TestSetState",
 
-	// Flink does not appear to support timers. (missing timer elements)
-	"TestTimers.*",
+	"TestTimers_EventTime_Unbounded", // (failure when comparing on side inputs (NPE on window lookup))
 }
 
 var samzaFilters = []string{
@@ -229,7 +223,7 @@ var samzaFilters = []string{
 	// TODO(https://github.com/apache/beam/issues/26126): Java runner issue (AcitveBundle has no regsitered handler)
 	"TestDebeziumIO_BasicRead",
 
-	// Samza does not appear to support timers. (missing timer elements)
+	// Samza does not support state.
 	"TestTimers.*",
 }
 
@@ -263,8 +257,7 @@ var sparkFilters = []string{
 	"TestSetStateClear",
 	"TestSetState",
 
-	// Spark does not appear to support timers. (Missing all elements)
-	"TestTimers.*",
+	"TestTimers_EventTime_Unbounded", // Side inputs in executable stage not supported.
 }
 
 var dataflowFilters = []string{
