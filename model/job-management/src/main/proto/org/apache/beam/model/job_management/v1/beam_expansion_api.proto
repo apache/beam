@@ -62,6 +62,11 @@ message ExpansionRequest {
   // (Optional) A set of Pipeline Options that should be used
   // when expanding this transform.
   google.protobuf.Struct pipeline_options = 6;
+
+  // Id of the default environment used by the caller.
+  // The environment definition must be available in the 'components' provided
+  // with this request.
+  string default_environment_id = 7;
 }
 
 message ExpansionResponse {

@@ -1660,6 +1660,11 @@ message StandardProtocols {
     // during bundle processing. This is disabled by default and enabled with the
     // `enable_data_sampling` experiment.
     DATA_SAMPLING = 8 [(beam_urn) = "beam:protocol:data_sampling:v1"];
+
+    // This environment is capable of executing WASM compiled DoFns.
+    // The DoFns have to be in the following format.
+    // TODO:
+    WASM_DOFN_EXECUTION = 9 [(beam_urn) = "beam:protocol:wasm_dofn:v1"];
   }
 }
 
