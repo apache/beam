@@ -240,6 +240,12 @@ task integrationTest(type: Test) {
   useJUnit { }
 }
 
+task preCommit {
+  dependsOn build
+  dependsOn runBasicExample
+  dependsOn runPojoExample
+}
+
 task postCommit {
   group = "Verification"
   description = "Various integration tests"

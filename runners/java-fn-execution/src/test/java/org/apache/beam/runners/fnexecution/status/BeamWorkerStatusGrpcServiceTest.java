@@ -48,6 +48,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -55,6 +56,7 @@ import org.mockito.MockitoAnnotations;
 
 @RunWith(JUnit4.class)
 public class BeamWorkerStatusGrpcServiceTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
   private static final String ID = "id";
