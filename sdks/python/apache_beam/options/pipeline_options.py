@@ -592,7 +592,9 @@ class CrossLanguageOptions(PipelineOptions):
             'use pre-started services or non-default pre-existing artifacts to '
             'start the given service. '
             'Should be a json mapping of gradle build targets to pre-built '
-            'artifacts (e.g. jar files) expansion endpoints (e.g. host:port).'))
+            'artifacts (e.g. jar files) or expansion endpoints '
+            '(e.g. host:port). Defaults to the value of BEAM_SERVICE_OVERRIDES '
+            'from the environment.'))
 
     parser.add_argument(
         '--use_transform_service',
