@@ -745,9 +745,9 @@ def compute_dataflow_cost(
                not is_streaming_pipeline) else MEM_PER_GB_HR_STREAMING
 
   # Additional costs for streaming or shuffle data
-  if is_streaming_pipeline:
-    cost += dataflow_service_metrics.get(
-        "TotalStreamingDataProcessed") * SHUFFLE_PER_GB_STREAMING
+  cost += dataflow_service_metrics.get(
+      "TotalStreamingDataProcessed"
+  ) * SHUFFLE_PER_GB_STREAMING if is_streaming_pipeline else 0
 
   cost += dataflow_service_metrics.get(
       "TotalShuffleDataProcessed"
