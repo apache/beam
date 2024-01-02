@@ -32,6 +32,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -146,7 +147,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 
 	prepro := newPreprocessor(preppers)
 
-	topo := prepro.preProcessGraph(comps)
+	topo := prepro.preProcessGraph(comps, j)
 	ts := comps.GetTransforms()
 
 	em := engine.NewElementManager(engine.Config{})
@@ -178,11 +179,16 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 			ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
 			wDec, wEnc := getWindowValueCoders(comps, col, coders)
 
+			var kd func(io.Reader) []byte
+			if kcid, ok := extractKVCoderID(col.GetCoderId(), coders); ok {
+				kd = collectionPullDecoder(kcid, coders, comps)
+			}
 			stage.OutputsToCoders[onlyOut] = engine.PColInfo{
 				GlobalID: onlyOut,
 				WDec:     wDec,
 				WEnc:     wEnc,
 				EDec:     ed,
+				KeyDec:   kd,
 			}
 
 			// There's either 0, 1 or many inputs, but they should be all the same
@@ -207,11 +213,17 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 					col := comps.GetPcollections()[global]
 					ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
 					wDec, wEnc := getWindowValueCoders(comps, col, coders)
+
+					var kd func(io.Reader) []byte
+					if kcid, ok := extractKVCoderID(col.GetCoderId(), coders); ok {
+						kd = collectionPullDecoder(kcid, coders, comps)
+					}
 					stage.inputInfo = engine.PColInfo{
 						GlobalID: global,
 						WDec:     wDec,
 						WEnc:     wEnc,
 						EDec:     ed,
+						KeyDec:   kd,
 					}
 				}
 				em.StageAggregates(stage.ID)
@@ -233,6 +245,9 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 			outputs := maps.Keys(stage.OutputsToCoders)
 			sort.Strings(outputs)
 			em.AddStage(stage.ID, []string{stage.primaryInput}, outputs, stage.sideInputs)
+			if stage.stateful {
+				em.StageStateful(stage.ID)
+			}
 		default:
 			err := fmt.Errorf("unknown environment[%v]", t.GetEnvironmentId())
 			slog.Error("Execute", err)
@@ -245,38 +260,34 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 		em.Impulse(id)
 	}
 
-	// Use a channel to limit max parallelism for the pipeline.
-	maxParallelism := make(chan struct{}, 8)
-	// Execute stages here
-	bundleFailed := make(chan error)
+	// Use an errgroup to limit max parallelism for the pipeline.
+	eg, egctx := errgroup.WithContext(ctx)
+	eg.SetLimit(8)
 
 	var instID uint64
-	bundles := em.Bundles(ctx, func() string {
+	bundles := em.Bundles(egctx, func() string {
 		return fmt.Sprintf("inst%03d", atomic.AddUint64(&instID, 1))
 	})
-
 	for {
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
 		case rb, ok := <-bundles:
 			if !ok {
-				slog.Debug("pipeline done!", slog.String("job", j.String()))
-				return nil
+				err := eg.Wait()
+				slog.Debug("pipeline done!", slog.String("job", j.String()), slog.Any("error", err))
+				return err
 			}
-			maxParallelism <- struct{}{}
-			go func(rb engine.RunBundle) {
-				defer func() { <-maxParallelism }()
+			eg.Go(func() error {
 				s := stages[rb.StageID]
 				wk := wks[s.envID]
 				if err := s.Execute(ctx, j, wk, comps, em, rb); err != nil {
 					// Ensure we clean up on bundle failure
 					em.FailBundle(rb)
-					bundleFailed <- err
+					return err
 				}
-			}(rb)
-		case err := <-bundleFailed:
-			return err
+				return nil
+			})
 		}
 	}
 }
@@ -287,6 +298,14 @@ func collectionPullDecoder(coldCId string, coders map[string]*pipepb.Coder, comp
 		panic(err)
 	}
 	return pullDecoder(coders[cID], coders)
+}
+
+func extractKVCoderID(coldCId string, coders map[string]*pipepb.Coder) (string, bool) {
+	c := coders[coldCId]
+	if c.GetSpec().GetUrn() == urns.CoderKV {
+		return c.GetComponentCoderIds()[0], true
+	}
+	return "", false
 }
 
 func getWindowValueCoders(comps *pipepb.Components, col *pipepb.PCollection, coders map[string]*pipepb.Coder) (exec.WindowDecoder, exec.WindowEncoder) {

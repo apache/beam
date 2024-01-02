@@ -89,6 +89,11 @@ public class TableSchemaTest {
   }
 
   @Test
+  public void testParseBool() {
+    assertEquals(ColumnType.BOOL, ColumnType.parse("Bool"));
+  }
+
+  @Test
   public void testParseString() {
     assertEquals(ColumnType.STRING, ColumnType.parse("String"));
   }

@@ -57,6 +57,7 @@ def check_mltransform_compute_and_apply_vocabulary_with_scalar():
 Row(x=array([4]))
 Row(x=array([1]))
 Row(x=array([0]))
+Row(x=array([0]))
 Row(x=array([2]))
 Row(x=array([3]))
   [END mltransform_compute_and_apply_vocabulary_with_scalar] '''.splitlines(

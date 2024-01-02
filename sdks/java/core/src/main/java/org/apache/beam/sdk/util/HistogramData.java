@@ -186,6 +186,18 @@ public class HistogramData implements Serializable {
     this.sumOfSquaredDeviations = 0;
   }
 
+  /**
+   * Copies all updates to a new histogram object and resets 'this' histogram.
+   *
+   * @return New histogram object that has the the same updates as 'this'.
+   */
+  public synchronized HistogramData getAndReset() {
+    HistogramData other = new HistogramData(this.getBucketType());
+    other.update(this);
+    this.clear();
+    return other;
+  }
+
   public synchronized void record(double value) {
     double rangeTo = bucketType.getRangeTo();
     double rangeFrom = bucketType.getRangeFrom();

@@ -187,8 +187,8 @@ func TestWrite(t *testing.T) {
 			js := newJetStream(t, conn)
 
 			subjects := []string{subject}
-			createStream(t, ctx, js, stream, subjects)
-			cons := createConsumer(t, ctx, js, stream, subjects)
+			createStream(ctx, t, js, stream, subjects)
+			cons := createConsumer(ctx, t, js, stream, subjects)
 
 			p, s := beam.NewPipelineWithRoot()
 

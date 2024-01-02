@@ -143,7 +143,7 @@ class KeyModelPathMapping(Generic[KeyT]):
   information see the KeyedModelHandler documentation
   https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.KeyedModelHandler
   documentation and the website section on model updates
-  https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
+  https://beam.apache.org/documentation/ml/about-ml/#automatic-model-refresh
   """
   keys: List[KeyT]
   update_path: str
@@ -224,7 +224,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     used when a ModelHandler represents a single model, not multiple models.
     This will be true in most cases. For more information see the website
     section on model updates
-    https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
+    https://beam.apache.org/documentation/ml/about-ml/#automatic-model-refresh
     """
     pass
 
@@ -239,7 +239,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     the KeyedModelHandler documentation
     https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.KeyedModelHandler
     documentation and the website section on model updates
-    https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
+    https://beam.apache.org/documentation/ml/about-ml/#automatic-model-refresh
     """
     pass
 
@@ -452,7 +452,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     KeyedModelHandlers support Automatic Model Refresh to update your model
     to a newer version without stopping your streaming pipeline. For an
     overview of this feature, see
-    https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
+    https://beam.apache.org/documentation/ml/about-ml/#automatic-model-refresh
 
 
     To use this feature with a KeyedModelHandler that has many models per key,
@@ -465,7 +465,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     will update the model corresponding to keys 'k1' and 'k2' with path
     'update/path/1' and the model corresponding to 'k3' with 'update/path/2'.
     In order to do a side input update: (1) all restrictions mentioned in
-    https://beam.apache.org/documentation/sdks/python-machine-learning/#automatic-model-refresh
+    https://beam.apache.org/documentation/ml/about-ml/#automatic-model-refresh
     must be met, (2) all update_paths must be non-empty, even if they are not
     being updated from their original values, and (3) the set of keys
     originally defined cannot change. This means that if originally you have
@@ -486,7 +486,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     memory (OOM) exception. To avoid this issue, use the parameter
     `max_models_per_worker_hint` to limit the number of models that are loaded
     at the same time. For more information about memory management, see
-    `Use a keyed `ModelHandler <https://beam.apache.org/documentation/sdks/python-machine-learning/#use-a-keyed-modelhandler>_`.  # pylint: disable=line-too-long
+    `Use a keyed `ModelHandler <https://beam.apache.org/documentation/ml/about-ml/#use-a-keyed-modelhandler-object>_`.  # pylint: disable=line-too-long
 
 
     Args:
@@ -498,7 +498,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
         example, if your worker has 8 GB of memory provisioned and your workers
         take up 1 GB each, you should set this to 7 to allow all models to sit
         in memory with some buffer. For more information about memory management,
-        see `Use a keyed `ModelHandler <https://beam.apache.org/documentation/sdks/python-machine-learning/#use-a-keyed-modelhandler>_`.  # pylint: disable=line-too-long
+        see `Use a keyed `ModelHandler <https://beam.apache.org/documentation/ml/about-ml/#use-a-keyed-modelhandler-object>_`.  # pylint: disable=line-too-long
     """
     self._metrics_collectors: Dict[str, _MetricsCollector] = {}
     self._default_metrics_collector: _MetricsCollector = None

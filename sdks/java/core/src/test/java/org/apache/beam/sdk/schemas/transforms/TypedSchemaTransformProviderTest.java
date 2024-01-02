@@ -62,6 +62,11 @@ public class TypedSchemaTransformProviderTest {
     }
 
     @Override
+    public String description() {
+      return "Description of fake provider";
+    }
+
+    @Override
     protected Class<Configuration> configurationClass() {
       return Configuration.class;
     }
@@ -115,6 +120,7 @@ public class TypedSchemaTransformProviderTest {
     Configuration outputConfig = ((FakeSchemaTransform) provider.from(inputConfig)).config;
     assertEquals("field1", outputConfig.getField1());
     assertEquals(13, outputConfig.getField2().intValue());
+    assertEquals("Description of fake provider", provider.description());
   }
 
   @Test

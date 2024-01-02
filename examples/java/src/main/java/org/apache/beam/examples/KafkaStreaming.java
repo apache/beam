@@ -49,8 +49,11 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -60,6 +63,8 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.kafka.common.errors.SerializationException;
+import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -208,15 +213,22 @@ public class KafkaStreaming {
       // Start reading form Kafka with the latest offset
       consumerConfig.put("auto.offset.reset", "latest");
 
-      PCollection<KV<String, Integer>> pCollection =
-          pipeline.apply(
-              KafkaIO.<String, Integer>read()
-                  .withBootstrapServers(options.getKafkaHost())
-                  .withTopic(TOPIC_NAME)
-                  .withKeyDeserializer(StringDeserializer.class)
-                  .withValueDeserializer(IntegerDeserializer.class)
-                  .withConsumerConfigUpdates(consumerConfig)
-                  .withoutMetadata());
+      // Register an error handler for any deserialization errors.
+      // Errors are simulated with an intentionally failing deserializer
+      PCollection<KV<String, Integer>> pCollection;
+      try (BadRecordErrorHandler<PCollection<BadRecord>> errorHandler =
+          pipeline.registerBadRecordErrorHandler(new LogErrors())) {
+        pCollection =
+            pipeline.apply(
+                KafkaIO.<String, Integer>read()
+                    .withBootstrapServers(options.getKafkaHost())
+                    .withTopic(TOPIC_NAME)
+                    .withKeyDeserializer(StringDeserializer.class)
+                    .withValueDeserializer(IntermittentlyFailingIntegerDeserializer.class)
+                    .withConsumerConfigUpdates(consumerConfig)
+                    .withBadRecordErrorHandler(errorHandler)
+                    .withoutMetadata());
+      }
 
       pCollection
           // Apply a window and a trigger ourput repeatedly.
@@ -315,6 +327,41 @@ public class KafkaStreaming {
       }
 
       c.output(c.element());
+    }
+  }
+
+  // Simple PTransform to log Error information
+  static class LogErrors extends PTransform<PCollection<BadRecord>, PCollection<BadRecord>> {
+
+    @Override
+    public PCollection<BadRecord> expand(PCollection<BadRecord> input) {
+      return input.apply("Log Errors", ParDo.of(new LogErrorFn()));
+    }
+
+    static class LogErrorFn extends DoFn<BadRecord, BadRecord> {
+      @ProcessElement
+      public void processElement(@Element BadRecord record, OutputReceiver<BadRecord> receiver) {
+        System.out.println(record);
+        receiver.output(record);
+      }
+    }
+  }
+
+  // Intentionally failing deserializer to simulate bad data from Kafka
+  public static class IntermittentlyFailingIntegerDeserializer implements Deserializer<Integer> {
+
+    public static final IntegerDeserializer INTEGER_DESERIALIZER = new IntegerDeserializer();
+    public int deserializeCount = 0;
+
+    public IntermittentlyFailingIntegerDeserializer() {}
+
+    @Override
+    public Integer deserialize(String topic, byte[] data) {
+      deserializeCount++;
+      if (deserializeCount % 10 == 0) {
+        throw new SerializationException("Expected Serialization Exception");
+      }
+      return INTEGER_DESERIALIZER.deserialize(topic, data);
     }
   }
 }

@@ -28,8 +28,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.AnyOfEnvironmentPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ArtifactInformation;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
@@ -289,6 +292,50 @@ public class Environments {
         .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS))
         .setPayload(builder.build().toByteString())
         .build();
+  }
+
+  public static Environment createAnyOfEnvironment(Environment... environments) {
+    AnyOfEnvironmentPayload.Builder payload = AnyOfEnvironmentPayload.newBuilder();
+    for (Environment environment : environments) {
+      payload.addEnvironments(environment);
+    }
+    return Environment.newBuilder()
+        .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.ANYOF))
+        .setPayload(payload.build().toByteString())
+        .build();
+  }
+
+  public static List<Environment> expandAnyOfEnvironments(Environment environment) {
+    return Stream.of(environment)
+        .flatMap(
+            env -> {
+              if (BeamUrns.getUrn(StandardEnvironments.Environments.ANYOF)
+                  .equals(environment.getUrn())) {
+                try {
+                  return AnyOfEnvironmentPayload.parseFrom(environment.getPayload())
+                      .getEnvironmentsList().stream()
+                      .flatMap(subenv -> expandAnyOfEnvironments(subenv).stream());
+                } catch (InvalidProtocolBufferException exn) {
+                  throw new RuntimeException(exn);
+                }
+              } else {
+                return Stream.of(env);
+              }
+            })
+        .collect(Collectors.toList());
+  }
+
+  public static Environment resolveAnyOfEnvironment(
+      Environment environment, String... preferredEnvironmentTypes) {
+    List<Environment> allEnvironments = expandAnyOfEnvironments(environment);
+    for (String urn : preferredEnvironmentTypes) {
+      for (Environment env : allEnvironments) {
+        if (urn.equals(env.getUrn())) {
+          return env;
+        }
+      }
+    }
+    return allEnvironments.iterator().next();
   }
 
   public static Optional<Environment> getEnvironment(String ptransformId, Components components) {

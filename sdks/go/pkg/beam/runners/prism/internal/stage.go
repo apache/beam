@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -39,7 +40,7 @@ import (
 // that transform's respective input or output. Which it is, is context dependant,
 // and not knowable from just the link itself, but can be verified against the transform proto.
 type link struct {
-	transform, local, global string
+	Transform, Local, Global string
 }
 
 // stage represents a fused subgraph executed in a single environment.
@@ -61,6 +62,7 @@ type stage struct {
 	sideInputs   []engine.LinkID // Non-parallel input PCollections and their consumers
 	internalCols []string        // PCollections that escape. Used for precise coder sending.
 	envID        string
+	stateful     bool
 
 	exe              transformExecuter
 	inputTransformID string
@@ -77,6 +79,7 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 
 	var b *worker.B
 	inputData := em.InputForBundle(rb, s.inputInfo)
+	initialState := em.StateForBundle(rb)
 	var dataReady <-chan struct{}
 	switch s.envID {
 	case "": // Runner Transforms
@@ -102,8 +105,8 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 
 			InputTransformID: s.inputTransformID,
 
-			// TODO Here's where we can split data for processing in multiple bundles.
-			InputData: inputData,
+			InputData:  inputData,
+			OutputData: initialState,
 
 			SinkToPCollection: s.SinkToPCollection,
 			OutputCount:       len(s.outputs),
@@ -203,7 +206,7 @@ progress:
 		}
 	}
 	// Tentative Data is ready, commit it to the main datastore.
-	slog.Debug("Execute: commiting data", "bundle", rb, slog.Any("outputsWithData", maps.Keys(b.OutputData.Raw)), slog.Any("outputs", maps.Keys(s.OutputsToCoders)))
+	slog.Debug("Execute: committing data", "bundle", rb, slog.Any("outputsWithData", maps.Keys(b.OutputData.Raw)), slog.Any("outputs", maps.Keys(s.OutputsToCoders)))
 
 	// Tally metrics immeadiately so they're available before
 	// pipeline termination.
@@ -293,22 +296,29 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 	sink2Col := map[string]string{}
 	col2Coders := map[string]engine.PColInfo{}
 	for _, o := range stg.outputs {
-		col := comps.GetPcollections()[o.global]
-		wOutCid, err := makeWindowedValueCoder(o.global, comps, coders)
+		col := comps.GetPcollections()[o.Global]
+		wOutCid, err := makeWindowedValueCoder(o.Global, comps, coders)
 		if err != nil {
-			return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for output %+v, pcol %q %v:\n%w %v", stg.ID, o, o.global, prototext.Format(col), err, stg.transforms)
+			return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for output %+v, pcol %q %v:\n%w %v", stg.ID, o, o.Global, prototext.Format(col), err, stg.transforms)
 		}
-		sinkID := o.transform + "_" + o.local
+		sinkID := o.Transform + "_" + o.Local
 		ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
+
+		var kd func(io.Reader) []byte
+		if kcid, ok := extractKVCoderID(col.GetCoderId(), coders); ok {
+			kd = collectionPullDecoder(kcid, coders, comps)
+		}
+
 		wDec, wEnc := getWindowValueCoders(comps, col, coders)
-		sink2Col[sinkID] = o.global
-		col2Coders[o.global] = engine.PColInfo{
-			GlobalID: o.global,
+		sink2Col[sinkID] = o.Global
+		col2Coders[o.Global] = engine.PColInfo{
+			GlobalID: o.Global,
 			WDec:     wDec,
 			WEnc:     wEnc,
 			EDec:     ed,
+			KeyDec:   kd,
 		}
-		transforms[sinkID] = sinkTransform(sinkID, portFor(wOutCid, wk), o.global)
+		transforms[sinkID] = sinkTransform(sinkID, portFor(wOutCid, wk), o.Global)
 	}
 
 	var prepareSides []func(b *worker.B, watermark mtime.Time)
@@ -350,14 +360,20 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 	if err != nil {
 		return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for primary input, pcol %q %v:\n%w\n%v", stg.ID, stg.primaryInput, prototext.Format(col), err, stg.transforms)
 	}
-
 	ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
 	wDec, wEnc := getWindowValueCoders(comps, col, coders)
+
+	var kd func(io.Reader) []byte
+	if kcid, ok := extractKVCoderID(col.GetCoderId(), coders); ok {
+		kd = collectionPullDecoder(kcid, coders, comps)
+	}
+
 	inputInfo := engine.PColInfo{
 		GlobalID: stg.primaryInput,
 		WDec:     wDec,
 		WEnc:     wEnc,
 		EDec:     ed,
+		KeyDec:   kd,
 	}
 
 	stg.inputTransformID = stg.ID + "_source"

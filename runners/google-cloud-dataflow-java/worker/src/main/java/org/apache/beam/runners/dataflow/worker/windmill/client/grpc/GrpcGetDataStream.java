@@ -53,7 +53,7 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class GrpcGetDataStream
+public final class GrpcGetDataStream
     extends AbstractWindmillStream<StreamingGetDataRequest, StreamingGetDataResponse>
     implements GetDataStream {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcGetDataStream.class);
@@ -86,7 +86,7 @@ final class GrpcGetDataStream
     this.pending = new ConcurrentHashMap<>();
   }
 
-  static GrpcGetDataStream create(
+  public static GrpcGetDataStream create(
       Function<StreamObserver<StreamingGetDataResponse>, StreamObserver<StreamingGetDataRequest>>
           startGetDataRpcFn,
       BackOff backoff,

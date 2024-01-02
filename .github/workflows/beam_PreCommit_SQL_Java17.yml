@@ -22,7 +22,7 @@ on:
     paths: ['sdks/java/extensions/sql/**','.github/workflows/beam_PreCommit_SQL_Java17.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: ['sdks/java/extensions/sql/**', 'release/trigger_all_tests.json']
+    paths: ['sdks/java/extensions/sql/**', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_SQL_Java17.json']
   issue_comment:
     types: [created]
   schedule:
@@ -98,8 +98,8 @@ jobs:
             -PskipCheckerFramework \
             -Pjava17Home=$JAVA_HOME_17_X64 \
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
-        if: failure()
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"
@@ -111,7 +111,7 @@ jobs:
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'
       - name: Archive SpotBugs Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: SpotBugs Results

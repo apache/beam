@@ -82,19 +82,26 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 		!pdo.RequestsFinalization &&
 		!pdo.RequiresStableInput &&
 		!pdo.RequiresTimeSortedInput &&
-		len(pdo.StateSpecs) == 0 &&
 		len(pdo.TimerFamilySpecs) == 0 &&
 		pdo.RestrictionCoderId == "" {
 		// Which inputs are Side inputs don't change the graph further,
 		// so they're not included here. Any nearly any ParDo can have them.
 
 		// At their simplest, we don't need to do anything special at pre-processing time, and simply pass through as normal.
+
+		// StatefulDoFns need to be marked as being roots.
+		var forcedRoots []string
+		if len(pdo.StateSpecs)+len(pdo.TimerFamilySpecs) > 0 {
+			forcedRoots = append(forcedRoots, tid)
+		}
+
 		return prepareResult{
 			SubbedComps: &pipepb.Components{
 				Transforms: map[string]*pipepb.PTransform{
 					tid: t,
 				},
 			},
+			ForcedRoots: forcedRoots,
 		}
 	}
 
@@ -242,7 +249,7 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 			Pcollections: pcols,
 			Transforms:   tforms,
 		},
-		RemovedLeaves: t.GetSubtransforms(),
+		RemovedLeaves: removeSubTransforms(comps, t.GetSubtransforms()),
 		// Force ProcessSized to be a root to ensure SDFs are able to split
 		// between elements or within elements.
 		// Also this is where a transform would be stateful anyway.

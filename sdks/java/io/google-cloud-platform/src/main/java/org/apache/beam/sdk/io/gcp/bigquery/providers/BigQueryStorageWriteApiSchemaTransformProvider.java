@@ -99,6 +99,16 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
   }
 
   @Override
+  public String description() {
+    return String.format(
+        "Writes data to BigQuery using the Storage Write API (https://cloud.google.com/bigquery/docs/write-api)."
+            + "\n\nThis expects a single PCollection of Beam Rows and outputs two dead-letter queues (DLQ) that "
+            + "contain failed rows. The first DLQ has tag [%s] and contains the failed rows. The second DLQ has "
+            + "tag [%s] and contains failed rows and along with their respective errors.",
+        FAILED_ROWS_TAG, FAILED_ROWS_WITH_ERRORS_TAG);
+  }
+
+  @Override
   public List<String> inputCollectionNames() {
     return Collections.singletonList(INPUT_ROWS_TAG);
   }
@@ -338,10 +348,13 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       if (inputRows.isBounded() == IsBounded.UNBOUNDED) {
         Long triggeringFrequency = configuration.getTriggeringFrequencySeconds();
         Boolean autoSharding = configuration.getAutoSharding();
-        Integer numStreams = configuration.getNumStreams();
+        int numStreams = configuration.getNumStreams() == null ? 0 : configuration.getNumStreams();
+        boolean useAtLeastOnceSemantics =
+            configuration.getUseAtLeastOnceSemantics() == null
+                ? false
+                : configuration.getUseAtLeastOnceSemantics();
         // Triggering frequency is only applicable for exactly-once
-        if (configuration.getUseAtLeastOnceSemantics() == null
-            || !configuration.getUseAtLeastOnceSemantics()) {
+        if (!useAtLeastOnceSemantics) {
           write =
               write.withTriggeringFrequency(
                   (triggeringFrequency == null || triggeringFrequency <= 0)
@@ -349,7 +362,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                       : Duration.standardSeconds(triggeringFrequency));
         }
         // set num streams if specified, otherwise default to autoSharding
-        if (numStreams != null && numStreams > 0) {
+        if (numStreams > 0) {
           write = write.withNumStorageWriteApiStreams(numStreams);
         } else if (autoSharding == null || autoSharding) {
           write = write.withAutoSharding();

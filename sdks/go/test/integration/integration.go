@@ -136,6 +136,9 @@ var portableFilters = []string{
 	"TestMapStateClear",
 	"TestSetState",
 	"TestSetStateClear",
+
+	// The portable runner does not appear to support timers. (extra elements)
+	"TestTimers.*",
 }
 
 var prismFilters = []string{
@@ -158,17 +161,9 @@ var prismFilters = []string{
 	"TestFhirIO.*",
 	// OOMs currently only lead to heap dumps on Dataflow runner
 	"TestOomParDo",
-	// The prism runner does not support user state.
-	"TestValueState",
-	"TestValueStateWindowed",
-	"TestValueStateClear",
-	"TestBagState",
-	"TestBagStateClear",
-	"TestCombiningState",
-	"TestMapState",
-	"TestMapStateClear",
-	"TestSetState",
-	"TestSetStateClear",
+
+	// The prism runner does not support timers https://github.com/apache/beam/issues/29772.
+	"TestTimers.*",
 }
 
 var flinkFilters = []string{
@@ -192,6 +187,9 @@ var flinkFilters = []string{
 	"TestMapStateClear",
 	"TestSetStateClear",
 	"TestSetState",
+
+	// Flink does not appear to support timers. (missing timer elements)
+	"TestTimers.*",
 }
 
 var samzaFilters = []string{
@@ -230,6 +228,9 @@ var samzaFilters = []string{
 	"TestSetStateClear",
 	// TODO(https://github.com/apache/beam/issues/26126): Java runner issue (AcitveBundle has no regsitered handler)
 	"TestDebeziumIO_BasicRead",
+
+	// Samza does not appear to support timers. (missing timer elements)
+	"TestTimers.*",
 }
 
 var sparkFilters = []string{
@@ -261,6 +262,9 @@ var sparkFilters = []string{
 	"TestMapStateClear",
 	"TestSetStateClear",
 	"TestSetState",
+
+	// Spark does not appear to support timers. (Missing all elements)
+	"TestTimers.*",
 }
 
 var dataflowFilters = []string{

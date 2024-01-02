@@ -267,7 +267,7 @@ class DataSamplingTest(unittest.TestCase):
     """
     descriptor = beam_fn_api_pb2.ProcessBundleDescriptor()
     descriptor.pcollections['a'].unique_name = 'a'
-    _ = BundleProcessor(descriptor, None, None)
+    _ = BundleProcessor(set(), descriptor, None, None)
     self.assertEqual(len(descriptor.transforms), 0)
 
   def test_can_sample(self):
@@ -301,7 +301,7 @@ class DataSamplingTest(unittest.TestCase):
       # Create and process a fake bundle. The instruction id doesn't matter
       # here.
       processor = BundleProcessor(
-          descriptor, None, None, data_sampler=data_sampler)
+          set(), descriptor, None, None, data_sampler=data_sampler)
       processor.process_bundle('instruction_id')
 
       samples = data_sampler.wait_for_samples([PCOLLECTION_ID])
@@ -377,7 +377,7 @@ class DataSamplingTest(unittest.TestCase):
       # Create and process a fake bundle. The instruction id doesn't matter
       # here.
       processor = BundleProcessor(
-          descriptor, None, None, data_sampler=data_sampler)
+          set(), descriptor, None, None, data_sampler=data_sampler)
 
       with self.assertRaisesRegex(RuntimeError, 'expected exception'):
         processor.process_bundle('instruction_id')

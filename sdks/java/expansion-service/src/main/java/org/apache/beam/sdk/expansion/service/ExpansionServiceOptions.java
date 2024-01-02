@@ -42,6 +42,11 @@ public interface ExpansionServiceOptions extends PipelineOptions {
 
   void setJavaClassLookupAllowlistFile(String file);
 
+  @Description("Whether to also start a loopback worker as part of this service.")
+  boolean getAlsoStartLoopbackWorker();
+
+  void setAlsoStartLoopbackWorker(boolean value);
+
   @Description("Expansion service configuration file.")
   String getExpansionServiceConfigFile();
 

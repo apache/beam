@@ -28,8 +28,10 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
+from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import expansion_service
+from apache_beam.runners.worker import worker_pool_main
 from apache_beam.transforms import fully_qualified_named_transform
 from apache_beam.utils import thread_pool_executor
 
@@ -41,6 +43,7 @@ def main(argv):
   parser.add_argument(
       '-p', '--port', type=int, help='port on which to serve the job api')
   parser.add_argument('--fully_qualified_name_glob', default=None)
+  parser.add_argument('--serve_loopback_worker', action='store_true')
   known_args, pipeline_args = parser.parse_known_args(argv)
   pipeline_options = PipelineOptions(
       pipeline_args + ["--experiments=beam_fn_api", "--sdk_location=container"])
@@ -52,14 +55,23 @@ def main(argv):
   with fully_qualified_named_transform.FullyQualifiedNamedTransform.with_filter(
       known_args.fully_qualified_name_glob):
 
+    address = '[::]:{}'.format(known_args.port)
     server = grpc.server(thread_pool_executor.shared_unbounded_instance())
+    if known_args.serve_loopback_worker:
+      beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(
+          worker_pool_main.BeamFnExternalWorkerPoolServicer(), server)
+      loopback_address = address
+    else:
+      loopback_address = None
     beam_expansion_api_pb2_grpc.add_ExpansionServiceServicer_to_server(
-        expansion_service.ExpansionServiceServicer(pipeline_options), server)
+        expansion_service.ExpansionServiceServicer(
+            pipeline_options, loopback_address=loopback_address),
+        server)
     beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
         artifact_service.ArtifactRetrievalService(
             artifact_service.BeamFilesystemHandler(None).file_reader),
         server)
-    server.add_insecure_port('[::]:{}'.format(known_args.port))
+    server.add_insecure_port(address)
     server.start()
     _LOGGER.info('Listening for expansion requests at %d', known_args.port)
 

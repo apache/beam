@@ -288,18 +288,14 @@ diagram:
 
 This should be accomplished by the
 [cut_release_branch](https://github.com/apache/beam/actions/workflows/cut_release_branch.yml)
-workflow. This workflow will also update
-[mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py)
-to contain all of the active Jenkins jobs.
+workflow.
 
 The following must be manually done or confirmed:
 
 - [ ] The `master` branch has the SNAPSHOT/dev version incremented.
 - [ ] The release branch has the SNAPSHOT/dev version to be released.
 - [ ] The Dataflow container image should be modified to the version to be released.
-- [ ] Due to a bug/limitation in the workflow, you must navigate to the pull
-      request found in the logs and comment `Run Gradle Publish`.
-- [ ] After publish, close the PR.
+- [ ] Due to current limitation in the workflow, you must navigate to https://github.com/apache/beam/actions/workflows/beam_Release_NightlySnapshot.yml and click "Run workflow" and select the branch just created (release-2.xx.0) to build a snapshot.
 - [ ] Manually update `CHANGES.md` on `master` by adding a new section for the
   next release
   ([example](https://github.com/apache/beam/commit/96ab1fb3fe07acf7f7dc9d8c829ae36890d1535c)).
@@ -817,7 +813,7 @@ template; please adjust as you see fit.
     Reviewers are encouraged to test their own use cases with the release candidate, and vote +1 if
     no issues are found. Only PMC member votes will count towards the final vote, but votes from all
     community members is encouraged and helpful for finding regressions; you can either test your own
-    use cases or use cases from the validation sheet [10].
+    use cases [13] or use cases from the validation sheet [10].
 
     The complete staging area is available for your review, which includes:
     * GitHub Release notes [1],
@@ -833,7 +829,7 @@ template; please adjust as you see fit.
 
     The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
-    For guidelines on how to try the release in your projects, check out our blog post at https://beam.apache.org/blog/validate-beam-release/.
+    For guidelines on how to try the release in your projects, check out our RC testing guide [13].
 
     Thanks,
     Release Manager
@@ -850,6 +846,7 @@ template; please adjust as you see fit.
     [10] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
     [11] https://hub.docker.com/search?q=apache%2Fbeam&type=image
     [12] https://github.com/apache/beam/pull/...
+    [13] https://github.com/apache/beam/blob/master/contributor-docs/rc-testing-guide.md
 
 If there are any issues found in the release candidate, reply on the vote
 thread to cancel the vote.  There’s no need to wait 72 hours. Go back to
@@ -860,7 +857,8 @@ pull request, just correct it on the spot and the vote can continue as-is.
 ### Run validation tests
 
 The community is responsible for performing validation, but as release manager
-you are expected to contribute as well.
+you are expected to contribute as well. Please see the [RC Testing Guide](https://github.com/apache/beam/blob/master/contributor-docs/rc-testing-guide.md)
+for ideas on helping validate testing on downstream projects.
 
 Before accepting an RC, as a community we try to exercise most (if not all) of
 the tests listed in this
@@ -1338,6 +1336,18 @@ Release Manager
 [1] https://github.com/apache/beam/pull/123
 ```
 
+### Update the Java starter repo
+
+After the new Beam release is published, the Java starter project needs to have its version manually upgraded.
+To do this, create a PR like https://github.com/apache/beam-starter-java/pull/94 (with the appropriate version
+number).
+
+#### (Optional) Update the remaining starter repos
+
+You can also update the versions in https://github.com/apache/beam-starter-python and
+https://github.com/apache/beam-starter-go if you would like. This is optional because dependabot will automatically
+open a PR to do this if you don't.
+
 ### Update Beam Playground
 
 After new Beam Release is published, Beam Playground can be updated following the steps below:
@@ -1352,18 +1362,18 @@ After new Beam Release is published, Beam Playground can be updated following th
     6. Click the Run Trigger button
     7. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
 3. Find the trigger "Playground-CD-stable-manual-stg", it will be run twice, once with default variables, and once with some overridden:
-    8. Click the RUN button next to the trigger name
-    9. In the panel that opened, click the Run Trigger button (with default variable values)
-    10. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
-    11. Click the RUN button next to the trigger name
-    12. In the panel that opened, change values for the variables:
+    1. Click the RUN button next to the trigger name
+    2. In the panel that opened, click the Run Trigger button (with default variable values)
+    3. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
+    4. Click the RUN button next to the trigger name
+    5. In the panel that opened, change values for the variables:
         * _ORIGIN = PG_BEAMDOC
         * _SUBDIRS = ./learning/beamdoc
-    13. Click the Run Trigger button
-    14. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
+    6. Click the Run Trigger button
+    7. Open the [Trigger History](https://console.cloud.google.com/cloud-build/builds?project=apache-beam-testing) and wait for the job completion. Ensure  that the job completed successfully (Status field shows a green tick)
 4. Test updated [staging Playground](https://play-dev.beam.apache.org/) in a browser
-    15. Open the menu (represented by '...' in the right top corner) and click on Versions. Validate that commit is the same for all listed containers, and the hash belongs to a [recent master branch commit](https://github.com/apache/beam/commits/master)
-    16. For each of the supported SDKs (Java, Python, Go, SCIO):
+    1. Open the menu (represented by '...' in the right top corner) and click on Versions. Validate that commit is the same for all listed containers, and the hash belongs to a [recent master branch commit](https://github.com/apache/beam/commits/master)
+    2. For each of the supported SDKs (Java, Python, Go, SCIO):
         * Switch to the SDK
         * Make any changes to the loaded default example
         * Click the Run button

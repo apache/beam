@@ -31,6 +31,10 @@ type natsFn struct {
 }
 
 func (fn *natsFn) Setup() error {
+	if fn.nc != nil && fn.js != nil {
+		return nil
+	}
+
 	var opts []nats.Option
 	if fn.CredsFile != "" {
 		opts = append(opts, nats.UserCredentials(fn.CredsFile))

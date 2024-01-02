@@ -22,6 +22,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow/dataflowlib"
@@ -309,6 +310,15 @@ func TestGetJobOptions_DockerNoImage(t *testing.T) {
 	*jobopts.EnvironmentConfig = "testContainerImage"
 
 	if got, want := getContainerImage(context.Background()), "testContainerImage"; got != want {
+		t.Fatalf("getContainerImage() = %q, want %q", got, want)
+	}
+}
+
+func TestGetJobOptions_DockerGCROverride(t *testing.T) {
+	resetGlobals()
+	*jobopts.EnvironmentType = "docker"
+
+	if got, want := getContainerImage(context.Background()), "gcr.io/cloud-dataflow/v1beta3/beam_go_sdk:"+core.SdkVersion; got != want {
 		t.Fatalf("getContainerImage() = %q, want %q", got, want)
 	}
 }

@@ -59,7 +59,7 @@ jobs:
           ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
           repository: apache/beam
       - name: Install Java 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '8'
@@ -95,9 +95,13 @@ jobs:
     if: ${{github.event.inputs.STAGE_JAVA_SOURCE == 'yes'}}
     runs-on: ubuntu-latest
     steps:
-      - name: Validate and mask apache id/password
+      - name: Mask Apache Password
         run: |
-          echo "::add-mask::${{ github.event.inputs.APACHE_PASSWORD }}"
+          # Workaround for Actions bug - https://github.com/actions/runner/issues/643
+          APACHE_PASS=$(jq -r '.inputs.APACHE_PASSWORD' $GITHUB_EVENT_PATH)
+          echo "::add-mask::$APACHE_PASS"
+      - name: Validate apache id/password
+        run: |
           if [ "${{ github.event.inputs.APACHE_ID }}" == "" ]
           then
             echo "Must provide an apache id to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
@@ -107,7 +111,7 @@ jobs:
             echo "Must provide an apache password to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
           fi
       - name: Install Java 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '8'
@@ -149,7 +153,7 @@ jobs:
 
             svn add --force .
             svn status
-            svn commit -m "Staging Java artifacts for Apache Beam ${{ github.event.inputs.RELEASE }} RC${{ github.event.inputs.RC }}" --non-interactive --username ${{ github.event.inputs.APACHE_ID }} --password ${{ github.event.inputs.APACHE_PASSWORD }} 
+            svn commit -m "Staging Java artifacts for Apache Beam ${{ github.event.inputs.RELEASE }} RC${{ github.event.inputs.RC }}" --non-interactive --username "${{ github.event.inputs.APACHE_ID }}" --password "${{ github.event.inputs.APACHE_PASSWORD }}" 
         
   stage_python_artifacts:
     if: ${{github.event.inputs.STAGE_PYTHON_ARTIFACTS == 'yes'}}
@@ -157,9 +161,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Validate and mask apache id/password
+      - name: Mask Apache Password
         run: |
-          echo "::add-mask::${{ github.event.inputs.APACHE_PASSWORD }}"
+          # Workaround for Actions bug - https://github.com/actions/runner/issues/643
+          APACHE_PASS=$(jq -r '.inputs.APACHE_PASSWORD' $GITHUB_EVENT_PATH)
+          echo "::add-mask::$APACHE_PASS"
+      - name: Mask apache id/password
+        run: |
           if [ "${{ github.event.inputs.APACHE_ID }}" == "" ]
           then
             echo "Must provide an apache id to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
@@ -227,7 +235,7 @@ jobs:
           cd ..
           svn add --force python
           svn status
-          svn commit -m "Staging Python artifacts for Apache Beam ${RELEASE} RC${RC_NUM}" --non-interactive --username ${{ github.event.inputs.APACHE_ID }} --password ${{ github.event.inputs.APACHE_PASSWORD }}
+          svn commit -m "Staging Python artifacts for Apache Beam ${RELEASE} RC${RC_NUM}" --non-interactive --username "${{ github.event.inputs.APACHE_ID }}" --password "${{ github.event.inputs.APACHE_PASSWORD }}"
         
 
   stage_docker:
@@ -243,19 +251,19 @@ jobs:
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@v1.3.0
       - name: Install Java 11
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '11'
       - name: Install Python 3.8
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.8'
       - run: echo $JAVA_HOME
       - run: echo "JAVA11_HOME=${JAVA_HOME}" >> "$GITHUB_OUTPUT"
         id: export-java11
       - name: Install Java 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '8'
@@ -298,7 +306,7 @@ jobs:
           token: ${{ github.event.inputs.BEAM_SITE_TOKEN }}
           ref: release-docs
       - name: Install Python 3.8
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.8'
       - name: Install node
@@ -306,7 +314,7 @@ jobs:
         with:
           node-version: '16'
       - name: Install Java 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '8'
@@ -335,6 +343,11 @@ jobs:
         working-directory: beam
         run: |
             ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
+      - name: Add canonical link into javadocs
+        uses: cicirello/javadoc-cleanup@v1
+        with:
+          path-to-root: beam/sdks/java/javadoc/build/docs/javadoc
+          base-url-path: https://beam.apache.org/releases/javadoc/current/
       - name: Consolidate Release Docs to beam-site branch with symlinks
         working-directory: beam-site
         run: |
