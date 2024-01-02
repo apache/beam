@@ -17,6 +17,7 @@ package primitives
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -35,7 +36,6 @@ func init() {
 	register.DoFn6x0[beam.Window, state.Provider, timers.Provider, string, int, func(kv[string, int])](&eventTimeFn{})
 	register.Emitter2[string, int]()
 	register.Emitter1[kv[string, int]]()
-	register.Iter1[int]()
 }
 
 type kv[K, V any] struct {
@@ -72,6 +72,7 @@ func (fn *eventTimeFn) ProcessElement(w beam.Window, sp state.Provider, tp timer
 }
 
 func (fn *eventTimeFn) OnTimer(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider, key string, timer timers.Context, emit func(kv[string, int])) {
+	fmt.Println("Timer fired for key:", key, ts.ToTime())
 	switch timer.Family {
 	case fn.Callback.Family:
 		switch timer.Tag {
@@ -139,13 +140,13 @@ func timersEventTimePipelineBuilder(makeImp func(s beam.Scope) beam.PCollection)
 	}
 }
 
-// TimersEventTime_Bounded validates event time timers in a bounded pipeline.
-func TimersEventTime_Bounded(s beam.Scope) {
+// TimersEventTimeBounded validates event time timers in a bounded pipeline.
+func TimersEventTimeBounded(s beam.Scope) {
 	timersEventTimePipelineBuilder(beam.Impulse)(s)
 }
 
-// TimersEventTime_Bounded validates event time timers in an unbounded pipeline.
-func TimersEventTime_Unbounded(s beam.Scope) {
+// TimersEventTimeUnbounded validates event time timers in an unbounded pipeline.
+func TimersEventTimeUnbounded(s beam.Scope) {
 	timersEventTimePipelineBuilder(func(s beam.Scope) beam.PCollection {
 		now := time.Now()
 		return periodic.Impulse(s, now, now.Add(10*time.Second), 0, false)
