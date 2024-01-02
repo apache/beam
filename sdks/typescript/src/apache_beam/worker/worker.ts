@@ -118,7 +118,6 @@ export class Worker {
 
   async handleRequest(request) {
     try {
-      console.log(request);
       if (request.request.oneofKind === "processBundle") {
         return this.process(request);
       } else if (request.request.oneofKind === "processBundleProgress") {
@@ -446,7 +445,6 @@ export class BundleProcessor {
 
   // Put this on a worker thread...
   async process(instructionId: string) {
-    console.debug("Processing ", this.descriptor.id, "for", instructionId);
     this.metricsContainer.reset();
     this.currentBundleId = instructionId;
     this.loggingStageInfo.instructionId = instructionId;
