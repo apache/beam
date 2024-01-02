@@ -17,7 +17,6 @@ package primitives
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -72,7 +71,6 @@ func (fn *eventTimeFn) ProcessElement(w beam.Window, sp state.Provider, tp timer
 }
 
 func (fn *eventTimeFn) OnTimer(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider, key string, timer timers.Context, emit func(kv[string, int])) {
-	fmt.Println("Timer fired for key:", key, ts.ToTime())
 	switch timer.Family {
 	case fn.Callback.Family:
 		switch timer.Tag {
