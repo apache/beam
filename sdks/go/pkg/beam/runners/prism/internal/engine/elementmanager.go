@@ -607,7 +607,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	for family, timers := range d.timers {
 		keyToTimers := map[timerKey]element{}
 		for _, t := range timers {
-			key, tag, elms := decodeTimer(nil, true, t)
+			key, tag, elms := decodeTimer(inputInfo.KeyDec, true, t)
 			for _, e := range elms {
 				keyToTimers[timerKey{key: string(key), tag: tag, win: e.window}] = e
 			}

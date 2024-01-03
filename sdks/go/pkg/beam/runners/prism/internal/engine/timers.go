@@ -16,8 +16,10 @@
 package engine
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"math"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -31,14 +33,10 @@ import (
 // Returns the key bytes, tag, window exploded elements, and the hold timestamp.
 // If the timer has been cleared, no elements will be returned. Any existing timers
 // for the tag *must* be cleared from the pending queue.
-func decodeTimer(keyDec func([]byte) int, globalWindow bool, raw []byte) ([]byte, string, []element) {
-	// keyDec returns the index n of the first byte of the tag from the raw, such that the key bytes are raw[:n]
-	//n := keyDec(raw)
-	d := decoder{raw: raw}
+func decodeTimer(keyDec func(io.Reader) []byte, globalWindow bool, raw []byte) ([]byte, string, []element) {
+	keyBytes := keyDec(bytes.NewBuffer(raw))
 
-	// DO NOT SUBMIT THIS HACK: Just assume length prefix for now.
-	keyBytes := d.LPKeyBytes()
-
+	d := decoder{raw: raw, cursor: len(keyBytes)}
 	tag := string(d.Bytes())
 
 	var ws []typex.Window
@@ -48,7 +46,7 @@ func decodeTimer(keyDec func([]byte) int, globalWindow bool, raw []byte) ([]byte
 			ws = append(ws, window.GlobalWindow{})
 		}
 	} else {
-		// Assume interval windows here, otherwise *shrug*.
+		// Assume interval windows here, since we don't understand custom windows yet.
 		for i := 0; i < int(numWin); i++ {
 			ws = append(ws, d.IntervalWindow())
 		}
