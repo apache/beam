@@ -137,15 +137,6 @@ func (d *decoder) Bytes() []byte {
 	return b
 }
 
-func (d *decoder) LPKeyBytes() []byte {
-	start := d.cursor
-	l := d.Varint()
-	end := d.cursor + int(l)
-	b := d.raw[start:end]
-	d.cursor = end
-	return b
-}
-
 func (d *decoder) Bool() bool {
 	if b := d.Byte(); b == 0 {
 		return false

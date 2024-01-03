@@ -242,7 +242,7 @@ func (em *ElementManager) Impulse(stageID string) {
 		count := consumer.AddPending(newPending)
 		em.addPending(count)
 	}
-	refreshes := stage.updateWatermarks(mtime.MaxTimestamp, mtime.MaxTimestamp, em)
+	refreshes := stage.updateWatermarks(em)
 	em.addRefreshes(refreshes)
 }
 
@@ -374,7 +374,7 @@ func (em *ElementManager) DataAndTimerInputForBundle(rb RunBundle, info PColInfo
 	cur := &Block{}
 	for _, e := range es.es {
 		switch {
-		case e.elmBytes == nil && (cur.Kind != BlockTimer || e.family != cur.Family || cur.Transform != e.transform):
+		case e.IsTimer() && (cur.Kind != BlockTimer || e.family != cur.Family || cur.Transform != e.transform):
 			total += len(cur.Bytes)
 			cur = &Block{
 				Kind:      BlockTimer,
@@ -383,7 +383,7 @@ func (em *ElementManager) DataAndTimerInputForBundle(rb RunBundle, info PColInfo
 			}
 			ret = append(ret, cur)
 			fallthrough
-		case e.elmBytes == nil && cur.Kind == BlockTimer:
+		case e.IsTimer() && cur.Kind == BlockTimer:
 			var buf bytes.Buffer
 			// Key
 			buf.Write(e.keyBytes) // Includes the length prefix if any.
@@ -612,6 +612,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 				keyToTimers[timerKey{key: string(key), tag: tag, win: e.window}] = e
 			}
 			if len(elms) == 0 {
+				// TODO(lostluck): Determine best way to mark clear a timer cleared.
 				continue
 			}
 		}
@@ -752,14 +753,7 @@ func (em *ElementManager) refreshWatermarks() set[string] {
 		ss := em.stages[stageID]
 		refreshed.insert(stageID)
 
-		// TODO consider internalizing accessing the pending and state hold to the lock section.
-		ss.mu.Lock()
-		watermarkHold := mtime.MaxTimestamp
-		if len(ss.watermarkHoldHeap) > 0 {
-			watermarkHold = ss.watermarkHoldHeap[0]
-		}
-		ss.mu.Unlock()
-		refreshes := ss.updateWatermarks(ss.minPendingTimestamp(), watermarkHold, em)
+		refreshes := ss.updateWatermarks(em)
 		nextUpdates.merge(refreshes)
 		// cap refreshes incrementally.
 		if i < 10 {
@@ -827,7 +821,7 @@ type stageState struct {
 
 	// Accounting for handling watermark holds for timers.
 	// We track the count of timers with the same hold, and clear it from
-	// the heap only if the count goes to zero.
+	// the map and heap when the count goes to zero.
 	// This avoids scanning the heap to remove or access a hold for each element.
 	watermarkHoldsCounts    map[mtime.Time]int
 	watermarkHoldHeap       holdHeap
@@ -921,7 +915,7 @@ func (ss *stageState) AddPending(newPending []element) int {
 			}
 			dnt.elements.Push(e)
 
-			if e.elmBytes == nil { // This is a timer.
+			if e.IsTimer() {
 				if lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]; ok {
 					// existing timer!
 					// don't increase the count this time, as "this" timer is already pending.
@@ -1098,18 +1092,18 @@ keysPerBundle:
 		// to be computed by the bundle parallel goroutines will speed things up a touch.
 		for dnt.elements.Len() > 0 {
 			e := heap.Pop(&dnt.elements).(element)
-			if e.elmBytes == nil {
+			if e.IsTimer() {
 				lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]
 				if !ok {
 					timerCleared = true
-					continue // Timer has "fired" already, so we can ignore subsequent matches.
+					continue // Timer has "fired" already, so this can be ignored.
 				}
 				if e.timestamp != lastSet.firing {
 					timerCleared = true
 					continue
 				}
 				holdsInBundle[e.holdTimestamp] = holdsInBundle[e.holdTimestamp] + 1
-				// Clear the "fired" timer so we can
+				// Clear the "fired" timer so subsequent matches can be ignored.
 				delete(dnt.timers, timerKey{family: e.family, tag: e.tag, window: e.window})
 			}
 			toProcess = append(toProcess, e)
@@ -1214,9 +1208,15 @@ func (ss *stageState) String() string {
 // Watermark_In'  = MAX(Watermark_In, MIN(U(TS_Pending), U(Watermark_InputPCollection)))
 // Watermark_Out' = MAX(Watermark_Out, MIN(Watermark_In', U(minWatermarkHold)))
 // Watermark_PCollection = Watermark_Out_ProducingPTransform
-func (ss *stageState) updateWatermarks(minPending, minWatermarkHold mtime.Time, em *ElementManager) set[string] {
+func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
+
+	minPending := ss.minPendingTimestampLocked()
+	minWatermarkHold := mtime.MaxTimestamp
+	if ss.watermarkHoldHeap.Len() > 0 {
+		minWatermarkHold = ss.watermarkHoldHeap[0]
+	}
 
 	// PCollection watermarks are based on their parents's output watermark.
 	_, newIn := ss.UpstreamWatermark()

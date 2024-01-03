@@ -32,17 +32,6 @@ type SideInputKey struct {
 	TransformID, Local string
 }
 
-type E struct {
-	Data   [][]byte
-	Timers *T
-}
-
-type T struct {
-	TransformID string
-	Family      string
-	Timers      [][]byte
-}
-
 // B represents an extant ProcessBundle instruction sent to an SDK worker.
 // Generally manipulated by another package to interact with a worker.
 type B struct {
@@ -53,7 +42,7 @@ type B struct {
 	InputTransformID       string
 	Input                  []*engine.Block // Data and Timers for this bundle.
 	EstimatedInputElements int
-	HasTimers              []string // Hack so we can start from the "write side"
+	HasTimers              []string
 
 	// IterableSideInputData is a map from transformID + inputID, to window, to data.
 	IterableSideInputData map[SideInputKey]map[typex.Window][][]byte

@@ -226,7 +226,7 @@ func TestWorker_Data_HappyPath(t *testing.T) {
 		t.Fatalf("client Data received %v, want %v", got, want)
 	}
 	if got, want := elements.GetData()[0].GetIsLast(), true; got != want {
-		t.Fatalf("client Data received was last: got %v, want %v", got, want)
+		t.Fatalf("client Data received wasn't last: got %v, want %v", got, want)
 	}
 
 	dataStream.Send(elements)
