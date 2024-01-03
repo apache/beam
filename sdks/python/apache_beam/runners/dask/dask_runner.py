@@ -31,10 +31,12 @@ from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.dask.overrides import dask_overrides
 from apache_beam.runners.dask.transform_evaluator import TRANSLATIONS
+from apache_beam.runners.dask.transform_evaluator import DaskBagWindowedIterator
 from apache_beam.runners.dask.transform_evaluator import NoOp
 from apache_beam.runners.direct.direct_runner import BundleBasedDirectRunner
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineState
+from apache_beam.transforms.sideinputs import SideInputMap
 from apache_beam.utils.interactive_utils import is_in_notebook
 
 try:
@@ -147,6 +149,7 @@ class DaskRunner(BundleBasedDirectRunner):
         op_class = TRANSLATIONS.get(transform_node.transform.__class__, NoOp)
         op = op_class(transform_node)
 
+        op_kws = {"input_bag": None, "side_inputs": None}
         inputs = list(transform_node.inputs)
         if inputs:
           bag_inputs = []
@@ -159,12 +162,24 @@ class DaskRunner(BundleBasedDirectRunner):
               bag_inputs.append(self.bags[prev_op])
 
           if len(bag_inputs) == 1:
-            self.bags[transform_node] = op.apply(bag_inputs[0])
+            op_kws["input_bag"] = bag_inputs[0]
           else:
-            self.bags[transform_node] = op.apply(bag_inputs)
+            op_kws["input_bag"] = bag_inputs
 
-        else:
-          self.bags[transform_node] = op.apply(None)
+        side_inputs = list(transform_node.side_inputs)
+        if side_inputs:
+          bag_side_inputs = []
+          for si in side_inputs:
+            si_asbag = self.bags.get(si.pvalue.producer)
+            bag_side_inputs.append(
+                SideInputMap(
+                    type(si),
+                    si._view_options(),
+                    DaskBagWindowedIterator(si_asbag, si._window_mapping_fn)))
+
+          op_kws["side_inputs"] = bag_side_inputs
+
+        self.bags[transform_node] = op.apply(**op_kws)
 
     return DaskBagVisitor()
 
