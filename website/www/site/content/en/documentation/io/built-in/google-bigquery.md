@@ -160,8 +160,8 @@ in the table.
 When writing to BigQuery, you must supply a table schema for the destination
 table that you want to write to, unless you specify a [create
 disposition](#create-disposition) of `CREATE_NEVER`. [Creating a table
-schema](#creating-a-table-schema) covers schemas in more detail. When updating 
-a pipeline with a new schema, the existing schmea fields must stay in the same 
+schema](#creating-a-table-schema) covers schemas in more detail. When updating
+a pipeline with a new schema, the existing schmea fields must stay in the same
 order, or the pipeline will break, failing to write to BigQuery.
 
 ### Data types
