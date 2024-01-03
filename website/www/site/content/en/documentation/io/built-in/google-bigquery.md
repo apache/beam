@@ -160,9 +160,7 @@ in the table.
 When writing to BigQuery, you must supply a table schema for the destination
 table that you want to write to, unless you specify a [create
 disposition](#create-disposition) of `CREATE_NEVER`. [Creating a table
-schema](#creating-a-table-schema) covers schemas in more detail. When updating
-a pipeline with a new schema, the existing schmea fields must stay in the same
-order, or the pipeline will break, failing to write to BigQuery.
+schema](#creating-a-table-schema) covers schemas in more detail.
 
 ### Data types
 
@@ -504,6 +502,8 @@ fail later when the write attempts happen.
 
 If your BigQuery write operation creates a new table, you must provide schema
 information. The schema contains information about each field in the table.
+When updating a pipeline with a new schema, the existing schema fields must
+stay in the same order, or the pipeline will break, failing to write to BigQuery.
 
 {{< paragraph class="language-java" >}}
 To create a table schema in Java, you can either use a `TableSchema` object, or
