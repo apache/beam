@@ -1282,9 +1282,9 @@ public class BigtableIO {
     private final Coder<KV<ByteString, Iterable<Mutation>>> inputCoder;
     private final BadRecordRouter badRecordRouter;
 
-    private Set<KV<BigtableWriteException, BoundedWindow>> badRecords = new HashSet<>();
+    private transient Set<KV<BigtableWriteException, BoundedWindow>> badRecords = new HashSet<>();
 
-    private Set<CompletionStage<MutateRowResponse>> unbatchedWrites = new HashSet<>();
+    private transient Set<CompletionStage<MutateRowResponse>> unbatchedWrites = new HashSet<>();
 
     // Assign serviceEntry in startBundle and clear it in tearDown.
     @Nullable private BigtableServiceEntry serviceEntry;
@@ -1336,7 +1336,9 @@ public class BigtableIO {
           if (exception instanceof NotFoundException
               && !((NotFoundException) exception).isRetryable()) {
             // This case, of being an NotFoundException and not retryable,
-            // indicates an issue with the data. However, we can't know if this record
+            // indicates an issue with the data. In general, the likely cause is the user trying to
+            // write to a column family that doesn't exist. The frequency of this is dependent on
+            // how column families are determined upstream of the io. We can't know if this record
             // failed, or if it was another record in the batch. Thus, we retry each record
             // individually.
             retryIndividualRecord(record, window);
@@ -1352,7 +1354,7 @@ public class BigtableIO {
       try {
         unbatchedWrites.add(
             bigtableWriter
-                .writeRecordWithoutBatching(record)
+                .writeSingleRecord(record)
                 .whenComplete(
                     (singleMutationResult, singleException) -> {
                       if (singleException != null) {

@@ -61,20 +61,7 @@ public interface BadRecordRouter extends Serializable {
         @Nullable Exception exception,
         String description)
         throws Exception {
-      if (exception != null) {
-        throw exception;
-      } else {
-        Preconditions.checkArgumentNotNull(record);
-        String encodedRecord =
-            BadRecord.Record.builder()
-                .addHumanReadableJson(record)
-                .build()
-                .getHumanReadableJsonRecord();
-        if (encodedRecord == null) {
-          encodedRecord = "Unable to serialize bad record";
-        }
-        throw new RuntimeException("Encountered Bad Record: " + encodedRecord);
-      }
+      route(record, exception);
     }
 
     @Override
@@ -86,6 +73,10 @@ public interface BadRecordRouter extends Serializable {
         String description,
         BoundedWindow window)
         throws Exception {
+      route(record, exception);
+    }
+
+    private <RecordT> void route(RecordT record, @Nullable Exception exception) throws Exception {
       if (exception != null) {
         throw exception;
       } else {

@@ -45,9 +45,12 @@ interface BigtableService extends Serializable {
     CompletionStage<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
         throws IOException;
 
-    /** Like above, but will not batch the record. Useful for single record retries */
-    CompletionStage<MutateRowResponse> writeRecordWithoutBatching(
-        KV<ByteString, Iterable<Mutation>> record) throws IOException;
+    /**
+     * Like above, but will not batch the record. Useful for single record retries. writeRecord
+     * should be preferred for performance reasons.
+     */
+    CompletionStage<MutateRowResponse> writeSingleRecord(KV<ByteString, Iterable<Mutation>> record)
+        throws IOException;
 
     /**
      * Closes the writer.

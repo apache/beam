@@ -564,7 +564,7 @@ class BigtableServiceImpl implements BigtableService {
     }
 
     @Override
-    public CompletionStage<MutateRowResponse> writeRecordWithoutBatching(
+    public CompletionStage<MutateRowResponse> writeSingleRecord(
         KV<ByteString, Iterable<Mutation>> record) {
       com.google.cloud.bigtable.data.v2.models.Mutation mutation =
           com.google.cloud.bigtable.data.v2.models.Mutation.fromProtoUnsafe(record.getValue());

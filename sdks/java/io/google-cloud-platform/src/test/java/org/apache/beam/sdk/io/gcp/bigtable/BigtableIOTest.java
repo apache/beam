@@ -1930,7 +1930,7 @@ public class BigtableIOTest {
     }
 
     @Override
-    public CompletionStage<MutateRowResponse> writeRecordWithoutBatching(
+    public CompletionStage<MutateRowResponse> writeSingleRecord(
         KV<ByteString, Iterable<Mutation>> record) throws IOException {
       return writeRecord(record);
     }
@@ -1957,12 +1957,12 @@ public class BigtableIOTest {
     }
 
     @Override
-    public CompletionStage<MutateRowResponse> writeRecordWithoutBatching(
+    public CompletionStage<MutateRowResponse> writeSingleRecord(
         KV<ByteString, Iterable<Mutation>> record) throws IOException {
       if (failureOptions.getFailAtWriteRecord()) {
         throw new IOException("Fake IOException in writeRecord()");
       }
-      return super.writeRecordWithoutBatching(record);
+      return super.writeSingleRecord(record);
     }
 
     private final FailureOptions failureOptions;
