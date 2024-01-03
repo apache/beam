@@ -49,6 +49,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 # Inputs to DaskOps.
 OpInput = t.Union[db.Bag, t.Sequence[db.Bag], None]
+OpSide = t.Optional[t.Sequence[SideInputMap]]
 
 # Value types for PCollections (possibly Windowed Values).
 PCollVal = t.Union[WindowedValue, t.Any]
@@ -76,6 +77,21 @@ def defenestrate(x):
   if isinstance(x, WindowedValue):
     return x.value
   return x
+
+
+@dataclasses.dataclass
+class DaskBagWindowedIterator:
+  """Iterator for `apache_beam.transforms.sideinputs.SideInputMap`"""
+
+  bag: db.Bag
+  window_fn: WindowFn
+
+  def __iter__(self):
+    # FIXME(cisaacstern): list() is likely inefficient, since it presumably
+    # materializes the full result before iterating over it. doing this for
+    # now as a proof-of-concept. can we can generate results incrementally?
+    for result in list(self.bag):
+      yield get_windowed_value(result, self.window_fn)
 
 
 @dataclasses.dataclass
@@ -121,19 +137,19 @@ class DaskBagOp(abc.ABC):
     return self.applied.transform
 
   @abc.abstractmethod
-  def apply(self, input_bag: OpInput) -> db.Bag:
+  def apply(self, input_bag: OpInput, side_inputs: OpSide = None) -> db.Bag:
     pass
 
 
 class NoOp(DaskBagOp):
   """An identity on a dask bag: returns the input as-is."""
-  def apply(self, input_bag: OpInput) -> db.Bag:
+  def apply(self, input_bag: OpInput, side_inputs: OpSide = None) -> db.Bag:
     return input_bag
 
 
 class Create(DaskBagOp):
   """The beginning of a Beam pipeline; the input must be `None`."""
-  def apply(self, input_bag: OpInput) -> db.Bag:
+  def apply(self, input_bag: OpInput, side_inputs: OpSide = None) -> db.Bag:
     assert input_bag is None, 'Create expects no input!'
     original_transform = t.cast(_Create, self.transform)
     items = original_transform.values
@@ -168,7 +184,7 @@ class ParDo(DaskBagOp):
 
   This consumes a sequence of items and returns a sequence of items.
   """
-  def apply(self, input_bag: db.Bag) -> db.Bag:
+  def apply(self, input_bag: db.Bag, side_inputs: OpSide = None) -> db.Bag:
     transform = t.cast(apache_beam.ParDo, self.transform)
 
     args, kwargs = transform.raw_side_inputs
@@ -176,21 +192,6 @@ class ParDo(DaskBagOp):
     main_input = next(iter(self.applied.main_inputs.values()))
     window_fn = main_input.windowing.windowfn if hasattr(
         main_input, "windowing") else None
-
-    # FIXME(cisaacstern): Snippet on side inputs below copied from RayRunner:
-    # https://github.com/ray-project/ray_beam_runner/blob/ecc9dba99dc9cbe51c2bbcb1fd472b288a89d1ba/ray_beam_runner/translator.py#L515-L524
-    # This does not work yet, as I am not sure how to access an interable of
-    # actual values for the side_inputs yet. Commented-out `_collection_map`
-    # and related `RayDatasetAccessor` below may provide some design insight.
-    side_inputs = []
-    for side_input in self.applied.side_inputs:
-      # side_ds = self._collection_map.get(side_input.pvalue)
-      side_inputs.append(
-          SideInputMap(
-              type(side_input),
-              side_input._view_options(),
-              # RayDatasetAccessor(side_ds, side_input._window_mapping_fn),
-          ))
 
     tagged_receivers = OneReceiver()
 
@@ -224,7 +225,7 @@ class ParDo(DaskBagOp):
 
 class GroupByKey(DaskBagOp):
   """Group a PCollection into a mapping of keys to elements."""
-  def apply(self, input_bag: db.Bag) -> db.Bag:
+  def apply(self, input_bag: db.Bag, side_inputs: OpSide = None) -> db.Bag:
     def key(item):
       return item[0]
 
@@ -237,7 +238,8 @@ class GroupByKey(DaskBagOp):
 
 class Flatten(DaskBagOp):
   """Produces a flattened bag from a collection of bags."""
-  def apply(self, input_bag: t.List[db.Bag]) -> db.Bag:
+  def apply(
+      self, input_bag: t.List[db.Bag], side_inputs: OpSide = None) -> db.Bag:
     assert isinstance(input_bag, list), 'Must take a sequence of bags!'
     return db.concat(input_bag)
 
