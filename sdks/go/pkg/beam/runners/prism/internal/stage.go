@@ -303,7 +303,6 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 		if err := (proto.UnmarshalOptions{}).Unmarshal(t.GetSpec().GetPayload(), pardo); err != nil {
 			return fmt.Errorf("unable to decode ParDoPayload for %v in stage %v", tid, stg.ID)
 		}
-		before := prototext.Format(pardo)
 
 		// We need to ensure the coders can be handled by prism, and are available in the bundle descriptor.
 		// So we rewrite the transform's Payload with updated coder ids here.

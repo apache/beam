@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -32,6 +33,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
 )
 
@@ -44,6 +46,21 @@ type element struct {
 
 	elmBytes []byte // When nil, indicates this is a timer.
 	keyBytes []byte
+}
+
+func (e *element) IsTimer() bool {
+	return e.elmBytes == nil
+}
+
+func (e *element) IsData() bool {
+	return !e.IsTimer()
+}
+
+func (e element) String() string {
+	if e.IsTimer() {
+		return fmt.Sprintf("{Timer - Window %v, EventTime %v, Hold %v, %q %q %q %q}", e.window, e.timestamp, e.holdTimestamp, e.transform, e.family, e.tag, e.keyBytes)
+	}
+	return fmt.Sprintf("{Data - Window %v, EventTime %v, Element %v}", e.window, e.timestamp, e.elmBytes)
 }
 
 type elements struct {
@@ -75,9 +92,21 @@ func (es elements) ToData(info PColInfo) [][]byte {
 // so we can always find the minimum timestamp of pending elements.
 type elementHeap []element
 
-func (h elementHeap) Len() int           { return len(h) }
-func (h elementHeap) Less(i, j int) bool { return h[i].timestamp < h[j].timestamp }
-func (h elementHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h elementHeap) Len() int { return len(h) }
+func (h elementHeap) Less(i, j int) bool {
+	// If the timestamps are the same, data comes before timers.
+	if h[i].timestamp == h[j].timestamp {
+		if h[i].IsTimer() && h[j].IsData() {
+			return false // j before i
+		} else if h[i].IsData() && h[j].IsTimer() {
+			return true // i before j.
+		}
+		// They're the same kind, fall through to timestamp less for consistency.
+	}
+	// Otherwise compare by timestamp.
+	return h[i].timestamp < h[j].timestamp
+}
+func (h elementHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
 
 func (h *elementHeap) Push(x any) {
 	// Push and Pop use pointer receivers because they modify the slice's length,
@@ -208,10 +237,10 @@ func (em *ElementManager) Impulse(stageID string) {
 	consumers := em.consumers[stage.outputIDs[0]]
 	slog.Debug("Impulse", slog.String("stageID", stageID), slog.Any("outputs", stage.outputIDs), slog.Any("consumers", consumers))
 
-	em.addPending(len(consumers))
 	for _, sID := range consumers {
 		consumer := em.stages[sID]
-		consumer.AddPending(newPending)
+		count := consumer.AddPending(newPending)
+		em.addPending(count)
 	}
 	refreshes := stage.updateWatermarks(mtime.MaxTimestamp, mtime.MaxTimestamp, em)
 	em.addRefreshes(refreshes)
@@ -270,11 +299,12 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 				watermark, ready := ss.bundleReady(em)
 				if ready {
 					bundleID, ok, reschedule := ss.startBundle(watermark, nextBundID)
-					if !ok {
-						continue
-					}
+					// Handle the reschedule even when there's no bundle.
 					if reschedule {
 						em.watermarkRefreshes.insert(stageID)
+					}
+					if !ok {
+						continue
 					}
 					rb := RunBundle{StageID: stageID, BundleID: bundleID, Watermark: watermark}
 
@@ -294,8 +324,15 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 				slog.Debug("Bundles: nothing in progress and no refreshes", slog.Int64("pendingElementCount", v))
 				if v > 0 {
 					var stageState []string
-					for id, ss := range em.stages {
-						stageState = append(stageState, fmt.Sprintln(id, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHoldHeap, "holdCounts", ss.watermarkHoldsCounts))
+					ids := maps.Keys(em.stages)
+					sort.Strings(ids)
+					for _, id := range ids {
+						ss := em.stages[id]
+						inW := ss.InputWatermark()
+						outW := ss.OutputWatermark()
+						upPCol, upW := ss.UpstreamWatermark()
+						upS := em.pcolParents[upPCol]
+						stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHoldHeap, "holdCounts", ss.watermarkHoldsCounts))
 					}
 					panic(fmt.Sprintf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, strings.Join(stageState, "")))
 				}
@@ -546,9 +583,9 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 		consumers := em.consumers[output]
 		slog.Debug("PersistBundle: bundle has downstream consumers.", "bundle", rb, slog.Int("newPending", len(newPending)), "consumers", consumers)
 		for _, sID := range consumers {
-			em.addPending(len(newPending))
 			consumer := em.stages[sID]
-			consumer.AddPending(newPending)
+			count := consumer.AddPending(newPending)
+			em.addPending(count)
 		}
 		sideConsumers := em.sideConsumers[output]
 		for _, link := range sideConsumers {
@@ -557,43 +594,47 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 		}
 	}
 
-	stage := em.stages[rb.StageID]
-
+	// Process each timer family in the order we received them, so we can filter to the last one.
+	// Since we're process each timer family individually, use a unique key for each userkey, tag, window.
+	// The last timer set for each combination is the next one we're keeping.
 	type timerKey struct {
 		key string
 		tag string
+		win typex.Window
 	}
 
 	var pendingTimers []element
-	for link, timers := range d.timers {
-		keyToTimers := map[timerKey][]element{}
+	for family, timers := range d.timers {
+		keyToTimers := map[timerKey]element{}
 		for _, t := range timers {
 			key, tag, elms := decodeTimer(nil, true, t)
-			keyToTimers[timerKey{key: string(key), tag: tag}] = elms
+			for _, e := range elms {
+				keyToTimers[timerKey{key: string(key), tag: tag, win: e.window}] = e
+			}
 			if len(elms) == 0 {
 				continue
 			}
 		}
 
-		for _, elms := range keyToTimers {
-			for _, elm := range elms {
-				elm.transform = link.Transform
-				elm.family = link.Local
-				pendingTimers = append(pendingTimers, elm)
-			}
+		for _, elm := range keyToTimers {
+			elm.transform = family.Transform
+			elm.family = family.Local
+			pendingTimers = append(pendingTimers, elm)
 		}
 	}
+
+	stage := em.stages[rb.StageID]
 	if len(pendingTimers) > 0 {
-		em.addPending(len(pendingTimers)) // Move this into AddPending for reliability?
-		stage.AddPending(pendingTimers)
+		count := stage.AddPending(pendingTimers)
+		em.addPending(count)
 	}
 
 	// Return unprocessed to this stage's pending
 	unprocessedElements := reElementResiduals(residuals, inputInfo, rb)
 	// Add unprocessed back to the pending stack.
 	if len(unprocessedElements) > 0 {
-		em.addPending(len(unprocessedElements))
-		stage.AddPending(unprocessedElements)
+		count := stage.AddPending(unprocessedElements)
+		em.addPending(count)
 	}
 	// Clear out the inprogress elements associated with the completed bundle.
 	// Must be done after adding the new pending elements to avoid an incorrect
@@ -676,8 +717,8 @@ func (em *ElementManager) ReturnResiduals(rb RunBundle, firstRsIndex int, inputI
 	unprocessedElements := reElementResiduals(residuals, inputInfo, rb)
 	if len(unprocessedElements) > 0 {
 		slog.Debug("ReturnResiduals: unprocessed elements", "bundle", rb, "count", len(unprocessedElements))
-		em.addPending(len(unprocessedElements))
-		stage.AddPending(unprocessedElements)
+		count := stage.AddPending(unprocessedElements)
+		em.addPending(count)
 	}
 	em.addRefreshes(singleSet(rb.StageID))
 }
@@ -779,7 +820,7 @@ type stageState struct {
 	sideInputs map[LinkID]map[typex.Window][][]byte // side input data for this stage, from {tid, inputID} -> window
 
 	// Fields for stateful stages which need to be per key.
-	pendingByKeys          map[string]elementHeap                           // pending input elements by Key, if stateful.
+	pendingByKeys          map[string]*dataAndTimers                        // pending input elements by Key, if stateful.
 	inprogressKeys         set[string]                                      // all keys that are assigned to bundles.
 	inprogressKeysByBundle map[string]set[string]                           // bundle to key assignments.
 	state                  map[LinkID]map[typex.Window]map[string]StateData // state data for this stage, from {tid, stateID} -> window -> userKey
@@ -791,6 +832,23 @@ type stageState struct {
 	watermarkHoldsCounts    map[mtime.Time]int
 	watermarkHoldHeap       holdHeap
 	inprogressHoldsByBundle map[string]map[mtime.Time]int // bundle to associated holds.
+}
+
+// timerKey uniquely identifies a given timer within the space of a user key.
+type timerKey struct {
+	family, tag string
+	window      typex.Window
+}
+
+type timerTimes struct {
+	firing, hold mtime.Time
+}
+
+// dataAndTimers represents all elements for a single user key and the latest
+// eventTime for a given family and tag.
+type dataAndTimers struct {
+	elements elementHeap
+	timers   map[timerKey]timerTimes
 }
 
 // holdHeap orders holds based on their timestamps
@@ -841,22 +899,50 @@ func makeStageState(ID string, inputIDs, outputIDs []string, sides []LinkID) *st
 }
 
 // AddPending adds elements to the pending heap.
-func (ss *stageState) AddPending(newPending []element) {
+func (ss *stageState) AddPending(newPending []element) int {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 	if ss.stateful {
 		if ss.pendingByKeys == nil {
-			ss.pendingByKeys = map[string]elementHeap{}
+			ss.pendingByKeys = map[string]*dataAndTimers{}
 		}
+		count := 0
 		for _, e := range newPending {
+			count++
 			if len(e.keyBytes) == 0 {
 				panic(fmt.Sprintf("zero length key: %v %v", ss.ID, ss.inputID))
 			}
-			h := ss.pendingByKeys[string(e.keyBytes)]
-			h.Push(e)
-			ss.pendingByKeys[string(e.keyBytes)] = h // (Is this necessary, with the way the heap interface works over a slice?)
+			dnt, ok := ss.pendingByKeys[string(e.keyBytes)]
+			if !ok {
+				dnt = &dataAndTimers{
+					timers: map[timerKey]timerTimes{},
+				}
+				ss.pendingByKeys[string(e.keyBytes)] = dnt
+			}
+			dnt.elements.Push(e)
 
 			if e.elmBytes == nil { // This is a timer.
+				if lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]; ok {
+					// existing timer!
+					// don't increase the count this time, as "this" timer is already pending.
+					count--
+					// clear out the existing hold for accounting purposes.
+					v := ss.watermarkHoldsCounts[lastSet.hold] - 1
+					if v == 0 {
+						delete(ss.watermarkHoldsCounts, lastSet.hold)
+						for i, hold := range ss.watermarkHoldHeap {
+							if hold == lastSet.hold {
+								heap.Remove(&ss.watermarkHoldHeap, i)
+								break
+							}
+						}
+					} else {
+						ss.watermarkHoldsCounts[lastSet.hold] = v
+					}
+				}
+				// Update the last set time on the timer.
+				dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}] = timerTimes{firing: e.timestamp, hold: e.holdTimestamp}
+
 				// Mark the hold in the heap.
 				ss.watermarkHoldsCounts[e.holdTimestamp] = ss.watermarkHoldsCounts[e.holdTimestamp] + 1
 
@@ -866,10 +952,12 @@ func (ss *stageState) AddPending(newPending []element) {
 				}
 			}
 		}
-	} else {
-		ss.pending = append(ss.pending, newPending...)
-		heap.Init(&ss.pending)
+		return count
 	}
+	// Default path.
+	ss.pending = append(ss.pending, newPending...)
+	heap.Init(&ss.pending)
+	return len(newPending)
 }
 
 // AddPendingSide adds elements to be consumed as side inputs.
@@ -989,50 +1077,61 @@ func (ss *stageState) startBundle(watermark mtime.Time, genBundID func() string)
 
 	holdsInBundle := map[mtime.Time]int{}
 
+	// If timers are cleared, and we end up with nothing to process
+	// we need to reschedule a watermark refresh, since those vestigial
+	// timers might have held back the minimum pending watermark.
+	timerCleared := false
+
 keysPerBundle:
-	for k, h := range ss.pendingByKeys {
+	for k, dnt := range ss.pendingByKeys {
 		if ss.inprogressKeys.present(k) {
 			continue
 		}
 		newKeys.insert(k)
 		// Track the min-timestamp for later watermark handling.
-		if h[0].timestamp < minTs {
-			minTs = h[0].timestamp
+		if dnt.elements[0].timestamp < minTs {
+			minTs = dnt.elements[0].timestamp
 		}
 
-		if OneElementPerKey {
-			hp := &h
-			toProcess = append(toProcess, heap.Pop(hp).(element))
-			if hp.Len() == 0 {
-				// Once we've taken all the elements for a key,
-				// we must delete them from pending as well.
-				delete(ss.pendingByKeys, k)
-			} else {
-				ss.pendingByKeys[k] = *hp
-			}
-		} else {
-			toProcess = append(toProcess, h...)
-			delete(ss.pendingByKeys, k)
-
-			// Can we pre-compute this bit when adding to pendingByKeys?
-			// startBundle is in run in a single scheduling goroutine, so moving per-element code
-			// to be computed by the bundle parallel goroutines will speed things up a touch.
-			for _, e := range h {
-				if e.elmBytes == nil {
-					holdsInBundle[e.holdTimestamp] = holdsInBundle[e.holdTimestamp] + 1
+		// Can we pre-compute this bit when adding to pendingByKeys?
+		// startBundle is in run in a single scheduling goroutine, so moving per-element code
+		// to be computed by the bundle parallel goroutines will speed things up a touch.
+		for dnt.elements.Len() > 0 {
+			e := heap.Pop(&dnt.elements).(element)
+			if e.elmBytes == nil {
+				lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]
+				if !ok {
+					timerCleared = true
+					continue // Timer has "fired" already, so we can ignore subsequent matches.
 				}
+				if e.timestamp != lastSet.firing {
+					timerCleared = true
+					continue
+				}
+				holdsInBundle[e.holdTimestamp] = holdsInBundle[e.holdTimestamp] + 1
+				// Clear the "fired" timer so we can
+				delete(dnt.timers, timerKey{family: e.family, tag: e.tag, window: e.window})
 			}
+			toProcess = append(toProcess, e)
+			if OneElementPerKey {
+				break
+			}
+		}
+		if dnt.elements.Len() == 0 {
+			delete(ss.pendingByKeys, k)
 		}
 		if OneKeyPerBundle {
 			break keysPerBundle
 		}
 	}
-	if len(ss.pendingByKeys) == 0 {
+	if len(ss.pendingByKeys) == 0 && !timerCleared {
+		// If we're out of data, and timers were not cleared then the watermark is are accurate.
 		stillSchedulable = false
 	}
 
 	if len(toProcess) == 0 {
-		return "", false, false
+		// If we have nothing
+		return "", false, stillSchedulable
 	}
 
 	if toProcess[0].timestamp < minTs {
@@ -1084,14 +1183,19 @@ func (ss *stageState) splitBundle(rb RunBundle, firstResidual int) {
 func (ss *stageState) minPendingTimestamp() mtime.Time {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
+	return ss.minPendingTimestampLocked()
+}
+
+// minPendingTimestampLocked must be called under the ss.mu Lock.
+func (ss *stageState) minPendingTimestampLocked() mtime.Time {
 	minPending := mtime.MaxTimestamp
 	if len(ss.pending) != 0 {
 		minPending = ss.pending[0].timestamp
 	}
 	if len(ss.pendingByKeys) != 0 {
 		// TODO(lostluck): Can we figure out how to avoid checking every key on every watermark refresh?
-		for _, h := range ss.pendingByKeys {
-			minPending = mtime.Min(minPending, h[0].timestamp)
+		for _, dnt := range ss.pendingByKeys {
+			minPending = mtime.Min(minPending, dnt.elements[0].timestamp)
 		}
 	}
 	for _, es := range ss.inprogress {

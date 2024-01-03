@@ -168,7 +168,6 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 					Timers:        dataBuf,
 				},
 			}
-			fmt.Println("SendingTimer:", b.InstID, block.Transform, block.Family, dataBuf)
 		default:
 			panic("unknown engine.Block kind")
 		}

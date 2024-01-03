@@ -211,8 +211,22 @@ func TestWorker_Data_HappyPath(t *testing.T) {
 	if got, want := elements.GetData()[0].GetData(), []byte{1, 1, 1, 1, 1, 1}; !bytes.Equal(got, want) {
 		t.Fatalf("client Data received %v, want %v", got, want)
 	}
+	if got, want := elements.GetData()[0].GetIsLast(), false; got != want {
+		t.Fatalf("client Data received was last: got %v, want %v", got, want)
+	}
+
+	elements, err = dataStream.Recv()
+	if err != nil {
+		t.Fatal("expected 2nd data elements:", err)
+	}
+	if got, want := elements.GetData()[0].GetInstructionId(), b.InstID; got != want {
+		t.Fatalf("couldn't receive data elements ID: got %v, want %v", got, want)
+	}
+	if got, want := elements.GetData()[0].GetData(), []byte(nil); !bytes.Equal(got, want) {
+		t.Fatalf("client Data received %v, want %v", got, want)
+	}
 	if got, want := elements.GetData()[0].GetIsLast(), true; got != want {
-		t.Fatalf("client Data received wasn't last: got %v, want %v", got, want)
+		t.Fatalf("client Data received was last: got %v, want %v", got, want)
 	}
 
 	dataStream.Send(elements)
