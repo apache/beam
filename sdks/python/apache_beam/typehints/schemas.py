@@ -711,7 +711,7 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
     representing the type parameterized by the argument should be returned.
 
     The returned type should be a subclass of LanguageT"""
-    raise NotImplementedError()
+    return cls.language_type()
 
   @classmethod
   def representation_type(cls):
