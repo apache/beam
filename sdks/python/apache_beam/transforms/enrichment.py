@@ -18,17 +18,13 @@
 from typing import Callable
 from typing import Generic
 from typing import Optional
+from typing import Tuple
 from typing import TypeVar
 
 import apache_beam as beam
 from apache_beam.io.requestresponse import DEFAULT_TIMEOUT_SECS
-from apache_beam.io.requestresponse import CacheReader
-from apache_beam.io.requestresponse import CacheWriter
 from apache_beam.io.requestresponse import Caller
-from apache_beam.io.requestresponse import PreCallThrottler
-from apache_beam.io.requestresponse import Repeater
 from apache_beam.io.requestresponse import RequestResponseIO
-from apache_beam.io.requestresponse import ShouldBackOff
 
 __all__ = [
     "EnrichmentSourceHandler",
@@ -39,8 +35,10 @@ __all__ = [
 InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
 
+JoinFn = Callable[[Tuple[beam.Row, beam.Row]], beam.Row]
 
-def cross_join(element):
+
+def cross_join(element: Tuple[beam.Row, beam.Row]) -> beam.Row:
   """cross_join performs a cross join between two `beam.Row` objects.
 
     Joins the columns of the right `beam.Row` onto the left `beam.Row`.
@@ -73,7 +71,8 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
                  Generic[InputT, OutputT]):
   """A :class:`apache_beam.transforms.enrichment.Enrichment` transform to
   enrich elements in a PCollection.
-
+  **NOTE:** This transform and its implementation are under development and
+  do not provide backward compatibility guarantees.
   Uses the :class:`apache_beam.transforms.enrichment.EnrichmentSourceHandler`
   to enrich elements by joining the metadata from external source.
 
@@ -89,42 +88,20 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
     join_fn: A lambda function to join original element with lookup metadata.
       Defaults to `CROSS_JOIN`.
     timeout: (Optional) timeout for source requests. Defaults to 30 seconds.
-    should_backoff: (Optional) backoff strategy function.
-    repeater: (Optional) retry Repeater.
-    cache_reader: (Optional) CacheReader for reading cache.
-    cache_writer: (Optional) CacheWriter for writing cache.
-    throttler: (Optional) Throttler mechanism to throttle source requests.
   """
   def __init__(
       self,
       source_handler: EnrichmentSourceHandler,
-      join_fn: Callable = cross_join,
-      timeout: Optional[float] = DEFAULT_TIMEOUT_SECS,
-      should_backoff: Optional[ShouldBackOff] = None,
-      repeater: Optional[Repeater] = None,
-      cache_reader: Optional[CacheReader] = None,
-      cache_writer: Optional[CacheWriter] = None,
-      throttler: Optional[PreCallThrottler] = None):
+      join_fn: JoinFn = cross_join,
+      timeout: Optional[float] = DEFAULT_TIMEOUT_SECS):
     self._source_handler = source_handler
     self._join_fn = join_fn
     self._timeout = timeout
-    self._should_backoff = should_backoff
-    self._repeater = repeater
-    self._cache_reader = cache_reader
-    self._cache_writer = cache_writer
-    self._throttler = throttler
-    self.output_type = None
 
   def expand(self,
              input_row: beam.PCollection[InputT]) -> beam.PCollection[OutputT]:
     fetched_data = input_row | RequestResponseIO(
-        caller=self._source_handler,
-        timeout=self._timeout,
-        should_backoff=self._should_backoff,
-        repeater=self._repeater,
-        cache_reader=self._cache_reader,
-        cache_writer=self._cache_writer,
-        throttler=self._throttler).with_output_types(dict)
+        caller=self._source_handler, timeout=self._timeout)
 
     # EnrichmentSourceHandler returns a tuple of (request,response).
     return fetched_data | beam.Map(self._join_fn)
