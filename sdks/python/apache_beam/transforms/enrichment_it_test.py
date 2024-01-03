@@ -93,11 +93,11 @@ class ValidateFields(beam.DoFn):
   def __init__(self, fields):
     self._fields = fields
 
-  def process(self, element: beam.Row):
+  def process(self, element: beam.Row, *args, **kwargs):
     element_dict = element.as_dict()
     if len(element_dict.keys()) != 3:
       raise BeamAssertException(
-          "Expected three fields in enriched pcollection:"
+          "Expected three fields in enriched PCollection:"
           " id, payload and resp_payload")
 
     for field in self._fields:

@@ -44,11 +44,11 @@ def cross_join(element: Tuple[beam.Row, beam.Row]) -> beam.Row:
     Joins the columns of the right `beam.Row` onto the left `beam.Row`.
 
     Args:
-      element (Tuple): A tuple containing two beam.Row objects -
+      element (Tuple): A tuple containing two `beam.Row` objects -
         request and response.
 
     Returns:
-      beam.Row: `beam.Row` containing the merged columns.
+      `beam.Row` containing the merged columns.
   """
   right_dict = element[1].as_dict()
   left_dict = element[0].as_dict()
