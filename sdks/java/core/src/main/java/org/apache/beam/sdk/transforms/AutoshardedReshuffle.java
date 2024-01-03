@@ -56,7 +56,7 @@ public class AutoshardedReshuffle<K, V> extends PTransform<
 
   private AutoshardedReshuffle() {}
 
-  public static <ShardedKey<K>, V>  AutoshardedReshuffle<ShardedKey<K>, V>  of() {
+  public static <K, V>  AutoshardedReshuffle<K, V>  of() {
     return new AutoshardedReshuffle<>();
   }
 
@@ -64,7 +64,7 @@ public class AutoshardedReshuffle<K, V> extends PTransform<
    * Encapsulates the sequence "pair input with single autoshardable key, apply {@link Reshuffle#of}, DONT drop the
    * key" commonly used to break fusion.
    */
-  public static <ShardedKey<K>, V>  ViaRandomKey<T> viaRandomKey() {
+  public static <K, V> ViaRandomKey <V> viaRandomKey() {
     return new ViaRandomKey<>();
   }
 
@@ -109,22 +109,22 @@ public class AutoshardedReshuffle<K, V> extends PTransform<
   }
 
   /** Implementation of {@link #viaRandomKey()}. */
-  public static class ViaRandomKey<T> extends PTransform<PCollection<T>, PCollection<KV<ShardedKey<K>, V>>> {
+  public static class ViaRandomKey<V> extends PTransform<PCollection<V>, PCollection<KV<ShardedKey<Long>, V>>> {
     private ViaRandomKey() {}
 
     @Override
-    public PCollection<T> expand(PCollection<T> input) {
+    public PCollection<KV<ShardedKey<Long>, V>>  expand(PCollection<V> input) {
       return input
           .apply("Pair element with a single autoshardable key", ParDo.of(new AssignShardFn<>())) // assign a single autoshardable key 
           .apply(AutoshardedReshuffle.of()); // takes autosharded keyed input, ensures windows are correctly handled 
     }
   }
 
-public static class AssignShardFn<T> extends DoFn<T, KV<ShardedKey<Long>, T>> {
+public static class AssignShardFn<V> extends DoFn<V, KV<ShardedKey<Long>, V>> {
     private static final UUID workerUuid = UUID.randomUUID();
 
     @ProcessElement
-    public void processElement(@Element T element, OutputReceiver<KV<ShardedKey<Long>, T>> r) {
+    public void processElement(@Element V element, OutputReceiver<KV<ShardedKey<Long>, V>> r) {
       long shard = Thread.currentThread().getId();
         ByteBuffer buffer = ByteBuffer.allocate(3 * Long.BYTES);
         buffer.putLong(workerUuid.getMostSignificantBits());
