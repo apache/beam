@@ -28,6 +28,8 @@ import {
   writeRawBytes,
 } from "./coders";
 import Long from "long";
+import { requireForSerialization } from "../serialization";
+import { packageName } from "../utils/packageJson";
 import {
   Window,
   GlobalWindow,
@@ -640,5 +642,5 @@ export class PaneInfoCoder implements Coder<PaneInfo> {
   }
 }
 
-import { requireForSerialization } from "../serialization";
-requireForSerialization("apache-beam/coders/required_coders", exports);
+
+requireForSerialization(`${packageName}/coders/required_coders`, exports);

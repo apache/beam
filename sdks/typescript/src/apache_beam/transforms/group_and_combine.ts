@@ -25,10 +25,12 @@ import {
 } from "./transform";
 import { flatten } from "./flatten";
 import { PCollection } from "../pvalue";
-import { PValue, P } from "../pvalue";
+import {  P } from "../pvalue";
 import { Coder } from "../coders/coders";
 import * as internal from "./internal";
 import { count } from "./combiners";
+import { requireForSerialization } from "../serialization";
+import { packageName } from "../utils/packageJson";
 
 // TODO: (API) Consider groupBy as a top-level method on PCollections.
 // TBD how to best express the combiners.
@@ -420,8 +422,7 @@ function extractFn<T, K>(extractor: string | string[] | ((T) => K)) {
   return extractFnAndName(extractor, undefined!)[0];
 }
 
-import { requireForSerialization } from "../serialization";
-requireForSerialization("apache-beam/transforms/group_and_combine", exports);
-requireForSerialization("apache-beam/transforms/group_and_combine", {
+requireForSerialization(`${packageName}/transforms/group_and_combine`, exports);
+requireForSerialization(`${packageName}/transforms/group_and_combine`, {
   GroupByAndCombine: GroupByAndCombine,
 });

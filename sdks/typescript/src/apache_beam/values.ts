@@ -17,6 +17,8 @@
  */
 
 import Long from "long";
+import { requireForSerialization } from "./serialization";
+import { packageName } from "./utils/packageJson";
 
 export type KV<K, V> = {
   key: K;
@@ -65,5 +67,4 @@ export enum Timing {
   UNKNOWN = "UNKNOWN",
 }
 
-import { requireForSerialization } from "./serialization";
-requireForSerialization("apache-beam/values", exports);
+requireForSerialization(`${packageName}/values`, exports);
