@@ -31,8 +31,6 @@ modules for machine learning tasks.
 
 -   With `MLTransform`, you can use the same preprocessing steps for both
     training and inference, which ensures consistent results.
--   Use `MLTransform` to transform a single example or a batch of
-    examples.
 -   `MLTransform` can do a full pass on the dataset, which is useful when
     you need to transform a single element only after analyzing the entire
     dataset. For example, with `MLTransform`, you can complete the following tasks:
@@ -48,10 +46,9 @@ modules for machine learning tasks.
 
 ## Support and limitations {#support}
 
--   Available in the Apache Beam Python SDK versions 2.50.0 and later.
--   Supports Python 3.8 and 3.9.
+-   Available in the Apache Beam Python SDK versions 2.53.0 and later.
+-   Supports Python 3.8, 3.9 and 3.10.
 -   Only available for pipelines that use [default windows](/documentation/programming-guide/#single-global-window).
--   Only supports one-to-one transform mapping on a single element.
 
 ## Transforms {#transforms}
 
@@ -79,12 +76,8 @@ each column's data.
 
 ## I/O requirements {#io}
 
--   Input to the `MLTransform` class must be in one of the following formats:
-    -   A `dict` of `str`
-        -   Primitive types
-        -   List of primitive types
-        -   NumPy arrays
--   `MLTransform` outputs a Beam `Row` object with NumPy arrays.
+-   Input to the `MLTransform` class must be a dictionary.
+-   `MLTransform` outputs a Beam `Row` object with transformed elements.
 -   The output `PCollection` is a schema `PCollection`. The output schema
     contains the transformed columns.
 
@@ -197,32 +190,3 @@ Replace the following values:
 For more examples, see
 [MLTransform for data processing](/documentation/transforms/python/elementwise/mltransform)
 in the [transform catalog](/documentation/transforms/python/overview/).
-
-### ScaleTo01 example {#scaleto01}
-
-This example demonstrates how to use `MLTransform` to normalize your data
-between 0 and 1 by using the minimum and maximum values from your entire
-dataset. `MLTransform` uses the `ScaleTo01` transformation.
-
-Use the following snippet to apply `ScaleTo01` on column `x` of the input
-data.
-
-```
-data_pcoll | MLTransform(write_artifact_location=<LOCATION>).with_transform(ScaleTo01(columns=['x']))
-```
-
-The `ScaleTo01` transformation produces two artifacts: the `min` and the `max`
-of the entire dataset. For more information, see the
-[Artifacts](#artifacts) section on this page.
-
-## Metrics {#metrics}
-
-When you use MLTransform, the following metrics are available.
-
-{{< table >}}
-| Metric | Description |
-| ------- | ---------------|
-| Data throughput | The number of records processed per second. This metric indicates the processing capacity of the pipeline for `beam.MLTransform.` |
-| Memory usage | The number of records processed per second. This metric indicates the processing capacity of the pipeline for `beam.MLTransform`. |
-| Counters | Tracks the number of elements processed. Each `MLTransform` has a counter. |:
-{{< /table >}}
