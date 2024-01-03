@@ -27,6 +27,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
@@ -35,11 +36,13 @@ import (
 )
 
 type element struct {
-	window    typex.Window
-	timestamp mtime.Time
-	pane      typex.PaneInfo
+	window                 typex.Window
+	timestamp              mtime.Time
+	holdTimestamp          mtime.Time // only used for Timers
+	pane                   typex.PaneInfo
+	transform, family, tag string // only used for Timers.
 
-	elmBytes []byte
+	elmBytes []byte // When nil, indicates this is a timer.
 	keyBytes []byte
 }
 
@@ -292,7 +295,7 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 				if v > 0 {
 					var stageState []string
 					for id, ss := range em.stages {
-						stageState = append(stageState, fmt.Sprintln(id, ss.pending, ss.pendingByKeys, ss.inprogressKeys, ss.inprogressKeysByBundle))
+						stageState = append(stageState, fmt.Sprintln(id, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHoldHeap, "holdCounts", ss.watermarkHoldsCounts))
 					}
 					panic(fmt.Sprintf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, strings.Join(stageState, "")))
 				}
@@ -318,6 +321,81 @@ func (em *ElementManager) InputForBundle(rb RunBundle, info PColInfo) [][]byte {
 	defer ss.mu.Unlock()
 	es := ss.inprogress[rb.BundleID]
 	return es.ToData(info)
+}
+
+// DataAndTimerInputForBundle returns pre-allocated data for the given bundle and the estimated number of elements.
+// Elements are encoded with the PCollection's coders.
+func (em *ElementManager) DataAndTimerInputForBundle(rb RunBundle, info PColInfo) ([]*Block, int) {
+	ss := em.stages[rb.StageID]
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	es := ss.inprogress[rb.BundleID]
+
+	var total int
+
+	var ret []*Block
+	cur := &Block{}
+	for _, e := range es.es {
+		switch {
+		case e.elmBytes == nil && (cur.Kind != BlockTimer || e.family != cur.Family || cur.Transform != e.transform):
+			total += len(cur.Bytes)
+			cur = &Block{
+				Kind:      BlockTimer,
+				Transform: e.transform,
+				Family:    e.family,
+			}
+			ret = append(ret, cur)
+			fallthrough
+		case e.elmBytes == nil && cur.Kind == BlockTimer:
+			var buf bytes.Buffer
+			// Key
+			buf.Write(e.keyBytes) // Includes the length prefix if any.
+			// Tag
+			coder.EncodeVarInt(int64(len(e.tag)), &buf)
+			buf.WriteString(e.tag)
+			// Windows
+			info.WEnc.Encode([]typex.Window{e.window}, &buf)
+			// Clear
+			buf.Write([]byte{0})
+			// Firing timestamp
+			coder.EncodeEventTime(e.timestamp, &buf)
+			// Hold timestamp
+			coder.EncodeEventTime(e.holdTimestamp, &buf)
+			// Pane
+			coder.EncodePane(e.pane, &buf)
+
+			cur.Bytes = append(cur.Bytes, buf.Bytes())
+		case cur.Kind != BlockData:
+			total += len(cur.Bytes)
+			cur = &Block{
+				Kind: BlockData,
+			}
+			ret = append(ret, cur)
+			fallthrough
+		default:
+			var buf bytes.Buffer
+			exec.EncodeWindowedValueHeader(info.WEnc, []typex.Window{e.window}, e.timestamp, e.pane, &buf)
+			buf.Write(e.elmBytes)
+			cur.Bytes = append(cur.Bytes, buf.Bytes())
+		}
+	}
+	total += len(cur.Bytes)
+	return ret, total
+}
+
+// BlockKind indicates how the block is to be handled.
+type BlockKind int32
+
+const (
+	blockUnset BlockKind = iota // blockUnset
+	BlockData                   // BlockData represents data for the bundle.
+	BlockTimer                  // BlockTimer represents timers for the bundle.
+)
+
+type Block struct {
+	Kind              BlockKind
+	Bytes             [][]byte
+	Transform, Family string
 }
 
 // StateForBundle retreives relevant state for the given bundle, WRT the data in the bundle.
@@ -422,7 +500,6 @@ func reElementResiduals(residuals [][]byte, inputInfo PColInfo, rb RunBundle) []
 // PersistBundle takes in the stage ID, ID of the bundle associated with the pending
 // input elements, and the committed output elements.
 func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PColInfo, d TentativeData, inputInfo PColInfo, residuals [][]byte, estimatedOWM map[string]mtime.Time) {
-	stage := em.stages[rb.StageID]
 	for output, data := range d.Raw {
 		info := col2Coders[output]
 		var newPending []element
@@ -480,6 +557,37 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 		}
 	}
 
+	stage := em.stages[rb.StageID]
+
+	type timerKey struct {
+		key string
+		tag string
+	}
+
+	var pendingTimers []element
+	for link, timers := range d.timers {
+		keyToTimers := map[timerKey][]element{}
+		for _, t := range timers {
+			key, tag, elms := decodeTimer(nil, true, t)
+			keyToTimers[timerKey{key: string(key), tag: tag}] = elms
+			if len(elms) == 0 {
+				continue
+			}
+		}
+
+		for _, elms := range keyToTimers {
+			for _, elm := range elms {
+				elm.transform = link.Transform
+				elm.family = link.Local
+				pendingTimers = append(pendingTimers, elm)
+			}
+		}
+	}
+	if len(pendingTimers) > 0 {
+		em.addPending(len(pendingTimers)) // Move this into AddPending for reliability?
+		stage.AddPending(pendingTimers)
+	}
+
 	// Return unprocessed to this stage's pending
 	unprocessedElements := reElementResiduals(residuals, inputInfo, rb)
 	// Add unprocessed back to the pending stack.
@@ -498,6 +606,23 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 		delete(stage.inprogressKeys, k)
 	}
 	delete(stage.inprogressKeysByBundle, rb.BundleID)
+
+	for hold, v := range stage.inprogressHoldsByBundle[rb.BundleID] {
+		n := stage.watermarkHoldsCounts[hold] - v
+		if n == 0 {
+			delete(stage.watermarkHoldsCounts, hold)
+			for i, h := range stage.watermarkHoldHeap {
+				if hold == h {
+					heap.Remove(&stage.watermarkHoldHeap, i)
+					break
+				}
+			}
+		} else {
+			stage.watermarkHoldsCounts[hold] = n
+		}
+	}
+	delete(stage.inprogressHoldsByBundle, rb.BundleID)
+
 	// If there are estimated output watermarks, set the estimated
 	// output watermark for the stage.
 	if len(estimatedOWM) > 0 {
@@ -528,7 +653,6 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	}
 	stage.mu.Unlock()
 
-	// TODO support state/timer watermark holds.
 	em.addRefreshAndClearBundle(stage.ID, rb.BundleID)
 }
 
@@ -587,9 +711,14 @@ func (em *ElementManager) refreshWatermarks() set[string] {
 		ss := em.stages[stageID]
 		refreshed.insert(stageID)
 
-		dummyStateHold := mtime.MaxTimestamp
-
-		refreshes := ss.updateWatermarks(ss.minPendingTimestamp(), dummyStateHold, em)
+		// TODO consider internalizing accessing the pending and state hold to the lock section.
+		ss.mu.Lock()
+		watermarkHold := mtime.MaxTimestamp
+		if len(ss.watermarkHoldHeap) > 0 {
+			watermarkHold = ss.watermarkHoldHeap[0]
+		}
+		ss.mu.Unlock()
+		refreshes := ss.updateWatermarks(ss.minPendingTimestamp(), watermarkHold, em)
 		nextUpdates.merge(refreshes)
 		// cap refreshes incrementally.
 		if i < 10 {
@@ -654,16 +783,47 @@ type stageState struct {
 	inprogressKeys         set[string]                                      // all keys that are assigned to bundles.
 	inprogressKeysByBundle map[string]set[string]                           // bundle to key assignments.
 	state                  map[LinkID]map[typex.Window]map[string]StateData // state data for this stage, from {tid, stateID} -> window -> userKey
+
+	// Accounting for handling watermark holds for timers.
+	// We track the count of timers with the same hold, and clear it from
+	// the heap only if the count goes to zero.
+	// This avoids scanning the heap to remove or access a hold for each element.
+	watermarkHoldsCounts    map[mtime.Time]int
+	watermarkHoldHeap       holdHeap
+	inprogressHoldsByBundle map[string]map[mtime.Time]int // bundle to associated holds.
+}
+
+// holdHeap orders holds based on their timestamps
+// so we can always find the minimum timestamp of pending holds.
+type holdHeap []mtime.Time
+
+func (h holdHeap) Len() int           { return len(h) }
+func (h holdHeap) Less(i, j int) bool { return h[i] < h[j] }
+func (h holdHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+
+func (h *holdHeap) Push(x any) {
+	// Push and Pop use pointer receivers because they modify the slice's length,
+	// not just its contents.
+	*h = append(*h, x.(mtime.Time))
+}
+
+func (h *holdHeap) Pop() any {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[0 : n-1]
+	return x
 }
 
 // makeStageState produces an initialized stageState.
 func makeStageState(ID string, inputIDs, outputIDs []string, sides []LinkID) *stageState {
 	ss := &stageState{
-		ID:        ID,
-		outputIDs: outputIDs,
-		sides:     sides,
-		strat:     defaultStrat{},
-		state:     map[LinkID]map[typex.Window]map[string]StateData{},
+		ID:                   ID,
+		outputIDs:            outputIDs,
+		sides:                sides,
+		strat:                defaultStrat{},
+		state:                map[LinkID]map[typex.Window]map[string]StateData{},
+		watermarkHoldsCounts: map[mtime.Time]int{},
 
 		input:           mtime.MinTimestamp,
 		output:          mtime.MinTimestamp,
@@ -695,6 +855,16 @@ func (ss *stageState) AddPending(newPending []element) {
 			h := ss.pendingByKeys[string(e.keyBytes)]
 			h.Push(e)
 			ss.pendingByKeys[string(e.keyBytes)] = h // (Is this necessary, with the way the heap interface works over a slice?)
+
+			if e.elmBytes == nil { // This is a timer.
+				// Mark the hold in the heap.
+				ss.watermarkHoldsCounts[e.holdTimestamp] = ss.watermarkHoldsCounts[e.holdTimestamp] + 1
+
+				if len(ss.watermarkHoldsCounts) != len(ss.watermarkHoldHeap) {
+					// The hold should not be in the heap, so we add it.
+					heap.Push(&ss.watermarkHoldHeap, e.holdTimestamp)
+				}
+			}
 		}
 	} else {
 		ss.pending = append(ss.pending, newPending...)
@@ -817,6 +987,8 @@ func (ss *stageState) startBundle(watermark mtime.Time, genBundID func() string)
 	newKeys := set[string]{}
 	stillSchedulable := true
 
+	holdsInBundle := map[mtime.Time]int{}
+
 keysPerBundle:
 	for k, h := range ss.pendingByKeys {
 		if ss.inprogressKeys.present(k) {
@@ -841,6 +1013,15 @@ keysPerBundle:
 		} else {
 			toProcess = append(toProcess, h...)
 			delete(ss.pendingByKeys, k)
+
+			// Can we pre-compute this bit when adding to pendingByKeys?
+			// startBundle is in run in a single scheduling goroutine, so moving per-element code
+			// to be computed by the bundle parallel goroutines will speed things up a touch.
+			for _, e := range h {
+				if e.elmBytes == nil {
+					holdsInBundle[e.holdTimestamp] = holdsInBundle[e.holdTimestamp] + 1
+				}
+			}
 		}
 		if OneKeyPerBundle {
 			break keysPerBundle
@@ -869,10 +1050,14 @@ keysPerBundle:
 	if ss.inprogressKeysByBundle == nil {
 		ss.inprogressKeysByBundle = make(map[string]set[string])
 	}
+	if ss.inprogressHoldsByBundle == nil {
+		ss.inprogressHoldsByBundle = make(map[string]map[mtime.Time]int)
+	}
 	bundID := genBundID()
 	ss.inprogress[bundID] = es
 	ss.inprogressKeysByBundle[bundID] = newKeys
 	ss.inprogressKeys.merge(newKeys)
+	ss.inprogressHoldsByBundle[bundID] = holdsInBundle
 	return bundID, true, stillSchedulable
 }
 
@@ -923,9 +1108,9 @@ func (ss *stageState) String() string {
 // updateWatermarks performs the following operations:
 //
 // Watermark_In'  = MAX(Watermark_In, MIN(U(TS_Pending), U(Watermark_InputPCollection)))
-// Watermark_Out' = MAX(Watermark_Out, MIN(Watermark_In', U(StateHold)))
+// Watermark_Out' = MAX(Watermark_Out, MIN(Watermark_In', U(minWatermarkHold)))
 // Watermark_PCollection = Watermark_Out_ProducingPTransform
-func (ss *stageState) updateWatermarks(minPending, minStateHold mtime.Time, em *ElementManager) set[string] {
+func (ss *stageState) updateWatermarks(minPending, minWatermarkHold mtime.Time, em *ElementManager) set[string] {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 
@@ -951,8 +1136,9 @@ func (ss *stageState) updateWatermarks(minPending, minStateHold mtime.Time, em *
 	}
 
 	// We adjust based on the minimum state hold.
-	if minStateHold < newOut {
-		newOut = minStateHold
+	// If we hold it, mark this stage as refreshable?
+	if minWatermarkHold < newOut {
+		newOut = minWatermarkHold
 	}
 	refreshes := set[string]{}
 	// If bigger, advance the output watermark

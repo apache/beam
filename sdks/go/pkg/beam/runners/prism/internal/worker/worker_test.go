@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
@@ -178,9 +179,11 @@ func TestWorker_Data_HappyPath(t *testing.T) {
 	b := &B{
 		InstID: instID,
 		PBDID:  "teststageID",
-		InputData: [][]byte{
-			{1, 1, 1, 1, 1, 1},
-		},
+		Input: []*engine.Block{
+			{
+				Kind:  engine.BlockData,
+				Bytes: [][]byte{{1, 1, 1, 1, 1, 1}},
+			}},
 		OutputCount: 1,
 	}
 	b.Init()

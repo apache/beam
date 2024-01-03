@@ -153,8 +153,10 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 			}
 			// Validate all the timer features
 			for _, spec := range pardo.GetTimerFamilySpecs() {
-				check("TimerFamilySpecs.TimeDomain.Urn", spec.GetTimeDomain())
+				check("TimerFamilySpecs.TimeDomain.Urn", spec.GetTimeDomain(), pipepb.TimeDomain_EVENT_TIME)
 			}
+
+			check("OnWindowExpirationTimerFamily", pardo.GetOnWindowExpirationTimerFamilySpec(), "") // Unsupported for now.
 
 		case "":
 			// Composites can often have no spec

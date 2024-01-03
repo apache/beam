@@ -200,7 +200,7 @@ func pullDecoder(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(io.Reade
 	}
 }
 
-// pullDecoderNoAlloc returns a function that decodes a single eleemnt of the given coder.
+// pullDecoderNoAlloc returns a function that decodes a single element of the given coder.
 // Intended to only be used as an internal function for pullDecoder, which will use a io.TeeReader
 // to extract the bytes.
 func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(io.Reader) {
@@ -241,6 +241,14 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 		return func(r io.Reader) {
 			kd(r)
 			vd(r)
+		}
+	case urns.CoderTimer:
+		ccids := c.GetComponentCoderIds()
+		kd := pullDecoderNoAlloc(coders[ccids[0]], coders)
+		wd := pullDecoderNoAlloc(coders[ccids[1]], coders)
+		return func(r io.Reader) {
+			kd(r)
+			wd(r)
 		}
 	case urns.CoderRow:
 		panic(fmt.Sprintf("Runner forgot to LP this Row Coder. %v", prototext.Format(c)))
