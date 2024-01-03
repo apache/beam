@@ -32,7 +32,7 @@ Response:
 ```
 There are three types of golden prompts in this folder:
 - documentaion lookup prompts
-- code generation prompts 
+- code generation prompts
 - code explanation prompts
 
 ## Documentation lookup prompts
@@ -48,7 +48,7 @@ Features of a good response:
 - prelude explaining the code sample
 - include information about how to find the reference documentation
 - include a link to the list of code samples
-- well documented code. Consider returning an example of what the return result would look like. 
+- well documented code. Consider returning an example of what the return result would look like.
 - follow up to the user to ensure they don’t perseverate on false responses.
 
 
