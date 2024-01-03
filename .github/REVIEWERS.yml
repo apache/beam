@@ -60,6 +60,10 @@ labels:
       - igorbernstein2
       - mutianf
     exclusionList: []
+  - name: healthcare
+    reviewers:
+      - svetakvsundhar
+      exclusionList: []
   - name: Build
     reviewers:
       - damccorm
