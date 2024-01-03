@@ -722,7 +722,6 @@ if (project.hasProperty("testJavaVersion")) {
 
   tasks.getByName("javaPreCommitPortabilityApi").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion$testVer")
   tasks.getByName("javaExamplesDataflowPrecommit").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion$testVer")
-  tasks.getByName("sqlPreCommit").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion$testVer")
 } else {
   allprojects {
     tasks.withType(Test::class).configureEach {
