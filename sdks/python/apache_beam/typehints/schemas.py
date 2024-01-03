@@ -343,8 +343,14 @@ class SchemaTranslation(object):
       argument = None
       if logical_type.argument_type() is not None:
         argument_type = self.typing_to_runner_api(logical_type.argument_type())
-        argument = self.value_to_runner_api(
-            argument_type, logical_type.argument())
+        try:
+          argument = self.value_to_runner_api(
+              argument_type, logical_type.argument())
+        except ValueError:
+          # TODO(https://github.com/apache/beam/issues/23373): Complete support
+          # for logical types that require arguments beyond atomic type.
+          # For now, skip arguments.
+          argument = None
       return schema_pb2.FieldType(
           logical_type=schema_pb2.LogicalType(
               urn=logical_type.urn(),
