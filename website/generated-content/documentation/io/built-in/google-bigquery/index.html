@@ -441,7 +441,9 @@ guarantee that your pipeline will have exclusive access to the table. Two
 concurrent pipelines that write to the same output table with a write
 disposition of <code>WRITE_EMPTY</code> might start successfully, but both pipelines can
 fail later when the write attempts happen.</p><h3 id=creating-a-table-schema>Creating a table schema</h3><p>If your BigQuery write operation creates a new table, you must provide schema
-information. The schema contains information about each field in the table.</p><p class=language-java>To create a table schema in Java, you can either use a <code>TableSchema</code> object, or
+information. The schema contains information about each field in the table.
+When updating a pipeline with a new schema, the existing schema fields must
+stay in the same order, or the pipeline will break, failing to write to BigQuery.</p><p class=language-java>To create a table schema in Java, you can either use a <code>TableSchema</code> object, or
 use a string that contains a JSON-serialized <code>TableSchema</code> object.</p><p class=language-py>To create a table schema in Python, you can either use a <code>TableSchema</code> object,
 or use a string that defines a list of fields. Single string based schemas do
 not support nested fields, repeated fields, or specifying a BigQuery mode for
