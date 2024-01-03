@@ -226,11 +226,10 @@ public class DataflowWorkUnitClientTest {
 
     client.getWorkItem();
   }
-  
+
   @Test
   public void testWorkMessageCreation() throws Exception {
     WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
-    
   }
 
   private LowLevelHttpResponse generateMockResponse(WorkItem... workItems) throws Exception {
