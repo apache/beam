@@ -23,10 +23,6 @@ preprocessing data for training and inference. The `MLTransform` class wraps the
 various transforms in one class, simplifying your workflow. For a full list of
 available transforms, see the [Transforms](#transforms) section on this page.
 
-The set of transforms currently available in the `MLTransform` class come from
-the TensorFlow Transforms (TFT) library. TFT offers specialized processing
-modules for machine learning tasks.
-
 ## Why use MLTransform {#use-mltransform}
 
 -   With `MLTransform`, you can use the same preprocessing steps for both
@@ -43,6 +39,7 @@ modules for machine learning tasks.
     -   Count the occurrences of words in all the documents to calculate
         [TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf)
         weights.
+    -  Generate [embeddings](https://en.wikipedia.org/wiki/Embedding) on text data using LLMs.
 
 ## Support and limitations {#support}
 
@@ -53,7 +50,10 @@ modules for machine learning tasks.
 ## Transforms {#transforms}
 
 You can use `MLTransform` to perform the following data processing transforms.
-For information about the transforms, see
+
+### Data Processing Transforms using TFT
+
+For information about the tft based transforms, see
 [Module:tft](https://www.tensorflow.org/tfx/transform/api_docs/python/tft) in the
 TensorFlow documentation.
 
@@ -70,9 +70,13 @@ TensorFlow documentation.
 | TFIDF | See [`tft.tfidf`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/tfidf) in the TensorFlow documentation. |:
 {{< /table >}}
 
-Apply the transforms on either single or multiple columns passed as a
-`dict` on structured data. Keys are column names and values are lists containing
-each column's data.
+### Generate Text Embeddings
+
+{{< table >}}
+| Transform name | Description |
+| ------- | ---------------|
+| SentenceTransformerEmbeddings | Uses [sentence-transformer](https://huggingface.co/sentence-transformers) models to generate text embeddings. sentence-transformers models hosted on HuggingFace hub are supported.
+| VertexAITextEmbeddings | Uses [Vertex AI]( https://cloud.google.com/vertex-ai/docs/generative-ai/embeddings/get-text-embeddings) text embedding models to generate text embeddings.
 
 ## I/O requirements {#io}
 
