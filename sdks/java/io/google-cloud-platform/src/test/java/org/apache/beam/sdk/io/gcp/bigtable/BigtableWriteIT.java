@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.api.gax.rpc.ServerStream;
 import com.google.bigtable.v2.Mutation;
+import com.google.bigtable.v2.Mutation.SetCell;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
@@ -31,6 +32,7 @@ import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Descriptors.FieldDescriptor;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
@@ -45,7 +47,10 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
@@ -211,6 +216,49 @@ public class BigtableWriteIT implements Serializable {
     // Test table data equality
     List<KV<ByteString, ByteString>> tableData = getTableData(tableId);
     assertEquals(998, tableData.size());
+  }
+
+  @Test
+  public void testE2EBigtableWriteWithOversizedRowFailures() throws Exception {
+    ByteString rowId = ByteString.copyFromUtf8("rowId");
+
+    final int numRows = 400;
+
+    createEmptyTable(tableId);
+
+    ByteString value = ByteString.copyFrom(new byte[11_000_000]);
+
+    Pipeline p = Pipeline.create(options);
+    p.apply(GenerateSequence.from(0).to(numRows))
+        .apply("ConvertToMutation",
+            ParDo.of(
+                new DoFn<Long, KV<ByteString, Mutation>>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    c.output(KV.of(rowId,Mutation.newBuilder()
+                        .setSetCell(
+                            SetCell.newBuilder()
+                                .setValue(value)
+                                .setColumnQualifier(ByteString.copyFromUtf8(
+                                    String.format("key%09d", c.element())))
+                                .setFamilyName(COLUMN_FAMILY_NAME))
+                        .build()));
+                  }
+                }))
+        .apply(GroupByKey.create())
+        .apply(
+            BigtableIO.write()
+                .withProjectId(project)
+                .withInstanceId(options.getInstanceId())
+                .withTableId(tableId));
+    p.run();
+
+    // Test number of column families and column family name equality
+    Table table = getTable(tableId);
+    assertThat(table.getColumnFamilies(), Matchers.hasSize(1));
+    assertThat(
+        table.getColumnFamilies().stream().map((c) -> c.getId()).collect(Collectors.toList()),
+        Matchers.contains(COLUMN_FAMILY_NAME));
   }
 
   @After
