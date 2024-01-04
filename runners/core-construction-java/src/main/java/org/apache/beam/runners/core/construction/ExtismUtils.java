@@ -29,16 +29,20 @@ import org.extism.sdk.Plugin;
 import org.extism.sdk.manifest.Manifest;
 import org.extism.sdk.wasm.PathWasmSource;
 
+@SuppressWarnings({
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ExtismUtils {
 
   static class WASMDoFnWrapper extends DoFn<byte[], byte[]> {
 
-    private Plugin plugin;
+    private transient Plugin plugin;
 
     public WASMDoFnWrapper(String wasmFileName) {
-      ArrayList paths = new ArrayList();
+      ArrayList<PathWasmSource> paths = new ArrayList<>();
       paths.add(new PathWasmSource("dofn_path", wasmFileName, "dummy_hash"));
-      Manifest manifest = new Manifest(paths);
+      Manifest manifest = new Manifest((ArrayList) paths);
       plugin = new Plugin(manifest, false, null);
     }
 
