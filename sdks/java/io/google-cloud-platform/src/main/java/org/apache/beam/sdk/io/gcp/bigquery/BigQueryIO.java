@@ -605,7 +605,7 @@ public class BigQueryIO {
    * PCollection<TableRow>} directly to BigQueryIO.Write.
    */
   static final SerializableFunction<TableRow, TableRow> TABLE_ROW_IDENTITY_FORMATTER =
-      SerializableFunctions.identity();;
+      SerializableFunctions.identity();
 
   /**
    * A formatting function that maps a GenericRecord to itself. This allows sending a {@code
@@ -2231,9 +2231,7 @@ public class BigQueryIO {
        * of load jobs allowed per day, so be careful not to set the triggering frequency too
        * frequent. For more information, see <a
        * href="https://cloud.google.com/bigquery/docs/loading-data-cloud-storage">Loading Data from
-       * Cloud Storage</a>. Note: Load jobs currently do not support BigQuery's <a
-       * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#json_type">
-       * JSON data type</a>.
+       * Cloud Storage</a>.
        */
       FILE_LOADS,
 
@@ -3575,11 +3573,22 @@ public class BigQueryIO {
             !getPropagateSuccessfulStorageApiWrites(),
             "withPropagateSuccessfulStorageApiWrites only supported when using storage api writes.");
 
-        // Batch load jobs currently support JSON data insertion only with CSV files
+        // Beam does not yet support Batch load jobs with Avro files
         if (getJsonSchema() != null && getJsonSchema().isAccessible()) {
           JsonElement schema = JsonParser.parseString(getJsonSchema().get());
-          if (!schema.getAsJsonObject().keySet().isEmpty()) {
-            validateNoJsonTypeInSchema(schema);
+          if (!schema.getAsJsonObject().keySet().isEmpty() && hasJsonTypeInSchema(schema)) {
+            if (rowWriterFactory.getOutputType() == OutputType.JsonTableRow) {
+              LOG.warn(
+                  "Found JSON type in TableSchema for 'FILE_LOADS' write method. \n"
+                      + "Make sure the TableSchema field is a parsed JSON to ensure the read as a "
+                      + "JSON type. Otherwise it will read as a raw (escaped) string.");
+            } else if (rowWriterFactory.getOutputType() == OutputType.AvroGenericRecord) {
+              LOG.warn(
+                  "Found JSON type in TableSchema for 'FILE_LOADS' write method. \n"
+                      + " check steps in https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#extract_json_data_from_avro_data "
+                      + " to ensure the read as a JSON type. Otherwise it will read as a raw "
+                      + "(escaped) string.");
+            }
           }
         }
 
@@ -3725,28 +3734,27 @@ public class BigQueryIO {
       }
     }
 
-    private void validateNoJsonTypeInSchema(JsonElement schema) {
+    private boolean hasJsonTypeInSchema(JsonElement schema) {
       JsonElement fields = schema.getAsJsonObject().get("fields");
       if (!fields.isJsonArray() || fields.getAsJsonArray().isEmpty()) {
-        return;
+        return false;
       }
 
       JsonArray fieldArray = fields.getAsJsonArray();
 
       for (int i = 0; i < fieldArray.size(); i++) {
         JsonObject field = fieldArray.get(i).getAsJsonObject();
-        checkArgument(
-            !field.get("type").getAsString().equals("JSON"),
-            "Found JSON type in TableSchema. JSON data insertion is currently "
-                + "not supported with 'FILE_LOADS' write method. This is supported with the "
-                + "other write methods, however. For more information, visit: "
-                + "https://cloud.google.com/bigquery/docs/reference/standard-sql/"
-                + "json-data#ingest_json_data");
+        if (field.get("type").getAsString().equals("JSON")) {
+          return true;
+        }
 
         if (field.get("type").getAsString().equals("STRUCT")) {
-          validateNoJsonTypeInSchema(field);
+          if (hasJsonTypeInSchema(field)) {
+            return true;
+          }
         }
       }
+      return false;
     }
 
     @Override
