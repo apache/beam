@@ -80,7 +80,7 @@ func (fn *eventTimeFn) OnTimer(ctx context.Context, ts beam.EventTime, sp state.
 				panic(err)
 			}
 			if !ok {
-				panic("State must be set.")
+				panic("State must be set for key: " + key)
 			}
 			emit(kvfn(read, fn.TimerOutput))
 		default:
@@ -138,13 +138,13 @@ func timersEventTimePipelineBuilder(makeImp func(s beam.Scope) beam.PCollection)
 	}
 }
 
-// TimersEventTime_Bounded validates event time timers in a bounded pipeline.
-func TimersEventTime_Bounded(s beam.Scope) {
+// TimersEventTimeBounded validates event time timers in a bounded pipeline.
+func TimersEventTimeBounded(s beam.Scope) {
 	timersEventTimePipelineBuilder(beam.Impulse)(s)
 }
 
-// TimersEventTime_Bounded validates event time timers in an unbounded pipeline.
-func TimersEventTime_Unbounded(s beam.Scope) {
+// TimersEventTimeUnbounded validates event time timers in an unbounded pipeline.
+func TimersEventTimeUnbounded(s beam.Scope) {
 	timersEventTimePipelineBuilder(func(s beam.Scope) beam.PCollection {
 		now := time.Now()
 		return periodic.Impulse(s, now, now.Add(10*time.Second), 0, false)
