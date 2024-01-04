@@ -16,7 +16,6 @@
 #
 
 from typing import Callable
-from typing import Generic
 from typing import Optional
 from typing import Tuple
 from typing import TypeVar
@@ -38,23 +37,24 @@ OutputT = TypeVar('OutputT')
 JoinFn = Callable[[Tuple[beam.Row, beam.Row]], beam.Row]
 
 
-def cross_join(element: Tuple[beam.Row, beam.Row]) -> beam.Row:
-  """cross_join performs a cross join between two `beam.Row` objects.
+def cross_join(element: Tuple[dict, dict]) -> beam.Row:
+  """cross_join performs a cross join on two `dict` objects.
 
-    Joins the columns of the right `beam.Row` onto the left `beam.Row`.
+    Joins the columns of the right row onto the left row.
 
     Args:
-      element (Tuple): A tuple containing two `beam.Row` objects -
+      element (Tuple): A tuple containing two `dict` objects -
         request and response.
 
     Returns:
       `beam.Row` containing the merged columns.
   """
-  right_dict = element[1].as_dict()
-  left_dict = element[0].as_dict()
-  for k, v in right_dict.items():
-    left_dict[k] = v
-  return beam.Row(**left_dict)
+  left, right = element
+  for k, v in right.items():
+    if k not in left:
+      # Don't override the values in left.
+      left[k] = v
+  return beam.Row(**left)
 
 
 class EnrichmentSourceHandler(Caller[InputT, OutputT]):
@@ -67,8 +67,7 @@ class EnrichmentSourceHandler(Caller[InputT, OutputT]):
 
 
 class Enrichment(beam.PTransform[beam.PCollection[InputT],
-                                 beam.PCollection[OutputT]],
-                 Generic[InputT, OutputT]):
+                                 beam.PCollection[OutputT]]):
   """A :class:`apache_beam.transforms.enrichment.Enrichment` transform to
   enrich elements in a PCollection.
   **NOTE:** This transform and its implementation are under development and

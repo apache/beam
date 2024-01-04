@@ -16,7 +16,6 @@
 #
 import time
 import unittest
-from typing import NamedTuple
 from typing import Tuple
 from typing import Union
 
@@ -34,30 +33,24 @@ from apache_beam.transforms.enrichment import Enrichment
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 
-class _Request(NamedTuple):
-  """Simple request type to store id and payload for requests."""
-  id: str  # mock API quota id
-  payload: bytes  # byte payload
-
-
 def _custom_join(element):
   """custom_join returns the id and resp_payload along with a timestamp"""
-  right_dict = element[1].as_dict()
+  right_dict = element[1]
   right_dict['timestamp'] = time.time()
   return beam.Row(**right_dict)
 
 
-class SampleHTTPEnrichment(EnrichmentSourceHandler[_Request, beam.Row]):
+class SampleHTTPEnrichment(EnrichmentSourceHandler[dict, beam.Row]):
   """Implements ``EnrichmentSourceHandler`` to call the ``EchoServiceGrpc``'s
   HTTP handler.
   """
   def __init__(self, url: str):
     self.url = url + '/v1/echo'  # append path to the mock API.
 
-  def __call__(self, request: _Request, *args, **kwargs):
+  def __call__(self, request: dict, *args, **kwargs):
     """Overrides ``Caller``'s call method invoking the
-    ``EchoServiceGrpc``'s HTTP handler with an ``_Request``, returning
-    either a successful ``Tuple[beam.Row,beam.Row]`` or throwing either a
+    ``EchoServiceGrpc``'s HTTP handler with an `dict`, returning
+    either a successful ``Tuple[dict,dict]`` or throwing either a
     ``UserCodeExecutionException``, ``UserCodeTimeoutException``,
     or a ``UserCodeQuotaException``.
     """
@@ -66,7 +59,7 @@ class SampleHTTPEnrichment(EnrichmentSourceHandler[_Request, beam.Row]):
           "POST",
           self.url,
           json={
-              "id": request.id, "payload": str(request.payload, 'utf-8')
+              "id": request['id'], "payload": str(request['payload'], 'utf-8')
           },
           retries=False)
 
@@ -74,9 +67,10 @@ class SampleHTTPEnrichment(EnrichmentSourceHandler[_Request, beam.Row]):
         resp_body = resp.json()
         resp_id = resp_body['id']
         payload = resp_body['payload']
-        yield (
-            beam.Row(id=request.id, payload=request.payload),
-            beam.Row(id=resp_id, resp_payload=bytes(payload, 'utf-8')))
+        return (
+            request, {
+                'id': resp_id, 'resp_payload': bytes(payload, 'utf-8')
+            })
 
       if resp.status == 429:  # Too Many Requests
         raise UserCodeQuotaException(resp.reason)
@@ -113,7 +107,8 @@ class TestEnrichment(unittest.TestCase):
   @classmethod
   def setUpClass(cls) -> None:
     cls.options = EchoITOptions()
-    http_endpoint_address = 'http://10.138.0.32:8080'
+    # http_endpoint_address = 'http://10.138.0.32:8080'
+    http_endpoint_address = 'http://localhost:8080'
     cls.client = SampleHTTPEnrichment(http_endpoint_address)
 
   @classmethod
@@ -127,7 +122,7 @@ class TestEnrichment(unittest.TestCase):
     """Tests Enrichment Transform against the Mock-API HTTP endpoint
     with the default cross join."""
     client, options = TestEnrichment._get_client_and_options()
-    req = _Request(id=options.never_exceed_quota_id, payload=_PAYLOAD)
+    req = {'id': options.never_exceed_quota_id, 'payload': _PAYLOAD}
     fields = ['id', 'payload', 'resp_payload']
     with TestPipeline(is_integration_test=True) as test_pipeline:
       _ = (
@@ -140,7 +135,7 @@ class TestEnrichment(unittest.TestCase):
     """Tests Enrichment Transform against the Mock-API HTTP endpoint
     with a custom join function."""
     client, options = TestEnrichment._get_client_and_options()
-    req = _Request(id=options.never_exceed_quota_id, payload=_PAYLOAD)
+    req = {'id': options.never_exceed_quota_id, 'payload': _PAYLOAD}
     fields = ['id', 'resp_payload', 'timestamp']
     with TestPipeline(is_integration_test=True) as test_pipeline:
       _ = (

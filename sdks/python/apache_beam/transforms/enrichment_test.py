@@ -24,7 +24,7 @@ from apache_beam.transforms.enrichment import cross_join
 
 class TestEnrichmentTransform(unittest.TestCase):
   def test_cross_join(self):
-    rows = (beam.Row(id=1, key='city'), beam.Row(id=1, value='durham'))
+    rows = ({'id': 1, 'key': 'city'}, {'id': 1, 'value': 'durham'})
     expected = beam.Row(id=1, key='city', value='durham')
     output = cross_join(rows)
     self.assertEqual(expected, output)

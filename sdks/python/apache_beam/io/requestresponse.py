@@ -26,7 +26,6 @@ from typing import Optional
 from typing import TypeVar
 
 import apache_beam as beam
-from apache_beam.pvalue import PCollection
 
 RequestT = TypeVar('RequestT')
 ResponseT = TypeVar('ResponseT')
@@ -101,8 +100,7 @@ class PreCallThrottler(abc.ABC):
 
 
 class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
-                                        beam.PCollection[ResponseT]],
-                        Generic[RequestT, ResponseT]):
+                                        beam.PCollection[ResponseT]]):
   """A :class:`RequestResponseIO` transform to read and write to APIs.
 
   Processes an input :class:`~apache_beam.pvalue.PCollection` of requests
@@ -111,7 +109,7 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
   """
   def __init__(
       self,
-      caller: [Caller],
+      caller: Caller,
       timeout: Optional[float] = DEFAULT_TIMEOUT_SECS,
       should_backoff: Optional[ShouldBackOff] = None,
       repeater: Optional[Repeater] = None,
@@ -145,7 +143,9 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
     self._cache_writer = cache_writer
     self._throttler = throttler
 
-  def expand(self, requests: PCollection[RequestT]) -> PCollection[ResponseT]:
+  def expand(
+      self,
+      requests: beam.PCollection[RequestT]) -> beam.PCollection[ResponseT]:
     # TODO(riteshghorse): add Cache and Throttle PTransforms.
     return requests | _Call(
         caller=self._caller,
@@ -197,7 +197,7 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
     return requests | beam.ParDo(_CallDoFn(self._caller, self._timeout))
 
 
-class _CallDoFn(beam.DoFn, Generic[RequestT, ResponseT]):
+class _CallDoFn(beam.DoFn):
   def setup(self):
     self._caller.__enter__()
 
@@ -205,11 +205,11 @@ class _CallDoFn(beam.DoFn, Generic[RequestT, ResponseT]):
     self._caller = caller
     self._timeout = timeout
 
-  def process(self, request, *args, **kwargs):
+  def process(self, request: RequestT, *args, **kwargs):
     with concurrent.futures.ThreadPoolExecutor() as executor:
       future = executor.submit(self._caller, request)
       try:
-        return future.result(timeout=self._timeout)
+        yield future.result(timeout=self._timeout)
       except concurrent.futures.TimeoutError:
         raise UserCodeTimeoutException(
             f'Timeout {self._timeout} exceeded '
