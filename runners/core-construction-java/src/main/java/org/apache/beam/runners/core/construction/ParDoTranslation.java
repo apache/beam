@@ -87,6 +87,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 
 /** Utilities for interacting with {@link ParDo} instances and {@link ParDoPayload} protos. */
 @SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class ParDoTranslation {

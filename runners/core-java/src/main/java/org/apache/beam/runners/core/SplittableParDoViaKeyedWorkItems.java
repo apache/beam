@@ -67,6 +67,9 @@ import org.joda.time.Instant;
  * <p>A runner that uses {@link OverrideFactory} will need to also provide runner-specific overrides
  * for {@link GBKIntoKeyedWorkItems} and {@link ProcessElements}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SplittableParDoViaKeyedWorkItems {
   /**
    * Runner-specific primitive {@link GroupByKey GroupByKey-like} {@link PTransform} that produces

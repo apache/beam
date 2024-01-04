@@ -32,7 +32,8 @@ import org.apache.beam.sdk.transforms.Reshuffle;
  * representations.
  */
 @SuppressWarnings({
-  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ReshuffleTranslation {
 

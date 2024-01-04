@@ -22,9 +22,6 @@ plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.io.gcp',
   enableSpotbugs: false,
-  classesTriggerCheckerBugs: [
-    'PubSubPayloadTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
-  ],
 )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"

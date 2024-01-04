@@ -45,6 +45,7 @@ import org.joda.time.Instant;
  * representations.
  */
 @SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class TestStreamTranslation {

@@ -40,11 +40,6 @@ dependencies {
 }
 
 applyJavaNature(
-  classesTriggerCheckerBugs: [
-    'AssignWindowsRunner': 'https://github.com/typetools/checker-framework/issues/3794',
-    'WindowMergingFnRunner': 'https://github.com/typetools/checker-framework/issues/3794',
-    'FnApiDoFnRunner': 'https://github.com/typetools/checker-framework/issues/5436',
-  ],
   automaticModuleName: 'org.apache.beam.fn.harness',
   testShadowJar: true,
   shadowJarValidationExcludes: [

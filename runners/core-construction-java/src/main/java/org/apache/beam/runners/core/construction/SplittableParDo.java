@@ -100,6 +100,7 @@ import org.joda.time.Instant;
  * ParDo.of(splittable DoFn)}, but not for direct use by pipeline writers.
  */
 @SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorStateT>

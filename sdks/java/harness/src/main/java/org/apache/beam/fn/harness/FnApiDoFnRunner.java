@@ -236,7 +236,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final String mainInputId;
   private final FnApiStateAccessor<?> stateAccessor;
   private final Map<String, FnDataReceiver<?>> outboundTimerReceivers;
-  private final @Nullable FnApiTimerBundleTracker timerBundleTracker;
+  private final @Nullable FnApiTimerBundleTracker<?> timerBundleTracker;
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
   private final StartBundleArgumentProvider startBundleArgumentProvider;
   private final ProcessBundleContextBase processContext;
@@ -740,8 +740,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         // no-op
     }
 
+    // TODO: eliminate the rawtype casts which are compensating for vague type discipline
     this.stateAccessor =
-        new FnApiStateAccessor(
+        new FnApiStateAccessor<>(
             pipelineOptions,
             runnerCapabilities,
             pTransformId,
@@ -751,8 +752,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             processWideCache,
             tagToSideInputSpecMap,
             beamFnStateClient,
-            keyCoder,
-            windowCoder,
+            (Coder) keyCoder,
+            (Coder) windowCoder,
             this::getCurrentKey,
             () -> currentWindow);
 
@@ -762,8 +763,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       this.timerBundleTracker = null;
     } else {
       this.timerBundleTracker =
-          new FnApiTimerBundleTracker(
-              keyCoder, windowCoder, this::getCurrentKey, () -> currentWindow);
+          // TODO: eliminate the rawtype casts which are compensating for vague type discipline
+          new FnApiTimerBundleTracker<>(
+              (Coder) keyCoder, (Coder) windowCoder, this::getCurrentKey, () -> currentWindow);
       addResetFunction.accept(timerBundleTracker::reset);
 
       for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfo :
@@ -1770,7 +1772,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private void finishBundle() throws Exception {
     if (timerBundleTracker != null) {
-      timerBundleTracker.outputTimers(outboundTimerReceivers::get);
+      timerBundleTracker.outputTimers((Function) outboundTimerReceivers::get);
     }
 
     doFnInvoker.invokeFinishBundle(finishBundleArgumentProvider);
@@ -1856,7 +1858,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             absoluteTime,
             windowExpiry);
       }
-      timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, getTimerForTime(absoluteTime));
+      timerBundleTracker.timerModified(
+          timerIdOrFamily, timeDomain, (Timer) getTimerForTime(absoluteTime));
     }
 
     @Override
@@ -1873,13 +1876,14 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                 : fireTimestamp.plus(period).minus(Duration.millis(millisSinceStart));
       }
       target = minTargetAndGcTime(target);
-      timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, getTimerForTime(target));
+      timerBundleTracker.timerModified(
+          timerIdOrFamily, timeDomain, (Timer) getTimerForTime(target));
     }
 
     @Override
     public void clear() {
       checkNotNull(timerBundleTracker);
-      timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, getClearedTimer());
+      timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, (Timer) getClearedTimer());
     }
 
     @Override

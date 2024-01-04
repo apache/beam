@@ -41,6 +41,9 @@ import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
 /** A utility class for testing {@link WindowFn}s. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class WindowFnTestUtils {
 
   /** Creates a Set of elements to be used as expected output in {@link #runWindowFn}. */

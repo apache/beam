@@ -67,6 +67,9 @@ import org.joda.time.Instant;
  * A {@link org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn} with a {@link
  * org.apache.beam.sdk.transforms.CombineWithContext.Context} for the SparkRunner.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializable {
 
   /** Accumulator of WindowedValues holding values for different windows. */

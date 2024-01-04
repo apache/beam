@@ -45,6 +45,7 @@ import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
  */
 @Deprecated
 @SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class CreatePCollectionViewTranslation {

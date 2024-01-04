@@ -54,6 +54,9 @@ import org.joda.time.Instant;
  * @param <OutputT> value output type
  * @param <W> window type
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class BatchGroupAlsoByWindowAndCombineFn<K, InputT, AccumT, OutputT, W extends BoundedWindow>
     extends BatchGroupAlsoByWindowFn<K, InputT, OutputT> {
   private final GlobalCombineFn<InputT, AccumT, OutputT> perKeyCombineFn;

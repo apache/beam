@@ -79,9 +79,8 @@ class HCatalogTableProvider implements TableProvider, Serializable {
     throw new UnsupportedOperationException("Extracting all tables from HCatalog is not supported");
   }
 
-  @Nullable
   @Override
-  public Table getTable(String name) {
+  public @Nullable Table getTable(String name) {
     // Tables should have been looked up from sub-providers.
     // If we reached this then getSubProvider(name) returned null
     // meaning there's no such DB. Try to look up the table in the default DB instead.

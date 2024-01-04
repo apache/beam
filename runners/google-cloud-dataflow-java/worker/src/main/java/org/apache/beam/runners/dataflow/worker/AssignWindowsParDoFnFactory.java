@@ -42,6 +42,9 @@ import org.joda.time.Instant;
  * A {@link ParDoFnFactory} to create instances of AssignWindowsDoFn according to specifications
  * from the Dataflow service.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class AssignWindowsParDoFnFactory implements ParDoFnFactory {
   @Override
   public ParDoFn create(

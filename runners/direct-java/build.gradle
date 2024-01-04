@@ -32,9 +32,6 @@ def dependOnProjects = [":runners:core-construction-java",
 
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.runners.direct',
-        classesTriggerCheckerBugs: [
-          'ImpulseEvaluatorFactory': 'https://github.com/typetools/checker-framework/issues/3791',
-        ],
         shadowClosure: {
           dependencies {
             dependOnProjects.each {

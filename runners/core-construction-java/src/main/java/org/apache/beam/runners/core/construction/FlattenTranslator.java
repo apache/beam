@@ -32,6 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.Window.Assign;
  * Utility methods for translating a {@link Assign} to and from {@link RunnerApi} representations.
  */
 @SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class FlattenTranslator implements TransformPayloadTranslator<Flatten.PCollections<?>> {

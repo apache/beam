@@ -39,6 +39,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * representations.
  */
 @SuppressWarnings({
+  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class WindowIntoTranslation {

@@ -31,6 +31,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** The evaluator for the {@link Impulse} transform. Produces only empty byte arrays. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class ImpulseEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext ctxt;
 
@@ -38,9 +41,8 @@ class ImpulseEvaluatorFactory implements TransformEvaluatorFactory {
     this.ctxt = ctxt;
   }
 
-  @Nullable
   @Override
-  public <InputT> TransformEvaluator<InputT> forApplication(
+  public <InputT> @Nullable TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) {
     return (TransformEvaluator<InputT>) new ImpulseEvaluator(ctxt, (AppliedPTransform) application);
   }
