@@ -642,5 +642,4 @@ export class PaneInfoCoder implements Coder<PaneInfo> {
   }
 }
 
-
 requireForSerialization(`${packageName}/coders/required_coders`, exports);

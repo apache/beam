@@ -23,11 +23,7 @@ import { GeneralObjectCoder } from "../coders/js_coders";
 import { PCollection } from "../pvalue";
 import { Pipeline } from "../internal/pipeline";
 import { serializeFn } from "../internal/serialize";
-import {
-  PTransform,
-  withName,
-  extractName,
-} from "./transform";
+import { PTransform, withName, extractName } from "./transform";
 import { PaneInfo, Instant, Window, WindowedValue } from "../values";
 import { requireForSerialization } from "../serialization";
 import { packageName } from "../utils/packageJson";
@@ -470,6 +466,5 @@ export function distribution(name: string): Metric<number> {
 
 // TODO: (Extension) Add providers for state, timers,
 // restriction trackers, etc.
-
 
 requireForSerialization(`${packageName}/transforms/pardo`, exports);

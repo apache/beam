@@ -73,5 +73,4 @@ export const mean: CombineFn<number, [number, number], number> = {
   extractOutput: ([sum, count]: [number, number]) => sum / count,
 };
 
-
 requireForSerialization(`${packageName}/transforms/combiners`, exports);

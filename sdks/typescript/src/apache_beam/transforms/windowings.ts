@@ -148,7 +148,9 @@ function millisToProto(t: Long) {
 }
 
 requireForSerialization(`${packageName}/transforms/windowings`, exports);
-requireForSerialization(`${packageName}/transforms/windowings`, { millisToProto });
+requireForSerialization(`${packageName}/transforms/windowings`, {
+  millisToProto,
+});
 requireForSerialization(
   `${packageName}/transforms/windowings`,
   FixedWindowsPayload

@@ -25,7 +25,7 @@ import {
 } from "./transform";
 import { flatten } from "./flatten";
 import { PCollection } from "../pvalue";
-import {  P } from "../pvalue";
+import { P } from "../pvalue";
 import { Coder } from "../coders/coders";
 import * as internal from "./internal";
 import { count } from "./combiners";
