@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.53.0"
-date:   2023-12-XX 09:00:00 -0400
+date:   2024-01-04 09:00:00 -0400
 categories:
   - blog
   - release
