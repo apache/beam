@@ -32,9 +32,12 @@ LogicalType.register_logical_type(MillisInstant)
 def _configure_parser(argv):
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '--pipeline_spec', help='A yaml description of the pipeline to run.')
+      '--pipeline_spec',
+      '--yaml_pipeline',
+      help='A yaml description of the pipeline to run.')
   parser.add_argument(
       '--pipeline_spec_file',
+      '--yaml_pipeline_file',
       help='A file containing a yaml description of the pipeline to run.')
   return parser.parse_known_args(argv)
 
