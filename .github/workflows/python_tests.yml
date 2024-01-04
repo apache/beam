@@ -45,7 +45,7 @@ jobs:
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04, main]
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
@@ -70,7 +70,7 @@ jobs:
       )
     needs:
       - check_gcp_variables
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -133,7 +133,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
         python: ["3.8", "3.9", "3.10", "3.11"]
     steps:
       - name: Checkout code
@@ -158,7 +158,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
         python: ["3.8", "3.9", "3.10", "3.11"]
     steps:
       - name: Checkout code
