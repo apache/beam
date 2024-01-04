@@ -94,7 +94,14 @@ class _GroupByKey(beam.PTransform):
 
 class _Flatten(beam.PTransform):
   def expand(self, input_or_inputs):
-    is_bounded = all(pcoll.is_bounded for pcoll in input_or_inputs)
+    if isinstance(input_or_inputs, beam.PCollection):
+      # NOTE(cisaacstern): I needed this to avoid
+      #   `TypeError: 'PCollection' object is not iterable`
+      # being raised by `all(...)` call below for single-element flattens, i.e.,
+      #   `(pcoll, ) | beam.Flatten() | ...`
+      is_bounded = input_or_inputs.is_bounded
+    else:
+      is_bounded = all(pcoll.is_bounded for pcoll in input_or_inputs)
     return beam.pvalue.PCollection(self.pipeline, is_bounded=is_bounded)
 
 

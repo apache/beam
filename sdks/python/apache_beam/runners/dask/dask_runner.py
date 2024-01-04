@@ -30,7 +30,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.dask.overrides import dask_overrides
-from apache_beam.runners.dask.transform_evaluator import TRANSLATIONS
+from apache_beam.runners.dask.transform_evaluator import TRANSLATIONS, Flatten
 from apache_beam.runners.dask.transform_evaluator import DaskBagWindowedIterator
 from apache_beam.runners.dask.transform_evaluator import NoOp
 from apache_beam.runners.direct.direct_runner import BundleBasedDirectRunner
@@ -161,7 +161,10 @@ class DaskRunner(BundleBasedDirectRunner):
             if prev_op in self.bags:
               bag_inputs.append(self.bags[prev_op])
 
-          if len(bag_inputs) == 1:
+          # Input to `Flatten` could be of length 1, e.g. a single-element
+          # tuple: `(pcoll, ) | beam.Flatten()`. If so, we still pass it as
+          # an iterable, because `Flatten.apply` always takes an iterable.
+          if len(bag_inputs) == 1 and not isinstance(op, Flatten):
             op_kws["input_bag"] = bag_inputs[0]
           else:
             op_kws["input_bag"] = bag_inputs

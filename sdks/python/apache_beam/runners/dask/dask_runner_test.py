@@ -327,22 +327,27 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
         yield elem, side
 
     with self.pipeline as p:
-      pcoll = p | beam.Create(["a", "b"])
+      pcoll = p | "Create1" >> beam.Create(["a", "b"])
       assert_that(
-          pcoll | beam.FlatMap(cross_product, beam.pvalue.AsList(pcoll)),
+          pcoll |
+          "FlatMap1" >> beam.FlatMap(cross_product, beam.pvalue.AsList(pcoll)),
           equal_to([("a", "a"), ("a", "b"), ("b", "a"), ("b", "b")]),
+          label="assert_that1",
       )
 
     with self.pipeline as p:
-      pcoll = p | beam.Create(["a", "b"])
+      pcoll = p | "Create2" >> beam.Create(["a", "b"])
+
       derived = ((pcoll, )
                  | beam.Flatten()
                  | beam.Map(lambda x: (x, x))
                  | beam.GroupByKey()
                  | "Unkey" >> beam.Map(lambda kv: kv[0]))
       assert_that(
-          pcoll | beam.FlatMap(cross_product, beam.pvalue.AsList(derived)),
+          pcoll | "FlatMap2" >> beam.FlatMap(
+              cross_product, beam.pvalue.AsList(derived)),
           equal_to([("a", "a"), ("a", "b"), ("b", "a"), ("b", "b")]),
+          label="assert_that2",
       )
 
   def test_groupby_with_fixed_windows(self):
