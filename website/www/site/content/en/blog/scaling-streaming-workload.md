@@ -19,8 +19,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Scaling a streaming workload on Apache Beam
-
 <img class="center-block"
     src="/images/blog/scaling-streaming-workload/0-intro.png"
     alt="Streaming Processing">
