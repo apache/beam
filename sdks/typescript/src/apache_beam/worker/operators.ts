@@ -31,7 +31,7 @@ import * as urns from "../internal/urns";
 import { PipelineContext } from "../internal/pipeline";
 import { deserializeFn } from "../internal/serialize";
 import { Coder, Context as CoderContext } from "../coders/coders";
-import {  Window, Instant, WindowedValue } from "../values";
+import { Window, Instant, WindowedValue } from "../values";
 import { PaneInfoCoder } from "../coders/standard_coders";
 import { parDo, DoFn, SplitOptions } from "../transforms/pardo";
 import { CombineFn } from "../transforms/group_and_combine";
@@ -45,9 +45,9 @@ import {
 
 export const isPromise = (x: any): x is Promise<any> => {
   return x instanceof Promise;
-}
+};
 
-export type ProcessResult = void | Promise<void>
+export type ProcessResult = void | Promise<void>;
 
 export class ProcessResultBuilder {
   promises: Promise<void>[] = [];
@@ -718,16 +718,13 @@ class GenericParDoOperator implements IOperator {
 
     const this_ = this;
     function reallyProcess(): ProcessResult {
-      let doFnOutput = this_.doFn.process(
-        wvalue.value,
-        this_.augmentedContext
-      );
+      let doFnOutput = this_.doFn.process(wvalue.value, this_.augmentedContext);
       if (!doFnOutput) {
-        return
+        return;
       }
       if (isPromise(doFnOutput)) {
         return doFnOutput.then((doFnOutput) =>
-          this_.processResults(doFnOutput, wvalue),
+          this_.processResults(doFnOutput, wvalue)
         );
       }
       return this_.processResults(doFnOutput, wvalue);
@@ -766,7 +763,7 @@ class GenericParDoOperator implements IOperator {
           windows: wvalue.windows,
           pane: wvalue.pane,
           timestamp: wvalue.timestamp,
-        }),
+        })
       );
     }
     this.paramProvider.setCurrentValue(undefined);
