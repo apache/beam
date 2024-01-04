@@ -700,12 +700,18 @@ public class DataflowPipelineTranslator {
 
       // If the output requires runner determined sharding, also append necessary input properties.
       if (value instanceof PCollection) {
+        System.out.println(value.getClass().toString());
         if (translator.runner.doesPCollectionRequireAutoSharding((PCollection<?>) value)) {
+          System.out.println("xxx add autosharding: ");
           addInput(PropertyNames.ALLOWS_SHARDABLE_STATE, "true");
+        } else {
+          System.out.println( "xxx no sharding state" + value.getClass().toString());
         }
         if (translator.runner.doesPCollectionPreserveKeys((PCollection<?>) value)) {
           addInput(PropertyNames.PRESERVES_KEYS, "true");
         }
+      } else {
+        System.out.println("xxx not p collection" + value.getClass().toString());
       }
 
       Map<String, Object> properties = getProperties();

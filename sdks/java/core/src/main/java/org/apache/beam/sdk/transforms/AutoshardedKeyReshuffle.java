@@ -36,7 +36,8 @@ import org.apache.beam.sdk.util.ShardedKey;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.UUID;
-
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 /**
  * <b>For internal use only; no backwards compatibility guarantees.</b>
  *
@@ -64,8 +65,8 @@ public class AutoshardedKeyReshuffle<K, V> extends PTransform<
    * Encapsulates the sequence "take keyed value, return the same as autosharded key with single autoshardable key, apply {@link Reshuffle#of}, DONT drop the
    * key" commonly used to break fusion.
    */
-  public static <K, V> ViaRandomKey <K, V> viaRandomKey() {
-    return new ViaRandomKey<>();
+  public static <K, V> ViaRandomKey <K, V> viaRandomKey(Coder<K> keyCoder, Coder<V> valueCoder) {
+    return new ViaRandomKey<>(keyCoder, valueCoder);
   }
 
   @Override
@@ -110,12 +111,20 @@ public class AutoshardedKeyReshuffle<K, V> extends PTransform<
 
   /** Implementation of {@link #viaRandomKey()}. */
   public static class ViaRandomKey<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<ShardedKey<K>, V>>> {
-    public ViaRandomKey() {}
+
+    private final Coder<K> keyCoder;
+    private final Coder<V> valueCoder;
+
+    public ViaRandomKey(Coder<K> keyCoder, Coder<V> valueCoder) {
+      this.keyCoder = keyCoder;
+      this.valueCoder = valueCoder;
+    }
 
     @Override
     public PCollection<KV<ShardedKey<K>, V>>  expand(PCollection<KV<K, V>> input) {
       return input
-          .apply("Pair element with a single autoshardable key", ParDo.of(new AssignShardFn<>())) // assign a single autoshardable key 
+          .apply("Pair element with a single autoshardable key", ParDo.of(new AssignShardFn<>()))
+          .setCoder(KvCoder.of(ShardedKey.Coder.of(keyCoder), valueCoder)) // assign a single autoshardable key 
           .apply(AutoshardedKeyReshuffle.of()); // takes autosharded keyed input, ensures windows are correctly handled 
     }
   }

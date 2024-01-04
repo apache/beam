@@ -21,15 +21,17 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.GroupIntoBatches;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.transforms.AutoshardedKeyReshuffle;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.joda.time.Duration;
 
 /**
  * A transform to write sharded records to BigQuery using the Storage API. This transform uses the
@@ -54,6 +56,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
   private final boolean usesCdc;
   private final boolean useAutosharding;
   private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
+  private final Coder<DestinationT> destinationCoder;
 
   public StorageApiWriteRecordsInconsistent(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
@@ -68,7 +71,8 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
       @Nullable String kmsKey,
       boolean usesCdc,
       AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
-      boolean useAutosharding) {
+      boolean useAutosharding,
+      Coder<DestinationT> destinationCoder) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedRowsTag = failedRowsTag;
@@ -82,14 +86,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
     this.usesCdc = usesCdc;
     this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
     this.useAutosharding = useAutosharding;
-  }
-
-  private Duration getStorageApiTriggeringFrequency(BigQueryOptions options) {
-    if (options.getStorageWriteApiTriggeringFrequencySec() != null) {
-      return Duration.standardSeconds(options.getStorageWriteApiTriggeringFrequencySec());
-    }
-    // should raise an error here, not use default value
-    return Duration.standardSeconds(10);
+    this.destinationCoder = destinationCoder;
   }
 
   @Override
@@ -128,15 +125,57 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
                   .withSideInputs(dynamicDestinations.getSideInputs()));
     } else {
       // apply group into batches, then pass that transform, since it expects sharded key
+      // result =
+      //     input
+      //         .apply(
+      //             "GroupIntoBatches",
+      //             GroupIntoBatches.<DestinationT, StorageApiWritePayload>ofByteSize(
+      //                     bigQueryOptions.getStorageApiAppendThresholdBytes(),
+      //                     (StorageApiWritePayload e) -> (long) e.getPayload().length)
+      //
+      // .withMaxBufferingDuration(getStorageApiTriggeringFrequency(bigQueryOptions))
+      //                 .withShardedKey())
+      //         .apply(
+      //             "Write Sharded Inconsistent Records",
+      //             ParDo.of(
+      //                     new
+      // StorageApiWriteInconsistentShardedRecords.WriteShardedRecordsDoFn<>(
+      //                         operationName,
+      //                         dynamicDestinations,
+      //                         bqServices,
+      //                         true,
+      //                         bigQueryOptions.getStorageApiAppendThresholdBytes(),
+      //                         bigQueryOptions.getStorageApiAppendThresholdRecordCount(),
+      //                         bigQueryOptions.getNumStorageWriteApiStreamAppendClients(),
+      //                         finalizeTag,
+      //                         failedRowsTag,
+      //                         successfulRowsTag,
+      //                         autoUpdateSchema,
+      //                         ignoreUnknownValues,
+      //                         createDisposition,
+      //                         kmsKey,
+      //                         usesCdc,
+      //                         defaultMissingValueInterpretation))
+      //                 .withOutputTags(finalizeTag, tupleTagList)
+      //                 .withSideInputs(dynamicDestinations.getSideInputs()));
+      // output is V, not an iterable, will that still work?
+      // <KV<DestinationT, StorageApiWritePayload>>;
+
+      // Create sharded Key payload coder
+      Coder<StorageApiWritePayload> payloadCoder;
+      try {
+        payloadCoder =
+            input.getPipeline().getSchemaRegistry().getSchemaCoder(StorageApiWritePayload.class);
+      } catch (NoSuchSchemaException e) {
+        throw new RuntimeException(e);
+      }
+
       result =
           input
               .apply(
-                  "GroupIntoBatches",
-                  GroupIntoBatches.<DestinationT, StorageApiWritePayload>ofByteSize(
-                          bigQueryOptions.getStorageApiAppendThresholdBytes(),
-                          (StorageApiWritePayload e) -> (long) e.getPayload().length)
-                      .withMaxBufferingDuration(getStorageApiTriggeringFrequency(bigQueryOptions))
-                      .withShardedKey())
+                  "Autosharded reshuffle",
+                  AutoshardedKeyReshuffle.<DestinationT, StorageApiWritePayload>viaRandomKey(destinationCoder, payloadCoder))
+              // .setCoder(shardedCoder)
               .apply(
                   "Write Sharded Inconsistent Records",
                   ParDo.of(

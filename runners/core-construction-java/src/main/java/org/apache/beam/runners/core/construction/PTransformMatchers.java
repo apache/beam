@@ -25,6 +25,7 @@ import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformMatcher;
+import org.apache.beam.sdk.transforms.AutoshardedKeyReshuffle;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
@@ -521,6 +522,25 @@ public class PTransformMatchers {
       @Override
       public String toString() {
         return MoreObjects.toStringHelper("groupWithShardableStatesMatcher").toString();
+      }
+    };
+  }
+
+  public static PTransformMatcher autoshardableKeys() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        return application.getTransform().getClass().equals(AutoshardedKeyReshuffle.ViaRandomKey.class);
+      }
+
+      @Override
+      public boolean matchesDuringValidation(AppliedPTransform<?, ?, ?> application) {
+        return false;
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("autoshardableKeysMatcher").toString();
       }
     };
   }

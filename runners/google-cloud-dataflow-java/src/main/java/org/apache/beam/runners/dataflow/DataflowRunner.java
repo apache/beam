@@ -128,6 +128,7 @@ import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.SetState;
+import org.apache.beam.sdk.transforms.AutoshardedKeyReshuffle;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.GroupedValues;
@@ -691,8 +692,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 new PrimitiveParDoSingleFactory()));
 
     if (streaming) {
+      // overridesBuilder.add(
+      //   PTransformOverride.of(
+      //       PTransformMatchers.groupWithShardableStates(),
+      //       new GroupIntoBatchesOverride.StreamingGroupIntoBatchesWithShardedKeyOverrideFactory(
+      //           this)));
       // For update compatibility, always use a Read for Create in streaming mode.
       overridesBuilder
+          .add(
+              PTransformOverride.of(
+                PTransformMatchers.autoshardableKeys(),
+                  new AutoshardedKeyReshuffleOverride.StreamingAutoshardedKeyReshuffleOverrideFactory(this)))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(Create.Values.class), new AlwaysCreateViaRead()))
