@@ -9,7 +9,9 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/status"
 	"log"
 	"net"
 	"os"
@@ -94,10 +96,17 @@ func (svc *service) Watch(request *healthgrpc.HealthCheckRequest, server healthg
 	return server.Send(resp)
 }
 
-func (svc *service) Expand(_ context.Context, _ *jobmanagement_v1.ExpansionRequest) (*jobmanagement_v1.ExpansionResponse, error) {
+func (svc *service) Expand(ctx context.Context, req *jobmanagement_v1.ExpansionRequest) (*jobmanagement_v1.ExpansionResponse, error) {
+	if err := isValidExpansionRequestErr(req); err != nil {
+		return nil, err
+	}
+	fn, err := udf.RegistryInMemory.Get(ctx, req.Transform.Spec.Urn)
+	if err != nil {
+		return nil, err
+	}
 	transform := &pipeline_v1.PTransform{
 		UniqueName:    "add.wasm",
-		Spec:          udf.AddWasm.FunctionSpec(),
+		Spec:          fn.FunctionSpec(),
 		Inputs:        map[string]string{"i0": "n1"},
 		Outputs:       map[string]string{"i0": "n2"},
 		DisplayData:   nil,
@@ -160,4 +169,25 @@ func (svc *service) Expand(_ context.Context, _ *jobmanagement_v1.ExpansionReque
 
 func (svc *service) DiscoverSchemaTransform(_ context.Context, _ *jobmanagement_v1.DiscoverSchemaTransformRequest) (*jobmanagement_v1.DiscoverSchemaTransformResponse, error) {
 	return nil, fmt.Errorf("not implemented")
+}
+
+func isValidExpansionRequestErr(req *jobmanagement_v1.ExpansionRequest) error {
+	if req == nil {
+		msg := "null request"
+		return status.Errorf(codes.InvalidArgument, "invalid request: %s", msg)
+	}
+	if req.Transform == nil {
+		msg := "null request.transform"
+		return status.Errorf(codes.InvalidArgument, "invalid request: %s", msg)
+	}
+	if req.Transform.Spec == nil {
+		msg := "null request.transform.spec"
+		return status.Errorf(codes.InvalidArgument, "invalid request: %s", msg)
+	}
+	if req.Transform.Spec.Urn == "" {
+		msg := "empty request.transform.spec.urn"
+		return status.Errorf(codes.InvalidArgument, "invalid request: %s", msg)
+	}
+
+	return nil
 }
