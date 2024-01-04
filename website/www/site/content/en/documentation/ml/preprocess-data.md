@@ -39,7 +39,7 @@ available transforms, see the [Transforms](#transforms) section on this page.
     -   Count the occurrences of words in all the documents to calculate
         [TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf)
         weights.
-    -  Generate [embeddings](https://en.wikipedia.org/wiki/Embedding) on text data using LLMs.
+    -  Generate [embeddings](https://en.wikipedia.org/wiki/Embedding) on text data using large language models (LLMs).
 
 ## Support and limitations {#support}
 
@@ -49,11 +49,13 @@ available transforms, see the [Transforms](#transforms) section on this page.
 
 ## Transforms {#transforms}
 
-You can use `MLTransform` to perform the following data processing transforms.
+You can use `MLTransform` to perform various data processing transforms.
 
-### Data Processing Transforms using TFT
+### Data processing transforms that use TFT
 
-For information about the tft based transforms, see
+The following set of transforms available in the `MLTransform` class come from
+the TensorFlow Transforms (TFT) library. TFT offers specialized processing
+modules for machine learning tasks. For information about these transforms, see
 [Module:tft](https://www.tensorflow.org/tfx/transform/api_docs/python/tft) in the
 TensorFlow documentation.
 
@@ -70,13 +72,13 @@ TensorFlow documentation.
 | TFIDF | See [`tft.tfidf`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/tfidf) in the TensorFlow documentation. |:
 {{< /table >}}
 
-### Generate Text Embeddings
+### Text embedding transforms
 
 {{< table >}}
 | Transform name | Description |
 | ------- | ---------------|
-| SentenceTransformerEmbeddings | Uses [sentence-transformer](https://huggingface.co/sentence-transformers) models to generate text embeddings. sentence-transformers models hosted on HuggingFace hub are supported.
-| VertexAITextEmbeddings | Uses [Vertex AI]( https://cloud.google.com/vertex-ai/docs/generative-ai/embeddings/get-text-embeddings) text embedding models to generate text embeddings.
+| SentenceTransformerEmbeddings | Uses the Hugging Face [`sentence-transformers`](https://huggingface.co/sentence-transformers) models to generate text embeddings.
+| VertexAITextEmbeddings | Uses models from the [the Vertex AI text-embeddings API](https://cloud.google.com/vertex-ai/docs/generative-ai/embeddings/get-text-embeddings) to generate text embeddings.
 
 ## I/O requirements {#io}
 
