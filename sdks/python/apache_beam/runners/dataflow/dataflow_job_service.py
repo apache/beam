@@ -75,7 +75,7 @@ def run(argv, beam_job_type=DataflowBeamJob):
   port = job_servicer.start_grpc_server(options.port)
   try:
     local_job_service_main.serve(
-        "Listening for beam jobs on port %d." % port, job_servicer)
+        "Listening for beam jobs on port %d." % port)
   finally:
     job_servicer.stop()
 

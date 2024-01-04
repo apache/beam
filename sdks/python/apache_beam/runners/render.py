@@ -560,7 +560,7 @@ def run_server(options):
     port = job_servicer.start_grpc_server(options.job_port)
     try:
       local_job_service_main.serve(
-          "Listening for beam jobs on port %d." % port, job_servicer)
+          "Listening for beam jobs on port %d." % port)
     finally:
       job_servicer.stop()
 
