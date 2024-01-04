@@ -54,7 +54,7 @@ export interface DoFn<InputT, OutputT, ContextT = undefined> {
    * now "activated" in the sense that side inputs, metrics, etc. are
    * available with runtime values/effects).
    */
-  process: (element: InputT, context: ContextT) => Iterable<OutputT> | void;
+  process: (element: InputT, context: ContextT) => Iterable<OutputT> | void | Promise<Iterable<OutputT> | void>;
 
   /**
    * Called once at the start of every bundle, before any `process()` calls.

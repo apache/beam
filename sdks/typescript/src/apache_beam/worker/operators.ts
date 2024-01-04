@@ -43,7 +43,7 @@ import {
   createSideInputInfo,
 } from "./pardo_context";
 
-export const isPromise = (x: ProcessResult): x is Promise<void> => {
+export const isPromise = (x: any): x is Promise<any> => {
   return x instanceof Promise;
 }
 
@@ -697,7 +697,7 @@ class GenericParDoOperator implements IOperator {
     }
   }
 
-  process(wvalue: WindowedValue<unknown>) {
+  async process(wvalue: WindowedValue<unknown>) {
     if (this.augmentedContext && wvalue.windows.length !== 1) {
       // We need to process each window separately.
       // TODO: (Perf) We could inspect the context more deeply and allow some
@@ -705,7 +705,7 @@ class GenericParDoOperator implements IOperator {
       const result = new ProcessResultBuilder();
       for (const window of wvalue.windows) {
         result.add(
-          this.process({
+          await this.process({
             value: wvalue.value,
             windows: [window],
             pane: wvalue.pane,
@@ -718,26 +718,19 @@ class GenericParDoOperator implements IOperator {
 
     const this_ = this;
     function reallyProcess(): ProcessResult {
-      const doFnOutput = this_.doFn.process(
+      let doFnOutput = this_.doFn.process(
         wvalue.value,
         this_.augmentedContext
       );
       if (!doFnOutput) {
-        return;
+        return
       }
-      const result = new ProcessResultBuilder();
-      for (const element of doFnOutput) {
-        result.add(
-          this_.receiver.receive({
-            value: element,
-            windows: wvalue.windows,
-            pane: wvalue.pane,
-            timestamp: wvalue.timestamp,
-          })
+      if (isPromise(doFnOutput)) {
+        return doFnOutput.then((doFnOutput) =>
+          this_.processResults(doFnOutput, wvalue),
         );
       }
-      this_.paramProvider.setCurrentValue(undefined);
-      return result.build();
+      return this_.processResults(doFnOutput, wvalue);
     }
 
     // Update the context with any information specific to this window.
@@ -746,7 +739,10 @@ class GenericParDoOperator implements IOperator {
     // If we were able to do so without any deferred actions, process the
     // element immediately.
     if (!isPromise(updateContextResult)) {
-      return reallyProcess();
+      const processed = reallyProcess();
+      if (isPromise(processed)) {
+        return await processed;
+      }
     } else {
       // Otherwise return a promise that first waits for all the deferred
       // actions to complete and then process the element.
@@ -759,6 +755,22 @@ class GenericParDoOperator implements IOperator {
         await reallyProcess();
       })();
     }
+  }
+
+  processResults(doFnOutput, wvalue) {
+    const result = new ProcessResultBuilder();
+    for (const element of doFnOutput) {
+      result.add(
+        this.receiver.receive({
+          value: element,
+          windows: wvalue.windows,
+          pane: wvalue.pane,
+          timestamp: wvalue.timestamp,
+        }),
+      );
+    }
+    this.paramProvider.setCurrentValue(undefined);
+    return result.build();
   }
 
   async finishBundle() {
