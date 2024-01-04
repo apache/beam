@@ -310,8 +310,6 @@ class DataflowWorkUnitClient implements WorkUnitClient {
     if (result.getWorkerMessageResponses() == null) {
       return new WorkerMessageResponse();
     }
-    WorkerMessageResponse response = result.getWorkerMessageResponses().get(0);
-    logger.debug("Worker Message Response result: {}", response);
-    return response;
+    return new WorkerMessageResponse();
   }
 }
