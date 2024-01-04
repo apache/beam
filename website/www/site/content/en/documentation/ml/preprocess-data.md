@@ -74,6 +74,8 @@ TensorFlow documentation.
 
 ### Text embedding transforms
 
+You can use `MLTranfrorm` to generate embeddings that you can use to push data into vector databases or to run inference.
+
 {{< table >}}
 | Transform name | Description |
 | ------- | ---------------|
