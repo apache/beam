@@ -107,8 +107,7 @@ class TestEnrichment(unittest.TestCase):
   @classmethod
   def setUpClass(cls) -> None:
     cls.options = EchoITOptions()
-    # http_endpoint_address = 'http://10.138.0.32:8080'
-    http_endpoint_address = 'http://localhost:8080'
+    http_endpoint_address = 'http://10.138.0.32:8080'  # endpoint of mock api
     cls.client = SampleHTTPEnrichment(http_endpoint_address)
 
   @classmethod

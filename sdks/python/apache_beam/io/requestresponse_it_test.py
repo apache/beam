@@ -121,7 +121,6 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
   def setUpClass(cls) -> None:
     cls.options = EchoITOptions()
     http_endpoint_address = cls.options.http_endpoint_address
-    http_endpoint_address = 'http://localhost:8080'
     if not http_endpoint_address or http_endpoint_address == '':
       raise unittest.SkipTest(f'{_HTTP_ENDPOINT_ADDRESS_FLAG} is required.')
 

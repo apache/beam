@@ -15,7 +15,9 @@
 # limitations under the License.
 #
 
+from typing import Any
 from typing import Callable
+from typing import Dict
 from typing import Optional
 from typing import Tuple
 from typing import TypeVar
@@ -34,10 +36,10 @@ __all__ = [
 InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
 
-JoinFn = Callable[[Tuple[beam.Row, beam.Row]], beam.Row]
+JoinFn = Callable[[Tuple[Dict[Any], Dict[Any]]], beam.Row]
 
 
-def cross_join(element: Tuple[dict, dict]) -> beam.Row:
+def cross_join(element: Tuple[Dict[Any], Dict[Any]]) -> beam.Row:
   """cross_join performs a cross join on two `dict` objects.
 
     Joins the columns of the right row onto the left row.
