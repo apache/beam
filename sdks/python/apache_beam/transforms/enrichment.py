@@ -36,10 +36,10 @@ __all__ = [
 InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
 
-JoinFn = Callable[[Tuple[Dict[Any], Dict[Any]]], beam.Row]
+JoinFn = Callable[[Tuple[Dict[str, Any], Dict[str, Any]]], beam.Row]
 
 
-def cross_join(element: Tuple[Dict[Any], Dict[Any]]) -> beam.Row:
+def cross_join(element: Tuple[Dict[str, Any], Dict[str, Any]]) -> beam.Row:
   """cross_join performs a cross join on two `dict` objects.
 
     Joins the columns of the right row onto the left row.
