@@ -66,10 +66,11 @@ class DirectPipelineTemplateTest(unittest.TestCase):
       options = PipelineOptions(
           runner='PortableRunner',
           job_endpoint=f'localhost:{port}',
-          project='some_project',
-          temp_location='gs://bucket/dir',
+          project='apache-beam-testing',
           region='us-central1',
-          template_location='gs://bucket/template',
+          staging_location='gs://apache-beam-testing-stg/stg/',
+          temp_location='gs://apache-beam-testing-temp/tmp',
+          template_location='gs://apache-beam-testing-temp/test/template',
       )
       with beam.Pipeline(options=options) as p:
         _ = p | beam.Create([1, 2, 3]) | beam.Map(lambda x: x * x)
