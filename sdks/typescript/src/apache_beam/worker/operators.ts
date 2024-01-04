@@ -18,7 +18,7 @@
 
 import * as protobufjs from "protobufjs";
 
-import { PTransform, PCollection } from "../proto/beam_runner_api";
+import { PTransform } from "../proto/beam_runner_api";
 import * as runnerApi from "../proto/beam_runner_api";
 import * as fnApi from "../proto/beam_fn_api";
 import { ProcessBundleDescriptor, RemoteGrpcPort } from "../proto/beam_fn_api";
@@ -31,7 +31,7 @@ import * as urns from "../internal/urns";
 import { PipelineContext } from "../internal/pipeline";
 import { deserializeFn } from "../internal/serialize";
 import { Coder, Context as CoderContext } from "../coders/coders";
-import { PaneInfo, Window, Instant, WindowedValue } from "../values";
+import {  Window, Instant, WindowedValue } from "../values";
 import { PaneInfoCoder } from "../coders/standard_coders";
 import { parDo, DoFn, SplitOptions } from "../transforms/pardo";
 import { CombineFn } from "../transforms/group_and_combine";
@@ -43,21 +43,22 @@ import {
   createSideInputInfo,
 } from "./pardo_context";
 
-// Trying to get some of https://github.com/microsoft/TypeScript/issues/8240
-export const NonPromise = null;
+export const isPromise = (x: ProcessResult): x is Promise<void> => {
+  return x instanceof Promise;
+}
 
-export type ProcessResult = null | Promise<void>;
+export type ProcessResult = void | Promise<void>
 
 export class ProcessResultBuilder {
   promises: Promise<void>[] = [];
   add(result: ProcessResult) {
-    if (result !== NonPromise) {
-      this.promises.push(result as Promise<void>);
+    if (isPromise(result)) {
+      this.promises.push(result);
     }
   }
   build(): ProcessResult {
     if (this.promises.length === 0) {
-      return NonPromise;
+      return;
     } else if (this.promises.length === 1) {
       return this.promises[0];
     } else {
@@ -227,7 +228,7 @@ export class DataSourceOperator implements IOperator {
             const maybePromise = this_.receiver.receive(
               this_.coder.decode(reader, CoderContext.needsDelimiters)
             );
-            if (maybePromise !== NonPromise) {
+            if (isPromise(maybePromise)) {
               await maybePromise;
             }
             // Periodically yield control explicitly to allow other tasks
@@ -359,7 +360,7 @@ class DataSinkOperator implements IOperator {
     if (this.buffer.len > 1e6) {
       return this.flush();
     }
-    return NonPromise;
+    return;
   }
 
   async finishBundle() {
@@ -487,7 +488,7 @@ export class CombinePerKeyPrecombineOperator<I, A, O>
       // TODO: Tune this, or better use LRU or ARC for this cache.
       return this.flush(this.maxKeys * 0.9);
     } else {
-      return NonPromise;
+      return;
     }
   }
 
@@ -527,7 +528,7 @@ export class CombinePerKeyPrecombineOperator<I, A, O>
 
   async finishBundle() {
     const maybePromise = this.flush(0);
-    if (maybePromise !== NonPromise) {
+    if (isPromise(maybePromise)) {
       await maybePromise;
     }
     this.groups = null!;
@@ -722,7 +723,7 @@ class GenericParDoOperator implements IOperator {
         this_.augmentedContext
       );
       if (!doFnOutput) {
-        return NonPromise;
+        return;
       }
       const result = new ProcessResultBuilder();
       for (const element of doFnOutput) {
@@ -744,7 +745,7 @@ class GenericParDoOperator implements IOperator {
 
     // If we were able to do so without any deferred actions, process the
     // element immediately.
-    if (updateContextResult === NonPromise) {
+    if (!isPromise(updateContextResult)) {
       return reallyProcess();
     } else {
       // Otherwise return a promise that first waits for all the deferred
@@ -752,7 +753,7 @@ class GenericParDoOperator implements IOperator {
       return (async () => {
         await updateContextResult;
         const update2 = this.paramProvider.setCurrentValue(wvalue);
-        if (update2 !== NonPromise) {
+        if (isPromise(update2)) {
           throw new Error("Expected all promises to be resolved: " + update2);
         }
         await reallyProcess();
@@ -771,7 +772,7 @@ class GenericParDoOperator implements IOperator {
       // elements from different windows, so each element must specify its window.
       for (const element of finishBundleOutput) {
         const maybePromise = this.receiver.receive(element);
-        if (maybePromise !== NonPromise) {
+        if (isPromise(maybePromise)) {
           await maybePromise;
         }
       }
@@ -867,7 +868,7 @@ class AssignWindowsParDoOperator implements IOperator {
         pane: wvalue.pane,
       });
     } else {
-      return NonPromise;
+      return;
     }
   }
 

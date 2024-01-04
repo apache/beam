@@ -111,7 +111,7 @@ export class ParamProviderImpl implements ParamProvider {
     };
     return (window: Window) => {
       if (isGlobal && this_.sideInputValues.has(param.sideInputId)) {
-        return operators.NonPromise;
+        return;
       }
       const stateKey = createStateKey(
         this_.transformId,
@@ -123,7 +123,7 @@ export class ParamProviderImpl implements ParamProvider {
       const lookupResult = stateProvider.getState(stateKey, decode);
       if (lookupResult.type === "value") {
         this_.sideInputValues.set(param.sideInputId, lookupResult.value);
-        return operators.NonPromise;
+        return;
       } else {
         return lookupResult.promise.then((value) => {
           this_.sideInputValues.set(param.sideInputId, value);
@@ -137,12 +137,12 @@ export class ParamProviderImpl implements ParamProvider {
   ): operators.ProcessResult {
     this.wvalue = wvalue;
     if (wvalue === null || wvalue === undefined) {
-      return operators.NonPromise;
+      return;
     }
     // We have to prefetch all the side inputs.
     // TODO: (API) Let the user's process() await them.
     if (this.prefetchCallbacks.length === 0) {
-      return operators.NonPromise;
+      return;
     } else {
       const result = new operators.ProcessResultBuilder();
       for (const cb of this.prefetchCallbacks) {
