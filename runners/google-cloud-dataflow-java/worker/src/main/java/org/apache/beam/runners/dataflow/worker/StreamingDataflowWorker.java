@@ -280,6 +280,7 @@ public class StreamingDataflowWorker {
   private ScheduledExecutorService refreshWorkTimer;
   private ScheduledExecutorService statusPageTimer;
   private ScheduledExecutorService globalWorkerUpdatesTimer;
+  private ScheduledExecutorService workerMessageReportTimer;
   private int retryLocallyDelayMs = 10000;
   // Periodically fires a global config request to dataflow service. Only used when windmill service
   // is enabled.
@@ -586,6 +587,13 @@ public class StreamingDataflowWorker {
         0,
         options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
         TimeUnit.MILLISECONDS);
+    
+    workerMessageReportTimer = executorSupplier.apply("WorkerMessageTimer");
+    workerMessageReportTimer.scheduleWithFixedDelay(
+        this::reportPeriodicWorkerMessage,
+        0,
+        options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
+        TimeUnit.MILLISECONDS);
 
     refreshWorkTimer = executorSupplier.apply("RefreshWork");
     if (options.getActiveWorkRefreshPeriodMillis() > 0) {
@@ -717,6 +725,7 @@ public class StreamingDataflowWorker {
 
       // one last send
       reportPeriodicWorkerUpdates();
+      reportPeriodicWorkerMessage();
     } catch (Exception e) {
       LOG.warn("Exception while shutting down: ", e);
     }
@@ -1749,11 +1758,9 @@ public class StreamingDataflowWorker {
   }
 
   private void sendWorkerMessage() throws IOException {
-    LOG.info("[chengedward] creating StreamingScalingReport");
     StreamingScalingReport activeThreadsReport =
         new StreamingScalingReport().setActiveThreadCount(workUnitExecutor.activeCount());
-    LOG.info("[chengedward] streaming active threads: " + workUnitExecutor.activeCount());
-    workUnitClient.reportWorkerMessage(activeThreadsReport);
+    workUnitClient.reportStreamingMetricsWorkerMessage(activeThreadsReport);
   }
 
   @VisibleForTesting
@@ -1767,6 +1774,10 @@ public class StreamingDataflowWorker {
     } catch (Exception e) {
       LOG.error("Unexpected exception while trying to send counter updates", e);
     }
+  }
+
+  @VisibleForTesting
+  public void reportPeriodicWorkerMessage() {
     try {
       sendWorkerMessage();
     } catch (IOException e) {

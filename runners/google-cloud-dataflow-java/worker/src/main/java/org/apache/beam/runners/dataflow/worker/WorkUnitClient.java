@@ -58,5 +58,5 @@ interface WorkUnitClient {
    * @param report the autoscaling signals to report
    * @return a {@link WorkerMessageResponse} (e.g. a new stop position)
    */
-  WorkerMessageResponse reportWorkerMessage(StreamingScalingReport report) throws IOException;
+  WorkerMessageResponse reportStreamingMetricsWorkerMessage(StreamingScalingReport report) throws IOException;
 }

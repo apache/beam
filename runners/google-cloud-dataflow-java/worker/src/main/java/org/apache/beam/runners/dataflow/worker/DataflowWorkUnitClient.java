@@ -25,6 +25,7 @@ import static org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames.W
 import static org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames.WORK_ITEM_TYPE_SEQ_MAP_TASK;
 import static org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames.WORK_ITEM_TYPE_STREAMING_CONFIG_TASK;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.LeaseWorkItemRequest;
@@ -39,7 +40,6 @@ import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.api.services.dataflow.model.WorkerMessage;
 import com.google.api.services.dataflow.model.WorkerMessageResponse;
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -280,13 +280,12 @@ class DataflowWorkUnitClient implements WorkUnitClient {
 
   /** Reports the autoscaling signals to dataflow */
   @Override
-  public WorkerMessageResponse reportWorkerMessage(StreamingScalingReport report)
+  public WorkerMessageResponse reportStreamingMetricsWorkerMessage(StreamingScalingReport report)
       throws IOException {
     DateTime endTime = DateTime.now();
     logger.debug("Reporting WorkMessageResponse");
     Map<String, String> labels =
-        new HashMap<String, String>(
-            ImmutableMap.of("JOB_ID", options.getJobId(), "WORKER_ID", options.getWorkerId()));
+            ImmutableMap.of("JOB_ID", options.getJobId(), "WORKER_ID", options.getWorkerId());
     WorkerMessage msg =
         new WorkerMessage()
             .setTime(toCloudTime(endTime))
