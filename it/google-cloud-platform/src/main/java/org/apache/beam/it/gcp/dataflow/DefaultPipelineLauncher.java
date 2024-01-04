@@ -410,9 +410,9 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
     // config pipelineName
     String pipelineName = PipelineUtils.extractJobName(options.jobName());
     String overrideName = null;
-    if (pipelineName.endsWith("write")) {
+    if (pipelineName.startsWith("write")) {
       overrideName = System.getProperty(WRITE_PIPELINE_NAME_OVERWRITE);
-    } else if (pipelineName.endsWith("read")) {
+    } else if (pipelineName.startsWith("read")) {
       overrideName = System.getProperty(READ_PIPELINE_NAME_OVERWRITE);
     }
     if (!Strings.isNullOrEmpty(overrideName)) {

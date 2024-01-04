@@ -88,7 +88,12 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-    - name: Mask and validate PyPi id/password
+    - name: Mask PyPi password
+      run: |
+        # Workaround for Actions bug - https://github.com/actions/runner/issues/643
+        PYPI_PASSWORD=$(jq -r '.inputs.PYPI_PASSWORD' $GITHUB_EVENT_PATH)
+        echo "::add-mask::$PYPI_PASSWORD"
+    - name: Validate PyPi id/password
       run: |
         echo "::add-mask::${{ github.event.inputs.PYPI_API_TOKEN }}"
         if [ "${{ github.event.inputs.PYPI_API_TOKEN }}" == "" ]
@@ -113,7 +118,7 @@ jobs:
         cd "dist.apache.org/repos/dist/dev/beam/${RELEASE}/python/"
         echo "Will upload the following files to PyPI:"
         ls
-        twine upload * -u __token__ -p ${{ github.event.inputs.PYPI_API_TOKEN }}
+        twine upload * -u __token__ -p "${{ github.event.inputs.PYPI_API_TOKEN }}"
 
   push_git_tags:
     if: ${{github.event.inputs.TAG_RELEASE == 'yes'}}

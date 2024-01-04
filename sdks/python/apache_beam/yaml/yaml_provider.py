@@ -451,7 +451,8 @@ class InlineProvider(Provider):
 
     docs = self.get_docs(typ)
     return (
-        empty_if_none(docs.short_description) + '\n\n' +
+        empty_if_none(docs.short_description) +
+        ('\n\n' if docs.blank_after_short_description else '\n') +
         empty_if_none(docs.long_description)).strip() or None
 
   def get_docs(self, typ):

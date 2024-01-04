@@ -310,6 +310,8 @@ def createValidatesRunnerTask(Map m) {
           excludeTestsMatching test
         }
 
+        // Flink reshuffle override does not preserve all metadata
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata'
         // https://github.com/apache/beam/issues/20843
         excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testDiscardingMode'
         // https://github.com/apache/beam/issues/20845

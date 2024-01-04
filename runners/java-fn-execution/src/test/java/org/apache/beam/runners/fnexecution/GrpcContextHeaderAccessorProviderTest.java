@@ -40,6 +40,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
@@ -48,6 +49,7 @@ import org.mockito.Mockito;
 @RunWith(JUnit4.class)
 public class GrpcContextHeaderAccessorProviderTest {
   @Rule public GrpcCleanupRule cleanupRule = new GrpcCleanupRule().setTimeout(10, TimeUnit.SECONDS);
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   @SuppressWarnings("unchecked")
   @Test

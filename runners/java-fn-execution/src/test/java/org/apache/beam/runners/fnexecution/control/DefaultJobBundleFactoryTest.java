@@ -77,6 +77,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.InOrder;
@@ -88,6 +89,7 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class DefaultJobBundleFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Mock private EnvironmentFactory envFactory;
   @Mock private RemoteEnvironment remoteEnvironment;
   @Mock private InstructionRequestHandler instructionHandler;

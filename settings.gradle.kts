@@ -24,7 +24,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.enterprise") version "3.16"
+  id("com.gradle.enterprise") version "3.15.1"
   id("com.gradle.common-custom-user-data-gradle-plugin") version "1.12.1"
 }
 
@@ -86,6 +86,7 @@ include(":examples:multi-language")
 include(":learning")
 include(":learning:tour-of-beam")
 include(":learning:tour-of-beam:frontend")
+include(":learning:tour-of-beam:terraform")
 include(":model:fn-execution")
 include(":model:job-management")
 include(":model:pipeline")
@@ -115,16 +116,10 @@ include(":it:truthmatchers")
 include(":it:mongodb")
 include(":it:splunk")
 include(":it:neo4j")
-
-include(":learning:tour-of-beam:frontend")
-
 include(":runners:core-construction-java")
 include(":runners:core-java")
 include(":runners:direct-java")
 include(":runners:extensions-java:metrics")
-include(":learning")
-include(":learning:tour-of-beam")
-include(":learning:tour-of-beam:terraform")
 /* Begin Flink Runner related settings */
 // Flink 1.12
 include(":runners:flink:1.12")
@@ -317,7 +312,6 @@ include(":sdks:python:test-suites:tox:py311")
 include(":sdks:python:test-suites:xlang")
 include(":sdks:typescript")
 include(":sdks:typescript:container")
-include(":vendor:bytebuddy-1_12_8")
 include(":vendor:grpc-1_54_0")
 include(":vendor:calcite-1_28_0")
 include(":vendor:guava-32_1_2-jre")

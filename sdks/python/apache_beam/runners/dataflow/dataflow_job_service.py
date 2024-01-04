@@ -19,6 +19,7 @@ import argparse
 import logging
 import sys
 
+from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.runners.dataflow import dataflow_runner
 from apache_beam.runners.portability import local_job_service
 from apache_beam.runners.portability import local_job_service_main
@@ -34,6 +35,11 @@ class DataflowBeamJob(local_job_service.BeamJob):
     runner = dataflow_runner.DataflowRunner()
     self.result = runner.run_pipeline(
         None, self.pipeline_options(), self._pipeline_proto)
+    # The result can be None if there is no need to send a request
+    # to the service (e.g. template creation).
+    if not getattr(self.result, 'has_job', None):
+      self.set_state(beam_job_api_pb2.JobState.DONE)
+      return self.result
     # Prefer this to result.wait_until_finish() to get state updates
     # and avoid creating an extra thread (which also messes with logging).
     dataflow_runner.DataflowRunner.poll_for_job_completion(
