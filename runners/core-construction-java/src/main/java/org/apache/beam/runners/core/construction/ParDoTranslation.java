@@ -31,6 +31,8 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,6 +46,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload.DoFnURNs;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardRequirements;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardUserStateTypes;
@@ -753,6 +756,25 @@ public class ParDoTranslation {
 
   public static DoFnWithExecutionInformation doFnWithExecutionInformationFromProto(
       FunctionSpec fnSpec) {
+    if (fnSpec.getUrn().equals(getUrn(DoFnURNs.WASM_COMPILED_DOFN))) {
+      ByteString wasmBinary = fnSpec.getPayload();
+      File tempFile = null;
+      try {
+        tempFile = File.createTempFile("temp_dofn", ".wasm", null);
+        tempFile.deleteOnExit();
+        FileOutputStream fos = new FileOutputStream(tempFile);
+        fos.write(wasmBinary.toByteArray());
+
+        String tempFileName = tempFile.getName();
+        System.out.println("Wrote temp file: " + tempFileName);
+        fos.close();
+
+        return ExtismUtils.createWasmDoFnWrapper(tempFileName);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
     checkArgument(
         fnSpec.getUrn().equals(CUSTOM_JAVA_DO_FN_URN),
         "Expected %s to be %s with URN %s, but URN was %s",

@@ -65,6 +65,8 @@ dependencies {
   implementation library.java.slf4j_api
   implementation library.java.jackson_annotations
   implementation library.java.avro
+  implementation library.java.extism
+  permitUnusedDeclared library.java.extism
   compileOnly library.java.error_prone_annotations
   // Avro 1.8 leaks an older version of parameter that conflicts in runtime with the dependencies
   // of some runners so we need to fix it to a more recent but still compatible version.

@@ -553,13 +553,18 @@ message ParDoPayload {
   string on_window_expiration_timer_family_spec = 12;
 
   reserved 6;
-}
 
-// Defines special DoFn FunctionSpec URNs that identifies non-regular payloads.
-message DoFnURNs {
-  enum Enum {
+  // Defines special DoFn FunctionSpec URNs that identifies non-regular payloads.
+  enum DoFnURNs {
     WASM_COMPILED_DOFN = 0 [(beam_urn) = "beam:dofn:wasm:1.0"];
   }
+}
+
+message WasmDoFnPayload {
+  bytes wasm_binary = 1;
+
+
+
 }
 
 message StateSpec {
