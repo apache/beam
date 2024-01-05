@@ -38,6 +38,7 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.metrics.metric import Metrics
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import ModelT
+from apache_beam.ml.inference.base import RunInferenceDLQ
 from apache_beam.options.pipeline_options import PipelineOptions
 
 _LOGGER = logging.getLogger(__name__)
@@ -277,6 +278,9 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     self.transforms = transforms or []
     self._counter = Metrics.counter(
         MLTransform, f'BeamML_{self.__class__.__name__}')
+    self._with_exception_handling = False
+    self._exception_handling_args = {}
+    self._upstream_errors = []
 
   def expand(
       self, pcoll: beam.PCollection[ExampleT]
@@ -314,11 +318,30 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
           ptransform_list[i].artifact_mode = self._artifact_mode
 
     for ptransform in ptransform_list:
-      pcoll = pcoll | ptransform
+      if self._with_exception_handling:
+        if hasattr(ptransform, 'with_exception_handling'):
+          ptransform = ptransform.with_exception_handling(
+              **self._exception_handling_args)
+          pcoll, bad_results = pcoll | ptransform
+          # RunInference outputs a RunInferenceDLQ instead of a PCollection.
+          # since TFTProcessHandler and RunInferene are supported, try to infer
+          # the type of bad_results and append it to the list of errors.
+          if isinstance(bad_results, RunInferenceDLQ):
+            self._upstream_errors.append(bad_results.failed_inferences)
+          elif isinstance(bad_results, beam.PCollection):
+            self._upstream_errors.append(bad_results)
+          else:
+            raise NotImplementedError(
+                f'Unexpected type for bad_results: {type(bad_results)}')
+        else:
+          pcoll = pcoll | ptransform
 
     _ = (
         pcoll.pipeline
         | "MLTransformMetricsUsage" >> MLTransformMetricsUsage(self))
+    if self._with_exception_handling:
+      bad_pcoll = self._upstream_errors | beam.Flatten()
+      return pcoll, bad_pcoll
     return pcoll  # type: ignore[return-value]
 
   def with_transform(self, transform: MLTransformProvider):
@@ -338,6 +361,16 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       raise TypeError(
           'transform must be a subclass of BaseOperation. '
           'Got: %s instead.' % type(transform))
+
+  def with_exception_handling(
+      self, *, exc_class=Exception, use_subprocess=False, threshold=1):
+    self._with_exception_handling = True
+    self._exception_handling_args = {
+        'exc_class': exc_class,
+        'use_subprocess': use_subprocess,
+        'threshold': threshold
+    }
+    return self
 
 
 class MLTransformMetricsUsage(beam.PTransform):
