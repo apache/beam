@@ -35,6 +35,15 @@ import org.extism.sdk.wasm.PathWasmSource;
 })
 public class ExtismUtils {
 
+  // static {
+  //   // boolean b = true;
+  //   // if (b) {
+  //   //   throw new RuntimeException("Intentional failure");
+  //   // }
+  //   // System.load("/usr/local/lib/libextism.so");
+  //   // System.loadLibrary("extism");
+  // }
+
   static class WASMDoFnWrapper extends DoFn<byte[], byte[]> {
 
     private transient Plugin plugin;

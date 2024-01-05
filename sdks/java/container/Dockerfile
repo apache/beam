@@ -30,6 +30,10 @@ ADD target/jcl-over-slf4j.jar /opt/apache/beam/jars/
 ADD target/log4j-over-slf4j.jar /opt/apache/beam/jars/
 ADD target/log4j-to-slf4j.jar /opt/apache/beam/jars/
 ADD target/beam-sdks-java-harness.jar /opt/apache/beam/jars/
+ADD target/extism-1.0.0-rc1.jar /opt/apache/beam/jars/
+ADD target/jna-5.12.1.jar /opt/apache/beam/jars/
+ADD target/jna-5.12.1.jar /opt/apache/beam/jars/
+ADD target/gson-2.10.1.jar /opt/apache/beam/jars/
 
 # Required to use jamm as a javaagent to get accurate object size measuring
 # COPY fails if file is not found, so use a wildcard for open-module-agent.jar
@@ -54,6 +58,11 @@ RUN if [ "${pull_licenses}" = "false" ] ; then \
     # Remove above license dir if pull licenses false
     rm -rf /opt/apache/beam/third_party_licenses ; \
    fi
+
+# Installing Extism lib for WASM based DoFn execution.
+RUN wget https://github.com/extism/cli/releases/download/v0.3.8/extism-v0.3.8-linux-amd64.tar.gz
+RUN tar xvf extism-v0.3.8-linux-amd64.tar.gz
+RUN ./extism lib install latest
 
 # Add Google Cloud Profiler agent.
 COPY target/profiler/* /opt/google_cloud_profiler/

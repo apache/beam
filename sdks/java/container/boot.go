@@ -143,6 +143,9 @@ func main() {
 		filepath.Join(jarsDir, "log4j-over-slf4j.jar"),
 		filepath.Join(jarsDir, "log4j-to-slf4j.jar"),
 		filepath.Join(jarsDir, "beam-sdks-java-harness.jar"),
+		filepath.Join(jarsDir, "extism-1.0.0-rc1.jar"),
+		filepath.Join(jarsDir, "jna-5.12.1.jar"),
+		filepath.Join(jarsDir, "gson-2.10.1.jar"),
 	}
 
 	var hasWorkerExperiment = strings.Contains(options, "use_staged_dataflow_worker_jar")
@@ -241,6 +244,7 @@ func main() {
 	if _, err := os.Stat(openModuleAgentJar); err == nil {
 		args = append(args, "-javaagent:"+openModuleAgentJar)
 	}
+	// args = append(args, "-Djava.library.path=/usr/local/lib")
 	args = append(args, "org.apache.beam.fn.harness.FnHarness")
 	logger.Printf(ctx, "Executing: java %v", strings.Join(args, " "))
 
@@ -267,9 +271,9 @@ func makePipelineOptionsFile(options string) error {
 // it returns 70% of the physical memory on the machine. If it cannot determine
 // that value, it returns 1GB. This is an imperfect heuristic. It aims to
 // ensure there is memory for non-heap use and other overhead, while also not
-// underutilizing the machine. if set_recommended_max_xmx experiment is enabled, 
-// sets xmx to 32G. Under 32G JVM enables CompressedOops. CompressedOops 
-// utilizes memory more efficiently, and has positive impact on GC performance 
+// underutilizing the machine. if set_recommended_max_xmx experiment is enabled,
+// sets xmx to 32G. Under 32G JVM enables CompressedOops. CompressedOops
+// utilizes memory more efficiently, and has positive impact on GC performance
 // and cache hit rate.
 func heapSizeLimit(info *fnpb.ProvisionInfo, setRecommendedMaxXmx bool) uint64 {
 	if setRecommendedMaxXmx {

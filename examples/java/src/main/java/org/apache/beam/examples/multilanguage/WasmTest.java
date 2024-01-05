@@ -23,6 +23,7 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 
 public class WasmTest {
@@ -30,12 +31,10 @@ public class WasmTest {
   void runExample(WasmTestOptions options, String expansionService) {
     Pipeline pipeline = Pipeline.create(options);
 
-    PCollection<String> data = pipeline.apply(TextIO.read().from(options.getInput()));
-
-    // TODO: apply the external transform
-    data = data.apply(External.of("testurn", new byte[]{}, expansionService));
-
-    data.apply("WriteCounts", TextIO.write().to(options.getOutput()));
+    // pipeline.apply(TextIO.read().from(options.getInput()));
+    pipeline.apply(Create.of("aaa", "bbb", "ccc"))
+        .apply(External.of("beam:transform:add:1.0", new byte[]{}, expansionService));
+        // .apply("WriteCounts", TextIO.write().to(options.getOutput()));
 
     pipeline.run().waitUntilFinish();
   }

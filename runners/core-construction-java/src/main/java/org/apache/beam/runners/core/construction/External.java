@@ -277,8 +277,12 @@ public class External {
               .build();
       requestBuilder.setPipelineOptions(PipelineOptionsTranslation.toProto(p.getOptions()));
 
+      System.out.println("Expansion request: " + request);
+
       ExpansionApi.ExpansionResponse response =
           clientFactory.getExpansionServiceClient(endpoint).expand(request);
+
+      // System.out.println("Got expansion service response: " + response);
 
       if (!Strings.isNullOrEmpty(response.getError())) {
         throw new RuntimeException(
@@ -300,6 +304,34 @@ public class External {
               .putAllEnvironments(resolveArtifacts(newEnvironmentsWithDependencies, endpoint))
               .build();
       expandedTransform = response.getTransform();
+
+      // Updated to the input/output PCollections of the expanded transform.
+      // This is needed since we currently return a hardcoded expansion response
+      Map<String, String> expandedTransformInputUpdates =
+          ImmutableMap.of(
+              "n1",
+              // "TextIO.Read/Read/ParDo(BoundedSourceAsSDFWrapper)/ParMultiDo(BoundedSourceAsSDFWrapper).output");
+                  "Create.Values/Read(CreateSource)/ParDo(BoundedSourceAsSDFWrapper)/ParMultiDo(BoundedSourceAsSDFWrapper).output");
+      // Map<String, String> expandedTransformOutputUpdates = ImmutableMap.of("n1", "dd");
+
+      RunnerApi.PTransform.Builder updatedExpandedTransformBuilder = expandedTransform.toBuilder();
+
+      Map<String, String> oldInputsMap = expandedTransform.getInputsMap();
+      Map<String, String> updatedInputsMap = new HashMap<>();
+      for (String key : oldInputsMap.keySet()) {
+        String oldValue = oldInputsMap.get(key);
+        String value =
+            expandedTransformInputUpdates.keySet().contains(oldValue)
+                ? expandedTransformInputUpdates.get(oldValue)
+                : oldValue;
+        updatedInputsMap.put(key, value);
+      }
+
+      // updatedExpandedTransformBuilder.getInputsMap().clear();
+      updatedExpandedTransformBuilder.putAllInputs(updatedInputsMap);
+
+      expandedTransform = updatedExpandedTransformBuilder.build();
+
       expandedRequirements = response.getRequirementsList();
 
       RehydratedComponents rehydratedComponents =

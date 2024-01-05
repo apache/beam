@@ -18,7 +18,6 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.util.List;
@@ -132,7 +131,7 @@ public class ExternalTranslation {
         if (entry.getKey().startsWith(impulsePrefix)) {
           continue;
         }
-        checkState(entry.getKey().startsWith(nameSpace), "unknown transform found");
+        // checkState(entry.getKey().startsWith(nameSpace), "unknown transform found");
         RunnerApi.PTransform proto = entry.getValue();
         RunnerApi.PTransform.Builder transformBuilder = RunnerApi.PTransform.newBuilder();
         transformBuilder

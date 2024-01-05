@@ -598,6 +598,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def dbcp2_version = "2.9.0"
     def errorprone_version = "2.10.0"
     def extism_version = "1.0.0-rc1"
+    def jna_version = "5.12.1"
     // Try to keep gax_version consistent with gax-grpc version in google_cloud_platform_libraries_bom
     def gax_version = "2.38.0"
     def google_ads_version = "26.0.0"
@@ -716,6 +717,7 @@ class BeamModulePlugin implements Plugin<Project> {
         dbcp2                                       : "org.apache.commons:commons-dbcp2:$dbcp2_version",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
         extism                                      : "org.extism.sdk:extism:$extism_version",
+        jna                                         : "net.java.dev.jna:jna:$jna_version",
         failsafe                                    : "dev.failsafe:failsafe:3.3.0",
         flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.7.4",
         gax                                         : "com.google.api:gax", // google_cloud_platform_libraries_bom sets version
