@@ -1217,13 +1217,16 @@ Ping [dev@](mailto:dev@beam.apache.org) mailing list for assistance if you need 
 Copy the source release from the `dev` repository to the `release` repository at `dist.apache.org` using Subversion.
 
 ```
+export RELEASE_VERSION=<set the release version>
+export OLD_RELEASE_VERSION=<set the previous release version>
+
 svn co https://dist.apache.org/repos/dist/dev/beam dev  # Checkout the `dev` artifact repo.
 
 svn co https://dist.apache.org/repos/dist/release/beam release  # Checkout the `release` artifact repo.
 
 mkdir release/$RELEASE_VERSION
 
-# Copy files from the `dev` artifact repo to the `release` artifact repo.
+cp -R dev/$RELEASE_VERSION/* release/$RELEASE_VERSION/
 
 cd release
 
