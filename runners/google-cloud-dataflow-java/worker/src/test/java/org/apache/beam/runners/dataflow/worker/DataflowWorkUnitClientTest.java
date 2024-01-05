@@ -31,12 +31,10 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.LeaseWorkItemRequest;
 import com.google.api.services.dataflow.model.LeaseWorkItemResponse;
 import com.google.api.services.dataflow.model.MapTask;
-import com.google.api.services.dataflow.model.SendWorkerMessagesRequest;
 import com.google.api.services.dataflow.model.SendWorkerMessagesResponse;
-import com.google.api.services.dataflow.model.StreamingScalingReport;
 import com.google.api.services.dataflow.model.SeqMapTask;
+import com.google.api.services.dataflow.model.StreamingScalingReport;
 import com.google.api.services.dataflow.model.WorkItem;
-import com.google.api.services.dataflow.model.WorkerMessage;
 import com.google.api.services.dataflow.model.WorkerMessageResponse;
 import java.io.IOException;
 import java.util.Optional;
@@ -244,7 +242,7 @@ public class DataflowWorkUnitClientTest {
         new StreamingScalingReport().setActiveThreadCount(1);
     WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
     WorkerMessageResponse expected = new WorkerMessageResponse();
-    WorkerMessageResponse clientResponse = 
+    WorkerMessageResponse clientResponse =
         client.reportStreamingMetricsWorkerMessage(activeThreadsReport);
     assertEquals(clientResponse.toString(), expected.toString());
   }

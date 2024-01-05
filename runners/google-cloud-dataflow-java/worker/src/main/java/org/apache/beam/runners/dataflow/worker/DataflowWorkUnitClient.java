@@ -25,7 +25,6 @@ import static org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames.W
 import static org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames.WORK_ITEM_TYPE_SEQ_MAP_TASK;
 import static org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames.WORK_ITEM_TYPE_STREAMING_CONFIG_TASK;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.LeaseWorkItemRequest;
@@ -44,7 +43,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -56,6 +54,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkProgressUp
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -285,7 +284,7 @@ class DataflowWorkUnitClient implements WorkUnitClient {
     DateTime endTime = DateTime.now();
     logger.debug("Reporting WorkMessageResponse");
     Map<String, String> labels =
-            ImmutableMap.of("JOB_ID", options.getJobId(), "WORKER_ID", options.getWorkerId());
+        ImmutableMap.of("JOB_ID", options.getJobId(), "WORKER_ID", options.getWorkerId());
     WorkerMessage msg =
         new WorkerMessage()
             .setTime(toCloudTime(endTime))

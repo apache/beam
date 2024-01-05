@@ -587,7 +587,7 @@ public class StreamingDataflowWorker {
         0,
         options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
         TimeUnit.MILLISECONDS);
-    
+
     workerMessageReportTimer = executorSupplier.apply("WorkerMessageTimer");
     workerMessageReportTimer.scheduleWithFixedDelay(
         this::reportPeriodicWorkerMessage,
