@@ -16,49 +16,51 @@
  * limitations under the License.
  */
 plugins {
-    id 'org.apache.beam.module'
+  id 'org.apache.beam.module'
 }
 
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.extensions.schemaio.expansion',
-        validateShadowJar: false,
-        shadowClosure: {
-            manifest {
-                attributes "Main-Class": "org.apache.beam.sdk.expansion.service.ExpansionService"
-            }
-        }
-)
+    automaticModuleName: 'org.apache.beam.sdk.extensions.schemaio.expansion',
+    validateShadowJar: false,
+    shadowClosure: {
+      manifest {
+        attributes "Main-Class": "org.apache.beam.sdk.expansion.service.ExpansionService"
+      }
+    }
+    )
 
 dependencies {
-    implementation project(path: ":sdks:java:expansion-service")
-    permitUnusedDeclared project(path: ":sdks:java:expansion-service") // BEAM-11761
-    implementation project(":sdks:java:extensions:google-cloud-platform-core")
-    permitUnusedDeclared project(path: ":sdks:java:extensions:google-cloud-platform-core") // BEAM-11761
-    implementation project(":sdks:java:io:csv")
-    permitUnusedDeclared project(path: ":sdks:java:io:csv") // BEAM-11761
-    implementation project(":sdks:java:io:jdbc")
-    permitUnusedDeclared project(":sdks:java:io:jdbc") // BEAM-11761
-    implementation project(":sdks:java:io:json")
-    permitUnusedDeclared project(path: ":sdks:java:io:json") // BEAM-11761
-    implementation library.java.postgres
-    permitUnusedDeclared library.java.postgres // BEAM-11761
-    implementation project(path: ":model:pipeline", configuration: "shadow")
-    implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation library.java.vendored_grpc_1_54_0
-    implementation library.java.vendored_guava_32_1_2_jre
-    // Stage default drivers for JdbcIO schema transforms
-    implementation 'mysql:mysql-connector-java:8.0.22'
-    permitUnusedDeclared 'mysql:mysql-connector-java:8.0.22' // BEAM-11761
-    implementation 'com.oracle.database.jdbc:ojdbc8:23.2.0.0'
-    permitUnusedDeclared 'com.oracle.database.jdbc:ojdbc8:23.2.0.0' // BEAM-11761
-    implementation 'com.microsoft.sqlserver:mssql-jdbc:12.2.0.jre11'
-    permitUnusedDeclared 'com.microsoft.sqlserver:mssql-jdbc:12.2.0.jre11' // BEAM-11761
-    testImplementation library.java.junit
-    testImplementation library.java.mockito_core
+  implementation project(path: ":sdks:java:expansion-service")
+  permitUnusedDeclared project(path: ":sdks:java:expansion-service") // BEAM-11761
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  permitUnusedDeclared project(path: ":sdks:java:extensions:google-cloud-platform-core") // BEAM-11761
+  implementation project(":sdks:java:io:csv")
+  permitUnusedDeclared project(path: ":sdks:java:io:csv") // BEAM-11761
+  implementation project(":sdks:java:io:jdbc")
+  permitUnusedDeclared project(":sdks:java:io:jdbc") // BEAM-11761
+  implementation project(":sdks:java:io:json")
+  permitUnusedDeclared project(path: ":sdks:java:io:json") // BEAM-11761
+  implementation library.java.postgres
+  permitUnusedDeclared library.java.postgres // BEAM-11761
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.vendored_grpc_1_54_0
+  implementation library.java.vendored_guava_32_1_2_jre
+  // Stage default drivers for JdbcIO schema transforms
+  implementation 'mysql:mysql-connector-java:8.0.22'
+  permitUnusedDeclared 'mysql:mysql-connector-java:8.0.22' // BEAM-11761
+  implementation 'com.oracle.database.jdbc:ojdbc8:23.2.0.0'
+  permitUnusedDeclared 'com.oracle.database.jdbc:ojdbc8:23.2.0.0' // BEAM-11761
+  implementation 'com.microsoft.sqlserver:mssql-jdbc:12.2.0.jre11'
+  permitUnusedDeclared 'com.microsoft.sqlserver:mssql-jdbc:12.2.0.jre11' // BEAM-11761
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
 }
 
 task runExpansionService (type: JavaExec) {
-    mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
-    classpath = sourceSets.test.runtimeClasspath
-    args = [project.findProperty("constructionService.port") ?: "8097"]
+  mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
+  classpath = sourceSets.test.runtimeClasspath
+  args = [
+    project.findProperty("constructionService.port") ?: "8097"
+  ]
 }

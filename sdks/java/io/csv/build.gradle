@@ -18,18 +18,18 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.io.csv'
-)
+    automaticModuleName: 'org.apache.beam.sdk.io.csv'
+    )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: CSV"
 ext.summary = "IO to read and write CSV files."
 
 dependencies {
-    implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation library.java.commons_csv
-    implementation library.java.vendored_guava_32_1_2_jre
-    testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-    testImplementation library.java.junit
-    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.commons_csv
+  implementation library.java.vendored_guava_32_1_2_jre
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation library.java.junit
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
 }

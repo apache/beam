@@ -20,7 +20,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.extensions.zetasketch')
+    automaticModuleName: 'org.apache.beam.sdk.extensions.zetasketch')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: ZetaSketch"
 
@@ -29,60 +29,60 @@ evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
 def zetasketch_version = "0.1.0"
 
 dependencies {
-    implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
 
-    implementation library.java.auto_value_annotations
-    implementation library.java.slf4j_api
-    implementation library.java.vendored_guava_32_1_2_jre
-    implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation "com.google.zetasketch:zetasketch:$zetasketch_version"
-    testImplementation library.java.junit
-    testImplementation library.java.hamcrest
-    testImplementation project(":sdks:java:io:google-cloud-platform")
-    testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
-    testImplementation library.java.google_api_services_bigquery
-    testImplementation library.java.proto_google_cloud_bigquery_storage_v1
-    testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
-    testRuntimeOnly library.java.slf4j_simple
-    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-    testRuntimeOnly project(":runners:google-cloud-dataflow-java")
+  implementation library.java.auto_value_annotations
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation "com.google.zetasketch:zetasketch:$zetasketch_version"
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest
+  testImplementation project(":sdks:java:io:google-cloud-platform")
+  testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
+  testImplementation library.java.google_api_services_bigquery
+  testImplementation library.java.proto_google_cloud_bigquery_storage_v1
+  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
+  testRuntimeOnly library.java.slf4j_simple
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  testRuntimeOnly project(":runners:google-cloud-dataflow-java")
 }
 
 /**
  * Integration tests running on Dataflow with BigQuery.
  */
 task integrationTest(type: Test) {
-    group = "Verification"
+  group = "Verification"
 
-    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
-    def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
-    def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
-    def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
+  def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
 
-    // Set workerHarnessContainerImage to empty to make Dataflow pick up the non-versioned container
-    // image, which handles a staged worker jar.
-    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-            "--runner=TestDataflowRunner",
-            "--project=${gcpProject}",
-            "--region=${gcpRegion}",
-            "--tempRoot=${gcpTempRoot}",
-            "--dataflowWorkerJar=${dataflowWorkerJar}",
-            "--workerHarnessContainerImage=",
-    ])
+  // Set workerHarnessContainerImage to empty to make Dataflow pick up the non-versioned container
+  // image, which handles a staged worker jar.
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+    "--runner=TestDataflowRunner",
+    "--project=${gcpProject}",
+    "--region=${gcpRegion}",
+    "--tempRoot=${gcpTempRoot}",
+    "--dataflowWorkerJar=${dataflowWorkerJar}",
+    "--workerHarnessContainerImage=",
+  ])
 
-    // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
-    outputs.upToDateWhen { false }
+  // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
+  outputs.upToDateWhen { false }
 
-    include '**/*IT.class'
-    maxParallelForks 4
-    classpath = sourceSets.test.runtimeClasspath
-    testClassesDirs = sourceSets.test.output.classesDirs
+  include '**/*IT.class'
+  maxParallelForks 4
+  classpath = sourceSets.test.runtimeClasspath
+  testClassesDirs = sourceSets.test.output.classesDirs
 }
 
 task postCommit {
-    group = "Verification"
-    description = "Integration tests of sketch compatibility between Dataflow and BigQuery."
-    dependsOn integrationTest
+  group = "Verification"
+  description = "Integration tests of sketch compatibility between Dataflow and BigQuery."
+  dependsOn integrationTest
 }

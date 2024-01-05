@@ -24,24 +24,24 @@ plugins {
   id 'org.javacc.javacc'
 }
 applyJavaNature(
-  generatedClassPatterns: [
-    /^org\.apache\.beam\.sdk\.extensions\.sql\.impl\.parser\.impl.*/,
-  ],
-  automaticModuleName: 'org.apache.beam.sdk.extensions.sql',
-  classesTriggerCheckerBugs: [
-    // TODO(https://github.com/apache/beam/issues/21068): This currently crashes with checkerframework 3.10.0
-    // when compiling :sdks:java:extensions:sql:compileJava with:
-    // message: class file for com.google.datastore.v1.Entity not found
-    // ; The Checker Framework crashed.  Please report the crash.
-    // Compilation unit: /usr/local/google/home/lcwik/git/beam/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/meta/provider/datastore/DataStoreV1TableProvider.java
-    // Last visited tree at line 49 column 1:
-    // @AutoService(TableProvider.class)
-    // Exception: com.sun.tools.javac.code.Symbol$CompletionFailure: class file for com.google.datastore.v1.Entity not found; com.sun.tools.javac.code.Symbol$CompletionFailure: class file for com.google.datastore.v1.Entity not found
-    'DataStoreV1TableProvider': 'TODO(https://github.com/apache/beam/issues/21068): Report the crash if still occurring on newest version',
-  ],
-  // javacc generated code produces lint warnings
-  disableLintWarnings: ['dep-ann', 'rawtypes'],
-)
+    generatedClassPatterns: [
+      (/^org\.apache\.beam\.sdk\.extensions\.sql\.impl\.parser\.impl.*/),
+    ],
+    automaticModuleName: 'org.apache.beam.sdk.extensions.sql',
+    classesTriggerCheckerBugs: [
+      // TODO(https://github.com/apache/beam/issues/21068): This currently crashes with checkerframework 3.10.0
+      // when compiling :sdks:java:extensions:sql:compileJava with:
+      // message: class file for com.google.datastore.v1.Entity not found
+      // ; The Checker Framework crashed.  Please report the crash.
+      // Compilation unit: /usr/local/google/home/lcwik/git/beam/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/meta/provider/datastore/DataStoreV1TableProvider.java
+      // Last visited tree at line 49 column 1:
+      // @AutoService(TableProvider.class)
+      // Exception: com.sun.tools.javac.code.Symbol$CompletionFailure: class file for com.google.datastore.v1.Entity not found; com.sun.tools.javac.code.Symbol$CompletionFailure: class file for com.google.datastore.v1.Entity not found
+      'DataStoreV1TableProvider': 'TODO(https://github.com/apache/beam/issues/21068): Report the crash if still occurring on newest version',
+    ],
+    // javacc generated code produces lint warnings
+    disableLintWarnings: ['dep-ann', 'rawtypes'],
+    )
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
 ext.summary = "Beam SQL provides a new interface to generate a Beam pipeline from SQL statement"
@@ -55,10 +55,10 @@ configurations {
 }
 
 def hadoopVersions = [
-    "285": "2.8.5",
-    "292": "2.9.2",
-    "2102": "2.10.2",
-    "324": "3.2.4",
+  "285": "2.8.5",
+  "292": "2.9.2",
+  "2102": "2.10.2",
+  "324": "3.2.4",
 ]
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
@@ -155,13 +155,11 @@ task copyFmppTemplatesFromCalciteCore(type: Copy) {
   from zipTree(calciteCoreJar)
   include "**/Parser.jj"
   into "${project.buildDir}/templates-fmpp"
-  filter{
-    line ->
-      line.replace('import org.apache.calcite.', 'import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.')
+  filter{ line ->
+    line.replace('import org.apache.calcite.', 'import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.')
   }
-  filter{
-    line ->
-      line.replace('import static org.apache.calcite.', 'import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.')
+  filter{ line ->
+    line.replace('import static org.apache.calcite.', 'import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.')
   }
 }
 
@@ -223,9 +221,10 @@ task integrationTest(type: Test) {
   outputs.upToDateWhen { false }
 
   def pipelineOptions = [
-          "--project=${gcpProject}",
-          "--tempLocation=${gcsTempRoot}",
-          "--blockOnRun=false"]
+    "--project=${gcpProject}",
+    "--tempLocation=${gcsTempRoot}",
+    "--blockOnRun=false"
+  ]
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
@@ -233,9 +232,9 @@ task integrationTest(type: Test) {
 
   maxParallelForks 4
   classpath = project(":sdks:java:extensions:sql")
-          .sourceSets
-          .test
-          .runtimeClasspath
+      .sourceSets
+      .test
+      .runtimeClasspath
   testClassesDirs = files(project(":sdks:java:extensions:sql").sourceSets.test.output.classesDirs)
   useJUnit { }
 }

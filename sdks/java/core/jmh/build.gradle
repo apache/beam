@@ -19,9 +19,9 @@
 plugins { id 'org.apache.beam.module' }
 
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.jmh',
-  enableJmh: true,
-  publish: false)
+    automaticModuleName: 'org.apache.beam.sdk.jmh',
+    enableJmh: true,
+    publish: false)
 
 description = "Apache Beam :: SDKs :: Java :: Core :: JMH"
 ext.summary = "This contains JMH benchmarks for the SDK Core for Beam Java"

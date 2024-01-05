@@ -17,21 +17,21 @@
  */
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.it',
-)
+    automaticModuleName: 'org.apache.beam.it',
+    )
 
 description = "Apache Beam :: IT"
 ext.summary = "Integration test utilities suites."
 
 //These registrations exist to make our matrix Github Action simple to configure
 tasks.register('GCSPerformanceTest') {
-    dependsOn(":it:google-cloud-platform:GCSPerformanceTest")
+  dependsOn(":it:google-cloud-platform:GCSPerformanceTest")
 }
 
 tasks.register('BigTablePerformanceTest') {
-    dependsOn(":it:google-cloud-platform:BigTablePerformanceTest")
+  dependsOn(":it:google-cloud-platform:BigTablePerformanceTest")
 }
 
 tasks.register('BigQueryStorageApiStreamingPerformanceTest') {
-    dependsOn(":it:google-cloud-platform:BigQueryStorageApiStreamingPerformanceTest")
+  dependsOn(":it:google-cloud-platform:BigQueryStorageApiStreamingPerformanceTest")
 }

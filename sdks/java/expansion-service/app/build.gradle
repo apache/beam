@@ -19,10 +19,10 @@
 apply plugin: 'org.apache.beam.module'
 apply plugin: 'application'
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.expansion.service.app',
-  validateShadowJar: false,
-  shadowClosure: {},
-)
+    automaticModuleName: 'org.apache.beam.sdk.expansion.service.app',
+    validateShadowJar: false,
+    shadowClosure: {},
+    )
 mainClassName = "org.apache.beam.sdk.expansion.service.ExpansionService"
 
 
@@ -39,5 +39,7 @@ dependencies {
 task runExpansionService (type: JavaExec) {
   mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
   classpath = sourceSets.main.runtimeClasspath
-  args = [project.findProperty("constructionService.port") ?: "8097"]
+  args = [
+    project.findProperty("constructionService.port") ?: "8097"
+  ]
 }

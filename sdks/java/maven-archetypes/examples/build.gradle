@@ -80,7 +80,7 @@ if (sourcesJar != null) {
 }
 
 sourceSets {
- main {
-  output.dir('src', builtBy: 'generateSources')
- }
+  main {
+    output.dir('src', builtBy: 'generateSources')
+  }
 }

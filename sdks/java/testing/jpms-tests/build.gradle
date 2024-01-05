@@ -30,10 +30,12 @@ if (project.hasProperty("testJavaVersion")) {
 }
 
 applyJavaNature(
-  exportJavadoc: false,
-  publish: false,
-  disableLintWarnings: ['requires-transitive-automatic', 'requires-automatic']
-)
+    exportJavadoc: false,
+    publish: false,
+    disableLintWarnings: [
+      'requires-transitive-automatic',
+      'requires-automatic']
+    )
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -57,10 +59,10 @@ project.tasks.compileJava {
  * List of runners to run integration tests on.
  */
 def testRunnerClass = [
-        directRunnerIntegrationTest: "org.apache.beam.runners.direct.DirectRunner",
-        flinkRunnerIntegrationTest: "org.apache.beam.runners.flink.TestFlinkRunner",
-        dataflowRunnerIntegrationTest: "org.apache.beam.runners.dataflow.TestDataflowRunner",
-        sparkRunnerIntegrationTest: "org.apache.beam.runners.spark.TestSparkRunner",
+  directRunnerIntegrationTest: "org.apache.beam.runners.direct.DirectRunner",
+  flinkRunnerIntegrationTest: "org.apache.beam.runners.flink.TestFlinkRunner",
+  dataflowRunnerIntegrationTest: "org.apache.beam.runners.dataflow.TestDataflowRunner",
+  sparkRunnerIntegrationTest: "org.apache.beam.runners.spark.TestSparkRunner",
 ]
 
 configurations {
@@ -96,9 +98,9 @@ def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-
 for (String runner : testRunnerClass.keySet()) {
   tasks.create(name: runner, type: Test) {
     def testPipelineOptions = [
-            "--project=${gcpProject}",
-            "--tempRoot=${gcsTempRoot}",
-            "--runner=" + testRunnerClass[runner],
+      "--project=${gcpProject}",
+      "--tempRoot=${gcsTempRoot}",
+      "--runner=" + testRunnerClass[runner],
     ]
     if ("dataflowRunnerIntegrationTest".equals(runner)) {
       testPipelineOptions.add("--region=${gcpRegion}")
@@ -123,7 +125,7 @@ plugins.withType(JavaPlugin).configureEach{
 // (ii) current Java version is greater than 8
 project.tasks.each {
   it.onlyIf {
-    project.hasProperty('testJavaVersion')
-            || JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
+    (project.hasProperty('testJavaVersion')
+        || JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0)
   }
 }

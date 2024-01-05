@@ -22,31 +22,32 @@ plugins { id 'org.apache.beam.module' }
 // Shade away runner execution utilities till because this causes ServiceLoader conflicts with
 // TransformPayloadTranslatorRegistrar amongst other runners. This only happens in the DirectRunner
 // because it is likely to appear on the classpath of another runner.
-def dependOnProjects = [":runners:core-construction-java",
-                        ":runners:core-java",
-                        ":runners:local-java",
-                        ":runners:java-fn-execution",
-                        ":sdks:java:fn-execution",
-                        ":sdks:java:extensions:avro"
-                        ]
+def dependOnProjects = [
+  ":runners:core-construction-java",
+  ":runners:core-java",
+  ":runners:local-java",
+  ":runners:java-fn-execution",
+  ":sdks:java:fn-execution",
+  ":sdks:java:extensions:avro"
+]
 
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.runners.direct',
-        classesTriggerCheckerBugs: [
-          'ImpulseEvaluatorFactory': 'https://github.com/typetools/checker-framework/issues/3791',
-        ],
-        shadowClosure: {
-          dependencies {
-            dependOnProjects.each {
-              include(project(path: it, configuration: "shadow"))
-            }
-          }
-          relocate "org.apache.beam.runners.core", getJavaRelocatedPath("runners.core")
-          relocate "org.apache.beam.runners.fnexecution", getJavaRelocatedPath("runners.fnexecution")
-          relocate "org.apache.beam.sdk.fn", getJavaRelocatedPath("sdk.fn")
-          relocate "org.apache.beam.runners.local", getJavaRelocatedPath("runners.local")
-        },
-)
+    automaticModuleName: 'org.apache.beam.runners.direct',
+    classesTriggerCheckerBugs: [
+      'ImpulseEvaluatorFactory': 'https://github.com/typetools/checker-framework/issues/3791',
+    ],
+    shadowClosure: {
+      dependencies {
+        dependOnProjects.each {
+          include(project(path: it, configuration: "shadow"))
+        }
+      }
+      relocate "org.apache.beam.runners.core", getJavaRelocatedPath("runners.core")
+      relocate "org.apache.beam.runners.fnexecution", getJavaRelocatedPath("runners.fnexecution")
+      relocate "org.apache.beam.sdk.fn", getJavaRelocatedPath("sdk.fn")
+      relocate "org.apache.beam.runners.local", getJavaRelocatedPath("runners.local")
+    },
+    )
 
 description = "Apache Beam :: Runners :: Direct Java"
 
@@ -118,10 +119,10 @@ static def pipelineOptionsStringCrossPlatformHandling(String[] options) {
 }
 
 def sickbayTests = [
-        // https://github.com/apache/beam/issues/18499
-        'org.apache.beam.sdk.testing.UsesLoopingTimer',
-        // https://github.com/apache/beam/issues/19344
-        'org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest.testTimeBound',
+  // https://github.com/apache/beam/issues/18499
+  'org.apache.beam.sdk.testing.UsesLoopingTimer',
+  // https://github.com/apache/beam/issues/19344
+  'org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest.testTimeBound',
 ]
 
 task needsRunnerTests(type: Test) {
@@ -130,7 +131,10 @@ task needsRunnerTests(type: Test) {
 
   testLogging.showStandardStreams = true
 
-  String[] pipelineOptions = ["--runner=DirectRunner", "--runnerDeterminedSharding=false"]
+  String[] pipelineOptions = [
+    "--runner=DirectRunner",
+    "--runnerDeterminedSharding=false"
+  ]
   systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
 
   classpath = configurations.needsRunner
@@ -170,7 +174,10 @@ task validatesRunner(type: Test) {
   group = "Verification"
   description "Validates Direct runner"
 
-  String[] pipelineOptions = ["--runner=DirectRunner", "--runnerDeterminedSharding=false"]
+  String[] pipelineOptions = [
+    "--runner=DirectRunner",
+    "--runnerDeterminedSharding=false"
+  ]
   systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
 
   classpath = configurations.validatesRunner
@@ -196,7 +203,7 @@ tasks.register("validatesRunnerSickbay", Test) {
   group = "Verification"
   description "Validates Direct runner (Sickbay Tests)"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=DirectRunner",
+    "--runner=DirectRunner",
   ])
 
   classpath = configurations.needsRunner
@@ -223,11 +230,11 @@ createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Direct')
 
 // Generates :runners:direct-java:runMobileGamingJavaDirect
 createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
-  runner: 'Direct',
-  gcpProject: gcpProject,
-  gcsBucket: gcsBucket,
-  bqDataset: bqDataset,
-  pubsubTopic: pubsubTopic)
+runner: 'Direct',
+gcpProject: gcpProject,
+gcsBucket: gcsBucket,
+bqDataset: bqDataset,
+pubsubTopic: pubsubTopic)
 
 task examplesIntegrationTest(type: Test) {
   description = "Runs examples tests on DirectRunner"
@@ -235,11 +242,11 @@ task examplesIntegrationTest(type: Test) {
   testLogging.showStandardStreams = true
 
   String[] pipelineOptions = [
-          "--runner=DirectRunner",
-          "--runnerDeterminedSharding=false",
-          "--tempLocation=${tempLocation}",
-          "--tempRoot=${tempLocation}",
-          "--project=${gcpProject}",
+    "--runner=DirectRunner",
+    "--runnerDeterminedSharding=false",
+    "--tempLocation=${tempLocation}",
+    "--tempRoot=${tempLocation}",
+    "--project=${gcpProject}",
   ]
   systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
 

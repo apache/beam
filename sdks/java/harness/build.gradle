@@ -40,44 +40,43 @@ dependencies {
 }
 
 applyJavaNature(
-  classesTriggerCheckerBugs: [
-    'AssignWindowsRunner': 'https://github.com/typetools/checker-framework/issues/3794',
-    'WindowMergingFnRunner': 'https://github.com/typetools/checker-framework/issues/3794',
-    'FnApiDoFnRunner': 'https://github.com/typetools/checker-framework/issues/5436',
-  ],
-  automaticModuleName: 'org.apache.beam.fn.harness',
-  testShadowJar: true,
-  shadowJarValidationExcludes: [
-    "avro/shaded/com/google/**",
-    "com/thoughtworks/paranamer/**",
-    "junit/**",
-    "io/github/classgraph/**",
-    "nonapi/io/github/classgraph/**",
-    "org/apache/avro/**",
-    "org/apache/beam/fn/harness/**",
-    "org/apache/beam/model/fnexecution/**",
-    "org/apache/beam/runners/core/**",
-    "org/apache/beam/runners/core/construction/**",
-    "org/apache/beam/sdk/extensions/avro/**",
-    "org/apache/beam/sdk/fn/**",
-    "org/apache/commons/**",
-    "org/checkerframework/**",
-    "org/codehaus/jackson/**",
-    "org/hamcrest/**",
-    "org/junit/**",
-    "org/tukaani/xz/**",
-  ],
-  shadowClosure:
-  {
-    dependencies {
-      // Exclude provided and transient dependencies
-      project.configurations.provided.getResolvedConfiguration()
-          .getLenientConfiguration().getAllModuleDependencies().each {
-        exclude(dependency(it.getModuleGroup() + ":" + it.getModuleName() + ":.*"))
+    classesTriggerCheckerBugs: [
+      'AssignWindowsRunner': 'https://github.com/typetools/checker-framework/issues/3794',
+      'WindowMergingFnRunner': 'https://github.com/typetools/checker-framework/issues/3794',
+      'FnApiDoFnRunner': 'https://github.com/typetools/checker-framework/issues/5436',
+    ],
+    automaticModuleName: 'org.apache.beam.fn.harness',
+    testShadowJar: true,
+    shadowJarValidationExcludes: [
+      "avro/shaded/com/google/**",
+      "com/thoughtworks/paranamer/**",
+      "junit/**",
+      "io/github/classgraph/**",
+      "nonapi/io/github/classgraph/**",
+      "org/apache/avro/**",
+      "org/apache/beam/fn/harness/**",
+      "org/apache/beam/model/fnexecution/**",
+      "org/apache/beam/runners/core/**",
+      "org/apache/beam/runners/core/construction/**",
+      "org/apache/beam/sdk/extensions/avro/**",
+      "org/apache/beam/sdk/fn/**",
+      "org/apache/commons/**",
+      "org/checkerframework/**",
+      "org/codehaus/jackson/**",
+      "org/hamcrest/**",
+      "org/junit/**",
+      "org/tukaani/xz/**",
+    ],
+    shadowClosure: {
+      dependencies {
+        // Exclude provided and transient dependencies
+        project.configurations.provided.getResolvedConfiguration()
+            .getLenientConfiguration().getAllModuleDependencies().each {
+              exclude(dependency(it.getModuleGroup() + ":" + it.getModuleName() + ":.*"))
+            }
       }
-    }
-  },
-)
+    },
+    )
 
 description = "Apache Beam :: SDKs :: Java :: Harness"
 ext.summary = "This contains the SDK Fn Harness for Beam Java"

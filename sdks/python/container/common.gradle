@@ -38,8 +38,8 @@ def generatePythonRequirements = tasks.register("generatePythonRequirements") {
     exec {
       executable 'sh'
       args '-c', "cd ${rootDir} && ${runScriptsPath} " +
-              "${project.ext.pythonVersion} " +
-              "${files(configurations.sdkSourceTarball.files).singleFile} " + "${pipExtraOptions}"
+          "${project.ext.pythonVersion} " +
+          "${files(configurations.sdkSourceTarball.files).singleFile} " + "${pipExtraOptions}"
     }
   }
 }
@@ -49,7 +49,7 @@ def copyDockerfileDependencies = tasks.register("copyDockerfileDependencies", Co
   from file("base_image_requirements.txt")
   into "build/target"
   if(configurations.sdkSourceTarball.isEmpty()) {
-      throw new StopExecutionException();
+    throw new StopExecutionException();
   }
 }
 
@@ -66,7 +66,7 @@ def copyLauncherDependencies = tasks.register("copyLauncherDependencies", Copy) 
   mustRunAfter "copyLicenses"
 
   if(configurations.pythonHarnessLauncher.isEmpty()) {
-      throw new StopExecutionException();
+    throw new StopExecutionException();
   }
 }
 
@@ -75,18 +75,18 @@ def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.r
 
 docker {
   name containerImageName(
-          name: project.docker_image_default_repo_prefix + "python${project.ext.pythonVersion}_sdk",
-          root: project.rootProject.hasProperty(["docker-repository-root"]) ?
-                  project.rootProject["docker-repository-root"] :
-                  project.docker_image_default_repo_root,
-          tag: project.rootProject.hasProperty(["docker-tag"]) ?
-                  project.rootProject["docker-tag"] : project.sdk_version)
+      name: project.docker_image_default_repo_prefix + "python${project.ext.pythonVersion}_sdk",
+      root: project.rootProject.hasProperty(["docker-repository-root"]) ?
+      project.rootProject["docker-repository-root"] :
+      project.docker_image_default_repo_root,
+      tag: project.rootProject.hasProperty(["docker-tag"]) ?
+      project.rootProject["docker-tag"] : project.sdk_version)
   // tags used by dockerTag task
   tags containerImageTags()
   files "../Dockerfile", "./build"
   buildArgs(['py_version': "${project.ext.pythonVersion}",
-             'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
-                     project.rootProject.hasProperty(["isRelease"])])
+    'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
+    project.rootProject.hasProperty(["isRelease"])])
   buildx useBuildx
   platform(*project.containerPlatforms())
   load useBuildx && !pushContainers

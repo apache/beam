@@ -19,32 +19,32 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
     automaticModuleName: 'org.apache.beam.it.splunk',
-)
+    )
 
 description = "Apache Beam :: IT :: Splunk"
 ext.summary = "Integration test utilities for Splunk."
 
 repositories {
-    mavenCentral()
-    maven {
-        url "https://splunk.jfrog.io/splunk/ext-releases-local"
-    }
+  mavenCentral()
+  maven {
+    url "https://splunk.jfrog.io/splunk/ext-releases-local"
+  }
 }
 
 dependencies {
-    implementation project(path: ":it:testcontainers", configuration: "shadow")
-    implementation project(path: ":it:conditions", configuration: "shadow")
-    implementation project(path: ":it:truthmatchers", configuration: "shadow")
-    implementation project(path: ":sdks:java:io:splunk")
-    implementation 'com.splunk:splunk:1.9.4'
-    implementation 'org.awaitility:awaitility:4.2.0'
-    provided library.java.json_org
+  implementation project(path: ":it:testcontainers", configuration: "shadow")
+  implementation project(path: ":it:conditions", configuration: "shadow")
+  implementation project(path: ":it:truthmatchers", configuration: "shadow")
+  implementation project(path: ":sdks:java:io:splunk")
+  implementation 'com.splunk:splunk:1.9.4'
+  implementation 'org.awaitility:awaitility:4.2.0'
+  provided library.java.json_org
 
-    testImplementation library.java.mockito_core
-    // TODO: excluding Guava until Truth updates it to >32.1.x
-    testImplementation(library.java.truth) {
-        exclude group: 'com.google.guava', module: 'guava'
-    }
-    testImplementation library.java.commons_lang3
-    testRuntimeOnly library.java.slf4j_simple
+  testImplementation library.java.mockito_core
+  // TODO: excluding Guava until Truth updates it to >32.1.x
+  testImplementation(library.java.truth) {
+    exclude group: 'com.google.guava', module: 'guava'
+  }
+  testImplementation library.java.commons_lang3
+  testRuntimeOnly library.java.slf4j_simple
 }

@@ -20,12 +20,12 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        exportJavadoc: false,
-        classesTriggerCheckerBugs: [
-                'GroupWithoutRepartition': 'https://github.com/typetools/checker-framework/issues/3791',
-        ],
-        automaticModuleName: 'org.apache.beam.runners.samza',
-)
+    exportJavadoc: false,
+    classesTriggerCheckerBugs: [
+      'GroupWithoutRepartition': 'https://github.com/typetools/checker-framework/issues/3791',
+    ],
+    automaticModuleName: 'org.apache.beam.runners.samza',
+    )
 
 description = "Apache Beam :: Runners :: Samza"
 
@@ -88,37 +88,37 @@ configurations.all {
 }
 
 def sickbayTests = [
-        // TODO(https://github.com/apache/beam/issues/21033)
-        'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInGlobalWindowBatchSizeByteSizeFn',
-        'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode',
-        'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
-        // TODO(https://github.com/apache/beam/issues/21036)
-        'org.apache.beam.sdk.transforms.MapElementsTest.testMapSimpleFunction',
-        // TODO(https://github.com/apache/beam/issues/21035)
-        'org.apache.beam.sdk.transforms.ViewTest.testEmptySingletonSideInput',
-        'org.apache.beam.sdk.transforms.ViewTest.testNonSingletonSideInput',
-        // TODO(https://github.com/apache/beam/issues/21037)
-        'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsBackwardsInTimeShouldThrow',
-        'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsWithNullTimestampShouldThrow',
-        // TODO(https://github.com/apache/beam/issues/21039)
-        'org.apache.beam.sdk.io.FileIOTest*',
-        // TODO(https://github.com/apache/beam/issues/21038)
-        'org.apache.beam.sdk.io.AvroIOTest*',
-        // TODO(https://github.com/apache/beam/issues/21040)
-        'org.apache.beam.sdk.PipelineTest.testEmptyPipeline',
-        // TODO(https://github.com/apache/beam/issues/21041)
-        'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingNPException',
-        'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingIOException',
-        'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingNPException',
-        'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingIOException',
-        // https://github.com/apache/beam/issues/19344
-        'org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest.testTimeBound',
+  // TODO(https://github.com/apache/beam/issues/21033)
+  'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInGlobalWindowBatchSizeByteSizeFn',
+  'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode',
+  'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
+  // TODO(https://github.com/apache/beam/issues/21036)
+  'org.apache.beam.sdk.transforms.MapElementsTest.testMapSimpleFunction',
+  // TODO(https://github.com/apache/beam/issues/21035)
+  'org.apache.beam.sdk.transforms.ViewTest.testEmptySingletonSideInput',
+  'org.apache.beam.sdk.transforms.ViewTest.testNonSingletonSideInput',
+  // TODO(https://github.com/apache/beam/issues/21037)
+  'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsBackwardsInTimeShouldThrow',
+  'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsWithNullTimestampShouldThrow',
+  // TODO(https://github.com/apache/beam/issues/21039)
+  'org.apache.beam.sdk.io.FileIOTest*',
+  // TODO(https://github.com/apache/beam/issues/21038)
+  'org.apache.beam.sdk.io.AvroIOTest*',
+  // TODO(https://github.com/apache/beam/issues/21040)
+  'org.apache.beam.sdk.PipelineTest.testEmptyPipeline',
+  // TODO(https://github.com/apache/beam/issues/21041)
+  'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingNPException',
+  'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingIOException',
+  'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingNPException',
+  'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingIOException',
+  // https://github.com/apache/beam/issues/19344
+  'org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest.testTimeBound',
 ]
 tasks.register("validatesRunner", Test) {
   group = "Verification"
   description "Validates Samza runner"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestSamzaRunner",
+    "--runner=TestSamzaRunner",
   ])
 
   classpath = configurations.validatesRunner
@@ -176,7 +176,7 @@ tasks.register("validatesRunnerSickbay", Test) {
   group = "Verification"
   description "Validates Samza runner (Sickbay Tests)"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestSamzaRunner",
+    "--runner=TestSamzaRunner",
   ])
 
   classpath = configurations.validatesRunner

@@ -20,8 +20,8 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.io.aws2',
-)
+    automaticModuleName: 'org.apache.beam.sdk.io.aws2',
+    )
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -93,8 +93,8 @@ dependencies {
 
 test {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-      '--awsRegion=us-west-2',
-      '--awsCredentialsProvider={"@type": "StaticCredentialsProvider", "accessKeyId": "key_id_value", "secretAccessKey": "secret_value"}'
+    '--awsRegion=us-west-2',
+    '--awsCredentialsProvider={"@type": "StaticCredentialsProvider", "accessKeyId": "key_id_value", "secretAccessKey": "secret_value"}'
   ])
   maxParallelForks 4
 }

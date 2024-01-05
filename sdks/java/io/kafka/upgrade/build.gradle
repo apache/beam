@@ -18,27 +18,27 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.io.kafka.upgrade',
-)
+    automaticModuleName: 'org.apache.beam.sdk.io.kafka.upgrade',
+    )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Kafka :: Upgrade"
 ext.summary = "Library to support upgrading Kafka transforms without upgrading the pipeline."
 
 dependencies {
-    implementation project(path: ":model:pipeline", configuration: "shadow")
-    implementation project(":sdks:java:io:kafka")
-    implementation library.java.vendored_grpc_1_54_0
-    implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(":sdks:java:io:kafka")
+  implementation library.java.vendored_grpc_1_54_0
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
 
-    implementation library.java.vendored_guava_32_1_2_jre
-    implementation project(":runners:core-construction-java")
-    implementation project(":sdks:java:expansion-service")
-    permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
-    permitUnusedDeclared project(":model:pipeline")
-    implementation library.java.joda_time
-    // Get back to "provided" since 2.14
-    provided library.java.kafka_clients
-    testImplementation library.java.junit
-    testImplementation library.java.kafka_clients
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation project(":runners:core-construction-java")
+  implementation project(":sdks:java:expansion-service")
+  permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
+  permitUnusedDeclared project(":model:pipeline")
+  implementation library.java.joda_time
+  // Get back to "provided" since 2.14
+  provided library.java.kafka_clients
+  testImplementation library.java.junit
+  testImplementation library.java.kafka_clients
 
 }

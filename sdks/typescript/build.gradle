@@ -27,19 +27,23 @@ configurations {
 def tarballName = "apache-beam.tgz"
 
 def typescriptSdkDeps = project.files(
-          project.fileTree(
-          dir: "${project.rootDir}",
-          include: ['model/**', 'sdks/typescript/src/**', 'sdks/typescript/*.json'],
-          // Exclude temporary directories and files that are generated
-          // during build and test.
-          exclude: [
-            '**/build/**',
-            '**/dist/**',
-            '**/target/**',
-            '**/.gogradle/**',
-            '**/reports/test/index.html',
-          ])
-          )
+    project.fileTree(
+    dir: "${project.rootDir}",
+    include: [
+      'model/**',
+      'sdks/typescript/src/**',
+      'sdks/typescript/*.json'
+    ],
+    // Exclude temporary directories and files that are generated
+    // during build and test.
+    exclude: [
+      '**/build/**',
+      '**/dist/**',
+      '**/target/**',
+      '**/.gogradle/**',
+      '**/reports/test/index.html',
+    ])
+    )
 
 def pack = tasks.register("pack") {
 

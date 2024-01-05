@@ -52,10 +52,13 @@ goBuild {
 // command: ./gradlew generateLicenseReport
 import com.github.jk1.license.render.*
 licenseReport {
-  projects = [project,
-              project.rootProject.findProject(':sdks:java:harness')]
+  projects = [
+    project,
+    project.rootProject.findProject(':sdks:java:harness')
+  ]
   excludeOwnGroup = true
-  excludeGroups = ["beam.*"] // project dependencies do not match their maven coords
+  excludeGroups = [
+    "beam.*"] // project dependencies do not match their maven coords
   configurations = ALL
   renderers = [new JsonReportRenderer()]
 }

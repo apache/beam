@@ -18,14 +18,14 @@
 plugins { id 'org.apache.beam.module' }
 
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdks.extensions.sql.expansion',
-  validateShadowJar: false,
-  shadowClosure: {
-    manifest {
-      attributes "Main-Class": "org.apache.beam.sdk.expansion.service.ExpansionService"
+    automaticModuleName: 'org.apache.beam.sdks.extensions.sql.expansion',
+    validateShadowJar: false,
+    shadowClosure: {
+      manifest {
+        attributes "Main-Class": "org.apache.beam.sdk.expansion.service.ExpansionService"
+      }
     }
-  }
-)
+    )
 
 description = "Apache Beam :: SDKs :: Java :: SQL :: Expansion Service"
 ext.summary = """Contains code to run a SQL Expansion Service."""
@@ -44,5 +44,7 @@ dependencies {
 task runExpansionService (type: JavaExec) {
   mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
   classpath = sourceSets.main.runtimeClasspath
-  args = [project.findProperty("constructionService.port") ?: "8097"]
+  args = [
+    project.findProperty("constructionService.port") ?: "8097"
+  ]
 }

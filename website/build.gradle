@@ -83,7 +83,7 @@ task createDockerContainer(type: Exec) {
       extraOptions += " -u \$(id -u):\$(id -g)"
     }
     commandLine '/bin/bash', '-c',
-      "docker create -v $project.rootDir:$dockerWorkDir $extraOptions $dockerImageTag sh -c 'trap \"exit 0\" INT; while true; do sleep 30; done;'"
+        "docker create -v $project.rootDir:$dockerWorkDir $extraOptions $dockerImageTag sh -c 'trap \"exit 0\" INT; while true; do sleep 30; done;'"
   }
 }
 
@@ -93,26 +93,26 @@ task startDockerContainer(type: Exec) {
     return createDockerContainer.containerId()
   }
   commandLine 'docker', 'start',
-    "${->createDockerContainer.containerId()}" // Lazily evaluate containerId.
+      "${->createDockerContainer.containerId()}" // Lazily evaluate containerId.
 }
 
 // Clone Docsy submodule which is our Hugo theme
 task initGitSubmodules(type: Exec) {
-    commandLine 'docker', 'exec',
-                "${->startDockerContainer.containerId()}", 'git',  'submodule', 'update', '--init',  '--recursive'
+  commandLine 'docker', 'exec',
+      "${->startDockerContainer.containerId()}", 'git',  'submodule', 'update', '--init',  '--recursive'
 }
 
 // Install yarn dependencies
 task installDependencies(type: Exec) {
-    commandLine 'docker', 'exec', '--workdir', "$dockerSourceDir",
-                "${->startDockerContainer.containerId()}", 'yarn', 'install'
+  commandLine 'docker', 'exec', '--workdir', "$dockerSourceDir",
+      "${->startDockerContainer.containerId()}", 'yarn', 'install'
 }
 
 // Run build_code_samples.sh to fetch Beam project content
 // which is used by code_sample shortcodes to inject snippets into codeblocks
 task buildCodeSamples(type: Exec) {
   commandLine 'docker', 'exec', '--workdir', "$dockerSourceDir",
-              "${->startDockerContainer.containerId()}", 'yarn', 'build_code_samples'
+      "${->startDockerContainer.containerId()}", 'yarn', 'build_code_samples'
 }
 
 task setupDockerContainer(type: Exec) {
@@ -124,8 +124,8 @@ task setupDockerContainer(type: Exec) {
 
   // Create the config to point to a GitHub or Colab blob in the repo, e.g. apache/beam/blob/master
   commandLine 'docker', 'exec',
-    "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
-    """echo '[params]\n  branch_repo = "${getBranchRepo()}"' > /tmp/_config_branch_repo.toml"""
+      "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
+      """echo '[params]\n  branch_repo = "${getBranchRepo()}"' > /tmp/_config_branch_repo.toml"""
 }
 
 task stopAndRemoveDockerContainer(type: Exec) {
@@ -152,8 +152,8 @@ def createBuildTask = {
     def configs = "$dockerSourceDir/site/config.toml"
     def baseUrlFlag = config.baseUrl ? "--baseURL /${config.baseUrl}" : ""
     commandLine 'docker', 'exec',
-      "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
-      """cd $dockerSourceDir && \
+        "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
+        """cd $dockerSourceDir && \
         yarn build \
         -d $dockerBuildDir/generated-${config.name.toLowerCase()}-content \
         --config $configs \
@@ -164,21 +164,21 @@ def createBuildTask = {
 
 // task buildLocalWebsite
 createBuildTask(
-  name:'Local',
-)
+    name:'Local',
+    )
 task buildWebsite(dependsOn:buildLocalWebsite)
 build.dependsOn buildWebsite
 
 // task buildGcsWebsite
 createBuildTask(
-  name:'Gcs',
-  baseUrl: getBaseUrl(),
-)
+    name:'Gcs',
+    baseUrl: getBaseUrl(),
+    )
 
 // task buildApacheWebsite
 createBuildTask(
-  name:'Apache',
-)
+    name:'Apache',
+    )
 
 /**
  * Use the pull request ID in the URL path, or the git branch when building locally.
@@ -238,8 +238,8 @@ task serveWebsite(type: Exec) {
   dependsOn setupDockerContainer
   finalizedBy stopAndRemoveDockerContainer
   commandLine 'docker', 'exec',
-    "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
-    """cd $dockerSourceDir && \
+      "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
+      """cd $dockerSourceDir && \
       yarn develop \
       --bind="0.0.0.0" \
       --config $dockerSourceDir/site/config.toml,/tmp/_config_branch_repo.toml
@@ -251,8 +251,8 @@ task testWebsite(type: Exec) {
   finalizedBy stopAndRemoveDockerContainer
 
   commandLine 'docker', 'exec',
-    "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
-    "$dockerSourceDir/check-links.sh $dockerBuildDir/generated-local-content"
+      "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
+      "$dockerSourceDir/check-links.sh $dockerBuildDir/generated-local-content"
 }
 
 testWebsite.dependsOn 'buildLocalWebsite'
@@ -280,7 +280,9 @@ task commitWebsite {
     git.checkout(branch: 'asf-site')
 
     // Delete the previous content. These are asf-site branch paths.
-    git.remove(patterns: [ 'website/generated-content' ])
+    git.remove(patterns: [
+      'website/generated-content'
+    ])
     def repoContentDir = "${project.rootDir}/website/generated-content"
     assert !file("${repoContentDir}/index.html").exists()
     delete repoContentDir

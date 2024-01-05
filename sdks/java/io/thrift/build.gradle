@@ -17,48 +17,46 @@
  */
 
 plugins {
-    id 'org.apache.beam.module'
-    // id "org.jruyi.thrift" version "0.4.1"
+  id 'org.apache.beam.module'
+  // id "org.jruyi.thrift" version "0.4.1"
 }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.io.thrift',
-        generatedClassPatterns: [
-                /^org\.apache\.beam\.sdk\.io\.thrift\.payloads.*/,
-                /^org\.apache\.beam\.sdk\.io\.thrift\.TestThriftStruct/,
-                /^org\.apache\.beam\.sdk\.io\.thrift\.TestThriftInnerStruct/,
-                /^org\.apache\.beam\.sdk\.io\.thrift\.TestThriftEnum/,
-                /^org\.apache\.beam\.sdk\.io\.thrift\.TestThriftUnion/,
-        ],
-)
+    automaticModuleName: 'org.apache.beam.sdk.io.thrift',
+    generatedClassPatterns: [
+      (/^org\.apache\.beam\.sdk\.io\.thrift\.payloads.*/),
+      (/^org\.apache\.beam\.sdk\.io\.thrift\.TestThriftStruct/),
+      (/^org\.apache\.beam\.sdk\.io\.thrift\.TestThriftInnerStruct/),
+      (/^org\.apache\.beam\.sdk\.io\.thrift\.TestThriftEnum/),
+      (/^org\.apache\.beam\.sdk\.io\.thrift\.TestThriftUnion/),
+    ],
+    )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Thrift"
 ext.summary = "IO to read and write Thrift encoded data files"
 
 dependencies {
-    implementation library.java.vendored_guava_32_1_2_jre
-    implementation library.java.slf4j_api
-    implementation "org.apache.thrift:libthrift:0.14.1"
-    implementation project(path: ":sdks:java:core", configuration: "shadow")
-    testImplementation library.java.junit
-    testRuntimeOnly library.java.slf4j_jdk14
-    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-    testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation library.java.slf4j_api
+  implementation "org.apache.thrift:libthrift:0.14.1"
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  testImplementation library.java.junit
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
 }
 /*
-Removed due to lack of Thrift on Jenkins workers.
-compileThrift {
-    createGenFolder false
-    sourceDir "$projectDir/src/test/resources/thrift"
-    generator 'java'
-}
-
-task copyThrift(type: Copy) {
-    dependsOn(compileThrift)
-    from file("$buildDir/generated-sources/thrift/test_thrift/TestThriftStruct.java")
-    into file("$projectDir/src/test/java/org/apache/beam/sdk/io/thrift/TestThriftStruct.java")
-}
-
-compileTestJava {
-    doFirst { copyThrift }
-}
-*/
+ Removed due to lack of Thrift on Jenkins workers.
+ compileThrift {
+ createGenFolder false
+ sourceDir "$projectDir/src/test/resources/thrift"
+ generator 'java'
+ }
+ task copyThrift(type: Copy) {
+ dependsOn(compileThrift)
+ from file("$buildDir/generated-sources/thrift/test_thrift/TestThriftStruct.java")
+ into file("$projectDir/src/test/java/org/apache/beam/sdk/io/thrift/TestThriftStruct.java")
+ }
+ compileTestJava {
+ doFirst { copyThrift }
+ }
+ */

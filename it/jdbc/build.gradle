@@ -18,27 +18,27 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.it.jdbc',
-        enableSpotbugs: false,
-)
+    automaticModuleName: 'org.apache.beam.it.jdbc',
+    enableSpotbugs: false,
+    )
 
 description = "Apache Beam :: IT :: Jdbc"
 ext.summary = "Integration test utilities for Jdbc."
 
 dependencies {
-    implementation project(path: ":it:testcontainers", configuration: "shadow")
-    implementation library.java.testcontainers_jdbc
-    implementation library.java.testcontainers_postgresql
-    implementation library.java.testcontainers_mysql
-    implementation library.java.testcontainers_oracle
-    implementation library.java.testcontainers_mssqlserver
+  implementation project(path: ":it:testcontainers", configuration: "shadow")
+  implementation library.java.testcontainers_jdbc
+  implementation library.java.testcontainers_postgresql
+  implementation library.java.testcontainers_mysql
+  implementation library.java.testcontainers_oracle
+  implementation library.java.testcontainers_mssqlserver
 
-    testImplementation project(":it:truthmatchers")
-    // TODO: excluding Guava until Truth updates it to >32.1.x
-    testImplementation(library.java.truth) {
-        exclude group: 'com.google.guava', module: 'guava'
-    }
-    testImplementation library.java.mockito_core
-    testImplementation library.java.mockito_inline
-    testRuntimeOnly library.java.slf4j_simple
+  testImplementation project(":it:truthmatchers")
+  // TODO: excluding Guava until Truth updates it to >32.1.x
+  testImplementation(library.java.truth) {
+    exclude group: 'com.google.guava', module: 'guava'
+  }
+  testImplementation library.java.mockito_core
+  testImplementation library.java.mockito_inline
+  testRuntimeOnly library.java.slf4j_simple
 }

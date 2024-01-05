@@ -25,15 +25,15 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Neo4j"
 ext.summary = "IO to read from and write to Neo4j graphs"
 
 dependencies {
-    implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation "org.neo4j.driver:neo4j-java-driver:4.4.3"
-    implementation library.java.slf4j_api
-    implementation library.java.vendored_guava_32_1_2_jre
-    testImplementation library.java.junit
-    testImplementation library.java.hamcrest
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
-    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
-    testImplementation "org.testcontainers:neo4j:1.16.2"
-    testRuntimeOnly library.java.slf4j_jdk14
-    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation "org.neo4j.driver:neo4j-java-driver:4.4.3"
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_guava_32_1_2_jre
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+  testImplementation "org.testcontainers:neo4j:1.16.2"
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

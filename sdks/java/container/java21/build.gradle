@@ -17,12 +17,12 @@
  */
 
 project.ext {
-    imageJavaVersion = '21'
+  imageJavaVersion = '21'
 }
 
 // Load the main build script which contains all build logic.
 apply from: "../common.gradle"
 
 dependencies {
-    dockerDependency project(path: ":sdks:java:container:agent")
+  dockerDependency project(path: ":sdks:java:container:agent")
 }

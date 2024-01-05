@@ -18,27 +18,27 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.it.kafka',
-)
+    automaticModuleName: 'org.apache.beam.it.kafka',
+    )
 
 description = "Apache Beam :: IT :: Kafka"
 ext.summary = "Integration test utilities for Kafka."
 
 dependencies {
-    implementation project(path: ":it:testcontainers", configuration: "shadow")
-    implementation library.java.testcontainers_kafka
-    implementation library.java.kafka_clients
+  implementation project(path: ":it:testcontainers", configuration: "shadow")
+  implementation library.java.testcontainers_kafka
+  implementation library.java.kafka_clients
 
-    // TODO: excluding Guava until Truth updates it to >32.1.x
-    testImplementation(library.java.truth) {
-        exclude group: 'com.google.guava', module: 'guava'
-    }
-    testImplementation library.java.mockito_core
-    testRuntimeOnly library.java.slf4j_simple
-    // TODO: Remove the below dependencies after KafkaIOLT has been moved to the right directory.
-    testImplementation project(path: ":it:google-cloud-platform")
-    testImplementation project(path: ":sdks:java:io:kafka")
-    testImplementation project(path: ":sdks:java:io:synthetic")
-    testImplementation project(path: ":runners:direct-java")
-    testImplementation project(path: ":sdks:java:testing:test-utils")
+  // TODO: excluding Guava until Truth updates it to >32.1.x
+  testImplementation(library.java.truth) {
+    exclude group: 'com.google.guava', module: 'guava'
+  }
+  testImplementation library.java.mockito_core
+  testRuntimeOnly library.java.slf4j_simple
+  // TODO: Remove the below dependencies after KafkaIOLT has been moved to the right directory.
+  testImplementation project(path: ":it:google-cloud-platform")
+  testImplementation project(path: ":sdks:java:io:kafka")
+  testImplementation project(path: ":sdks:java:io:synthetic")
+  testImplementation project(path: ":runners:direct-java")
+  testImplementation project(path: ":sdks:java:testing:test-utils")
 }

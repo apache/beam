@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 project.ext {
-    delimited="0.11.0.3"
-    undelimited="01103"
-    sdfCompatible=false
+  delimited="0.11.0.3"
+  undelimited="01103"
+  sdfCompatible=false
 }
 
 apply from: "../kafka-integration-test.gradle"

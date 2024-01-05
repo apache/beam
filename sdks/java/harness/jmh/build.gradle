@@ -19,44 +19,44 @@
 plugins { id 'org.apache.beam.module' }
 
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.fn.harness.jmh',
-        enableJmh: true,
-        publish: false)
+    automaticModuleName: 'org.apache.beam.fn.harness.jmh',
+    enableJmh: true,
+    publish: false)
 
 description = "Apache Beam :: SDKs :: Java :: Harness :: JMH"
 ext.summary = "This contains JMH benchmarks for the SDK Fn Harness for Beam Java"
 
 configurations {
-    jammAgent
+  jammAgent
 }
 
 dependencies {
-    implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation project(path: ":sdks:java:harness", configuration: "shadow")
-    implementation project(path: ":runners:java-fn-execution")
-    implementation project(path: ":model:pipeline", configuration: "shadow")
-    implementation library.java.vendored_grpc_1_54_0
-    implementation library.java.vendored_guava_32_1_2_jre
-    implementation library.java.slf4j_api
-    implementation library.java.joda_time
-    runtimeOnly library.java.slf4j_jdk14
-    jammAgent library.java.jamm
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":sdks:java:harness", configuration: "shadow")
+  implementation project(path: ":runners:java-fn-execution")
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation library.java.vendored_grpc_1_54_0
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation library.java.slf4j_api
+  implementation library.java.joda_time
+  runtimeOnly library.java.slf4j_jdk14
+  jammAgent library.java.jamm
 }
 
 jmh {
-    configurations.jammAgent.resolvedConfiguration.files.each {
-        jvmArgs '-javaagent:' + it
-    }
+  configurations.jammAgent.resolvedConfiguration.files.each {
+    jvmArgs '-javaagent:' + it
+  }
 }
 
 jmhTest {
-    configurations.jammAgent.resolvedConfiguration.files.each {
-        jvmArgs '-javaagent:' + it
-    }
+  configurations.jammAgent.resolvedConfiguration.files.each {
+    jvmArgs '-javaagent:' + it
+  }
 }
 
 test {
-    configurations.jammAgent.resolvedConfiguration.files.each {
-        jvmArgs '-javaagent:' + it
-    }
+  configurations.jammAgent.resolvedConfiguration.files.each {
+    jvmArgs '-javaagent:' + it
+  }
 }

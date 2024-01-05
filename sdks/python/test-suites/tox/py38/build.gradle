@@ -48,7 +48,7 @@ apply from: "../common.gradle"
 // PyCoverage Precommit runs test suites that evaluate test coverage and compatibility of
 // particular dependencies. It is exercised on a single Python version.
 project.tasks.register("preCommitPyCoverage") {
-      dependsOn = ["testPy38CloudCoverage"]
+  dependsOn = ["testPy38CloudCoverage"]
 }
 
 // Create a test task for each supported major version of pyarrow

@@ -29,22 +29,22 @@ configurations {
 }
 
 dependencies {
- dockerDependency project(path: ":sdks:python", configuration: "distTarBall")
+  dockerDependency project(path: ":sdks:python", configuration: "distTarBall")
 }
 
 task copyDockerfileDependencies(type: Copy) {
-    from configurations.dockerDependency
-    rename 'apache-beam.*tar.gz', 'apache-beam-sdk.tar.gz'
-    setDuplicatesStrategy(DuplicatesStrategy.INCLUDE)
-    into "build/target"
+  from configurations.dockerDependency
+  rename 'apache-beam.*tar.gz', 'apache-beam-sdk.tar.gz'
+  setDuplicatesStrategy(DuplicatesStrategy.INCLUDE)
+  into "build/target"
 }
 
 task copyRequirementsFile(type: Copy) {
-    from project(':sdks:python:container:py38').fileTree("./")
-    include 'base_image_requirements.txt'
-    rename 'base_image_requirements.txt', 'requirements.txt'
-    setDuplicatesStrategy(DuplicatesStrategy.INCLUDE)
-    into "build/target"
+  from project(':sdks:python:container:py38').fileTree("./")
+  include 'base_image_requirements.txt'
+  rename 'base_image_requirements.txt', 'requirements.txt'
+  setDuplicatesStrategy(DuplicatesStrategy.INCLUDE)
+  into "build/target"
 }
 
 goBuild {
@@ -53,8 +53,8 @@ goBuild {
 }
 
 def copyLicenseScripts = tasks.register("copyLicenseScripts", Copy){
-    from project(':sdks:python:container').fileTree("./license_scripts")
-    into "build/target/license_scripts"
+  from project(':sdks:python:container').fileTree("./license_scripts")
+  into "build/target/license_scripts"
 }
 
 def useBuildx = project.containerPlatforms() != [project.nativeArchitecture()]
@@ -62,12 +62,12 @@ def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.r
 
 docker {
   name containerImageName(
-          name: project.docker_image_default_repo_prefix + "python_expansion_service",
-          root: project.rootProject.hasProperty(["docker-repository-root"]) ?
-                  project.rootProject["docker-repository-root"] :
-                  project.docker_image_default_repo_root,
-          tag: project.rootProject.hasProperty(["docker-tag"]) ?
-                  project.rootProject["docker-tag"] : project.sdk_version)
+      name: project.docker_image_default_repo_prefix + "python_expansion_service",
+      root: project.rootProject.hasProperty(["docker-repository-root"]) ?
+      project.rootProject["docker-repository-root"] :
+      project.docker_image_default_repo_root,
+      tag: project.rootProject.hasProperty(["docker-tag"]) ?
+      project.rootProject["docker-tag"] : project.sdk_version)
   // tags used by dockerTag task
   tags containerImageTags()
   files "./build"
@@ -83,19 +83,19 @@ dockerPrepare.dependsOn copyRequirementsFile
 dockerPrepare.dependsOn copyLicenseScripts
 
 if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
-    def copyGolangLicenses = tasks.register("copyGolangLicenses", Copy) {
-        from "${project(':release:go-licenses:py').buildDir}/output"
-        into "build/target/go-licenses"
-        dependsOn ':release:go-licenses:py:createLicenses'
-    }
-    dockerPrepare.dependsOn copyGolangLicenses
+  def copyGolangLicenses = tasks.register("copyGolangLicenses", Copy) {
+    from "${project(':release:go-licenses:py').buildDir}/output"
+    into "build/target/go-licenses"
+    dependsOn ':release:go-licenses:py:createLicenses'
+  }
+  dockerPrepare.dependsOn copyGolangLicenses
 } else {
-    def skipPullLicenses = tasks.register("skipPullLicenses", Exec) {
-        executable "sh"
-        // Touch a dummy file to ensure the directory exists.
-        args "-c", "mkdir -p build/target/go-licenses && touch build/target/go-licenses/skip"
-    }
-    dockerPrepare.dependsOn skipPullLicenses
+  def skipPullLicenses = tasks.register("skipPullLicenses", Exec) {
+    executable "sh"
+    // Touch a dummy file to ensure the directory exists.
+    args "-c", "mkdir -p build/target/go-licenses && touch build/target/go-licenses/skip"
+  }
+  dockerPrepare.dependsOn skipPullLicenses
 }
 
 task pushAll {

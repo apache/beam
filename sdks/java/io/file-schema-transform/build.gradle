@@ -18,8 +18,8 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.io.fileschematransform'
-)
+    automaticModuleName: 'org.apache.beam.sdk.io.fileschematransform'
+    )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: File Schema Transform"
 ext.summary = "Defines transforms for File reading and writing support with Schema Transform"
@@ -27,34 +27,34 @@ ext.summary = "Defines transforms for File reading and writing support with Sche
 // Don't pull in newer versions of the checker framework from dependencies.
 // TODO(BEAM-11125) Remove this when Beam upgrades to newest checker framework version.
 configurations.implementation {
-    resolutionStrategy {
-        force library.java.checker_qual
-    }
+  resolutionStrategy {
+    force library.java.checker_qual
+  }
 }
 
 def parquet_version = "1.12.0"
 
 dependencies {
-    implementation library.java.avro
-    implementation library.java.commons_csv
-    implementation library.java.jaxb_api
-    implementation library.java.joda_time
-    implementation library.java.vendored_guava_32_1_2_jre
-    implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation project(":sdks:java:extensions:avro")
-    implementation project(path: ":sdks:java:io:csv")
-    implementation project(path: ":sdks:java:io:parquet")
-    implementation "org.apache.parquet:parquet-common:$parquet_version"
-    implementation project(path: ":sdks:java:io:xml")
-    implementation library.java.slf4j_api
-    // everit_json_schema is needed for JsonReadSchemaTransform that relies on JSON-schema translation.
-    permitUnusedDeclared library.java.everit_json_schema
-    provided library.java.everit_json_schema
+  implementation library.java.avro
+  implementation library.java.commons_csv
+  implementation library.java.jaxb_api
+  implementation library.java.joda_time
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:extensions:avro")
+  implementation project(path: ":sdks:java:io:csv")
+  implementation project(path: ":sdks:java:io:parquet")
+  implementation "org.apache.parquet:parquet-common:$parquet_version"
+  implementation project(path: ":sdks:java:io:xml")
+  implementation library.java.slf4j_api
+  // everit_json_schema is needed for JsonReadSchemaTransform that relies on JSON-schema translation.
+  permitUnusedDeclared library.java.everit_json_schema
+  provided library.java.everit_json_schema
 
-    testImplementation library.java.junit
-    testImplementation project(path: ":sdks:java:core", configuration: "shadow")
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
-    testImplementation project(path: ":sdks:java:io:parquet")
-    testImplementation project(path: ":sdks:java:io:xml")
-    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  testImplementation library.java.junit
+  testImplementation project(path: ":sdks:java:core", configuration: "shadow")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:parquet")
+  testImplementation project(path: ":sdks:java:io:xml")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

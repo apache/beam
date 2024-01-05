@@ -17,37 +17,37 @@
  */
 
 plugins {
-   id 'org.apache.beam.module'
-   id 'distribution'
+  id 'org.apache.beam.module'
+  id 'distribution'
 }
 
 applyJavaNature(exportJavadoc: false, publish: false)
 
 distZip {
-   archiveFileName = "${archiveBaseName.get()}.zip"
+  archiveFileName = "${archiveBaseName.get()}.zip"
 }
 
 distTar {
-   archiveFileName = "${archiveBaseName.get()}.tar"
+  archiveFileName = "${archiveBaseName.get()}.tar"
 }
 
 dependencies {
-   implementation 'io.github.embeddedkafka:embedded-kafka_2.11:2.4.1.1'
-   implementation 'org.scala-lang:scala-library:2.11.12'
+  implementation 'io.github.embeddedkafka:embedded-kafka_2.11:2.4.1.1'
+  implementation 'org.scala-lang:scala-library:2.11.12'
 }
 
 jar {
-   manifest {
-      attributes 'Main-Class': 'org.apache.beam.playground.KafkaEmulator'
-      attributes 'Class-Path': configurations.runtimeClasspath.collect { it.getName() }.join(' ')
-   }
+  manifest {
+    attributes 'Main-Class': 'org.apache.beam.playground.KafkaEmulator'
+    attributes 'Class-Path': configurations.runtimeClasspath.collect { it.getName() }.join(' ')
+  }
 }
 
 distributions {
-   main {
-      contents {
-         from jar
-         from(project.configurations.runtimeClasspath)
-      }
-   }
+  main {
+    contents {
+      from jar
+      from(project.configurations.runtimeClasspath)
+    }
+  }
 }

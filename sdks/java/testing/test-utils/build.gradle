@@ -21,7 +21,7 @@ applyJavaNature(
     exportJavadoc: false,
     automaticModuleName: 'org.apache.beam.sdk.testutils',
     archivesBaseName: 'beam-sdks-java-test-utils'
-)
+    )
 
 description = "Apache Beam :: SDKs :: Java :: Test Utils"
 

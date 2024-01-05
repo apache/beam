@@ -17,13 +17,13 @@
  */
 
 plugins {
-    id 'java'
-    id 'org.apache.beam.module'
+  id 'java'
+  id 'org.apache.beam.module'
 }
 
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.io.sparkreceiver',
-)
+    automaticModuleName: 'org.apache.beam.sdk.io.sparkreceiver',
+    )
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -32,27 +32,27 @@ ext.summary = """Apache Beam SDK provides a simple, Java-based
 interface for streaming integration with CDAP plugins."""
 
 configurations.all {
-    exclude group: 'ch.qos.logback', module: 'logback-classic'
-    exclude group: 'org.slf4j', module: 'slf4j-jdk14'
-    exclude group: 'org.slf4j', module: 'slf4j-log4j12'
-    exclude group: 'org.slf4j', module: 'slf4j-reload4j'
-    exclude group: "org.slf4j", module: "jul-to-slf4j"
+  exclude group: 'ch.qos.logback', module: 'logback-classic'
+  exclude group: 'org.slf4j', module: 'slf4j-jdk14'
+  exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+  exclude group: 'org.slf4j', module: 'slf4j-reload4j'
+  exclude group: "org.slf4j", module: "jul-to-slf4j"
 }
 
 dependencies {
-    implementation library.java.commons_lang3
-    implementation library.java.joda_time
-    implementation library.java.slf4j_api
-    implementation library.java.spark_streaming
-    implementation library.java.spark_core
-    implementation library.java.vendored_guava_32_1_2_jre
-    implementation project(path: ":sdks:java:core", configuration: "shadow")
-    compileOnly "org.scala-lang:scala-library:2.11.12"
-    testImplementation library.java.junit
-    testImplementation library.java.testcontainers_rabbitmq
-    testImplementation project(path: ":runners:direct-java", configuration: "shadow")
-    testImplementation project(":sdks:java:io:synthetic")
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
-    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
-    testImplementation "com.rabbitmq:amqp-client:5.16.0"
+  implementation library.java.commons_lang3
+  implementation library.java.joda_time
+  implementation library.java.slf4j_api
+  implementation library.java.spark_streaming
+  implementation library.java.spark_core
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  compileOnly "org.scala-lang:scala-library:2.11.12"
+  testImplementation library.java.junit
+  testImplementation library.java.testcontainers_rabbitmq
+  testImplementation project(path: ":runners:direct-java", configuration: "shadow")
+  testImplementation project(":sdks:java:io:synthetic")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+  testImplementation "com.rabbitmq:amqp-client:5.16.0"
 }

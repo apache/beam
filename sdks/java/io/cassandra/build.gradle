@@ -20,8 +20,8 @@ plugins { id 'org.apache.beam.module' }
 
 // Do not relocate guava to avoid issues with Cassandra's version.
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.io.cassandra',
-)
+    automaticModuleName: 'org.apache.beam.sdk.io.cassandra',
+    )
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -51,10 +51,10 @@ dependencies {
 }
 
 // Cassandra dependencies require old version of Guava (BEAM-11626)
-configurations.all (Configuration it) -> {
+configurations.all { Configuration it ->
   // error-prone requires newer guava, don't override for annotation processing
   // https://github.com/google/error-prone/issues/2745
-  if (it.name == "annotationProcessor" || it.name =="testAnnotationProcessor") {
+  if (it.name == "annotationProcessor" || it.name == "testAnnotationProcessor") {
     return
   }
   resolutionStrategy {

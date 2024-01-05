@@ -25,9 +25,9 @@ plugins {
 }
 
 applyJavaNature(
-  exportJavadoc: false,
-  automaticModuleName: 'org.apache.beam.examples',
-)
+    exportJavadoc: false,
+    automaticModuleName: 'org.apache.beam.examples',
+    )
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -40,7 +40,11 @@ artifact includes all Apache Beam Java SDK examples."""
  * Some runners are run from separate projects, see the preCommit task below
  * for details.
  */
-def preCommitRunners = ["directRunner", "flinkRunner", "sparkRunner"]
+def preCommitRunners = [
+  "directRunner",
+  "flinkRunner",
+  "sparkRunner"
+]
 for (String runner : preCommitRunners) {
   configurations.create(runner + "PreCommit")
 }
@@ -141,9 +145,9 @@ def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-
 for (String runner : preCommitRunners) {
   tasks.create(name: runner + "PreCommit", type: Test) {
     def preCommitBeamTestPipelineOptions = [
-       "--project=${gcpProject}",
-       "--tempRoot=${gcsTempRoot}",
-       "--runner=" + preCommitRunnerClass[runner],
+      "--project=${gcpProject}",
+      "--tempRoot=${gcsTempRoot}",
+      "--runner=" + preCommitRunnerClass[runner],
     ]
     classpath = configurations."${runner}PreCommit"
     include "**/WordCountIT.class"
