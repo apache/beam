@@ -135,7 +135,7 @@ func TestVariable_Default(t *testing.T) {
 			}
 			got := os.Getenv(tt.v.Key())
 			if got != tt.want {
-				t.Errorf("Default() = %s, want %s", got, tt.want)
+				t.Errorf("def() = %s, want %s", got, tt.want)
 			}
 		})
 	}

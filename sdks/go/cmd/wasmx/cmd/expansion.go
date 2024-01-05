@@ -1,10 +1,23 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cmd
 
 import (
 	"context"
 	"fmt"
-	"github.com/apache/beam/sdks/v2/go/cmd/wasmx/internal/environment"
-	"github.com/apache/beam/sdks/v2/go/cmd/wasmx/internal/udf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/spf13/cobra"
@@ -19,31 +32,15 @@ import (
 )
 
 var (
-	port    environment.Variable = "PORT"
-	address string
-
 	serveCmd = &cobra.Command{
 		Use:     "serve",
-		Short:   "Serve the wasmx expansion service",
+		Short:   "Serve the wasmx expansion expService",
 		PreRunE: servePreE,
 		RunE:    serveE,
 	}
 )
 
-func init() {
-	port.MustDefault("8097")
-}
-
-func servePreE(_ *cobra.Command, _ []string) error {
-	if err := environment.Missing(port); err != nil {
-		return err
-	}
-	p, err := port.Int()
-	address = fmt.Sprintf(":%v", p)
-	return err
-}
-
-func serveE(cmd *cobra.Command, args []string) error {
+func serveE(cmd *cobra.Command, _ []string) error {
 	g := grpc.NewServer()
 	ctx, cancel := signal.NotifyContext(cmd.Context(), os.Interrupt)
 
@@ -51,12 +48,12 @@ func serveE(cmd *cobra.Command, args []string) error {
 	defer cancel()
 
 	errChan := make(chan error)
-	log.Printf("starting wasmx expansion service at %s", address)
+	log.Printf("starting wasmx expansion expService at %s", address)
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		return err
 	}
-	svc := &service{}
+	svc := &expService{}
 	jobmanagement_v1.RegisterExpansionServiceServer(g, svc)
 	healthgrpc.RegisterHealthServer(g, svc)
 
@@ -77,18 +74,18 @@ func serveE(cmd *cobra.Command, args []string) error {
 	}
 }
 
-type service struct {
+type expService struct {
 	jobmanagement_v1.UnimplementedExpansionServiceServer
 	healthgrpc.UnimplementedHealthServer
 }
 
-func (svc *service) Check(ctx context.Context, request *healthgrpc.HealthCheckRequest) (*healthgrpc.HealthCheckResponse, error) {
+func (svc *expService) Check(ctx context.Context, request *healthgrpc.HealthCheckRequest) (*healthgrpc.HealthCheckResponse, error) {
 	return &healthgrpc.HealthCheckResponse{
 		Status: healthgrpc.HealthCheckResponse_SERVING,
 	}, nil
 }
 
-func (svc *service) Watch(request *healthgrpc.HealthCheckRequest, server healthgrpc.Health_WatchServer) error {
+func (svc *expService) Watch(request *healthgrpc.HealthCheckRequest, server healthgrpc.Health_WatchServer) error {
 	resp, err := svc.Check(server.Context(), request)
 	if err != nil {
 		return err
@@ -96,16 +93,16 @@ func (svc *service) Watch(request *healthgrpc.HealthCheckRequest, server healthg
 	return server.Send(resp)
 }
 
-func (svc *service) Expand(ctx context.Context, req *jobmanagement_v1.ExpansionRequest) (*jobmanagement_v1.ExpansionResponse, error) {
+func (svc *expService) Expand(ctx context.Context, req *jobmanagement_v1.ExpansionRequest) (*jobmanagement_v1.ExpansionResponse, error) {
 	if err := isValidExpansionRequestErr(req); err != nil {
 		return nil, err
 	}
-	fn, err := udf.RegistryInMemory.Get(ctx, req.Transform.Spec.Urn)
+	fn, err := registry.Get(ctx, req.Transform.Spec.Urn)
 	if err != nil {
 		return nil, err
 	}
 	transform := &pipeline_v1.PTransform{
-		UniqueName:    "add.wasm",
+		UniqueName:    req.Transform.Spec.Urn,
 		Spec:          fn.FunctionSpec(),
 		Inputs:        map[string]string{"i0": "n1"},
 		Outputs:       map[string]string{"i0": "n2"},
@@ -167,7 +164,7 @@ func (svc *service) Expand(ctx context.Context, req *jobmanagement_v1.ExpansionR
 	}, nil
 }
 
-func (svc *service) DiscoverSchemaTransform(_ context.Context, _ *jobmanagement_v1.DiscoverSchemaTransformRequest) (*jobmanagement_v1.DiscoverSchemaTransformResponse, error) {
+func (svc *expService) DiscoverSchemaTransform(_ context.Context, _ *jobmanagement_v1.DiscoverSchemaTransformRequest) (*jobmanagement_v1.DiscoverSchemaTransformResponse, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
