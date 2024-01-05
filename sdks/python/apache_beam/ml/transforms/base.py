@@ -340,7 +340,12 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
         pcoll.pipeline
         | "MLTransformMetricsUsage" >> MLTransformMetricsUsage(self))
     if self._with_exception_handling:
-      bad_pcoll = self._upstream_errors | beam.Flatten()
+      bad_pcoll = (
+          self._upstream_errors
+          | beam.Flatten()
+          | beam.Map(
+              lambda x: beam.Row(
+                  element=x[0], msg=str(x[1][1]), stack=str(x[1][2]))))
       return pcoll, bad_pcoll
     return pcoll  # type: ignore[return-value]
 
