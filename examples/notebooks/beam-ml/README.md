@@ -52,7 +52,7 @@ This section contains the following example notebooks.
 
 * [Generate text embeddings by using the Vertex AI API](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/data_preprocessing/vertex_ai_text_embeddings.ipynb)
 * [Generate text embeddings by using Hugging Face Hub models](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/data_preprocessing/huggingface_text_embeddings.ipynb)
-* [Compute and Apply Vocabulary on a dataset](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/data_preprocessing/compute_and_apply_vocab.ipynb)
+* [Compute and apply vocabulary on a dataset](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/data_preprocessing/compute_and_apply_vocab.ipynb)
 * [Use MLTransform to scale data](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/data_preprocessing/scale_data.ipynb)
 * [Preprocessing with the Apache Beam DataFrames API](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/dataframe_api_preprocessing.ipynb)
 
