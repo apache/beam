@@ -948,13 +948,13 @@ public class StreamingDataflowWorker {
       final @Nullable Instant outputDataWatermark,
       final @Nullable Instant synchronizedProcessingTime,
       final Work work) {
-    if (work.isFailed()) {
-      LOG.error("crites: Not processing failed work.");
-      return;
-    }
     final Windmill.WorkItem workItem = work.getWorkItem();
     final String computationId = computationState.getComputationId();
     final ByteString key = workItem.getKey();
+    if (work.isFailed()) {
+      LOG.debug("Not processing failed work for {}:\n{}", computationId, work);
+      return;
+    }
     work.setState(State.PROCESSING);
 
     setUpWorkLoggingContext(workItem, computationId);
@@ -1140,14 +1140,14 @@ public class StreamingDataflowWorker {
               synchronizedProcessingTime,
               stateReader,
               localSideInputStateFetcher,
-              outputBuilder);
+              outputBuilder,
+              work::isFailed);
 
       // Blocks while executing work.
       executionState.workExecutor().execute();
 
-      // TODO(crites): Make a custom exception (that doesn't get retried locally).
       if (work.isFailed()) {
-        throw new KeyTokenInvalidException(key.toStringUtf8());
+        throw new WorkItemFailedException(key.toStringUtf8());
       }
       // Reports source bytes processed to WorkItemCommitRequest if available.
       try {
@@ -1241,6 +1241,12 @@ public class StreamingDataflowWorker {
                 + "Work will not be retried locally.",
             computationId,
             key.toStringUtf8());
+      } else if (WorkItemFailedException.isWorkItemFailedException(t)) {
+          LOG.debug(
+              "Execution of work for computation '{}' on key '{}' failed. "
+                  + "Work will not be retried locally.",
+              computationId,
+              key.toStringUtf8());
       } else {
         LastExceptionDataProvider.reportException(t);
         LOG.debug("Failed work: {}", work);
@@ -1879,7 +1885,6 @@ public class StreamingDataflowWorker {
 
   public void handleHeartbeatResponses(List<Windmill.ComputationHeartbeatResponse> responses) {
     for (Windmill.ComputationHeartbeatResponse computationHeartbeatResponse : responses) {
-      LOG.error("crites: got response: " + computationHeartbeatResponse.toString());
       for (Windmill.HeartbeatResponse heartbeatResponse : computationHeartbeatResponse.getHeartbeatResponsesList()) {
         computationMap.get(computationHeartbeatResponse.getComputationId()).failWork(
             heartbeatResponse.getShardingKey(), heartbeatResponse.getWorkToken(), heartbeatResponse.getCacheToken());
@@ -1901,7 +1906,7 @@ public class StreamingDataflowWorker {
         clock.get().minus(Duration.millis(options.getActiveWorkRefreshPeriodMillis()));
 
     for (Map.Entry<String, ComputationState> entry : computationMap.entrySet()) {
-      if (DataflowRunner.hasExperiment(options, "send_new_heartbeat_requests")) {
+      if (windmillServiceEnabled && DataflowRunner.hasExperiment(options, "send_new_heartbeat_requests")) {
         heartbeats.put(entry.getKey(), entry.getValue().getKeyHeartbeats(refreshDeadline));
       } else {
         active.put(entry.getKey(), entry.getValue().getKeysToRefresh(refreshDeadline));

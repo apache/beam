@@ -262,6 +262,8 @@ final class ActiveWorkState {
 
     return workQueue.stream()
         .filter(work -> work.getStartTime().isBefore(refreshDeadline))
+        // Don't send heartbeats for queued work we already know is failed.
+        .filter(work -> !work.isFailed())
         .map(
             work ->
                 Windmill.HeartbeatRequest.newBuilder()

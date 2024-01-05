@@ -135,7 +135,8 @@ public class StreamingModeExecutionContextTest {
         null, // synchronized processing time
         stateReader,
         sideInputStateFetcher,
-        outputBuilder);
+        outputBuilder,
+        null);
 
     TimerInternals timerInternals = stepContext.timerInternals();
 
@@ -185,7 +186,8 @@ public class StreamingModeExecutionContextTest {
         null, // synchronized processing time
         stateReader,
         sideInputStateFetcher,
-        outputBuilder);
+        outputBuilder,
+        null);
     TimerInternals timerInternals = stepContext.timerInternals();
     assertTrue(timerTimestamp.isBefore(timerInternals.currentProcessingTime()));
   }

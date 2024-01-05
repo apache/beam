@@ -415,6 +415,16 @@ class FakeWindmillServer extends WindmillServerStub {
     }
   }
 
+  public Map<Long, WorkItemCommitRequest> waitForAndGetCommitsWithTimeout(int numCommits, Duration timeout) {
+    LOG.debug("waitForAndGetCommitsWithTimeout: {} {}", numCommits, timeout);
+    Instant waitStart = Instant.now();
+    while (commitsReceived.size() < commitsRequested + numCommits && Instant.now().isBefore(waitStart.plus(timeout))) {
+      Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
+    }
+    commitsRequested += numCommits;
+    return commitsReceived;
+  }
+
   public Map<Long, WorkItemCommitRequest> waitForAndGetCommits(int numCommits) {
     LOG.debug("waitForAndGetCommitsRequest: {}", numCommits);
     int maxTries = 10;

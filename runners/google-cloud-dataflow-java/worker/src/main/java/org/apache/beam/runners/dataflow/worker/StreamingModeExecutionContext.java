@@ -145,7 +145,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public boolean workIsFailed() {
-    return this.workIsFailed.get();
+    return workIsFailed.get();
   }
 
   public void start(
@@ -156,9 +156,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       @Nullable Instant synchronizedProcessingTime,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder) {
+      Windmill.WorkItemCommitRequest.Builder outputBuilder,
+      @Nullable Supplier<Boolean> workFailed) {
     this.key = key;
     this.work = work;
+    if (workFailed != null) {
+      this.workIsFailed = workFailed;
+    }
     this.computationKey =
         WindmillComputationKey.create(computationId, work.getKey(), work.getShardingKey());
     this.sideInputStateFetcher = sideInputStateFetcher;

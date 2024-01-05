@@ -109,6 +109,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkResponse;
@@ -3265,7 +3266,7 @@ public class StreamingDataflowWorkerTest {
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),
-            makeDoFnInstruction(new SlowDoFn(), 0, StringUtf8Coder.of()),
+            makeDoFnInstruction(blockingFn, 0, StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
@@ -3274,12 +3275,15 @@ public class StreamingDataflowWorkerTest {
     StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
 
+    // Queue up two work items for the same key.
     server.whenGetWorkCalled()
         .thenReturn(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0), "key", DEFAULT_SHARDING_KEY))
         .thenReturn(makeInput(1, TimeUnit.MILLISECONDS.toMicros(0), "key", DEFAULT_SHARDING_KEY));
     server.waitForEmptyWorkQueue();
-    // Mock Windmill sending a heartbeat response for a failed work item.
-    Windmill.ComputationHeartbeatResponse.Builder failedHeartbeat = Windmill.ComputationHeartbeatResponse.newBuilder();
+
+    // Mock Windmill sending a heartbeat response failing the second work item while the first
+    // is still processing.
+    ComputationHeartbeatResponse.Builder failedHeartbeat = ComputationHeartbeatResponse.newBuilder();
     failedHeartbeat
         .setComputationId(DEFAULT_COMPUTATION_ID)
         .addHeartbeatResponsesBuilder()
@@ -3288,7 +3292,12 @@ public class StreamingDataflowWorkerTest {
         .setShardingKey(DEFAULT_SHARDING_KEY)
         .setFailed(true);
     server.sendFailedHeartbeats(Collections.singletonList(failedHeartbeat.build()));
-    server.waitForAndGetCommits(1);
+
+    // Release the blocked calls.
+    BlockingFn.blocker.countDown();
+    Map<Long, Windmill.WorkItemCommitRequest> commits =
+        server.waitForAndGetCommitsWithTimeout(2, Duration.standardSeconds((5)));
+    assertEquals(1, commits.size());
 
     worker.stop();
   }
