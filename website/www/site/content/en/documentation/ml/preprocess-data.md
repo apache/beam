@@ -27,6 +27,7 @@ available transforms, see the [Transforms](#transforms) section on this page.
 
 -   With `MLTransform`, you can use the same preprocessing steps for both
     training and inference, which ensures consistent results.
+-   Generate [embeddings](https://en.wikipedia.org/wiki/Embedding) on text data using large language models (LLMs).
 -   `MLTransform` can do a full pass on the dataset, which is useful when
     you need to transform a single element only after analyzing the entire
     dataset. For example, with `MLTransform`, you can complete the following tasks:
@@ -39,8 +40,6 @@ available transforms, see the [Transforms](#transforms) section on this page.
     -   Count the occurrences of words in all the documents to calculate
         [TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf)
         weights.
-    -  Generate [embeddings](https://en.wikipedia.org/wiki/Embedding) on text data using large language models (LLMs).
-
 ## Support and limitations {#support}
 
 -   Available in the Apache Beam Python SDK versions 2.53.0 and later.
@@ -50,6 +49,16 @@ available transforms, see the [Transforms](#transforms) section on this page.
 ## Transforms {#transforms}
 
 You can use `MLTransform` to generate text embeddings and to perform various data processing transforms.
+
+### Text embedding transforms
+
+You can use `MLTranform` to generate embeddings that you can use to push data into vector databases or to run inference.
+
+{{< table >}}
+| Transform name | Description |
+| ------- | ---------------|
+| SentenceTransformerEmbeddings | Uses the Hugging Face [`sentence-transformers`](https://huggingface.co/sentence-transformers) models to generate text embeddings.
+| VertexAITextEmbeddings | Uses models from the [the Vertex AI text-embeddings API](https://cloud.google.com/vertex-ai/docs/generative-ai/embeddings/get-text-embeddings) to generate text embeddings.
 
 ### Data processing transforms that use TFT
 
@@ -71,16 +80,6 @@ TensorFlow documentation.
 | ScaleToZScore | See [`tft.scale_to_z_score`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/scale_to_z_score) in the TensorFlow documentation. |
 | TFIDF | See [`tft.tfidf`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/tfidf) in the TensorFlow documentation. |:
 {{< /table >}}
-
-### Text embedding transforms
-
-You can use `MLTranform` to generate embeddings that you can use to push data into vector databases or to run inference.
-
-{{< table >}}
-| Transform name | Description |
-| ------- | ---------------|
-| SentenceTransformerEmbeddings | Uses the Hugging Face [`sentence-transformers`](https://huggingface.co/sentence-transformers) models to generate text embeddings.
-| VertexAITextEmbeddings | Uses models from the [the Vertex AI text-embeddings API](https://cloud.google.com/vertex-ai/docs/generative-ai/embeddings/get-text-embeddings) to generate text embeddings.
 
 ## I/O requirements {#io}
 
