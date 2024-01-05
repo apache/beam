@@ -122,14 +122,13 @@ final class ActiveWorkState {
   }
 
   synchronized void failWorkForKey(long shardedKey, long workToken, long cacheToken) {
-    for (Entry<ShardedKey, Deque<Work>> entry : activeWork.entrySet()) {
-      if (shardedKey == entry.getKey().shardingKey()) {
-        for (Work queuedWork : entry.getValue()) {
-          WorkItem workItem = queuedWork.getWorkItem();
-          if (workItem.getWorkToken() == workToken && workItem.getCacheToken() == cacheToken) {
-            LOG.error("failing work " + shardedKey + " " + workToken + " " + cacheToken);
-            queuedWork.setState(Work.State.FAILED);
-          }
+    Deque<Work> workQueue = activeWork.get(shardedKey);
+    if (workQueue != null) {
+      for (Work queuedWork : workQueue) {
+        WorkItem workItem = queuedWork.getWorkItem();
+        if (workItem.getWorkToken() == workToken && workItem.getCacheToken() == cacheToken) {
+          queuedWork.setState(Work.State.FAILED);
+          break;
         }
       }
     }

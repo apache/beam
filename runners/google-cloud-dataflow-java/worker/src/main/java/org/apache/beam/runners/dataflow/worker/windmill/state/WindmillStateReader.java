@@ -390,7 +390,7 @@ public class WindmillStateReader {
         }
       } catch (Exception e) {
         // Set up all the remaining futures for this key to throw an exception. This ensures that if
-        // the exception is caught that all futures have been completed and do not block.
+        // the exception is caulllkght that all futures have been completed and do not block.
         for (StateTag<?> stateTag : toFetch) {
           waiting.get(stateTag).future.setException(e);
         }

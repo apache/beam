@@ -102,7 +102,6 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
     @Override
     public boolean advance() throws IOException {
       if (context.workIsFailed()) {
-        context.invalidateCache();
         return false;
       }
       return super.advance();

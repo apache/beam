@@ -127,7 +127,6 @@ class FakeWindmillServer extends WindmillServerStub {
   }
 
   public void sendFailedHeartbeats(List<Windmill.ComputationHeartbeatResponse> responses) {
-    LOG.error("sendFailedHeartbeats");
     getDataStream().onHeartbeatResponse(responses);
   }
 
@@ -340,10 +339,6 @@ class FakeWindmillServer extends WindmillServerStub {
 
       @Override
       public void onHeartbeatResponse(List<ComputationHeartbeatResponse> responses) {
-        LOG.error("onHeartbeatResponse");
-        for (ComputationHeartbeatResponse response : responses) {
-          LOG.error("response: " + response);
-        }
         processHeartbeatResponses.accept(responses);
       }
 

@@ -836,11 +836,8 @@ public class WorkerCustomSources {
       while (true) {
         if (elemsRead >= maxElems
             || Instant.now().isAfter(endTime)
-            || context.isSinkFullHintSet()) {
-          return false;
-        }
-        if (context.workIsFailed()) {
-          context.invalidateCache();
+            || context.isSinkFullHintSet()
+            || context.workIsFailed()) {
           return false;
         }
         try {
