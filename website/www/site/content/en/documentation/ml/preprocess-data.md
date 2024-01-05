@@ -44,12 +44,12 @@ available transforms, see the [Transforms](#transforms) section on this page.
 ## Support and limitations {#support}
 
 -   Available in the Apache Beam Python SDK versions 2.53.0 and later.
--   Supports Python 3.8, 3.9 and 3.10.
+-   Supports Python 3.8, 3.9, and 3.10.
 -   Only available for pipelines that use [default windows](/documentation/programming-guide/#single-global-window).
 
 ## Transforms {#transforms}
 
-You can use `MLTransform` to perform various data processing transforms.
+You can use `MLTransform` to generate text embeddings and to perform various data processing transforms.
 
 ### Data processing transforms that use TFT
 
@@ -74,7 +74,7 @@ TensorFlow documentation.
 
 ### Text embedding transforms
 
-You can use `MLTranfrorm` to generate embeddings that you can use to push data into vector databases or to run inference.
+You can use `MLTranform` to generate embeddings that you can use to push data into vector databases or to run inference.
 
 {{< table >}}
 | Transform name | Description |
