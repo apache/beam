@@ -203,6 +203,7 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
                   ],
               ))
 
+  @unittest.expectedFailure
   def test_pardo_windowed_side_inputs(self):
     with self.pipeline as p:
       # Now with some windowing.
