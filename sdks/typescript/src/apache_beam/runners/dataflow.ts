@@ -30,7 +30,7 @@ export function dataflowRunner(runnerOptions: {
   return new (class extends Runner {
     async runPipeline(
       pipeline: Pipeline,
-      options: Object = {}
+      options: Object = {},
     ): Promise<PipelineResult> {
       var augmentedOptions = { experiments: [] as string[], ...options };
       augmentedOptions.experiments.push("use_runner_v2");
@@ -38,11 +38,11 @@ export function dataflowRunner(runnerOptions: {
       augmentedOptions.experiments.push("use_sibling_sdk_workers");
       const service = PythonService.forModule(
         "apache_beam.runners.dataflow.dataflow_job_service",
-        ["--port", "{{PORT}}"]
+        ["--port", "{{PORT}}"],
       );
       const result = new PortableRunner(
         runnerOptions as any,
-        service
+        service,
       ).runPipeline(pipeline, augmentedOptions);
       result.then((res) => {
         res.waitUntilFinish().then((_state) => {
