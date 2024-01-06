@@ -262,6 +262,11 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     if read_artifact_location:
       artifact_location = read_artifact_location
       artifact_mode = ArtifactMode.CONSUME
+      if transforms:
+        raise ValueError(
+            'Transforms should not be passed in read mode. In read mode, '
+            'the transforms are read from the artifact location.')
+
     else:
       artifact_location = write_artifact_location  # type: ignore[assignment]
       artifact_mode = ArtifactMode.PRODUCE
