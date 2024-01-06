@@ -13,19 +13,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+variable "artifact_registry_id_prefix" {
+  type        = string
+  description = "The prefix of the Artifact Registry ID to provision"
+}
 
-import (
-	"github.com/spf13/cobra"
-)
+variable "project" {
+  type        = string
+  description = "The Google Cloud (GCP) project ID within which this module provisions resources"
+}
 
-var (
-	Root = &cobra.Command{
-		Use:   "wasmx",
-		Short: "wasmx manages and exposes wasm UDFs for execution within a Beam context",
-	}
-)
+variable "region" {
+  type        = string
+  description = "The Compute region which which this module provisions resources"
+}
 
-func init() {
-	Root.AddCommand(expansionCmd, udfCmd)
+variable "service_account_id" {
+  type        = string
+  description = "The preexisting ID of the Service Account to give access to the provisioned Artifact Registry"
 }

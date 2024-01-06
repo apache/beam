@@ -5,31 +5,25 @@ import (
 	"github.com/apache/beam/sdks/v2/go/cmd/wasmx/internal/environment"
 	"github.com/apache/beam/sdks/v2/go/cmd/wasmx/internal/udf"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc/credentials/insecure"
 	"net/url"
-	"os"
-	"path/filepath"
+)
+
+const (
+	addressFlagName = "address"
 )
 
 var (
 	port    environment.Variable = "PORT"
+	urn     string
 	address string
+
+	//TODO(damondouglas): only works with localhost non-ssl endpoints
+	credentials = insecure.NewCredentials()
 
 	registry    udf.Registry
 	registryEnv environment.Variable = "REGISTRY_URL"
 )
-
-func init() {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		panic(err)
-	}
-	path, err := filepath.Abs(configDir)
-	if err != nil {
-		panic(err)
-	}
-	path = filepath.Join(path, "wasmx")
-	registryEnv.MustDefault(fmt.Sprintf("file://%s", path))
-}
 
 func servePreE(cmd *cobra.Command, _ []string) error {
 	if err := environment.Missing(port, registryEnv); err != nil {
@@ -49,4 +43,13 @@ func servePreE(cmd *cobra.Command, _ []string) error {
 
 	registry, err = udf.NewRegistry(cmd.Context(), location)
 	return err
+}
+
+func urnArgs(_ *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("missing URN")
+	}
+	urn = args[0]
+
+	return nil
 }

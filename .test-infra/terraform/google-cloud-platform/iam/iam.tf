@@ -16,25 +16,29 @@
  * limitations under the License.
  */
 
+// Generate a random string
 resource "random_string" "postfix" {
   length  = 6
   upper   = false
   special = false
+  lower   = true
+  numeric = true
 }
 
-resource "google_container_cluster" "default" {
-  depends_on          = [google_project_service.required]
-  deletion_protection = false
-  name                = "${var.cluster_name_prefix}-${random_string.postfix.result}"
-  location            = var.region
-  enable_autopilot    = true
-  network             = data.google_compute_network.default.id
-  subnetwork          = data.google_compute_subnetwork.default.id
-  private_cluster_config {
-    enable_private_nodes    = true
-    enable_private_endpoint = false
-  }
-  node_config {
-    service_account = data.google_service_account.default.email
-  }
+locals {
+  service_account_id = "${var.service_account_id_prefix}-${random_string.postfix.result}"
+}
+
+// Create the service account
+resource "google_service_account" "default" {
+  account_id   = local.service_account_id
+  display_name = local.service_account_id
+}
+
+// Bind the IAM roles.
+resource "google_project_iam_member" "default" {
+  for_each = toset(var.roles)
+  member   = "serviceAccount:${google_service_account.default.email}"
+  project  = var.project
+  role     = each.key
 }

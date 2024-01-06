@@ -9,6 +9,10 @@ expected PCollection inputs and outputs.
 
 See [internal/udf/add/add.go](internal/udf/add/add.go) for an example.
 
+# Deployment
+
+See [infrastructure/k8s](infrastructure/k8s) for details on deployment.
+
 # Usage
 
 Run the following command to see usage:
@@ -18,21 +22,4 @@ NOTE the `sdks` directory and not the `sdks/go` directory.
 ```
 cd sdks
 go run ./go/cmd/wasmx
-```
-
-# Run Service
-
-Run the following command to start the service:
-
-NOTE the `sdks` directory and not the `sdks/go` directory.
-
-```
-cd sdks
-go run ./go/cmd/wasmx serve
-```
-
-You should see:
-
-```
-2024/01/04 01:14:41 starting wasmx expansion service at :8097
 ```

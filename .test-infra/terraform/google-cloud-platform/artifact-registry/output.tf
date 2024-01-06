@@ -13,19 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+output "artifact_registry" {
+  value = google_artifact_registry_repository.default
+}
 
-import (
-	"github.com/spf13/cobra"
-)
-
-var (
-	Root = &cobra.Command{
-		Use:   "wasmx",
-		Short: "wasmx manages and exposes wasm UDFs for execution within a Beam context",
-	}
-)
-
-func init() {
-	Root.AddCommand(expansionCmd, udfCmd)
+output "service_account_with_access" {
+  value = data.google_service_account.default
 }

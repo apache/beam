@@ -16,25 +16,7 @@
  * limitations under the License.
  */
 
-resource "random_string" "postfix" {
-  length  = 6
-  upper   = false
-  special = false
-}
-
-resource "google_container_cluster" "default" {
-  depends_on          = [google_project_service.required]
-  deletion_protection = false
-  name                = "${var.cluster_name_prefix}-${random_string.postfix.result}"
-  location            = var.region
-  enable_autopilot    = true
-  network             = data.google_compute_network.default.id
-  subnetwork          = data.google_compute_subnetwork.default.id
-  private_cluster_config {
-    enable_private_nodes    = true
-    enable_private_endpoint = false
-  }
-  node_config {
-    service_account = data.google_service_account.default.email
-  }
-}
+project                     = "apache-beam-testing"
+artifact_registry_id_prefix = "wasmx"
+region                      = "us-west1"
+service_account_id          = "wasmx-jbdthx"

@@ -13,19 +13,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+resource "google_artifact_registry_repository" "default" {
+  depends_on    = [google_project_service.required]
+  format        = "DOCKER"
+  repository_id = "${var.artifact_registry_id_prefix}-${random_string.postfix.result}"
+  location      = var.region
+}
 
-import (
-	"github.com/spf13/cobra"
-)
-
-var (
-	Root = &cobra.Command{
-		Use:   "wasmx",
-		Short: "wasmx manages and exposes wasm UDFs for execution within a Beam context",
-	}
-)
-
-func init() {
-	Root.AddCommand(expansionCmd, udfCmd)
+// Bind the node pool service account to the roles/artifactregistry.reader role.
+resource "google_artifact_registry_repository_iam_member" "default" {
+  depends_on = [google_project_service.required]
+  member     = "serviceAccount:${data.google_service_account.default.email}"
+  repository = google_artifact_registry_repository.default.id
+  role       = "roles/artifactregistry.reader"
 }

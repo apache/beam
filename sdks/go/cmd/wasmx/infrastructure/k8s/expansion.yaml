@@ -1,0 +1,75 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License. You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: expansion
+data:
+  PORT: "8099" # must match Service/expansion port
+
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: expansion
+spec:
+  selector:
+    matchLabels:
+      app: expansion
+
+  serviceName: expansion
+  template:
+    metadata:
+      labels:
+        app: expansion
+    spec:
+      volumes:
+        - name: registry
+      containers:
+        - name: expansion
+          image: ko://github.com/apache/beam/sdks/v2/go/cmd/wasmx
+          args:
+            - expansion
+            - serve
+          envFrom:
+            - configMapRef:
+                name: expansion
+            - configMapRef:
+                name: registry
+          volumeMounts:
+            - mountPath: /usr/share/wasmx # must match ConfigMap/registry REGISTRY_URL
+              name: registry
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: expansion
+  annotations:
+    # Configures the LoadBalancer to assign an internal private IP
+    # instead of an external private IP.
+    # See https://cloud.google.com/kubernetes-engine/docs/how-to/internal-load-balancing
+    networking.gke.io/load-balancer-type: "Internal"
+spec:
+  type: LoadBalancer
+  selector:
+    app: expansion
+  ports:
+    - name: grpc
+      port: 8099 # must match ConfigMap/expansion PORT
+      targetPort: 8099

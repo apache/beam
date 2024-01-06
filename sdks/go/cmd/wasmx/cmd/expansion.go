@@ -17,7 +17,10 @@ package cmd
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/spf13/cobra"
@@ -29,16 +32,35 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"time"
 )
 
 var (
+	expansionClient jobmanagement_v1.ExpansionServiceClient
+	expansionCmd    = &cobra.Command{
+		Use:   "expansion",
+		Short: "Manage an expansion service",
+	}
 	serveCmd = &cobra.Command{
 		Use:     "serve",
-		Short:   "Serve the wasmx expansion expService",
+		Short:   "Serve the wasmx expansion service",
 		PreRunE: servePreE,
 		RunE:    serveE,
 	}
+
+	invokeCmd = &cobra.Command{
+		Use:     "invoke URN",
+		Short:   "Invoke the expansion service",
+		Args:    urnArgs,
+		PreRunE: invokePreE,
+		RunE:    invokeE,
+	}
 )
+
+func init() {
+	expansionCmd.AddCommand(serveCmd, invokeCmd)
+	invokeCmd.Flags().StringVar(&address, addressFlagName, "", "Address of remote expansion service (required)")
+}
 
 func serveE(cmd *cobra.Command, _ []string) error {
 	g := grpc.NewServer()
@@ -101,6 +123,9 @@ func (svc *expService) Expand(ctx context.Context, req *jobmanagement_v1.Expansi
 	if err != nil {
 		return nil, err
 	}
+	data := base64.StdEncoding.EncodeToString(fn.Bytes)
+	var spec *
+	if err := protox.DecodeBase64(data, )
 	transform := &pipeline_v1.PTransform{
 		UniqueName:    req.Transform.Spec.Urn,
 		Spec:          fn.FunctionSpec(),
@@ -187,4 +212,32 @@ func isValidExpansionRequestErr(req *jobmanagement_v1.ExpansionRequest) error {
 	}
 
 	return nil
+}
+
+func invokePreE(_ *cobra.Command, _ []string) error {
+	if address == "" {
+		return fmt.Errorf("--%s is required", addressFlagName)
+	}
+	conn, err := grpc.Dial(address, grpc.WithTransportCredentials(credentials))
+	if err != nil {
+		return err
+	}
+	expansionClient = jobmanagement_v1.NewExpansionServiceClient(conn)
+	return nil
+}
+
+func invokeE(cmd *cobra.Command, _ []string) error {
+	ctx, cancel := context.WithTimeout(cmd.Context(), time.Second*3)
+	defer cancel()
+	resp, err := expansionClient.Expand(ctx, &jobmanagement_v1.ExpansionRequest{
+		Transform: &pipeline_v1.PTransform{
+			Spec: &pipeline_v1.FunctionSpec{
+				Urn: urn,
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(os.Stdout).Encode(resp)
 }

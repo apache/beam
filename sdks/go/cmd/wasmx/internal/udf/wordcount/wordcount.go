@@ -13,19 +13,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+//go:generate tinygo build -o wordcount.wasm -target=wasi wordcount.go
+package main
 
 import (
-	"github.com/spf13/cobra"
+	"encoding/binary"
+	"github.com/extism/go-pdk"
+	"strings"
 )
 
-var (
-	Root = &cobra.Command{
-		Use:   "wasmx",
-		Short: "wasmx manages and exposes wasm UDFs for execution within a Beam context",
+// main is required for TinyGo to compile to Wasm.
+func main() {}
+
+//export ProcessElement
+func ProcessElement() int32 {
+	var tokens []string
+	b := make([]byte, 4)
+	input := pdk.InputString()
+	input = strings.TrimSpace(input)
+	for _, tok := range strings.Split(input, " ") {
+		tok = strings.TrimSpace(tok)
+		if tok != "" {
+			tokens = append(tokens, tok)
+		}
 	}
-)
-
-func init() {
-	Root.AddCommand(expansionCmd, udfCmd)
+	binary.LittleEndian.PutUint32(b, uint32(len(tokens)))
+	pdk.Output(b)
+	return 0
 }

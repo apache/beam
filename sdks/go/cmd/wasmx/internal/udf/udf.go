@@ -19,12 +19,14 @@ package udf
 import (
 	"context"
 	_ "embed"
+	"encoding/base64"
 	"fmt"
 	udf_v1 "github.com/apache/beam/sdks/v2/go/cmd/wasmx/internal/proto/udf/v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"io"
 	"log"
 	"net/url"
@@ -35,14 +37,17 @@ import (
 
 const (
 	// TODO: Replace with proto const after https://github.com/apache/beam/pull/29898
-	wasmUrn      = "beam:dofn:wasm:1.0"
-	urnDelim     = ":"
-	wasmFileName = "fn.wasm"
-	urnPrefix    = "beam:transform"
+	wasmUrn     = "beam:dofn:wasm:1.0"
+	urnDelim    = ":"
+	urnPrefix   = "beam:transform"
+	udfFileName = "udf.dat"
 )
 
 //go:embed add/add.wasm
 var addWasm WasmFn
+
+//go:embed wordcount/wordcount.wasm
+var wordCountWasm WasmFn
 
 func NewRegistry(ctx context.Context, location *url.URL) (Registry, error) {
 	if location.Scheme != "file" {
@@ -63,8 +68,24 @@ func NewRegistry(ctx context.Context, location *url.URL) (Registry, error) {
 	}
 
 	urn := Urn("add", "1.0")
+	data, err := protox.EncodeBase64(addWasm.FunctionSpec())
+	if err != nil {
+		return nil, err
+	}
+	b, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		return nil, err
+	}
 
-	if err := reg.Set(ctx, urn, addWasm); err != nil {
+	now := timestamppb.Now()
+
+	if err := reg.Set(ctx, urn, &udf_v1.UserDefinedFunction{
+		Urn:      urn,
+		Bytes:    b,
+		Language: udf_v1.UserDefinedFunction_Language_Go,
+		Created:  now,
+		Updated:  now,
+	}); err != nil {
 		return nil, err
 	}
 
@@ -76,8 +97,8 @@ func Urn(name string, version string) string {
 }
 
 type Registry interface {
-	Get(ctx context.Context, urn string) (WasmFn, error)
-	Set(ctx context.Context, urn string, fn WasmFn) error
+	Get(ctx context.Context, urn string) (*udf_v1.UserDefinedFunction, error)
+	Set(ctx context.Context, urn string, fn *udf_v1.UserDefinedFunction) error
 }
 
 type WasmFn []byte
@@ -115,18 +136,20 @@ func (s *service) Describe(ctx context.Context, request *udf_v1.DescribeRequest)
 	if err != nil {
 		return nil, err
 	}
-	spec := fn.FunctionSpec()
 	return &udf_v1.DescribeResponse{
-		Udf: &udf_v1.UserDefinedFunction{
-			Urn:   spec.Urn,
-			Bytes: spec.Payload,
-		},
+		Udf: fn,
 	}, nil
 }
 
 func (s *service) Create(ctx context.Context, request *udf_v1.CreateRequest) (*udf_v1.CreateResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	if err := s.registry.Set(ctx, request.Urn, request.Udf); err != nil {
+		return nil, err
+	}
+	resp := &udf_v1.CreateResponse{
+		Urn: request.Urn,
+		Udf: request.Udf,
+	}
+	return resp, nil
 }
 
 func (s *service) Update(ctx context.Context, request *udf_v1.UpdateRequest) (*udf_v1.UpdateResponse, error) {
@@ -151,9 +174,10 @@ func (reg *fileBasedRegistry) path(urn string) string {
 	return filepath.Join(segs...)
 }
 
-func (reg *fileBasedRegistry) Get(_ context.Context, urn string) (WasmFn, error) {
+func (reg *fileBasedRegistry) Get(_ context.Context, urn string) (*udf_v1.UserDefinedFunction, error) {
+	var result *udf_v1.UserDefinedFunction
 	parent := reg.path(urn)
-	f, err := os.Open(filepath.Join(parent, wasmFileName))
+	f, err := os.Open(filepath.Join(parent, udfFileName))
 	if os.IsNotExist(err) {
 		return nil, err
 	}
@@ -161,10 +185,14 @@ func (reg *fileBasedRegistry) Get(_ context.Context, urn string) (WasmFn, error)
 	if err != nil {
 		return nil, err
 	}
-	return b, nil
+	data := base64.StdEncoding.EncodeToString(b)
+	if err := protox.DecodeBase64(data, result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
-func (reg *fileBasedRegistry) Set(ctx context.Context, urn string, fn WasmFn) error {
+func (reg *fileBasedRegistry) Set(ctx context.Context, urn string, fn *udf_v1.UserDefinedFunction) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -173,5 +201,16 @@ func (reg *fileBasedRegistry) Set(ctx context.Context, urn string, fn WasmFn) er
 		return err
 	}
 
-	return os.WriteFile(filepath.Join(parent, wasmFileName), fn, 0750)
+	data, err := protox.EncodeBase64(fn)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(filepath.Join(parent, udfFileName))
+	if err != nil {
+		return err
+	}
+
+	_, err = io.WriteString(f, data)
+	return err
 }

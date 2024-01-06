@@ -53,9 +53,15 @@ variable names.
 
 ## If you are provisioning in `apache-beam-testing`:
 
+Set the region:
+```
+REGION=us-central1
+```
+
+Apply the module:
 ```
 terraform init
-terraform apply -var-file=apache-beam-testing.tfvars
+terraform apply -var-file=$REGION.apache-beam-testing.tfvars
 ```
 
 You will be prompted for any remaining variables.

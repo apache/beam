@@ -9,7 +9,7 @@ import (
 // Executable defines an executable on a machine.
 type Executable string
 
-func (ex Executable) which() (string, error) {
+func (ex Executable) Which() (string, error) {
 	return exec.LookPath(string(ex))
 }
 
@@ -21,7 +21,7 @@ func (ex Executable) Execute(ctx context.Context, r io.Reader, w io.Writer, args
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	which, err := ex.which()
+	which, err := ex.Which()
 	if err != nil {
 		return err
 	}

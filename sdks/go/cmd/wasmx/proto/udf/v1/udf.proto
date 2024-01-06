@@ -52,11 +52,13 @@ message DescribeRequest {
 }
 
 message CreateRequest {
-  UserDefinedFunction udf = 1;
+  string urn = 1;
+  UserDefinedFunction udf = 2;
 }
 
 message UpdateRequest {
-  UserDefinedFunction udf = 1;
+  string urn = 1;
+  UserDefinedFunction udf = 2;
 }
 
 message DeleteRequest {
@@ -68,13 +70,16 @@ message DescribeResponse {
 }
 
 message CreateResponse {
-  UserDefinedFunction udf = 1;
+  string urn = 1;
+  UserDefinedFunction udf = 2;
 }
 
 message UpdateResponse {
-  UserDefinedFunction udf = 1;
+  string urn = 1;
+  UserDefinedFunction udf = 2;
 }
 
 message DeleteResponse {
-  UserDefinedFunction udf = 1;
+  string urn = 1;
+  UserDefinedFunction udf = 2;
 }

@@ -13,19 +13,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+resource "google_project_service" "required" {
+  for_each = toset([
+    "artifactregistry",
+    "cloudresourcemanager",
+    "iam",
+  ])
+  service            = "${each.key}.googleapis.com"
+  disable_on_destroy = false
+}
 
-import (
-	"github.com/spf13/cobra"
-)
+resource "random_string" "postfix" {
+  length  = 6
+  special = false
+  upper   = false
+}
 
-var (
-	Root = &cobra.Command{
-		Use:   "wasmx",
-		Short: "wasmx manages and exposes wasm UDFs for execution within a Beam context",
-	}
-)
-
-func init() {
-	Root.AddCommand(expansionCmd, udfCmd)
+data "google_service_account" "default" {
+  account_id = var.service_account_id
 }

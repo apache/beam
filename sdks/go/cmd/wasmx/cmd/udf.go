@@ -18,12 +18,12 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/apache/beam/sdks/v2/go/cmd/wasmx/internal/environment"
 	"github.com/apache/beam/sdks/v2/go/cmd/wasmx/internal/prompt"
 	udf_v1 "github.com/apache/beam/sdks/v2/go/cmd/wasmx/internal/proto/udf/v1"
 	"github.com/apache/beam/sdks/v2/go/cmd/wasmx/internal/udf"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"log"
 	"net"
@@ -51,11 +51,10 @@ var (
 
 // Client vars
 var (
-	urn         string
-	src         *udf_v1.UserDefinedFunction
-	serviceUrl  string
-	credentials = insecure.NewCredentials()
-	client      udf_v1.UDFServiceClient
+	tinyGo     environment.Executable = "tinygo"
+	src        *udf_v1.UserDefinedFunction
+	serviceUrl string
+	udfClient  udf_v1.UDFServiceClient
 
 	udfClientCmd = &cobra.Command{
 		Use:               "client",
@@ -98,7 +97,7 @@ func clientPreE(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	client = udf_v1.NewUDFServiceClient(conn)
+	udfClient = udf_v1.NewUDFServiceClient(conn)
 
 	return nil
 }
@@ -112,7 +111,7 @@ func init() {
 }
 
 func fileArgs(_ *cobra.Command, args []string) error {
-	if len(args[0]) == 0 {
+	if len(args) == 0 {
 		return fmt.Errorf("missing FILE")
 	}
 
@@ -123,16 +122,12 @@ func fileArgs(_ *cobra.Command, args []string) error {
 	return err
 }
 
-func urnArgs(_ *cobra.Command, args []string) error {
-	if len(args[0]) == 0 {
-		return fmt.Errorf("missing URN")
-	}
-	urn = args[0]
-
-	return nil
-}
-
 func udfServeE(cmd *cobra.Command, _ []string) error {
+	which, err := tinyGo.Which()
+	if err != nil {
+		return err
+	}
+	log.Printf("found tinygo at %s", which)
 	g := grpc.NewServer()
 	ctx, cancel := signal.NotifyContext(cmd.Context(), os.Interrupt)
 
@@ -168,7 +163,7 @@ func udfServeE(cmd *cobra.Command, _ []string) error {
 }
 
 func udfCreateE(cmd *cobra.Command, _ []string) error {
-	resp, err := client.Create(cmd.Context(), &udf_v1.CreateRequest{
+	resp, err := udfClient.Create(cmd.Context(), &udf_v1.CreateRequest{
 		Udf: src,
 	})
 	if err != nil {
@@ -186,7 +181,7 @@ func udfDeleteE(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	resp, err := client.Delete(cmd.Context(), &udf_v1.DeleteRequest{
+	resp, err := udfClient.Delete(cmd.Context(), &udf_v1.DeleteRequest{
 		Urn: urn,
 	})
 
@@ -197,7 +192,7 @@ func udfDeleteE(cmd *cobra.Command, _ []string) error {
 }
 
 func udfUpdateE(cmd *cobra.Command, _ []string) error {
-	resp, err := client.Update(cmd.Context(), &udf_v1.UpdateRequest{
+	resp, err := udfClient.Update(cmd.Context(), &udf_v1.UpdateRequest{
 		Udf: src,
 	})
 	if err != nil {
@@ -207,7 +202,7 @@ func udfUpdateE(cmd *cobra.Command, _ []string) error {
 }
 
 func udfDescribeE(cmd *cobra.Command, _ []string) error {
-	resp, err := client.Describe(cmd.Context(), &udf_v1.DescribeRequest{
+	resp, err := udfClient.Describe(cmd.Context(), &udf_v1.DescribeRequest{
 		Urn: urn,
 	})
 	if err != nil {

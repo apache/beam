@@ -16,7 +16,17 @@
  * limitations under the License.
  */
 
-project    = "apache-beam-testing"
-network    = "default"
-subnetwork = "default"
-region     = "us-central1"
+variable "project" {
+  type        = string
+  description = "The Google Cloud Platform (GCP) project within which resources are provisioned"
+}
+
+variable "service_account_id_prefix" {
+  type        = string
+  description = "The prefix of the service account ID to provision. Will be suffixed with a random string."
+}
+
+variable "roles" {
+  type        = list(string)
+  description = "The IAM roles to bind to the provisioned service account"
+}

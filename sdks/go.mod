@@ -20,7 +20,7 @@
 // directory.
 module github.com/apache/beam/sdks/v2
 
-go 1.20
+go 1.21.0
 
 require (
 	cloud.google.com/go/bigquery v1.57.1
@@ -77,9 +77,12 @@ require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Microsoft/hcsshim v0.11.1 // indirect
 	github.com/containerd/log v0.1.0 // indirect
+	github.com/extism/go-pdk v1.0.0-rc2 // indirect
+	github.com/extism/go-sdk v1.0.0-rc4 // indirect
 	github.com/go-logr/logr v1.3.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect
 	github.com/nats-io/jwt/v2 v2.5.3 // indirect
