@@ -31,11 +31,10 @@ import * as runnerApi from "../proto/beam_runner_api";
 /**
  * A Coder<T> that encodes a javascript object with BSON.
  */
-export class BsonObjectCoder<T> implements Coder<T> {
+export class BsonObjectCoder<T extends BSON.Document> implements Coder<T> {
   static URN = "beam:coder:bsonjs:v1";
 
   encode(element: T, writer: Writer, context: Context) {
-    // @ts-ignore
     const buff = BSON.serialize(element);
     writer.bytes(buff);
   }
