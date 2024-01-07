@@ -45,8 +45,6 @@ import { Service as JobService } from "../../utils/service";
 import * as serialization from "../../serialization";
 import { beamVersion } from "../../utils/packageJson";
 
-const version = beamVersion.split('.').slice(0, 2).join('.') + '.0'
-
 const TERMINAL_STATES = [
   JobState_Enum.DONE,
   JobState_Enum.FAILED,
