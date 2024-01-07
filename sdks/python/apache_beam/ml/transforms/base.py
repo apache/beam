@@ -333,8 +333,8 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
           else:
             raise NotImplementedError(
                 f'Unexpected type for bad_results: {type(bad_results)}')
-        else:
-          pcoll = pcoll | ptransform
+      else:
+        pcoll = pcoll | ptransform
 
     _ = (
         pcoll.pipeline
