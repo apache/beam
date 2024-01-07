@@ -26,7 +26,7 @@ set -e
 echo "export const version = \"$npm_package_version\";" > src/apache_beam/version.ts
 
 # Using npx to execute ttsc from the local node_modules environment.
-npx ttsc -p .
+npm run tsc
 
 # Copy the python bootstrap script.
 mkdir -p dist/resources
