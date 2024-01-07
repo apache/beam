@@ -74,8 +74,7 @@ def run(argv, beam_job_type=DataflowBeamJob):
       options.staging_dir, beam_job_type=beam_job_type)
   port = job_servicer.start_grpc_server(options.port)
   try:
-    local_job_service_main.serve(
-        "Listening for beam jobs on port %d." % port, job_servicer)
+    local_job_service_main.serve("Listening for beam jobs on port %d." % port)
   finally:
     job_servicer.stop()
 

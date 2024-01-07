@@ -731,7 +731,7 @@ class DataflowPipelineResult(PipelineResult):
       A PipelineState object.
     """
     if not self.has_job:
-      return PipelineState.UNKNOWN
+      return PipelineState.DONE
 
     self._update_job()
 
