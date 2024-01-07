@@ -16,15 +16,12 @@
  * limitations under the License.
  */
 
-// A basic subset.
-export * from "./avroio";
-export * from "./bigqueryio";
-export * from "./kafka";
-export * from "./parquetio";
-export * from "./pubsub";
-export * from "./pubsublite";
-export * from "./schemaio";
+import * as fs from "fs";
 
-import { requireForSerialization } from "../serialization";
-import { packageName } from "../utils/packageJson";
-requireForSerialization(`${packageName}/io`, exports);
+export const packageJson = JSON.parse(
+  fs.readFileSync(__dirname + "/../../../../package.json").toString()
+);
+
+export const beamVersion = packageJson.version;
+
+export const packageName = packageJson.name;
