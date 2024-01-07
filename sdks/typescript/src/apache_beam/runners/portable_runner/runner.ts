@@ -260,6 +260,11 @@ export class PortableRunner extends Runner {
           if (fs.existsSync("package.json")) {
             const packageData = JSON.parse(fs.readFileSync("package.json"));
             options.npm_module = packageData.name;
+            const execFile = process.argv[1];
+            const relativeExecFile = path.relative(process.cwd(), execFile);
+            if (relativeExecFile !== packageData.main) {
+              options.npm_main = relativeExecFile;
+            }
             if (packageData.dependencies) {
               for (const dep in packageData.dependencies) {
                 if (packageData.dependencies[dep].startsWith("file:")) {
