@@ -20,7 +20,7 @@ const childProcess = require("child_process");
 const crypto = require("crypto");
 const fs = require("fs");
 const os = require("os");
-import path from "path";
+const path = require("path");
 
 import { ChannelCredentials } from "@grpc/grpc-js";
 import { GrpcTransport } from "@protobuf-ts/grpc-transport";
@@ -237,15 +237,6 @@ export class PortableRunner extends Runner {
             );
           const deps = pipeline.components!.environments[envId].dependencies;
 
-          // get the main file from command, and add it to the package.json
-          const execFile = process.argv[1];
-          const relativeExecFile = path.relative(process.cwd(), execFile);
-          if (fs.existsSync("package.json")) {
-            const packageData = JSON.parse(fs.readFileSync("package.json"));
-            packageData.main = relativeExecFile;
-            fs.writeFileSync("package.json", JSON.stringify(packageData));
-          }
-
           // Package up this code as a dependency.
           const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "beam-pack-"));
           const result = childProcess.spawnSync(
@@ -269,6 +260,11 @@ export class PortableRunner extends Runner {
           if (fs.existsSync("package.json")) {
             const packageData = JSON.parse(fs.readFileSync("package.json"));
             options.npm_module = packageData.name;
+            const execFile = process.argv[1];
+            const relativeExecFile = path.relative(process.cwd(), execFile);
+            if (relativeExecFile !== packageData.main) {
+              options.npm_main = relativeExecFile;
+            }
             if (packageData.dependencies) {
               for (const dep in packageData.dependencies) {
                 if (packageData.dependencies[dep].startsWith("file:")) {
