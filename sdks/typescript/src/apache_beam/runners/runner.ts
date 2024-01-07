@@ -64,21 +64,22 @@ export class PipelineResult {
  * transforms, non-trivial windowing, etc. are used).
  */
 export function createRunner(options: any = {}): Runner {
-  let runnerConstructor: (any) => Runner;
   if (options.runner === undefined || options.runner === "default") {
-    runnerConstructor = defaultRunner;
-  } else if (options.runner === "direct") {
-    runnerConstructor = require("./direct_runner").directRunner;
-  } else if (options.runner === "universal") {
-    runnerConstructor = require("./universal").universalRunner;
-  } else if (options.runner === "flink") {
-    runnerConstructor = require("./flink").flinkRunner;
-  } else if (options.runner === "dataflow") {
-    runnerConstructor = require("./dataflow").dataflowRunner;
-  } else {
-    throw new Error("Unknown runner: " + options.runner);
+    return defaultRunner(options);
   }
-  return runnerConstructor(options);
+  if (options.runner === "direct") {
+    return require("./direct_runner").directRunner(options);
+  }
+  if (options.runner === "universal") {
+    return require("./universal").universalRunner(options);
+  }
+  if (options.runner === "flink") {
+    return require("./flink").flinkRunner(options);
+  }
+  if (options.runner === "dataflow") {
+    return require("./dataflow").dataflowRunner(options);
+  }
+  throw new Error("Unknown runner: " + options.runner);
 }
 
 /**

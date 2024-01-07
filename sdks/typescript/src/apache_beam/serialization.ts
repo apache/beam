@@ -68,6 +68,11 @@ export function requireForSerialization(moduleName: string, values = {}) {
   registerExports(moduleName, values);
 }
 
+export function registerLocalParDo(parDo: any) {
+  if (!global["localParDos"]) global["localParDos"] = {};
+  global["localParDos"][parDo.exportName] = parDo;
+}
+
 export function getRegisteredModules() {
   return registeredModules;
 }

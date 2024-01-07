@@ -51,6 +51,8 @@ import { serializeFn, deserializeFn } from "../internal/serialize";
 const SUPPORTED_REQUIREMENTS: string[] = [];
 
 export function directRunner(options: Object = {}): Runner {
+  options["npm_module"] = require.main!.filename;
+  global["pipelineOptions"] = options;
   return new DirectRunner(options);
 }
 

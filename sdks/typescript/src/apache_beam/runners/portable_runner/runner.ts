@@ -186,20 +186,20 @@ export class PortableRunner extends Runner {
     pipeline: runnerApiProto.Pipeline,
     options?: PipelineOptions
   ): Promise<PipelineResult> {
-    return this.runPipelineWithProto(pipeline, options);
+    return this.runPipelineWithProto(pipeline, options || {});
   }
 
   async runPipelineWithProto(
     pipeline: runnerApiProto.Pipeline,
-    options?: PipelineOptions
+    userOptions: PipelineOptions
   ) {
-    options = { ...this.defaultOptions, ...(options || {}) };
+    const options = { ...this.defaultOptions, ...userOptions };
 
     for (const [_, pcoll] of Object.entries(
       pipeline.components!.pcollections
     )) {
       if (pcoll.isBounded == runnerApiProto.IsBounded_Enum.UNBOUNDED) {
-        (options as any).streaming = true;
+        options.streaming = true;
         break;
       }
     }
@@ -212,7 +212,7 @@ export class PortableRunner extends Runner {
     }
 
     let loopbackAddress: string | undefined = undefined;
-    if ((options as any)?.environmentType === "LOOPBACK") {
+    if (options.environmentType === "LOOPBACK") {
       const workers = new ExternalWorkerPool();
       loopbackAddress = await workers.start();
       completionCallbacks.push(() => workers.stop());
@@ -232,7 +232,7 @@ export class PortableRunner extends Runner {
           pipeline.components!.environments[envId] =
             environments.asDockerEnvironment(
               env,
-              (options as any)?.sdkContainerImage ||
+              options.sdkContainerImage ||
                 DOCKER_BASE + ":" + version.replace("-SNAPSHOT", ".dev")
             );
           const deps = pipeline.components!.environments[envId].dependencies;
@@ -259,6 +259,7 @@ export class PortableRunner extends Runner {
           // If any dependencies are files, package them up as well.
           if (fs.existsSync("package.json")) {
             const packageData = JSON.parse(fs.readFileSync("package.json"));
+            options.npm_module = packageData.name;
             if (packageData.dependencies) {
               for (const dep in packageData.dependencies) {
                 if (packageData.dependencies[dep].startsWith("file:")) {
@@ -297,7 +298,7 @@ export class PortableRunner extends Runner {
             `beam:option:${camel_to_snake(k)}:v1`,
             v,
           ])
-        )
+        ) as any
       );
     }
     const client = await this.getClient();
