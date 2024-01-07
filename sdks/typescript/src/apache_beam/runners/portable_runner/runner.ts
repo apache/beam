@@ -43,9 +43,7 @@ import * as artifacts from "../artifacts";
 import { Service as JobService } from "../../utils/service";
 
 import * as serialization from "../../serialization";
-import { version as beamVersion } from "../../version";
-
-const version = beamVersion.split('.').slice(0, 2).join('.') + '.0'
+import { version } from "../../version";
 
 
 const TERMINAL_STATES = [
