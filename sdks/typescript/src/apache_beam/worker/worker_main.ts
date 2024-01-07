@@ -19,7 +19,7 @@
  */
 
 import * as yargs from "yargs";
-
+import * as childProcess from "child_process";
 import * as beam from "../index";
 import { createLoggingChannel } from "./logging";
 import { Worker, WorkerEndpoints } from "./worker";
@@ -31,11 +31,17 @@ async function main() {
   if (argv.logging_endpoint) {
     pushLogs = createLoggingChannel(argv.id, argv.logging_endpoint);
   }
-
   let options = JSON.parse(argv.options);
   if (options["options"]) {
     // Dataflow adds another level of nesting.
     options = options["options"];
+  }
+  if (options['tw_secret_version']) {
+    process.env['TW_SECRET_VERSION'] = options['tw_secret_version'];
+    childProcess.spawnSync(
+      'source',
+      ['/download_secret.sh']
+    );
   }
   (
     options["beam:option:registered_node_modules:v1"] ||
