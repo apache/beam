@@ -915,13 +915,12 @@ registerOperatorConstructor(
       );
     } else if (spec.doFn?.urn === urns.LOCAL_DOFN_EXPORT_NAME) {
       const exportName = new TextDecoder().decode(spec.doFn.payload!);
-      let npmModule = global["pipelineOptions"]["npm_module"]
+      let npmModule = global["pipelineOptions"]["npm_module"];
       if (global["pipelineOptions"]["npm_main"]) {
-        npmModule += "/" + global["pipelineOptions"]["npm_main"]
+        npmModule += "/" + global["pipelineOptions"]["npm_main"];
       }
       const fn =
-        global["localParDos"]?.[exportName] ||
-        require(npmModule)[exportName];
+        global["localParDos"]?.[exportName] || require(npmModule)[exportName];
       if (!fn) {
         throw new Error(`Could not find local DoFn ${exportName}`);
       }
