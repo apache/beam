@@ -99,14 +99,15 @@ def main():
             ],
                            check=True)
             subprocess.run([
-                venv_python, '-m', 'pip', 'install', '--upgrade', 'setuptools'
+                venv_python, '-m', 'pip', 'install', '--upgrade', 'setuptools', "keyring",
+                    "keyrings.google-artifactregistry-auth",
             ],
                            check=True)
 
             # See https://github.com/apache/beam/issues/21506
             subprocess.run([
                 venv_python, '-m', 'pip', 'install', beam_package,
-                'pyparsing==2.4.2'
+                'pyparsing==2.4.2', '--index-url', f'https://us-python.pkg.dev/shofifi/python-virtual/simple',
             ],
                            check=True)
             if deps:
