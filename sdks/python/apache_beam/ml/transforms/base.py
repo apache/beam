@@ -27,6 +27,7 @@ from typing import List
 from typing import Mapping
 from typing import Optional
 from typing import Sequence
+from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -57,6 +58,9 @@ TransformedMetadataT = TypeVar('TransformedMetadataT')
 
 # Input/Output types to the MLTransform.
 MLTransformOutputT = TypeVar('MLTransformOutputT')
+mltransform_output_type = Union[beam.PCollection[MLTransformOutputT],
+                                Tuple[beam.PCollection[MLTransformOutputT],
+                                      beam.PCollection[beam.Row]]]
 ExampleT = TypeVar('ExampleT')
 
 # Input to the apply() method of BaseOperation.
@@ -151,7 +155,7 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT],
 
 
 class ProcessHandler(beam.PTransform[beam.PCollection[ExampleT],
-                                     beam.PCollection[MLTransformOutputT]],
+                                     mltransform_output_type],
                      abc.ABC):
   """
   Only for internal use. No backwards compatibility guarantees.
@@ -279,12 +283,10 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     self._counter = Metrics.counter(
         MLTransform, f'BeamML_{self.__class__.__name__}')
     self._with_exception_handling = False
-    self._exception_handling_args = {}
-    self._upstream_errors = []
+    self._exception_handling_args: Dict[str, Any] = {}
 
   def expand(
-      self, pcoll: beam.PCollection[ExampleT]
-  ) -> beam.PCollection[MLTransformOutputT]:
+      self, pcoll: beam.PCollection[ExampleT]) -> mltransform_output_type:
     """
     This is the entrypoint for the MLTransform. This method will
     invoke the process_data() method of the ProcessHandler instance
@@ -298,6 +300,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     Returns:
       A PCollection of MLTransformOutputT type
     """
+    upstream_errors = []
     _ = [self._validate_transform(transform) for transform in self.transforms]
     if self._artifact_mode == ArtifactMode.PRODUCE:
       ptransform_partitioner = _MLTransformToPTransformMapper(
@@ -327,9 +330,9 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
           # since TFTProcessHandler and RunInferene are supported, try to infer
           # the type of bad_results and append it to the list of errors.
           if isinstance(bad_results, RunInferenceDLQ):
-            self._upstream_errors.append(bad_results.failed_inferences)
+            upstream_errors.append(bad_results.failed_inferences)
           elif isinstance(bad_results, beam.PCollection):
-            self._upstream_errors.append(bad_results)
+            upstream_errors.append(bad_results)
           else:
             raise NotImplementedError(
                 f'Unexpected type for bad_results: {type(bad_results)}')
@@ -341,12 +344,12 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
         | "MLTransformMetricsUsage" >> MLTransformMetricsUsage(self))
     if self._with_exception_handling:
       bad_pcoll = (
-          self._upstream_errors
+          upstream_errors
           | beam.Flatten()
           | beam.Map(
               lambda x: beam.Row(
                   element=x[0], msg=str(x[1][1]), stack=str(x[1][2]))))
-      return pcoll, bad_pcoll
+      return pcoll, bad_pcoll  # type: ignore[return-value]
     return pcoll  # type: ignore[return-value]
 
   def with_transform(self, transform: MLTransformProvider):
