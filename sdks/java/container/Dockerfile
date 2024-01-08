@@ -32,7 +32,6 @@ ADD target/log4j-to-slf4j.jar /opt/apache/beam/jars/
 ADD target/beam-sdks-java-harness.jar /opt/apache/beam/jars/
 ADD target/extism-1.0.0-rc1.jar /opt/apache/beam/jars/
 ADD target/jna-5.12.1.jar /opt/apache/beam/jars/
-ADD target/jna-5.12.1.jar /opt/apache/beam/jars/
 ADD target/gson-2.10.1.jar /opt/apache/beam/jars/
 
 # Required to use jamm as a javaagent to get accurate object size measuring
@@ -63,6 +62,8 @@ RUN if [ "${pull_licenses}" = "false" ] ; then \
 RUN wget https://github.com/extism/cli/releases/download/v0.3.8/extism-v0.3.8-linux-amd64.tar.gz
 RUN tar xvf extism-v0.3.8-linux-amd64.tar.gz
 RUN ./extism lib install latest
+
+RUN export LD_LIBRARY_PATH=/usr/local/lib
 
 # Add Google Cloud Profiler agent.
 COPY target/profiler/* /opt/google_cloud_profiler/

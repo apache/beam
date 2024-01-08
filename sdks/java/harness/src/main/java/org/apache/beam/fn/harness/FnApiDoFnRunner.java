@@ -2647,6 +2647,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         throw new IllegalStateException(
             "Attempting to emit an element outside of a @ProcessElement context.");
       }
+      System.out.println("*************** xyz123 mainOutputConsumer: " + mainOutputConsumer);
+      System.out.println("*************** xyz123 currentElement: " + currentElement);
+      System.out.println("*************** xyz123 output: " + output);
       outputTo(mainOutputConsumer, currentElement.withValue(output));
     }
 

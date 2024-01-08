@@ -311,14 +311,15 @@ public class External {
           ImmutableMap.of(
               "n1",
               // "TextIO.Read/Read/ParDo(BoundedSourceAsSDFWrapper)/ParMultiDo(BoundedSourceAsSDFWrapper).output");
-                  "Create.Values/Read(CreateSource)/ParDo(BoundedSourceAsSDFWrapper)/ParMultiDo(BoundedSourceAsSDFWrapper).output");
+              "Create.Values/Read(CreateSource)/ParDo(BoundedSourceAsSDFWrapper)/ParMultiDo(BoundedSourceAsSDFWrapper).output");
       // Map<String, String> expandedTransformOutputUpdates = ImmutableMap.of("n1", "dd");
 
       RunnerApi.PTransform.Builder updatedExpandedTransformBuilder = expandedTransform.toBuilder();
 
       Map<String, String> oldInputsMap = expandedTransform.getInputsMap();
       Map<String, String> updatedInputsMap = new HashMap<>();
-      for (String key : oldInputsMap.keySet()) {
+      for (Map.Entry<String, String> entry : oldInputsMap.entrySet()) {
+        String key = entry.getKey();
         String oldValue = oldInputsMap.get(key);
         String value =
             expandedTransformInputUpdates.keySet().contains(oldValue)

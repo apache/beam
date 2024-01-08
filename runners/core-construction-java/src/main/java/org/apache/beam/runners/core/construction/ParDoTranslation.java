@@ -765,8 +765,15 @@ public class ParDoTranslation {
         FileOutputStream fos = new FileOutputStream(tempFile);
         fos.write(wasmBinary.toByteArray());
 
-        String tempFileName = tempFile.getName();
-        System.out.println("Wrote temp file: " + tempFileName);
+        String tempFileName = tempFile.getAbsolutePath();
+        System.out.println("Wrote temp file 1: " + tempFileName);
+        System.out.println(
+            "***************** xyz123 java.library.path 2: "
+                + System.getProperty("java.library.path"));
+        System.out.println(
+            "***************** xyz123 jna.library.path 2: "
+                + System.getProperty("jna.library.path"));
+
         fos.close();
 
         return ExtismUtils.createWasmDoFnWrapper(tempFileName);

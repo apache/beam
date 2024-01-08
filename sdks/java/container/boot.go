@@ -60,6 +60,7 @@ const (
 )
 
 func main() {
+	log.Printf("****************************************** xyz123 staring boot.go main")
 	flag.Parse()
 	if *id == "" {
 		log.Fatal("No id provided.")
@@ -69,6 +70,8 @@ func main() {
 	}
 
 	ctx := grpcx.WriteWorkerID(context.Background(), *id)
+
+	log.Printf("****************************************** xyz123 boot.go main 1")
 
 	info, err := tools.ProvisionInfo(ctx, *provisionEndpoint)
 	if err != nil {
@@ -99,6 +102,8 @@ func main() {
 	logger := &tools.Logger{Endpoint: *loggingEndpoint}
 
 	logger.Printf(ctx, "Initializing java harness: %v", strings.Join(os.Args, " "))
+
+	log.Printf("****************************************** xyz123 boot.go main 2")
 
 	// (1) Obtain the pipeline options
 	options, err := tools.ProtoToJSON(info.GetPipelineOptions())
@@ -170,6 +175,7 @@ func main() {
 		"-XX:+UseParallelGC",
 		"-XX:+AlwaysActAsServerClassMachine",
 		"-XX:-OmitStackTraceInFastThrow",
+		"-cp", strings.Join(cp, ":"),
 	}
 
 	enableGoogleCloudProfiler := strings.Contains(options, enableGoogleCloudProfilerOption)
@@ -214,14 +220,15 @@ func main() {
 
 	// (2) Add classpath: "-cp foo.jar:bar.jar:.."
 	if len(javaOptions.Classpath) > 0 {
-		cp = append(cp, javaOptions.Classpath...)
+		args = append(args, "-cp")
+		args = append(args, strings.Join(javaOptions.Classpath, ":"))
 	}
-	pathingjar, err := makePathingJar(cp)
-	if err != nil {
-		logger.Fatalf(ctx, "makePathingJar failed: %v", err)
-	}
-	args = append(args, "-cp")
-	args = append(args, pathingjar)
+	// pathingjar, err := makePathingJar(cp)
+	// if err != nil {
+	// 	logger.Fatalf(ctx, "makePathingJar failed: %v", err)
+	// }
+	// args = append(args, "-cp")
+	// args = append(args, pathingjar)
 
 	// (3) Add (sorted) properties: "-Dbar=baz -Dfoo=bar .."
 	var properties []string
@@ -244,8 +251,14 @@ func main() {
 	if _, err := os.Stat(openModuleAgentJar); err == nil {
 		args = append(args, "-javaagent:"+openModuleAgentJar)
 	}
-	// args = append(args, "-Djava.library.path=/usr/local/lib")
+	args = append(args, "-Djava.library.path=/usr/local/lib")
+	args = append(args, "-Djna.library.path=/usr/local/lib")
+	args = append(args, "--module-path=/usr/local/lib:/opt/apache/beam/jars/jamm.jar")
+
 	args = append(args, "org.apache.beam.fn.harness.FnHarness")
+
+	log.Printf("****************************************** xyz123 boot.go java args: %v", args)
+
 	logger.Printf(ctx, "Executing: java %v", strings.Join(args, " "))
 
 	logger.Fatalf(ctx, "Java exited: %v", execx.Execute("java", args...))
