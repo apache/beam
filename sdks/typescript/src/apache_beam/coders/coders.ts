@@ -70,7 +70,7 @@ class CoderRegistry {
 
   registerConstructor(
     urn: string,
-    constructor: (...args: unknown[]) => Coder<unknown>
+    constructor: (...args: unknown[]) => Coder<unknown>,
   ) {
     this.internal_registry[urn] = constructor;
   }
@@ -142,7 +142,7 @@ export interface Coder<T> {
 function writeByteCallback(
   val: number,
   buf: { [x: string]: number },
-  pos: number
+  pos: number,
 ) {
   buf[pos] = val & 0xff;
 }
@@ -162,7 +162,7 @@ export function writeRawByte(b: unknown, writer: HackedWriter) {
 function writeBytesCallback(
   val: number[],
   buf: { [x: string]: number },
-  pos: number
+  pos: number,
 ) {
   for (let i = 0; i < val.length; ++i) {
     buf[pos + i] = val[i];
