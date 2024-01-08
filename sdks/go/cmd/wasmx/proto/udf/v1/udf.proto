@@ -34,11 +34,14 @@ service UDFService {
 
 // Models a User Defined Function (UDF).
 message UserDefinedFunction {
-  string urn = 1;
-  bytes bytes = 2;
-  Language language = 3;
-  google.protobuf.Timestamp created = 4;
-  google.protobuf.Timestamp updated = 5;
+  string uniqueName = 1;
+  string urn = 2;
+  bytes bytes = 3;
+  Language language = 4;
+  google.protobuf.Timestamp created = 5;
+  google.protobuf.Timestamp updated = 6;
+  string inputUrn = 7;
+  string outputUrn = 8;
 
   enum Language {
     Language_UNSPECIFIED = 0;
@@ -53,12 +56,12 @@ message DescribeRequest {
 
 message CreateRequest {
   string urn = 1;
-  UserDefinedFunction udf = 2;
+  bytes source = 2;
 }
 
 message UpdateRequest {
   string urn = 1;
-  UserDefinedFunction udf = 2;
+  bytes source = 2;
 }
 
 message DeleteRequest {

@@ -67,7 +67,7 @@ func TestExecutable_Execute(t *testing.T) {
 			defer cancel()
 
 			w := &bytes.Buffer{}
-			err := tt.ex.Execute(ctx, tt.args.r, w, tt.args.args...)
+			err := tt.ex.Execute(ctx, "", tt.args.r, w, tt.args.args...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Execute() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -17,7 +17,7 @@ func (ex Executable) Which() (string, error) {
 //
 // A non-nil r or w configures its STDIN or STDOUT, respectively.
 // Will return an error if Execute does not finish before a ctx's deadline, if available.
-func (ex Executable) Execute(ctx context.Context, r io.Reader, w io.Writer, args ...string) error {
+func (ex Executable) Execute(ctx context.Context, workingDir string, r io.Reader, w io.Writer, args ...string) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -27,6 +27,9 @@ func (ex Executable) Execute(ctx context.Context, r io.Reader, w io.Writer, args
 	}
 
 	cmd := exec.CommandContext(ctx, which, args...)
+	if workingDir != "" {
+		cmd.Dir = workingDir
+	}
 	if r != nil {
 		cmd.Stdin = r
 	}

@@ -17,10 +17,9 @@ package cmd
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
+	"github.com/apache/beam/sdks/v2/go/cmd/wasmx/internal/udf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/spf13/cobra"
@@ -123,17 +122,9 @@ func (svc *expService) Expand(ctx context.Context, req *jobmanagement_v1.Expansi
 	if err != nil {
 		return nil, err
 	}
-	data := base64.StdEncoding.EncodeToString(fn.Bytes)
-	var spec *
-	if err := protox.DecodeBase64(data, )
-	transform := &pipeline_v1.PTransform{
-		UniqueName:    req.Transform.Spec.Urn,
-		Spec:          fn.FunctionSpec(),
-		Inputs:        map[string]string{"i0": "n1"},
-		Outputs:       map[string]string{"i0": "n2"},
-		DisplayData:   nil,
-		EnvironmentId: "wasm",
-	}
+
+	transform := udf.NewExpansionResponse(fn)
+
 	return &jobmanagement_v1.ExpansionResponse{
 		Components: &pipeline_v1.Components{
 			Transforms: map[string]*pipeline_v1.PTransform{
@@ -148,7 +139,7 @@ func (svc *expService) Expand(ctx context.Context, req *jobmanagement_v1.Expansi
 				},
 				"n2": {
 					UniqueName:          "n2",
-					CoderId:             "c0",
+					CoderId:             "c1",
 					IsBounded:           pipeline_v1.IsBounded_BOUNDED,
 					WindowingStrategyId: "w0",
 				},
@@ -156,10 +147,15 @@ func (svc *expService) Expand(ctx context.Context, req *jobmanagement_v1.Expansi
 			Coders: map[string]*pipeline_v1.Coder{
 				"c0": {
 					Spec: &pipeline_v1.FunctionSpec{
-						Urn: "beam:coder:varint:v1",
+						Urn: fn.InputUrn,
 					},
 				},
 				"c1": {
+					Spec: &pipeline_v1.FunctionSpec{
+						Urn: fn.OutputUrn,
+					},
+				},
+				"c2": {
 					Spec: &pipeline_v1.FunctionSpec{
 						Urn: "beam:coder:global_window:v1",
 					},
@@ -171,7 +167,7 @@ func (svc *expService) Expand(ctx context.Context, req *jobmanagement_v1.Expansi
 						Urn: "beam:window_fn:global_windows:v1",
 					},
 					MergeStatus:   pipeline_v1.MergeStatus_NON_MERGING,
-					WindowCoderId: "c1",
+					WindowCoderId: "c2",
 					Trigger: &pipeline_v1.Trigger{
 						Trigger: &pipeline_v1.Trigger_Default_{
 							Default: &pipeline_v1.Trigger_Default{},
@@ -181,7 +177,7 @@ func (svc *expService) Expand(ctx context.Context, req *jobmanagement_v1.Expansi
 					OutputTime:       pipeline_v1.OutputTime_END_OF_WINDOW,
 					ClosingBehavior:  pipeline_v1.ClosingBehavior_EMIT_IF_NONEMPTY,
 					OnTimeBehavior:   pipeline_v1.OnTimeBehavior_FIRE_IF_NONEMPTY,
-					EnvironmentId:    "wasm",
+					EnvironmentId:    udf.WasmEnvironmentId,
 				},
 			},
 		},

@@ -116,7 +116,7 @@ func fileArgs(_ *cobra.Command, args []string) error {
 	}
 
 	path := args[0]
-	u, err := newUDF(path)
+	u, err := readUDF(path)
 	src = u
 
 	return err
@@ -163,9 +163,7 @@ func udfServeE(cmd *cobra.Command, _ []string) error {
 }
 
 func udfCreateE(cmd *cobra.Command, _ []string) error {
-	resp, err := udfClient.Create(cmd.Context(), &udf_v1.CreateRequest{
-		Udf: src,
-	})
+	resp, err := udfClient.Create(cmd.Context(), &udf_v1.CreateRequest{})
 	if err != nil {
 		return err
 	}
@@ -192,9 +190,7 @@ func udfDeleteE(cmd *cobra.Command, _ []string) error {
 }
 
 func udfUpdateE(cmd *cobra.Command, _ []string) error {
-	resp, err := udfClient.Update(cmd.Context(), &udf_v1.UpdateRequest{
-		Udf: src,
-	})
+	resp, err := udfClient.Update(cmd.Context(), &udf_v1.UpdateRequest{})
 	if err != nil {
 		return err
 	}
@@ -211,7 +207,7 @@ func udfDescribeE(cmd *cobra.Command, _ []string) error {
 	return json.NewEncoder(os.Stdout).Encode(resp)
 }
 
-func newUDF(path string) (*udf_v1.UserDefinedFunction, error) {
+func readUDF(path string) (*udf_v1.UserDefinedFunction, error) {
 	ext := filepath.Ext(path)
 	b, err := os.ReadFile(path)
 	if err != nil {

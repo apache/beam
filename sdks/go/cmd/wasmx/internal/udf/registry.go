@@ -13,19 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package udf supports user defined function (UDF) management.
 package udf
 
 import (
 	"context"
-	_ "embed"
 	"encoding/base64"
 	"fmt"
 	udf_v1 "github.com/apache/beam/sdks/v2/go/cmd/wasmx/internal/proto/udf/v1"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"io"
 	"log"
@@ -36,18 +31,16 @@ import (
 )
 
 const (
-	// TODO: Replace with proto const after https://github.com/apache/beam/pull/29898
-	wasmUrn     = "beam:dofn:wasm:1.0"
 	urnDelim    = ":"
 	urnPrefix   = "beam:transform"
 	udfFileName = "udf.dat"
 )
 
-//go:embed add/add.wasm
-var addWasm WasmFn
-
-//go:embed wordcount/wordcount.wasm
-var wordCountWasm WasmFn
+type Registry interface {
+	Get(ctx context.Context, urn string) (*udf_v1.UserDefinedFunction, error)
+	Set(ctx context.Context, urn string, fn *udf_v1.UserDefinedFunction) error
+	Delete(ctx context.Context, urn string) error
+}
 
 func NewRegistry(ctx context.Context, location *url.URL) (Registry, error) {
 	if location.Scheme != "file" {
@@ -67,99 +60,35 @@ func NewRegistry(ctx context.Context, location *url.URL) (Registry, error) {
 		dir: dir,
 	}
 
-	urn := Urn("add", "1.0")
-	data, err := protox.EncodeBase64(addWasm.FunctionSpec())
-	if err != nil {
-		return nil, err
-	}
-	b, err := base64.StdEncoding.DecodeString(data)
-	if err != nil {
-		return nil, err
+	fns := map[string]WasmFn{
+		urn("add", "1.0"):       addWasm,
+		urn("wordcount", "1.0"): wordCountWasm,
 	}
 
-	now := timestamppb.Now()
+	for urn, fn := range fns {
+		data, err := protox.EncodeBase64(fn.FunctionSpec())
+		if err != nil {
+			return nil, err
+		}
+		b, err := base64.StdEncoding.DecodeString(data)
+		if err != nil {
+			return nil, err
+		}
 
-	if err := reg.Set(ctx, urn, &udf_v1.UserDefinedFunction{
-		Urn:      urn,
-		Bytes:    b,
-		Language: udf_v1.UserDefinedFunction_Language_Go,
-		Created:  now,
-		Updated:  now,
-	}); err != nil {
-		return nil, err
+		now := timestamppb.Now()
+
+		if err := reg.Set(ctx, urn, &udf_v1.UserDefinedFunction{
+			Urn:      urn,
+			Bytes:    b,
+			Language: udf_v1.UserDefinedFunction_Language_Go,
+			Created:  now,
+			Updated:  now,
+		}); err != nil {
+			return nil, err
+		}
 	}
 
 	return reg, nil
-}
-
-func Urn(name string, version string) string {
-	return strings.Join([]string{urnPrefix, name, version}, urnDelim)
-}
-
-type Registry interface {
-	Get(ctx context.Context, urn string) (*udf_v1.UserDefinedFunction, error)
-	Set(ctx context.Context, urn string, fn *udf_v1.UserDefinedFunction) error
-}
-
-type WasmFn []byte
-
-func (fn WasmFn) FunctionSpec() *pipeline_v1.FunctionSpec {
-	pardo := &pipeline_v1.ParDoPayload{
-		DoFn: &pipeline_v1.FunctionSpec{
-			Urn:     wasmUrn,
-			Payload: fn,
-		},
-	}
-	return &pipeline_v1.FunctionSpec{
-		Urn:     graphx.URNParDo,
-		Payload: protox.MustEncode(pardo),
-	}
-}
-
-func Service(g *grpc.Server, registry Registry) error {
-	if registry == nil {
-		return fmt.Errorf("registry is nil")
-	}
-	udf_v1.RegisterUDFServiceServer(g, &service{
-		registry: registry,
-	})
-	return nil
-}
-
-type service struct {
-	registry Registry
-	udf_v1.UnimplementedUDFServiceServer
-}
-
-func (s *service) Describe(ctx context.Context, request *udf_v1.DescribeRequest) (*udf_v1.DescribeResponse, error) {
-	fn, err := s.registry.Get(ctx, request.Urn)
-	if err != nil {
-		return nil, err
-	}
-	return &udf_v1.DescribeResponse{
-		Udf: fn,
-	}, nil
-}
-
-func (s *service) Create(ctx context.Context, request *udf_v1.CreateRequest) (*udf_v1.CreateResponse, error) {
-	if err := s.registry.Set(ctx, request.Urn, request.Udf); err != nil {
-		return nil, err
-	}
-	resp := &udf_v1.CreateResponse{
-		Urn: request.Urn,
-		Udf: request.Udf,
-	}
-	return resp, nil
-}
-
-func (s *service) Update(ctx context.Context, request *udf_v1.UpdateRequest) (*udf_v1.UpdateResponse, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s *service) Delete(ctx context.Context, request *udf_v1.DeleteRequest) (*udf_v1.DeleteResponse, error) {
-	//TODO implement me
-	panic("implement me")
 }
 
 var _ Registry = &fileBasedRegistry{}
@@ -213,4 +142,14 @@ func (reg *fileBasedRegistry) Set(ctx context.Context, urn string, fn *udf_v1.Us
 
 	_, err = io.WriteString(f, data)
 	return err
+}
+
+func (reg *fileBasedRegistry) Delete(_ context.Context, urn string) error {
+	dir := reg.path(urn)
+
+	return os.RemoveAll(dir)
+}
+
+func urn(name string, version string) string {
+	return strings.Join([]string{urnPrefix, name, version}, urnDelim)
 }
