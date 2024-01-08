@@ -36,10 +36,6 @@ expansion can also be used as the cross-language worker.&lt;/li>
 &lt;li>Framework for adding Error Handlers to composite transforms added in Java (&lt;a href="https://github.com/apache/beam/pull/29164">#29164&lt;/a>).&lt;/li>
 &lt;li>Python 3.11 images now include google-cloud-profiler (&lt;a href="https://github.com/apache/beam/pull/29651">#29561&lt;/a>).&lt;/li>
 &lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>Upgraded to go 1.21.5 to build, fixing &lt;a href="https://security-tracker.debian.org/tracker/CVE-2023-45285">CVE-2023-45285&lt;/a> and &lt;a href="https://security-tracker.debian.org/tracker/CVE-2023-39326">CVE-2023-39326&lt;/a>&lt;/li>
-&lt;/ul>
 &lt;h2 id="deprecations">Deprecations&lt;/h2>
 &lt;ul>
 &lt;li>Euphoria DSL is deprecated and will be removed in a future release (not before 2.56.0) (&lt;a href="https://github.com/apache/beam/issues/29451">#29451&lt;/a>)&lt;/li>
@@ -48,6 +44,10 @@ expansion can also be used as the cross-language worker.&lt;/li>
 &lt;ul>
 &lt;li>(Python) Fixed sporadic crashes in streaming pipelines that affected some users of 2.47.0 and newer SDKs (&lt;a href="https://github.com/apache/beam/issues/27330">#27330&lt;/a>).&lt;/li>
 &lt;li>(Python) Fixed a bug that caused MLTransform to drop identical elements in the output PCollection (&lt;a href="https://github.com/apache/beam/issues/29600">#29600&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="security-fixes">Security Fixes&lt;/h2>
+&lt;ul>
+&lt;li>Upgraded to go 1.21.5 to build, fixing &lt;a href="https://security-tracker.debian.org/tracker/CVE-2023-45285">CVE-2023-45285&lt;/a> and &lt;a href="https://security-tracker.debian.org/tracker/CVE-2023-39326">CVE-2023-39326&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.53.0 release. Thank you to all contributors!&lt;/p>
