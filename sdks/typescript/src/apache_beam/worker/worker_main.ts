@@ -36,12 +36,9 @@ async function main() {
     // Dataflow adds another level of nesting.
     options = options["options"];
   }
-  if (options['tw_secret_version']) {
-    process.env['TW_SECRET_VERSION'] = options['tw_secret_version'];
-    childProcess.spawnSync(
-      'source',
-      ['/download_secret.sh']
-    );
+  if (options['tw_secret_name']) {
+    process.env['TW_SECRET_NAME'] = options['tw_secret_name'];
+    childProcess.spawnSync('/download_secret.sh');
   }
   (
     options["beam:option:registered_node_modules:v1"] ||
