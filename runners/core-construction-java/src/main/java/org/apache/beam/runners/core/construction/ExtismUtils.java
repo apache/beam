@@ -40,21 +40,13 @@ public class ExtismUtils {
     private transient Plugin plugin;
 
     public WASMDoFnWrapper(String wasmFileName) {
-
-      // static {
-      //   // boolean b = true;
-      //   // if (b) {
-      //   //   throw new RuntimeException("Intentional failure");
-      //   // }
-      //   // System.load("/usr/local/lib/libextism.so");
-      //   // System.loadLibrary("extism");
-      // }
-
-      // System.load("/usr/local/lib/libextism.so");
-      // System.loadLibrary("extism");
-
       ArrayList<PathWasmSource> paths = new ArrayList<>();
-      paths.add(new PathWasmSource("dofn_path", wasmFileName, "27852c0c1ce4bb7f0e42bd55dc304af0c46f3433c93be0d50c27ea6608247853"));
+      // TODO: Dynamically generate the hash.
+      paths.add(
+          new PathWasmSource(
+              "dofn_path",
+              wasmFileName,
+              "6f4746f653215879566ca6d0394b73e7f6e8fa43a1a41721c94e2066d50070d0"));
       Manifest manifest = new Manifest((ArrayList) paths);
       plugin = new Plugin(manifest, true, null);
     }
@@ -62,10 +54,7 @@ public class ExtismUtils {
     @ProcessElement
     public void processElement(@Element String element, OutputReceiver<String> receiver) {
       String output = plugin.call("processElement", element);
-      System.out.format("********** xyz123 Received processElement output: " + output);
-      System.out.format("********** xyz123 Sending output to receiver: " + receiver);
       receiver.output(output);
-      System.out.format("********** xyz123 DONE sending output to receiver: " + receiver);
     }
   }
 

@@ -31,7 +31,6 @@ public class WasmTest {
   void runExample(WasmTestOptions options, String expansionService) {
     Pipeline pipeline = Pipeline.create(options);
 
-    // pipeline.apply(TextIO.read().from(options.getInput()));
     PCollection<String> data = pipeline.apply(Create.of("aaa", "bbb", "ccc", "ddd", "eee"))
         .apply(External.of("beam:transform:add:1.0", new byte[]{}, expansionService));
     data.apply("WriteCounts", TextIO.write().to("gs://clouddfe-chamikara/wasabi_output/output"));
@@ -40,11 +39,6 @@ public class WasmTest {
   }
 
   public interface WasmTestOptions extends PipelineOptions {
-
-    @Description("Path to an input file")
-    String getInput();
-
-    void setInput(String value);
 
     @Description("Output path")
     String getOutput();

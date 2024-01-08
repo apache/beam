@@ -115,10 +115,6 @@ public class FnHarness {
   public static void main(Function<String, String> environmentVarGetter) throws Exception {
     JvmInitializers.runOnStartup();
     System.out.format("SDK Fn Harness started%n");
-    System.out.format(
-        "***************** xyz123 java.library.path: "
-            + System.getProperty("java.library.path")
-            + "%n");
     System.out.format("Harness ID %s%n", environmentVarGetter.apply(HARNESS_ID));
     System.out.format(
         "Logging location %s%n", environmentVarGetter.apply(LOGGING_API_SERVICE_DESCRIPTOR));

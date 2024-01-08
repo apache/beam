@@ -277,12 +277,8 @@ public class External {
               .build();
       requestBuilder.setPipelineOptions(PipelineOptionsTranslation.toProto(p.getOptions()));
 
-      System.out.println("Expansion request: " + request);
-
       ExpansionApi.ExpansionResponse response =
           clientFactory.getExpansionServiceClient(endpoint).expand(request);
-
-      // System.out.println("Got expansion service response: " + response);
 
       if (!Strings.isNullOrEmpty(response.getError())) {
         throw new RuntimeException(
@@ -306,11 +302,11 @@ public class External {
       expandedTransform = response.getTransform();
 
       // Updated to the input/output PCollections of the expanded transform.
-      // This is needed since we currently return a hardcoded expansion response
+      // TODO: Remove this after the Go expansion service can dynamically
+      //   generate a proper expansion request.
       Map<String, String> expandedTransformInputUpdates =
           ImmutableMap.of(
               "n1",
-              // "TextIO.Read/Read/ParDo(BoundedSourceAsSDFWrapper)/ParMultiDo(BoundedSourceAsSDFWrapper).output");
               "Create.Values/Read(CreateSource)/ParDo(BoundedSourceAsSDFWrapper)/ParMultiDo(BoundedSourceAsSDFWrapper).output");
       // Map<String, String> expandedTransformOutputUpdates = ImmutableMap.of("n1", "dd");
 
@@ -328,7 +324,6 @@ public class External {
         updatedInputsMap.put(key, value);
       }
 
-      // updatedExpandedTransformBuilder.getInputsMap().clear();
       updatedExpandedTransformBuilder.putAllInputs(updatedInputsMap);
 
       expandedTransform = updatedExpandedTransformBuilder.build();

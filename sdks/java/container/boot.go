@@ -175,7 +175,6 @@ func main() {
 		"-XX:+UseParallelGC",
 		"-XX:+AlwaysActAsServerClassMachine",
 		"-XX:-OmitStackTraceInFastThrow",
-		"-cp", strings.Join(cp, ":"),
 	}
 
 	enableGoogleCloudProfiler := strings.Contains(options, enableGoogleCloudProfilerOption)
@@ -220,15 +219,15 @@ func main() {
 
 	// (2) Add classpath: "-cp foo.jar:bar.jar:.."
 	if len(javaOptions.Classpath) > 0 {
-		args = append(args, "-cp")
-		args = append(args, strings.Join(javaOptions.Classpath, ":"))
+		cp = append(cp, javaOptions.Classpath...)
 	}
-	// pathingjar, err := makePathingJar(cp)
-	// if err != nil {
-	// 	logger.Fatalf(ctx, "makePathingJar failed: %v", err)
-	// }
-	// args = append(args, "-cp")
-	// args = append(args, pathingjar)
+
+	pathingjar, err := makePathingJar(cp)
+	if err != nil {
+		logger.Fatalf(ctx, "makePathingJar failed: %v", err)
+	}
+	args = append(args, "-cp")
+	args = append(args, pathingjar)
 
 	// (3) Add (sorted) properties: "-Dbar=baz -Dfoo=bar .."
 	var properties []string
@@ -251,13 +250,9 @@ func main() {
 	if _, err := os.Stat(openModuleAgentJar); err == nil {
 		args = append(args, "-javaagent:"+openModuleAgentJar)
 	}
-	args = append(args, "-Djava.library.path=/usr/local/lib")
 	args = append(args, "-Djna.library.path=/usr/local/lib")
-	args = append(args, "--module-path=/usr/local/lib:/opt/apache/beam/jars/jamm.jar")
 
 	args = append(args, "org.apache.beam.fn.harness.FnHarness")
-
-	log.Printf("****************************************** xyz123 boot.go java args: %v", args)
 
 	logger.Printf(ctx, "Executing: java %v", strings.Join(args, " "))
 

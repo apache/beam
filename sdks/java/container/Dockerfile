@@ -63,8 +63,6 @@ RUN wget https://github.com/extism/cli/releases/download/v0.3.8/extism-v0.3.8-li
 RUN tar xvf extism-v0.3.8-linux-amd64.tar.gz
 RUN ./extism lib install latest
 
-RUN export LD_LIBRARY_PATH=/usr/local/lib
-
 # Add Google Cloud Profiler agent.
 COPY target/profiler/* /opt/google_cloud_profiler/
 

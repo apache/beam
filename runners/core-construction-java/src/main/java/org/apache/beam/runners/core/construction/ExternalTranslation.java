@@ -131,6 +131,9 @@ public class ExternalTranslation {
         if (entry.getKey().startsWith(impulsePrefix)) {
           continue;
         }
+
+        // TODO: Uncomment this after the Go expansion service can dynamically
+        //  generate a proper expansion request.
         // checkState(entry.getKey().startsWith(nameSpace), "unknown transform found");
         RunnerApi.PTransform proto = entry.getValue();
         RunnerApi.PTransform.Builder transformBuilder = RunnerApi.PTransform.newBuilder();
