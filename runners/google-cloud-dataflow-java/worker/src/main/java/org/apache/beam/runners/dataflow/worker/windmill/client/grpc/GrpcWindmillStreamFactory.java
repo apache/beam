@@ -33,7 +33,6 @@ import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
@@ -155,7 +154,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   }
 
   public GetDataStream createGetDataStream(
-      CloudWindmillServiceV1Alpha1Stub stub, ThrottleTimer getDataThrottleTimer,
+      CloudWindmillServiceV1Alpha1Stub stub,
+      ThrottleTimer getDataThrottleTimer,
       Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses) {
     return GrpcGetDataStream.create(
         responseObserver -> withDeadline(stub).getDataStream(responseObserver),

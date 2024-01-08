@@ -495,18 +495,22 @@ public class StreamingDataflowWorker {
   public static StreamingDataflowWorker fromDataflowWorkerHarnessOptions(
       DataflowWorkerHarnessOptions options) throws IOException {
 
-    StreamingDataflowWorker worker = new StreamingDataflowWorker(
-        Collections.emptyList(),
-        IntrinsicMapTaskExecutorFactory.defaultFactory(),
-        new DataflowWorkUnitClient(options, LOG),
-        options.as(StreamingDataflowWorkerOptions.class),
-        true,
-        new HotKeyLogger(),
-        Instant::now,
-        (threadName) ->
-            Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat(threadName).build()));
-    options.as(StreamingDataflowWorkerOptions.class).getWindmillServerStub().setProcessHeartbeatResponses(worker::handleHeartbeatResponses);
+    StreamingDataflowWorker worker =
+        new StreamingDataflowWorker(
+            Collections.emptyList(),
+            IntrinsicMapTaskExecutorFactory.defaultFactory(),
+            new DataflowWorkUnitClient(options, LOG),
+            options.as(StreamingDataflowWorkerOptions.class),
+            true,
+            new HotKeyLogger(),
+            Instant::now,
+            (threadName) ->
+                Executors.newSingleThreadScheduledExecutor(
+                    new ThreadFactoryBuilder().setNameFormat(threadName).build()));
+    options
+        .as(StreamingDataflowWorkerOptions.class)
+        .getWindmillServerStub()
+        .setProcessHeartbeatResponses(worker::handleHeartbeatResponses);
     return worker;
   }
 
@@ -1242,11 +1246,11 @@ public class StreamingDataflowWorker {
             computationId,
             key.toStringUtf8());
       } else if (WorkItemFailedException.isWorkItemFailedException(t)) {
-          LOG.debug(
-              "Execution of work for computation '{}' on key '{}' failed. "
-                  + "Work will not be retried locally.",
-              computationId,
-              key.toStringUtf8());
+        LOG.debug(
+            "Execution of work for computation '{}' on key '{}' failed. "
+                + "Work will not be retried locally.",
+            computationId,
+            key.toStringUtf8());
       } else {
         LastExceptionDataProvider.reportException(t);
         LOG.debug("Failed work: {}", work);
@@ -1888,9 +1892,14 @@ public class StreamingDataflowWorker {
 
   public void handleHeartbeatResponses(List<Windmill.ComputationHeartbeatResponse> responses) {
     for (Windmill.ComputationHeartbeatResponse computationHeartbeatResponse : responses) {
-      for (Windmill.HeartbeatResponse heartbeatResponse : computationHeartbeatResponse.getHeartbeatResponsesList()) {
-        computationMap.get(computationHeartbeatResponse.getComputationId()).failWork(
-            heartbeatResponse.getShardingKey(), heartbeatResponse.getWorkToken(), heartbeatResponse.getCacheToken());
+      for (Windmill.HeartbeatResponse heartbeatResponse :
+          computationHeartbeatResponse.getHeartbeatResponsesList()) {
+        computationMap
+            .get(computationHeartbeatResponse.getComputationId())
+            .failWork(
+                heartbeatResponse.getShardingKey(),
+                heartbeatResponse.getWorkToken(),
+                heartbeatResponse.getCacheToken());
       }
     }
   }
@@ -1909,7 +1918,8 @@ public class StreamingDataflowWorker {
         clock.get().minus(Duration.millis(options.getActiveWorkRefreshPeriodMillis()));
 
     for (Map.Entry<String, ComputationState> entry : computationMap.entrySet()) {
-      if (windmillServiceEnabled && DataflowRunner.hasExperiment(options, "send_new_heartbeat_requests")) {
+      if (windmillServiceEnabled
+          && DataflowRunner.hasExperiment(options, "send_new_heartbeat_requests")) {
         heartbeats.put(entry.getKey(), entry.getValue().getKeyHeartbeats(refreshDeadline));
       } else {
         active.put(entry.getKey(), entry.getValue().getKeysToRefresh(refreshDeadline));

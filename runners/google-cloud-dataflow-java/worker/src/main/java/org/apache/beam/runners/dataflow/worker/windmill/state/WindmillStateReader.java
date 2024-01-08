@@ -150,7 +150,14 @@ public class WindmillStateReader {
       ByteString key,
       long shardingKey,
       long workToken) {
-    this(metricTrackingWindmillServerStub, computation, key, shardingKey, workToken, () -> null, () -> Boolean.FALSE);
+    this(
+        metricTrackingWindmillServerStub,
+        computation,
+        key,
+        shardingKey,
+        workToken,
+        () -> null,
+        () -> Boolean.FALSE);
   }
 
   private <FutureT> Future<FutureT> stateFuture(StateTag<?> stateTag, @Nullable Coder<?> coder) {
@@ -390,7 +397,7 @@ public class WindmillStateReader {
         }
       } catch (Exception e) {
         // Set up all the remaining futures for this key to throw an exception. This ensures that if
-        // the exception is caulllkght that all futures have been completed and do not block.
+        // the exception is caught that all futures have been completed and do not block.
         for (StateTag<?> stateTag : toFetch) {
           waiting.get(stateTag).future.setException(e);
         }

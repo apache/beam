@@ -579,8 +579,9 @@ public class StreamingDataflowWorkerTest {
   }
 
   /**
-   * Returns a {@link org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest}
-   * builder parsed from the provided text format proto.
+   * Returns a {@link
+   * org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest} builder parsed
+   * from the provided text format proto.
    */
   private WorkItemCommitRequest.Builder parseCommitRequest(String output) throws Exception {
     WorkItemCommitRequest.Builder builder = Windmill.WorkItemCommitRequest.newBuilder();
@@ -3276,14 +3277,16 @@ public class StreamingDataflowWorkerTest {
     worker.start();
 
     // Queue up two work items for the same key.
-    server.whenGetWorkCalled()
+    server
+        .whenGetWorkCalled()
         .thenReturn(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0), "key", DEFAULT_SHARDING_KEY))
         .thenReturn(makeInput(1, TimeUnit.MILLISECONDS.toMicros(0), "key", DEFAULT_SHARDING_KEY));
     server.waitForEmptyWorkQueue();
 
     // Mock Windmill sending a heartbeat response failing the second work item while the first
     // is still processing.
-    ComputationHeartbeatResponse.Builder failedHeartbeat = ComputationHeartbeatResponse.newBuilder();
+    ComputationHeartbeatResponse.Builder failedHeartbeat =
+        ComputationHeartbeatResponse.newBuilder();
     failedHeartbeat
         .setComputationId(DEFAULT_COMPUTATION_ID)
         .addHeartbeatResponsesBuilder()
@@ -3937,7 +3940,7 @@ public class StreamingDataflowWorkerTest {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      Thread.sleep(5000);
+      Thread.sleep(1000);
       c.output(c.element());
     }
   }
@@ -4171,7 +4174,8 @@ public class StreamingDataflowWorkerTest {
           }
         }
       }
-      for (ComputationHeartbeatRequest heartbeatRequest : request.getComputationHeartbeatRequestList()) {
+      for (ComputationHeartbeatRequest heartbeatRequest :
+          request.getComputationHeartbeatRequestList()) {
         for (HeartbeatRequest heartbeat : heartbeatRequest.getHeartbeatRequestsList()) {
           for (LatencyAttribution la : heartbeat.getLatencyAttributionList()) {
             EnumMap<LatencyAttribution.State, Duration> durations =

@@ -240,8 +240,9 @@ public class MetricTrackingWindmillServerStub {
   }
 
   /** Tells windmill processing is ongoing for the given keys. */
-  public void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active,
-                                Map<String, List<HeartbeatRequest>> heartbeats) {
+  public void refreshActiveWork(
+      Map<String, List<KeyedGetDataRequest>> active,
+      Map<String, List<HeartbeatRequest>> heartbeats) {
     activeHeartbeats.set(active.size());
     try {
       if (useStreamingRequests) {

@@ -136,7 +136,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.stateNameMap = ImmutableMap.copyOf(stateNameMap);
     this.stateCache = stateCache;
     this.backlogBytes = UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
-    this.workIsFailed = () -> { return Boolean.FALSE; };
+    this.workIsFailed =
+        () -> {
+          return Boolean.FALSE;
+        };
   }
 
   @VisibleForTesting

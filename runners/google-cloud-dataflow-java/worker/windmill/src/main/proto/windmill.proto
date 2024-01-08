@@ -524,7 +524,7 @@ message GetDataResponse {
   repeated ComputationGetDataResponse data = 1;
   repeated GlobalData global_data = 2;
   // Only set if ComputationHeartbeatRequest was sent, prior versions do not
-  // expect a response for heartbeats. SE only
+  // expect a response for heartbeats. SE only.
   repeated ComputationHeartbeatResponse computation_heartbeat_response = 3;
 }
 
@@ -535,20 +535,17 @@ message GetDataResponse {
 // GetWork but not yet committed with CommitWork.
 // Note that implicit heartbeats not expecting a response may be sent as
 // special KeyedGetDataRequests see function KeyedGetDataRequestIsHeartbeat.
-// TODO(b/110711474) Add which beam version will utilize this
-// [SDK 2.XX and above][Legacy Worker and SE only]
+// SE only.
 message HeartbeatRequest {
   optional fixed64 sharding_key = 1;
   optional fixed64 work_token = 2;
   optional fixed64 cache_token = 3;
-  // See the design doc at go/se-latency-attribution-p0.
   repeated LatencyAttribution latency_attribution = 4;
 }
 
 // Responses for heartbeat requests, indicating which work is no longer valid
 // on the windmill worker and may be dropped/cancelled in the client.
-// TODO(b/110711474) Add which beam version will utilize this
-// [SDK 2.XX and above][Legacy Worker and SE only]
+// SE only.
 message HeartbeatResponse {
   optional fixed64 sharding_key = 1;
   optional fixed64 work_token = 2;

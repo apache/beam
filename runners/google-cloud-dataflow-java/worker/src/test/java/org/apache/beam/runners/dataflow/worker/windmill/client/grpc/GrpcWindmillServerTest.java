@@ -52,8 +52,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkStreamTi
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
@@ -842,7 +842,9 @@ public class GrpcWindmillServerTest {
                     sawHeader = true;
                   } else {
                     LOG.info("Received {} getDataHeartbeats", chunk.getStateRequestCount());
-                    LOG.info("Received {} computationHeartbeatRequests", chunk.getComputationHeartbeatRequestCount());
+                    LOG.info(
+                        "Received {} computationHeartbeatRequests",
+                        chunk.getComputationHeartbeatRequestCount());
                     errorCollector.checkThat(
                         chunk.getSerializedSize(), Matchers.lessThanOrEqualTo(STREAM_CHUNK_SIZE));
                     errorCollector.checkThat(chunk.getRequestIdCount(), Matchers.is(0));
@@ -850,16 +852,18 @@ public class GrpcWindmillServerTest {
                     synchronized (getDataHeartbeats) {
                       for (ComputationGetDataRequest request : chunk.getStateRequestList()) {
                         errorCollector.checkThat(request.getRequestsCount(), Matchers.is(1));
-                        getDataHeartbeats.putIfAbsent(request.getComputationId(),
-                            new ArrayList<>());
+                        getDataHeartbeats.putIfAbsent(
+                            request.getComputationId(), new ArrayList<>());
                         getDataHeartbeats
                             .get(request.getComputationId())
                             .add(request.getRequestsList().get(0));
                       }
                     }
                     synchronized (heartbeatRequests) {
-                      for (ComputationHeartbeatRequest request : chunk.getComputationHeartbeatRequestList()) {
-                        heartbeatRequests.putIfAbsent(request.getComputationId(), new ArrayList<>());
+                      for (ComputationHeartbeatRequest request :
+                          chunk.getComputationHeartbeatRequestList()) {
+                        heartbeatRequests.putIfAbsent(
+                            request.getComputationId(), new ArrayList<>());
                         for (HeartbeatRequest heartbeat : request.getHeartbeatRequestsList()) {
                           heartbeatRequests.get(request.getComputationId()).add(heartbeat);
                         }

@@ -23,7 +23,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Ve
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
-import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
@@ -183,8 +182,9 @@ public final class GrpcGetDataStream
   }
 
   @Override
-  public void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active,
-                                Map<String, List<HeartbeatRequest>> heartbeats) {
+  public void refreshActiveWork(
+      Map<String, List<KeyedGetDataRequest>> active,
+      Map<String, List<HeartbeatRequest>> heartbeats) {
     long builderBytes = 0;
     StreamingGetDataRequest.Builder builder = StreamingGetDataRequest.newBuilder();
     for (Map.Entry<String, List<KeyedGetDataRequest>> entry : active.entrySet()) {
@@ -211,7 +211,7 @@ public final class GrpcGetDataStream
         long bytes = (long) entry.getKey().length() + request.getSerializedSize() + 10;
         if (builderBytes > 0
             && (builderBytes + bytes > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE
-            || builder.getRequestIdCount() >= streamingRpcBatchLimit)) {
+                || builder.getRequestIdCount() >= streamingRpcBatchLimit)) {
           send(builder.build());
           builderBytes = 0;
           builder.clear();

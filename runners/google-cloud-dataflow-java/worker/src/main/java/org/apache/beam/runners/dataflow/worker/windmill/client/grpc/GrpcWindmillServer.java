@@ -126,7 +126,8 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   }
 
   @Override
-  public void setProcessHeartbeatResponses(Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
+  public void setProcessHeartbeatResponses(
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     this.processHeartbeatResponses = processHeartbeatResponses;
   };
 
@@ -329,7 +330,9 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   @Override
   public GetDataStream getDataStream() {
     return windmillStreamFactory.createGetDataStream(
-        dispatcherClient.getDispatcherStub(), throttleTimers.getDataThrottleTimer(), this.processHeartbeatResponses);
+        dispatcherClient.getDispatcherStub(),
+        throttleTimers.getDataThrottleTimer(),
+        this.processHeartbeatResponses);
   }
 
   @Override

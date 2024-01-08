@@ -997,7 +997,8 @@ public class WorkerCustomSourcesTest {
                 options,
                 context);
 
-    NativeReaderIterator<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> readerIterator = reader.iterator();
+    NativeReaderIterator<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> readerIterator =
+        reader.iterator();
     int numReads = 0;
     while ((numReads == 0) ? readerIterator.start() : readerIterator.advance()) {
       WindowedValue<ValueWithRecordId<KV<Integer, Integer>>> value = readerIterator.getCurrent();

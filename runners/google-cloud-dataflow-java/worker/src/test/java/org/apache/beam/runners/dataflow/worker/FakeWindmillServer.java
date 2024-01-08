@@ -110,7 +110,8 @@ class FakeWindmillServer extends WindmillServerStub {
   }
 
   @Override
-  public void setProcessHeartbeatResponses(Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
+  public void setProcessHeartbeatResponses(
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     this.processHeartbeatResponses = processHeartbeatResponses;
   };
 
@@ -318,8 +319,9 @@ class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active,
-                                    Map<String, List<HeartbeatRequest>> heartbeats) {
+      public void refreshActiveWork(
+          Map<String, List<KeyedGetDataRequest>> active,
+          Map<String, List<HeartbeatRequest>> heartbeats) {
         Windmill.GetDataRequest.Builder builder = Windmill.GetDataRequest.newBuilder();
         for (Map.Entry<String, List<KeyedGetDataRequest>> entry : active.entrySet()) {
           builder.addRequests(
@@ -410,10 +412,12 @@ class FakeWindmillServer extends WindmillServerStub {
     }
   }
 
-  public Map<Long, WorkItemCommitRequest> waitForAndGetCommitsWithTimeout(int numCommits, Duration timeout) {
+  public Map<Long, WorkItemCommitRequest> waitForAndGetCommitsWithTimeout(
+      int numCommits, Duration timeout) {
     LOG.debug("waitForAndGetCommitsWithTimeout: {} {}", numCommits, timeout);
     Instant waitStart = Instant.now();
-    while (commitsReceived.size() < commitsRequested + numCommits && Instant.now().isBefore(waitStart.plus(timeout))) {
+    while (commitsReceived.size() < commitsRequested + numCommits
+        && Instant.now().isBefore(waitStart.plus(timeout))) {
       Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
     }
     commitsRequested += numCommits;
