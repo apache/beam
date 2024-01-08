@@ -65,6 +65,11 @@ public class MutationSizeEstimatorTest {
             .to(Value.json("{\"key1\":\"value1\", \"key2\":\"value2\"}"))
             .build();
     Mutation deleteDouble = Mutation.delete("test", Key.of(1223.));
+    Mutation jsonb =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .to(Value.pgJsonb("{\"key123\":\"value123\", \"key321\":\"value321\"}"))
+            .build();
 
     assertThat(MutationSizeEstimator.sizeOf(int64), is(8L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(8L));
@@ -74,6 +79,7 @@ public class MutationSizeEstimatorTest {
     assertThat(MutationSizeEstimator.sizeOf(pgNumericNaN), is(3L));
     assertThat(MutationSizeEstimator.sizeOf(json), is(34L));
     assertThat(MutationSizeEstimator.sizeOf(deleteDouble), is(8L));
+    assertThat(MutationSizeEstimator.sizeOf(jsonb), is(42L));
   }
 
   @Test
@@ -131,6 +137,14 @@ public class MutationSizeEstimatorTest {
                     ByteArray.copyFrom("some_bytes".getBytes(UTF_8)),
                     ByteArray.copyFrom("some_bytes".getBytes(UTF_8))))
             .build();
+    Mutation jsonb =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .toPgJsonbArray(
+                ImmutableList.of(
+                    "{\"key123\":\"value123\", \"key321\":\"value321\"}",
+                    "{\"key456\":\"value456\", \"key789\":600}"))
+            .build();
     assertThat(MutationSizeEstimator.sizeOf(int64), is(24L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(16L));
     assertThat(MutationSizeEstimator.sizeOf(bool), is(4L));
@@ -138,6 +152,7 @@ public class MutationSizeEstimatorTest {
     assertThat(MutationSizeEstimator.sizeOf(pgNumeric), is(156L));
     assertThat(MutationSizeEstimator.sizeOf(json), is(62L));
     assertThat(MutationSizeEstimator.sizeOf(bytes), is(20L));
+    assertThat(MutationSizeEstimator.sizeOf(jsonb), is(77L));
   }
 
   @Test
@@ -162,6 +177,8 @@ public class MutationSizeEstimatorTest {
             .toPgNumericArray((Iterable<String>) null)
             .build();
     Mutation json = Mutation.newInsertOrUpdateBuilder("test").set("one").toJsonArray(null).build();
+    Mutation jsonb =
+        Mutation.newInsertOrUpdateBuilder("test").set("one").toPgJsonbArray(null).build();
 
     assertThat(MutationSizeEstimator.sizeOf(int64), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(0L));
@@ -169,6 +186,7 @@ public class MutationSizeEstimatorTest {
     assertThat(MutationSizeEstimator.sizeOf(numeric), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(pgNumeric), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(json), is(0L));
+    assertThat(MutationSizeEstimator.sizeOf(jsonb), is(0L));
   }
 
   @Test
@@ -234,6 +252,29 @@ public class MutationSizeEstimatorTest {
     assertThat(MutationSizeEstimator.sizeOf(empty), is(2L));
     assertThat(MutationSizeEstimator.sizeOf(nullValue), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(sample), is(33L));
+    assertThat(MutationSizeEstimator.sizeOf(nullArray), is(0L));
+  }
+
+  @Test
+  public void pgJsonb() throws Exception {
+    Mutation empty =
+        Mutation.newInsertOrUpdateBuilder("test").set("one").to(Value.pgJsonb("{}")).build();
+    Mutation nullValue =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .to(Value.pgJsonb((String) null))
+            .build();
+    Mutation sample =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .to(Value.pgJsonb("{\"type_name\":\"number\",\"value\":12345.123}"))
+            .build();
+    Mutation nullArray =
+        Mutation.newInsertOrUpdateBuilder("test").set("one").toPgJsonbArray(null).build();
+
+    assertThat(MutationSizeEstimator.sizeOf(empty), is(2L));
+    assertThat(MutationSizeEstimator.sizeOf(nullValue), is(0L));
+    assertThat(MutationSizeEstimator.sizeOf(sample), is(40L));
     assertThat(MutationSizeEstimator.sizeOf(nullArray), is(0L));
   }
 

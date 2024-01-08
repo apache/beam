@@ -93,7 +93,7 @@ class FirestoreStatefulComponentFactory implements Serializable {
         GcpOptions gcpOptions = options.as(GcpOptions.class);
         builder
             .setCredentialsProvider(FixedCredentialsProvider.create(gcpOptions.getGcpCredential()))
-            .setEndpoint(firestoreOptions.getHost());
+            .setEndpoint(firestoreOptions.getFirestoreHost());
         headers.put(
             "x-goog-request-params",
             "project_id="

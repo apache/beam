@@ -36,13 +36,14 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Test case for {@link ByteStringCoder}. */
 @RunWith(JUnit4.class)
 public class ByteStringCoderTest {
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final ByteStringCoder TEST_CODER = ByteStringCoder.of();
 
   private static final List<String> TEST_STRING_VALUES =

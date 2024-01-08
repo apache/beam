@@ -250,6 +250,8 @@ public class ExecutionStateSampler {
     private final AtomicReference<@Nullable Thread> trackedThread;
     // Read by multiple threads, read and written by the ExecutionStateSampler thread lazily.
     private final AtomicLong lastTransitionTime;
+    // Used to throttle lull logging.
+    private long lastLullReport;
     // Read and written by the bundle processing thread frequently.
     private long numTransitions;
     // Read by the ExecutionStateSampler, written by the bundle processing thread lazily and
@@ -333,31 +335,41 @@ public class ExecutionStateSampler {
         transitionsAtLastSample = transitionsAtThisSample;
       } else {
         long lullTimeMs = currentTimeMillis - lastTransitionTime.get();
-        Thread thread = trackedThread.get();
         if (lullTimeMs > MAX_LULL_TIME_MS) {
-          if (thread == null) {
-            LOG.warn(
-                String.format(
-                    "Operation ongoing in bundle %s for at least %s without outputting or completing (stack trace unable to be generated).",
-                    processBundleId.get(),
-                    DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod())));
-          } else if (currentExecutionState == null) {
-            LOG.warn(
-                String.format(
-                    "Operation ongoing in bundle %s for at least %s without outputting or completing:%n  at %s",
-                    processBundleId.get(),
-                    DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod()),
-                    Joiner.on("\n  at ").join(thread.getStackTrace())));
-          } else {
-            LOG.warn(
-                String.format(
-                    "Operation ongoing in bundle %s for PTransform{id=%s, name=%s, state=%s} for at least %s without outputting or completing:%n  at %s",
-                    processBundleId.get(),
-                    currentExecutionState.ptransformId,
-                    currentExecutionState.ptransformUniqueName,
-                    currentExecutionState.stateName,
-                    DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod()),
-                    Joiner.on("\n  at ").join(thread.getStackTrace())));
+          if (lullTimeMs < lastLullReport // This must be a new report.
+              || lullTimeMs > 1.2 * lastLullReport // Exponential backoff.
+              || lullTimeMs
+                  > MAX_LULL_TIME_MS + lastLullReport // At least once every MAX_LULL_TIME_MS.
+          ) {
+            lastLullReport = lullTimeMs;
+            Thread thread = trackedThread.get();
+            if (thread == null) {
+              LOG.warn(
+                  String.format(
+                      "Operation ongoing in bundle %s for at least %s without outputting "
+                          + "or completing (stack trace unable to be generated).",
+                      processBundleId.get(),
+                      DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod())));
+            } else if (currentExecutionState == null) {
+              LOG.warn(
+                  String.format(
+                      "Operation ongoing in bundle %s for at least %s without outputting "
+                          + "or completing:%n  at %s",
+                      processBundleId.get(),
+                      DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod()),
+                      Joiner.on("\n  at ").join(thread.getStackTrace())));
+            } else {
+              LOG.warn(
+                  String.format(
+                      "Operation ongoing in bundle %s for PTransform{id=%s, name=%s, state=%s} "
+                          + "for at least %s without outputting or completing:%n  at %s",
+                      processBundleId.get(),
+                      currentExecutionState.ptransformId,
+                      currentExecutionState.ptransformUniqueName,
+                      currentExecutionState.stateName,
+                      DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod()),
+                      Joiner.on("\n  at ").join(thread.getStackTrace())));
+            }
           }
         }
       }

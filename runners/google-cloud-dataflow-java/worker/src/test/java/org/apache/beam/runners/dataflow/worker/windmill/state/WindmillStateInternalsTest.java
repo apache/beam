@@ -98,7 +98,9 @@ import org.hamcrest.core.CombinableMatcher;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
@@ -112,7 +114,7 @@ import org.mockito.MockitoAnnotations;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class WindmillStateInternalsTest {
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   public static final Range<Long> FULL_ORDERED_LIST_RANGE =
       Range.closedOpen(WindmillOrderedList.MIN_TS_MICROS, WindmillOrderedList.MAX_TS_MICROS);
   private static final StateNamespace NAMESPACE = new StateNamespaceForTest("ns");

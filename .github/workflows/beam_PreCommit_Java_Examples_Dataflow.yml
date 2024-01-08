@@ -39,6 +39,7 @@ on:
       - 'examples/kotlin/**'
       - 'release/**'
       - 'release/trigger_all_tests.json'
+      - '.github/trigger_files/beam_PreCommit_Java_Examples_Dataflow.json'
   issue_comment:
     types: [created]
   schedule:
@@ -73,7 +74,7 @@ permissions:
 jobs:
   beam_PreCommit_Java_Examples_Dataflow:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    timeout-minutes: 60
+    timeout-minutes: 75
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       matrix:
@@ -82,7 +83,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java_Examples_Dataflow PreCommit'
     steps:
@@ -112,8 +113,8 @@ jobs:
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
-        if: failure()
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

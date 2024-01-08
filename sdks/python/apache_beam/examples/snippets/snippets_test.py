@@ -1261,6 +1261,10 @@ class CombineTest(unittest.TestCase):
         (sum, count) = sum_count
         return sum / count if count else float('NaN')
 
+      def compact(self, accumulator):
+        # No-op
+        return accumulator
+
     # [END combine_custom_average_define]
     # [START combine_custom_average_execute]
     average = pc | beam.CombineGlobally(AverageFn())

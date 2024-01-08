@@ -27,6 +27,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
@@ -108,9 +109,12 @@ import org.slf4j.LoggerFactory;
  * <tr><td>{@link TableSchema.TypeName#ARRAY}</td> <td>{@link Schema.TypeName#ARRAY}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#ENUM8}</td> <td>{@link Schema.TypeName#STRING}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#ENUM16}</td> <td>{@link Schema.TypeName#STRING}</td></tr>
+ * <tr><td>{@link TableSchema.TypeName#BOOL}</td> <td>{@link Schema.TypeName#BOOLEAN}</td></tr>
+ * <tr><td>{@link TableSchema.TypeName#TUPLE}</td> <td>{@link Schema.TypeName#ROW}</td></tr>
  * </table>
  *
- * Nullable row columns are supported through Nullable type in ClickHouse.
+ * Nullable row columns are supported through Nullable type in ClickHouse. Low cardinality hint is
+ * supported through LowCardinality DataType in ClickHouse.
  *
  * <p>Nested rows should be unnested using {@link Select#flattenedSchema()}. Type casting should be
  * done using {@link org.apache.beam.sdk.schemas.transforms.Cast} before {@link ClickHouseIO}.
@@ -473,6 +477,15 @@ public class ClickHouseIO {
     }
   }
 
+  private static String tuplePreprocessing(String payload) {
+    List<String> l =
+        Arrays.stream(payload.trim().split(","))
+            .map(s -> s.trim().replaceAll(" +", "' "))
+            .collect(Collectors.toList());
+    String content =
+        String.join(",", l).trim().replaceAll("Tuple\\(", "Tuple('").replaceAll(",", ",'");
+    return content;
+  }
   /**
    * Returns {@link TableSchema} for a given table.
    *
@@ -496,7 +509,13 @@ public class ClickHouseIO {
           String defaultTypeStr = rs.getString("default_type");
           String defaultExpression = rs.getString("default_expression");
 
-          ColumnType columnType = ColumnType.parse(type);
+          ColumnType columnType = null;
+          if (type.toLowerCase().trim().startsWith("tuple(")) {
+            String content = tuplePreprocessing(type);
+            columnType = ColumnType.parse(content);
+          } else {
+            columnType = ColumnType.parse(type);
+          }
           DefaultType defaultType = DefaultType.parse(defaultTypeStr).orElse(null);
 
           Object defaultValue;

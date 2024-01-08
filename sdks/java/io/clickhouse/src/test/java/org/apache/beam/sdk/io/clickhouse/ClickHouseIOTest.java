@@ -139,6 +139,84 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
   }
 
   @Test
+  public void testTupleType() throws Exception {
+    Schema tupleSchema =
+        Schema.of(
+            Schema.Field.of("f0", FieldType.STRING), Schema.Field.of("f1", FieldType.BOOLEAN));
+    Schema schema = Schema.of(Schema.Field.of("t0", FieldType.row(tupleSchema)));
+    Row row1Tuple = Row.withSchema(tupleSchema).addValue("tuple").addValue(true).build();
+
+    Row row1 = Row.withSchema(schema).addValue(row1Tuple).build();
+
+    executeSql(
+        "CREATE TABLE test_named_tuples (" + "t0 Tuple(`f0` String, `f1` Bool)" + ") ENGINE=Log");
+
+    pipeline.apply(Create.of(row1).withRowSchema(schema)).apply(write("test_named_tuples"));
+
+    pipeline.run().waitUntilFinish();
+
+    try (ResultSet rs = executeQuery("SELECT * FROM test_named_tuples")) {
+      rs.next();
+      assertEquals("('tuple',true)", rs.getString("t0"));
+    }
+
+    try (ResultSet rs = executeQuery("SELECT t0.f0 as f0, t0.f1 as f1 FROM test_named_tuples")) {
+      rs.next();
+      assertEquals("tuple", rs.getString("f0"));
+      assertEquals("true", rs.getString("f1"));
+    }
+  }
+
+  @Test
+  public void testComplexTupleType() throws Exception {
+    Schema sizeSchema =
+        Schema.of(
+            Schema.Field.of("width", FieldType.INT64.withNullable(true)),
+            Schema.Field.of("height", FieldType.INT64.withNullable(true)));
+
+    Schema browserSchema =
+        Schema.of(
+            Schema.Field.of("name", FieldType.STRING.withNullable(true)),
+            Schema.Field.of("size", FieldType.row(sizeSchema)),
+            Schema.Field.of("version", FieldType.STRING.withNullable(true)));
+
+    Schema propSchema =
+        Schema.of(
+            Schema.Field.of("browser", FieldType.row(browserSchema)),
+            Schema.Field.of("deviceCategory", FieldType.STRING.withNullable(true)));
+
+    Schema schema = Schema.of(Schema.Field.of("prop", FieldType.row(propSchema)));
+
+    Row sizeRow = Row.withSchema(sizeSchema).addValue(10L).addValue(20L).build();
+    Row browserRow =
+        Row.withSchema(browserSchema).addValue("test").addValue(sizeRow).addValue("1.0.0").build();
+    Row propRow = Row.withSchema(propSchema).addValue(browserRow).addValue("mobile").build();
+    Row row1 = Row.withSchema(schema).addValue(propRow).build();
+
+    executeSql(
+        "CREATE TABLE test_named_complex_tuples ("
+            + "`prop` Tuple(`browser` Tuple(`name` Nullable(String),`size` Tuple(`width` Nullable(Int64), `height` Nullable(Int64)),`version` Nullable(String)),`deviceCategory` Nullable(String))"
+            + ") ENGINE=Log");
+
+    pipeline.apply(Create.of(row1).withRowSchema(schema)).apply(write("test_named_complex_tuples"));
+
+    pipeline.run().waitUntilFinish();
+
+    try (ResultSet rs = executeQuery("SELECT * FROM test_named_complex_tuples")) {
+      rs.next();
+      assertEquals("(('test',(10,20),'1.0.0'),'mobile')", rs.getString("prop"));
+    }
+
+    try (ResultSet rs =
+        executeQuery(
+            "SELECT prop.browser.name as name, prop.browser.size as size FROM test_named_complex_tuples")) {
+      rs.next();
+      assertEquals("test", rs.getString("name"));
+      assertEquals("(10,20)", rs.getString("size"));
+    }
+  }
+
+  @Test
   public void testPrimitiveTypes() throws Exception {
     Schema schema =
         Schema.of(
@@ -159,7 +237,9 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             Schema.Field.of("f14", FieldType.STRING),
             Schema.Field.of("f15", FieldType.STRING),
             Schema.Field.of("f16", FieldType.BYTES),
-            Schema.Field.of("f17", FieldType.logicalType(FixedBytes.of(3))));
+            Schema.Field.of("f17", FieldType.logicalType(FixedBytes.of(3))),
+            Schema.Field.of("f18", FieldType.BOOLEAN),
+            Schema.Field.of("f19", FieldType.STRING));
     Row row1 =
         Row.withSchema(schema)
             .addValue(new DateTime(2030, 10, 1, 0, 0, 0, DateTimeZone.UTC))
@@ -180,6 +260,8 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             .addValue("qwe")
             .addValue(new byte[] {'a', 's', 'd'})
             .addValue(new byte[] {'z', 'x', 'c'})
+            .addValue(true)
+            .addValue("lowcardenality")
             .build();
 
     executeSql(
@@ -201,7 +283,9 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             + "f14 Enum16('abc' = -1, 'cde' = -2),"
             + "f15 FixedString(3),"
             + "f16 FixedString(3),"
-            + "f17 FixedString(3)"
+            + "f17 FixedString(3),"
+            + "f18 Bool,"
+            + "f19 LowCardinality(String)"
             + ") ENGINE=Log");
 
     pipeline.apply(Create.of(row1).withRowSchema(schema)).apply(write("test_primitive_types"));
@@ -229,6 +313,8 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
       assertArrayEquals(new byte[] {'q', 'w', 'e'}, rs.getBytes("f15"));
       assertArrayEquals(new byte[] {'a', 's', 'd'}, rs.getBytes("f16"));
       assertArrayEquals(new byte[] {'z', 'x', 'c'}, rs.getBytes("f17"));
+      assertEquals("true", rs.getString("f18"));
+      assertEquals("lowcardenality", rs.getString("f19"));
     }
   }
 
@@ -250,7 +336,8 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             Schema.Field.of("f11", FieldType.array(FieldType.INT64)),
             Schema.Field.of("f12", FieldType.array(FieldType.INT64)),
             Schema.Field.of("f13", FieldType.array(FieldType.STRING)),
-            Schema.Field.of("f14", FieldType.array(FieldType.STRING)));
+            Schema.Field.of("f14", FieldType.array(FieldType.STRING)),
+            Schema.Field.of("f15", FieldType.array(FieldType.BOOLEAN)));
     Row row1 =
         Row.withSchema(schema)
             .addArray(
@@ -272,6 +359,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             .addArray(12L, 13L)
             .addArray("abc", "cde")
             .addArray("cde", "abc")
+            .addArray(true, false)
             .build();
 
     executeSql(
@@ -290,7 +378,8 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             + "f11 Array(UInt32),"
             + "f12 Array(UInt64),"
             + "f13 Array(Enum8('abc' = 1, 'cde' = 2)),"
-            + "f14 Array(Enum16('abc' = -1, 'cde' = -2))"
+            + "f14 Array(Enum16('abc' = -1, 'cde' = -2)),"
+            + "f15 Array(Bool)"
             + ") ENGINE=Log");
 
     pipeline
@@ -317,6 +406,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
       assertEquals("[12,13]", rs.getString("f12"));
       assertEquals("['abc','cde']", rs.getString("f13"));
       assertEquals("['cde','abc']", rs.getString("f14"));
+      assertEquals("[true,false]", rs.getString("f15"));
     }
   }
 

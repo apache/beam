@@ -189,7 +189,15 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
           (
               'enum mutable set',
               collections.abc.MutableSet[_TestEnum],
-              typehints.Set[_TestEnum])
+              typehints.Set[_TestEnum]),
+          (
+              'collection enum',
+              collections.abc.Collection[_TestEnum],
+              typehints.Collection[_TestEnum]),
+          (
+              'collection of tuples',
+              collections.abc.Collection[tuple[str, int]],
+              typehints.Collection[typehints.Tuple[str, int]]),
       ]
 
       for test_case in test_cases:

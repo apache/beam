@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -274,6 +275,7 @@ public class External {
               .setTransform(ptransformBuilder.build())
               .setNamespace(getNamespace())
               .build();
+      requestBuilder.setPipelineOptions(PipelineOptionsTranslation.toProto(p.getOptions()));
 
       ExpansionApi.ExpansionResponse response =
           clientFactory.getExpansionServiceClient(endpoint).expand(request);
@@ -391,7 +393,8 @@ public class External {
                       .build())
               .getReplacementsList()) {
         Path path = Files.createTempFile("beam-artifact", "");
-        try (FileOutputStream fout = new FileOutputStream(path.toFile())) {
+        File artifactFile = path.toFile();
+        try (FileOutputStream fout = new FileOutputStream(artifactFile)) {
           for (Iterator<ArtifactApi.GetArtifactResponse> it =
                   retrievalStub.getArtifact(
                       ArtifactApi.GetArtifactRequest.newBuilder().setArtifact(artifact).build());
@@ -409,6 +412,8 @@ public class External {
                         .build()
                         .toByteString())
                 .build());
+        // Delete beam-artifact temp File on program exit
+        artifactFile.deleteOnExit();
       }
       return resolved;
     }

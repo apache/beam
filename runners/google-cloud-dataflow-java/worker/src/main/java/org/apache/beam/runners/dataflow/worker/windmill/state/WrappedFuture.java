@@ -45,7 +45,7 @@ public class WrappedFuture<T> extends ForwardingFuture.SimpleForwardingFuture<T>
   public T get() throws InterruptedException, ExecutionException {
     if (!delegate().isDone() && reader != null) {
       // Only one thread per reader, so no race here.
-      reader.startBatchAndBlock();
+      reader.performReads();
     }
     reader = null;
     return super.get();
@@ -56,7 +56,7 @@ public class WrappedFuture<T> extends ForwardingFuture.SimpleForwardingFuture<T>
       throws InterruptedException, ExecutionException, TimeoutException {
     if (!delegate().isDone() && reader != null) {
       // Only one thread per reader, so no race here.
-      reader.startBatchAndBlock();
+      reader.performReads();
     }
     reader = null;
     return super.get(timeout, unit);

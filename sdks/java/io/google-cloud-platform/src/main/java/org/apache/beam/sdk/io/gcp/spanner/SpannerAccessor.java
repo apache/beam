@@ -39,7 +39,6 @@ import com.google.spanner.v1.PartialResultSet;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.joda.time.Duration;
@@ -63,16 +62,12 @@ public class SpannerAccessor implements AutoCloseable {
   private static final ConcurrentHashMap<SpannerConfig, SpannerAccessor> spannerAccessors =
       new ConcurrentHashMap<>();
 
-  // Keep reference counts of each SpannerAccessor's usage so that we can close
-  // it when it is no longer in use.
-  private static final ConcurrentHashMap<SpannerConfig, AtomicInteger> refcounts =
-      new ConcurrentHashMap<>();
-
   private final Spanner spanner;
   private final DatabaseClient databaseClient;
   private final BatchClient batchClient;
   private final DatabaseAdminClient databaseAdminClient;
   private final SpannerConfig spannerConfig;
+  private int refcount = 0;
 
   private SpannerAccessor(
       Spanner spanner,
@@ -89,24 +84,20 @@ public class SpannerAccessor implements AutoCloseable {
 
   public static SpannerAccessor getOrCreate(SpannerConfig spannerConfig) {
 
-    SpannerAccessor self = spannerAccessors.get(spannerConfig);
-    if (self == null) {
-      synchronized (spannerAccessors) {
-        // Re-check that it has not been created before we got the lock.
-        self = spannerAccessors.get(spannerConfig);
-        if (self == null) {
-          // Connect to spanner for this SpannerConfig.
-          LOG.info("Connecting to {}", spannerConfig);
-          self = SpannerAccessor.createAndConnect(spannerConfig);
-          spannerAccessors.put(spannerConfig, self);
-          refcounts.putIfAbsent(spannerConfig, new AtomicInteger(0));
-        }
+    synchronized (spannerAccessors) {
+      SpannerAccessor self = spannerAccessors.get(spannerConfig);
+      if (self == null) {
+        // Connect to spanner for this SpannerConfig.
+        LOG.info("Connecting to {}", spannerConfig);
+        self = SpannerAccessor.createAndConnect(spannerConfig);
+        LOG.info("Successfully connected to {}", spannerConfig);
+        spannerAccessors.put(spannerConfig, self);
       }
+      // Add refcount for this spannerConfig.
+      self.refcount++;
+      LOG.debug("getOrCreate(): refcount={} for {}", self.refcount, spannerConfig);
+      return self;
     }
-    // Add refcount for this spannerConfig.
-    int refcount = refcounts.get(spannerConfig).incrementAndGet();
-    LOG.debug("getOrCreate(): refcount={} for {}", refcount, spannerConfig);
-    return self;
   }
 
   private static SpannerAccessor createAndConnect(SpannerConfig spannerConfig) {
@@ -261,18 +252,13 @@ public class SpannerAccessor implements AutoCloseable {
   @Override
   public void close() {
     // Only close Spanner when present in map and refcount == 0
-    int refcount = refcounts.getOrDefault(spannerConfig, new AtomicInteger(0)).decrementAndGet();
-    LOG.debug("close(): refcount={} for {}", refcount, spannerConfig);
-
-    if (refcount == 0) {
-      synchronized (spannerAccessors) {
-        // Re-check refcount in case it has increased outside the lock.
-        if (refcounts.get(spannerConfig).get() <= 0) {
-          spannerAccessors.remove(spannerConfig);
-          refcounts.remove(spannerConfig);
-          LOG.info("Closing {} ", spannerConfig);
-          spanner.close();
-        }
+    synchronized (spannerAccessors) {
+      refcount--;
+      LOG.debug("close(): refcount={} for {}", refcount, spannerConfig);
+      if (refcount <= 0) {
+        spannerAccessors.remove(spannerConfig);
+        LOG.info("Closing {} ", spannerConfig);
+        spanner.close();
       }
     }
   }

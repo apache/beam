@@ -408,11 +408,15 @@ public class BeamFnLoggingClient implements AutoCloseable {
       if (severity == null) {
         return;
       }
+      if (record == null) {
+        return;
+      }
+      String messageString = getFormatter().formatMessage(record);
 
       BeamFnApi.LogEntry.Builder builder =
           BeamFnApi.LogEntry.newBuilder()
               .setSeverity(severity)
-              .setMessage(getFormatter().formatMessage(record))
+              .setMessage(messageString == null ? "null" : messageString)
               .setThread(Integer.toString(record.getThreadID()))
               .setTimestamp(
                   Timestamp.newBuilder()

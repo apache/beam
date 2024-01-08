@@ -88,6 +88,7 @@
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*LT\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*ResourceManagerTest\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*testinfra.*mockapis.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*requestresponse.*" />
 
   <!-- Flink -->
   <!-- Checkstyle does not correctly detect package files across multiple source directories. -->

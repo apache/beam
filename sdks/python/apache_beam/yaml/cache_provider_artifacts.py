@@ -16,6 +16,7 @@
 #
 
 import logging
+import sys
 import time
 
 from apache_beam.version import __version__ as beam_version
@@ -37,7 +38,8 @@ def cache_provider_artifacts():
   if '.dev' not in beam_version:
     # Also cache a base python venv for fast cloning.
     t = time.time()
-    artifacts = yaml_provider.PypiExpansionService._create_venv_to_clone()
+    artifacts = yaml_provider.PypiExpansionService._create_venv_to_clone(
+        sys.executable)
     logging.info('Cached %s in %0.03f seconds.', artifacts, time.time() - t)
 
 

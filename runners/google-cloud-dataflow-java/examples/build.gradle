@@ -36,7 +36,7 @@ dependencies {
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
-def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
+def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
 def dockerJavaImageName = project(':runners:google-cloud-dataflow-java').ext.dockerJavaImageName
 // If -PuseExecutableStage is set, the use_executable_stage_bundle_execution wil be enabled.
 def fnapiExperiments = project.hasProperty('useExecutableStage') ? 'beam_fn_api_use_deprecated_read,use_executable_stage_bundle_execution' : "beam_fn_api,beam_fn_api_use_deprecated_read"
@@ -84,7 +84,7 @@ def commonConfig = { Map args ->
            include "**/WordCountIT.class"
            include "**/WindowedWordCountIT.class"
        } else {
-           include "**/IT.class"
+           include "**/*IT.class"
            if (runWordCount == 'exclude') {
                exclude "**/WordCountIT.class"
                exclude "**/WindowedWordCountIT.class"
@@ -98,9 +98,11 @@ def commonConfig = { Map args ->
                "--region=${gcpRegion}",
                "--tempRoot=${actualGcsTempRoot}",
                "--runner=TestDataflowRunner",
-               "--dataflowWorkerJar=${actualDataflowWorkerJar}",
-               "--workerHarnessContainerImage=${actualWorkerHarnessContainerImage}"
-               ] + additionalOptions
+               "--dataflowWorkerJar=${actualDataflowWorkerJar}"]
+       if (actualWorkerHarnessContainerImage) {
+           preCommitBeamTestPipelineOptions += "--workerHarnessContainerImage=${actualWorkerHarnessContainerImage}"
+       }
+       preCommitBeamTestPipelineOptions += additionalOptions
        systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
      }
  }
@@ -167,6 +169,17 @@ task postCommitLegacyWorkerJava17(type: Test) {
 
 task java17PostCommit() {
     dependsOn postCommitLegacyWorkerJava17
+}
+
+task postCommitLegacyWorkerJava21(type: Test) {
+    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+    systemProperty "java.specification.version", "21"
+    with commonConfig(dataflowWorkerJar: dataflowWorkerJar, runWordCount: 'exclude')
+}
+
+task java21PostCommit() {
+    dependsOn postCommitLegacyWorkerJava21
 }
 
 task preCommit() {

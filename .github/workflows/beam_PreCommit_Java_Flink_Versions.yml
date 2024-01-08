@@ -31,6 +31,7 @@ on:
       - 'runners/flink/**'
       - 'release/**'
       - 'release/trigger_all_tests.json'
+      - '.github/trigger_files/beam_PreCommit_Java_Flink_Versions.json'
   issue_comment:
     types: [created]
   schedule:
@@ -71,7 +72,7 @@ jobs:
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Java_Flink_Versions PreCommit'
     steps:
       - uses: actions/checkout@v4
@@ -92,8 +93,8 @@ jobs:
           arguments: |
             -PdisableSpotlessCheck=true -PdisableCheckStyle=true \
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
-        if: failure()
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

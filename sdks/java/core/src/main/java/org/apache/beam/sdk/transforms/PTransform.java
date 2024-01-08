@@ -21,6 +21,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -216,6 +217,17 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
     return resourceHints;
   }
 
+  /** Returns annotations map to provide additional hints to the runner. */
+  public Map<String, byte[]> getAnnotations() {
+    return annotations;
+  }
+
+  public PTransform<InputT, OutputT> addAnnotation(
+      @NonNull String annotationType, byte @NonNull [] annotation) {
+    annotations.put(annotationType, annotation);
+    return this;
+  }
+
   /////////////////////////////////////////////////////////////////////////////
 
   // See the note about about PTransform's fake Serializability, to
@@ -228,6 +240,8 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
   protected final transient @Nullable String name;
 
   protected transient @NonNull ResourceHints resourceHints = ResourceHints.create();
+
+  protected transient @NonNull Map<String, byte @NonNull []> annotations = new HashMap<>();
 
   protected PTransform() {
     this.name = null;

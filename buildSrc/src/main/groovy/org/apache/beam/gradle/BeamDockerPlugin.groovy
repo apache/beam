@@ -240,6 +240,11 @@ class BeamDockerPlugin implements Plugin<Project> {
       if (ext.builder != null) {
         buildCommandLine.addAll('--builder', ext.builder)
       }
+      // Jenkins dependencies aren't up to date enough to accept this flag.
+      // Temporarily exclude until we fully move to GHA.
+      if (!ext.project.jenkins.isCIBuild) {
+        buildCommandLine.addAll('--provenance=false')
+      }
     } else {
       buildCommandLine.add 'build'
     }
@@ -267,7 +272,19 @@ class BeamDockerPlugin implements Plugin<Project> {
     if (ext.pull) {
       buildCommandLine.add '--pull'
     }
-    buildCommandLine.addAll(['-t', "${-> ext.name}", '.'])
+    if (!ext.tags.isEmpty() && ext.push) {
+      String[] repoParts = (ext.name as String).split(':')
+      String repo = repoParts[0]
+      for (int i = 1; i < repoParts.length - 1; i++) {
+        repo += ':' + repoParts[i]
+      }
+      for (tag in ext.getTags()) {
+        buildCommandLine.addAll(['-t', repo + ':' + tag])
+      }
+      buildCommandLine.add '.'
+    } else {
+      buildCommandLine.addAll(['-t', "${-> ext.name}", '.'])
+    }
     logger.debug("${buildCommandLine}" as String)
     return buildCommandLine
   }

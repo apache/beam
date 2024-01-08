@@ -20,6 +20,8 @@ name: PostCommit Java Dataflow V2
 on:
   schedule:
     - cron: '30 3/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_DataflowV2.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -59,7 +61,8 @@ jobs:
         job_phrase: [Run PostCommit_Java_DataflowV2]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run PostCommit_Java_DataflowV2'
     steps:
       - uses: actions/checkout@v4
@@ -76,8 +79,8 @@ jobs:
         with:
           gradle-command: :runners:google-cloud-dataflow-java:postCommitRunnerV2
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
-        if: failure()
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

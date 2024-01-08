@@ -111,6 +111,7 @@ class KafkaIOReadImplementationCompatibility {
     KEY_DESERIALIZER_PROVIDER,
     VALUE_DESERIALIZER_PROVIDER,
     CHECK_STOP_READING_FN(SDF),
+    BAD_RECORD_ERROR_HANDLER(SDF),
     ;
 
     @Nonnull private final ImmutableSet<KafkaIOReadImplementation> supportedImplementations;
