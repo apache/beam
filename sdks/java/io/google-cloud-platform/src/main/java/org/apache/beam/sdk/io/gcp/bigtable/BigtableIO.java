@@ -25,6 +25,8 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.gax.batching.BatchingException;
+import com.google.api.gax.rpc.ApiException;
+import com.google.api.gax.rpc.InvalidArgumentException;
 import com.google.api.gax.rpc.NotFoundException;
 import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.MutateRowResponse;
@@ -45,7 +47,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.BiConsumer;
 import org.apache.beam.sdk.PipelineRunner;
@@ -1282,9 +1283,7 @@ public class BigtableIO {
     private final Coder<KV<ByteString, Iterable<Mutation>>> inputCoder;
     private final BadRecordRouter badRecordRouter;
 
-    private transient Set<KV<BigtableWriteException, BoundedWindow>> badRecords = new HashSet<>();
-
-    private transient Set<CompletionStage<MutateRowResponse>> unbatchedWrites = new HashSet<>();
+    private transient Set<KV<BigtableWriteException, BoundedWindow>> badRecords = null;
 
     // Assign serviceEntry in startBundle and clear it in tearDown.
     @Nullable private BigtableServiceEntry serviceEntry;
@@ -1317,7 +1316,6 @@ public class BigtableIO {
       }
 
       badRecords = new HashSet<>();
-      unbatchedWrites = new HashSet<>();
     }
 
     @ProcessElement
@@ -1329,12 +1327,11 @@ public class BigtableIO {
       seenWindows.compute(window, (key, count) -> (count != null ? count : 0) + 1);
     }
 
-    public BiConsumer<MutateRowResponse, Throwable> handleMutationException(
+    private BiConsumer<MutateRowResponse, Throwable> handleMutationException(
         KV<ByteString, Iterable<Mutation>> record, BoundedWindow window) {
       return (MutateRowResponse result, Throwable exception) -> {
         if (exception != null) {
-          if (exception instanceof NotFoundException
-              && !((NotFoundException) exception).isRetryable()) {
+          if (isDataException(exception)) {
             // This case, of being an NotFoundException and not retryable,
             // indicates an issue with the data. In general, the likely cause is the user trying to
             // write to a column family that doesn't exist. The frequency of this is dependent on
@@ -1349,28 +1346,33 @@ public class BigtableIO {
       };
     }
 
-    public void retryIndividualRecord(
+    private void retryIndividualRecord(
         KV<ByteString, Iterable<Mutation>> record, BoundedWindow window) {
       try {
-        unbatchedWrites.add(
-            bigtableWriter
-                .writeSingleRecord(record)
-                .whenComplete(
-                    (singleMutationResult, singleException) -> {
-                      if (singleException != null) {
-                        if (singleException instanceof NotFoundException
-                            && !((NotFoundException) singleException).isRetryable()) {
-                          // if we get another NotFoundException, we know this is the bad record.
-                          badRecords.add(
-                              KV.of(new BigtableWriteException(record, singleException), window));
-                        } else {
-                          failures.add(new BigtableWriteException(record, singleException));
-                        }
-                      }
-                    }));
+        bigtableWriter
+            .writeSingleRecord(record)
+            .whenComplete(
+                (singleMutationResult, singleException) -> {
+                  if (singleException != null) {
+                    if (isDataException(singleException)) {
+                      // if we get another NotFoundException, we know this is the bad record.
+                      badRecords.add(
+                          KV.of(new BigtableWriteException(record, singleException), window));
+                    } else {
+                      failures.add(new BigtableWriteException(record, singleException));
+                    }
+                  }
+                });
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
+    }
+
+    private static boolean isDataException(Throwable e) {
+      if (e instanceof ApiException && !((ApiException) e).isRetryable()) {
+        return e instanceof NotFoundException || e instanceof InvalidArgumentException;
+      }
+      return false;
     }
 
     @FinishBundle
@@ -1390,16 +1392,6 @@ public class BigtableIO {
             }
           }
           bigtableWriter = null;
-        }
-
-        for (CompletionStage<MutateRowResponse> unbatchedWrite : unbatchedWrites) {
-          try {
-            unbatchedWrite.toCompletableFuture().get();
-          } catch (Exception e) {
-            // ignore exceptions here, they are handled by the .whenComplete as part of the
-            // completion stage this .get exists purely to make sure all unbatched writes are
-            // complete.
-          }
         }
 
         for (KV<BigtableWriteException, BoundedWindow> badRecord : badRecords) {

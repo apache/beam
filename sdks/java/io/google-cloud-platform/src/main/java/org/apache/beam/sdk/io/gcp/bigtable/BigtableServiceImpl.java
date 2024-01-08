@@ -54,11 +54,13 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -491,6 +493,8 @@ class BigtableServiceImpl implements BigtableService {
     private Distribution bulkSize = Metrics.distribution("BigTable-" + tableId, "batchSize");
     private Distribution latency = Metrics.distribution("BigTable-" + tableId, "batchLatencyMs");
 
+    private Set<CompletionStage<MutateRowResponse>> unbatchedWrites = new HashSet<>();
+
     BigtableWriterImpl(
         BigtableDataClient client,
         String projectId,
@@ -507,6 +511,7 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public void close() throws IOException {
+      IOException exception = null;
       if (bulkMutation != null) {
         try {
           stopwatch.start();
@@ -530,15 +535,28 @@ class BigtableServiceImpl implements BigtableService {
           // instead of tracking them separately in BigtableIOWriteFn.
         } catch (TimeoutException e) {
           // We fail because future.get() timed out
-          throw new IOException("BulkMutation took too long to close", e);
+          exception = new IOException("BulkMutation took too long to close", e);
         } catch (ExecutionException e) {
-          throw new IOException("Failed to close batch", e.getCause());
+          exception = new IOException("Failed to close batch", e.getCause());
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           // We fail since close() operation was interrupted.
-          throw new IOException(e);
+          exception = new IOException(e);
         }
         bulkMutation = null;
+      }
+      // ensure any singleton writes are finished
+      for (CompletionStage<MutateRowResponse> unbatchedWrite : unbatchedWrites) {
+        try {
+          unbatchedWrite.toCompletableFuture().get();
+        } catch (Exception e) {
+          // ignore exceptions here, they are handled by the .whenComplete as part of the
+          // completion stage this .get exists purely to make sure all unbatched writes are
+          // complete.
+        }
+      }
+      if (exception != null) {
+        throw exception;
       }
     }
 
@@ -575,11 +593,11 @@ class BigtableServiceImpl implements BigtableService {
 
       CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
 
-      outstandingMutations += 1;
       Futures.addCallback(
           new VendoredListenableFutureAdapter<>(client.mutateRowAsync(rowMutation)),
           new WriteMutationCallback(result, serviceCallMetric),
           directExecutor());
+      unbatchedWrites.add(result);
       return result;
     }
 
