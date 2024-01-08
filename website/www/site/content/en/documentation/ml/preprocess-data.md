@@ -59,6 +59,8 @@ You can use `MLTranform` to generate embeddings that you can use to push data in
 | ------- | ---------------|
 | SentenceTransformerEmbeddings | Uses the Hugging Face [`sentence-transformers`](https://huggingface.co/sentence-transformers) models to generate text embeddings.
 | VertexAITextEmbeddings | Uses models from the [the Vertex AI text-embeddings API](https://cloud.google.com/vertex-ai/docs/generative-ai/embeddings/get-text-embeddings) to generate text embeddings.
+{{< /table >}}
+
 
 ### Data processing transforms that use TFT
 
