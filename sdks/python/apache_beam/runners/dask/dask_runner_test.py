@@ -16,8 +16,8 @@
 #
 import datetime
 import inspect
-import unittest
 import typing as t
+import unittest
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
