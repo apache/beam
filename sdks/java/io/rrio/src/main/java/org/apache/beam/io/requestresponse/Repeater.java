@@ -17,6 +17,7 @@
  */
 package org.apache.beam.io.requestresponse;
 
+import static org.apache.beam.io.requestresponse.Monitoring.incIfPresent;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -108,15 +109,8 @@ abstract class Repeater<InputT, OutputT> {
     long waitFor = 0L;
     while (waitFor != BackOff.STOP) {
       try {
-        if (waitFor > 0L) {
-          if (getSleeperCounter() != null) {
-            checkStateNotNull(getSleeperCounter()).inc();
-          }
-          getSleeper().sleep(waitFor);
-        }
-        if (getCallCounter() != null) {
-          checkStateNotNull(getCallCounter()).inc();
-        }
+        sleepIfNeeded(waitFor);
+        incIfPresent(getCallCounter());
         return getThrowableFunction().apply(input);
       } catch (UserCodeExecutionException e) {
         if (!e.shouldRepeat()) {
@@ -126,9 +120,7 @@ abstract class Repeater<InputT, OutputT> {
       } catch (InterruptedException ignored) {
       }
       try {
-        if (getBackoffCounter() != null) {
-          checkStateNotNull(getBackoffCounter()).inc();
-        }
+        incIfPresent(getBackoffCounter());
         waitFor = getBackOff().nextBackOffMillis();
       } catch (IOException e) {
         throw new UserCodeExecutionException(e);
@@ -136,6 +128,13 @@ abstract class Repeater<InputT, OutputT> {
     }
     throw latestError.orElse(
         new UserCodeExecutionException("failed to process for input: " + input));
+  }
+
+  private void sleepIfNeeded(long waitFor) throws InterruptedException {
+    if (waitFor > 0L) {
+      incIfPresent(getSleeperCounter());
+      getSleeper().sleep(waitFor);
+    }
   }
 
   /**
