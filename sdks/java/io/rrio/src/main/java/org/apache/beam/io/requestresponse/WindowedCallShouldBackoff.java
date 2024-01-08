@@ -69,8 +69,8 @@ class WindowedCallShouldBackoff<ResponseT> implements CallShouldBackoff<Response
   }
 
   @Override
-  public boolean value() {
+  public boolean isTrue() {
     resetIfNeeded();
-    return checkStateNotNull(basis).value();
+    return checkStateNotNull(basis).isTrue();
   }
 }

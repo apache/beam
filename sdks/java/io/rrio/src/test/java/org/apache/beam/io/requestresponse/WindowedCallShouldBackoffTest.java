@@ -34,17 +34,17 @@ public class WindowedCallShouldBackoffTest {
     instance.update(new UserCodeExecutionException(""));
     instance.update(new UserCodeExecutionException(""));
     instance.update(new UserCodeExecutionException(""));
-    assertThat(instance.value(), equalTo(true));
+    assertThat(instance.isTrue(), equalTo(true));
 
     Thread.sleep(1001L);
-    assertThat(instance.value(), equalTo(false));
+    assertThat(instance.isTrue(), equalTo(false));
 
     instance.update(new UserCodeExecutionException(""));
     instance.update(new UserCodeExecutionException(""));
     instance.update(new UserCodeExecutionException(""));
     instance.update(new UserCodeExecutionException(""));
     instance.update(new UserCodeExecutionException(""));
-    assertThat(instance.value(), equalTo(true));
+    assertThat(instance.isTrue(), equalTo(true));
   }
 
   private static WindowedCallShouldBackoff<Integer> instantiate(Duration window) {

@@ -200,7 +200,8 @@ public class RequestResponseIO<RequestT, ResponseT>
   /**
    * Overrides the private no-op implementation of {@link CallShouldBackoff} that determines whether
    * the {@link DoFn} should hold {@link RequestT}s. Without this configuration, {@link RequestT}s
-   * are never held; no-op implemented {@link CallShouldBackoff#value} always returns {@code false}.
+   * are never held; no-op implemented {@link CallShouldBackoff#isTrue} always returns {@code
+   * false}.
    */
   public RequestResponseIO<RequestT, ResponseT> withCallShouldBackoff(
       CallShouldBackoff<ResponseT> value) {
@@ -596,8 +597,8 @@ public class RequestResponseIO<RequestT, ResponseT>
     }
 
     @Override
-    public boolean value() {
-      return basis.value();
+    public boolean isTrue() {
+      return basis.isTrue();
     }
   }
 }

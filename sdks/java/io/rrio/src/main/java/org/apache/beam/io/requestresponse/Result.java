@@ -28,7 +28,6 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * The {@link Result} of processing request {@link PCollection} into response {@link PCollection}.
@@ -74,12 +73,12 @@ public class Result<ResponseT> implements POutput {
   }
 
   @Override
-  public @NonNull Pipeline getPipeline() {
+  public Pipeline getPipeline() {
     return this.pipeline;
   }
 
   @Override
-  public @NonNull Map<TupleTag<?>, PValue> expand() {
+  public Map<TupleTag<?>, PValue> expand() {
     return ImmutableMap.of(
         responseTag, responses,
         failureTag, failures);
@@ -87,5 +86,5 @@ public class Result<ResponseT> implements POutput {
 
   @Override
   public void finishSpecifyingOutput(
-      @NonNull String transformName, @NonNull PInput input, @NonNull PTransform<?, ?> transform) {}
+      String transformName, PInput input, PTransform<?, ?> transform) {}
 }

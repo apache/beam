@@ -17,6 +17,7 @@
  */
 package org.apache.beam.io.requestresponse;
 
+import static org.apache.beam.io.requestresponse.Monitoring.incIfPresent;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -47,15 +48,13 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Duration;
 
 /**
  * {@link Call} transforms a {@link RequestT} {@link PCollection} into a {@link ResponseT} {@link
  * PCollection} and {@link ApiIOError} {@link PCollection}, both wrapped in a {@link Result}.
  */
-class Call<RequestT, ResponseT>
-    extends PTransform<@NonNull PCollection<RequestT>, @NonNull Result<ResponseT>> {
+class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result<ResponseT>> {
 
   /**
    * Instantiates a {@link Call} {@link PTransform} with the required {@link Caller} and {@link
@@ -130,7 +129,7 @@ class Call<RequestT, ResponseT>
   }
 
   @Override
-  public @NonNull Result<ResponseT> expand(PCollection<RequestT> input) {
+  public Result<ResponseT> expand(PCollection<RequestT> input) {
 
     PCollectionTuple pct =
         input.apply(
@@ -218,9 +217,7 @@ class Call<RequestT, ResponseT>
     }
 
     private void setupWithoutRepeat() throws UserCodeExecutionException {
-      if (setupCounter != null) {
-        checkStateNotNull(setupCounter).inc();
-      }
+      incIfPresent(setupCounter);
       this.setupTeardown.setup();
     }
 
@@ -245,17 +242,7 @@ class Call<RequestT, ResponseT>
       BackOff backOff = this.configuration.getBackOffSupplier().get();
       Sleeper sleeper = this.configuration.getSleeperSupplier().get();
 
-      if (this.configuration.getCallShouldBackoff().value()) {
-        try {
-          if (backoffCounter != null) {
-            checkStateNotNull(backoffCounter).inc();
-          }
-          sleeper.sleep(backOff.nextBackOffMillis());
-        } catch (InterruptedException ignored) {
-        } catch (IOException e) {
-          throw new UserCodeExecutionException(e);
-        }
-      }
+      backoffIfNeeded(backOff, sleeper);
 
       Repeater<Void, Void> repeater =
           Repeater.<Void, Void>builder()
@@ -263,41 +250,8 @@ class Call<RequestT, ResponseT>
               .setSleeper(sleeper)
               .setThrowableFunction(
                   ignored -> {
-                    if (setupCounter != null) {
-                      checkStateNotNull(setupCounter).inc();
-                    }
+                    incIfPresent(setupCounter);
                     this.setupTeardown.setup();
-                    return null;
-                  })
-              .build()
-              .withBackoffCounter(backoffCounter)
-              .withSleeperCounter(sleeperCounter);
-
-      repeater.apply(null);
-    }
-
-    private void performTeardown() throws UserCodeExecutionException {
-      if (!configuration.getShouldRepeat()) {
-        if (teardownCounter != null) {
-          checkStateNotNull(teardownCounter).inc();
-        }
-        setupTeardown.teardown();
-        return;
-      }
-
-      BackOff backOff = configuration.getBackOffSupplier().get();
-      Sleeper sleeper = configuration.getSleeperSupplier().get();
-
-      Repeater<Void, Void> repeater =
-          Repeater.<Void, Void>builder()
-              .setBackOff(backOff)
-              .setSleeper(sleeper)
-              .setThrowableFunction(
-                  ignored -> {
-                    if (teardownCounter != null) {
-                      checkStateNotNull(teardownCounter).inc();
-                    }
-                    setupTeardown.teardown();
                     return null;
                   })
               .build()
@@ -316,16 +270,29 @@ class Call<RequestT, ResponseT>
       BackOff backOff = configuration.getBackOffSupplier().get();
       Sleeper sleeper = configuration.getSleeperSupplier().get();
 
-      if (configuration.getCallShouldBackoff().value()) {
-        try {
-          sleeper.sleep(backOff.nextBackOffMillis());
-        } catch (InterruptedException ignored) {
-        } catch (IOException e) {
-          throw new UserCodeExecutionException(e);
-        }
+      backoffIfNeeded(backOff, sleeper);
+
+      if (!configuration.getShouldRepeat()) {
+        incIfPresent(teardownCounter);
+        setupTeardown.teardown();
+        return;
       }
 
-      performTeardown();
+      Repeater<Void, Void> repeater =
+          Repeater.<Void, Void>builder()
+              .setBackOff(backOff)
+              .setSleeper(sleeper)
+              .setThrowableFunction(
+                  ignored -> {
+                    incIfPresent(teardownCounter);
+                    setupTeardown.teardown();
+                    return null;
+                  })
+              .build()
+              .withBackoffCounter(backoffCounter)
+              .withSleeperCounter(sleeperCounter);
+
+      repeater.apply(null);
 
       checkStateNotNull(executor).shutdown();
       try {
@@ -335,50 +302,24 @@ class Call<RequestT, ResponseT>
     }
 
     @ProcessElement
-    public void process(@Element @NonNull RequestT request, MultiOutputReceiver receiver)
+    public void process(@Element RequestT request, MultiOutputReceiver receiver)
         throws JsonProcessingException {
-
-      if (requestsCounter != null) {
-        checkStateNotNull(requestsCounter).inc();
-      }
 
       BackOff backOff = configuration.getBackOffSupplier().get();
       Sleeper sleeper = configuration.getSleeperSupplier().get();
 
-      if (configuration.getCallShouldBackoff().value()) {
-        if (shouldBackoffCounter != null) {
-          checkStateNotNull(shouldBackoffCounter).inc();
-        }
-        if (backoffCounter != null) {
-          checkStateNotNull(backoffCounter).inc();
-        }
-        try {
-          if (sleeperCounter != null) {
-            checkStateNotNull(sleeperCounter).inc();
-          }
-          sleeper.sleep(backOff.nextBackOffMillis());
-        } catch (InterruptedException ignored) {
-        } catch (IOException e) {
-          throw new RuntimeException(e);
-        }
-      }
+      incIfPresent(requestsCounter);
+      backoffIfNeeded(backOff, sleeper);
 
       if (!configuration.getShouldRepeat()) {
+        incIfPresent(callCounter);
         try {
-          if (callCounter != null) {
-            // still needed by null checker
-            checkStateNotNull(callCounter).inc();
-          }
           // TODO(damondouglas): https://github.com/apache/beam/issues/29248
           ResponseT response = caller.call(request);
           receiver.get(responseTag).output(response);
-          if (responsesCounter != null) {
-            checkStateNotNull(responsesCounter).inc();
-          }
+          incIfPresent(responsesCounter);
         } catch (UserCodeExecutionException e) {
-          if (failuresCounter != null) {
-            checkStateNotNull(failuresCounter).inc();
-          }
+          incIfPresent(failuresCounter);
           receiver.get(failureTag).output(ApiIOError.of(e, request));
         }
 
@@ -398,14 +339,24 @@ class Call<RequestT, ResponseT>
       try {
         ResponseT response = repeater.apply(request);
         receiver.get(responseTag).output(response);
-        if (responsesCounter != null) {
-          checkStateNotNull(responsesCounter).inc();
-        }
+        incIfPresent(responsesCounter);
       } catch (UserCodeExecutionException e) {
-        if (failuresCounter != null) {
-          checkStateNotNull(failuresCounter).inc();
-        }
+        incIfPresent(failuresCounter);
         receiver.get(failureTag).output(ApiIOError.of(e, request));
+      }
+    }
+
+    private void backoffIfNeeded(BackOff backOff, Sleeper sleeper) {
+      if (configuration.getCallShouldBackoff().isTrue()) {
+        incIfPresent(shouldBackoffCounter);
+        incIfPresent(backoffCounter);
+        try {
+          incIfPresent(sleeperCounter);
+          sleeper.sleep(backOff.nextBackOffMillis());
+        } catch (InterruptedException ignored) {
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
       }
     }
   }
@@ -580,7 +531,7 @@ class Call<RequestT, ResponseT>
     }
 
     @Override
-    public boolean value() {
+    public boolean isTrue() {
       return false;
     }
   }

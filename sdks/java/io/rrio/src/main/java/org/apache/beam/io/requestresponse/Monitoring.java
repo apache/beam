@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Configures {@link Metric}s throughout various features of {@link RequestResponseIO}. By default,
@@ -115,7 +116,7 @@ public abstract class Monitoring implements Serializable {
   }
 
   /**
-   * Derives a {@link Counter} name for counts of when {@link CallShouldBackoff#value} is found
+   * Derives a {@link Counter} name for counts of when {@link CallShouldBackoff#isTrue} is found
    * true.
    */
   static String shouldBackoffCounterName(CallShouldBackoff<?> instance) {
@@ -164,7 +165,7 @@ public abstract class Monitoring implements Serializable {
   /** Count invocations of {@link Sleeper#sleep}. */
   public abstract Boolean getCountSleeps();
 
-  /** Count when {@link CallShouldBackoff#value} is found true. */
+  /** Count when {@link CallShouldBackoff#isTrue} is found true. */
   public abstract Boolean getCountShouldBackoff();
 
   /** Count number of attempts to read from the {@link Cache}. */
@@ -225,6 +226,16 @@ public abstract class Monitoring implements Serializable {
   }
 
   public abstract Builder toBuilder();
+
+  /**
+   * Convenience wrapper to minimize the number of if statements in the code to check for nullness
+   * prior to invoking {@link Counter#inc}.
+   */
+  static void incIfPresent(@Nullable Counter counter) {
+    if (counter != null) {
+      counter.inc();
+    }
+  }
 
   @AutoValue.Builder
   public abstract static class Builder {

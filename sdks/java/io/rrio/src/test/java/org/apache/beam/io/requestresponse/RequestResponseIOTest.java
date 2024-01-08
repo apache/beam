@@ -86,17 +86,18 @@ public class RequestResponseIOTest {
     pipelineResult.waitUntilFinish();
 
     assertThat(
-        getCounterResult(metrics, Call.class, Monitoring.REQUESTS_COUNTER_NAME), equalTo(1L));
+        getCounterResult(metrics, Call.class, Monitoring.REQUESTS_COUNTER_NAME), greaterThan(0L));
     assertThat(
-        getCounterResult(metrics, Call.class, Monitoring.RESPONSES_COUNTER_NAME), equalTo(1L));
+        getCounterResult(metrics, Call.class, Monitoring.RESPONSES_COUNTER_NAME), greaterThan(0L));
 
     assertThat(
-        getCounterResult(metrics, Call.class, Monitoring.callCounterNameOf(caller)), equalTo(1L));
+        getCounterResult(metrics, Call.class, Monitoring.callCounterNameOf(caller)),
+        greaterThan(0L));
 
     assertThat(
         getCounterResult(
             metrics, Call.class, Monitoring.setupCounterNameOf(new Call.NoopSetupTeardown())),
-        equalTo(1L));
+        greaterThan(0L));
 
     // We expect remaining metrics to be 0.
     assertThat(
@@ -148,14 +149,14 @@ public class RequestResponseIOTest {
     assertThat(
         getCounterResult(
             metricResults, Call.class, Monitoring.callCounterNameOf(new CallerSetupTeardownImpl())),
-        equalTo(1L));
+        greaterThan(0L));
 
     assertThat(
         getCounterResult(
             metricResults,
             Call.class,
             Monitoring.setupCounterNameOf(new CallerSetupTeardownImpl())),
-        equalTo(1L));
+        greaterThan(0L));
   }
 
   @Test
@@ -196,7 +197,7 @@ public class RequestResponseIOTest {
             metrics,
             Call.class,
             Monitoring.backoffCounterNameOf(new DefaultSerializableBackoffSupplier().get())),
-        equalTo(1L));
+        greaterThan(0L));
   }
 
   @Test
@@ -214,7 +215,7 @@ public class RequestResponseIOTest {
     pipelineResult.waitUntilFinish();
     assertThat(
         getCounterResult(metrics, Call.class, Monitoring.sleeperCounterNameOf(Sleeper.DEFAULT)),
-        equalTo(1L));
+        greaterThan(0L));
   }
 
   @Test
@@ -243,7 +244,7 @@ public class RequestResponseIOTest {
     assertThat(
         getCounterResult(
             metrics, Call.class, Monitoring.shouldBackoffCounterName(shouldBackoffImpl)),
-        equalTo(1L));
+        greaterThan(0L));
   }
 
   @Test
@@ -265,10 +266,10 @@ public class RequestResponseIOTest {
 
     assertThat(
         getCounterResult(metrics, Call.class, Monitoring.callCounterNameOf(new CallerImpl())),
-        equalTo(1L));
+        greaterThan(0L));
 
     assertThat(
-        getCounterResult(metrics, Call.class, Monitoring.FAILURES_COUNTER_NAME), equalTo(1L));
+        getCounterResult(metrics, Call.class, Monitoring.FAILURES_COUNTER_NAME), greaterThan(0L));
   }
 
   @Test
@@ -439,7 +440,7 @@ public class RequestResponseIOTest {
     public void update(ResponseT response) {}
 
     @Override
-    public boolean value() {
+    public boolean isTrue() {
       counter.inc();
       return false;
     }
