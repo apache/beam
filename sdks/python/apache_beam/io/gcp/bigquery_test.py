@@ -431,9 +431,11 @@ class TestReadFromBigQuery(unittest.TestCase):
       param(
           responses=[
               HttpForbiddenError(
-                  response={'status': 500}, content="something", url=""),
+                  response={'status': 500}, content="something", url="")
+              if HttpForbiddenError else None,
               HttpForbiddenError(
                   response={'status': 408}, content="blank", url="")
+              if HttpForbiddenError else None
           ],
           expected_retries=2),
       # first attempts returns a 403 rateLimitExceeded error
@@ -458,7 +460,7 @@ class TestReadFromBigQuery(unittest.TestCase):
                           }]
                       }
                   },
-                  url=""),
+                  url="") if HttpForbiddenError else None,
           ],
           expected_retries=3),
   ])
@@ -518,7 +520,7 @@ class TestReadFromBigQuery(unittest.TestCase):
                           }]
                       }
                   },
-                  url=""),
+                  url="") if HttpForbiddenError else None,
               HttpForbiddenError(
                   response={'status': 403},
                   content={
@@ -528,7 +530,7 @@ class TestReadFromBigQuery(unittest.TestCase):
                           }]
                       }
                   },
-                  url="")
+                  url="") if HttpForbiddenError else None
           ],
           expected_retries=1),
       # first attempt returns a transient 403 error and retries
@@ -545,9 +547,10 @@ class TestReadFromBigQuery(unittest.TestCase):
                           }]
                       }
                   },
-                  url=""),
+                  url="") if HttpForbiddenError else None,
               HttpError(
                   response={'status': 403}, content="bad contents", url="")
+              if HttpError else None
           ],
           expected_retries=1),
       # first attempt returns a transient 403 error and retries
