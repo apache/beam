@@ -448,8 +448,9 @@ class TestReadFromBigQuery(unittest.TestCase):
                   "some message",
                   errors=({
                       "message": "transient", "reason": "rateLimitExceeded"
-                  }, )),
-              exceptions.ResourceExhausted("some message"),
+                  }, )) if exceptions else None,
+              exceptions.ResourceExhausted("some message")
+              if exceptions else None,
               HttpForbiddenError(
                   response={'status': 403},
                   content={
@@ -562,13 +563,14 @@ class TestReadFromBigQuery(unittest.TestCase):
                   "some error",
                   errors=({
                       "message": "transient", "reason": "rateLimitExceeded"
-                  }, )),
-              exceptions.ResourceExhausted("some transient error"),
+                  }, )) if exceptions else None,
+              exceptions.ResourceExhausted("some transient error")
+              if exceptions else None,
               exceptions.Forbidden(
                   "some error",
                   errors=({
                       "message": "transient", "reason": "accessDenied"
-                  }, )),
+                  }, )) if exceptions else None,
           ],
           expected_retries=2),
   ])
