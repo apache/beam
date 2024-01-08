@@ -151,13 +151,13 @@ public class SimpleExecutionState extends ExecutionState {
 
   @VisibleForTesting
   public String getBundleLullMessage(Thread trackedThread, Duration millis) {
-    // TODO(ajamato): Share getLullMessage code with DataflowExecutionState.
+    // TODO(ajamato): Share getBunldeLullMessage code with DataflowExecutionState.
     String userStepName =
         this.labelsMetadata.getOrDefault(MonitoringInfoConstants.Labels.PTRANSFORM, null);
     StringBuilder message = new StringBuilder();
     message.append("Operation ongoing");
     if (userStepName != null) {
-      message.append(" in bundle ").append(userStepName);
+      message.append(" in bundle ");
     }
     message
         .append(" for at least ")

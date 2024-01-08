@@ -100,8 +100,8 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
 
     /**
      * Called when a lull has been detected since the start of bundle processing. This indicates
-     * that more than {@link #BUNDLE_LULL_REPORT_MS} has been spent in the same state without any
-     * transitions.
+     * that more than {@link #BUNDLE_LULL_REPORT_MS} has been spent processing the same bundle 
+     * (ie between startBundle/finishBundle).
      *
      * @param trackedThread The execution thread that is in a lull.
      * @param millis The milliseconds since the state was most recently entered.

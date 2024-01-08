@@ -280,7 +280,7 @@ public class DataflowOperationContext implements OperationContext {
       StringBuilder message = new StringBuilder();
       message.append("Operation ongoing");
       if (getStepName() != null) {
-        message.append(" in bundle ").append(getStepName().userName());
+        message.append(" in bundle ");
       }
       message
           .append(" for at least ")
