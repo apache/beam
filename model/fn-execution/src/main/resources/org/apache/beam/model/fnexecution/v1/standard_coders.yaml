@@ -322,7 +322,7 @@ coder:
 examples:
   "\u0002": {
     value: 2,
-    timestamp: -9223372036854775,
+    timestamp: -62135596800000,
     pane: {is_first: true, is_last: true, timing: UNKNOWN, index: 0, on_time_index: 0},
     windows: ["global"]
   }
