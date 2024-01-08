@@ -60,7 +60,6 @@ const (
 )
 
 func main() {
-	log.Printf("****************************************** xyz123 staring boot.go main")
 	flag.Parse()
 	if *id == "" {
 		log.Fatal("No id provided.")
@@ -70,8 +69,6 @@ func main() {
 	}
 
 	ctx := grpcx.WriteWorkerID(context.Background(), *id)
-
-	log.Printf("****************************************** xyz123 boot.go main 1")
 
 	info, err := tools.ProvisionInfo(ctx, *provisionEndpoint)
 	if err != nil {
@@ -102,8 +99,6 @@ func main() {
 	logger := &tools.Logger{Endpoint: *loggingEndpoint}
 
 	logger.Printf(ctx, "Initializing java harness: %v", strings.Join(os.Args, " "))
-
-	log.Printf("****************************************** xyz123 boot.go main 2")
 
 	// (1) Obtain the pipeline options
 	options, err := tools.ProtoToJSON(info.GetPipelineOptions())
@@ -221,7 +216,6 @@ func main() {
 	if len(javaOptions.Classpath) > 0 {
 		cp = append(cp, javaOptions.Classpath...)
 	}
-
 	pathingjar, err := makePathingJar(cp)
 	if err != nil {
 		logger.Fatalf(ctx, "makePathingJar failed: %v", err)
@@ -253,7 +247,6 @@ func main() {
 	args = append(args, "-Djna.library.path=/usr/local/lib")
 
 	args = append(args, "org.apache.beam.fn.harness.FnHarness")
-
 	logger.Printf(ctx, "Executing: java %v", strings.Join(args, " "))
 
 	logger.Fatalf(ctx, "Java exited: %v", execx.Execute("java", args...))
