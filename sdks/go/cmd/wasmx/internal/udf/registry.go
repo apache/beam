@@ -104,7 +104,7 @@ func (reg *fileBasedRegistry) path(urn string) string {
 }
 
 func (reg *fileBasedRegistry) Get(_ context.Context, urn string) (*udf_v1.UserDefinedFunction, error) {
-	var result *udf_v1.UserDefinedFunction
+	var result udf_v1.UserDefinedFunction
 	parent := reg.path(urn)
 	f, err := os.Open(filepath.Join(parent, udfFileName))
 	if os.IsNotExist(err) {
@@ -114,11 +114,10 @@ func (reg *fileBasedRegistry) Get(_ context.Context, urn string) (*udf_v1.UserDe
 	if err != nil {
 		return nil, err
 	}
-	data := base64.StdEncoding.EncodeToString(b)
-	if err := protox.DecodeBase64(data, result); err != nil {
+	if err := protox.DecodeBase64(string(b), &result); err != nil {
 		return nil, err
 	}
-	return result, nil
+	return &result, nil
 }
 
 func (reg *fileBasedRegistry) Set(ctx context.Context, urn string, fn *udf_v1.UserDefinedFunction) error {
