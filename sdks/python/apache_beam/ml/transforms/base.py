@@ -58,9 +58,6 @@ TransformedMetadataT = TypeVar('TransformedMetadataT')
 
 # Input/Output types to the MLTransform.
 MLTransformOutputT = TypeVar('MLTransformOutputT')
-mltransform_output_type = Union[beam.PCollection[MLTransformOutputT],
-                                Tuple[beam.PCollection[MLTransformOutputT],
-                                      beam.PCollection[beam.Row]]]
 ExampleT = TypeVar('ExampleT')
 
 # Input to the apply() method of BaseOperation.
@@ -154,9 +151,12 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT],
     return transformed_data
 
 
-class ProcessHandler(beam.PTransform[beam.PCollection[ExampleT],
-                                     mltransform_output_type],
-                     abc.ABC):
+class ProcessHandler(
+    beam.PTransform[beam.PCollection[ExampleT],
+                    Union[beam.PCollection[MLTransformOutputT],
+                          Tuple[beam.PCollection[MLTransformOutputT],
+                                beam.PCollection[beam.Row]]]],
+    abc.ABC):
   """
   Only for internal use. No backwards compatibility guarantees.
   """
@@ -201,9 +201,12 @@ class EmbeddingsManager(MLTransformProvider):
     return self.columns
 
 
-class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
-                                  beam.PCollection[MLTransformOutputT]],
-                  Generic[ExampleT, MLTransformOutputT]):
+class MLTransform(
+    beam.PTransform[beam.PCollection[ExampleT],
+                    Union[beam.PCollection[MLTransformOutputT],
+                          Tuple[beam.PCollection[MLTransformOutputT],
+                                beam.PCollection[beam.Row]]]],
+    Generic[ExampleT, MLTransformOutputT]):
   def __init__(
       self,
       *,
@@ -286,7 +289,10 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     self._exception_handling_args: Dict[str, Any] = {}
 
   def expand(
-      self, pcoll: beam.PCollection[ExampleT]) -> mltransform_output_type:
+      self, pcoll: beam.PCollection[ExampleT]
+  ) -> Union[beam.PCollection[MLTransformOutputT],
+             Tuple[beam.PCollection[MLTransformOutputT],
+                   beam.PCollection[beam.Row]]]:
     """
     This is the entrypoint for the MLTransform. This method will
     invoke the process_data() method of the ProcessHandler instance
@@ -338,7 +344,6 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
                 f'Unexpected type for bad_results: {type(bad_results)}')
       else:
         pcoll = pcoll | ptransform
-
     _ = (
         pcoll.pipeline
         | "MLTransformMetricsUsage" >> MLTransformMetricsUsage(self))
