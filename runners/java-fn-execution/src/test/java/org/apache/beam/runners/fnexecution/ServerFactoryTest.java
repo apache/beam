@@ -55,10 +55,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPor
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 /** Tests for {@link ServerFactory}. */
 public class ServerFactoryTest {
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final BeamFnApi.Elements CLIENT_DATA =
       BeamFnApi.Elements.newBuilder()
           .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionId("1"))

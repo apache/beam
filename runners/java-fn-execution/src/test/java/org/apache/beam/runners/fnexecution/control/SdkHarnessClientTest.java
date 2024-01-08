@@ -95,6 +95,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
@@ -110,7 +111,7 @@ import org.mockito.MockitoAnnotations;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class SdkHarnessClientTest {
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Mock public FnApiControlClient fnApiControlClient;
   @Mock public FnDataService dataService;
   @Captor ArgumentCaptor<CloseableFnDataReceiver<BeamFnApi.Elements>> outputReceiverCaptor;
