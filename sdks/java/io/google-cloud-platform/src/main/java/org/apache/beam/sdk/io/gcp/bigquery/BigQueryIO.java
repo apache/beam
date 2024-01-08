@@ -3573,7 +3573,8 @@ public class BigQueryIO {
             !getPropagateSuccessfulStorageApiWrites(),
             "withPropagateSuccessfulStorageApiWrites only supported when using storage api writes.");
 
-        // Beam does not yet support Batch load jobs with Avro files
+        // Batch load handles wrapped json string value differently than the other methods. Raise a
+        // warning when applies.
         if (getJsonSchema() != null && getJsonSchema().isAccessible()) {
           JsonElement schema = JsonParser.parseString(getJsonSchema().get());
           if (!schema.getAsJsonObject().keySet().isEmpty() && hasJsonTypeInSchema(schema)) {
