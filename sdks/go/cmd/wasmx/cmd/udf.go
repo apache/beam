@@ -25,6 +25,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -52,6 +53,7 @@ var (
 // Client vars
 var (
 	tinyGo     environment.Executable = "tinygo"
+	createSrc  io.Reader
 	src        *udf_v1.UserDefinedFunction
 	serviceUrl string
 	udfClient  udf_v1.UDFServiceClient
@@ -65,7 +67,7 @@ var (
 	udfCreateCmd = &cobra.Command{
 		Use:   "create FILE",
 		Short: "Create a User Defined Function",
-		Args:  fileArgs,
+		Args:  createArgs,
 		RunE:  udfCreateE,
 	}
 
@@ -163,11 +165,27 @@ func udfServeE(cmd *cobra.Command, _ []string) error {
 }
 
 func udfCreateE(cmd *cobra.Command, _ []string) error {
-	resp, err := udfClient.Create(cmd.Context(), &udf_v1.CreateRequest{})
+	b, err := io.ReadAll(createSrc)
+	if err != nil {
+		return err
+	}
+	resp, err := udfClient.Create(cmd.Context(), &udf_v1.CreateRequest{
+		Urn:    urn,
+		Source: b,
+	})
 	if err != nil {
 		return err
 	}
 	return json.NewEncoder(os.Stdout).Encode(resp)
+}
+
+func createArgs(_ *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("missing FILE")
+	}
+	f, err := os.Open(args[0])
+	createSrc = f
+	return err
 }
 
 func udfDeleteE(cmd *cobra.Command, _ []string) error {

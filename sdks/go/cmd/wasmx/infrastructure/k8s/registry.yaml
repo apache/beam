@@ -28,7 +28,7 @@ metadata:
   name: registry
 spec:
   accessModes:
-    - ReadWriteOnce # The volume can be mounted as read-write by a single node.
+    - ReadWriteMany
   resources:
     requests:
       storage: 10Gi
