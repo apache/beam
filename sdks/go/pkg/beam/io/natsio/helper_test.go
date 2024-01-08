@@ -18,6 +18,7 @@ package natsio
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats-server/v2/test"
@@ -62,8 +63,8 @@ func newJetStream(t *testing.T, conn *nats.Conn) jetstream.JetStream {
 }
 
 func createStream(
-	t *testing.T,
 	ctx context.Context,
+	t *testing.T,
 	js jetstream.JetStream,
 	stream string,
 	subjects []string,
@@ -89,8 +90,8 @@ func createStream(
 }
 
 func createConsumer(
-	t *testing.T,
 	ctx context.Context,
+	t *testing.T,
 	js jetstream.JetStream,
 	stream string,
 	subjects []string,
@@ -127,4 +128,47 @@ func fetchMessages(t *testing.T, cons jetstream.Consumer, size int) []jetstream.
 	}
 
 	return result
+}
+
+func publishMessages(ctx context.Context, t *testing.T, js jetstream.JetStream, msgs []*nats.Msg) {
+	t.Helper()
+
+	for _, msg := range msgs {
+		if _, err := js.PublishMsg(ctx, msg); err != nil {
+			t.Fatalf("Failed to publish message: %v", err)
+		}
+	}
+}
+
+func messagesWithPublishingTime(
+	t *testing.T,
+	pubMsgs []jetstream.Msg,
+	pubIndices []int,
+	want []any,
+) []any {
+	t.Helper()
+
+	wantWTime := make([]any, len(want))
+
+	for i := range want {
+		pubIdx := pubIndices[i]
+		pubMsg := pubMsgs[pubIdx]
+
+		wantMsg := want[i].(ConsumerMessage)
+		wantMsg.PublishingTime = messageTimestamp(t, pubMsg)
+		wantWTime[i] = wantMsg
+	}
+
+	return wantWTime
+}
+
+func messageTimestamp(t *testing.T, msg jetstream.Msg) time.Time {
+	t.Helper()
+
+	metadata, err := msg.Metadata()
+	if err != nil {
+		t.Fatalf("Failed to retrieve metadata: %v", err)
+	}
+
+	return metadata.Timestamp
 }

@@ -17,7 +17,7 @@ name: PreCommit Python Coverage
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
-    paths: [ "model/**","sdks/python/**","release/**", 'release/trigger_all_tests.json']
+    paths: [ "model/**","sdks/python/**","release/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Python_Coverage.json']
   issue_comment:
     types: [created]
   push:
@@ -89,7 +89,7 @@ jobs:
           arguments: |
             -PuseWheelDistribution
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: Python Test Results

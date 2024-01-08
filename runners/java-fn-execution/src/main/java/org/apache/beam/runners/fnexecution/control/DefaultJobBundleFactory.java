@@ -232,6 +232,12 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
               new CacheLoader<Environment, WrappedSdkHarnessClient>() {
                 @Override
                 public WrappedSdkHarnessClient load(Environment environment) throws Exception {
+                  // TODO(robertwb): Docker is the the safest fallback (if we are distributed)
+                  // but it would be good to have the ability to make a more intellegent choice
+                  // (e.g. in-process or loopback workers, especially if running locally).
+                  environment =
+                      Environments.resolveAnyOfEnvironment(
+                          environment, BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER));
                   EnvironmentFactory.Provider environmentFactoryProvider =
                       environmentFactoryProviderMap.get(environment.getUrn());
                   ServerFactory serverFactory = environmentFactoryProvider.getServerFactory();

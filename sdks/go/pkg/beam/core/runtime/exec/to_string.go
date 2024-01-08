@@ -45,6 +45,7 @@ func (m *ToString) ProcessElement(ctx context.Context, elm *FullValue, values ..
 		Elm:       elm.Elm,
 		Elm2:      fmt.Sprintf("%v", elm.Elm2),
 		Timestamp: elm.Timestamp,
+		Pane:      elm.Pane,
 	}
 
 	return m.Out.ProcessElement(ctx, &ret, values...)

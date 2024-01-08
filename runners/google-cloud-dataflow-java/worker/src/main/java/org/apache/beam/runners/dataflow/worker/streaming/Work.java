@@ -21,12 +21,22 @@ import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
+import java.util.IntSummaryStatistics;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.beam.runners.dataflow.worker.ActiveMessageMetadata;
+import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown.ActiveElementMetadata;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown.Distribution;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -93,6 +103,14 @@ public class Work implements Runnable {
     return currentState.startTime();
   }
 
+  public String getLatencyTrackingId() {
+    StringBuilder workIdBuilder = new StringBuilder(33);
+    workIdBuilder.append(Long.toHexString(workItem.getShardingKey()));
+    workIdBuilder.append('-');
+    workIdBuilder.append(Long.toHexString(workItem.getWorkToken()));
+    return workIdBuilder.toString();
+  }
+
   private void recordGetWorkStreamLatencies(
       Collection<Windmill.LatencyAttribution> getWorkStreamLatencies) {
     for (Windmill.LatencyAttribution latency : getWorkStreamLatencies) {
@@ -101,7 +119,8 @@ public class Work implements Runnable {
     }
   }
 
-  public Collection<Windmill.LatencyAttribution> getLatencyAttributions() {
+  public ImmutableList<LatencyAttribution> getLatencyAttributions(
+      boolean isHeartbeat, String workId, DataflowExecutionStateSampler sampler) {
     List<Windmill.LatencyAttribution> list = new ArrayList<>();
     for (Windmill.LatencyAttribution.State state : Windmill.LatencyAttribution.State.values()) {
       Duration duration = totalDurationPerState.getOrDefault(state, Duration.ZERO);
@@ -111,13 +130,54 @@ public class Work implements Runnable {
       if (duration.equals(Duration.ZERO)) {
         continue;
       }
-      list.add(
-          Windmill.LatencyAttribution.newBuilder()
-              .setState(state)
-              .setTotalDurationMillis(duration.getMillis())
-              .build());
+      LatencyAttribution.Builder laBuilder = Windmill.LatencyAttribution.newBuilder();
+      if (state == LatencyAttribution.State.ACTIVE) {
+        laBuilder = addActiveLatencyBreakdownToBuilder(isHeartbeat, laBuilder, workId, sampler);
+      }
+      Windmill.LatencyAttribution la =
+          laBuilder.setState(state).setTotalDurationMillis(duration.getMillis()).build();
+      list.add(la);
     }
-    return list;
+    return ImmutableList.copyOf(list);
+  }
+
+  private static LatencyAttribution.Builder addActiveLatencyBreakdownToBuilder(
+      boolean isHeartbeat,
+      LatencyAttribution.Builder builder,
+      String workId,
+      DataflowExecutionStateSampler sampler) {
+    if (isHeartbeat) {
+      ActiveLatencyBreakdown.Builder stepBuilder = ActiveLatencyBreakdown.newBuilder();
+      Optional<ActiveMessageMetadata> activeMessage =
+          sampler.getActiveMessageMetadataForWorkId(workId);
+      if (!activeMessage.isPresent()) {
+        return builder;
+      }
+      stepBuilder.setUserStepName(activeMessage.get().userStepName());
+      ActiveElementMetadata.Builder activeElementBuilder = ActiveElementMetadata.newBuilder();
+      activeElementBuilder.setProcessingTimeMillis(
+          System.currentTimeMillis() - activeMessage.get().startTime());
+      stepBuilder.setActiveMessageMetadata(activeElementBuilder);
+      builder.addActiveLatencyBreakdown(stepBuilder.build());
+      return builder;
+    }
+
+    Map<String, IntSummaryStatistics> processingDistributions =
+        sampler.getProcessingDistributionsForWorkId(workId);
+    for (Entry<String, IntSummaryStatistics> entry : processingDistributions.entrySet()) {
+      ActiveLatencyBreakdown.Builder stepBuilder = ActiveLatencyBreakdown.newBuilder();
+      stepBuilder.setUserStepName(entry.getKey());
+      Distribution.Builder distributionBuilder =
+          Distribution.newBuilder()
+              .setCount(entry.getValue().getCount())
+              .setMin(entry.getValue().getMin())
+              .setMax(entry.getValue().getMax())
+              .setMean((long) entry.getValue().getAverage())
+              .setSum(entry.getValue().getSum());
+      stepBuilder.setProcessingTimesDistribution(distributionBuilder.build());
+      builder.addActiveLatencyBreakdown(stepBuilder.build());
+    }
+    return builder;
   }
 
   public boolean isFailed() {

@@ -60,13 +60,16 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 /** Tests for {@link ProcessBundleDescriptors}. */
 // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
 // released (2.11.0)
 @SuppressWarnings("unused")
 public class ProcessBundleDescriptorsTest implements Serializable {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   /**
    * Tests that a stateful stage will wrap the key coder of a stateful transform in a

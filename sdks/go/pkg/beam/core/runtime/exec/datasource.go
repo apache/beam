@@ -241,6 +241,7 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 				return err
 			}
 			// Collect the actual size of the element, and reset the bytecounter reader.
+			// TODO(zechenj18) 2023-12-07: currently we never sample anything from the DataSource, we need to validate CoGBKs and similar types with the sampling implementation
 			n.PCol.addSize(int64(bcr.reset()))
 
 			// Check if there's a continuation and return residuals

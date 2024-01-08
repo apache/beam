@@ -26,7 +26,6 @@ on:
       - 'examples/kotlin/**'
       - 'release/**'
       - '.github/workflows/beam_PreCommit_Java.yml'
-      - '!sdks/java/extensions/avro/**'
       - '!sdks/java/extensions/sql/**'
       - '!sdks/java/io/amazon-web-services/**'
       - '!sdks/java/io/amazon-web-services2/**'
@@ -78,7 +77,7 @@ on:
       - 'examples/kotlin/**'
       - 'release/**'
       - 'release/trigger_all_tests.json'
-      - '!sdks/java/extensions/avro/**'
+      - '.github/trigger_files/beam_PreCommit_Java.json'
       - '!sdks/java/extensions/sql/**'
       - '!sdks/java/io/amazon-web-services/**'
       - '!sdks/java/io/amazon-web-services2/**'
@@ -154,13 +153,13 @@ env:
 jobs:
   beam_PreCommit_Java:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    timeout-minutes: 180
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       fail-fast: false
       matrix:
         job_name: [beam_PreCommit_Java]
         job_phrase: [Run Java PreCommit]
+    timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
@@ -185,8 +184,8 @@ jobs:
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
-        if: failure()
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"
@@ -198,7 +197,7 @@ jobs:
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'
       - name: Archive SpotBugs Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: SpotBugs Results

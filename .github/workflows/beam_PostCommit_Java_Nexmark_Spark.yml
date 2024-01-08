@@ -21,7 +21,7 @@ on:
   schedule:
     - cron: '15 4/6 * * *'
   pull_request_target:
-    paths: ['release/trigger_all_tests.json']
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_Nexmark_Spark.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -66,6 +66,8 @@ env:
     --suite=SMOKE 
     --streamTimeout=60 
     --streaming=false
+  INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
+  INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
   beam_PostCommit_Java_Nexmark_Spark:

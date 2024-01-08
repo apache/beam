@@ -28,7 +28,7 @@ See the [Python API reference](https://beam.apache.org/releases/pydoc/) for more
 ## Python streaming pipelines
 
 Python [streaming pipeline execution](/documentation/sdks/python-streaming)
-is experimentally available (with some [limitations](/documentation/sdks/python-streaming/#unsupported-features))
+is available (with some [limitations](/documentation/sdks/python-streaming/#unsupported-features))
 starting with Beam SDK version 2.5.0.
 
 ## Python type safety
@@ -52,7 +52,7 @@ To integrate machine learning models into your pipelines for making inferences, 
 [library from `tfx_bsl`](https://github.com/tensorflow/tfx-bsl/tree/master/tfx_bsl/beam).
 
 You can create multiple types of transforms using the RunInference API: the API takes multiple types of setup parameters from model handlers, and the parameter type determines the model implementation. For more information,
-see [Machine Learning](/documentation/sdks/python-machine-learning).
+see [About Beam ML](/documentation/ml/about-ml).
 
 [TensorFlow Extended (TFX)](https://www.tensorflow.org/tfx) is an end-to-end platform for deploying production ML pipelines. TFX is integrated with Beam. For more information, see [TFX user guide](https://www.tensorflow.org/tfx/guide).
 

@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -110,11 +111,10 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 	// Inspect Transforms for unsupported features.
 	bypassedWindowingStrategies := map[string]bool{}
 	ts := job.Pipeline.GetComponents().GetTransforms()
-	for _, t := range ts {
+	for tid, t := range ts {
 		urn := t.GetSpec().GetUrn()
 		switch urn {
 		case urns.TransformImpulse,
-			urns.TransformParDo,
 			urns.TransformGBK,
 			urns.TransformFlatten,
 			urns.TransformCombinePerKey,
@@ -140,6 +140,22 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 				wsID := pcs[col].GetWindowingStrategyId()
 				bypassedWindowingStrategies[wsID] = true
 			}
+
+		case urns.TransformParDo:
+			var pardo pipepb.ParDoPayload
+			if err := proto.Unmarshal(t.GetSpec().GetPayload(), &pardo); err != nil {
+				return nil, fmt.Errorf("unable to unmarshal ParDoPayload for %v - %q: %w", tid, t.GetUniqueName(), err)
+			}
+
+			// Validate all the state features
+			for _, spec := range pardo.GetStateSpecs() {
+				check("StateSpec.Protocol.Urn", spec.GetProtocol().GetUrn(), urns.UserStateBag, urns.UserStateMultiMap)
+			}
+			// Validate all the timer features
+			for _, spec := range pardo.GetTimerFamilySpecs() {
+				check("TimerFamilySpecs.TimeDomain.Urn", spec.GetTimeDomain())
+			}
+
 		case "":
 			// Composites can often have no spec
 			if len(t.GetSubtransforms()) > 0 {

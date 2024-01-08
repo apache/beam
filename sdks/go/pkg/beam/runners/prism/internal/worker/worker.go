@@ -36,6 +36,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/slog"
 	"google.golang.org/grpc"
@@ -412,21 +413,21 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 					panic(err)
 				}
 			}
+
+			// State requests are always for an active ProcessBundle instruction
+			wk.mu.Lock()
+			b, ok := wk.activeInstructions[req.GetInstructionId()].(*B)
+			wk.mu.Unlock()
+			if !ok {
+				slog.Warn("state request after bundle inactive", "instruction", req.GetInstructionId(), "worker", wk)
+				continue
+			}
 			switch req.GetRequest().(type) {
 			case *fnpb.StateRequest_Get:
 				// TODO: move data handling to be pcollection based.
 
-				// State requests are always for an active ProcessBundle instruction
-				wk.mu.Lock()
-				b, ok := wk.activeInstructions[req.GetInstructionId()].(*B)
-				wk.mu.Unlock()
-				if !ok {
-					slog.Warn("state request after bundle inactive", "instruction", req.GetInstructionId(), "worker", wk)
-					continue
-				}
 				key := req.GetStateKey()
 				slog.Debug("StateRequest_Get", prototext.Format(req), "bundle", b)
-
 				var data [][]byte
 				switch key.GetType().(type) {
 				case *fnpb.StateKey_IterableSideInput_:
@@ -442,11 +443,13 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 						}
 					}
 					winMap := b.IterableSideInputData[SideInputKey{TransformID: ikey.GetTransformId(), Local: ikey.GetSideInputId()}]
+
 					var wins []typex.Window
 					for w := range winMap {
 						wins = append(wins, w)
 					}
 					slog.Debug(fmt.Sprintf("side input[%v][%v] I Key: %v Windows: %v", req.GetId(), req.GetInstructionId(), w, wins))
+
 					data = winMap[w]
 
 				case *fnpb.StateKey_MultimapSideInput_:
@@ -458,37 +461,81 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 					} else {
 						w, err = exec.MakeWindowDecoder(coder.NewIntervalWindow()).DecodeSingle(bytes.NewBuffer(wKey))
 						if err != nil {
-							panic(fmt.Sprintf("error decoding iterable side input window key %v: %v", wKey, err))
+							panic(fmt.Sprintf("error decoding multimap side input window key %v: %v", wKey, err))
 						}
 					}
 					dKey := mmkey.GetKey()
 					winMap := b.MultiMapSideInputData[SideInputKey{TransformID: mmkey.GetTransformId(), Local: mmkey.GetSideInputId()}]
-					var wins []typex.Window
-					for w := range winMap {
-						wins = append(wins, w)
-					}
-					slog.Debug(fmt.Sprintf("side input[%v][%v] MM Key: %v Windows: %v", req.GetId(), req.GetInstructionId(), w, wins))
+
+					slog.Debug(fmt.Sprintf("side input[%v][%v] MultiMap Window: %v", req.GetId(), req.GetInstructionId(), w))
 
 					data = winMap[w][string(dKey)]
 
+				case *fnpb.StateKey_BagUserState_:
+					bagkey := key.GetBagUserState()
+					data = b.OutputData.GetBagState(engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()}, bagkey.GetWindow(), bagkey.GetKey())
+				case *fnpb.StateKey_MultimapUserState_:
+					mmkey := key.GetMultimapUserState()
+					data = b.OutputData.GetMultimapState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey())
+				case *fnpb.StateKey_MultimapKeysUserState_:
+					mmkey := key.GetMultimapKeysUserState()
+					data = b.OutputData.GetMultimapKeysState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey())
 				default:
-					panic(fmt.Sprintf("unsupported StateKey Access type: %T: %v", key.GetType(), prototext.Format(key)))
+					panic(fmt.Sprintf("unsupported StateKey Get type: %T: %v", key.GetType(), prototext.Format(key)))
 				}
 
 				// Encode the runner iterable (no length, just consecutive elements), and send it out.
 				// This is also where we can handle things like State Backed Iterables.
-				var buf bytes.Buffer
-				for _, value := range data {
-					buf.Write(value)
-				}
 				responses <- &fnpb.StateResponse{
 					Id: req.GetId(),
 					Response: &fnpb.StateResponse_Get{
 						Get: &fnpb.StateGetResponse{
-							Data: buf.Bytes(),
+							Data: bytes.Join(data, []byte{}),
 						},
 					},
 				}
+
+			case *fnpb.StateRequest_Append:
+				key := req.GetStateKey()
+				switch key.GetType().(type) {
+				case *fnpb.StateKey_BagUserState_:
+					bagkey := key.GetBagUserState()
+					b.OutputData.AppendBagState(engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()}, bagkey.GetWindow(), bagkey.GetKey(), req.GetAppend().GetData())
+				case *fnpb.StateKey_MultimapUserState_:
+					mmkey := key.GetMultimapUserState()
+					b.OutputData.AppendMultimapState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey(), req.GetAppend().GetData())
+				default:
+					panic(fmt.Sprintf("unsupported StateKey Append type: %T: %v", key.GetType(), prototext.Format(key)))
+				}
+				responses <- &fnpb.StateResponse{
+					Id: req.GetId(),
+					Response: &fnpb.StateResponse_Append{
+						Append: &fnpb.StateAppendResponse{},
+					},
+				}
+
+			case *fnpb.StateRequest_Clear:
+				key := req.GetStateKey()
+				switch key.GetType().(type) {
+				case *fnpb.StateKey_BagUserState_:
+					bagkey := key.GetBagUserState()
+					b.OutputData.ClearBagState(engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()}, bagkey.GetWindow(), bagkey.GetKey())
+				case *fnpb.StateKey_MultimapUserState_:
+					mmkey := key.GetMultimapUserState()
+					b.OutputData.ClearMultimapState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey())
+				case *fnpb.StateKey_MultimapKeysUserState_:
+					mmkey := key.GetMultimapUserState()
+					b.OutputData.ClearMultimapKeysState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey())
+				default:
+					panic(fmt.Sprintf("unsupported StateKey Clear type: %T: %v", key.GetType(), prototext.Format(key)))
+				}
+				responses <- &fnpb.StateResponse{
+					Id: req.GetId(),
+					Response: &fnpb.StateResponse_Clear{
+						Clear: &fnpb.StateClearResponse{},
+					},
+				}
+
 			default:
 				panic(fmt.Sprintf("unsupported StateRequest kind %T: %v", req.GetRequest(), prototext.Format(req)))
 			}

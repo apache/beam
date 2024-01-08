@@ -35,6 +35,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
@@ -442,7 +443,17 @@ func getContainerImage(ctx context.Context) string {
 		if *image != "" {
 			return *image
 		}
-		return jobopts.GetEnvironmentConfig(ctx)
+		envConfig := jobopts.GetEnvironmentConfig(ctx)
+		if envConfig == core.DefaultDockerImage {
+			// It's possible the user set the image exactly manually, but unlikely.
+			// Prefer using the gcr.io image by default.
+			// Note: This doesn't change the dev experience, which requires a user
+			// to have a dev image.
+			// However, RC versions should automatically be picked up, since
+			// they are never tagged the RC number, just the main version.
+			return "gcr.io/cloud-dataflow/v1beta3/beam_go_sdk:" + core.SdkVersion
+		}
+		return envConfig
 	}
 	panic(fmt.Sprintf("Unsupported environment %v", urn))
 }

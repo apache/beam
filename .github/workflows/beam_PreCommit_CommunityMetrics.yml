@@ -22,7 +22,7 @@ on:
     paths: ['.test-infra/metrics/**', 'buildSrc/build.gradle.kts', '.github/workflows/beam_PreCommit_CommunityMetrics.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: ['.test-infra/metrics/**', 'buildSrc/build.gradle.kts', 'release/trigger_all_tests.json']
+    paths: ['.test-infra/metrics/**', 'buildSrc/build.gradle.kts', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_CommunityMetrics.json']
   issue_comment:
     types: [created]
   schedule:

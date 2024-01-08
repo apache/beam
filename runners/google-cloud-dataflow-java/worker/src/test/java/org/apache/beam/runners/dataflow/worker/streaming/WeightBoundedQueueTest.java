@@ -22,12 +22,15 @@ import static org.junit.Assert.assertNull;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class WeightBoundedQueueTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final int MAX_WEIGHT = 10;
 
   @Test

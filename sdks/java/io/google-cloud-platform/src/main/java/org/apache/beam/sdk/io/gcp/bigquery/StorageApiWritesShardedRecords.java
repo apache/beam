@@ -57,6 +57,7 @@ import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StreamAppendClient;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.WriteStreamService;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.RetryType;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiFlushAndFinalizeDoFn.Operation;
 import org.apache.beam.sdk.metrics.Counter;
@@ -319,6 +320,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
     private transient @Nullable DatasetService datasetServiceInternal = null;
 
+    private transient @Nullable WriteStreamService writeStreamServiceInternal = null;
+
     // Stores the current stream for this key.
     @StateId("streamName")
     private final StateSpec<ValueState<String>> streamNameSpec = StateSpecs.value();
@@ -358,7 +361,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         ValueState<String> streamName,
         ValueState<Long> streamOffset,
         Timer streamIdleTimer,
-        DatasetService datasetService,
+        WriteStreamService writeStreamService,
         Callable<Boolean> tryCreateTable) {
       try {
         final @Nullable String streamValue = streamName.read();
@@ -367,7 +370,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           // In a buffered stream, data is only visible up to the offset to which it was flushed.
           CreateTableHelpers.createTableWrapper(
               () -> {
-                stream.set(datasetService.createWriteStream(tableId, Type.BUFFERED).getName());
+                stream.set(writeStreamService.createWriteStream(tableId, Type.BUFFERED).getName());
                 return null;
               },
               tryCreateTable);
@@ -395,9 +398,22 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       return datasetServiceInternal;
     }
 
+    private WriteStreamService getWriteStreamService(PipelineOptions pipelineOptions)
+        throws IOException {
+      if (writeStreamServiceInternal == null) {
+        writeStreamServiceInternal =
+            bqServices.getWriteStreamService(pipelineOptions.as(BigQueryOptions.class));
+      }
+      return writeStreamServiceInternal;
+    }
+
     @Teardown
     public void onTeardown() {
       try {
+        if (writeStreamServiceInternal != null) {
+          writeStreamServiceInternal.close();
+          writeStreamServiceInternal = null;
+        }
         if (datasetServiceInternal != null) {
           datasetServiceInternal.close();
           datasetServiceInternal = null;
@@ -442,6 +458,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       final String tableId = tableDestination.getTableUrn(bigQueryOptions);
       final String shortTableId = tableDestination.getShortTableUrn();
       final DatasetService datasetService = getDatasetService(pipelineOptions);
+      final WriteStreamService writeStreamService = getWriteStreamService(pipelineOptions);
 
       Coder<DestinationT> destinationCoder = dynamicDestinations.getDestinationCoder();
       Callable<Boolean> tryCreateTable =
@@ -462,7 +479,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       Supplier<String> getOrCreateStream =
           () ->
               getOrCreateStream(
-                  tableId, streamName, streamOffset, idleTimer, datasetService, tryCreateTable);
+                  tableId, streamName, streamOffset, idleTimer, writeStreamService, tryCreateTable);
       Callable<AppendClientInfo> getAppendClientInfo =
           () -> {
             @Nullable TableSchema tableSchema;
@@ -500,7 +517,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                                   client.close();
                                 }))
                     .withAppendClient(
-                        datasetService,
+                        writeStreamService,
                         getOrCreateStream,
                         false,
                         defaultMissingValueInterpretation);
@@ -569,7 +586,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                   appendClientInfo
                       .get()
                       .withAppendClient(
-                          datasetService,
+                          writeStreamService,
                           getOrCreateStream,
                           false,
                           defaultMissingValueInterpretation));
@@ -618,7 +635,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                   appendClientInfo
                       .get()
                       .withAppendClient(
-                          datasetService,
+                          writeStreamService,
                           getOrCreateStream,
                           false,
                           defaultMissingValueInterpretation));
@@ -645,10 +662,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             // failedInserts
             // PCollection, and retry with the remaining rows.
             if (failedContext.getError() != null
-                && failedContext.getError() instanceof Exceptions.AppendSerializtionError) {
-              Exceptions.AppendSerializtionError error =
+                && failedContext.getError() instanceof Exceptions.AppendSerializationError) {
+              Exceptions.AppendSerializationError error =
                   Preconditions.checkArgumentNotNull(
-                      (Exceptions.AppendSerializtionError) failedContext.getError());
+                      (Exceptions.AppendSerializationError) failedContext.getError());
 
               Set<Integer> failedRowIndices = error.getRowIndexToErrorMessage().keySet();
               for (int failedIndex : failedRowIndices) {

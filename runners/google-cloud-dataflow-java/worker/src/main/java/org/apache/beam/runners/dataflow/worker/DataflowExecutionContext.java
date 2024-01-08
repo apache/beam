@@ -24,8 +24,11 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.IntSummaryStatistics;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
@@ -46,6 +49,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closer;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTimeUtils.MillisProvider;
 import org.joda.time.Instant;
 
 /** Execution context for the Dataflow worker. */
@@ -245,6 +249,16 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     private final ContextActivationObserverRegistry contextActivationObserverRegistry;
     private final String workItemId;
 
+    /**
+     * Metadata on the message whose processing is currently being managed by this tracker. If no
+     * message is actively being processed, activeMessageMetadata will be null.
+     */
+    @Nullable private ActiveMessageMetadata activeMessageMetadata = null;
+
+    private final MillisProvider clock = System::currentTimeMillis;
+
+    private final Map<String, IntSummaryStatistics> processingTimesByStep = new HashMap<>();
+
     public DataflowExecutionStateTracker(
         ExecutionStateSampler sampler,
         DataflowOperationContext.DataflowExecutionState otherState,
@@ -287,17 +301,32 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       super.takeSampleOnce(millisSinceLastSample);
     }
 
+    /**
+     * Enter a new state on the tracker. If the new state is a Dataflow processing state, tracks the
+     * activeMessageMetadata with the start time of the new state.
+     */
     @Override
     public Closeable enterState(ExecutionState newState) {
       Closeable baseCloseable = super.enterState(newState);
       final boolean isDataflowProcessElementState =
           newState.isProcessElementState && newState instanceof DataflowExecutionState;
       if (isDataflowProcessElementState) {
-        elementExecutionTracker.enter(((DataflowExecutionState) newState).getStepName());
+        DataflowExecutionState newDFState = (DataflowExecutionState) newState;
+        if (newDFState.getStepName() != null && newDFState.getStepName().userName() != null) {
+          if (this.activeMessageMetadata != null) {
+            recordActiveMessageInProcessingTimesMap();
+          }
+          this.activeMessageMetadata =
+              ActiveMessageMetadata.create(newDFState.getStepName().userName(), clock.getMillis());
+        }
+        elementExecutionTracker.enter(newDFState.getStepName());
       }
 
       return () -> {
         if (isDataflowProcessElementState) {
+          if (this.activeMessageMetadata != null) {
+            recordActiveMessageInProcessingTimesMap();
+          }
           elementExecutionTracker.exit();
         }
         baseCloseable.close();
@@ -306,6 +335,36 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
 
     public String getWorkItemId() {
       return this.workItemId;
+    }
+
+    public Optional<ActiveMessageMetadata> getActiveMessageMetadata() {
+      return Optional.ofNullable(activeMessageMetadata);
+    }
+
+    public Map<String, IntSummaryStatistics> getProcessingTimesByStepCopy() {
+      Map<String, IntSummaryStatistics> processingTimesCopy = processingTimesByStep;
+      return processingTimesCopy;
+    }
+
+    /**
+     * Transitions the metadata for the currently active message to an entry in the completed
+     * processing times map. Sets the activeMessageMetadata to null after the entry has been
+     * recorded.
+     */
+    private void recordActiveMessageInProcessingTimesMap() {
+      if (this.activeMessageMetadata == null) {
+        return;
+      }
+      this.processingTimesByStep.compute(
+          this.activeMessageMetadata.userStepName(),
+          (k, v) -> {
+            if (v == null) {
+              v = new IntSummaryStatistics();
+            }
+            v.accept((int) (System.currentTimeMillis() - this.activeMessageMetadata.startTime()));
+            return v;
+          });
+      this.activeMessageMetadata = null;
     }
   }
 }

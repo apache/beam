@@ -56,6 +56,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -102,9 +103,11 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.WithTimestamps;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -142,12 +145,15 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Reading from Cloud Spanner</h3>
  *
- * <p>To read from Cloud Spanner, apply {@link Read} transformation. It will return a {@link
- * PCollection} of {@link Struct Structs}, where each element represents an individual row returned
- * from the read operation. Both Query and Read APIs are supported. See more information about <a
+ * <h4>Bulk reading of a single query or table</h4>
+ *
+ * <p>To perform a single read from Cloud Spanner, construct a {@link Read} transform using {@link
+ * SpannerIO#read() SpannerIO.read()}. It will return a {@link PCollection} of {@link Struct
+ * Structs}, where each element represents an individual row returned from the read operation. Both
+ * Query and Read APIs are supported. See more information about <a
  * href="https://cloud.google.com/spanner/docs/reads">reading from Cloud Spanner</a>
  *
- * <p>To execute a <strong>query</strong>, specify a {@link Read#withQuery(Statement)} or {@link
+ * <p>To execute a <strong>Query</strong>, specify a {@link Read#withQuery(Statement)} or {@link
  * Read#withQuery(String)} during the construction of the transform.
  *
  * <pre>{@code
@@ -158,8 +164,17 @@ import org.slf4j.LoggerFactory;
  *         .withQuery("SELECT id, name, email FROM users"));
  * }</pre>
  *
- * <p>To use the Read API, specify a {@link Read#withTable(String) table name} and a {@link
- * Read#withColumns(List) list of columns}.
+ * <p>Reads by default use the <a
+ * href="https://cloud.google.com/spanner/docs/reads#read_data_in_parallel">PartitionQuery API</a>
+ * which enforces some limitations on the type of queries that can be used so that the data can be
+ * read in parallel. If the query is not supported by the PartitionQuery API, then you can specify a
+ * non-partitioned read by setting {@link Read#withBatching(boolean) withBatching(false)}. If the
+ * amount of data being read by a non-partitioned read is very large, it may be useful to add a
+ * {@link Reshuffle#viaRandomKey()} transform on the output so that the downstream transforms can
+ * run in parallel.
+ *
+ * <p>To read an entire <strong>Table</strong>, use {@link Read#withTable(String)} and optionally
+ * specify a {@link Read#withColumns(List) list of columns}.
  *
  * <pre>{@code
  * PCollection<Struct> rows = p.apply(
@@ -170,13 +185,26 @@ import org.slf4j.LoggerFactory;
  *        .withColumns("id", "name", "email"));
  * }</pre>
  *
- * <p>To optimally read using index, specify the index name using {@link Read#withIndex}.
+ * <p>To read using an <strong>Index</strong>, specify the index name using {@link
+ * Read#withIndex(String)}.
+ *
+ * <pre>{@code
+ * PCollection<Struct> rows = p.apply(
+ *    SpannerIO.read()
+ *        .withInstanceId(instanceId)
+ *        .withDatabaseId(dbId)
+ *        .withTable("users")
+ *        .withIndex("users_by_name")
+ *        .withColumns("id", "name", "email"));
+ * }</pre>
+ *
+ * <h4>Read consistency</h4>
  *
  * <p>The transform is guaranteed to be executed on a consistent snapshot of data, utilizing the
  * power of read only transactions. Staleness of data can be controlled using {@link
  * Read#withTimestampBound} or {@link Read#withTimestamp(Timestamp)} methods. <a
- * href="https://cloud.google.com/spanner/docs/transactions">Read more</a> about transactions in
- * Cloud Spanner.
+ * href="https://cloud.google.com/spanner/docs/transactions#read-only_transactions">Read more</a>
+ * about transactions in Cloud Spanner.
  *
  * <p>It is possible to read several {@link PCollection PCollections} within a single transaction.
  * Apply {@link SpannerIO#createTransaction()} transform, that lazily creates a transaction. The
@@ -202,6 +230,29 @@ import org.slf4j.LoggerFactory;
  *        .withSpannerConfig(spannerConfig)
  *        .withQuery("SELECT user, tweet, date FROM tweets")
  *        .withTransaction(tx));
+ * }</pre>
+ *
+ * <h4>Bulk reading of multiple queries or tables</h4>
+ *
+ * You can perform multiple consistent reads on a set of tables or using a set of queries by
+ * constructing a {@link ReadAll} transform using {@link SpannerIO#readAll() SpannerIO.readAll()}.
+ * This transform takes a {@link PCollection} of {@link ReadOperation} elements, and performs the
+ * partitioned read on each of them using the same Read Only Transaction for consistent results.
+ *
+ * <p>Note that this transform should <strong>not</strong> be used in Streaming pipelines. This is
+ * because the same Read Only Transaction, which is created once when the pipeline is first
+ * executed, will be used for all reads. The data being read will therefore become stale, and if no
+ * reads are made for more than 1 hour, the transaction will automatically timeout and be closed by
+ * the Spanner server, meaning that any subsequent reads will fail.
+ *
+ * <pre>{@code
+ * // Build a collection of ReadOperations.
+ * PCollection<ReadOperation> reads = ...
+ *
+ * PCollection<Struct> rows = reads.apply(
+ *     SpannerIO.readAll()
+ *         .withInstanceId(instanceId)
+ *         .withDatabaseId(dbId)
  * }</pre>
  *
  * <h3>Writing to Cloud Spanner</h3>
@@ -361,6 +412,12 @@ import org.slf4j.LoggerFactory;
  *
  * <p>{@link Write} can be used as a streaming sink, however as with batch mode note that the write
  * order of individual {@link Mutation}/{@link MutationGroup} objects is not guaranteed.
+ *
+ * <p>{@link Read} and {@link ReadAll} can be used in Streaming pipelines to read a set of Facts on
+ * pipeline startup.
+ *
+ * <p>{@link ReadAll} should not be used on an unbounded {@code PCollection<ReadOperation>}, for the
+ * reasons stated above.
  *
  * <h3>Updates to the I/O connector code</h3>
  *
@@ -564,8 +621,10 @@ public class SpannerIO {
     }
 
     /**
-     * By default Batch API is used to read data from Cloud Spanner. It is useful to disable
-     * batching when the underlying query is not root-partitionable.
+     * By default the <a
+     * href="https://cloud.google.com/spanner/docs/reads#read_data_in_parallel">PartitionQuery
+     * API</a> is used to read data from Cloud Spanner. It is useful to disable batching when the
+     * underlying query is not root-partitionable.
      */
     public ReadAll withBatching(boolean batching) {
       return toBuilder().setBatching(batching).build();
@@ -585,6 +644,15 @@ public class SpannerIO {
 
     @Override
     public PCollection<Struct> expand(PCollection<ReadOperation> input) {
+
+      if (PCollection.IsBounded.UNBOUNDED == input.isBounded()) {
+        // Warn that SpannerIO.ReadAll should not be used on unbounded inputs.
+        LOG.warn(
+            "SpannerIO.ReadAll({}) is being applied to an unbounded input. "
+                + "This is not supported and can lead to runtime failures.",
+            this.getName());
+      }
+
       PTransform<PCollection<ReadOperation>, PCollection<Struct>> readTransform;
       if (getBatching()) {
         readTransform =
@@ -787,6 +855,11 @@ public class SpannerIO {
       return withReadOperation(getReadOperation().withIndex(index));
     }
 
+    /**
+     * Note that {@link PartitionOptions} are currently ignored. See <a
+     * href="https://cloud.google.com/spanner/docs/reference/rpc/google.spanner.v1#google.spanner.v1.PartitionOptions">
+     * PartitionOptions in RPC documents</a>
+     */
     public Read withPartitionOptions(PartitionOptions partitionOptions) {
       return withReadOperation(getReadOperation().withPartitionOptions(partitionOptions));
     }
@@ -1932,6 +2005,15 @@ public class SpannerIO {
       public void outputWithTimestamp(Iterable<MutationGroup> output, Instant timestamp) {
         c.output(output, timestamp, GlobalWindow.INSTANCE);
       }
+
+      @Override
+      public void outputWindowedValue(
+          Iterable<MutationGroup> output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo) {
+        throw new UnsupportedOperationException("outputWindowedValue not supported");
+      }
     }
   }
 
@@ -2100,6 +2182,7 @@ public class SpannerIO {
           // fall through and retry individual mutationGroups.
         } else if (failureMode == FailureMode.FAIL_FAST) {
           mutationGroupsWriteFail.inc(mutations.size());
+          LOG.error("Failed to write a batch of mutation groups", e);
           throw e;
         } else {
           throw new IllegalArgumentException("Unknown failure mode " + failureMode);

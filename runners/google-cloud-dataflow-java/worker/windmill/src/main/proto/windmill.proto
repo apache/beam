@@ -59,6 +59,21 @@ message KeyedMessageBundle {
 }
 
 message LatencyAttribution {
+  message ActiveLatencyBreakdown {
+    message Distribution {
+      optional int64 count = 1;
+      optional int64 sum = 2;
+      optional int64 min = 3;
+      optional int64 max = 4;
+      optional int64 mean = 5;
+    }
+    message ActiveElementMetadata {
+      optional int64 processing_time_millis = 1;
+    }
+    optional string user_step_name = 1;
+    optional Distribution processing_times_distribution = 2;
+    optional ActiveElementMetadata active_message_metadata = 3;
+  }
   enum State {
     UNKNOWN = 0;
     QUEUED = 1;
@@ -80,6 +95,7 @@ message LatencyAttribution {
   }
   optional State state = 1;
   optional int64 total_duration_millis = 2;
+  repeated ActiveLatencyBreakdown active_latency_breakdown = 3;
 }
 
 message PerStepNamespaceMetrics {
