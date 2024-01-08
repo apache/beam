@@ -290,7 +290,9 @@ class TestJsonToDictCoder(unittest.TestCase):
     self.assertEqual(expected_row, actual)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(
+    HttpError is None or HttpForbiddenError is None,
+    'GCP dependencies are not installed')
 class TestReadFromBigQuery(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
@@ -532,7 +534,7 @@ class TestReadFromBigQuery(unittest.TestCase):
       # second attempt returns a 403 error with bad contents and fails
       param(
           responses=[
-              HttpError(
+              HttpForbiddenError(
                   response={'status': 403},
                   content={
                       "error": {

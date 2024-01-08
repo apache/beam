@@ -179,13 +179,15 @@ def retry_on_server_errors_timeout_or_quota_issues_filter(exception):
     if exception.status_code == 403:
       try:
         # attempt to extract the reason and check if it's retryable
-        content = json.loads(exception.content)
+        content = exception.content
+        if not isinstance(content, dict):
+          content = json.loads(exception.content)
         return content["error"]["errors"][0]["reason"] in _RETRYABLE_REASONS
-      except (KeyError, IndexError, TypeError):
+      except (KeyError, IndexError, TypeError) as e:
         _LOGGER.warning(
             "Could not determine if HttpError is transient. "
             "Will not retry: %s",
-            exception)
+            e)
       return False
   if GoogleAPICallError is not None and isinstance(exception,
                                                    GoogleAPICallError):
