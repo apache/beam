@@ -47,6 +47,7 @@ SessionWindowsPayload = standard_window_fns_pb2_urns.SessionWindowsPayload
 SlidingWindowsPayload = standard_window_fns_pb2_urns.SlidingWindowsPayload
 
 primitives = StandardPTransforms.Primitives
+executable_stage = "beam:runner:executable_stage:v1"
 deprecated_primitives = StandardPTransforms.DeprecatedPrimitives
 composites = StandardPTransforms.Composites
 combine_components = StandardPTransforms.CombineComponents
