@@ -90,6 +90,7 @@ try:
 except ImportError:
   gcp_bigquery = None
   HttpError = None
+  HttpForbiddenError = None
   exceptions = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
