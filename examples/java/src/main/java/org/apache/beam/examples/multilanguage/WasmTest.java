@@ -32,7 +32,7 @@ public class WasmTest {
     Pipeline pipeline = Pipeline.create(options);
 
     // pipeline.apply(TextIO.read().from(options.getInput()));
-    PCollection<String> data = pipeline.apply(Create.of("aaa", "bbb", "ccc"))
+    PCollection<String> data = pipeline.apply(Create.of("aaa", "bbb", "ccc", "ddd", "eee"))
         .apply(External.of("beam:transform:add:1.0", new byte[]{}, expansionService));
     data.apply("WriteCounts", TextIO.write().to("gs://clouddfe-chamikara/wasabi_output/output"));
 
