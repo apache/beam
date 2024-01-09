@@ -288,7 +288,7 @@ public class DataflowOperationContext implements OperationContext {
       return message.toString();
     }
 
-    protected String logAllStackTraces() {
+    protected void logAllStackTraces() {
       DataflowWorkerLoggingHandler dataflowLoggingHandler =
           DataflowWorkerLoggingInitializer.getLoggingHandler();
       Map<Thread, StackTraceElement[]> threadSet = Thread.getAllStackTraces();
