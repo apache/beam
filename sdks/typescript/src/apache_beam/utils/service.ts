@@ -283,7 +283,7 @@ export class JavaJarService extends SubprocessService {
   static async gradleToJar(
     gradleTarget: string,
     appendix: string | undefined = undefined,
-    version: string = beamVersion.split('.').slice(0, 2).join('.') + '.0'
+    version: string = beamVersion.split(".").slice(0, 2).join(".") + ".0",
   ): Promise<string> {
     if (version.startsWith("0.")) {
       // node-ts 0.x corresponds to Beam 2.x.
