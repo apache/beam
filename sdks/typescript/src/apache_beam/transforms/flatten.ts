@@ -32,7 +32,7 @@ export function flatten<T>(): PTransform<PCollection<T>[], PCollection<T>> {
   function expandInternal(
     inputs: PCollection<T>[],
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
+    transformProto: runnerApi.PTransform,
   ) {
     transformProto.spec = runnerApi.FunctionSpec.create({
       urn: flatten.urn,
@@ -40,7 +40,7 @@ export function flatten<T>(): PTransform<PCollection<T>[], PCollection<T>> {
 
     // TODO: UnionCoder if they're not the same?
     const coders = new Set(
-      inputs.map((pc) => pipeline.context.getPCollectionCoderId(pc))
+      inputs.map((pc) => pipeline.context.getPCollectionCoderId(pc)),
     );
     const coder =
       coders.size === 1 ? [...coders][0] : new GeneralObjectCoder<T>();
