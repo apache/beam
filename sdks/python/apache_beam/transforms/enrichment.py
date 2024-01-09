@@ -19,7 +19,6 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Optional
-from typing import Tuple
 from typing import TypeVar
 
 import apache_beam as beam
@@ -36,22 +35,21 @@ __all__ = [
 InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
 
-JoinFn = Callable[[Tuple[Dict[str, Any], Dict[str, Any]]], beam.Row]
+JoinFn = Callable[[Dict[str, Any], Dict[str, Any]], beam.Row]
 
 
-def cross_join(element: Tuple[Dict[str, Any], Dict[str, Any]]) -> beam.Row:
+def cross_join(left: Dict[str, Any], right: Dict[str, Any]) -> beam.Row:
   """cross_join performs a cross join on two `dict` objects.
 
     Joins the columns of the right row onto the left row.
 
     Args:
-      element (Tuple): A tuple containing two `dict` objects -
-        request and response.
+      left (Dict[str, Any]): input request dictionary.
+      right (Dict[str, Any]): response dictionary from the API.
 
     Returns:
       `beam.Row` containing the merged columns.
   """
-  left, right = element
   for k, v in right.items():
     if k not in left:
       # Don't override the values in left.
@@ -105,4 +103,4 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
         caller=self._source_handler, timeout=self._timeout)
 
     # EnrichmentSourceHandler returns a tuple of (request,response).
-    return fetched_data | beam.Map(self._join_fn)
+    return fetched_data | beam.Map(lambda x: self._join_fn(x[0], x[1]))

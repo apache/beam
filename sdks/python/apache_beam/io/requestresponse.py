@@ -109,7 +109,7 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
   """
   def __init__(
       self,
-      caller: Caller,
+      caller: Caller[RequestT, ResponseT],
       timeout: Optional[float] = DEFAULT_TIMEOUT_SECS,
       should_backoff: Optional[ShouldBackOff] = None,
       repeater: Optional[Repeater] = None,
@@ -171,7 +171,7 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
   """
   def __init__(
       self,
-      caller: Caller,
+      caller: Caller[RequestT, ResponseT],
       timeout: Optional[float] = DEFAULT_TIMEOUT_SECS,
       should_backoff: Optional[ShouldBackOff] = None,
       repeater: Optional[Repeater] = None,
@@ -201,7 +201,7 @@ class _CallDoFn(beam.DoFn):
   def setup(self):
     self._caller.__enter__()
 
-  def __init__(self, caller: Caller, timeout: float):
+  def __init__(self, caller: Caller[RequestT, ResponseT], timeout: float):
     self._caller = caller
     self._timeout = timeout
 

@@ -33,11 +33,10 @@ from apache_beam.transforms.enrichment import Enrichment
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 
-def _custom_join(element):
+def _custom_join(left, right):
   """custom_join returns the id and resp_payload along with a timestamp"""
-  right_dict = element[1]
-  right_dict['timestamp'] = time.time()
-  return beam.Row(**right_dict)
+  right['timestamp'] = time.time()
+  return beam.Row(**right)
 
 
 class SampleHTTPEnrichment(EnrichmentSourceHandler[dict, beam.Row]):

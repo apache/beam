@@ -25,7 +25,7 @@ from apache_beam.io.requestresponse import UserCodeTimeoutException
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
-class AckCaller(Caller):
+class AckCaller(Caller[str, str]):
   """AckCaller acknowledges the incoming request by returning a
   request with ACK."""
   def __enter__(self):
