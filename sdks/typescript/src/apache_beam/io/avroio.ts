@@ -34,7 +34,10 @@ export function readFromAvro<T>(
   );
 }
 
-export function writeToAvro<T>(filePath: string, options: { schema: Schema }) {
+export function writeToAvro<T extends Object>(
+  filePath: string,
+  options: { schema: Schema },
+) {
   return async function writeToAvro(
     pcoll: beam.PCollection<Object>,
   ): Promise<{}> {

@@ -23,7 +23,7 @@
 set -e
 
 # Using npx to execute ttsc from the local node_modules environment.
-npx ttsc -p .
+npm run tsc
 
 # Copy the python bootstrap script.
 mkdir -p dist/resources
