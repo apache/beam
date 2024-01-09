@@ -500,15 +500,12 @@ public class PipelineOptionsFactory {
       new ObjectMapper()
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
-  private static final ThreadLocal<DefaultDeserializationContext> DESERIALIZATION_CONTEXT =
-      ThreadLocal.withInitial(
-          () ->
-              new DefaultDeserializationContext.Impl(
-                      MAPPER.getDeserializationContext().getFactory())
-                  .createInstance(
-                      MAPPER.getDeserializationConfig(),
-                      new TokenBuffer(MAPPER, false).asParser(),
-                      new InjectableValues.Std()));
+  private static final DefaultDeserializationContext DESERIALIZATION_CONTEXT =
+      new DefaultDeserializationContext.Impl(MAPPER.getDeserializationContext().getFactory())
+          .createInstance(
+              MAPPER.getDeserializationConfig(),
+              new TokenBuffer(MAPPER, false).asParser(),
+              new InjectableValues.Std());
 
   static final DefaultSerializerProvider SERIALIZER_PROVIDER =
       new DefaultSerializerProvider.Impl()
@@ -1731,7 +1728,7 @@ public class PipelineOptionsFactory {
       BeanProperty prop = createBeanProperty(method);
       AnnotatedMember annotatedMethod = prop.getMember();
 
-      DefaultDeserializationContext context = DESERIALIZATION_CONTEXT.get();
+      DefaultDeserializationContext context = DESERIALIZATION_CONTEXT.copy();
       Object maybeDeserializerClass =
           context.getAnnotationIntrospector().findDeserializer(annotatedMethod);
 
@@ -1803,7 +1800,7 @@ public class PipelineOptionsFactory {
     parser.nextToken();
 
     JsonDeserializer<Object> jsonDeserializer = getDeserializerForMethod(method);
-    return jsonDeserializer.deserialize(parser, DESERIALIZATION_CONTEXT.get());
+    return jsonDeserializer.deserialize(parser, DESERIALIZATION_CONTEXT.copy());
   }
 
   /**
