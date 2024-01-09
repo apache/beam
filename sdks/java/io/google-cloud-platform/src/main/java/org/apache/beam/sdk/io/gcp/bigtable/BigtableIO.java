@@ -1332,12 +1332,6 @@ public class BigtableIO {
       return (MutateRowResponse result, Throwable exception) -> {
         if (exception != null) {
           if (isDataException(exception)) {
-            // This case, of being an NotFoundException and not retryable,
-            // indicates an issue with the data. In general, the likely cause is the user trying to
-            // write to a column family that doesn't exist. The frequency of this is dependent on
-            // how column families are determined upstream of the io. We can't know if this record
-            // failed, or if it was another record in the batch. Thus, we retry each record
-            // individually.
             retryIndividualRecord(record, window);
           } else {
             failures.add(new BigtableWriteException(record, exception));
@@ -1360,6 +1354,13 @@ public class BigtableIO {
       }
     }
 
+    // This method checks if an exception is the result of an error in the data.
+    // We first check if the exception is retryable, because if it is, we want to retry it via the
+    // runner. If the method is retryable, we check if it is a NotFoundException, or if it's an
+    // InvalidArgumentException. A NotFoundException likely means that the mutation is trying to
+    // write to a column family that doesn't exist. An InvalidArgumentException means that the
+    // mutation itself is invalid, with either an empty row key, invalid timestamp (ts <= -2),
+    // an empty mutation, or a column qualifier that is too large.
     private static boolean isDataException(Throwable e) {
       if (e instanceof ApiException && !((ApiException) e).isRetryable()) {
         return e instanceof NotFoundException || e instanceof InvalidArgumentException;
