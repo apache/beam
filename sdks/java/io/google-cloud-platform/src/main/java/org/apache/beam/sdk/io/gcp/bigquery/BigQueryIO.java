@@ -3581,8 +3581,10 @@ public class BigQueryIO {
             if (rowWriterFactory.getOutputType() == OutputType.JsonTableRow) {
               LOG.warn(
                   "Found JSON type in TableSchema for 'FILE_LOADS' write method. \n"
-                      + "Make sure the TableSchema field is a parsed JSON to ensure the read as a "
-                      + "JSON type. Otherwise it will read as a raw (escaped) string.");
+                      + "Make sure the TableRow value is a parsed JSON to ensure the read as a "
+                      + "JSON type. Otherwise it will read as a raw (escaped) string.\n"
+                      + "See https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-json#limitations "
+                      + "for limitations.");
             } else if (rowWriterFactory.getOutputType() == OutputType.AvroGenericRecord) {
               LOG.warn(
                   "Found JSON type in TableSchema for 'FILE_LOADS' write method. \n"
