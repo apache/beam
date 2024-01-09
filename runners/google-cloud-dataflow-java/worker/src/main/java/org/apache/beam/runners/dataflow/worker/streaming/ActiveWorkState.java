@@ -123,14 +123,20 @@ final class ActiveWorkState {
   }
 
   synchronized void failWorkForKey(long shardedKey, long workToken, long cacheToken) {
-    Deque<Work> workQueue = activeWork.get(shardedKey);
-    if (workQueue != null) {
-      for (Work queuedWork : workQueue) {
-        WorkItem workItem = queuedWork.getWorkItem();
-        if (workItem.getWorkToken() == workToken && workItem.getCacheToken() == cacheToken) {
-          queuedWork.setState(Work.State.FAILED);
-          break;
+    // TODO(crites): Might be better to collect all the (shardedKey, workToken, CacheToken) tuples
+    // and iterate the activeWork set only once. Note we can't construct a ShardedKey and look it
+    // up in the set since HeartbeatResponse doesn't include the user key.
+    for (Entry<ShardedKey, Deque<Work>> entry : activeWork.entrySet()) {
+      if (shardedKey == entry.getKey().shardingKey()) {
+        for (Work queuedWork : entry.getValue()) {
+          WorkItem workItem = queuedWork.getWorkItem();
+          if (workItem.getWorkToken() == workToken && workItem.getCacheToken() == cacheToken) {
+            LOG.error("failing work " + shardedKey + " " + workToken + " " + cacheToken);
+            queuedWork.setState(Work.State.FAILED);
+            break;
+          }
         }
+        break;
       }
     }
   }
@@ -261,7 +267,8 @@ final class ActiveWorkState {
   }
 
   private static Stream<HeartbeatRequest> toHeartbeatRequestStream(
-      Entry<ShardedKey, Deque<Work>> shardedKeyAndWorkQueue, Instant refreshDeadline,
+      Entry<ShardedKey, Deque<Work>> shardedKeyAndWorkQueue,
+      Instant refreshDeadline,
       DataflowExecutionStateSampler sampler) {
     ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
     Deque<Work> workQueue = shardedKeyAndWorkQueue.getValue();
