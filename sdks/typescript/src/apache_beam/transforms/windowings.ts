@@ -49,7 +49,7 @@ export function globalWindows(): WindowFn<GlobalWindow> {
 
 export function fixedWindows(
   sizeSeconds: number | Long,
-  offsetSeconds: Instant = Long.fromValue(0)
+  offsetSeconds: Instant = Long.fromValue(0),
 ): WindowFn<IntervalWindow> {
   // TODO: (Cleanup) Use a time library?
   const sizeMillis = secsToMillisLong(sizeSeconds);
@@ -81,7 +81,7 @@ export function fixedWindows(
 export function slidingWindows(
   sizeSeconds: number | Long,
   periodSeconds: number | Long,
-  offsetSeconds: Instant = Long.fromValue(0)
+  offsetSeconds: Instant = Long.fromValue(0),
 ): WindowFn<IntervalWindow> {
   const sizeMillis = secsToMillisLong(sizeSeconds);
   const periodMillis = secsToMillisLong(periodSeconds);
@@ -153,13 +153,13 @@ requireForSerialization(`${packageName}/transforms/windowings`, {
 });
 requireForSerialization(
   `${packageName}/transforms/windowings`,
-  FixedWindowsPayload
+  FixedWindowsPayload,
 );
 requireForSerialization(
   `${packageName}/transforms/windowings`,
-  SlidingWindowsPayload
+  SlidingWindowsPayload,
 );
 requireForSerialization(
   `${packageName}/transforms/windowings`,
-  SessionWindowsPayload
+  SessionWindowsPayload,
 );

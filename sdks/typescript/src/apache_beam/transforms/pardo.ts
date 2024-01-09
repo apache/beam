@@ -85,10 +85,10 @@ export interface DoFn<InputT, OutputT, ContextT = undefined> {
 export function parDo<
   InputT,
   OutputT,
-  ContextT extends Object | undefined = undefined
+  ContextT extends Object | undefined = undefined,
 >(
   doFn: DoFn<InputT, OutputT, ContextT>,
-  context: ContextT = undefined!
+  context: ContextT = undefined!,
 ): PTransform<PCollection<InputT>, PCollection<OutputT>> {
   if (extractContext(doFn)) {
     context = { ...extractContext(doFn), ...context };
@@ -96,7 +96,7 @@ export function parDo<
   function expandInternal(
     input: PCollection<InputT>,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
+    transformProto: runnerApi.PTransform,
   ) {
     // Extract and populate side inputs from the context.
     const sideInputs = {};
@@ -132,8 +132,8 @@ export function parDo<
               urn: isGlobalSide
                 ? urns.GLOBAL_WINDOW_MAPPING_FN_URN
                 : mainWindowingStrategyId === sideWindowingStrategyId
-                ? urns.IDENTITY_WINDOW_MAPPING_FN_URN
-                : urns.ASSIGN_MAX_TIMESTAMP_WINDOW_MAPPING_FN_URN,
+                  ? urns.IDENTITY_WINDOW_MAPPING_FN_URN
+                  : urns.ASSIGN_MAX_TIMESTAMP_WINDOW_MAPPING_FN_URN,
               value: new Uint8Array(),
             },
           };
@@ -158,7 +158,7 @@ export function parDo<
             }),
           }),
           sideInputs: sideInputs,
-        })
+        }),
       ),
     });
 
@@ -166,7 +166,7 @@ export function parDo<
     // coder to encode the various types that exist in JS.
     // TODO: (Types) Should there be a way to specify, or better yet infer, the coder to use?
     return pipeline.createPCollectionInternal<OutputT>(
-      new GeneralObjectCoder()
+      new GeneralObjectCoder(),
     );
   }
 
@@ -195,12 +195,12 @@ export type SplitOptions = {
 // TODO: Naming.
 export function split<X extends { [key: string]: unknown }>(
   tags: string[],
-  options: SplitOptions = {}
+  options: SplitOptions = {},
 ): PTransform<PCollection<X>, { [P in keyof X]: PCollection<X[P]> }> {
   function expandInternal(
     input: PCollection<X>,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
+    transformProto: runnerApi.PTransform,
   ) {
     if (options.exclusive === undefined) {
       options.exclusive = true;
@@ -226,7 +226,7 @@ export function split<X extends { [key: string]: unknown }>(
             urn: urns.SPLITTING_JS_DOFN_URN,
             payload: serializeFn(options),
           }),
-        })
+        }),
       ),
     });
 
@@ -234,9 +234,9 @@ export function split<X extends { [key: string]: unknown }>(
       tags.map((tag) => [
         tag,
         pipeline.createPCollectionInternal<X[typeof tag]>(
-          pipeline.context.getPCollectionCoderId(input)
+          pipeline.context.getPCollectionCoderId(input),
         ),
-      ])
+      ]),
     ) as { [P in keyof X]: PCollection<X[P]> };
   }
 
@@ -245,11 +245,11 @@ export function split<X extends { [key: string]: unknown }>(
 
 export function partition<T>(
   partitionFn: (element: T, numPartitions: number) => number,
-  numPartitions: number
+  numPartitions: number,
 ): PTransform<PCollection<T>, PCollection<T>[]> {
   return function partition(input: PCollection<T>) {
     const indices = Array.from({ length: numPartitions }, (v, i) =>
-      i.toString()
+      i.toString(),
     );
     const splits = input
       .map((x) => {
@@ -272,7 +272,7 @@ export function withContext<
   ContextT,
   T extends
     | DoFn<unknown, unknown, ContextT>
-    | ((input: unknown, context: ContextT) => unknown)
+    | ((input: unknown, context: ContextT) => unknown),
 >(fn: T, contextSpec: ContextT): T {
   const untypedFn = fn as any;
   untypedFn.beamPardoContextSpec = {
@@ -372,7 +372,7 @@ interface SideInputAccessor<PCollT, AccessorT, ValueT> {
 export class SideInputParam<
   PCollT,
   AccessorT,
-  ValueT
+  ValueT,
 > extends ParDoLookupParam<ValueT> {
   // Populated by user.
   pcoll: PCollection<PCollT>;
@@ -381,7 +381,7 @@ export class SideInputParam<
 
   constructor(
     pcoll: PCollection<PCollT>,
-    accessor: SideInputAccessor<PCollT, AccessorT, ValueT>
+    accessor: SideInputAccessor<PCollT, AccessorT, ValueT>,
   ) {
     super("sideInput");
     this.pcoll = pcoll;
@@ -395,7 +395,7 @@ export class SideInputParam<
 
 function copySideInputWithId<PCollT, AccessorT, ValueT>(
   sideInput: SideInputParam<PCollT, AccessorT, ValueT>,
-  id: string
+  id: string,
 ): SideInputParam<PCollT, AccessorT, ValueT> {
   const copy = Object.create(sideInput);
   copy.sideInputId = id;
@@ -404,7 +404,7 @@ function copySideInputWithId<PCollT, AccessorT, ValueT>(
 }
 
 export function iterableSideInput<T>(
-  pcoll: PCollection<T>
+  pcoll: PCollection<T>,
 ): SideInputParam<T, Iterable<T>, Iterable<T>> {
   return new SideInputParam<T, Iterable<T>, Iterable<T>>(pcoll, {
     accessPattern: "beam:side_input:iterable:v1",
@@ -414,7 +414,7 @@ export function iterableSideInput<T>(
 
 export function singletonSideInput<T>(
   pcoll: PCollection<T>,
-  defaultValue: T | undefined = undefined
+  defaultValue: T | undefined = undefined,
 ): SideInputParam<T, Iterable<T>, T> {
   return new SideInputParam<T, Iterable<T>, T>(pcoll, {
     accessPattern: "beam:side_input:iterable:v1",
@@ -441,7 +441,10 @@ export function singletonSideInput<T>(
  * The superclass of all metric accessors, such as counters and distributions.
  */
 export class Metric<T> extends ParDoUpdateParam<T> {
-  constructor(readonly metricType: string, readonly name: string) {
+  constructor(
+    readonly metricType: string,
+    readonly name: string,
+  ) {
     super("metric");
   }
 }

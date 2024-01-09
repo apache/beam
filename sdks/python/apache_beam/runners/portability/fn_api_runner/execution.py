@@ -988,6 +988,9 @@ class FnApiRunnerExecutionContext(object):
                   window=window))
           self.state_servicer.append_raw(state_key, elements_data)
       elif func_spec.urn == common_urns.side_inputs.MULTIMAP.urn:
+        # TODO(robertwb): Consider computing these lazily on demand rather than
+        # anticipating all potentail state requests which will be more cpu and
+        # memory efficient for large side inputs.
         for (key, window, elements_data,
              elements_count) in elements_by_window.encoded_items():
           state_key = beam_fn_api_pb2.StateKey(
@@ -997,6 +1000,14 @@ class FnApiRunnerExecutionContext(object):
                   window=window,
                   key=key))
           self.state_servicer.append_raw(state_key, elements_data)
+
+          key_iter_state_key = beam_fn_api_pb2.StateKey(
+              multimap_keys_side_input=beam_fn_api_pb2.StateKey.
+              MultimapKeysSideInput(
+                  transform_id=consuming_transform_id,
+                  side_input_id=tag,
+                  window=window))
+          self.state_servicer.append_raw(key_iter_state_key, key)
 
           kv_iter_state_key = beam_fn_api_pb2.StateKey(
               multimap_keys_values_side_input=beam_fn_api_pb2.StateKey.

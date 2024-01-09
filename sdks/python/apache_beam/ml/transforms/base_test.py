@@ -304,6 +304,13 @@ class BaseMLTransformTest(unittest.TestCase):
                 write_artifact_location=self.artifact_location).with_transform(
                     Add()))
 
+  def test_read_mode_with_transforms(self):
+    with self.assertRaises(ValueError):
+      _ = base.MLTransform(
+          # fake callable
+          transforms=[lambda x: x],
+          read_artifact_location=self.artifact_location)
+
 
 class FakeModel:
   def __call__(self, example: List[str]) -> List[str]:

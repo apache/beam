@@ -34,13 +34,17 @@ import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.NullValue;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Value;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link StaticGrpcProvisionService}. */
 @RunWith(JUnit4.class)
 public class StaticGrpcProvisionServiceTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
   @Test
   public void returnsProvisionInfo() throws Exception {
     Struct options =

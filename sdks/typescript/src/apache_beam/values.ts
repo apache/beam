@@ -38,7 +38,10 @@ export class GlobalWindow implements Window {
 }
 
 export class IntervalWindow implements Window {
-  constructor(public start: Instant, public end: Instant) {}
+  constructor(
+    public start: Instant,
+    public end: Instant,
+  ) {}
 
   maxTimestamp() {
     return this.end.sub(1);

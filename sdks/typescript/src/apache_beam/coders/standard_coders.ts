@@ -226,5 +226,5 @@ globalRegistry().register(IntervalWindowCoder.URN, IntervalWindowCoder);
 
 requireForSerialization(
   `${packageName}/coders/standard_coders`,
-  exports as Record<string, unknown>
+  exports as Record<string, unknown>,
 );

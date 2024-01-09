@@ -63,7 +63,7 @@ labels:
   - name: healthcare
     reviewers:
       - svetakvsundhar
-      exclusionList: []
+    exclusionList: []
   - name: Build
     reviewers:
       - damccorm
