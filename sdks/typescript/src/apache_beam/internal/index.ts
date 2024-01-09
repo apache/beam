@@ -19,4 +19,4 @@
 export * from "./environments";
 export * from "./pipeline";
 export * from "./serialize";
-export * from './urns';
+export * from "./urns";
