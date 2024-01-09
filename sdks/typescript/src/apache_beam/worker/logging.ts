@@ -124,10 +124,10 @@ export function createLoggingChannel(workerId: string, endpoint: string) {
   }
 
   startCapture(process.stdout, (out) =>
-    logQueue.enqueue(toEntry(out, guessLogLevel(out)))
+    logQueue.enqueue(toEntry(out, guessLogLevel(out))),
   );
   startCapture(process.stderr, (out) =>
-    logQueue.enqueue(toEntry(out, guessLogLevel(out)))
+    logQueue.enqueue(toEntry(out, guessLogLevel(out))),
   );
   const metadata = new grpc.Metadata();
   metadata.add("worker_id", workerId);
@@ -135,7 +135,7 @@ export function createLoggingChannel(workerId: string, endpoint: string) {
     endpoint,
     grpc.ChannelCredentials.createInsecure(),
     {},
-    {}
+    {},
   );
   const channel = client.logging(metadata);
 

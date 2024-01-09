@@ -36,9 +36,9 @@ async function main() {
     // Dataflow adds another level of nesting.
     options = options["options"];
   }
-  if (options['tw_secret_name']) {
-    process.env['TW_SECRET_NAME'] = options['tw_secret_name'];
-    childProcess.spawnSync('/download_secret.sh');
+  if (options["tw_secret_name"]) {
+    process.env["TW_SECRET_NAME"] = options["tw_secret_name"];
+    childProcess.spawnSync("/download_secret.sh");
   }
   (
     options["beam:option:registered_node_modules:v1"] ||
@@ -51,7 +51,7 @@ async function main() {
       console.error(
         `**ERROR**
       Unable to require module '${m}' used in requireForSerialization:
-      please ensure that it is available in the package exports.`
+      please ensure that it is available in the package exports.`,
       );
       // Explicitly exit the process to avoid the error getting swallowed
       // by a long traceback.
@@ -65,7 +65,7 @@ async function main() {
     {
       controlUrl: argv.control_endpoint,
     },
-    options
+    options,
   );
   if (pushLogs) {
     await pushLogs();
