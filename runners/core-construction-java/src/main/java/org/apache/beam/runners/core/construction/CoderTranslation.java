@@ -17,12 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -61,9 +57,6 @@ public class CoderTranslation {
   // This URN says that the coder is just a UDF blob this SDK understands
   // TODO: standardize such things
   public static final String JAVA_SERIALIZED_CODER_URN = "beam:coders:javasdk:0.1";
-
-  public static final List<String> KNOWN_EXTERNAL_CODERS =
-      Collections.unmodifiableList(Arrays.asList("beam:coder:pickled_python:v1"));
 
   @VisibleForTesting
   static final BiMap<Class<? extends Coder>, String> KNOWN_CODER_URNS = loadCoderURNs();
@@ -105,14 +98,14 @@ public class CoderTranslation {
       return toKnownCoder(coder, components);
     }
 
-    if (coder instanceof KnownExternalCoder) {
-      return toExternalCoder((KnownExternalCoder) coder);
+    if (coder instanceof UnknownCoderWrapper) {
+      return toUnknownCoderWrapper((UnknownCoderWrapper) coder);
     }
 
     return toCustomCoder(coder);
   }
 
-  private static RunnerApi.Coder toExternalCoder(KnownExternalCoder coder) {
+  private static RunnerApi.Coder toUnknownCoderWrapper(UnknownCoderWrapper coder) {
     return RunnerApi.Coder.newBuilder()
         .setSpec(
             FunctionSpec.newBuilder()
@@ -168,9 +161,7 @@ public class CoderTranslation {
       RunnerApi.Coder coder, RehydratedComponents components, TranslationContext context)
       throws IOException {
     String coderUrn = coder.getSpec().getUrn();
-    if (KNOWN_EXTERNAL_CODERS.contains(coderUrn)) {
-      return KnownExternalCoder.of(coderUrn, coder.getSpec().getPayload().toByteArray());
-    }
+
     List<Coder<?>> coderComponents = new ArrayList<>();
     for (String componentId : coder.getComponentCoderIdsList()) {
       // Only store coders in RehydratedComponents as long as we are not using a custom
@@ -184,13 +175,12 @@ public class CoderTranslation {
     }
     Class<? extends Coder> coderType = KNOWN_CODER_URNS.inverse().get(coderUrn);
     CoderTranslator<?> translator = KNOWN_TRANSLATORS.get(coderType);
-    checkArgument(
-        translator != null,
-        "Unknown Coder URN %s. Known URNs: %s",
-        coderUrn,
-        KNOWN_CODER_URNS.values());
-    return translator.fromComponents(
-        coderComponents, coder.getSpec().getPayload().toByteArray(), context);
+    if (translator != null) {
+      return translator.fromComponents(
+          coderComponents, coder.getSpec().getPayload().toByteArray(), context);
+    } else {
+      return UnknownCoderWrapper.of(coderUrn, coder.getSpec().getPayload().toByteArray());
+    }
   }
 
   private static Coder<?> fromCustomCoder(RunnerApi.Coder protoCoder) throws IOException {
