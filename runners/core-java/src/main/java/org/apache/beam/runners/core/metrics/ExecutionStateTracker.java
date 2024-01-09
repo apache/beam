@@ -104,7 +104,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
      * between startBundle/finishBundle).
      *
      * @param trackedThread The execution thread that is in a lull.
-     * @param millis The milliseconds since the state was most recently entered.
+     * @param millis The milliseconds since the bundle started processing.
      */
     public abstract void reportBundleLull(
         Thread trackedThread, String customLogMessage, long millis);

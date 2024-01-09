@@ -278,19 +278,28 @@ public class DataflowOperationContext implements OperationContext {
 
     protected String getBundleLullMessage(Thread trackedThread, Duration lullDuration) {
       StringBuilder message = new StringBuilder();
-      message.append("Operation ongoing");
-      if (getStepName() != null) {
-        message.append(" in bundle ");
-      }
       message
-          .append(" for at least ")
+          .append("Operation ongoing in bundle for at least ")
           .append(formatDuration(lullDuration))
-          .append(" without outputting or completing")
-          .append(getStateName());
-      message.append("\n");
+          .append(" without completing")
+          .append("\n");
 
       message.append(getStackTraceForLullMessage(trackedThread.getStackTrace()));
       return message.toString();
+    }
+
+    protected String logAllStackTraces() {
+      Map<Thread, StackTraceElement[]> threadSet = Thread.getAllStackTraces();
+      for (Map.Entry<Thread, StackTraceElement[]> entry : threadSet.entrySet()) {
+        Thread thread = entry.getKey();
+        StackTraceElement[] stackTrace = entry.getValue();
+        StringBuilder message = new StringBuilder();
+        message.append(thread.toString()).append(":\n");
+        message.append(getStackTraceForLullMessage(stackTrace));
+        logRecord = new LogRecord(Level.INFO, message.toString());
+        logRecord.setLoggerName(DataflowOperationContext.LOG.getName());
+        dataflowLoggingHandler.publish(this, logRecord);
+      }
     }
 
     @Override
@@ -315,17 +324,7 @@ public class DataflowOperationContext implements OperationContext {
       dataflowLoggingHandler.publish(this, logRecord);
 
       if (shouldLogFullThreadDump(lullDuration)) {
-        Map<Thread, StackTraceElement[]> threadSet = Thread.getAllStackTraces();
-        for (Map.Entry<Thread, StackTraceElement[]> entry : threadSet.entrySet()) {
-          Thread thread = entry.getKey();
-          StackTraceElement[] stackTrace = entry.getValue();
-          StringBuilder message = new StringBuilder();
-          message.append(thread.toString()).append(":\n");
-          message.append(getStackTraceForLullMessage(stackTrace));
-          logRecord = new LogRecord(Level.INFO, message.toString());
-          logRecord.setLoggerName(DataflowOperationContext.LOG.getName());
-          dataflowLoggingHandler.publish(this, logRecord);
-        }
+        logAllStackTraces();
       }
     }
 
@@ -354,17 +353,7 @@ public class DataflowOperationContext implements OperationContext {
       dataflowLoggingHandler.publish(this, customLogRecord);
 
       if (shouldLogFullThreadDumpForBundle(lullDuration)) {
-        Map<Thread, StackTraceElement[]> threadSet = Thread.getAllStackTraces();
-        for (Map.Entry<Thread, StackTraceElement[]> entry : threadSet.entrySet()) {
-          Thread thread = entry.getKey();
-          StackTraceElement[] stackTrace = entry.getValue();
-          StringBuilder message = new StringBuilder();
-          message.append(thread.toString()).append(":\n");
-          message.append(getStackTraceForLullMessage(stackTrace));
-          logRecord = new LogRecord(Level.INFO, message.toString());
-          logRecord.setLoggerName(DataflowOperationContext.LOG.getName());
-          dataflowLoggingHandler.publish(this, logRecord);
-        }
+        logAllStackTraces();
       }
     }
 
