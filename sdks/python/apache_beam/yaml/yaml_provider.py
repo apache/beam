@@ -205,7 +205,7 @@ class ExternalProvider(Provider):
         raise ValueError(
             f'Missing {required} in provider '
             f'at line {SafeLineLoader.get_line(spec)}')
-    urns = spec['transforms']
+    urns = SafeLineLoader.strip_metadata(spec['transforms'])
     type = spec['type']
     config = SafeLineLoader.strip_metadata(spec.get('config', {}))
     extra_params = set(SafeLineLoader.strip_metadata(spec).keys()) - set(
@@ -329,8 +329,7 @@ def python(urns, packages=()):
   else:
     return InlineProvider({
         name:
-        python_callable.PythonCallableWithSource.load_from_fully_qualified_name(
-            constructor)
+        python_callable.PythonCallableWithSource.load_from_source(constructor)
         for (name, constructor) in urns.items()
     })
 
@@ -348,6 +347,10 @@ class ExternalPythonProvider(ExternalProvider):
 
   def create_external_transform(self, urn, args):
     # Python transforms are "registered" by fully qualified name.
+    if not re.match(r'^[\w.]*$', urn):
+      # Treat it as source.
+      args = {'source': urn, **args}
+      urn = '__constructor__'
     return external.ExternalTransform(
         "beam:transforms:python:fully_qualified_named",
         external.ImplicitSchemaPayloadBuilder({
