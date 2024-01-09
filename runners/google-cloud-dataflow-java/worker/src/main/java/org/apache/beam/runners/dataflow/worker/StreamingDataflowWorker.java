@@ -84,6 +84,7 @@ import org.apache.beam.runners.dataflow.worker.status.DebugCapture.Capturable;
 import org.apache.beam.runners.dataflow.worker.status.LastExceptionDataProvider;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
+import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.FailedTokens;
 import org.apache.beam.runners.dataflow.worker.streaming.Commit;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutionState;
@@ -1891,15 +1892,16 @@ public class StreamingDataflowWorker {
 
   public void handleHeartbeatResponses(List<Windmill.ComputationHeartbeatResponse> responses) {
     for (Windmill.ComputationHeartbeatResponse computationHeartbeatResponse : responses) {
+      Map<Long, List<FailedTokens>> failedWork = new HashMap<>();
       for (Windmill.HeartbeatResponse heartbeatResponse :
           computationHeartbeatResponse.getHeartbeatResponsesList()) {
-        computationMap
-            .get(computationHeartbeatResponse.getComputationId())
-            .failWork(
-                heartbeatResponse.getShardingKey(),
-                heartbeatResponse.getWorkToken(),
-                heartbeatResponse.getCacheToken());
+        failedWork.putIfAbsent(heartbeatResponse.getShardingKey(), new ArrayList<>());
+        failedWork.get(heartbeatResponse.getShardingKey()).add(new FailedTokens(
+                heartbeatResponse.getWorkToken(), heartbeatResponse.getCacheToken()));
       }
+      computationMap
+          .get(computationHeartbeatResponse.getComputationId())
+          .failWork(failedWork);
     }
   }
 

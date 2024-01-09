@@ -19,10 +19,12 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 
 import com.google.api.services.dataflow.model.MapTask;
 import java.io.PrintWriter;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
+import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.FailedTokens;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
@@ -99,8 +101,8 @@ public class ComputationState implements AutoCloseable {
     }
   }
 
-  public void failWork(long shardedKey, long workToken, long cacheToken) {
-    activeWorkState.failWorkForKey(shardedKey, workToken, cacheToken);
+  public void failWork(Map<Long, List<FailedTokens>> failedWork) {
+    activeWorkState.failWorkForKey(failedWork);
   }
 
   /**

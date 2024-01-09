@@ -23,6 +23,7 @@ import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -52,7 +53,7 @@ import org.slf4j.LoggerFactory;
  * activate, queue, and complete {@link Work} (including invalidating stuck {@link Work}).
  */
 @ThreadSafe
-final class ActiveWorkState {
+public final class ActiveWorkState {
   private static final Logger LOG = LoggerFactory.getLogger(ActiveWorkState.class);
 
   /* The max number of keys in COMMITTING or COMMIT_QUEUED status to be shown.*/
@@ -122,21 +123,34 @@ final class ActiveWorkState {
     return ActivateWorkResult.QUEUED;
   }
 
-  synchronized void failWorkForKey(long shardedKey, long workToken, long cacheToken) {
-    // TODO(crites): Might be better to collect all the (shardedKey, workToken, CacheToken) tuples
-    // and iterate the activeWork set only once. Note we can't construct a ShardedKey and look it
-    // up in the set since HeartbeatResponse doesn't include the user key.
+  public static class FailedTokens {
+    public long workToken;
+    public long cacheToken;
+
+    public FailedTokens(long workToken, long cacheToken) {
+      this.workToken = workToken;
+      this.cacheToken = cacheToken;
+    }
+  }
+
+  synchronized void failWorkForKey(Map<Long, List<FailedTokens>> failedWork) {
+    // Note we can't construct a ShardedKey and look it up in activeWork directly since
+    // HeartbeatResponse doesn't include the user key.
     for (Entry<ShardedKey, Deque<Work>> entry : activeWork.entrySet()) {
-      if (shardedKey == entry.getKey().shardingKey()) {
+      List<FailedTokens> failedTokens = failedWork.get(entry.getKey().shardingKey());
+      if (failedTokens == null) continue;
+      for (FailedTokens failedToken : failedTokens) {
         for (Work queuedWork : entry.getValue()) {
           WorkItem workItem = queuedWork.getWorkItem();
-          if (workItem.getWorkToken() == workToken && workItem.getCacheToken() == cacheToken) {
-            LOG.error("failing work " + shardedKey + " " + workToken + " " + cacheToken);
+          if (workItem.getWorkToken() == failedToken.workToken &&
+              workItem.getCacheToken() == failedToken.cacheToken) {
+            LOG.error(
+                "failing work " + entry.getKey().shardingKey() + " " + failedToken.workToken
+                    + " " + failedToken.cacheToken);
             queuedWork.setState(Work.State.FAILED);
             break;
           }
         }
-        break;
       }
     }
   }
