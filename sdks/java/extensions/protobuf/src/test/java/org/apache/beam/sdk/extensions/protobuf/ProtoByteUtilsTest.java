@@ -142,6 +142,6 @@ public class ProtoByteUtilsTest {
             .build();
 
     Assert.assertNotNull(
-        ProtoByteUtils.getRowToProtoFromSchemaBytes(PROTO_STRING_SCHEMA, "MyMessage").apply(row));
+        ProtoByteUtils.getRowToProtoBytesFromSchema(PROTO_STRING_SCHEMA, "MyMessage").apply(row));
   }
 }

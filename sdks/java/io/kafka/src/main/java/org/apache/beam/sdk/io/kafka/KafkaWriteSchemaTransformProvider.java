@@ -24,7 +24,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
@@ -175,7 +174,7 @@ public class KafkaWriteSchemaTransformProvider
         } else if (descriptorPath != null) {
           toBytesFn = ProtoByteUtils.getRowToProtoBytes(descriptorPath, messageName);
         } else if (schema != null) {
-          toBytesFn = ProtoByteUtils.getRowToProtoFromSchemaBytes(schema, messageName);
+          toBytesFn = ProtoByteUtils.getRowToProtoBytesFromSchema(schema, messageName);
         } else {
           throw new IllegalArgumentException(
               "At least a descriptorPath or a proto Schema is required.");
@@ -215,10 +214,7 @@ public class KafkaWriteSchemaTransformProvider
       PCollection<Row> errorOutput =
           outputTuple.get(ERROR_TAG).setRowSchema(ErrorHandling.errorSchema(errorSchema));
       return PCollectionRowTuple.of(
-          handleErrors
-              ? Objects.requireNonNull(configuration.getErrorHandling()).getOutput()
-              : "errors",
-          errorOutput);
+          handleErrors ? configuration.getErrorHandling().getOutput() : "errors", errorOutput);
     }
   }
 

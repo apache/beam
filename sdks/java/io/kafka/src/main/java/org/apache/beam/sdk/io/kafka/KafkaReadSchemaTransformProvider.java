@@ -30,7 +30,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
@@ -126,11 +125,6 @@ public class KafkaReadSchemaTransformProvider
         public PCollectionRowTuple expand(PCollectionRowTuple input) {
           final String confluentSchemaRegSubject =
               configuration.getConfluentSchemaRegistrySubject();
-          if (confluentSchemaRegSubject == null) {
-            throw new IllegalArgumentException(
-                "To read from Kafka, a schema must be provided directly or though Confluent "
-                    + "Schema Registry. Make sure you are providing one of these parameters.");
-          }
           KafkaIO.Read<byte[], GenericRecord> kafkaRead =
               KafkaIO.<byte[], GenericRecord>read()
                   .withTopic(configuration.getTopic())
@@ -156,19 +150,12 @@ public class KafkaReadSchemaTransformProvider
       };
     }
 
-    if (format != null && format.equals("RAW")) {
-      if (inputSchema != null) {
-        throw new IllegalArgumentException(
-            "To read from Kafka in RAW format, you can't provide a schema.");
-      }
+    if (format.equals("RAW")) {
       beamSchema = Schema.builder().addField("payload", Schema.FieldType.BYTES).build();
       valueMapper = getRawBytesToRowFunction(beamSchema);
-    } else if (format != null && format.equals("PROTO")) {
-      String messageName = configuration.getMessageName();
-      if (messageName == null) {
-        throw new IllegalArgumentException("Expecting a messageName to be non-null.");
-      }
+    } else if (format.equals("PROTO")) {
       String fileDescriptorPath = configuration.getFileDescriptorPath();
+      String messageName = configuration.getMessageName();
       if (fileDescriptorPath != null) {
         beamSchema = ProtoByteUtils.getBeamSchemaFromProto(fileDescriptorPath, messageName);
         valueMapper = ProtoByteUtils.getProtoBytesToRowFunction(fileDescriptorPath, messageName);
@@ -176,16 +163,14 @@ public class KafkaReadSchemaTransformProvider
         beamSchema = ProtoByteUtils.getBeamSchemaFromProtoSchema(inputSchema, messageName);
         valueMapper = ProtoByteUtils.getProtoBytesToRowFromSchemaFunction(inputSchema, messageName);
       }
+    } else if (format.equals("JSON")) {
+      beamSchema = JsonUtils.beamSchemaFromJsonSchema(inputSchema);
+      valueMapper = JsonUtils.getJsonBytesToRowFunction(beamSchema);
     } else {
-      beamSchema =
-          Objects.equals(format, "JSON")
-              ? JsonUtils.beamSchemaFromJsonSchema(inputSchema)
-              : AvroUtils.toBeamSchema(new org.apache.avro.Schema.Parser().parse(inputSchema));
-      valueMapper =
-          Objects.equals(format, "JSON")
-              ? JsonUtils.getJsonBytesToRowFunction(beamSchema)
-              : AvroUtils.getAvroBytesToRowFunction(beamSchema);
+      beamSchema = AvroUtils.toBeamSchema(new org.apache.avro.Schema.Parser().parse(inputSchema));
+      valueMapper = AvroUtils.getAvroBytesToRowFunction(beamSchema);
     }
+
     return new SchemaTransform() {
       @Override
       public PCollectionRowTuple expand(PCollectionRowTuple input) {
@@ -215,10 +200,7 @@ public class KafkaReadSchemaTransformProvider
 
         PCollection<Row> errorOutput = outputTuple.get(ERROR_TAG).setRowSchema(errorSchema);
         if (handleErrors) {
-          outputRows =
-              outputRows.and(
-                  Objects.requireNonNull(configuration.getErrorHandling()).getOutput(),
-                  errorOutput);
+          outputRows = outputRows.and(configuration.getErrorHandling().getOutput(), errorOutput);
         }
         return outputRows;
       }

@@ -164,7 +164,7 @@ public class ProtoByteUtils {
     };
   }
 
-  public static SerializableFunction<Row, byte[]> getRowToProtoFromSchemaBytes(
+  public static SerializableFunction<Row, byte[]> getRowToProtoBytesFromSchema(
       String schemaString, String messageName) {
 
     Descriptors.Descriptor descriptor = getDescriptorFromProtoSchema(schemaString, messageName);
