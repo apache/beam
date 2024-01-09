@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata modelVersion="1.1.0">
+  <groupId>org.apache.beam</groupId>
+  <artifactId>beam-vendor-grpc-1_54_0</artifactId>
+  <versioning>
+    <lastUpdated>20231212024125</lastUpdated>
+    <snapshot>
+      <localCopy>true</localCopy>
+    </snapshot>
+    <snapshotVersions>
+      <snapshotVersion>
+        <extension>jar</extension>
+        <value>0.1-SNAPSHOT</value>
+        <updated>20231212024125</updated>
+      </snapshotVersion>
+      <snapshotVersion>
+        <extension>pom</extension>
+        <value>0.1-SNAPSHOT</value>
+        <updated>20231212024125</updated>
+      </snapshotVersion>
+    </snapshotVersions>
+  </versioning>
+  <version>0.1-SNAPSHOT</version>
+</metadata>

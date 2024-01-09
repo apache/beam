@@ -167,21 +167,16 @@ public final class StreamingEngineClient {
       WindmillStubFactory windmillGrpcStubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient) {
-    StreamingEngineClient streamingEngineClient =
-        new StreamingEngineClient(
-            jobHeader,
-            totalGetWorkBudget,
-            new AtomicReference<>(StreamingEngineConnectionState.EMPTY),
-            streamingEngineStreamFactory,
-            processWorkItem,
-            windmillGrpcStubFactory,
-            getWorkBudgetDistributor,
-            dispatcherClient,
-            new Random().nextLong());
-    streamingEngineClient.startGetWorkerMetadataStream();
-    streamingEngineClient.startWorkerMetadataConsumer();
-    streamingEngineClient.getWorkBudgetRefresher.start();
-    return streamingEngineClient;
+    return new StreamingEngineClient(
+        jobHeader,
+        totalGetWorkBudget,
+        new AtomicReference<>(StreamingEngineConnectionState.EMPTY),
+        streamingEngineStreamFactory,
+        processWorkItem,
+        windmillGrpcStubFactory,
+        getWorkBudgetDistributor,
+        dispatcherClient,
+        new Random().nextLong());
   }
 
   @VisibleForTesting
@@ -206,10 +201,16 @@ public final class StreamingEngineClient {
             getWorkBudgetDistributor,
             dispatcherClient,
             clientId);
-    streamingEngineClient.startGetWorkerMetadataStream();
-    streamingEngineClient.startWorkerMetadataConsumer();
-    streamingEngineClient.getWorkBudgetRefresher.start();
+    streamingEngineClient.start();
     return streamingEngineClient;
+  }
+
+  public void start() {
+    if (started.compareAndSet(false, true)) {
+      startGetWorkerMetadataStream();
+      startWorkerMetadataConsumer();
+      getWorkBudgetRefresher.start();
+    }
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
@@ -224,13 +225,12 @@ public final class StreamingEngineClient {
   }
 
   public void finish() {
-    if (!started.compareAndSet(true, false)) {
-      return;
+    if (started.compareAndSet(true, false)) {
+      getWorkerMetadataStream.get().close();
+      getWorkBudgetRefresher.stop();
+      newWorkerMetadataPublisher.shutdownNow();
+      newWorkerMetadataConsumer.shutdownNow();
     }
-    getWorkerMetadataStream.get().close();
-    getWorkBudgetRefresher.stop();
-    newWorkerMetadataPublisher.shutdownNow();
-    newWorkerMetadataConsumer.shutdownNow();
   }
 
   /**
@@ -261,7 +261,7 @@ public final class StreamingEngineClient {
     getWorkBudgetRefresher.requestBudgetRefresh();
   }
 
-  public final ImmutableList<Long> getAndResetThrottleTimes() {
+  public ImmutableList<Long> getAndResetThrottleTimes() {
     StreamingEngineConnectionState currentConnections = connections.get();
 
     ImmutableList<Long> keyedWorkStreamThrottleTimes =
@@ -280,7 +280,6 @@ public final class StreamingEngineClient {
     "ReturnValueIgnored", // starts the stream, this value is memoized.
   })
   private void startGetWorkerMetadataStream() {
-    started.set(true);
     getWorkerMetadataStream.get();
   }
 

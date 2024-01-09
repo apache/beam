@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.runners.dataflow.DataflowRunner.hasExperiment;
+import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.LOCALHOST;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
@@ -42,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -140,6 +142,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.EvictingQueue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.MultimapBuilder;
@@ -213,6 +216,7 @@ public class StreamingDataflowWorker {
 
   private static final Duration MAX_LOCAL_PROCESSING_RETRY_DURATION = Duration.standardMinutes(5);
   private static final Random clientIdGenerator = new Random();
+  private static final String GRPC_LOCALHOST = "grpc:localhost";
   final WindmillStateCache stateCache;
   // Maps from computation ids to per-computation state.
   private final ConcurrentMap<String, ComputationState> computationMap = new ConcurrentHashMap<>();
@@ -286,6 +290,7 @@ public class StreamingDataflowWorker {
   // Periodic sender of debug information to the debug capture service.
   private final DebugCapture.@Nullable Manager debugCaptureManager;
   private final StreamingEngineClient streamingEngineClient;
+  private final DataflowExecutionStateSampler sampler = DataflowExecutionStateSampler.instance();
   private ScheduledExecutorService refreshWorkTimer;
   private ScheduledExecutorService statusPageTimer;
   private ScheduledExecutorService globalWorkerUpdatesTimer;
@@ -492,7 +497,7 @@ public class StreamingDataflowWorker {
     this.metricTrackingWindmillServer =
         new MetricTrackingWindmillServerStub(windmillServer, memoryMonitor, windmillServiceEnabled);
     this.metricTrackingWindmillServer.start();
-    this.sideInputStateFetcher = new SideInputStateFetcher(metricTrackingWindmillServer);
+    this.sideInputStateFetcher = new SideInputStateFetcher(metricTrackingWindmillServer, options);
     this.clientId = clientIdGenerator.nextLong();
 
     for (MapTask mapTask : mapTasks) {
@@ -1271,7 +1276,8 @@ public class StreamingDataflowWorker {
 
       // Add the output to the commit queue.
       work.setState(State.COMMIT_QUEUED);
-      outputBuilder.addAllPerWorkItemLatencyAttributions(work.getLatencyAttributions());
+      outputBuilder.addAllPerWorkItemLatencyAttributions(
+          work.getLatencyAttributions(false, work.getLatencyTrackingId(), sampler));
 
       WorkItemCommitRequest commitRequest = outputBuilder.build();
       int byteLimit = maxWorkItemCommitBytes;
@@ -1696,6 +1702,7 @@ public class StreamingDataflowWorker {
         0,
         options.getGlobalConfigRefreshPeriod().getMillis(),
         TimeUnit.MILLISECONDS);
+    streamingEngineClient.start();
   }
 
   private void getGlobalConfig() {
