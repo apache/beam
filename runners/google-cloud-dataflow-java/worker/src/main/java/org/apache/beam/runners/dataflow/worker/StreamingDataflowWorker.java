@@ -1896,12 +1896,13 @@ public class StreamingDataflowWorker {
       for (Windmill.HeartbeatResponse heartbeatResponse :
           computationHeartbeatResponse.getHeartbeatResponsesList()) {
         failedWork.putIfAbsent(heartbeatResponse.getShardingKey(), new ArrayList<>());
-        failedWork.get(heartbeatResponse.getShardingKey()).add(new FailedTokens(
-                heartbeatResponse.getWorkToken(), heartbeatResponse.getCacheToken()));
+        failedWork
+            .get(heartbeatResponse.getShardingKey())
+            .add(
+                new FailedTokens(
+                    heartbeatResponse.getWorkToken(), heartbeatResponse.getCacheToken()));
       }
-      computationMap
-          .get(computationHeartbeatResponse.getComputationId())
-          .failWork(failedWork);
+      computationMap.get(computationHeartbeatResponse.getComputationId()).failWork(failedWork);
     }
   }
 

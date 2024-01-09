@@ -142,11 +142,15 @@ public final class ActiveWorkState {
       for (FailedTokens failedToken : failedTokens) {
         for (Work queuedWork : entry.getValue()) {
           WorkItem workItem = queuedWork.getWorkItem();
-          if (workItem.getWorkToken() == failedToken.workToken &&
-              workItem.getCacheToken() == failedToken.cacheToken) {
+          if (workItem.getWorkToken() == failedToken.workToken
+              && workItem.getCacheToken() == failedToken.cacheToken) {
             LOG.error(
-                "failing work " + entry.getKey().shardingKey() + " " + failedToken.workToken
-                    + " " + failedToken.cacheToken);
+                "failing work "
+                    + entry.getKey().shardingKey()
+                    + " "
+                    + failedToken.workToken
+                    + " "
+                    + failedToken.cacheToken);
             queuedWork.setState(Work.State.FAILED);
             break;
           }
