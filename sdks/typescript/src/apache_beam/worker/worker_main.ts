@@ -55,7 +55,13 @@ async function main() {
       process.exit(1);
     }
   });
-
+  global["pipelineOptions"] = options;
+  // import the user code so it runs the register functions
+  let npmModule = options["npm_module"];
+  if (options["npm_main"]) {
+    npmModule += "/" + options["npm_main"];
+  }
+  if (npmModule) require(npmModule);
   console.info("Starting worker", argv.id);
   const worker = new Worker(
     argv.id,

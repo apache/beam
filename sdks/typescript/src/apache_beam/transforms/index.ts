@@ -21,6 +21,7 @@ export * from "./create";
 export * from "./flatten";
 export * from "./group_and_combine";
 export * from "./pardo";
+export * from "./localParDo";
 export * from "./transform";
 export * from "./window";
 export * from "./windowings";

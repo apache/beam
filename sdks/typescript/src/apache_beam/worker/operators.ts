@@ -926,6 +926,25 @@ registerOperatorConstructor(
         transform,
         context,
       );
+    } else if (spec.doFn?.urn === urns.LOCAL_DOFN_EXPORT_NAME) {
+      const exportName = new TextDecoder().decode(spec.doFn.payload!);
+      let npmModule = global["pipelineOptions"]["npm_module"];
+      if (global["pipelineOptions"]["npm_main"]) {
+        npmModule += "/" + global["pipelineOptions"]["npm_main"];
+      }
+      const fn =
+        global["localParDos"]?.[exportName] || require(npmModule)[exportName];
+      if (!fn) {
+        throw new Error(`Could not find local DoFn ${exportName}`);
+      }
+      return new GenericParDoOperator(
+        transformId,
+        context.getReceiver(onlyElement(Object.values(transform.outputs))),
+        spec,
+        { doFn: fn, context: {} },
+        transform,
+        context,
+      );
     } else if (spec.doFn?.urn === urns.IDENTITY_DOFN_URN) {
       return new IdentityParDoOperator(
         transformId,
