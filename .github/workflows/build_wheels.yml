@@ -242,7 +242,7 @@ jobs:
             arch: aarch64
     steps:
     - name: Download python source distribution from artifacts
-        # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
+      # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
       uses: actions/download-artifact@v3
       with:
         name: source
