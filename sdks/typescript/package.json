@@ -64,6 +64,8 @@
     "./io": "./dist/src/apache_beam/io/index.js",
     "./runners": "./dist/src/apache_beam/index.js",
     "./transforms": "./dist/src/apache_beam/transforms/index.js",
+    "./coders": "./dist/src/apache_beam/coders/index.js",
+    "./internal": "./dist/src/apache_beam/internal/index.js",
     "./*": "./dist/src/apache_beam/*.js"
   }
 }
