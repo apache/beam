@@ -289,6 +289,8 @@ public class DataflowOperationContext implements OperationContext {
     }
 
     protected String logAllStackTraces() {
+      DataflowWorkerLoggingHandler dataflowLoggingHandler =
+          DataflowWorkerLoggingInitializer.getLoggingHandler();
       Map<Thread, StackTraceElement[]> threadSet = Thread.getAllStackTraces();
       for (Map.Entry<Thread, StackTraceElement[]> entry : threadSet.entrySet()) {
         Thread thread = entry.getKey();
@@ -296,7 +298,7 @@ public class DataflowOperationContext implements OperationContext {
         StringBuilder message = new StringBuilder();
         message.append(thread.toString()).append(":\n");
         message.append(getStackTraceForLullMessage(stackTrace));
-        logRecord = new LogRecord(Level.INFO, message.toString());
+        LogRecord logRecord = new LogRecord(Level.INFO, message.toString());
         logRecord.setLoggerName(DataflowOperationContext.LOG.getName());
         dataflowLoggingHandler.publish(this, logRecord);
       }
