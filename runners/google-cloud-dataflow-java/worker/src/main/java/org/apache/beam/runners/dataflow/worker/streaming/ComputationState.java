@@ -19,15 +19,15 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 
 import com.google.api.services.dataflow.model.MapTask;
 import java.io.PrintWriter;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
 
@@ -121,9 +121,12 @@ public class ComputationState implements AutoCloseable {
   }
 
   /** Adds any work started before the refreshDeadline to the GetDataRequest builder. */
-  public ImmutableList<KeyedGetDataRequest> getKeysToRefresh(
-      Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
-    return activeWorkState.getKeysToRefresh(refreshDeadline, sampler);
+  public List<Windmill.KeyedGetDataRequest> getKeysToRefresh(Instant refreshDeadline) {
+    return activeWorkState.getKeysToRefresh(refreshDeadline);
+  }
+
+  public GetWorkBudget getActiveWorkBudget() {
+    return activeWorkState.currentActiveWorkBudget();
   }
 
   public void printActiveWork(PrintWriter writer) {

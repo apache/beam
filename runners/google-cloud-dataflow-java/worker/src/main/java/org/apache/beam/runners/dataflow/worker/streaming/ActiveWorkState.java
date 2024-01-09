@@ -32,10 +32,10 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -82,6 +82,29 @@ final class ActiveWorkState {
       Map<ShardedKey, Deque<Work>> activeWork,
       WindmillStateCache.ForComputation computationStateCache) {
     return new ActiveWorkState(activeWork, computationStateCache);
+  }
+
+  private static Stream<KeyedGetDataRequest> toKeyedGetDataRequestStream(
+      Entry<ShardedKey, Deque<Work>> shardedKeyAndWorkQueue, Instant refreshDeadline) {
+    ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
+    Deque<Work> workQueue = shardedKeyAndWorkQueue.getValue();
+
+    return workQueue.stream()
+        .filter(work -> work.getStartTime().isBefore(refreshDeadline))
+        .map(
+            work ->
+                Windmill.KeyedGetDataRequest.newBuilder()
+                    .setKey(shardedKey.key())
+                    .setShardingKey(shardedKey.shardingKey())
+                    .setWorkToken(work.getWorkItem().getWorkToken())
+                    .addAllLatencyAttribution(work.getLatencyAttributions())
+                    .build());
+  }
+
+  private static String elapsedString(Instant start, Instant end) {
+    Duration activeFor = new Duration(start, end);
+    // Duration's toString always starts with "PT"; remove that here.
+    return activeFor.toString().substring(2);
   }
 
   /**
@@ -211,31 +234,22 @@ final class ActiveWorkState {
     return stuckCommits.build();
   }
 
-  synchronized ImmutableList<KeyedGetDataRequest> getKeysToRefresh(
-      Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
+  synchronized ImmutableList<KeyedGetDataRequest> getKeysToRefresh(Instant refreshDeadline) {
     return activeWork.entrySet().stream()
-        .flatMap(entry -> toKeyedGetDataRequestStream(entry, refreshDeadline, sampler))
+        .flatMap(entry -> toKeyedGetDataRequestStream(entry, refreshDeadline))
         .collect(toImmutableList());
   }
 
-  private static Stream<KeyedGetDataRequest> toKeyedGetDataRequestStream(
-      Entry<ShardedKey, Deque<Work>> shardedKeyAndWorkQueue,
-      Instant refreshDeadline,
-      DataflowExecutionStateSampler sampler) {
-    ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
-    Deque<Work> workQueue = shardedKeyAndWorkQueue.getValue();
-
-    return workQueue.stream()
-        .filter(work -> work.getStartTime().isBefore(refreshDeadline))
+  synchronized GetWorkBudget currentActiveWorkBudget() {
+    return activeWork.values().stream()
+        .flatMap(Deque::stream)
         .map(
             work ->
-                Windmill.KeyedGetDataRequest.newBuilder()
-                    .setKey(shardedKey.key())
-                    .setShardingKey(shardedKey.shardingKey())
-                    .setWorkToken(work.getWorkItem().getWorkToken())
-                    .addAllLatencyAttribution(
-                        work.getLatencyAttributions(true, work.getLatencyTrackingId(), sampler))
-                    .build());
+                GetWorkBudget.builder()
+                    .setItems(1)
+                    .setBytes(work.getWorkItem().getSerializedSize())
+                    .build())
+        .reduce(GetWorkBudget.noBudget(), GetWorkBudget::apply);
   }
 
   synchronized void printActiveWork(PrintWriter writer, Instant now) {
@@ -281,12 +295,6 @@ final class ActiveWorkState {
       writer.println(commitsPendingCount - MAX_PRINTABLE_COMMIT_PENDING_KEYS);
       writer.println("<br>");
     }
-  }
-
-  private static String elapsedString(Instant start, Instant end) {
-    Duration activeFor = new Duration(start, end);
-    // Duration's toString always starts with "PT"; remove that here.
-    return activeFor.toString().substring(2);
   }
 
   enum ActivateWorkResult {

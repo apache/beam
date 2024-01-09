@@ -223,13 +223,7 @@ public final class StreamingEngineClient {
         });
   }
 
-  @VisibleForTesting
-  boolean isWorkerMetadataReady() {
-    return !connections.get().equals(StreamingEngineConnectionState.EMPTY);
-  }
-
-  @VisibleForTesting
-  void finish() {
+  public void finish() {
     if (!started.compareAndSet(true, false)) {
       return;
     }

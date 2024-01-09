@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
 import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.remoteChannel;
+import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.remoteDirectChannel;
 
 import com.google.auth.Credentials;
 import com.google.auto.value.AutoOneOf;
@@ -58,6 +59,13 @@ public abstract class WindmillStubFactory {
                     remoteChannel(directEndpoint, rpcChannelTimeoutSec))
                 .withCallCredentials(
                     MoreCallCredentials.from(new VendoredCredentialsAdapter(gcpCredentials))));
+  }
+
+  public static WindmillStubFactory remoteDirectStubFactory() {
+    return AutoOneOf_WindmillStubFactory.remote(
+        directEndpoint ->
+            CloudWindmillServiceV1Alpha1Grpc.newStub(
+                remoteDirectChannel(directEndpoint.authenticatedGcpServiceAddress())));
   }
 
   public abstract Kind getKind();
