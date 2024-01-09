@@ -81,7 +81,7 @@ export class Receiver {
   constructor(
     private operators: IOperator[],
     private loggingStageInfo: LoggingStageInfo,
-    private elementCounter: { update: (number) => void }
+    private elementCounter: { update: (number) => void },
   ) {}
 
   receive(wvalue: WindowedValue<unknown>): ProcessResult {
@@ -114,7 +114,7 @@ export class OperatorContext {
     public getStateProvider: () => StateProvider,
     public getBundleId: () => string,
     public loggingStageInfo: LoggingStageInfo,
-    public metricsContainer: MetricsContainer
+    public metricsContainer: MetricsContainer,
   ) {
     this.pipelineContext = new PipelineContext(descriptor, "");
   }
@@ -122,7 +122,7 @@ export class OperatorContext {
 
 export function createOperator(
   transformId: string,
-  context: OperatorContext
+  context: OperatorContext,
 ): IOperator {
   const transform = context.descriptor.transforms[transformId];
   // Ensure receivers are eagerly created.
@@ -137,13 +137,13 @@ export function createOperator(
 type OperatorConstructor = (
   transformId: string,
   transformProto: PTransform,
-  context: OperatorContext
+  context: OperatorContext,
 ) => IOperator;
 interface OperatorClass {
   new (
     transformId: string,
     transformProto: PTransform,
-    context: OperatorContext
+    context: OperatorContext,
   ): IOperator;
 }
 
@@ -157,7 +157,7 @@ export function registerOperator(urn: string, cls: OperatorClass) {
 
 export function registerOperatorConstructor(
   urn: string,
-  constructor: OperatorConstructor
+  constructor: OperatorConstructor,
 ) {
   operatorsByUrn.set(urn, constructor);
 }
@@ -183,16 +183,16 @@ export class DataSourceOperator implements IOperator {
   constructor(
     transformId: string,
     transform: PTransform,
-    context: OperatorContext
+    context: OperatorContext,
   ) {
     const readPort = RemoteGrpcPort.fromBinary(transform.spec!.payload);
     this.multiplexingDataChannel = context.getDataChannel(
-      readPort.apiServiceDescriptor!.url
+      readPort.apiServiceDescriptor!.url,
     );
     this.transformId = transformId;
     this.getBundleId = context.getBundleId;
     this.receiver = context.getReceiver(
-      onlyElement(Object.values(transform.outputs))
+      onlyElement(Object.values(transform.outputs)),
     );
     this.coder = context.pipelineContext.getCoder(readPort.coderId);
     this.loggingStageInfo = context.loggingStageInfo;
@@ -226,7 +226,7 @@ export class DataSourceOperator implements IOperator {
             }
             this_.lastProcessedElement += 1;
             const maybePromise = this_.receiver.receive(
-              this_.coder.decode(reader, CoderContext.needsDelimiters)
+              this_.coder.decode(reader, CoderContext.needsDelimiters),
             );
             if (isPromise(maybePromise)) {
               await maybePromise;
@@ -250,7 +250,7 @@ export class DataSourceOperator implements IOperator {
         onError: function (error: Error) {
           endOfDataReject(error);
         },
-      }
+      },
     );
   }
 
@@ -259,7 +259,7 @@ export class DataSourceOperator implements IOperator {
   }
 
   split(
-    desiredSplit: fnApi.ProcessBundleSplitRequest_DesiredSplit
+    desiredSplit: fnApi.ProcessBundleSplitRequest_DesiredSplit,
   ): fnApi.ProcessBundleSplitResponse_ChannelSplit | undefined {
     if (!this.started) {
       return undefined;
@@ -278,7 +278,7 @@ export class DataSourceOperator implements IOperator {
     // the end.
     var targetLastToProcessElement = Math.floor(
       this.lastProcessedElement +
-        (end - this.lastProcessedElement) * desiredSplit.fractionOfRemainder
+        (end - this.lastProcessedElement) * desiredSplit.fractionOfRemainder,
     );
     // If desiredSplit.allowedSplitPoints is populated, try to find the closest
     // split point that's in this list.
@@ -288,9 +288,9 @@ export class DataSourceOperator implements IOperator {
           ...Array.from(desiredSplit.allowedSplitPoints)
             .filter(
               (allowedSplitPoint) =>
-                allowedSplitPoint >= targetLastToProcessElement + 1
+                allowedSplitPoint >= targetLastToProcessElement + 1,
             )
-            .map(Number)
+            .map(Number),
         ) - 1;
     }
     // If we were able to find a valid, meaningful split point, record it
@@ -316,7 +316,7 @@ export class DataSourceOperator implements IOperator {
     } finally {
       this.multiplexingDataChannel.unregisterConsumer(
         this.getBundleId(),
-        this.transformId
+        this.transformId,
       );
       this.started = false;
     }
@@ -336,11 +336,11 @@ class DataSinkOperator implements IOperator {
   constructor(
     transformId: string,
     transform: PTransform,
-    context: OperatorContext
+    context: OperatorContext,
   ) {
     const writePort = RemoteGrpcPort.fromBinary(transform.spec!.payload);
     this.multiplexingDataChannel = context.getDataChannel(
-      writePort.apiServiceDescriptor!.url
+      writePort.apiServiceDescriptor!.url,
     );
     this.transformId = transformId;
     this.getBundleId = context.getBundleId;
@@ -350,7 +350,7 @@ class DataSinkOperator implements IOperator {
   async startBundle() {
     this.channel = this.multiplexingDataChannel.getSendChannel(
       this.getBundleId(),
-      this.transformId
+      this.transformId,
     );
     this.buffer = new protobufjs.Writer();
   }
@@ -384,10 +384,10 @@ class FlattenOperator implements IOperator {
   constructor(
     public transformId: string,
     transform: PTransform,
-    context: OperatorContext
+    context: OperatorContext,
   ) {
     this.receiver = context.getReceiver(
-      onlyElement(Object.values(transform.outputs))
+      onlyElement(Object.values(transform.outputs)),
     );
   }
 
@@ -411,10 +411,10 @@ abstract class CombineOperator<I, A, O> {
   constructor(
     public transformId: string,
     transform: PTransform,
-    context: OperatorContext
+    context: OperatorContext,
   ) {
     this.receiver = context.getReceiver(
-      onlyElement(Object.values(transform.outputs))
+      onlyElement(Object.values(transform.outputs)),
     );
     const spec = runnerApi.CombinePayload.fromBinary(transform.spec!.payload);
     this.combineFn = deserializeFn(spec.combineFn!.payload).combineFn;
@@ -432,7 +432,7 @@ export class CombinePerKeyPrecombineOperator<I, A, O>
   maxKeys: number = 10000;
 
   static checkSupportsWindowing(
-    windowingStrategy: runnerApi.WindowingStrategy
+    windowingStrategy: runnerApi.WindowingStrategy,
   ) {
     if (
       windowingStrategy.mergeStatus !== runnerApi.MergeStatus_Enum.NON_MERGING
@@ -443,7 +443,7 @@ export class CombinePerKeyPrecombineOperator<I, A, O>
       windowingStrategy.outputTime !== runnerApi.OutputTime_Enum.END_OF_WINDOW
     ) {
       throw new Error(
-        "Unsupported windowing output time: " + windowingStrategy
+        "Unsupported windowing output time: " + windowingStrategy,
       );
     }
   }
@@ -451,7 +451,7 @@ export class CombinePerKeyPrecombineOperator<I, A, O>
   constructor(
     transformId: string,
     transform: PTransform,
-    context: OperatorContext
+    context: OperatorContext,
   ) {
     super(transformId, transform, context);
     const inputPc =
@@ -459,13 +459,13 @@ export class CombinePerKeyPrecombineOperator<I, A, O>
         onlyElement(Object.values(transform.inputs))
       ];
     this.keyCoder = context.pipelineContext.getCoder(
-      context.descriptor.coders[inputPc.coderId].componentCoderIds[0]
+      context.descriptor.coders[inputPc.coderId].componentCoderIds[0],
     );
     const windowingStrategy =
       context.descriptor.windowingStrategies[inputPc.windowingStrategyId];
     CombinePerKeyPrecombineOperator.checkSupportsWindowing(windowingStrategy);
     this.windowCoder = context.pipelineContext.getCoder(
-      windowingStrategy.windowCoderId
+      windowingStrategy.windowCoderId,
     );
   }
 
@@ -480,7 +480,7 @@ export class CombinePerKeyPrecombineOperator<I, A, O>
       }
       this.groups.set(
         wkey,
-        this.combineFn.addInput(this.groups.get(wkey), wvalue.value.value)
+        this.combineFn.addInput(this.groups.get(wkey), wvalue.value.value),
       );
     }
     if (this.groups.size > this.maxKeys) {
@@ -513,7 +513,7 @@ export class CombinePerKeyPrecombineOperator<I, A, O>
           windows: [window],
           timestamp: window.maxTimestamp(),
           pane: PaneInfoCoder.ONE_AND_ONLY_FIRING,
-        })
+        }),
       );
       toDelete.push(wkey);
       if (this.groups.size - toDelete.length <= target) {
@@ -537,7 +537,7 @@ export class CombinePerKeyPrecombineOperator<I, A, O>
 
 registerOperator(
   "beam:transform:combine_per_key_precombine:v1",
-  CombinePerKeyPrecombineOperator
+  CombinePerKeyPrecombineOperator,
 );
 
 class CombinePerKeyMergeAccumulatorsOperator<I, A, O>
@@ -561,7 +561,7 @@ class CombinePerKeyMergeAccumulatorsOperator<I, A, O>
 
 registerOperator(
   "beam:transform:combine_per_key_merge_accumulators:v1",
-  CombinePerKeyMergeAccumulatorsOperator
+  CombinePerKeyMergeAccumulatorsOperator,
 );
 
 class CombinePerKeyExtractOutputsOperator<I, A, O>
@@ -585,7 +585,7 @@ class CombinePerKeyExtractOutputsOperator<I, A, O>
 
 registerOperator(
   "beam:transform:combine_per_key_extract_outputs:v1",
-  CombinePerKeyExtractOutputsOperator
+  CombinePerKeyExtractOutputsOperator,
 );
 
 class CombinePerKeyConvertToAccumulatorsOperator<I, A, O>
@@ -601,7 +601,7 @@ class CombinePerKeyConvertToAccumulatorsOperator<I, A, O>
         key,
         value: this.combineFn.addInput(
           this.combineFn.createAccumulator(),
-          value
+          value,
         ),
       },
       windows: wvalue.windows,
@@ -615,7 +615,7 @@ class CombinePerKeyConvertToAccumulatorsOperator<I, A, O>
 
 registerOperator(
   "beam:transform:combine_per_key_convert_to_accumulators:v1",
-  CombinePerKeyConvertToAccumulatorsOperator
+  CombinePerKeyConvertToAccumulatorsOperator,
 );
 
 class CombinePerKeyCombineGroupedValuesOperator<I, A, O>
@@ -646,7 +646,7 @@ class CombinePerKeyCombineGroupedValuesOperator<I, A, O>
 
 registerOperator(
   "beam:transform:combine_grouped_values:v1",
-  CombinePerKeyCombineGroupedValuesOperator
+  CombinePerKeyCombineGroupedValuesOperator,
 );
 
 // ParDo operators.
@@ -669,7 +669,7 @@ class GenericParDoOperator implements IOperator {
       context: any;
     },
     transformProto: runnerApi.PTransform,
-    operatorContext: OperatorContext
+    operatorContext: OperatorContext,
   ) {
     this.doFn = payload.doFn;
     this.originalContext = payload.context;
@@ -677,7 +677,7 @@ class GenericParDoOperator implements IOperator {
     this.sideInputInfo = createSideInputInfo(
       transformProto,
       spec,
-      operatorContext
+      operatorContext,
     );
     this.metricsContainer = operatorContext.metricsContainer;
   }
@@ -687,10 +687,10 @@ class GenericParDoOperator implements IOperator {
       this.transformId,
       this.sideInputInfo,
       this.getStateProvider,
-      this.metricsContainer
+      this.metricsContainer,
     );
     this.augmentedContext = this.paramProvider.augmentContext(
-      this.originalContext
+      this.originalContext,
     );
     if (this.doFn.startBundle) {
       this.doFn.startBundle(this.augmentedContext);
@@ -710,7 +710,7 @@ class GenericParDoOperator implements IOperator {
             windows: [window],
             pane: wvalue.pane,
             timestamp: wvalue.timestamp,
-          })
+          }),
         );
       }
       return result.build();
@@ -724,7 +724,7 @@ class GenericParDoOperator implements IOperator {
       }
       if (isPromise(doFnOutput)) {
         return doFnOutput.then((doFnOutput) =>
-          this_.processResults(doFnOutput, wvalue)
+          this_.processResults(doFnOutput, wvalue),
         );
       }
       return this_.processResults(doFnOutput, wvalue);
@@ -763,7 +763,7 @@ class GenericParDoOperator implements IOperator {
           windows: wvalue.windows,
           pane: wvalue.pane,
           timestamp: wvalue.timestamp,
-        })
+        }),
       );
     }
     this.paramProvider.setCurrentValue(undefined);
@@ -790,7 +790,10 @@ class GenericParDoOperator implements IOperator {
 }
 
 class IdentityParDoOperator implements IOperator {
-  constructor(public transformId: string, private receiver: Receiver) {}
+  constructor(
+    public transformId: string,
+    private receiver: Receiver,
+  ) {}
 
   async startBundle() {}
 
@@ -805,7 +808,7 @@ class SplittingDoFnOperator implements IOperator {
   constructor(
     public transformId: string,
     private receivers: { [key: string]: Receiver },
-    private options: SplitOptions
+    private options: SplitOptions,
   ) {}
 
   async startBundle() {}
@@ -815,7 +818,7 @@ class SplittingDoFnOperator implements IOperator {
     const keys = Object.keys(wvalue.value as object);
     if (this.options.exclusive && keys.length !== 1) {
       throw new Error(
-        "Multiple keys for exclusively split element: " + wvalue.value
+        "Multiple keys for exclusively split element: " + wvalue.value,
       );
     }
     for (let tag of keys) {
@@ -831,7 +834,7 @@ class SplittingDoFnOperator implements IOperator {
               "' for " +
               wvalue.value +
               " not in " +
-              this.options.knownTags
+              this.options.knownTags,
           );
         }
       }
@@ -843,7 +846,7 @@ class SplittingDoFnOperator implements IOperator {
             windows: wvalue.windows,
             timestamp: wvalue.timestamp,
             pane: wvalue.pane,
-          })
+          }),
         );
       }
     }
@@ -857,7 +860,7 @@ class AssignWindowsParDoOperator implements IOperator {
   constructor(
     public transformId: string,
     private receiver: Receiver,
-    private windowFn: WindowFn<Window>
+    private windowFn: WindowFn<Window>,
   ) {}
 
   async startBundle() {}
@@ -888,7 +891,7 @@ class AssignTimestampsParDoOperator implements IOperator {
   constructor(
     public transformId: string,
     private receiver: Receiver,
-    private func: (any, Instant) => typeof Instant
+    private func: (any, Instant) => typeof Instant,
   ) {}
 
   async startBundle() {}
@@ -910,7 +913,7 @@ registerOperatorConstructor(
   parDo.urn,
   (transformId: string, transform: PTransform, context: OperatorContext) => {
     const receiver = context.getReceiver(
-      onlyElement(Object.values(transform.outputs))
+      onlyElement(Object.values(transform.outputs)),
     );
     const spec = runnerApi.ParDoPayload.fromBinary(transform.spec!.payload);
     // TODO: (Cleanup) Ideally we could branch on the urn itself, but some runners have a closed set of known URNs.
@@ -921,17 +924,16 @@ registerOperatorConstructor(
         spec,
         deserializeFn(spec.doFn.payload!),
         transform,
-        context
+        context,
       );
     } else if (spec.doFn?.urn === urns.LOCAL_DOFN_EXPORT_NAME) {
       const exportName = new TextDecoder().decode(spec.doFn.payload!);
-      let npmModule = global["pipelineOptions"]["npm_module"]
+      let npmModule = global["pipelineOptions"]["npm_module"];
       if (global["pipelineOptions"]["npm_main"]) {
-        npmModule += "/" + global["pipelineOptions"]["npm_main"]
+        npmModule += "/" + global["pipelineOptions"]["npm_main"];
       }
       const fn =
-        global["localParDos"]?.[exportName] ||
-        require(npmModule)[exportName];
+        global["localParDos"]?.[exportName] || require(npmModule)[exportName];
       if (!fn) {
         throw new Error(`Could not find local DoFn ${exportName}`);
       }
@@ -941,24 +943,24 @@ registerOperatorConstructor(
         spec,
         { doFn: fn, context: {} },
         transform,
-        context
+        context,
       );
     } else if (spec.doFn?.urn === urns.IDENTITY_DOFN_URN) {
       return new IdentityParDoOperator(
         transformId,
-        context.getReceiver(onlyElement(Object.values(transform.outputs)))
+        context.getReceiver(onlyElement(Object.values(transform.outputs))),
       );
     } else if (spec.doFn?.urn === urns.JS_WINDOW_INTO_DOFN_URN) {
       return new AssignWindowsParDoOperator(
         transformId,
         context.getReceiver(onlyElement(Object.values(transform.outputs))),
-        deserializeFn(spec.doFn.payload!).windowFn
+        deserializeFn(spec.doFn.payload!).windowFn,
       );
     } else if (spec.doFn?.urn === urns.JS_ASSIGN_TIMESTAMPS_DOFN_URN) {
       return new AssignTimestampsParDoOperator(
         transformId,
         context.getReceiver(onlyElement(Object.values(transform.outputs))),
-        deserializeFn(spec.doFn.payload!).func
+        deserializeFn(spec.doFn.payload!).func,
       );
     } else if (spec.doFn?.urn === urns.SPLITTING_JS_DOFN_URN) {
       return new SplittingDoFnOperator(
@@ -967,14 +969,14 @@ registerOperatorConstructor(
           Object.entries(transform.outputs).map(([tag, pcId]) => [
             tag,
             context.getReceiver(pcId),
-          ])
+          ]),
         ),
-        deserializeFn(spec.doFn.payload!)
+        deserializeFn(spec.doFn.payload!),
       );
     } else {
       throw new Error("Unknown DoFn type: " + spec);
     }
-  }
+  },
 );
 
 ///
@@ -988,7 +990,7 @@ export function encodeToBase64<T>(element: T, coder: Coder<T>): string {
 export function decodeFromBase64<T>(s: string, coder: Coder<T>): T {
   return coder.decode(
     new protobufjs.Reader(Buffer.from(s, "base64")),
-    CoderContext.wholeStream
+    CoderContext.wholeStream,
   );
 }
 

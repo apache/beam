@@ -49,10 +49,6 @@ For more information on changes in 2.53.0, check out the [detailed release notes
 * Framework for adding Error Handlers to composite transforms added in Java ([#29164](https://github.com/apache/beam/pull/29164)).
 * Python 3.11 images now include google-cloud-profiler ([#29561](https://github.com/apache/beam/pull/29651)).
 
-## Breaking Changes
-
-* Upgraded to go 1.21.5 to build, fixing [CVE-2023-45285](https://security-tracker.debian.org/tracker/CVE-2023-45285) and [CVE-2023-39326](https://security-tracker.debian.org/tracker/CVE-2023-39326)
-
 ## Deprecations
 
 * Euphoria DSL is deprecated and will be removed in a future release (not before 2.56.0) ([#29451](https://github.com/apache/beam/issues/29451))
@@ -61,6 +57,10 @@ For more information on changes in 2.53.0, check out the [detailed release notes
 
 * (Python) Fixed sporadic crashes in streaming pipelines that affected some users of 2.47.0 and newer SDKs ([#27330](https://github.com/apache/beam/issues/27330)).
 * (Python) Fixed a bug that caused MLTransform to drop identical elements in the output PCollection ([#29600](https://github.com/apache/beam/issues/29600)).
+
+## Security Fixes
+
+* Upgraded to go 1.21.5 to build, fixing [CVE-2023-45285](https://security-tracker.debian.org/tracker/CVE-2023-45285) and [CVE-2023-39326](https://security-tracker.debian.org/tracker/CVE-2023-39326)
 
 ## List of Contributors
 

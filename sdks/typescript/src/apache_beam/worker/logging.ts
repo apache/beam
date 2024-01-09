@@ -136,7 +136,7 @@ export function createLoggingChannel(workerId: string, endpoint: string) {
     endpoint,
     grpc.ChannelCredentials.createInsecure(),
     {},
-    {}
+    {},
   );
   const channel = client.logging(metadata);
 

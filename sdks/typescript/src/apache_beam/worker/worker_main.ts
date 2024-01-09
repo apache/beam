@@ -52,7 +52,7 @@ async function main() {
       console.error(
         `**ERROR**
       Unable to require module '${m}' used in requireForSerialization:
-      please ensure that it is available in the package exports.`
+      please ensure that it is available in the package exports.`,
       );
       // Explicitly exit the process to avoid the error getting swallowed
       // by a long traceback.
@@ -61,9 +61,9 @@ async function main() {
   });
   global["pipelineOptions"] = options;
   // import the user code so it runs the register functions
-  let npmModule = options["npm_module"]
+  let npmModule = options["npm_module"];
   if (options["npm_main"]) {
-    npmModule += "/" + options["npm_main"]
+    npmModule += "/" + options["npm_main"];
   }
   if (npmModule) require(npmModule);
   console.info("Starting worker", argv.id);
@@ -72,7 +72,7 @@ async function main() {
     {
       controlUrl: argv.control_endpoint,
     },
-    options
+    options,
   );
   console.info("Worker started.");
   if (pushLogs) {
