@@ -86,7 +86,7 @@ export interface LocalDoFn<InputT, OutputT, ContextT = undefined> {
  */
 export function localParDo<InputT, OutputT, ContextT = undefined>(
   doFn: LocalDoFn<InputT, OutputT, ContextT>,
-  context: ContextT = undefined!
+  context: ContextT = undefined!,
 ): PTransform<PCollection<InputT>, PCollection<OutputT>> {
   if (extractContext(doFn)) {
     context = { ...extractContext(doFn), ...context };
@@ -94,7 +94,7 @@ export function localParDo<InputT, OutputT, ContextT = undefined>(
   function expandInternal(
     input: PCollection<InputT>,
     pipeline: Pipeline,
-    transformProto: runnerApi.PTransform
+    transformProto: runnerApi.PTransform,
   ) {
     // Extract and populate side inputs from the context.
     const sideInputs = {};
@@ -130,8 +130,8 @@ export function localParDo<InputT, OutputT, ContextT = undefined>(
               urn: isGlobalSide
                 ? urns.GLOBAL_WINDOW_MAPPING_FN_URN
                 : mainWindowingStrategyId === sideWindowingStrategyId
-                ? urns.IDENTITY_WINDOW_MAPPING_FN_URN
-                : urns.ASSIGN_MAX_TIMESTAMP_WINDOW_MAPPING_FN_URN,
+                  ? urns.IDENTITY_WINDOW_MAPPING_FN_URN
+                  : urns.ASSIGN_MAX_TIMESTAMP_WINDOW_MAPPING_FN_URN,
               value: new Uint8Array(),
             },
           };
@@ -153,7 +153,7 @@ export function localParDo<InputT, OutputT, ContextT = undefined>(
             payload: new TextEncoder().encode(doFn.exportName),
           }),
           sideInputs: sideInputs,
-        })
+        }),
       ),
     });
 
@@ -161,13 +161,13 @@ export function localParDo<InputT, OutputT, ContextT = undefined>(
     // coder to encode the various types that exist in JS.
     // TODO: (Types) Should there be a way to specify, or better yet infer, the coder to use?
     return pipeline.createPCollectionInternal<OutputT>(
-      new GeneralObjectCoder()
+      new GeneralObjectCoder(),
     );
   }
 
   return withName(
     `parDo(${extractName(doFn.beamName || doFn.exportName)})`,
-    expandInternal
+    expandInternal,
   );
 }
 
@@ -253,7 +253,7 @@ interface SideInputAccessor<PCollT, AccessorT, ValueT> {
 class SideInputParam<
   PCollT,
   AccessorT,
-  ValueT
+  ValueT,
 > extends ParDoLookupParam<ValueT> {
   // Populated by user.
   pcoll: PCollection<PCollT>;
@@ -262,7 +262,7 @@ class SideInputParam<
 
   constructor(
     pcoll: PCollection<PCollT>,
-    accessor: SideInputAccessor<PCollT, AccessorT, ValueT>
+    accessor: SideInputAccessor<PCollT, AccessorT, ValueT>,
   ) {
     super("sideInput");
     this.pcoll = pcoll;
@@ -276,7 +276,7 @@ class SideInputParam<
 
 function copySideInputWithId<PCollT, AccessorT, ValueT>(
   sideInput: SideInputParam<PCollT, AccessorT, ValueT>,
-  id: string
+  id: string,
 ): SideInputParam<PCollT, AccessorT, ValueT> {
   const copy = Object.create(sideInput);
   copy.sideInputId = id;

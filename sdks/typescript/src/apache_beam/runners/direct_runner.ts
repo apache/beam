@@ -87,7 +87,7 @@ class DirectRunner extends Runner {
     }
 
     for (const windowing of Object.values(
-      proto.components!.windowingStrategies
+      proto.components!.windowingStrategies,
     )) {
       if (
         ![
@@ -124,7 +124,7 @@ class DirectRunner extends Runner {
         descriptor,
         null!,
         new state.CachingStateProvider(stateProvider),
-        [impulse.urn]
+        [impulse.urn],
       );
       await processor.process("bundle_id");
 
@@ -136,7 +136,7 @@ class DirectRunner extends Runner {
           const shortIdCache = new metrics.MetricsShortIdCache();
           const monitoringData = processor.monitoringData(shortIdCache);
           return Array.from(monitoringData.entries()).map(([id, payload]) =>
-            shortIdCache.asMonitoringInfo(id, payload)
+            shortIdCache.asMonitoringInfo(id, payload),
           );
         }
       })();
@@ -153,10 +153,10 @@ class DirectImpulseOperator implements operators.IOperator {
   constructor(
     public transformId: string,
     transform: PTransform,
-    context: operators.OperatorContext
+    context: operators.OperatorContext,
   ) {
     this.receiver = context.getReceiver(
-      onlyElement(Object.values(transform.outputs))
+      onlyElement(Object.values(transform.outputs)),
     );
   }
 
@@ -191,17 +191,17 @@ class DirectGbkOperator implements operators.IOperator {
   constructor(
     public transformId: string,
     transform: PTransform,
-    context: operators.OperatorContext
+    context: operators.OperatorContext,
   ) {
     this.receiver = context.getReceiver(
-      onlyElement(Object.values(transform.outputs))
+      onlyElement(Object.values(transform.outputs)),
     );
     const inputPc =
       context.descriptor.pcollections[
         onlyElement(Object.values(transform.inputs))
       ];
     this.keyCoder = context.pipelineContext.getCoder(
-      context.descriptor.coders[inputPc.coderId].componentCoderIds[0]
+      context.descriptor.coders[inputPc.coderId].componentCoderIds[0],
     );
     const windowingStrategy =
       context.descriptor.windowingStrategies[inputPc.windowingStrategyId];
@@ -214,11 +214,11 @@ class DirectGbkOperator implements operators.IOperator {
       windowingStrategy.outputTime !== runnerApi.OutputTime_Enum.END_OF_WINDOW
     ) {
       throw new Error(
-        "Unsupported windowing output time: " + windowingStrategy
+        "Unsupported windowing output time: " + windowingStrategy,
       );
     }
     this.windowCoder = context.pipelineContext.getCoder(
-      windowingStrategy.windowCoderId
+      windowingStrategy.windowCoderId,
     );
   }
 
@@ -247,7 +247,7 @@ class DirectGbkOperator implements operators.IOperator {
       const encodedKey = parts[1];
       const window = operators.decodeFromBase64(
         encodedWindow,
-        this.windowCoder
+        this.windowCoder,
       );
       const maybePromise = this.receiver.receive({
         value: {
@@ -349,13 +349,13 @@ function rewriteSideInputs(p: runnerApi.Pipeline, pipelineStateRef: string) {
         transform.inputs[side] = sideCopyId;
         const controlPCollId = uniqueName(
           pcolls,
-          sidePCollId + "-" + side + "-control"
+          sidePCollId + "-" + side + "-control",
         );
         pcolls[controlPCollId] = pcolls[transform.inputs[mainPCollTag]];
         bufferInputs[side] = controlPCollId;
         const collectTransformId = uniqueName(
           transforms,
-          transformId + "-" + side + "-collect"
+          transformId + "-" + side + "-collect",
         );
         transforms[collectTransformId] = runnerApi.PTransform.create({
           spec: {
@@ -404,17 +404,17 @@ class CollectSideOperator implements operators.IOperator {
   constructor(
     public transformId: string,
     transform: PTransform,
-    context: operators.OperatorContext
+    context: operators.OperatorContext,
   ) {
     this.receiver = context.getReceiver(
-      onlyElement(Object.values(transform.outputs))
+      onlyElement(Object.values(transform.outputs)),
     );
     const payload = deserializeFn(transform.spec!.payload!);
     this.parDoTransformId = payload.transformId;
     this.accessPattern = payload.accessPattern;
     this.sideInputId = payload.sideInputId;
     this.stateProvider = DirectRunner.inMemoryStatesRefs.get(
-      payload.pipelineStateRef
+      payload.pipelineStateRef,
     )!;
 
     const inputPc =
@@ -425,7 +425,7 @@ class CollectSideOperator implements operators.IOperator {
     const windowingStrategy =
       context.descriptor.windowingStrategies[inputPc.windowingStrategyId];
     this.windowCoder = context.pipelineContext.getCoder(
-      windowingStrategy.windowCoderId
+      windowingStrategy.windowCoderId,
     );
   }
 
@@ -437,7 +437,7 @@ class CollectSideOperator implements operators.IOperator {
       this.elementCoder.encode(
         wvalue.value,
         writer,
-        CoderContext.needsDelimiters
+        CoderContext.needsDelimiters,
       );
       const encodedElement = writer.finish();
       this.stateProvider.appendState(
@@ -446,9 +446,9 @@ class CollectSideOperator implements operators.IOperator {
           this.accessPattern,
           this.sideInputId,
           window,
-          this.windowCoder
+          this.windowCoder,
         ),
-        encodedElement
+        encodedElement,
       );
     }
     return operators.NonPromise;
@@ -467,10 +467,10 @@ class BufferOperator implements operators.IOperator {
   constructor(
     public transformId: string,
     transform: PTransform,
-    context: operators.OperatorContext
+    context: operators.OperatorContext,
   ) {
     this.receiver = context.getReceiver(
-      onlyElement(Object.values(transform.outputs))
+      onlyElement(Object.values(transform.outputs)),
     );
   }
 
@@ -500,7 +500,7 @@ class InMemoryStateProvider implements state.StateProvider {
 
   getState<T>(
     stateKey: fnApi.StateKey,
-    decode: (data: Uint8Array) => T
+    decode: (data: Uint8Array) => T,
   ): state.MaybePromise<T> {
     return {
       type: "value",
@@ -514,7 +514,7 @@ class InMemoryStateProvider implements state.StateProvider {
 
   getStateEntry<T>(stateKey: fnApi.StateKey) {
     const cacheKey = Buffer.from(fnApi.StateKey.toBinary(stateKey)).toString(
-      "base64"
+      "base64",
     );
     if (!this.chunks.has(cacheKey)) {
       this.chunks.set(cacheKey, []);
