@@ -40,6 +40,12 @@ async function main() {
     process.env["TW_SECRET_NAME"] = options["tw_secret_name"];
     childProcess.spawnSync("/download_secret.sh");
   }
+  if (options['tw_envs']) {
+    const envs = JSON.parse(options['tw_envs']);
+    for (const key in envs) {
+      process.env[key] = envs[key];
+    }
+  }
   (
     options["beam:option:registered_node_modules:v1"] ||
     options["registered_node_modules"] ||
