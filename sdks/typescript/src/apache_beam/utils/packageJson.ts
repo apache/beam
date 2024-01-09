@@ -19,7 +19,7 @@
 import * as fs from "fs";
 
 export const packageJson = JSON.parse(
-  fs.readFileSync(__dirname + "/../../../../package.json").toString()
+  fs.readFileSync(__dirname + "/../../../../package.json").toString(),
 );
 
 export const beamVersion = packageJson.version;
