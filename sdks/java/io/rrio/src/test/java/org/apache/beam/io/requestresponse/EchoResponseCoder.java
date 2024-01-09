@@ -17,32 +17,27 @@
  */
 package org.apache.beam.io.requestresponse;
 
-/**
- * Extends {@link UserCodeQuotaException} to allow the user custom code to specifically signal a
- * Quota or API overuse related error.
- */
-public class UserCodeQuotaException extends UserCodeExecutionException {
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.testinfra.mockapis.echo.v1.Echo.EchoResponse;
 
-  public UserCodeQuotaException(String message) {
-    super(message);
-  }
+/** A {@link CustomCoder} for {@link EchoResponse}es. */
+public class EchoResponseCoder extends CustomCoder<EchoResponse> {
 
-  public UserCodeQuotaException(String message, Throwable cause) {
-    super(message, cause);
-  }
-
-  public UserCodeQuotaException(Throwable cause) {
-    super(cause);
-  }
-
-  public UserCodeQuotaException(
-      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-    super(message, cause, enableSuppression, writableStackTrace);
-  }
-
-  /** Reports that quota errors should be repeated. */
   @Override
-  public boolean shouldRepeat() {
-    return true;
+  public void encode(EchoResponse value, OutputStream outStream)
+      throws CoderException, IOException {
+    value.writeTo(outStream);
   }
+
+  @Override
+  public EchoResponse decode(InputStream inStream) throws CoderException, IOException {
+    return EchoResponse.parseFrom(inStream);
+  }
+
+  @Override
+  public void verifyDeterministic() throws NonDeterministicException {}
 }

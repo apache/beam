@@ -17,32 +17,19 @@
  */
 package org.apache.beam.io.requestresponse;
 
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.SerializableUtils;
+
 /**
- * Extends {@link UserCodeQuotaException} to allow the user custom code to specifically signal a
- * Quota or API overuse related error.
+ * A default {@link SerializableSupplier} of a {@link BackOff} that relies on {@link
+ * FluentBackoff#DEFAULT}. Embedding {@link FluentBackoff#DEFAULT} in a lambda failed {@link
+ * SerializableUtils#ensureSerializable}.
  */
-public class UserCodeQuotaException extends UserCodeExecutionException {
+class DefaultSerializableBackoffSupplier implements SerializableSupplier<BackOff> {
 
-  public UserCodeQuotaException(String message) {
-    super(message);
-  }
-
-  public UserCodeQuotaException(String message, Throwable cause) {
-    super(message, cause);
-  }
-
-  public UserCodeQuotaException(Throwable cause) {
-    super(cause);
-  }
-
-  public UserCodeQuotaException(
-      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-    super(message, cause, enableSuppression, writableStackTrace);
-  }
-
-  /** Reports that quota errors should be repeated. */
   @Override
-  public boolean shouldRepeat() {
-    return true;
+  public BackOff get() {
+    return FluentBackoff.DEFAULT.backoff();
   }
 }

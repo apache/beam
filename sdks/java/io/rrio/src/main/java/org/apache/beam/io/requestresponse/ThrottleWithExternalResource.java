@@ -76,7 +76,7 @@ import org.joda.time.Instant;
  *
  * <p>{@link ThrottleWithExternalResource} flattens errors emitted from {@link EnqueuerT}, {@link
  * RefresherT}, and its own {@link DoFn} into a single {@link ApiIOError} {@link PCollection} that
- * is encapsulated, with a {@link T} {@link PCollection} output into a {@link Call.Result}.
+ * is encapsulated, with a {@link T} {@link PCollection} output into a {@link Result}.
  */
 class ThrottleWithExternalResource<
         T,
@@ -85,7 +85,7 @@ class ThrottleWithExternalResource<
         DequeuerT extends Caller<Instant, T> & SetupTeardown,
         DecrementerT extends Caller<Instant, Long> & SetupTeardown,
         RefresherT extends Caller<Instant, Void> & SetupTeardown>
-    extends PTransform<PCollection<T>, Call.Result<T>> {
+    extends PTransform<PCollection<T>, Result<T>> {
 
   /**
    * Instantiate a {@link ThrottleWithExternalResource} using a {@link RedisClient}.
@@ -151,17 +151,17 @@ class ThrottleWithExternalResource<
   }
 
   @Override
-  public Call.Result<T> expand(PCollection<T> input) {
+  public Result<T> expand(PCollection<T> input) {
     Pipeline pipeline = input.getPipeline();
 
     // Refresh known quota to control the throttle rate.
-    Call.Result<Void> refreshResult =
+    Result<Void> refreshResult =
         pipeline
             .apply("quota impulse", PeriodicImpulse.create().withInterval(quota.getInterval()))
             .apply("quota refresh", getRefresher());
 
     // Enqueue T elements.
-    Call.Result<Void> enqueuResult = input.apply("enqueue", getEnqueuer());
+    Result<Void> enqueuResult = input.apply("enqueue", getEnqueuer());
 
     TupleTag<T> outputTag = new TupleTag<T>() {};
     TupleTag<ApiIOError> failureTag = new TupleTag<ApiIOError>() {};
@@ -191,7 +191,7 @@ class ThrottleWithExternalResource<
     TupleTag<T> resultOutputTag = new TupleTag<T>() {};
     TupleTag<ApiIOError> resultFailureTag = new TupleTag<ApiIOError>() {};
 
-    return Call.Result.<T>of(
+    return Result.<T>of(
         coder,
         resultOutputTag,
         resultFailureTag,

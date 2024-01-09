@@ -17,32 +17,12 @@
  */
 package org.apache.beam.io.requestresponse;
 
+import java.io.Serializable;
+import java.util.function.Supplier;
+
 /**
- * Extends {@link UserCodeQuotaException} to allow the user custom code to specifically signal a
- * Quota or API overuse related error.
+ * A union of a {@link Supplier} and {@link Serializable}, enabling configuration with {@link T}
+ * types that are not {@link Serializable}.
  */
-public class UserCodeQuotaException extends UserCodeExecutionException {
-
-  public UserCodeQuotaException(String message) {
-    super(message);
-  }
-
-  public UserCodeQuotaException(String message, Throwable cause) {
-    super(message, cause);
-  }
-
-  public UserCodeQuotaException(Throwable cause) {
-    super(cause);
-  }
-
-  public UserCodeQuotaException(
-      String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-    super(message, cause, enableSuppression, writableStackTrace);
-  }
-
-  /** Reports that quota errors should be repeated. */
-  @Override
-  public boolean shouldRepeat() {
-    return true;
-  }
-}
+@FunctionalInterface
+public interface SerializableSupplier<T> extends Supplier<T>, Serializable {}
