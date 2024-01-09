@@ -40,6 +40,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.google.api.gax.rpc.ApiException;
 import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
@@ -1930,9 +1931,8 @@ public class BigtableIOTest {
     }
 
     @Override
-    public CompletionStage<MutateRowResponse> writeSingleRecord(
-        KV<ByteString, Iterable<Mutation>> record) throws IOException {
-      return writeRecord(record);
+    public void writeSingleRecord(
+        KV<ByteString, Iterable<Mutation>> record) {
     }
 
     @Override
@@ -1957,12 +1957,11 @@ public class BigtableIOTest {
     }
 
     @Override
-    public CompletionStage<MutateRowResponse> writeSingleRecord(
-        KV<ByteString, Iterable<Mutation>> record) throws IOException {
+    public void writeSingleRecord(
+        KV<ByteString, Iterable<Mutation>> record) throws ApiException  {
       if (failureOptions.getFailAtWriteRecord()) {
-        throw new IOException("Fake IOException in writeRecord()");
+        throw new RuntimeException("Fake RuntimeException in writeRecord()");
       }
-      return super.writeSingleRecord(record);
     }
 
     private final FailureOptions failureOptions;

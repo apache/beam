@@ -355,8 +355,7 @@ public class BigtableWriteIT implements Serializable {
 
   @After
   public void tearDown() throws Exception {
-    System.out.println("Table is:" + tableId);
-    // deleteTable(tableId);
+    deleteTable(tableId);
     if (tableAdminClient != null) {
       tableAdminClient.close();
     }
@@ -406,10 +405,10 @@ public class BigtableWriteIT implements Serializable {
     return tableData;
   }
 
-  // /** Helper function to delete a table. */
-  // private void deleteTable(String tableId) {
-  //   if (tableAdminClient != null) {
-  //     tableAdminClient.deleteTable(tableId);
-  //   }
-  // }
+  /** Helper function to delete a table. */
+  private void deleteTable(String tableId) {
+    if (tableAdminClient != null) {
+      tableAdminClient.deleteTable(tableId);
+    }
+  }
 }

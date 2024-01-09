@@ -24,6 +24,7 @@ import com.google.api.gax.batching.Batcher;
 import com.google.api.gax.batching.BatchingException;
 import com.google.api.gax.grpc.GrpcCallContext;
 import com.google.api.gax.retrying.RetrySettings;
+import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.ResponseObserver;
 import com.google.api.gax.rpc.StreamController;
 import com.google.bigtable.v2.Cell;
@@ -493,8 +494,6 @@ class BigtableServiceImpl implements BigtableService {
     private Distribution bulkSize = Metrics.distribution("BigTable-" + tableId, "batchSize");
     private Distribution latency = Metrics.distribution("BigTable-" + tableId, "batchLatencyMs");
 
-    private Set<CompletionStage<MutateRowResponse>> unbatchedWrites = new HashSet<>();
-
     BigtableWriterImpl(
         BigtableDataClient client,
         String projectId,
@@ -511,7 +510,6 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public void close() throws IOException {
-      IOException exception = null;
       if (bulkMutation != null) {
         try {
           stopwatch.start();
@@ -535,28 +533,15 @@ class BigtableServiceImpl implements BigtableService {
           // instead of tracking them separately in BigtableIOWriteFn.
         } catch (TimeoutException e) {
           // We fail because future.get() timed out
-          exception = new IOException("BulkMutation took too long to close", e);
+          throw new IOException("BulkMutation took too long to close", e);
         } catch (ExecutionException e) {
-          exception = new IOException("Failed to close batch", e.getCause());
+          throw new IOException("Failed to close batch", e.getCause());
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           // We fail since close() operation was interrupted.
-          exception = new IOException(e);
+          throw new IOException(e);
         }
         bulkMutation = null;
-      }
-      // ensure any singleton writes are finished
-      for (CompletionStage<MutateRowResponse> unbatchedWrite : unbatchedWrites) {
-        try {
-          unbatchedWrite.toCompletableFuture().get();
-        } catch (Exception e) {
-          // ignore exceptions here, they are handled by the .whenComplete as part of the
-          // completion stage this .get exists purely to make sure all unbatched writes are
-          // complete.
-        }
-      }
-      if (exception != null) {
-        throw exception;
       }
     }
 
@@ -582,8 +567,8 @@ class BigtableServiceImpl implements BigtableService {
     }
 
     @Override
-    public CompletionStage<MutateRowResponse> writeSingleRecord(
-        KV<ByteString, Iterable<Mutation>> record) {
+    public void writeSingleRecord(
+        KV<ByteString, Iterable<Mutation>> record) throws ApiException {
       com.google.cloud.bigtable.data.v2.models.Mutation mutation =
           com.google.cloud.bigtable.data.v2.models.Mutation.fromProtoUnsafe(record.getValue());
 
@@ -591,14 +576,18 @@ class BigtableServiceImpl implements BigtableService {
 
       ServiceCallMetric serviceCallMetric = createServiceCallMetric();
 
-      CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
-
-      Futures.addCallback(
-          new VendoredListenableFutureAdapter<>(client.mutateRowAsync(rowMutation)),
-          new WriteMutationCallback(result, serviceCallMetric),
-          directExecutor());
-      unbatchedWrites.add(result);
-      return result;
+      try {
+        client.mutateRow(rowMutation);
+        serviceCallMetric.call("ok");
+      } catch (ApiException e){
+        if (e.getCause() instanceof StatusRuntimeException) {
+          serviceCallMetric.call(
+              ((StatusRuntimeException) e.getCause()).getStatus().getCode().value());
+        } else {
+          serviceCallMetric.call("unknown");
+        }
+        throw e;
+      }
     }
 
     private ServiceCallMetric createServiceCallMetric() {

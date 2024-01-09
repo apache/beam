@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import com.google.api.gax.rpc.ApiException;
 import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
@@ -49,8 +50,7 @@ interface BigtableService extends Serializable {
      * Like above, but will not batch the record. Useful for single record retries. writeRecord
      * should be preferred for performance reasons.
      */
-    CompletionStage<MutateRowResponse> writeSingleRecord(KV<ByteString, Iterable<Mutation>> record)
-        throws IOException;
+    void writeSingleRecord(KV<ByteString, Iterable<Mutation>> record) throws ApiException;
 
     /**
      * Closes the writer.
