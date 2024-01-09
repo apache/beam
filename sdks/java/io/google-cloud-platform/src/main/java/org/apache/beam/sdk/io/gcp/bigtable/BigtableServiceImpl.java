@@ -55,13 +55,11 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -567,8 +565,7 @@ class BigtableServiceImpl implements BigtableService {
     }
 
     @Override
-    public void writeSingleRecord(
-        KV<ByteString, Iterable<Mutation>> record) throws ApiException {
+    public void writeSingleRecord(KV<ByteString, Iterable<Mutation>> record) throws ApiException {
       com.google.cloud.bigtable.data.v2.models.Mutation mutation =
           com.google.cloud.bigtable.data.v2.models.Mutation.fromProtoUnsafe(record.getValue());
 
@@ -579,7 +576,7 @@ class BigtableServiceImpl implements BigtableService {
       try {
         client.mutateRow(rowMutation);
         serviceCallMetric.call("ok");
-      } catch (ApiException e){
+      } catch (ApiException e) {
         if (e.getCause() instanceof StatusRuntimeException) {
           serviceCallMetric.call(
               ((StatusRuntimeException) e.getCause()).getStatus().getCode().value());

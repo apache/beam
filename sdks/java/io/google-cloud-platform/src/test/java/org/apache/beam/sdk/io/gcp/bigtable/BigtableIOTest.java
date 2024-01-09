@@ -1931,9 +1931,7 @@ public class BigtableIOTest {
     }
 
     @Override
-    public void writeSingleRecord(
-        KV<ByteString, Iterable<Mutation>> record) {
-    }
+    public void writeSingleRecord(KV<ByteString, Iterable<Mutation>> record) {}
 
     @Override
     public void close() {}
@@ -1957,8 +1955,7 @@ public class BigtableIOTest {
     }
 
     @Override
-    public void writeSingleRecord(
-        KV<ByteString, Iterable<Mutation>> record) throws ApiException  {
+    public void writeSingleRecord(KV<ByteString, Iterable<Mutation>> record) throws ApiException {
       if (failureOptions.getFailAtWriteRecord()) {
         throw new RuntimeException("Fake RuntimeException in writeRecord()");
       }
