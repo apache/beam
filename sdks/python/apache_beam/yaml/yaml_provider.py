@@ -26,6 +26,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import subprocess
 import sys
 import urllib.parse
@@ -730,36 +731,49 @@ class PypiExpansionService:
   def _create_venv_from_scratch(cls, base_python, packages):
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
-      subprocess.run([base_python, '-m', 'venv', venv], check=True)
-      venv_python = os.path.join(venv, 'bin', 'python')
-      subprocess.run([venv_python, '-m', 'ensurepip'], check=True)
-      subprocess.run([venv_python, '-m', 'pip', 'install'] + packages,
-                     check=True)
-      with open(venv + '-requirements.txt', 'w') as fout:
-        fout.write('\n'.join(packages))
+      try:
+        subprocess.run([base_python, '-m', 'venv', venv], check=True)
+        venv_python = os.path.join(venv, 'bin', 'python')
+        venv_pip = os.path.join(venv, 'bin', 'pip')
+        subprocess.run([venv_python, '-m', 'ensurepip'], check=True)
+        subprocess.run([venv_pip, 'install'] + packages, check=True)
+        with open(venv + '-requirements.txt', 'w') as fout:
+          fout.write('\n'.join(packages))
+      except:  # pylint: disable=bare-except
+        if os.path.exists(venv):
+          shutil.rmtree(venv, ignore_errors=True)
+        raise
     return venv
 
   @classmethod
   def _create_venv_from_clone(cls, base_python, packages):
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
-      clonable_venv = cls._create_venv_to_clone(base_python)
-      clonable_python = os.path.join(clonable_venv, 'bin', 'python')
-      subprocess.run(
-          [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
-          check=True)
-      venv_binary = os.path.join(venv, 'bin', 'python')
-      subprocess.run([venv_binary, '-m', 'pip', 'install'] + packages,
-                     check=True)
-      with open(venv + '-requirements.txt', 'w') as fout:
-        fout.write('\n'.join(packages))
+      try:
+        clonable_venv = cls._create_venv_to_clone(base_python)
+        clonable_python = os.path.join(clonable_venv, 'bin', 'python')
+        subprocess.run(
+            [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
+            check=True)
+        venv_pip = os.path.join(venv, 'bin', 'pip')
+        subprocess.run([venv_pip, 'install'] + packages, check=True)
+        with open(venv + '-requirements.txt', 'w') as fout:
+          fout.write('\n'.join(packages))
+      except:  # pylint: disable=bare-except
+        if os.path.exists(venv):
+          shutil.rmtree(venv, ignore_errors=True)
+        raise
     return venv
 
   @classmethod
   def _create_venv_to_clone(cls, base_python):
+    if '.dev' in beam_version:
+      base_venv = os.path.dirname(os.path.dirname(base_python))
+      print('Cloning dev environment from', base_venv)
     return cls._create_venv_from_scratch(
-        base_python, [
-            'apache_beam[dataframe,gcp,test]==' + beam_version,
+        base_python,
+        [
+            'apache_beam[dataframe,gcp,test,yaml]==' + beam_version,
             'virtualenv-clone'
         ])
 
