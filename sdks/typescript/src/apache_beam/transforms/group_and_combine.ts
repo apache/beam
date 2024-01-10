@@ -69,7 +69,7 @@ type Combiner<I> = CombineFn<I, any, any> | ((a: any, b: any) => any);
  */
 export class GroupBy<T, K> extends PTransformClass<
   PCollection<T>,
-  PCollection<KV<K, Iterable<T>>>
+  PCollection<KV<K, T[]>>
 > {
   keyFn: (element: T) => K;
   keyNames: string | string[];
@@ -222,7 +222,7 @@ class GroupByAndCombine<T, O> extends PTransformClass<
     );
   }
 
-  expand(input: PCollection<T>) {
+  expand(input: PCollection<T>): PCollection<O> {
     const this_ = this;
     return input
       .map(function extractKeys(element) {
@@ -244,13 +244,13 @@ class GroupByAndCombine<T, O> extends PTransformClass<
           result[this_.keyNames] = kv.key;
         } else {
           for (let i = 0; i < this_.keyNames.length; i++) {
-            result[this_.keyNames[i]] = kv.key[i];
+            result[this_.keyNames[i]] = (kv.key as any)[i];
           }
         }
         for (let i = 0; i < this_.combiners.length; i++) {
           result[this_.combiners[i].resultName] = kv.value[i];
         }
-        return result;
+        return result as O;
       });
   }
 }
