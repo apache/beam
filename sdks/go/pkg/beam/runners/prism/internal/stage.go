@@ -126,7 +126,9 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 
 	// Progress + split loop.
 	previousIndex := int64(-2)
-	var splitsDone bool
+	previousTotalCount := int64(-2) // Total count of all pcollection elements.
+
+	unsplit := true
 	progTick := time.NewTicker(100 * time.Millisecond)
 	defer progTick.Stop()
 	var dataFinished, bundleFinished bool
@@ -166,8 +168,10 @@ progress:
 				j.AddMetricShortIDs(md)
 			}
 			slog.Debug("progress report", "bundle", rb, "index", index, "prevIndex", previousIndex)
-			// Progress for the bundle hasn't advanced. Try splitting.
-			if previousIndex == index && !splitsDone {
+
+			// Check if there has been any measurable progress by the input, or all output pcollections since last report.
+			slow := previousIndex == index["index"] && previousTotalCount == index["totalCount"]
+			if slow && unsplit {
 				slog.Debug("splitting report", "bundle", rb, "index", index)
 				sr, err := b.Split(ctx, wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if err != nil {
@@ -176,7 +180,7 @@ progress:
 				}
 				if sr.GetChannelSplits() == nil {
 					slog.Debug("SDK returned no splits", "bundle", rb)
-					splitsDone = true
+					unsplit = false
 					continue progress
 				}
 				// TODO sort out rescheduling primary Roots on bundle failure.
@@ -201,7 +205,8 @@ progress:
 					em.ReturnResiduals(rb, int(fr), s.inputInfo, residualData)
 				}
 			} else {
-				previousIndex = index
+				previousIndex = index["index"]
+				previousTotalCount = index["totalCount"]
 			}
 		}
 	}
