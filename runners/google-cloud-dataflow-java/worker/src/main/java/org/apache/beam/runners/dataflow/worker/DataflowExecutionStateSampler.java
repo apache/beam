@@ -117,7 +117,8 @@ public final class DataflowExecutionStateSampler extends ExecutionStateSampler {
     return Optional.ofNullable(null);
   }
 
-  public Map<String, IntSummaryStatistics> getProcessingDistributionsForWorkId(String workId) {
+  public synchronized Map<String, IntSummaryStatistics> getProcessingDistributionsForWorkId(
+      String workId) {
     if (!activeTrackersByWorkId.containsKey(workId)) {
       if (completedProcessingMetrics.containsKey(workId)) {
         return completedProcessingMetrics.get(workId);
