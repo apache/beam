@@ -43,19 +43,19 @@ public class ConsecutivePythonTransformsTest extends BaseExternalTest {
                 .apply(Create.of(-1L, 2L, 3L))
                 .apply(
                     "ExternalMap1",
-                    PythonExternalTransform.from("apache_beam.Map")
+                    PythonExternalTransform.from("apache_beam.Map", expansionAddr)
                         .withArgs(PythonCallableSource.of("lambda x: 'negative' if x < 0 else x")));
     col =
         (PCollection<?>)
             col.apply(
                 "ExternalMap2",
-                PythonExternalTransform.from("apache_beam.Map")
+                PythonExternalTransform.from("apache_beam.Map", expansionAddr)
                     .withArgs(PythonCallableSource.of("type")));
     col =
         (PCollection<?>)
             col.apply(
                 "ExternalMap3",
-                PythonExternalTransform.from("apache_beam.Map")
+                PythonExternalTransform.from("apache_beam.Map", expansionAddr)
                     .withArgs(PythonCallableSource.of("str"))
                     .withOutputCoder(StringUtf8Coder.of()));
 
