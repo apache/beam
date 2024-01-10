@@ -27,6 +27,7 @@ from typing import Dict
 from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
+from typing import TypeVar
 from typing import Union
 
 import js2py
@@ -37,6 +38,7 @@ from js2py.internals import simplex
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.portability.api import schema_pb2
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import row_type
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
@@ -239,6 +241,27 @@ def _validator(beam_type: schema_pb2.FieldType) -> Callable[[Any], bool]:
     raise ValueError(f"Unrecognized type_info: {type_info!r}")
 
 
+def _as_callable_for_pcoll(
+    pcoll: beam.PCollection,
+    fn_spec: Union[str, Dict[str, str]],
+    msg: str,
+    language: Optional[str]):
+  if language == 'javascript':
+    options.YamlOptions.check_enabled(pcoll.pipeline, 'javascript')
+
+  try:
+    input_schema = dict(named_fields_from_element_type(pcoll.element_type))
+  except (TypeError, ValueError) as exn:
+    if is_expr(fn_spec):
+      raise ValueError("Can only use expressions on a schema'd input.") from exn
+    input_schema = {}  # unused
+
+  if isinstance(fn_spec, str) and fn_spec in input_schema:
+    return lambda row: getattr(row, fn_spec)
+  else:
+    return _as_callable(list(input_schema.keys()), fn_spec, msg, language)
+
+
 def _as_callable(original_fields, expr, transform_name, language):
   if expr in original_fields:
     return expr
@@ -431,20 +454,7 @@ class _Explode(beam.PTransform):
 @maybe_with_exception_handling_transform_fn
 def _PyJsFilter(
     pcoll, keep: Union[str, Dict[str, str]], language: Optional[str] = None):
-  if language == 'javascript':
-    options.YamlOptions.check_enabled(pcoll.pipeline, 'javascript')
-
-  try:
-    input_schema = dict(named_fields_from_element_type(pcoll.element_type))
-  except (TypeError, ValueError) as exn:
-    if is_expr(keep):
-      raise ValueError("Can only use expressions on a schema'd input.") from exn
-    input_schema = {}  # unused
-
-  if isinstance(keep, str) and keep in input_schema:
-    keep_fn = lambda row: getattr(row, keep)
-  else:
-    keep_fn = _as_callable(list(input_schema.keys()), keep, "keep", language)
+  keep_fn = _as_callable_for_pcoll(pcoll, keep, "keep", language)
   return pcoll | beam.Filter(keep_fn)
 
 
@@ -540,12 +550,26 @@ def _SqlMapToFieldsTransform(pcoll, sql_transform_constructor, **mapping_args):
   return pcoll | sql_transform_constructor(query)
 
 
+@beam.ptransform.ptransform_fn
+def _AssignTimestamps(
+    pcoll,
+    timestamp: Union[str, Dict[str, str]],
+    language: Optional[str] = None):
+  timestamp_fn = _as_callable_for_pcoll(pcoll, timestamp, 'timestamp', language)
+  T = TypeVar('T')
+  return pcoll | beam.Map(lambda x: TimestampedValue(x, timestamp_fn(x))
+                          ).with_input_types(T).with_output_types(T)
+
+
 def create_mapping_providers():
   # These are MetaInlineProviders because their expansion is in terms of other
   # YamlTransforms, but in a way that needs to be deferred until the input
   # schema is known.
   return [
       yaml_provider.InlineProvider({
+          'AssignTimestamps-python': _AssignTimestamps,
+          'AssignTimestamps-javascript': _AssignTimestamps,
+          'AssignTimestamps-generic': _AssignTimestamps,
           'Explode': _Explode,
           'Filter-python': _PyJsFilter,
           'Filter-javascript': _PyJsFilter,
