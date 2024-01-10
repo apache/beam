@@ -242,7 +242,7 @@ def _validator(beam_type: schema_pb2.FieldType) -> Callable[[Any], bool]:
 
 
 def _as_callable_for_pcoll(
-    pcoll: beam.PCollection,
+    pcoll,
     fn_spec: Union[str, Dict[str, str]],
     msg: str,
     language: Optional[str]):
