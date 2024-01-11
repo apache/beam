@@ -127,9 +127,8 @@ task stopLocalJobService {
 startLocalJobService.configure{finalizedBy stopLocalJobService}
 
 def sickbayTests = [
-
-        //TODO: https://github.com/apache/beam/issues/20631
-        'org.apache.beam.sdk.transforms.windowing.WindowingTest.testWindowPreservation',
+  //TODO: https://github.com/apache/beam/issues/20631
+  'org.apache.beam.sdk.transforms.windowing.WindowingTest.testWindowPreservation',
 ]
 
 /**
@@ -141,10 +140,10 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
     description "PortableRunner Java docker ValidatesRunner suite"
     classpath = configurations.validatesRunner
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-        "--runner=TestUniversalRunner",
-        "--experiments=beam_fn_api",
-        "--defaultEnvironmentType=${environmentType}",
-        "--localJobServicePortFile=${localJobServicePortFile}"
+      "--runner=TestUniversalRunner",
+      "--experiments=beam_fn_api",
+      "--defaultEnvironmentType=${environmentType}",
+      "--localJobServicePortFile=${localJobServicePortFile}"
     ])
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
     useJUnit {
@@ -226,7 +225,7 @@ tasks.register("validatesRunnerSickbay", Test) {
   group = "Verification"
   description "Validates Universal local runner (Sickbay Tests)"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestUniversalRunner",
+    "--runner=TestUniversalRunner",
   ])
 
   classpath = configurations.validatesRunner

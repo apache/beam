@@ -21,7 +21,7 @@ import groovy.json.JsonOutput
 plugins { id 'org.apache.beam.module' }
 
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.extensions.sql.datacatalog')
+    automaticModuleName: 'org.apache.beam.sdk.extensions.sql.datacatalog')
 
 dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
@@ -85,18 +85,19 @@ task integrationTest(type: Test) {
   outputs.upToDateWhen { false }
 
   def pipelineOptions = [
-          "--project=${gcpProject}",
-          "--tempLocation=${gcsTempRoot}",
-          "--blockOnRun=false"]
+    "--project=${gcpProject}",
+    "--tempLocation=${gcsTempRoot}",
+    "--blockOnRun=false"
+  ]
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
   include '**/*IT.class'
   maxParallelForks 4
   classpath = project(":sdks:java:extensions:sql:datacatalog")
-          .sourceSets
-          .test
-          .runtimeClasspath
+      .sourceSets
+      .test
+      .runtimeClasspath
   testClassesDirs = files(project(":sdks:java:extensions:sql:datacatalog").sourceSets.test.output.classesDirs)
   useJUnit {}
 }

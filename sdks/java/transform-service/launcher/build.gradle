@@ -20,11 +20,11 @@ apply plugin: 'application'
 mainClassName = "org.apache.beam.sdk.transformservice.launcher.TransformServiceLauncher"
 
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.transform.service',
-        exportJavadoc: false,
-        validateShadowJar: false,
-        shadowClosure: {},
-)
+    automaticModuleName: 'org.apache.beam.sdk.transform.service',
+    exportJavadoc: false,
+    validateShadowJar: false,
+    shadowClosure: {},
+    )
 
 
 description = "Apache Beam :: SDKs :: Java :: Transform Service :: Launcher"
@@ -33,34 +33,34 @@ ext.summary = """Contains code that can be used to run an transform service."""
 
 // Exclude tests that need a runner
 test {
-    systemProperty "beamUseDummyRunner", "true"
-    useJUnit {
-        excludeCategories "org.apache.beam.sdk.testing.NeedsRunner"
-    }
+  systemProperty "beamUseDummyRunner", "true"
+  useJUnit {
+    excludeCategories "org.apache.beam.sdk.testing.NeedsRunner"
+  }
 }
 
 dependencies {
-    shadow library.java.vendored_guava_32_1_2_jre
-    shadow library.java.slf4j_api
-    shadow library.java.args4j
-    shadow library.java.error_prone_annotations
-    permitUnusedDeclared(library.java.error_prone_annotations)
-    testImplementation library.java.junit
-    testImplementation library.java.mockito_core
-    testImplementation project(path: ":sdks:java:core")
+  shadow library.java.vendored_guava_32_1_2_jre
+  shadow library.java.slf4j_api
+  shadow library.java.args4j
+  shadow library.java.error_prone_annotations
+  permitUnusedDeclared(library.java.error_prone_annotations)
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
+  testImplementation project(path: ":sdks:java:core")
 }
 
 sourceSets {
-    main {
-        resources {
-            srcDirs "../docker-compose"
-        }
-        output.resourcesDir = "$buildDir/resources/docker-compose/$name"
+  main {
+    resources {
+      srcDirs "../docker-compose"
     }
+    output.resourcesDir = "$buildDir/resources/docker-compose/$name"
+  }
 }
 
 jar {
-    manifest {
-        attributes 'Main-Class': application.mainClass
-    }
+  manifest {
+    attributes 'Main-Class': application.mainClass
+  }
 }

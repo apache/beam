@@ -21,7 +21,7 @@ applyJavaNature(
     publish: false,
     archivesBaseName: 'beam-sdks-java-watermark-latency',
     exportJavadoc: false
-)
+    )
 
 description = "Apache Beam :: SDKs :: Java :: Watermark Latency Benchmark"
 
@@ -36,8 +36,8 @@ def loadTestArgsProperty = "loadTest.args"
 // When running via Gradle, this property sets the runner dependency
 def runnerProperty = "runner"
 def runnerDependency = (project.hasProperty(runnerProperty)
-        ? project.getProperty(runnerProperty)
-        : ":runners:direct-java")
+    ? project.getProperty(runnerProperty)
+    : ":runners:direct-java")
 
 def isDataflowRunner = ":runners:google-cloud-dataflow-java".equals(runnerDependency)
 def runnerConfiguration = ":runners:direct-java".equals(runnerDependency) ? "shadow" : null
@@ -86,8 +86,8 @@ task run(type: JavaExec) {
     // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
     // More context and discussions can be found in PR#6694.
     loadTestArgs = loadTestArgs +
-            " --dataflowWorkerJar=${dataflowWorkerJar} " +
-            " --workerHarnessContainerImage="
+        " --dataflowWorkerJar=${dataflowWorkerJar} " +
+        " --workerHarnessContainerImage="
   }
 
   mainClass = mainClass

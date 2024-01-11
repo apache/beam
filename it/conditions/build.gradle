@@ -21,11 +21,11 @@ applyJavaNature(
     automaticModuleName: 'org.apache.beam.it.conditions',
     validateShadowJar: false,
     shadowClosure: {},
-)
+    )
 
 description = "Apache Beam :: IT :: Conditions"
 ext.summary = "Reusable conditions for tests."
 
 dependencies {
-    implementation library.java.slf4j_api
+  implementation library.java.slf4j_api
 }

@@ -25,48 +25,48 @@ applyGoNature()
 description = "Apache Beam :: SDKs :: Java :: Transform Service :: Controller Container"
 
 configurations {
-    dockerDependency
+  dockerDependency
 }
 
 dependencies {
-    dockerDependency project(path: ":sdks:java:transform-service", configuration: "shadow")
+  dockerDependency project(path: ":sdks:java:transform-service", configuration: "shadow")
 }
 
 goBuild {
-    goTargets = '*.go' // only build the immediate directory.
-    outputLocation = './build/target/launcher/${GOOS}_${GOARCH}/boot'
+  goTargets = '*.go' // only build the immediate directory.
+  outputLocation = './build/target/launcher/${GOOS}_${GOARCH}/boot'
 }
 
 task copyDockerfileDependencies(type: Copy) {
-    from configurations.dockerDependency
-    rename 'beam-sdks-java-transform-service-.*.jar', 'beam-sdks-java-transform-service.jar'
-    setDuplicatesStrategy(DuplicatesStrategy.INCLUDE)
-    into "build/target"
+  from configurations.dockerDependency
+  rename 'beam-sdks-java-transform-service-.*.jar', 'beam-sdks-java-transform-service.jar'
+  setDuplicatesStrategy(DuplicatesStrategy.INCLUDE)
+  into "build/target"
 }
 
 task copyConfigFile(type: Copy) {
-    from "../transform_service_config.yml"
-    into "build/target"
+  from "../transform_service_config.yml"
+  into "build/target"
 }
 
 def useBuildx = project.containerPlatforms() != [project.nativeArchitecture()]
 def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
 
 docker {
-    name containerImageName(
-            name: project.docker_image_default_repo_prefix + "transform_service_controller",
-            root: project.rootProject.hasProperty(["docker-repository-root"]) ?
-                    project.rootProject["docker-repository-root"] :
-                    project.docker_image_default_repo_root,
-            tag: project.rootProject.hasProperty(["docker-tag"]) ?
-                    project.rootProject["docker-tag"] : project.sdk_version)
-    // tags used by dockerTag task
-    tags containerImageTags()
-    files "./build"
-    buildx useBuildx
-    platform(*project.containerPlatforms())
-    load useBuildx && !pushContainers
-    push pushContainers
+  name containerImageName(
+      name: project.docker_image_default_repo_prefix + "transform_service_controller",
+      root: project.rootProject.hasProperty(["docker-repository-root"]) ?
+      project.rootProject["docker-repository-root"] :
+      project.docker_image_default_repo_root,
+      tag: project.rootProject.hasProperty(["docker-tag"]) ?
+      project.rootProject["docker-tag"] : project.sdk_version)
+  // tags used by dockerTag task
+  tags containerImageTags()
+  files "./build"
+  buildx useBuildx
+  platform(*project.containerPlatforms())
+  load useBuildx && !pushContainers
+  push pushContainers
 }
 
 dockerPrepare.dependsOn goBuild
@@ -74,21 +74,21 @@ dockerPrepare.dependsOn copyConfigFile
 dockerPrepare.dependsOn copyDockerfileDependencies
 
 if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
-    def copyGolangLicenses = tasks.register("copyGolangLicenses", Copy) {
-        from "${project(':release:go-licenses:py').buildDir}/output"
-        into "build/target/go-licenses"
-        dependsOn ':release:go-licenses:py:createLicenses'
-    }
-    dockerPrepare.dependsOn copyGolangLicenses
+  def copyGolangLicenses = tasks.register("copyGolangLicenses", Copy) {
+    from "${project(':release:go-licenses:py').buildDir}/output"
+    into "build/target/go-licenses"
+    dependsOn ':release:go-licenses:py:createLicenses'
+  }
+  dockerPrepare.dependsOn copyGolangLicenses
 } else {
-    def skipPullLicenses = tasks.register("skipPullLicenses", Exec) {
-        executable "sh"
-        // Touch a dummy file to ensure the directory exists.
-        args "-c", "mkdir -p build/target/go-licenses && touch build/target/go-licenses/skip"
-    }
-    dockerPrepare.dependsOn skipPullLicenses
+  def skipPullLicenses = tasks.register("skipPullLicenses", Exec) {
+    executable "sh"
+    // Touch a dummy file to ensure the directory exists.
+    args "-c", "mkdir -p build/target/go-licenses && touch build/target/go-licenses/skip"
+  }
+  dockerPrepare.dependsOn skipPullLicenses
 }
 
 task pushAll {
-    dependsOn docker
+  dependsOn docker
 }

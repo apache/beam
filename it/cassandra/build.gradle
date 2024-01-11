@@ -18,22 +18,22 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.it.cassandra',
-)
+    automaticModuleName: 'org.apache.beam.it.cassandra',
+    )
 
 description = "Apache Beam :: IT :: Cassandra"
 ext.summary = "Integration test utilities for Cassandra."
 
 dependencies {
-    implementation project(path: ":it:testcontainers", configuration: "shadow")
-    implementation project(path: ":it:truthmatchers", configuration: "shadow")
-    implementation library.java.testcontainers_cassandra
-    implementation 'com.datastax.oss:java-driver-core:4.15.0'
+  implementation project(path: ":it:testcontainers", configuration: "shadow")
+  implementation project(path: ":it:truthmatchers", configuration: "shadow")
+  implementation library.java.testcontainers_cassandra
+  implementation 'com.datastax.oss:java-driver-core:4.15.0'
 
-    // TODO: excluding Guava until Truth updates it to >32.1.x
-    testImplementation(library.java.truth) {
-        exclude group: 'com.google.guava', module: 'guava'
-    }
-    testImplementation library.java.mockito_core
-    testRuntimeOnly library.java.slf4j_simple
+  // TODO: excluding Guava until Truth updates it to >32.1.x
+  testImplementation(library.java.truth) {
+    exclude group: 'com.google.guava', module: 'guava'
+  }
+  testImplementation library.java.mockito_core
+  testRuntimeOnly library.java.slf4j_simple
 }

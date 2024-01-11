@@ -19,15 +19,15 @@
 import groovy.json.JsonOutput
 
 plugins {
-    id 'java'
-    id 'org.apache.beam.module'
-    id 'com.github.johnrengelman.shadow'
+  id 'java'
+  id 'org.apache.beam.module'
+  id 'com.github.johnrengelman.shadow'
 }
 
 applyJavaNature(
-        exportJavadoc: false,
-        automaticModuleName: 'org.apache.beam.examples.complete.cdap.salesforce',
-)
+    exportJavadoc: false,
+    automaticModuleName: 'org.apache.beam.examples.complete.cdap.salesforce',
+    )
 
 description = "Apache Beam :: Examples :: Java :: CDAP :: Salesforce"
 ext.summary = """Apache Beam SDK provides a simple, Java-based
@@ -38,48 +38,51 @@ artifact includes CDAP Salesforce Apache Beam Java SDK examples."""
  * Some runners are run from separate projects, see the preCommit task below
  * for details.
  */
-def preCommitRunners = ["directRunner", "flinkRunner"]
+def preCommitRunners = [
+  "directRunner",
+  "flinkRunner"
+]
 for (String runner : preCommitRunners) {
-    configurations.create(runner + "PreCommit")
+  configurations.create(runner + "PreCommit")
 }
 
 configurations.all {
-    // Ban certain dependencies to prevent a StackOverflow within Spark
-    // because JUL -> SLF4J -> JUL, and similarly JDK14 -> SLF4J -> JDK14
-    exclude group: "org.slf4j", module: "jul-to-slf4j"
-    exclude group: "org.slf4j", module: "slf4j-jdk14"
-    exclude group: "ch.qos.logback", module: "logback-classic"
+  // Ban certain dependencies to prevent a StackOverflow within Spark
+  // because JUL -> SLF4J -> JUL, and similarly JDK14 -> SLF4J -> JDK14
+  exclude group: "org.slf4j", module: "jul-to-slf4j"
+  exclude group: "org.slf4j", module: "slf4j-jdk14"
+  exclude group: "ch.qos.logback", module: "logback-classic"
 }
 
 dependencies {
-    implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-    implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation project(":examples:java:cdap")
-    implementation project(":sdks:java:io:cdap")
-    implementation project(":sdks:java:io:hadoop-common")
-    runtimeOnly project(path: ":runners:google-cloud-dataflow-java")
-    implementation library.java.cdap_api
-    implementation library.java.cdap_api_commons
-    implementation library.java.cdap_etl_api
-    permitUnusedDeclared library.java.cdap_etl_api
-    implementation library.java.cdap_hydrator_common
-    //TODO: modify to 'implementation library.java.cdap_plugin_salesforce',
-    // when new release with HasOffset interface will be published
-    implementation "com.akvelon:cdap-salesforce-plugins:1.5.1"
-    implementation library.java.google_code_gson
-    implementation library.java.hadoop_common
-    implementation library.java.slf4j_api
-    implementation library.java.vendored_guava_32_1_2_jre
-    runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":examples:java:cdap")
+  implementation project(":sdks:java:io:cdap")
+  implementation project(":sdks:java:io:hadoop-common")
+  runtimeOnly project(path: ":runners:google-cloud-dataflow-java")
+  implementation library.java.cdap_api
+  implementation library.java.cdap_api_commons
+  implementation library.java.cdap_etl_api
+  permitUnusedDeclared library.java.cdap_etl_api
+  implementation library.java.cdap_hydrator_common
+  //TODO: modify to 'implementation library.java.cdap_plugin_salesforce',
+  // when new release with HasOffset interface will be published
+  implementation "com.akvelon:cdap-salesforce-plugins:1.5.1"
+  implementation library.java.google_code_gson
+  implementation library.java.hadoop_common
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_guava_32_1_2_jre
+  runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 
-    // Add dependencies for the PreCommit configurations
-    // For each runner a project level dependency on the examples project.
-    for (String runner : preCommitRunners) {
-        delegate.add(runner + "PreCommit", project(":examples:java:cdap:salesforce"))
-        delegate.add(runner + "PreCommit", project(path: ":examples:java:cdap:salesforce", configuration: "testRuntimeMigration"))
-    }
-    directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
-    flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")
+  // Add dependencies for the PreCommit configurations
+  // For each runner a project level dependency on the examples project.
+  for (String runner : preCommitRunners) {
+    delegate.add(runner + "PreCommit", project(":examples:java:cdap:salesforce"))
+    delegate.add(runner + "PreCommit", project(path: ":examples:java:cdap:salesforce", configuration: "testRuntimeMigration"))
+  }
+  directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
+  flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")
 }
 
 /*
@@ -87,32 +90,32 @@ dependencies {
  * of integration tests for WordCount and WindowedWordCount.
  */
 def preCommitRunnerClass = [
-        directRunner: "org.apache.beam.runners.direct.DirectRunner",
-        flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner"
+  directRunner: "org.apache.beam.runners.direct.DirectRunner",
+  flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner"
 ]
 
 for (String runner : preCommitRunners) {
-    tasks.create(name: runner + "PreCommit", type: Test) {
-        def preCommitBeamTestPipelineOptions = [
-                "--runner=" + preCommitRunnerClass[runner],
-        ]
-        classpath = configurations."${runner}PreCommit"
-        forkEvery 1
-        maxParallelForks 4
-        systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
-    }
+  tasks.create(name: runner + "PreCommit", type: Test) {
+    def preCommitBeamTestPipelineOptions = [
+      "--runner=" + preCommitRunnerClass[runner],
+    ]
+    classpath = configurations."${runner}PreCommit"
+    forkEvery 1
+    maxParallelForks 4
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
+  }
 }
 
 /* Define a common precommit task which depends on all the individual precommits. */
 task preCommit() {
-    for (String runner : preCommitRunners) {
-        dependsOn runner + "PreCommit"
-    }
+  for (String runner : preCommitRunners) {
+    dependsOn runner + "PreCommit"
+  }
 }
 
 task executeCdapSalesforce (type:JavaExec) {
-    mainClass = System.getProperty("mainClass")
-    classpath = sourceSets.main.runtimeClasspath
-    systemProperties System.getProperties()
-    args System.getProperty("exec.args", "").split()
+  mainClass = System.getProperty("mainClass")
+  classpath = sourceSets.main.runtimeClasspath
+  systemProperties System.getProperties()
+  args System.getProperty("exec.args", "").split()
 }

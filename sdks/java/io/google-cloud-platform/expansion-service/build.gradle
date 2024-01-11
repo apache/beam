@@ -20,27 +20,29 @@ apply plugin: 'application'
 mainClassName = "org.apache.beam.sdk.expansion.service.ExpansionService"
 
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.io.gcp.expansion.service',
-        exportJavadoc: false,
-        validateShadowJar: false,
-        shadowClosure: {},
-)
+    automaticModuleName: 'org.apache.beam.sdk.io.gcp.expansion.service',
+    exportJavadoc: false,
+    validateShadowJar: false,
+    shadowClosure: {},
+    )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform :: Expansion Service"
 ext.summary = "Expansion service serving GCP Java IOs"
 
 dependencies {
-    implementation project(":sdks:java:expansion-service")
-    permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
-    implementation project(":sdks:java:io:google-cloud-platform")
-    permitUnusedDeclared project(":sdks:java:io:google-cloud-platform") // BEAM-11761
-    implementation project(":sdks:java:extensions:schemaio-expansion-service")
-    permitUnusedDeclared project(":sdks:java:extensions:schemaio-expansion-service") // BEAM-11761
-    runtimeOnly library.java.slf4j_jdk14
+  implementation project(":sdks:java:expansion-service")
+  permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
+  implementation project(":sdks:java:io:google-cloud-platform")
+  permitUnusedDeclared project(":sdks:java:io:google-cloud-platform") // BEAM-11761
+  implementation project(":sdks:java:extensions:schemaio-expansion-service")
+  permitUnusedDeclared project(":sdks:java:extensions:schemaio-expansion-service") // BEAM-11761
+  runtimeOnly library.java.slf4j_jdk14
 }
 
 task runExpansionService (type: JavaExec) {
-    mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
-    classpath = sourceSets.test.runtimeClasspath
-    args = [project.findProperty("constructionService.port") ?: "8097"]
+  mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
+  classpath = sourceSets.test.runtimeClasspath
+  args = [
+    project.findProperty("constructionService.port") ?: "8097"
+  ]
 }

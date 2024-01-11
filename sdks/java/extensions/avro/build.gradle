@@ -24,7 +24,7 @@ applyJavaNature(
     disableLintWarnings: ['rawtypes'], // Avro-generated test code has raw-type errors
     publish: true,
     exportJavadoc: true,
-)
+    )
 
 // generates avro 1.8.2 sources
 applyAvroNature()
@@ -36,9 +36,9 @@ avro {
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Avro"
 
 def avroVersions = [
-    '192' : "1.9.2",
-    '1102': "1.10.2",
-    '1111': "1.11.1",
+  '192' : "1.9.2",
+  '1102': "1.10.2",
+  '1111': "1.11.1",
 ]
 
 avroVersions.each { k, v ->
@@ -138,11 +138,11 @@ avroVersions.each { k, v ->
     classpath = configurations."avroVersion${k}Generate"
     main = "org.apache.avro.tool.Main"
     args = [
-        "compile",
-        "schema",
-        "src/test/avro/org/apache/beam/sdk/extensions/avro/io/user.avsc",
-        "src/test/avro/org/apache/beam/sdk/extensions/avro/schemas/test.avsc",
-        "build/generated/sources/avro$k/test/java"
+      "compile",
+      "schema",
+      "src/test/avro/org/apache/beam/sdk/extensions/avro/io/user.avsc",
+      "src/test/avro/org/apache/beam/sdk/extensions/avro/schemas/test.avsc",
+      "build/generated/sources/avro$k/test/java"
     ]
   }
 }

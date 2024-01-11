@@ -18,24 +18,24 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk',
-  classesTriggerCheckerBugs: [
-    'DoFnTester': 'https://github.com/typetools/checker-framework/issues/3776',
-    'MergingActiveWindowSetTest': 'https://github.com/typetools/checker-framework/issues/3776',
-    'WindowFnTestUtils': 'https://github.com/typetools/checker-framework/issues/3776',
-  ],
-  shadowClosure: {
-    dependencies {
-      include(dependency(library.java.commons_compress))
-      include(dependency(library.java.commons_lang3))
-      include(dependency(library.java.antlr_runtime))
-    }
-    relocate "com.google.thirdparty", getJavaRelocatedPath("com.google.thirdparty")
-    relocate "org.apache.commons.compress", getJavaRelocatedPath("org.apache.commons.compress")
-    relocate "org.apache.commons.lang3", getJavaRelocatedPath("org.apache.commons.lang3")
-    relocate "org.antlr.v4", getJavaRelocatedPath("org.antlr.v4")
-  },
-)
+    automaticModuleName: 'org.apache.beam.sdk',
+    classesTriggerCheckerBugs: [
+      'DoFnTester': 'https://github.com/typetools/checker-framework/issues/3776',
+      'MergingActiveWindowSetTest': 'https://github.com/typetools/checker-framework/issues/3776',
+      'WindowFnTestUtils': 'https://github.com/typetools/checker-framework/issues/3776',
+    ],
+    shadowClosure: {
+      dependencies {
+        include(dependency(library.java.commons_compress))
+        include(dependency(library.java.commons_lang3))
+        include(dependency(library.java.antlr_runtime))
+      }
+      relocate "com.google.thirdparty", getJavaRelocatedPath("com.google.thirdparty")
+      relocate "org.apache.commons.compress", getJavaRelocatedPath("org.apache.commons.compress")
+      relocate "org.apache.commons.lang3", getJavaRelocatedPath("org.apache.commons.lang3")
+      relocate "org.antlr.v4", getJavaRelocatedPath("org.antlr.v4")
+    },
+    )
 applyAntlrNature()
 
 generateGrammarSource {

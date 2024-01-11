@@ -291,29 +291,29 @@ void runIntegrationTest(String path, String url) {
 
 
 task copyDockerfileDependencies(type: Copy) {
-   group = "build"
-   description = "Copy files that required to build docker container"
-   copy {
-      from(".")
-      into("build/")
-      exclude("build")
-      exclude("Dockerfile")
-   }
-   copy {
-      from("../playground")
-      into("build/playground")
-   }
+  group = "build"
+  description = "Copy files that required to build docker container"
+  copy {
+    from(".")
+    into("build/")
+    exclude("build")
+    exclude("Dockerfile")
+  }
+  copy {
+    from("../playground")
+    into("build/playground")
+  }
 }
 
 docker {
   group = "build"
   description = "Build container for frontend application"
   name = containerImageName(
-    name: project.docker_image_default_repo_prefix + "playground-frontend",
-    root: project.rootProject.hasProperty(["docker-repository-root"])
-            ? project.rootProject["docker-repository-root"]
-            : project.docker_image_default_repo_root
-  )
+      name: project.docker_image_default_repo_prefix + "playground-frontend",
+      root: project.rootProject.hasProperty(["docker-repository-root"])
+      ? project.rootProject["docker-repository-root"]
+      : project.docker_image_default_repo_root
+      )
   files("./build/")
   buildArgs([
     'BUILD_COMMIT_HASH': getGitCommitHash(),

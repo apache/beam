@@ -23,8 +23,8 @@ plugins {
 }
 
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.io.aws',
-)
+    automaticModuleName: 'org.apache.beam.sdk.io.aws',
+    )
 
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
@@ -67,8 +67,8 @@ dependencies {
 
 test {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-      '--awsRegion=us-west-2',
-      '--awsCredentialsProvider={"@type" : "AWSStaticCredentialsProvider", "awsAccessKeyId" : "key_id_value","awsSecretKey" : "secret_value"}'
+    '--awsRegion=us-west-2',
+    '--awsCredentialsProvider={"@type" : "AWSStaticCredentialsProvider", "awsAccessKeyId" : "key_id_value","awsSecretKey" : "secret_value"}'
   ])
   maxParallelForks 4
 }

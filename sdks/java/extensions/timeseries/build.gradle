@@ -18,8 +18,8 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.extensions.timeseries'
-)
+    automaticModuleName: 'org.apache.beam.sdk.extensions.timeseries'
+    )
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Timeseries"
 

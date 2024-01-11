@@ -21,7 +21,7 @@ applyJavaNature(
     publish: false,
     archivesBaseName: 'beam-sdks-java-load-tests',
     exportJavadoc: false
-)
+    )
 
 description = "Apache Beam :: SDKs :: Java :: Load Tests"
 
@@ -35,8 +35,8 @@ def loadTestArgsProperty = "loadTest.args"
 // When running via Gradle, this property sets the runner dependency
 def runnerProperty = "runner"
 def runnerDependency = (project.hasProperty(runnerProperty)
-        ? project.getProperty(runnerProperty)
-        : ":runners:direct-java")
+    ? project.getProperty(runnerProperty)
+    : ":runners:direct-java")
 def loadTestRunnerVersionProperty = "runner.version"
 def loadTestRunnerVersion = project.findProperty(loadTestRunnerVersionProperty)
 def isSparkRunner = runnerDependency.startsWith(":runners:spark:")

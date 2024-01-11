@@ -19,8 +19,8 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  publish: false,
-  automaticModuleName: 'org.apache.beam.sdk.testing.kafka')
+    publish: false,
+    automaticModuleName: 'org.apache.beam.sdk.testing.kafka')
 
 description = "Apache Beam :: SDKs :: Java :: Test Kafka Service"
 ext.summary = """Self-contained Kafka service for testing IO transforms."""
@@ -48,8 +48,8 @@ task buildTestKafkaServiceJar(type: ShadowJar) {
   mergeServiceFiles()
   manifest {
     attributes(
-            'Main-Class': 'org.apache.beam.sdk.testing.kafka.LocalKafka'
-    )
+        'Main-Class': 'org.apache.beam.sdk.testing.kafka.LocalKafka'
+        )
   }
   exclude "META-INF/INDEX.LIST"
   exclude "META-INF/*.SF"

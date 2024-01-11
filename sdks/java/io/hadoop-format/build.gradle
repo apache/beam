@@ -21,8 +21,8 @@ import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.io.hadoop.format',
-)
+    automaticModuleName: 'org.apache.beam.sdk.io.hadoop.format',
+    )
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -30,10 +30,10 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Format"
 ext.summary = "IO to read data from sources and to write data to sinks that implement Hadoop MapReduce Format."
 
 def hadoopVersions = [
-    "285": "2.8.5",
-    "292": "2.9.2",
-    "2102": "2.10.2",
-    "324": "3.2.4",
+  "285": "2.8.5",
+  "292": "2.9.2",
+  "2102": "2.10.2",
+  "324": "3.2.4",
 ]
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
@@ -127,7 +127,7 @@ hadoopVersions.each {kv ->
 }
 
 // Hadoop dependencies require old version of Guava (BEAM-11626)
-configurations.all (Configuration it) -> {
+configurations.all { Configuration it ->
   // error-prone requires newer guava, don't override for annotation processing
   // https://github.com/google/error-prone/issues/2745
   if (it.name == "annotationProcessor" || it.name =="testAnnotationProcessor") {
@@ -178,13 +178,13 @@ hadoopVersions.each {kv ->
     classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
 
     def pipelineOptions = JsonOutput.toJson([
-        "--postgresServerName=dummy_value",
-        "--postgresUsername=postgres",
-        "--postgresDatabaseName=postgres",
-        "--postgresPassword=postgres",
-        "--numberOfRecords=1000",
-        "--withTestcontainers=true",
-        "--postgresSsl=false",
+      "--postgresServerName=dummy_value",
+      "--postgresUsername=postgres",
+      "--postgresDatabaseName=postgres",
+      "--postgresPassword=postgres",
+      "--numberOfRecords=1000",
+      "--withTestcontainers=true",
+      "--postgresSsl=false",
     ])
     systemProperty "beamTestPipelineOptions", pipelineOptions
     include '**/HadoopFormatIOIT.class'

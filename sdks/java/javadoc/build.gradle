@@ -39,7 +39,7 @@ ext.getExportedJavadocProjects = {
     if (!p.path.equals(project.path) && !p.path.startsWith(':sdks:java:bom')) {
       def subproject = p // project(':' + p.name)
       if (subproject.ext.properties.containsKey('exportJavadoc') &&
-          subproject.ext.properties.exportJavadoc) {
+      subproject.ext.properties.exportJavadoc) {
         exportedJavadocProjects.add(p.path)
       }
     }

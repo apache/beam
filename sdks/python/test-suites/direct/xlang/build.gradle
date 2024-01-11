@@ -47,42 +47,45 @@ def cleanupTask = project.tasks.register("fnApiJobServerCleanup", Exec) {
 def gcpProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
 
 createCrossLanguageValidatesRunnerTask(
-  startJobServer: setupTask,
-  cleanupJobServer: cleanupTask,
-  numParallelTests: 1,
-  classpath: crossLanguageTestClasspath,
-  pythonPipelineOptions: [
-    "--runner=PortableRunner",
-    "--job_endpoint=localhost:${jobPort}",
-    "--environment_cache_millis=10000",
-    "--experiments=beam_fn_api",
-  ],
-  javaPipelineOptions: [
-    "--runner=PortableRunner",
-    "--jobEndpoint=localhost:${jobPort}",
-    "--environmentCacheMillis=10000",
-    "--experiments=beam_fn_api",
-  ],
-  goScriptOptions: [
-    "--runner portable",
-    "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
-    "--endpoint localhost:${jobPort}",
-  ],
-)
+    startJobServer: setupTask,
+    cleanupJobServer: cleanupTask,
+    numParallelTests: 1,
+    classpath: crossLanguageTestClasspath,
+    pythonPipelineOptions: [
+      "--runner=PortableRunner",
+      "--job_endpoint=localhost:${jobPort}",
+      "--environment_cache_millis=10000",
+      "--experiments=beam_fn_api",
+    ],
+    javaPipelineOptions: [
+      "--runner=PortableRunner",
+      "--jobEndpoint=localhost:${jobPort}",
+      "--environmentCacheMillis=10000",
+      "--experiments=beam_fn_api",
+    ],
+    goScriptOptions: [
+      "--runner portable",
+      "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
+      "--endpoint localhost:${jobPort}",
+    ],
+    )
 
 createTransformServiceTask(
-        startJobServer: setupTask,
-        cleanupJobServer: cleanupTask,
-        numParallelTests: 1,
-        collectMarker: 'uses_transform_service',
-        pythonPipelineOptions: [
-                "--runner=TestDirectRunner",
-                "--project=${gcpProject}",
-        ],
-        pytestOptions: [
-                "--capture=no",  // print stdout instantly
-                "--timeout=4500", // timeout of whole command execution
-                "--color=yes", // console color
-                "--log-cli-level=INFO" //log level info
-        ]
-)
+    startJobServer: setupTask,
+    cleanupJobServer: cleanupTask,
+    numParallelTests: 1,
+    collectMarker: 'uses_transform_service',
+    pythonPipelineOptions: [
+      "--runner=TestDirectRunner",
+      "--project=${gcpProject}",
+    ],
+    pytestOptions: [
+      "--capture=no",
+      // print stdout instantly
+      "--timeout=4500",
+      // timeout of whole command execution
+      "--color=yes",
+      // console color
+      "--log-cli-level=INFO" //log level info
+    ]
+    )

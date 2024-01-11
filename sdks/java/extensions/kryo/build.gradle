@@ -19,35 +19,35 @@
 plugins { id 'org.apache.beam.module' }
 
 ext {
-    kryoVersion = '5.5.0'
+  kryoVersion = '5.5.0'
 }
 
 applyJavaNature( automaticModuleName: 'org.apache.beam.sdk.extensions.kryo',
-    exportJavadoc: false,
-    shadowClosure: {
-    dependencies {
-        include(dependency('com.esotericsoftware:.*'))
-        include(dependency('org.ow2.asm:asm'))
-        include(dependency('org.objenesis:objenesis'))
-    }
-    relocate 'com.esotericsoftware', getJavaRelocatedPath('com.esotericsoftware')
-    relocate 'org.objectweb', getJavaRelocatedPath('org.objectweb')
-    relocate 'org.objenesis', getJavaRelocatedPath('org.objenesis')
-    }
+exportJavadoc: false,
+shadowClosure: {
+  dependencies {
+    include(dependency('com.esotericsoftware:.*'))
+    include(dependency('org.ow2.asm:asm'))
+    include(dependency('org.objenesis:objenesis'))
+  }
+  relocate 'com.esotericsoftware', getJavaRelocatedPath('com.esotericsoftware')
+  relocate 'org.objectweb', getJavaRelocatedPath('org.objectweb')
+  relocate 'org.objenesis', getJavaRelocatedPath('org.objenesis')
+}
 )
 
 description = 'Apache Beam :: SDKs :: Java :: Extensions :: Kryo'
 
 dependencies {
-    implementation library.java.jackson_annotations
-    implementation library.java.vendored_guava_32_1_2_jre
-    implementation "com.esotericsoftware:kryo:${kryoVersion}"
-    implementation "org.objenesis:objenesis:3.2"
-    shadow project(path: ':sdks:java:core', configuration: 'shadow')
-    testImplementation project(path: ':sdks:java:core', configuration: 'shadowTest')
-    testRuntimeOnly project(path: ':runners:direct-java', configuration: 'shadow')
+  implementation library.java.jackson_annotations
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation "com.esotericsoftware:kryo:${kryoVersion}"
+  implementation "org.objenesis:objenesis:3.2"
+  shadow project(path: ':sdks:java:core', configuration: 'shadow')
+  testImplementation project(path: ':sdks:java:core', configuration: 'shadowTest')
+  testRuntimeOnly project(path: ':runners:direct-java', configuration: 'shadow')
 }
 
 test {
-    jvmArgs '-Dsun.io.serialization.extendedDebugInfo=true'
+  jvmArgs '-Dsun.io.serialization.extendedDebugInfo=true'
 }

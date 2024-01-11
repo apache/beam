@@ -18,8 +18,8 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.it.elasticsearch',
-)
+    automaticModuleName: 'org.apache.beam.it.elasticsearch',
+    )
 
 description = "Apache Beam :: IT :: Elasticsearch"
 ext.summary = "Integration test utilities for Elasticsearch."
@@ -27,16 +27,16 @@ ext.summary = "Integration test utilities for Elasticsearch."
 def elastic_search_version = "7.9.2"
 
 dependencies {
-    implementation project(path: ":it:testcontainers", configuration: "shadow")
-    implementation library.java.testcontainers_elasticsearch
-    implementation "org.elasticsearch.client:elasticsearch-rest-high-level-client:$elastic_search_version"
-    implementation "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
-    implementation "org.elasticsearch:elasticsearch:$elastic_search_version"
-    // TODO: excluding Guava until Truth updates it to >32.1.x
-    testImplementation(library.java.truth) {
-        exclude group: 'com.google.guava', module: 'guava'
-    }
-    testImplementation library.java.mockito_inline
-    testImplementation library.java.commons_lang3
-    testRuntimeOnly library.java.slf4j_simple
+  implementation project(path: ":it:testcontainers", configuration: "shadow")
+  implementation library.java.testcontainers_elasticsearch
+  implementation "org.elasticsearch.client:elasticsearch-rest-high-level-client:$elastic_search_version"
+  implementation "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
+  implementation "org.elasticsearch:elasticsearch:$elastic_search_version"
+  // TODO: excluding Guava until Truth updates it to >32.1.x
+  testImplementation(library.java.truth) {
+    exclude group: 'com.google.guava', module: 'guava'
+  }
+  testImplementation library.java.mockito_inline
+  testImplementation library.java.commons_lang3
+  testRuntimeOnly library.java.slf4j_simple
 }

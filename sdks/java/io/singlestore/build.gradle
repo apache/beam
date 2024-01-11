@@ -18,8 +18,8 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.io.singlestore',
-)
+    automaticModuleName: 'org.apache.beam.sdk.io.singlestore',
+    )
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -27,17 +27,17 @@ description = "Apache Beam :: SDKs :: Java :: IO :: SingleStore"
 ext.summary = "IO to read and write on SingleStore datasource."
 
 dependencies {
-    implementation library.java.vendored_guava_32_1_2_jre
-    implementation library.java.joda_time
-    implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation library.java.singlestore_jdbc
-    implementation library.java.slf4j_api
-    implementation library.java.dbcp2
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation library.java.joda_time
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.singlestore_jdbc
+  implementation library.java.slf4j_api
+  implementation library.java.dbcp2
 
-    testImplementation library.java.junit
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
-    testImplementation library.java.dbcp2
-    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-    testImplementation library.java.slf4j_api
-    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+  testImplementation library.java.junit
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation library.java.dbcp2
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  testImplementation library.java.slf4j_api
+  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
 }

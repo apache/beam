@@ -85,6 +85,7 @@ class BeamModulePlugin implements Plugin<Project> {
  * limitations under the License.
  */
 """
+
   static def getRandomPort() {
     new ServerSocket(0).withCloseable { socket ->
       def port = socket.getLocalPort()
@@ -546,6 +547,23 @@ class BeamModulePlugin implements Plugin<Project> {
     // See: https://github.com/dorongold/gradle-task-tree
     project.apply plugin: "com.dorongold.task-tree"
     project.taskTree { noRepeat = true }
+
+    // Enables a plugin which can apply code formatting to build.gradle files and other source.
+    project.apply plugin: "com.diffplug.spotless"
+
+    // Spotless can be removed from the 'check' task by passing -PdisableSpotlessCheck=true on the Gradle
+    // command-line. This is useful for pre-commit which runs spotless separately.
+    project.ext.disableSpotlessCheck = project.hasProperty('disableSpotlessCheck') &&
+        project.disableSpotlessCheck == 'true'
+
+    project.spotless {
+      enforceCheck !project.disableSpotlessCheck
+      groovyGradle {
+        def grEclipseConfig = project.project(":").file("buildSrc/greclipse.properties")
+        greclipse().configFile(grEclipseConfig)
+      }
+    }
+
 
     project.ext.allFlinkVersions = project.flink_versions.split(',')
     project.ext.latestFlinkVersion = project.ext.allFlinkVersions.last()
@@ -1393,17 +1411,11 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       project.check.dependsOn project.javadoc
 
-      // Enables a plugin which can apply code formatting to source.
-      project.apply plugin: "com.diffplug.spotless"
       // scan CVE
       project.apply plugin: "net.ossindex.audit"
       project.audit { rateLimitAsError = false }
-      // Spotless can be removed from the 'check' task by passing -PdisableSpotlessCheck=true on the Gradle
-      // command-line. This is useful for pre-commit which runs spotless separately.
-      def disableSpotlessCheck = project.hasProperty('disableSpotlessCheck') &&
-          project.disableSpotlessCheck == 'true'
       project.spotless {
-        enforceCheck !disableSpotlessCheck
+        enforceCheck !project.disableSpotlessCheck
         java {
           licenseHeader javaLicenseHeader
           googleJavaFormat('1.7')
@@ -2272,17 +2284,13 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.applyGroovyNature = {
       project.apply plugin: "groovy"
 
-      project.apply plugin: "com.diffplug.spotless"
-      def disableSpotlessCheck = project.hasProperty('disableSpotlessCheck') &&
-          project.disableSpotlessCheck == 'true'
       project.spotless {
-        enforceCheck !disableSpotlessCheck
-        def grEclipseConfig = project.project(":").file("buildSrc/greclipse.properties")
+        enforceCheck !project.disableSpotlessCheck
         groovy {
+          def grEclipseConfig = project.project(":").file("buildSrc/greclipse.properties")
           greclipse().configFile(grEclipseConfig)
           target project.fileTree(project.projectDir) { include '**/*.groovy' }
         }
-        groovyGradle { greclipse().configFile(grEclipseConfig) }
       }
       // Workaround to fix spotless groovy and groovyGradle tasks use the same intermediate dir,
       // until Beam no longer build on Java8 and can upgrade spotless plugin.

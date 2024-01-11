@@ -20,7 +20,7 @@ plugins { id 'org.apache.beam.module' }
 applyJavaNature(
     automaticModuleName: 'org.apache.beam.sdk.extensions.jackson',
     archivesBaseName: 'beam-sdks-java-extensions-json-jackson'
-)
+    )
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Jackson"
 ext.summary = "Jackson extension provides PTransforms for deserializing and generating JSON strings."

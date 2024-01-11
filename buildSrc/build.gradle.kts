@@ -69,14 +69,16 @@ val disableSpotlessCheck: String by project
 val isSpotlessCheckDisabled = project.hasProperty("disableSpotlessCheck") &&
         disableSpotlessCheck == "true"
 
+val greclipsePropertiesFile = "greclipse.properties"
+
 spotless {
   isEnforceCheck = !isSpotlessCheckDisabled
   groovy {
     excludeJava()
-    greclipse().configFile("greclipse.properties")
+    greclipse().configFile(greclipsePropertiesFile)
   }
   groovyGradle {
-    greclipse().configFile("greclipse.properties")
+    greclipse().configFile(greclipsePropertiesFile)
   }
 }
 

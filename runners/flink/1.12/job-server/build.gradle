@@ -22,8 +22,12 @@ project.ext {
   // Look for the source code in the parent module
   main_source_dirs = ["$basePath/src/main/java"]
   test_source_dirs = ["$basePath/src/test/java"]
-  main_resources_dirs = ["$basePath/src/main/resources"]
-  test_resources_dirs = ["$basePath/src/test/resources"]
+  main_resources_dirs = [
+    "$basePath/src/main/resources"
+  ]
+  test_resources_dirs = [
+    "$basePath/src/test/resources"
+  ]
   archives_base_name = 'beam-runners-flink-1.12-job-server'
 }
 

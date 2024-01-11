@@ -18,8 +18,9 @@
 
 import groovy.json.JsonOutput
 
-plugins { id 'org.apache.beam.module'
-    id 'org.jetbrains.kotlin.jvm' version '1.6.10'
+plugins {
+  id 'org.apache.beam.module'
+  id 'org.jetbrains.kotlin.jvm' version '1.6.10'
 }
 
 applyJavaNature(exportJavadoc: false,  automaticModuleName: 'org.apache.beam.examples.kotlin')
@@ -35,7 +36,11 @@ artifact includes all Apache Beam Kotlin SDK examples."""
  * Some runners are run from separate projects, see the preCommit task below
  * for details.
  */
-def preCommitRunners = ["directRunner", "flinkRunner", "sparkRunner"]
+def preCommitRunners = [
+  "directRunner",
+  "flinkRunner",
+  "sparkRunner"
+]
 for (String runner : preCommitRunners) {
   configurations.create(runner + "PreCommit")
 }
@@ -104,9 +109,9 @@ def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-
 for (String runner : preCommitRunners) {
   tasks.create(name: runner + "PreCommit", type: Test) {
     def preCommitBeamTestPipelineOptions = [
-       "--project=${gcpProject}",
-       "--tempRoot=${gcsTempRoot}",
-       "--runner=" + preCommitRunnerClass[runner],
+      "--project=${gcpProject}",
+      "--tempRoot=${gcsTempRoot}",
+      "--runner=" + preCommitRunnerClass[runner],
     ]
     classpath = configurations."${runner}PreCommit"
     include "**/kotlin/**/*Test.class"
@@ -124,14 +129,14 @@ task preCommit() {
 }
 
 compileKotlin {
-    kotlinOptions {
-        jvmTarget = project.javaVersion
-    }
+  kotlinOptions {
+    jvmTarget = project.javaVersion
+  }
 }
 compileTestKotlin {
-    kotlinOptions {
-        jvmTarget = project.javaVersion
-    }
+  kotlinOptions {
+    jvmTarget = project.javaVersion
+  }
 }
 repositories {
   mavenCentral()

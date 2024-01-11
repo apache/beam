@@ -20,19 +20,19 @@ import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.io.hcatalog',
-  // TODO(BEAM-13430): Re-enable this once the dependency analysis plugin stops failing with:
-  // Cannot accept visitor on URL: file:.../org.apache.curator/apache-curator/2.6.0/1bbbe3a8c191ec5a63ec2eaec7988d8292ea65d2/apache-curator-2.6.0.pom
-  enableStrictDependencies: false,
-)
+    automaticModuleName: 'org.apache.beam.sdk.io.hcatalog',
+    // TODO(BEAM-13430): Re-enable this once the dependency analysis plugin stops failing with:
+    // Cannot accept visitor on URL: file:.../org.apache.curator/apache-curator/2.6.0/1bbbe3a8c191ec5a63ec2eaec7988d8292ea65d2/apache-curator-2.6.0.pom
+    enableStrictDependencies: false,
+    )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: HCatalog"
 ext.summary = "IO to read and write for HCatalog source."
 
 def hadoopVersions = [
-    "285": "2.8.5",
-    "292": "2.9.2",
-    "2102": "2.10.2",
+  "285": "2.8.5",
+  "292": "2.9.2",
+  "2102": "2.10.2",
 ]
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}

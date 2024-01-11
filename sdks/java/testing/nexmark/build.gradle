@@ -21,7 +21,7 @@ applyJavaNature(
     automaticModuleName: 'org.apache.beam.sdk.nexmark',
     exportJavadoc: false,
     archivesBaseName: 'beam-sdks-java-nexmark',
-)
+    )
 
 description = "Apache Beam :: SDKs :: Java :: Nexmark"
 
@@ -35,7 +35,7 @@ def nexmarkProfilingProperty = "nexmark.profile"
 // When running via Gradle, this property sets the runner dependency
 def nexmarkRunnerProperty = "nexmark.runner"
 def nexmarkRunnerDependency = project.findProperty(nexmarkRunnerProperty)
-        ?: ":runners:direct-java"
+    ?: ":runners:direct-java"
 def nexmarkRunnerVersionProperty = "nexmark.runner.version"
 def nexmarkRunnerVersion = project.findProperty(nexmarkRunnerVersionProperty)
 def isSparkRunner = nexmarkRunnerDependency.startsWith(":runners:spark:")

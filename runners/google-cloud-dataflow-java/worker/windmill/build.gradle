@@ -19,20 +19,22 @@
 plugins { id 'org.apache.beam.module' }
 applyPortabilityNature(
     publish: false,
-    shadowJarValidationExcludes: ["org/apache/beam/runners/dataflow/worker/windmill/**"],
+    shadowJarValidationExcludes: [
+      "org/apache/beam/runners/dataflow/worker/windmill/**"
+    ],
     archivesBaseName: 'beam-runners-google-cloud-dataflow-java-windmill',
     generatedClassPatterns: [
-      /^org\.apache\.beam\.runners\.dataflow\.worker\.windmill.*/
+      (/^org\.apache\.beam\.runners\.dataflow\.worker\.windmill.*/)
     ]
-)
+    )
 
 description = "Apache Beam :: Runners :: Google Cloud Dataflow Java :: Windmill"
 ext.summary = "Windmill proto specifications"
 
 configurations {
-    unshaded
+  unshaded
 }
 
 artifacts {
-    unshaded jar
+  unshaded jar
 }

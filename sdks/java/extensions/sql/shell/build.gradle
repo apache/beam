@@ -26,17 +26,16 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:extensions:sql:jdbc")
 
   if (project.hasProperty("beam.sql.shell.bundled")) {
-    project.getProperty("beam.sql.shell.bundled").tokenize(",").each {
-      subproject ->
-          implementation project(path: subproject)
-          permitUnusedDeclared project(path: subproject)
+    project.getProperty("beam.sql.shell.bundled").tokenize(",").each { subproject ->
+      implementation project(path: subproject)
+      permitUnusedDeclared project(path: subproject)
     }
   }
 }
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
-          'beam.version': version,
+    'beam.version': version,
   ]
 }
 

@@ -20,10 +20,11 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature( automaticModuleName: 'org.apache.beam.sdk.extensions.sql.jdbc',
-  exportJavadoc: false,
-  testShadowJar: true,
-  validateShadowJar: false,
-  shadowClosure: {}
+exportJavadoc: false,
+testShadowJar: true,
+validateShadowJar: false,
+shadowClosure: {
+}
 )
 
 configurations {
@@ -49,7 +50,7 @@ dependencies {
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
-          'beam.version': version,
+    'beam.version': version,
   ]
 }
 
@@ -84,9 +85,10 @@ task endToEndTest(type: Test) {
   outputs.upToDateWhen { false }
 
   def pipelineOptions = [
-          "--project=${gcpProject}",
-          "--tempLocation=${gcsTempRoot}",
-          "--blockOnRun=false"]
+    "--project=${gcpProject}",
+    "--tempLocation=${gcsTempRoot}",
+    "--blockOnRun=false"
+  ]
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 

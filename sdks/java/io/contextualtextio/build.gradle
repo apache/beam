@@ -18,25 +18,25 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.io.contextualtextio',
-)
+    automaticModuleName: 'org.apache.beam.sdk.io.contextualtextio',
+    )
 
 description = "Apache Beam :: SDKs :: Java :: Contextual-Text-IO"
 ext.summary = "Context-aware Text IO."
 
 dependencies {
-    implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation library.java.protobuf_java
-    permitUnusedDeclared library.java.protobuf_java // BEAM-11761
-    implementation library.java.slf4j_api
-    implementation library.java.vendored_guava_32_1_2_jre
-    implementation library.java.vendored_grpc_1_54_0
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.protobuf_java
+  permitUnusedDeclared library.java.protobuf_java // BEAM-11761
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation library.java.vendored_grpc_1_54_0
 
-    testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-    testImplementation library.java.commons_compress
-    testImplementation library.java.guava_testlib
-    testImplementation library.java.junit
-    testImplementation library.java.hamcrest
-    testRuntimeOnly library.java.slf4j_jdk14
-    testImplementation project(path: ":runners:direct-java", configuration: "shadow")
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation library.java.commons_compress
+  testImplementation library.java.guava_testlib
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest
+  testRuntimeOnly library.java.slf4j_jdk14
+  testImplementation project(path: ":runners:direct-java", configuration: "shadow")
 }
