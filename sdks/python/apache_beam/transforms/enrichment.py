@@ -103,4 +103,5 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
         caller=self._source_handler, timeout=self._timeout)
 
     # EnrichmentSourceHandler returns a tuple of (request,response).
-    return fetched_data | beam.Map(lambda x: self._join_fn(x[0], x[1]))
+    return fetched_data | beam.Map(
+        lambda x: self._join_fn(x[0]._asdict(), x[1]._asdict()))

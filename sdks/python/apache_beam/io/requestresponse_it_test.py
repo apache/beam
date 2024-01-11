@@ -16,6 +16,7 @@
 #
 import base64
 import sys
+import typing
 import unittest
 from dataclasses import dataclass
 from typing import Tuple
@@ -61,66 +62,27 @@ class EchoITOptions(PipelineOptions):
         help='The ID for an allocated quota that should exceed.')
 
 
-# TODO(riteshghorse,damondouglas) replace Echo(Request|Response) with proto
-#   generated classes from .test-infra/mock-apis:
-@dataclass
-class EchoRequest:
-  id: str
-  payload: bytes
-
-
 @dataclass
 class EchoResponse:
   id: str
   payload: bytes
 
 
-class EchoHTTPCaller(Caller[EchoRequest, EchoResponse]):
+# TODO(riteshghorse,damondouglas) replace Echo(Request|Response) with proto
+#   generated classes from .test-infra/mock-apis:
+class Request(typing.NamedTuple):
+  id: str
+  payload: bytes
+
+
+class EchoHTTPCaller(Caller[Request, EchoResponse]):
   """Implements ``Caller`` to call the ``EchoServiceGrpc``'s HTTP handler.
     The purpose of ``EchoHTTPCaller`` is to support integration tests.
     """
   def __init__(self, url: str):
     self.url = url + _HTTP_PATH
 
-  def __call__(self, request: EchoRequest, *args, **kwargs) -> EchoResponse:
-    """Overrides ``Caller``'s call method invoking the
-        ``EchoServiceGrpc``'s HTTP handler with an ``EchoRequest``, returning
-        either a successful ``EchoResponse`` or throwing either a
-        ``UserCodeExecutionException``, ``UserCodeTimeoutException``,
-        or a ``UserCodeQuotaException``.
-        """
-    try:
-      resp = urllib3.request(
-          "POST",
-          self.url,
-          json={
-              "id": request.id, "payload": str(request.payload, 'utf-8')
-          },
-          retries=False)
-
-      if resp.status < 300:
-        resp_body = resp.json()
-        resp_id = resp_body['id']
-        payload = resp_body['payload']
-        return EchoResponse(id=resp_id, payload=bytes(payload, 'utf-8'))
-
-      if resp.status == 429:  # Too Many Requests
-        raise UserCodeQuotaException(resp.reason)
-      else:
-        raise UserCodeExecutionException(resp.status, resp.reason, request)
-
-    except urllib3.exceptions.HTTPError as e:
-      raise UserCodeExecutionException(e)
-
-
-class EchoHTTPCaller_429(Caller[EchoRequest, EchoResponse]):
-  """Implements ``Caller`` to call the ``EchoServiceGrpc``'s HTTP handler.
-    The purpose of ``EchoHTTPCaller`` is to support integration tests.
-    """
-  def __init__(self, url: str):
-    self.url = url + _HTTP_PATH
-
-  def __call__(self, request: EchoRequest, *args, **kwargs) -> EchoResponse:
+  def __call__(self, request: Request, *args, **kwargs) -> EchoResponse:
     """Overrides ``Caller``'s call method invoking the
         ``EchoServiceGrpc``'s HTTP handler with an ``EchoRequest``, returning
         either a successful ``EchoResponse`` or throwing either a
@@ -167,7 +129,7 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
   def setUp(self) -> None:
     client, options = EchoHTTPCallerTestIT._get_client_and_options()
 
-    req = EchoRequest(id=options.should_exceed_quota_id, payload=_PAYLOAD)
+    req = Request(id=options.should_exceed_quota_id, payload=_PAYLOAD)
     try:
       # The following is needed to exceed the API
       client(req)
@@ -186,7 +148,7 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
   def test_given_valid_request_receives_response(self):
     client, options = EchoHTTPCallerTestIT._get_client_and_options()
 
-    req = EchoRequest(id=options.never_exceed_quota_id, payload=_PAYLOAD)
+    req = Request(id=options.never_exceed_quota_id, payload=_PAYLOAD)
 
     response: EchoResponse = client(req)
 
@@ -196,20 +158,20 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
   def test_given_exceeded_quota_should_raise(self):
     client, options = EchoHTTPCallerTestIT._get_client_and_options()
 
-    req = EchoRequest(id=options.should_exceed_quota_id, payload=_PAYLOAD)
+    req = Request(id=options.should_exceed_quota_id, payload=_PAYLOAD)
 
     self.assertRaises(UserCodeQuotaException, lambda: client(req))
 
   def test_not_found_should_raise(self):
     client, _ = EchoHTTPCallerTestIT._get_client_and_options()
 
-    req = EchoRequest(id='i-dont-exist-quota-id', payload=_PAYLOAD)
+    req = Request(id='i-dont-exist-quota-id', payload=_PAYLOAD)
     self.assertRaisesRegex(
         UserCodeExecutionException, "Not Found", lambda: client(req))
 
   def test_request_response_io(self):
     client, options = EchoHTTPCallerTestIT._get_client_and_options()
-    req = EchoRequest(id=options.never_exceed_quota_id, payload=_PAYLOAD)
+    req = Request(id=options.never_exceed_quota_id, payload=_PAYLOAD)
     with TestPipeline(is_integration_test=True) as test_pipeline:
       output = (
           test_pipeline

@@ -37,7 +37,7 @@ class TestBigTableEnrichment(unittest.TestCase):
     self.project_id = 'google.com:clouddfe'
     self.instance_id = 'beam-test'
     self.table_id = 'riteshghorse-test'
-    self.req = {'s_id': 1, 'id': 'usd'}
+    self.req = beam.Row(s_id=1, id='usd')
     self.row_key = 'id'
     self.column_family_id = 'test-column'
 

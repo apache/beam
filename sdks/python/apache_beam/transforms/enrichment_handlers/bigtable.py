@@ -31,7 +31,7 @@ __all__ = [
 _LOGGER = logging.getLogger(__name__)
 
 
-class EnrichWithBigTable(EnrichmentSourceHandler[dict, beam.Row]):
+class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
   """EnrichWithBigTable is a handler for
   :class:`apache_beam.transforms.enrichment.Enrichment` transform to interact
   with GCP BigTable.
@@ -62,9 +62,10 @@ class EnrichWithBigTable(EnrichmentSourceHandler[dict, beam.Row]):
     instance = client.instance(self._instance_id)
     self._table = instance.table(self._table_id)
 
-  def __call__(self, request: dict, *args, **kwargs):
+  def __call__(self, request: beam.Row, *args, **kwargs):
     try:
-      row_key = request[self._row_key].encode()
+      request_dict = request._asdict()
+      row_key = request_dict[self._row_key].encode()
       row = self._table.read_row(row_key, filter_=self._row_filter)
       response_dict = {}
       for cf_id, cf_v in row.cells.items():
@@ -76,7 +77,7 @@ class EnrichWithBigTable(EnrichmentSourceHandler[dict, beam.Row]):
     except Exception as e:
       raise e
 
-    return request, response_dict
+    return request, beam.Row(**response_dict)
 
   def __exit__(self, exc_type, exc_val, exc_tb):
     self._table = None
