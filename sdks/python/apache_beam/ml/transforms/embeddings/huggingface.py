@@ -24,8 +24,9 @@ from typing import Mapping
 from typing import Optional
 from typing import Sequence
 
-import apache_beam as beam
 import requests
+
+import apache_beam as beam
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
