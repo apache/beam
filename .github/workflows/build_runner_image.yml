@@ -33,7 +33,7 @@ jobs:
     if: github.repository == 'apache/beam'
     env:
         working-directory: .github/gh-actions-self-hosted-runners/arc/images/
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: [self-hosted, ubuntu-20.04, main]
 
     steps:
     - name: Checkout code
