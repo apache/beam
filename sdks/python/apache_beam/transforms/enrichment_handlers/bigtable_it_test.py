@@ -18,6 +18,8 @@
 import typing
 import unittest
 
+from google.cloud.bigtable.row_filters import ColumnRangeFilter
+
 import apache_beam as beam
 from apache_beam.io import WriteToText
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -31,23 +33,17 @@ class _Currency(typing.NamedTuple):
 
 
 class TestBigTableEnrichment(unittest.TestCase):
-  def __init__(self):
+  def setUp(self):
     self.project_id = 'google.com:clouddfe'
     self.instance_id = 'beam-test'
     self.table_id = 'riteshghorse-test'
     self.req = {'s_id': 1, 'id': 'usd'}
     self.row_key = 'id'
+    self.column_family_id = 'test-column'
 
   def test_enrichment_with_bigtable(self):
-    column_family_ids = ['test-column']
-    column_ids = ['id', 'value']
     bigtable = EnrichWithBigTable(
-        self.project_id,
-        self.instance_id,
-        self.table_id,
-        self.row_key,
-        column_family_ids,
-        column_ids)
+        self.project_id, self.instance_id, self.table_id, self.row_key)
     with TestPipeline(is_integration_test=True) as test_pipeline:
       _ = (
           test_pipeline
@@ -55,46 +51,21 @@ class TestBigTableEnrichment(unittest.TestCase):
           | "Enrich W/ BigTable" >> Enrichment(bigtable)
           | 'Write' >> WriteToText('1enrich.txt'))
 
-  def test_enrichment_with_bigtable_no_column_family(self):
-    column_ids = ['id', 'value']
+  def test_enrichment_with_bigtable_row_filter(self):
+    start_column = 'value'.encode()
+    column_filter = ColumnRangeFilter(self.column_family_id, start_column)
     bigtable = EnrichWithBigTable(
         self.project_id,
         self.instance_id,
         self.table_id,
         self.row_key,
-        column_ids=column_ids)
-    with TestPipeline(is_integration_test=True) as test_pipeline:
-      _ = (
-          test_pipeline
-          | "Create" >> beam.Create([self.req])
-          | "Enrich W/ BigTable" >> Enrichment(bigtable)
-          | 'Write' >> WriteToText('1enrich.txt'))
-
-  def test_enrichment_with_bigtable_no_column_ids(self):
-    column_family_ids = ['test-column']
-    bigtable = EnrichWithBigTable(
-        self.project_id,
-        self.instance_id,
-        self.table_id,
-        self.row_key,
-        column_family_ids=column_family_ids)
+        row_filter=column_filter)
     with TestPipeline(is_integration_test=True) as test_pipeline:
       _ = (
           test_pipeline
           | "Create" >> beam.Create([self.req])
           | "Enrich W/ BigTable" >> Enrichment(bigtable)
           | 'Write' >> WriteToText('2enrich.txt'))
-
-  def test_enrichment_with_bigtable_no_hints(self):
-    req = {'s_id': 1, 'id': 'usd'}
-    bigtable = EnrichWithBigTable(
-        self.project_id, self.instance_id, self.table_id, self.row_key)
-    with TestPipeline(is_integration_test=True) as test_pipeline:
-      _ = (
-          test_pipeline
-          | "Create" >> beam.Create([req])
-          | "Enrich W/ BigTable" >> Enrichment(bigtable)
-          | 'Write' >> WriteToText('3enrich.txt'))
 
 
 if __name__ == '__main__':

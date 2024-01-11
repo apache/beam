@@ -15,11 +15,11 @@
 # limitations under the License.
 #
 import logging
-from typing import List
 from typing import Optional
 
 from google.api_core.exceptions import NotFound
 from google.cloud import bigtable
+from google.cloud.bigtable.row_filters import RowFilter
 
 import apache_beam as beam
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
@@ -41,7 +41,8 @@ class EnrichWithBigTable(EnrichmentSourceHandler[dict, beam.Row]):
     instance_id (str): GCP instance-id of the BigTable cluster.
     table_id (str): GCP table-id of the BigTable.
     row_key (str): unique row key for BigTable
-    column_family_ids (List(str))
+    row_filter: :class:`google.cloud.bigtable.row_filters.RowFilter` to filter
+      data read with ``read_row()``.
   """
   def __init__(
       self,
@@ -49,14 +50,12 @@ class EnrichWithBigTable(EnrichmentSourceHandler[dict, beam.Row]):
       instance_id: str,
       table_id: str,
       row_key: str,
-      column_family_ids: Optional[List[str]] = None,
-      column_ids: Optional[List[str]] = None):
+      row_filter: Optional[RowFilter] = None):
     self._project_id = project_id
     self._instance_id = instance_id
     self._table_id = table_id
     self._row_key = row_key
-    self._column_family_ids = column_family_ids
-    self._column_ids = column_ids
+    self._row_filter = row_filter
 
   def __enter__(self):
     client = bigtable.Client(project=self._project_id)
@@ -64,35 +63,14 @@ class EnrichWithBigTable(EnrichmentSourceHandler[dict, beam.Row]):
     self._table = instance.table(self._table_id)
 
   def __call__(self, request: dict, *args, **kwargs):
-    row_key = request[self._row_key].encode()
-    row = self._table.read_row(row_key)
-    response_dict = {}
-
     try:
-      if self._column_family_ids and self._column_ids:
-        for column_family_id in self._column_family_ids:
-          response_dict[column_family_id] = {}
-          for column_id in self._column_ids:
-            response_dict[column_family_id][column_id] = row.cells[
-                column_family_id][column_id.encode()][0].value.decode('utf-8')
-      elif self._column_family_ids:
-        for column_family_id in self._column_family_ids:
-          response_dict[column_family_id] = {}
-          for k, v in row.cells[column_family_id].items():
-            response_dict[column_family_id][k.decode(
-                'utf-8')] = v[0].value.decode('utf-8')
-      elif self._column_ids:
-        for cf_id, cf_v in row.cells.items():
-          response_dict[cf_id] = {}
-          for c_id in self._column_ids:
-            if c_id.encode() in cf_v:
-              response_dict[cf_id][c_id] = cf_v[c_id.encode()][0].value.decode(
-                  'utf-8')
-      else:
-        for cf_id, cf_v in row.cells.items():
-          response_dict[cf_id] = {}
-          for k, v in cf_v.items():
-            response_dict[cf_id][k.decode('utf-8')] = v[0].value.decode('utf-8')
+      row_key = request[self._row_key].encode()
+      row = self._table.read_row(row_key, filter_=self._row_filter)
+      response_dict = {}
+      for cf_id, cf_v in row.cells.items():
+        response_dict[cf_id] = {}
+        for k, v in cf_v.items():
+          response_dict[cf_id][k.decode('utf-8')] = v[0].value.decode('utf-8')
     except NotFound:
       _LOGGER.warning('request row_key: %s not found')
     except Exception as e:
