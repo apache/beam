@@ -244,8 +244,8 @@ public class DataflowWorkUnitClientTest {
         new StreamingScalingReport().setActiveThreadCount(1);
     WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
     WorkerMessageResponse expected = new WorkerMessageResponse();
-    WorkerMessage msg = createWorkerMessageFromStreamingScalingReport(activeThreadsReport);
-    WorkerMessageResponse clientResponse = client.reportStreamingMetricsWorkerMessage(msg);
+    WorkerMessage msg = client.createWorkerMessageFromStreamingScalingReport(activeThreadsReport);
+    WorkerMessageResponse clientResponse = client.reportWorkerMessage(msg);
     assertEquals(clientResponse.toString(), expected.toString());
 
     SendWorkerMessagesRequest actualRequest =
