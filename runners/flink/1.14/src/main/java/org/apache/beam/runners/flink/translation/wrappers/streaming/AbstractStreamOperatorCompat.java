@@ -20,7 +20,6 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManagerImpl;
-import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
 
 /** Compatibility layer for {@link AbstractStreamOperator} breaking changes. */
 public abstract class AbstractStreamOperatorCompat<OutputT>
@@ -45,18 +44,9 @@ public abstract class AbstractStreamOperatorCompat<OutputT>
     return getTimeServiceManager()
         .map(
             manager -> {
-              InternalTimeServiceManager<?> tsm = getTimeServiceManagerCompat();
-              if (tsm instanceof InternalTimeServiceManagerImpl) {
-                final InternalTimeServiceManagerImpl<?> cast =
-                    (InternalTimeServiceManagerImpl<?>) getTimeServiceManagerCompat();
-                return cast.numProcessingTimeTimers();
-              } else if (tsm instanceof BatchExecutionInternalTimeServiceManager) {
-                return 0;
-              } else {
-                throw new IllegalStateException(
-                    String.format(
-                        "Unknown implementation of InternalTimerServiceManager. %s", tsm));
-              }
+              final InternalTimeServiceManagerImpl<?> cast =
+                  (InternalTimeServiceManagerImpl<?>) getTimeServiceManagerCompat();
+              return cast.numProcessingTimeTimers();
             })
         .orElse(0);
   }

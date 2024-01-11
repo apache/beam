@@ -32,11 +32,7 @@ import org.apache.beam.sdk.options.StreamingOptions;
  * requiring flink on the classpath (e.g. to use with the direct runner).
  */
 public interface FlinkPipelineOptions
-    extends PipelineOptions,
-        ApplicationNameOptions,
-        StreamingOptions,
-        FileStagingOptions,
-        VersionDependentFlinkPipelineOptions {
+    extends PipelineOptions, ApplicationNameOptions, StreamingOptions, FileStagingOptions {
 
   String AUTO = "[auto]";
   String PIPELINED = "PIPELINED";
