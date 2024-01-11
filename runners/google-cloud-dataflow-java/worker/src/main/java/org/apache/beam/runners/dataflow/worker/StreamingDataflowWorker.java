@@ -1762,10 +1762,8 @@ public class StreamingDataflowWorker {
         new StreamingScalingReport()
             .setActiveThreadCount(workUnitExecutor.activeCount())
             .setActiveBundleCount(workUnitExecutor.elementsOutstanding())
-            .setOutstandingBytesCount(workUnitExecutor.bytesOutstanding())
             .setMaximumThreadCount(chooseMaximumNumberOfThreads())
-            .setMaximumBundleCount(workUnitExecutor.maximumElementsOutstanding())
-            .setMaximumBytesCount(workUnitExecutor.maximumBytesOutstanding());
+            .setMaximumBundleCount(workUnitExecutor.maximumElementsOutstanding());\
     workUnitClient.reportWorkerMessage(
         workUnitClient.createWorkerMessageFromStreamingScalingReport(activeThreadsReport));
   }
