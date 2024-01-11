@@ -1732,8 +1732,10 @@ public class StreamingDataflowWorker {
   }
 
   private void updateThreadMetrics() {
+    LOG.info("[chengedward] old time at max threads: " + timeAtMaxActiveThreads.getAggregate());
     timeAtMaxActiveThreads.getAndReset();
     timeAtMaxActiveThreads.addValue(workUnitExecutor.allThreadsActiveTime());
+    LOG.info("[chengedward] old time at max threads: " + timeAtMaxActiveThreads.getAggregate());
     activeThreads.getAndReset();
     activeThreads.addValue(workUnitExecutor.activeCount());
     totalAllocatedThreads.getAndReset();
