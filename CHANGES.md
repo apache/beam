@@ -64,7 +64,8 @@
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Adding support for Tuples DataType in ClickHouse (Java) ([#29715](https://github.com/apache/beam/pull/29715)).
-
+* Added support for handling bad records to FileIO, TextIO, AvroIO ([#29670](https://github.com/apache/beam/pull/29670)).
+* Added support for handling bad records to BigtableIO ([#29885](https://github.com/apache/beam/pull/29885)).
 
 ## New Features / Improvements
 
