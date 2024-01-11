@@ -604,7 +604,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	}
 
 	var pendingTimers []element
-	for family, timers := range d.timers {
+	for tentativeKey, timers := range d.timers {
 		keyToTimers := map[timerKey]element{}
 		for _, t := range timers {
 			key, tag, elms := decodeTimer(inputInfo.KeyDec, true, t)
@@ -618,8 +618,8 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 		}
 
 		for _, elm := range keyToTimers {
-			elm.transform = family.Transform
-			elm.family = family.Local
+			elm.transform = tentativeKey.Transform
+			elm.family = tentativeKey.Family
 			pendingTimers = append(pendingTimers, elm)
 		}
 	}

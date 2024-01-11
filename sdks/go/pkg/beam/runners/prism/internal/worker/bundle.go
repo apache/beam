@@ -134,7 +134,7 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 		},
 	}
 
-	// TODO: make sending cap decisions, to reduce processing time overhead.
+	// TODO: make batching decisions on the maxium to send per elements block, to reduce processing time overhead.
 	for _, block := range b.Input {
 		elms := &fnpb.Elements{}
 

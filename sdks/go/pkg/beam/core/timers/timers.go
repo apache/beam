@@ -51,9 +51,10 @@ type TimerMap struct {
 	FireTimestamp, HoldTimestamp mtime.Time
 }
 
+// timerConfig is used transiently to hold configuration from the functional options.
 type timerConfig struct {
 	Tag           string
-	HoldSet       bool
+	HoldSet       bool // Whether the HoldTimestamp was set.
 	HoldTimestamp mtime.Time
 }
 

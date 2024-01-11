@@ -33,7 +33,7 @@ import (
 // Returns the key bytes, tag, window exploded elements, and the hold timestamp.
 // If the timer has been cleared, no elements will be returned. Any existing timers
 // for the tag *must* be cleared from the pending queue.
-func decodeTimer(keyDec func(io.Reader) []byte, globalWindow bool, raw []byte) ([]byte, string, []element) {
+func decodeTimer(keyDec func(io.Reader) []byte, usesGlobalWindow bool, raw []byte) ([]byte, string, []element) {
 	keyBytes := keyDec(bytes.NewBuffer(raw))
 
 	d := decoder{raw: raw, cursor: len(keyBytes)}
@@ -41,7 +41,7 @@ func decodeTimer(keyDec func(io.Reader) []byte, globalWindow bool, raw []byte) (
 
 	var ws []typex.Window
 	numWin := d.Fixed32()
-	if globalWindow {
+	if usesGlobalWindow {
 		for i := 0; i < int(numWin); i++ {
 			ws = append(ws, window.GlobalWindow{})
 		}
