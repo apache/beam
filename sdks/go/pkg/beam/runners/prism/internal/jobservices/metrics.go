@@ -510,16 +510,12 @@ func (m *metricsStore) contributeMetrics(d durability, mdata map[string][]byte) 
 			panic(fmt.Sprintf("error decoding metrics %v: %+v\n\t%+v", key.Urn(), key, a))
 		}
 		accums[key] = a
-		// TODO add to urns.
 		switch u := key.Urn(); u {
 		case "beam:metric:data_channel:read_index:v1":
-			index = a.(*sumInt64).sum // Only one of these per progress response.
+			index = a.(*sumInt64).sum // There should only be one of these per progress response.
 		case "beam:metric:element_count:v1":
-			totalCount += a.(*sumInt64).sum // Many of these, so we must filter to the right one.
+			totalCount += a.(*sumInt64).sum
 		}
-		// TODO, add output count for ingest transform?
-		// Make it a map from urn to int64...
-		// Loose progress awareness.
 	}
 	return map[string]int64{
 		"index":      index,
