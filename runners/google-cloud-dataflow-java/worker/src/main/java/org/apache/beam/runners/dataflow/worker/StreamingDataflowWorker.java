@@ -589,11 +589,13 @@ public class StreamingDataflowWorker {
         TimeUnit.MILLISECONDS);
 
     workerMessageReportTimer = executorSupplier.apply("WorkerMessageTimer");
-    workerMessageReportTimer.scheduleWithFixedDelay(
-        this::reportPeriodicWorkerMessage,
-        0,
-        options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
-        TimeUnit.MILLISECONDS);
+    if (option.getWindmillHarnessUpdateReportingPeriod > 0) {
+      workerMessageReportTimer.scheduleWithFixedDelay(
+          this::reportPeriodicWorkerMessage,
+          0,
+          options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
+          TimeUnit.MILLISECONDS);
+    }
 
     refreshWorkTimer = executorSupplier.apply("RefreshWork");
     if (options.getActiveWorkRefreshPeriodMillis() > 0) {
