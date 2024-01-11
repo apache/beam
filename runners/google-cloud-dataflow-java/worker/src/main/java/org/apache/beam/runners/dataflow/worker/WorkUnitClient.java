@@ -21,7 +21,7 @@ import com.google.api.services.dataflow.model.StreamingScalingReport;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
-import com.google.api.services.dataflow.model.WorkerMessageResponse;
+import com.google.api.services.dataflow.model.WorkerMessage;
 import java.io.IOException;
 import java.util.Optional;
 
@@ -52,12 +52,11 @@ interface WorkUnitClient {
    */
   WorkItemServiceState reportWorkItemStatus(WorkItemStatus workItemStatus) throws IOException;
 
+  WorkerMessage createWorkerMessageFromStreamingScalingReport(StreamingScalingReport report);
   /**
    * Reports the autoscaling signals with a {@link StreamingScalingReport}.
    *
-   * @param report the autoscaling signals to report
-   * @return a {@link WorkerMessageResponse} (e.g. a new stop position)
+   * @param msg the WorkerMessage to report
    */
-  WorkerMessageResponse reportStreamingMetricsWorkerMessage(StreamingScalingReport report)
-      throws IOException;
+  void reportWorkerMessage(WorkerMessage msg) throws IOException;
 }

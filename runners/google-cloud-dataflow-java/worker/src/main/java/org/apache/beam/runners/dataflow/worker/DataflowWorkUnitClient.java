@@ -38,7 +38,6 @@ import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.api.services.dataflow.model.WorkerMessage;
-import com.google.api.services.dataflow.model.WorkerMessageResponse;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -277,10 +276,10 @@ class DataflowWorkUnitClient implements WorkUnitClient {
     return state;
   }
 
-  /** Reports the autoscaling signals to dataflow */
+  /** Creates WorkerMessage from StreamingScalingReport */
   @Override
-  public WorkerMessageResponse reportStreamingMetricsWorkerMessage(StreamingScalingReport report)
-      throws IOException {
+  public WorkerMessage createWorkerMessageFromStreamingScalingReport(
+      StreamingScalingReport report) {
     DateTime endTime = DateTime.now();
     logger.debug("Reporting WorkMessageResponse");
     Map<String, String> labels =
@@ -290,6 +289,12 @@ class DataflowWorkUnitClient implements WorkUnitClient {
             .setTime(toCloudTime(endTime))
             .setStreamingScalingReport(report)
             .setLabels(labels);
+    return msg;
+  }
+
+  /** Reports the autoscaling signals to dataflow */
+  @Override
+  public void reportWorkerMessage(WorkerMessage msg) throws IOException {
     SendWorkerMessagesRequest request =
         new SendWorkerMessagesRequest()
             .setLocation(options.getRegion())
@@ -304,11 +309,6 @@ class DataflowWorkUnitClient implements WorkUnitClient {
       logger.warn("Worker Message response is null");
       throw new IOException("Got null Worker Message response");
     }
-
     // Currently no response is expected
-    if (result.getWorkerMessageResponses() == null) {
-      return new WorkerMessageResponse();
-    }
-    return new WorkerMessageResponse();
   }
 }

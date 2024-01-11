@@ -253,8 +253,8 @@ public class StreamingDataflowWorker {
   private final Counter<Integer, Integer> totalAllocatedThreads;
   private final Counter<Long, Long> outstandingBytes;
   private final Counter<Long, Long> maxOutstandingBytes;
-  private final Counter<Long, Long> outstandingBundles;
-  private final Counter<Long, Long> maxOutstandingBundles;
+  private final Counter<Integer, Integer> outstandingBundles;
+  private final Counter<Integer, Integer> maxOutstandingBundles;
   private final Counter<Integer, Integer> windmillMaxObservedWorkItemCommitBytes;
   private final Counter<Integer, Integer> memoryThrashing;
   private final boolean publishCounters;
@@ -351,10 +351,10 @@ public class StreamingDataflowWorker {
         pendingCumulativeCounters.longSum(
             StreamingSystemCounterNames.MAX_OUTSTANDING_BYTES.counterName());
     this.outstandingBundles =
-        pendingCumulativeCounters.longSum(
+        pendingCumulativeCounters.intSum(
             StreamingSystemCounterNames.OUTSTANDING_BUNDLES.counterName());
     this.maxOutstandingBundles =
-        pendingCumulativeCounters.longSum(
+        pendingCumulativeCounters.intSum(
             StreamingSystemCounterNames.MAX_OUTSTANDING_BUNDLES.counterName());
     this.totalAllocatedThreads =
         pendingCumulativeCounters.intSum(
@@ -1759,8 +1759,15 @@ public class StreamingDataflowWorker {
 
   private void sendWorkerMessage() throws IOException {
     StreamingScalingReport activeThreadsReport =
-        new StreamingScalingReport().setActiveThreadCount(workUnitExecutor.activeCount());
-    workUnitClient.reportStreamingMetricsWorkerMessage(activeThreadsReport);
+        new StreamingScalingReport()
+            .setActiveThreadCount(workUnitExecutor.activeCount())
+            .setActiveBundleCount(workUnitExecutor.elementsOutstanding())
+            .setOutstandingBytesCount(workUnitExecutor.bytesOutstanding())
+            .setMaximumThreadCount(chooseMaximumNumberOfThreads())
+            .setMaximumBundleCount(workUnitExecutor.maximumElementsOutstanding())
+            .setMaximumBytesCount(workUnitExecutor.maximumBytesOutstanding());
+    workUnitClient.reportWorkerMessage(
+        workUnitClient.createWorkerMessageFromStreamingScalingReport(activeThreadsReport));
   }
 
   @VisibleForTesting
