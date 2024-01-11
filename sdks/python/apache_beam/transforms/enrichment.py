@@ -72,7 +72,7 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
   enrich elements in a PCollection.
   **NOTE:** This transform and its implementation are under development and
   do not provide backward compatibility guarantees.
-  Uses the :class:`apache_beam.transforms.enrichment.EnrichmentSourceHandler`
+  Uses the :class:`apache_beam.transforms.enrichment.EnrichmenwtSourceHandler`
   to enrich elements by joining the metadata from external source.
 
   Processes an input :class:`~apache_beam.pvalue.PCollection` of `beam.Row` by

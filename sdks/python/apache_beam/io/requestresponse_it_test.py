@@ -113,6 +113,44 @@ class EchoHTTPCaller(Caller[EchoRequest, EchoResponse]):
       raise UserCodeExecutionException(e)
 
 
+class EchoHTTPCaller_429(Caller[EchoRequest, EchoResponse]):
+  """Implements ``Caller`` to call the ``EchoServiceGrpc``'s HTTP handler.
+    The purpose of ``EchoHTTPCaller`` is to support integration tests.
+    """
+  def __init__(self, url: str):
+    self.url = url + _HTTP_PATH
+
+  def __call__(self, request: EchoRequest, *args, **kwargs) -> EchoResponse:
+    """Overrides ``Caller``'s call method invoking the
+        ``EchoServiceGrpc``'s HTTP handler with an ``EchoRequest``, returning
+        either a successful ``EchoResponse`` or throwing either a
+        ``UserCodeExecutionException``, ``UserCodeTimeoutException``,
+        or a ``UserCodeQuotaException``.
+        """
+    try:
+      resp = urllib3.request(
+          "POST",
+          self.url,
+          json={
+              "id": request.id, "payload": str(request.payload, 'utf-8')
+          },
+          retries=False)
+
+      if resp.status < 300:
+        resp_body = resp.json()
+        resp_id = resp_body['id']
+        payload = resp_body['payload']
+        return EchoResponse(id=resp_id, payload=bytes(payload, 'utf-8'))
+
+      if resp.status == 429:  # Too Many Requests
+        raise UserCodeQuotaException(resp.reason)
+      else:
+        raise UserCodeExecutionException(resp.status, resp.reason, request)
+
+    except urllib3.exceptions.HTTPError as e:
+      raise UserCodeExecutionException(e)
+
+
 class EchoHTTPCallerTestIT(unittest.TestCase):
   options: Union[EchoITOptions, None] = None
   client: Union[EchoHTTPCaller, None] = None

@@ -21,11 +21,18 @@ import concurrent.futures
 import contextlib
 import logging
 import sys
+import time
 from typing import Generic
 from typing import Optional
 from typing import TypeVar
 
+from google.api_core.exceptions import TooManyRequests
+
 import apache_beam as beam
+from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
+from apache_beam.metrics import Metrics
+from apache_beam.ml.inference.vertex_ai_inference import MSEC_TO_SEC
+from apache_beam.utils import retry
 
 RequestT = TypeVar('RequestT')
 ResponseT = TypeVar('ResponseT')
@@ -47,6 +54,36 @@ class UserCodeQuotaException(UserCodeExecutionException):
 
 class UserCodeTimeoutException(UserCodeExecutionException):
   """Extends ``UserCodeExecutionException`` to signal a user code timeout."""
+
+
+def retry_on_exception(exception: Exception):
+  """retry on exceptions caused by unavailability of the remote server."""
+  return isinstance(
+      exception,
+      (TooManyRequests, UserCodeTimeoutException, UserCodeQuotaException))
+
+
+class _MetricsCollector:
+  """A metrics collector that tracks RequestResponseIO related usage."""
+  def __init__(self, namespace: str):
+    """
+    Args:
+      namespace: Namespace for the metrics.
+    """
+    self.requests = Metrics.counter(namespace, 'requests')
+    self.responses = Metrics.counter(namespace, 'responses')
+    self.failures = Metrics.counter(namespace, 'failures')
+    self.throttled_requests = Metrics.counter(namespace, 'throttled_requests')
+    self.throttled_secs = Metrics.counter(
+        namespace, 'cumulativeThrottlingSeconds')
+    self.timeout_requests = Metrics.counter(namespace, 'requests_timed_out')
+    self.call_counter = Metrics.counter(namespace, 'call_invocations')
+    self.setup_counter = Metrics.counter(namespace, 'setup_counter')
+    self.teardown_counter = Metrics.counter(namespace, 'teardown_counter')
+    self.backoff_counter = Metrics.counter(namespace, 'backoff_counter')
+    self.sleeper_counter = Metrics.counter(namespace, 'sleeper_counter')
+    self.should_backoff_counter = Metrics.counter(
+        namespace, 'should_backoff_counter')
 
 
 class Caller(contextlib.AbstractContextManager,
@@ -81,7 +118,101 @@ class ShouldBackOff(abc.ABC):
 class Repeater(abc.ABC):
   """Repeater provides mechanism to repeat requests for a
   configurable condition."""
-  pass
+  @abc.abstractmethod
+  def repeat(
+      self,
+      caller: Caller[RequestT, ResponseT],
+      request: RequestT,
+      timeout: float,
+      metrics_collector: Optional[_MetricsCollector]) -> ResponseT:
+    """
+    repeat method is called from the RequestResponseIO when a repeater is
+    enabled.
+
+    Args:
+    caller: :class:`apache_beam.io.requestresponse.Caller` object that calls
+      the API.
+    request: input request to repeat.
+    timeout: time to wait for the request to complete.
+    metrics_collector: (Optional) a
+      :class:`apache_beam.io.requestresponse._MetricsCollector` object to
+      collect the metrics for RequestResponseIO.
+    """
+    pass
+
+
+def _execute_request(
+    caller: Caller[RequestT, ResponseT],
+    request: RequestT,
+    timeout: float,
+    metrics_collector: Optional[_MetricsCollector] = None) -> ResponseT:
+  with concurrent.futures.ThreadPoolExecutor() as executor:
+    future = executor.submit(caller, request)
+    try:
+      return future.result(timeout=timeout)
+    except TooManyRequests as e:
+      _LOGGER.warning(
+          'request could not be completed. got code %i from the service.',
+          e.code)
+      raise e
+    except concurrent.futures.TimeoutError:
+      if metrics_collector:
+        metrics_collector.timeout_requests.inc(1)
+      raise UserCodeTimeoutException(
+          f'Timeout {timeout} exceeded '
+          f'while completing request: {request}')
+    except RuntimeError:
+      if metrics_collector:
+        metrics_collector.failures.inc(1)
+      raise UserCodeExecutionException('could not complete request')
+
+
+class ExponentialBackOffRepeater(Repeater):
+  """Exponential BackOff Repeater uses exponential backoff retry strategy for
+  exceptions due to the remote service such as TooManyRequests (HTTP 429),
+  UserCodeTimeoutException, UserCodeQuotaException.
+
+  It utilizes the decorator
+  :func:`apache_beam.utils.retry.with_exponential_backoff`.
+  """
+  def __init__(self):
+    pass
+
+  @retry.with_exponential_backoff(
+      num_retries=2, retry_filter=retry_on_exception)
+  def repeat(
+      self,
+      caller: Caller[RequestT, ResponseT],
+      request: RequestT,
+      timeout: float,
+      metrics_collector: Optional[_MetricsCollector] = None) -> ResponseT:
+    """
+      repeat method is called from the RequestResponseIO when a repeater is
+      enabled.
+
+      Args:
+      caller: :class:`apache_beam.io.requestresponse.Caller` object that calls
+        the API.
+      request: input request to repeat.
+      timeout: time to wait for the request to complete.
+      metrics_collector: (Optional) a
+        :class:`apache_beam.io.requestresponse._MetricsCollector` object to
+        collect the metrics for RequestResponseIO.
+    """
+    return _execute_request(caller, request, timeout, metrics_collector)
+
+
+class NoOpsRepeater(Repeater):
+  """
+  NoOpsRepeater executes a request just once irrespective of any exception.
+  """
+  def repeat(
+      self,
+      caller: Caller[RequestT, ResponseT],
+      request: RequestT,
+      timeout: float,
+      metrics_collector: Optional[_MetricsCollector]) -> ResponseT:
+    return _execute_request(caller, request, timeout, metrics_collector)
 
 
 class CacheReader(abc.ABC):
@@ -99,6 +230,29 @@ class PreCallThrottler(abc.ABC):
   pass
 
 
+class DefaultThrottler(PreCallThrottler):
+  """Default throttler that uses
+  :class:`apache_beam.io.components.adaptive_throttler.AdaptiveThrottler`
+
+  Args:
+    window_ms (int): length of history to consider, in ms, to set throttling.
+    bucket_ms (int): granularity of time buckets that we store data in, in ms.
+    overload_ratio (float): the target ratio between requests sent and
+      successful requests. This is "K" in the formula in
+      https://landing.google.com/sre/book/chapters/handling-overload.html.
+    delay_secs (int): minimum number of seconds to throttle a request.
+  """
+  def __init__(
+      self,
+      window_ms: int = 1,
+      bucket_ms: int = 1,
+      overload_ratio: float = 2,
+      delay_secs: int = 5):
+    self.throttler = AdaptiveThrottler(
+        window_ms=window_ms, bucket_ms=bucket_ms, overload_ratio=overload_ratio)
+    self.delay_secs = delay_secs
+
+
 class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
                                         beam.PCollection[ResponseT]]):
   """A :class:`RequestResponseIO` transform to read and write to APIs.
@@ -112,10 +266,10 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
       caller: Caller[RequestT, ResponseT],
       timeout: Optional[float] = DEFAULT_TIMEOUT_SECS,
       should_backoff: Optional[ShouldBackOff] = None,
-      repeater: Optional[Repeater] = None,
+      repeater: Optional[Repeater] = ExponentialBackOffRepeater(),
       cache_reader: Optional[CacheReader] = None,
       cache_writer: Optional[CacheWriter] = None,
-      throttler: Optional[PreCallThrottler] = None,
+      throttler: Optional[PreCallThrottler] = DefaultThrottler(),
   ):
     """
     Instantiates a RequestResponseIO transform.
@@ -138,7 +292,10 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
     self._caller = caller
     self._timeout = timeout
     self._should_backoff = should_backoff
-    self._repeater = repeater
+    if repeater:
+      self._repeater = repeater
+    else:
+      self._repeater = NoOpsRepeater()
     self._cache_reader = cache_reader
     self._cache_writer = cache_writer
     self._throttler = throttler
@@ -146,12 +303,20 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
   def expand(
       self,
       requests: beam.PCollection[RequestT]) -> beam.PCollection[ResponseT]:
-    # TODO(riteshghorse): add Cache and Throttle PTransforms.
-    return requests | _Call(
-        caller=self._caller,
-        timeout=self._timeout,
-        should_backoff=self._should_backoff,
-        repeater=self._repeater)
+    # TODO(riteshghorse): handle Cache and Throttle PTransforms when available.
+    if isinstance(self._throttler, DefaultThrottler):
+      return requests | _Call(
+          caller=self._caller,
+          timeout=self._timeout,
+          should_backoff=self._should_backoff,
+          repeater=self._repeater,
+          throttler=self._throttler)
+    else:
+      return requests | _Call(
+          caller=self._caller,
+          timeout=self._timeout,
+          should_backoff=self._should_backoff,
+          repeater=self._repeater)
 
 
 class _Call(beam.PTransform[beam.PCollection[RequestT],
@@ -168,6 +333,12 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
       caller (:class:`apache_beam.io.requestresponse.Caller`): a callable
         object that invokes API call.
       timeout (float): timeout value in seconds to wait for response from API.
+      should_backoff (~apache_beam.io.requestresponse.ShouldBackOff):
+        (Optional) provides methods for backoff.
+      repeater (~apache_beam.io.requestresponse.Repeater): (Optional) provides
+        methods to repeat requests to API.
+      throttler (~apache_beam.io.requestresponse.PreCallThrottler):
+        (Optional) provides methods to pre-throttle a request.
   """
   def __init__(
       self,
@@ -175,47 +346,65 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
       timeout: Optional[float] = DEFAULT_TIMEOUT_SECS,
       should_backoff: Optional[ShouldBackOff] = None,
       repeater: Optional[Repeater] = None,
+      throttler: Optional[PreCallThrottler] = None,
   ):
-    """Initialize the _Call transform.
-    Args:
-      caller (:class:`apache_beam.io.requestresponse.Caller`): a callable
-        object that invokes API call.
-      timeout (float): timeout value in seconds to wait for response from API.
-      should_backoff (~apache_beam.io.requestresponse.ShouldBackOff):
-        (Optional) provides methods for backoff.
-      repeater (~apache_beam.io.requestresponse.Repeater): (Optional) provides
-        methods to repeat requests to API.
-    """
     self._caller = caller
     self._timeout = timeout
     self._should_backoff = should_backoff
     self._repeater = repeater
+    self._throttler = throttler
 
   def expand(
       self,
       requests: beam.PCollection[RequestT]) -> beam.PCollection[ResponseT]:
-    return requests | beam.ParDo(_CallDoFn(self._caller, self._timeout))
+    return requests | beam.ParDo(
+        _CallDoFn(self._caller, self._timeout, self._repeater, self._throttler))
 
 
 class _CallDoFn(beam.DoFn):
   def setup(self):
     self._caller.__enter__()
+    self._metrics_collector = _MetricsCollector(self._caller.__str__())
+    self._metrics_collector.setup_counter.inc(1)
 
-  def __init__(self, caller: Caller[RequestT, ResponseT], timeout: float):
+  def __init__(
+      self,
+      caller: Caller[RequestT, ResponseT],
+      timeout: float,
+      repeater: Repeater,
+      throttler: PreCallThrottler):
+    self._metrics_collector = None
     self._caller = caller
     self._timeout = timeout
+    self._repeater = repeater
+    self._throttler = throttler
 
   def process(self, request: RequestT, *args, **kwargs):
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-      future = executor.submit(self._caller, request)
-      try:
-        yield future.result(timeout=self._timeout)
-      except concurrent.futures.TimeoutError:
-        raise UserCodeTimeoutException(
-            f'Timeout {self._timeout} exceeded '
-            f'while completing request: {request}')
-      except RuntimeError:
-        raise UserCodeExecutionException('could not complete request')
+    self._metrics_collector.requests.inc(1)
+
+    is_throttled_request = False
+    if self._throttler:
+      while self._throttler.throttler.throttle_request(time.time() *
+                                                       MSEC_TO_SEC):
+        _LOGGER.info(
+            "Delaying request for %d seconds" % self._throttler.delay_secs)
+        time.sleep(self._throttler.delay_secs)
+        self._metrics_collector.throttled_secs.inc(5)
+        is_throttled_request = True
+
+    if is_throttled_request:
+      self._metrics_collector.throttled_requests.inc(1)
+
+    try:
+      req_time = time.time()
+      response = self._repeater.repeat(
+          self._caller, request, self._timeout, self._metrics_collector)
+      self._metrics_collector.responses.inc(1)
+      self._throttler.throttler.successful_request(req_time * MSEC_TO_SEC)
+      yield response
+    except Exception as e:
+      raise e
 
   def teardown(self):
+    self._metrics_collector.teardown_counter.inc(1)
     self._caller.__exit__(*sys.exc_info())

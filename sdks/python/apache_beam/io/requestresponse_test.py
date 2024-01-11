@@ -17,7 +17,10 @@
 import time
 import unittest
 
+from google.api_core.exceptions import TooManyRequests
+
 import apache_beam as beam
+from apache_beam.io.requestresponse import retry_on_exception
 from apache_beam.io.requestresponse import Caller
 from apache_beam.io.requestresponse import RequestResponseIO
 from apache_beam.io.requestresponse import UserCodeExecutionException
@@ -54,6 +57,20 @@ class CallerWithRuntimeError(AckCaller):
       raise RuntimeError("Exception expected, not an error.")
 
 
+class CallerThatRetries(AckCaller):
+  def __init__(self):
+    self.count = -1
+
+  def __call__(self, request: str, *args, **kwargs):
+    try:
+      pass
+    except Exception as e:
+      raise e
+    finally:
+      self.count += 1
+      raise TooManyRequests('retries = %d' % self.count)
+
+
 class TestCaller(unittest.TestCase):
   def test_valid_call(self):
     caller = AckCaller()
@@ -82,6 +99,30 @@ class TestCaller(unittest.TestCase):
             test_pipeline
             | beam.Create([""])
             | RequestResponseIO(caller=caller))
+
+  def test_retry_on_exception(self):
+    self.assertFalse(retry_on_exception(RuntimeError()))
+    self.assertTrue(retry_on_exception(TooManyRequests("HTTP 429")))
+
+  def test_caller_backoff_retry_strategy(self):
+    caller = CallerThatRetries()
+    with self.assertRaises(TooManyRequests) as cm:
+      with TestPipeline() as test_pipeline:
+        _ = (
+            test_pipeline
+            | beam.Create(["sample_request"])
+            | RequestResponseIO(caller=caller))
+    self.assertRegex(cm.exception.message, 'retries = 2')
+
+  def test_caller_no_retry_strategy(self):
+    caller = CallerThatRetries()
+    with self.assertRaises(TooManyRequests) as cm:
+      with TestPipeline() as test_pipeline:
+        _ = (
+            test_pipeline
+            | beam.Create(["sample_request"])
+            | RequestResponseIO(caller=caller, repeater=None))
+    self.assertRegex(cm.exception.message, 'retries = 0')
 
 
 if __name__ == '__main__':
