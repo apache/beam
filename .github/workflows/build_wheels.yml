@@ -126,13 +126,13 @@ jobs:
         run: mv $(ls | grep apache-beam) apache-beam-source
       - name: Upload source as artifact
         # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: source
           path: sdks/python/apache-beam-source
       - name: Upload compressed sources as artifacts
         # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: source_zip
           path: sdks/python/dist
@@ -170,14 +170,14 @@ jobs:
       - name: Upload RC source as artifact
         if: steps.is_rc.outputs.is_rc == 1
         # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: source_rc${{ steps.get_rc_version.outputs.RC_NUM }}
           path: sdks/python/apache-beam-source-rc
       - name: Upload compressed RC sources as artifacts
         if: steps.is_rc.outputs.is_rc == 1
         # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: source_zip_rc${{ steps.get_rc_version.outputs.RC_NUM }}
           path: sdks/python/dist
@@ -286,7 +286,7 @@ jobs:
       shell: bash
     - name: Upload wheels as artifacts
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: wheelhouse-${{ matrix.os_python.os }}${{ (matrix.arch == 'aarch64' && '-aarch64') || '' }}
         path: apache-beam-source/wheelhouse/
@@ -312,7 +312,7 @@ jobs:
     - name: Upload RC wheels as artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: wheelhouse-rc${{ needs.build_source.outputs.rc_num }}-${{ matrix.os_python.os }}${{ (matrix.arch == 'aarch64' && '-aarch64') || '' }}
         path: apache-beam-source-rc/wheelhouse/
