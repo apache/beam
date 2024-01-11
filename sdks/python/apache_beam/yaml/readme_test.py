@@ -154,6 +154,9 @@ class TestEnvironment:
   def input_csv(self):
     return self.input_file('input.csv', 'col1,col2,col3\nabc,1,2.5\n')
 
+  def input_tsv(self):
+    return self.input_file('input.tsv', 'col1\tcol2\tcol3\nabc\t1\t2.5\n')
+
   def input_json(self):
     return self.input_file(
         'input.json', '{"col1": "abc", "col2": 1, "col3": 2.5"}\n')
@@ -192,6 +195,8 @@ def create_test_method(test_type, test_name, test_yaml):
 
   def test(self):
     with TestEnvironment() as env:
+      nonlocal test_yaml
+      test_yaml = test_yaml.replace('/path/to/*.tsv', env.input_tsv())
       spec = yaml.load(test_yaml, Loader=SafeLoader)
       if test_type == 'PARSE':
         return
