@@ -39,6 +39,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
 import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
+import org.apache.beam.runners.dataflow.worker.WorkItemFailedException;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
@@ -123,7 +124,7 @@ public class WindmillStateReader {
   private final MetricTrackingWindmillServerStub metricTrackingWindmillServerStub;
   private final ConcurrentHashMap<StateTag<?>, CoderAndFuture<?>> waiting;
   private long bytesRead = 0L;
-  private Supplier<Boolean> workItemIsFailed;
+  private final Supplier<Boolean> workItemIsFailed;
 
   public WindmillStateReader(
       MetricTrackingWindmillServerStub metricTrackingWindmillServerStub,
@@ -415,7 +416,7 @@ public class WindmillStateReader {
   private KeyedGetDataResponse tryGetDataFromWindmill(HashSet<StateTag<?>> stateTags)
       throws Exception {
     if (workItemIsFailed.get()) {
-      throw new RuntimeException("Windmill failed work item.");
+      throw new WorkItemFailedException("Windmill failed work item.");
     }
     KeyedGetDataRequest keyedGetDataRequest = createRequest(stateTags);
     try (AutoCloseable ignored = readWrapperSupplier.get()) {

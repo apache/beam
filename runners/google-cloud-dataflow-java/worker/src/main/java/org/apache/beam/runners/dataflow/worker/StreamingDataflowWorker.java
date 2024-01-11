@@ -1921,7 +1921,8 @@ public class StreamingDataflowWorker {
 
     for (Map.Entry<String, ComputationState> entry : computationMap.entrySet()) {
       if (windmillServiceEnabled
-          && DataflowRunner.hasExperiment(options, "send_new_heartbeat_requests")) {
+          && DataflowRunner.hasExperiment(
+              options, "streaming_engine_send_new_heartbeat_requests")) {
         heartbeats.put(entry.getKey(), entry.getValue().getKeyHeartbeats(refreshDeadline, sampler));
       } else {
         active.put(entry.getKey(), entry.getValue().getKeysToRefresh(refreshDeadline, sampler));
