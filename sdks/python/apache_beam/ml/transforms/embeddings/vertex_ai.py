@@ -97,6 +97,9 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
     return model
 
   def __repr__(self):
+    # ModelHandler is internal to the user and is not exposed.
+    # Hence we need to override the __repr__ method to expose
+    # the name of the class.
     return 'VertexAITextEmbeddings'
 
 
