@@ -424,6 +424,7 @@ if __name__ == '__main__':
           'yaml': [
               'docstring-parser>=0.15,<1.0',
               'pyyaml>=3.12,<7.0.0',
+              'virtualenv-clone>=0.5,<1.0',
           ] + dataframe_dependency
       },
       zip_safe=False,
