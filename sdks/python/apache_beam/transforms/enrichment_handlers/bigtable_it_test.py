@@ -21,6 +21,7 @@ from typing import Dict
 from typing import List
 from typing import NamedTuple
 
+import pytest
 from google.cloud import bigtable
 from google.cloud.bigtable.row_filters import ColumnRangeFilter
 
@@ -119,6 +120,7 @@ def create_rows(table):
     row.commit()
 
 
+@pytest.mark.it_postcommit
 class TestBigTableEnrichment(unittest.TestCase):
   def setUp(self):
     self.project_id = 'apache-beam-testing'
