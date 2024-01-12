@@ -25,6 +25,11 @@
   transforms:
      Sql: 'beam:external:java:sql:v1'
 
+- type: 'python'
+  config: {}
+  transforms:
+    MLTransform: 'apache_beam.yaml.yaml_ml.ml_transform'
+
 - type: renaming
   transforms:
     'MapToFields-java': 'MapToFields-java'
