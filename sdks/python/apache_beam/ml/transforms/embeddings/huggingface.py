@@ -85,6 +85,9 @@ class _SentenceTransformerModelHandler(ModelHandler):
       batch_sizes["max_batch_size"] = self._max_batch_size
     return batch_sizes
 
+  def __repr__(self) -> str:
+    return 'SentenceTransformerEmbeddings'
+
 
 class SentenceTransformerEmbeddings(EmbeddingsManager):
   def __init__(
@@ -124,8 +127,6 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     # wrap the model handler in a _TextEmbeddingHandler since
     # the SentenceTransformerEmbeddings works on text input data.
-    return (
-        RunInference(
-            model_handler=_TextEmbeddingHandler(self),
-            inference_args=self.inference_args,
-        ))
+    return RunInference(
+        model_handler=_TextEmbeddingHandler(self),
+        inference_args=self.inference_args)

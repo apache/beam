@@ -90,6 +90,17 @@ def _convert_dict_of_lists_to_lists_of_dict(
   return result
 
 
+def _map_errors_to_beam_row(element, cls_name=None):
+  row_elements = {
+      'element': element[0],
+      'msg': str(element[1][1]),
+      'stack': str(element[1][2]),
+  }
+  if cls_name is not None:
+    row_elements['transform_name'] = cls_name
+  return beam.Row(**row_elements)
+
+
 class ArtifactMode(object):
   PRODUCE = 'produce'
   CONSUME = 'consume'
@@ -326,6 +337,7 @@ class MLTransform(
         if hasattr(ptransform_list[i], 'artifact_mode'):
           ptransform_list[i].artifact_mode = self._artifact_mode
 
+    transform_name = None
     for ptransform in ptransform_list:
       if self._with_exception_handling:
         if hasattr(ptransform, 'with_exception_handling'):
@@ -336,24 +348,23 @@ class MLTransform(
           # since TFTProcessHandler and RunInferene are supported, try to infer
           # the type of bad_results and append it to the list of errors.
           if isinstance(bad_results, RunInferenceDLQ):
-            upstream_errors.append(bad_results.failed_inferences)
-          elif isinstance(bad_results, beam.PCollection):
-            upstream_errors.append(bad_results)
-          else:
+            bad_results = bad_results.failed_inferences
+            transform_name = ptransform.annotations()['model_handler']
+          elif not isinstance(bad_results, beam.PCollection):
             raise NotImplementedError(
                 f'Unexpected type for bad_results: {type(bad_results)}')
+          bad_results = bad_results | beam.Map(
+              lambda x: _map_errors_to_beam_row(x, transform_name))
+          upstream_errors.append(bad_results)
+
       else:
         pcoll = pcoll | ptransform
     _ = (
         pcoll.pipeline
         | "MLTransformMetricsUsage" >> MLTransformMetricsUsage(self))
+
     if self._with_exception_handling:
-      bad_pcoll = (
-          upstream_errors
-          | beam.Flatten()
-          | beam.Map(
-              lambda x: beam.Row(
-                  element=x[0], msg=str(x[1][1]), stack=str(x[1][2]))))
+      bad_pcoll = (upstream_errors | beam.Flatten())
       return pcoll, bad_pcoll  # type: ignore[return-value]
     return pcoll  # type: ignore[return-value]
 
@@ -662,6 +673,9 @@ class _TextEmbeddingHandler(ModelHandler):
     if self.embedding_config.min_batch_size:
       batch_sizes_map['min_batch_size'] = self.embedding_config.min_batch_size
     return (self._underlying.batch_elements_kwargs() or batch_sizes_map)
+
+  def __repr__(self):
+    return self._underlying.__repr__()
 
   def validate_inference_args(self, _):
     pass
