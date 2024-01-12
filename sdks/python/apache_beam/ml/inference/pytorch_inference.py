@@ -246,6 +246,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     if device == 'GPU':
       logging.info("Device is set to CUDA")
       self._device = torch.device('cuda')
+    elif device == 'mps':
+      logging.info("Device is set to mps")
+      self._device = torch.device('mps')
     else:
       logging.info("Device is set to CPU")
       self._device = torch.device('cpu')
