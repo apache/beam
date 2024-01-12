@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 import logging
-from typing import Optional
+from typing import Optional, Tuple
 
 from google.api_core.exceptions import NotFound
 from google.cloud import bigtable
@@ -58,16 +58,25 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
     self._row_filter = row_filter
 
   def __enter__(self):
-    client = bigtable.Client(project=self._project_id)
-    instance = client.instance(self._instance_id)
-    self._table = instance.table(self._table_id)
+    """connect to the Google BigTable cluster."""
+    self.client = bigtable.Client(project=self._project_id)
+    self.instance = self.client.instance(self._instance_id)
+    self._table = self.instance.table(self._table_id)
 
-  def __call__(self, request: beam.Row, *args, **kwargs):
+  def __call__(self, request: beam.Row, *args,
+               **kwargs) -> Tuple[beam.Row, beam.Row]:
+    """
+    Reads a row from the Google BigTable and returns
+    a `Tuple` of request and response.
+
+    Args:
+    request: the input `beam.Row` to enrich.
+    """
+    response_dict = {}
     try:
       request_dict = request._asdict()
-      row_key = request_dict[self._row_key].encode()
+      row_key = str(request_dict[self._row_key]).encode()
       row = self._table.read_row(row_key, filter_=self._row_filter)
-      response_dict = {}
       for cf_id, cf_v in row.cells.items():
         response_dict[cf_id] = {}
         for k, v in cf_v.items():
@@ -80,4 +89,7 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
     return request, beam.Row(**response_dict)
 
   def __exit__(self, exc_type, exc_val, exc_tb):
+    """Clean the instantiated BigTable client."""
+    self.client = None
+    self.instance = None
     self._table = None

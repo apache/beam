@@ -16,6 +16,7 @@
 #
 import time
 import unittest
+from typing import List
 from typing import Tuple
 from typing import Union
 
@@ -81,15 +82,16 @@ class SampleHTTPEnrichment(EnrichmentSourceHandler[beam.Row, beam.Row]):
 class ValidateFields(beam.DoFn):
   """ValidateFields validates if a PCollection of `beam.Row`
   has certain fields."""
-  def __init__(self, fields):
+  def __init__(self, n_fields: int, fields: List[str]):
+    self.n_fields = n_fields
     self._fields = fields
 
   def process(self, element: beam.Row, *args, **kwargs):
     element_dict = element.as_dict()
-    if len(element_dict.keys()) != 3:
+    if len(element_dict.keys()) != self.n_fields:
       raise BeamAssertException(
-          "Expected three fields in enriched PCollection:"
-          " id, payload and resp_payload")
+          "Expected %d fields in enriched PCollection:"
+          " id, payload and resp_payload" % self.n_fields)
 
     for field in self._fields:
       if field not in element_dict or element_dict[field] is None:
@@ -125,7 +127,8 @@ class TestEnrichment(unittest.TestCase):
           test_pipeline
           | 'Create PCollection' >> beam.Create([req])
           | 'Enrichment Transform' >> Enrichment(client)
-          | 'Assert Fields' >> beam.ParDo(ValidateFields(fields=fields)))
+          | 'Assert Fields' >> beam.ParDo(
+              ValidateFields(len(fields), fields=fields)))
 
   def test_http_enrichment_custom_join(self):
     """Tests Enrichment Transform against the Mock-API HTTP endpoint
@@ -138,7 +141,8 @@ class TestEnrichment(unittest.TestCase):
           test_pipeline
           | 'Create PCollection' >> beam.Create([req])
           | 'Enrichment Transform' >> Enrichment(client, join_fn=_custom_join)
-          | 'Assert Fields' >> beam.ParDo(ValidateFields(fields=fields)))
+          | 'Assert Fields' >> beam.ParDo(
+              ValidateFields(len(fields), fields=fields)))
 
 
 if __name__ == '__main__':
