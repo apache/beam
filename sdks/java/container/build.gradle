@@ -40,6 +40,9 @@ dependencies {
   dockerDependency library.java.jcl_over_slf4j
   dockerDependency library.java.log4j_over_slf4j
   dockerDependency library.java.log4j2_to_slf4j
+  dockerDependency library.java.extism
+  dockerDependency library.java.jna
+  dockerDependency library.java.google_code_gson
   dockerDependency project(path: ":sdks:java:harness", configuration: "shadow")
   dockerDependency library.java.jamm
 }

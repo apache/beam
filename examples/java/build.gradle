@@ -65,6 +65,8 @@ dependencies {
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:extensions:python")
   implementation project(":sdks:java:io:google-cloud-platform")
+  implementation project(":runners:core-construction-java")
+  permitUnusedDeclared project(":runners:core-construction-java") // BEAM-11761
   implementation project(":sdks:java:io:kafka")
   implementation project(":sdks:java:extensions:ml")
   implementation library.java.avro

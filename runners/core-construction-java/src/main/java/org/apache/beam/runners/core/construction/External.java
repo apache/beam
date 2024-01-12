@@ -300,6 +300,34 @@ public class External {
               .putAllEnvironments(resolveArtifacts(newEnvironmentsWithDependencies, endpoint))
               .build();
       expandedTransform = response.getTransform();
+
+      // Updated to the input/output PCollections of the expanded transform.
+      // TODO: Remove this after the Go expansion service can dynamically
+      //   generate a proper expansion request.
+      Map<String, String> expandedTransformInputUpdates =
+          ImmutableMap.of(
+              "n1",
+              "Create.Values/Read(CreateSource)/ParDo(BoundedSourceAsSDFWrapper)/ParMultiDo(BoundedSourceAsSDFWrapper).output");
+      // Map<String, String> expandedTransformOutputUpdates = ImmutableMap.of("n1", "dd");
+
+      RunnerApi.PTransform.Builder updatedExpandedTransformBuilder = expandedTransform.toBuilder();
+
+      Map<String, String> oldInputsMap = expandedTransform.getInputsMap();
+      Map<String, String> updatedInputsMap = new HashMap<>();
+      for (Map.Entry<String, String> entry : oldInputsMap.entrySet()) {
+        String key = entry.getKey();
+        String oldValue = oldInputsMap.get(key);
+        String value =
+            expandedTransformInputUpdates.keySet().contains(oldValue)
+                ? expandedTransformInputUpdates.get(oldValue)
+                : oldValue;
+        updatedInputsMap.put(key, value);
+      }
+
+      updatedExpandedTransformBuilder.putAllInputs(updatedInputsMap);
+
+      expandedTransform = updatedExpandedTransformBuilder.build();
+
       expandedRequirements = response.getRequirementsList();
 
       RehydratedComponents rehydratedComponents =

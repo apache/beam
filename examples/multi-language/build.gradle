@@ -55,3 +55,8 @@ task sklearnMinstClassification(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
 }
 
+task wasmTest(type: JavaExec) {
+    description "A Beam pipeline that runs WASM compiled Go code"
+    mainClass = "org.apache.beam.examples.multilanguage.WasmTest"
+    classpath = sourceSets.main.runtimeClasspath
+}
