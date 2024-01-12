@@ -16,19 +16,11 @@
 # limitations under the License.
 ###############################################################################
 
-FROM debian:bookworm
+FROM gcr.io/distroless/base-nossl-debian12:latest
 LABEL Author "Apache Beam <dev@beam.apache.org>"
 
 ARG TARGETOS
 ARG TARGETARCH
-
-ARG pull_licenses
-
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        ca-certificates \
-        && \
-    rm -rf /var/lib/apt/lists/*
 
 ADD target/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam/
 
@@ -37,9 +29,4 @@ COPY target/NOTICE /opt/apache/beam/
 
 # Add Go licenses.
 COPY target/go-licenses/* /opt/apache/beam/third_party_licenses/golang/
-RUN if [ "$pull_licenses" = "false" ] ; then \
-    # Remove above golang license and dir if pull licenses false
-    rm -rf /opt/apache/beam/third_party_licenses ; \
-   fi
-
 ENTRYPOINT ["/opt/apache/beam/boot"]
