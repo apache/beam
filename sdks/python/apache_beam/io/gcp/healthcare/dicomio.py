@@ -86,7 +86,7 @@ Store a DICOM file in a DICOM storage
 ===================================================
 UploadToDicomStore() wraps store request API and users can use it to send a
 DICOM file to a DICOM store. It supports two types of input: 1. fileio object
-2.file data in byte[]. Users should set the 'input_type' when initialzing
+2. file data in byte[]. Users should set the 'input_type' when initialzing
 this PTransform. Here are the examples:
 
   input_dict = {'project_id': 'abc123', 'type': 'instances',...}
@@ -99,7 +99,7 @@ this PTransform. Here are the examples:
           | beam.Create([FileSystems.join(temp_dir, '*')])
           | fileio.MatchAll()
           | fileio.ReadMatches()
-          | UploadToDicomStore(input_dict, 'fileio')
+          | UploadToDicomStore(input_dict, 'fileio'))
 
   input_dict = {'project_id': 'abc123', 'type': 'instances',...}
   str_input = json.dumps(dict_input)
