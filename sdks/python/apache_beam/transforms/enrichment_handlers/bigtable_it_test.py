@@ -55,7 +55,8 @@ class ValidateResponse(beam.DoFn):
         raise BeamAssertException(f"Expected a not None field: {field}")
 
     for column_family, columns in self._enriched_fields.items():
-      if not all(key in element_dict[column_family] for key in columns):
+      if (len(element_dict[column_family]) != len(columns) or
+          not all(key in element_dict[column_family] for key in columns)):
         raise BeamAssertException(
             "Response from bigtable should contain a %s column_family with "
             "%s keys." % (column_family, columns))
@@ -171,6 +172,55 @@ class TestBigTableEnrichment(unittest.TestCase):
     }
     start_column = 'product_name'.encode()
     column_filter = ColumnRangeFilter(self.column_family_id, start_column)
+    bigtable = EnrichWithBigTable(
+        self.project_id,
+        self.instance_id,
+        self.table_id,
+        self.row_key,
+        row_filter=column_filter)
+    with TestPipeline(is_integration_test=True) as test_pipeline:
+      _ = (
+          test_pipeline
+          | "Create" >> beam.Create(self.req)
+          | "Enrich W/ BigTable" >> Enrichment(bigtable)
+          | "Validate Response" >> beam.ParDo(
+              ValidateResponse(
+                  len(expected_fields),
+                  expected_fields,
+                  expected_enriched_fields)))
+
+  def test_enrichment_with_bigtable_no_enrichment(self):
+    expected_fields = ['sale_id', 'customer_id', 'product_id', 'quantity']
+    expected_enriched_fields = {}
+    bigtable = EnrichWithBigTable(
+        self.project_id, self.instance_id, self.table_id, self.row_key)
+    # row_key which is product_id=11 doesn't exist, so the enriched field
+    # won't be added. Hence, the response is same as the request.
+    req = [beam.Row(sale_id=1, customer_id=1, product_id=11, quantity=1)]
+    with TestPipeline(is_integration_test=True) as test_pipeline:
+      _ = (
+          test_pipeline
+          | "Create" >> beam.Create(req)
+          | "Enrich W/ BigTable" >> Enrichment(bigtable)
+          | "Validate Response" >> beam.ParDo(
+              ValidateResponse(
+                  len(expected_fields),
+                  expected_fields,
+                  expected_enriched_fields)))
+
+  def test_enrichment_with_bigtable_bad_row_filter(self):
+    # in case of a bad column filter, that is, incorrect column_family_id and
+    # columns, no enrichment is done. If the column_family is correct but not
+    # column names then all columns in that column_family are returned.
+    expected_fields = [
+        'sale_id',
+        'customer_id',
+        'product_id',
+        'quantity',
+    ]
+    expected_enriched_fields = {}
+    start_column = 'car_name'.encode()
+    column_filter = ColumnRangeFilter('car_name', start_column)
     bigtable = EnrichWithBigTable(
         self.project_id,
         self.instance_id,

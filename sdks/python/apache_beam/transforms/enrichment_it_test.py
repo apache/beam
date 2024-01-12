@@ -17,6 +17,7 @@
 import time
 import unittest
 from typing import List
+from typing import NamedTuple
 from typing import Tuple
 from typing import Union
 
@@ -34,20 +35,25 @@ from apache_beam.transforms.enrichment import Enrichment
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 
+class Request(NamedTuple):
+  id: str
+  payload: bytes
+
+
 def _custom_join(left, right):
   """custom_join returns the id and resp_payload along with a timestamp"""
   right['timestamp'] = time.time()
   return beam.Row(**right)
 
 
-class SampleHTTPEnrichment(EnrichmentSourceHandler[beam.Row, beam.Row]):
+class SampleHTTPEnrichment(EnrichmentSourceHandler[Request, beam.Row]):
   """Implements ``EnrichmentSourceHandler`` to call the ``EchoServiceGrpc``'s
   HTTP handler.
   """
   def __init__(self, url: str):
     self.url = url + '/v1/echo'  # append path to the mock API.
 
-  def __call__(self, request: beam.Row, *args, **kwargs):
+  def __call__(self, request: Request, *args, **kwargs):
     """Overrides ``Caller``'s call method invoking the
     ``EchoServiceGrpc``'s HTTP handler with an `dict`, returning
     either a successful ``Tuple[dict,dict]`` or throwing either a
@@ -120,7 +126,7 @@ class TestEnrichment(unittest.TestCase):
     """Tests Enrichment Transform against the Mock-API HTTP endpoint
     with the default cross join."""
     client, options = TestEnrichment._get_client_and_options()
-    req = beam.Row(id=options.never_exceed_quota_id, payload=_PAYLOAD)
+    req = Request(id=options.never_exceed_quota_id, payload=_PAYLOAD)
     fields = ['id', 'payload', 'resp_payload']
     with TestPipeline(is_integration_test=True) as test_pipeline:
       _ = (
@@ -134,7 +140,7 @@ class TestEnrichment(unittest.TestCase):
     """Tests Enrichment Transform against the Mock-API HTTP endpoint
     with a custom join function."""
     client, options = TestEnrichment._get_client_and_options()
-    req = beam.Row(id=options.never_exceed_quota_id, payload=_PAYLOAD)
+    req = Request(id=options.never_exceed_quota_id, payload=_PAYLOAD)
     fields = ['id', 'resp_payload', 'timestamp']
     with TestPipeline(is_integration_test=True) as test_pipeline:
       _ = (

@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 import logging
-from typing import Optional, Tuple
+from typing import Optional
 
 from google.api_core.exceptions import NotFound
 from google.cloud.bigtable import Client
@@ -63,8 +63,7 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
     self.instance = self.client.instance(self._instance_id)
     self._table = self.instance.table(self._table_id)
 
-  def __call__(self, request: beam.Row, *args,
-               **kwargs) -> Tuple[beam.Row, beam.Row]:
+  def __call__(self, request: beam.Row, *args, **kwargs):
     """
     Reads a row from the Google BigTable and returns
     a `Tuple` of request and response.
@@ -77,10 +76,11 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
       request_dict = request._asdict()
       row_key = str(request_dict[self._row_key]).encode()
       row = self._table.read_row(row_key, filter_=self._row_filter)
-      for cf_id, cf_v in row.cells.items():
-        response_dict[cf_id] = {}
-        for k, v in cf_v.items():
-          response_dict[cf_id][k.decode('utf-8')] = v[0].value.decode('utf-8')
+      if row:
+        for cf_id, cf_v in row.cells.items():
+          response_dict[cf_id] = {}
+          for k, v in cf_v.items():
+            response_dict[cf_id][k.decode('utf-8')] = v[0].value.decode('utf-8')
     except NotFound:
       _LOGGER.warning('request row_key: %s not found')
     except Exception as e:
