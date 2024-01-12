@@ -18,7 +18,7 @@ import logging
 from typing import Optional, Tuple
 
 from google.api_core.exceptions import NotFound
-from google.cloud import bigtable
+from google.cloud.bigtable import Client
 from google.cloud.bigtable.row_filters import RowFilter
 
 import apache_beam as beam
@@ -59,7 +59,7 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
 
   def __enter__(self):
     """connect to the Google BigTable cluster."""
-    self.client = bigtable.Client(project=self._project_id)
+    self.client = Client(project=self._project_id)
     self.instance = self.client.instance(self._instance_id)
     self._table = self.instance.table(self._table_id)
 

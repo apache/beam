@@ -22,7 +22,7 @@ from typing import List
 from typing import NamedTuple
 
 import pytest
-from google.cloud import bigtable
+from google.cloud.bigtable import Client
 from google.cloud.bigtable.row_filters import ColumnRangeFilter
 
 import apache_beam as beam
@@ -134,7 +134,7 @@ class TestBigTableEnrichment(unittest.TestCase):
     ]
     self.row_key = 'product_id'
     self.column_family_id = 'product'
-    client = bigtable.Client(project=self.project_id)
+    client = Client(project=self.project_id)
     instance = client.instance(self.instance_id)
     self.table = instance.table(self.table_id)
     create_rows(self.table)
