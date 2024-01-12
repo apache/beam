@@ -125,18 +125,17 @@ class Repeater(abc.ABC):
       request: RequestT,
       timeout: float,
       metrics_collector: Optional[_MetricsCollector]) -> ResponseT:
-    """
-    repeat method is called from the RequestResponseIO when a repeater is
-    enabled.
+    """repeat method is called from the RequestResponseIO when
+    a repeater is enabled.
 
     Args:
-    caller: :class:`apache_beam.io.requestresponse.Caller` object that calls
-      the API.
-    request: input request to repeat.
-    timeout: time to wait for the request to complete.
-    metrics_collector: (Optional) a
-      :class:`apache_beam.io.requestresponse._MetricsCollector` object to
-      collect the metrics for RequestResponseIO.
+      caller: :class:`apache_beam.io.requestresponse.Caller` object that calls
+        the API.
+      request: input request to repeat.
+      timeout: time to wait for the request to complete.
+      metrics_collector: (Optional) a
+        ``:class:`apache_beam.io.requestresponse._MetricsCollector``` object to
+        collect the metrics for RequestResponseIO.
     """
     pass
 
@@ -186,17 +185,16 @@ class ExponentialBackOffRepeater(Repeater):
       request: RequestT,
       timeout: float,
       metrics_collector: Optional[_MetricsCollector] = None) -> ResponseT:
-    """
-      repeat method is called from the RequestResponseIO when a repeater is
-      enabled.
+    """repeat method is called from the RequestResponseIO when
+    a repeater is enabled.
 
-      Args:
-      caller: :class:`apache_beam.io.requestresponse.Caller` object that calls
-        the API.
+    Args:
+      caller: :class:`apache_beam.io.requestresponse.Caller` object that
+        calls the API.
       request: input request to repeat.
       timeout: time to wait for the request to complete.
       metrics_collector: (Optional) a
-        :class:`apache_beam.io.requestresponse._MetricsCollector` object to
+        ``:class:`apache_beam.io.requestresponse._MetricsCollector``` object to
         collect the metrics for RequestResponseIO.
     """
     return _execute_request(caller, request, timeout, metrics_collector)

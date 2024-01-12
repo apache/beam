@@ -41,8 +41,8 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
     instance_id (str): GCP instance-id of the BigTable cluster.
     table_id (str): GCP table-id of the BigTable.
     row_key (str): unique row key for BigTable
-    row_filter: :class:`google.cloud.bigtable.row_filters.RowFilter` to filter
-      data read with ``read_row()``.
+    row_filter: a ``:class:`google.cloud.bigtable.row_filters.RowFilter``` to
+      filter data read with ``read_row()``.
   """
   def __init__(
       self,

@@ -16,10 +16,12 @@
 #
 
 import unittest
+from datetime import datetime
 from typing import Dict
 from typing import List
 from typing import NamedTuple
 
+from google.cloud import bigtable
 from google.cloud.bigtable.row_filters import ColumnRangeFilter
 
 import apache_beam as beam
@@ -63,11 +65,65 @@ class _Currency(NamedTuple):
   id: str
 
 
+def create_rows(table):
+  product_id = 'product_id'
+  product_name = 'product_name'
+  product_stock = 'product_stock'
+
+  column_family_id = "product"
+  products = [
+      {
+          'product_id': 1, 'product_name': 'pixel 5', 'product_stock': 2
+      },
+      {
+          'product_id': 2, 'product_name': 'pixel 6', 'product_stock': 4
+      },
+      {
+          'product_id': 3, 'product_name': 'pixel 7', 'product_stock': 20
+      },
+      {
+          'product_id': 4, 'product_name': 'pixel 8', 'product_stock': 10
+      },
+      {
+          'product_id': 5, 'product_name': 'iphone 11', 'product_stock': 3
+      },
+      {
+          'product_id': 6, 'product_name': 'iphone 12', 'product_stock': 7
+      },
+      {
+          'product_id': 7, 'product_name': 'iphone 13', 'product_stock': 8
+      },
+      {
+          'product_id': 8, 'product_name': 'iphone 14', 'product_stock': 3
+      },
+  ]
+
+  for item in products:
+    row_key = str(item[product_id]).encode()
+    row = table.direct_row(row_key)
+    row.set_cell(
+        column_family_id,
+        product_id.encode(),
+        str(item[product_id]),
+        timestamp=datetime.datetime.utcnow())
+    row.set_cell(
+        column_family_id,
+        product_name.encode(),
+        item[product_name],
+        timestamp=datetime.datetime.utcnow())
+    row.set_cell(
+        column_family_id,
+        product_stock.encode(),
+        str(item[product_stock]),
+        timestamp=datetime.datetime.utcnow())
+    row.commit()
+
+
 class TestBigTableEnrichment(unittest.TestCase):
   def setUp(self):
-    self.project_id = 'google.com:clouddfe'
+    self.project_id = 'apache-beam-testing'
     self.instance_id = 'beam-test'
-    self.table_id = 'riteshghorse-bigtable-test'
+    self.table_id = 'bigtable-enrichment-test'
     self.req = [
         beam.Row(sale_id=1, customer_id=1, product_id=1, quantity=1),
         beam.Row(sale_id=3, customer_id=3, product_id=2, quantity=3),
@@ -76,6 +132,13 @@ class TestBigTableEnrichment(unittest.TestCase):
     ]
     self.row_key = 'product_id'
     self.column_family_id = 'product'
+    client = bigtable.Client(project=self.project_id)
+    instance = client.instance(self.instance_id)
+    self.table = instance.table(self.table_id)
+    create_rows(self.table)
+
+  def tearDown(self) -> None:
+    self.table = None
 
   def test_enrichment_with_bigtable(self):
     expected_fields = [
