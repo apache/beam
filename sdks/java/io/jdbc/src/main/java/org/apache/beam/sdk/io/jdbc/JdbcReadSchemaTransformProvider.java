@@ -22,6 +22,7 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -29,6 +30,7 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -45,6 +47,9 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 public class JdbcReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration> {
+
+  private static final List<String> JDBCTypes =
+      ImmutableList.of("mysql", "postgres", "oracle", "mssql");
 
   @Override
   protected @UnknownKeyFor @NonNull @Initialized Class<JdbcReadSchemaTransformConfiguration>
@@ -68,8 +73,29 @@ public class JdbcReadSchemaTransformProvider
     }
 
     protected JdbcIO.DataSourceConfiguration dataSourceConfiguration() {
+      String driverClassName = config.getDriverClassName();
+
+      if (Strings.isNullOrEmpty(driverClassName)) {
+        switch (Objects.requireNonNull(config.getJdbcType()).toLowerCase()) {
+          case "mysql":
+            driverClassName = "com.mysql.cj.jdbc.Driver";
+            break;
+          case "postgres":
+            driverClassName = "org.postgresql.Driver";
+            break;
+          case "oracle":
+            driverClassName = "oracle.jdbc.driver.OracleDriver";
+            break;
+          case "mssql":
+            driverClassName = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
+            break;
+          default:
+            throw new IllegalArgumentException("JDBC type must be one of " + JDBCTypes);
+        }
+      }
+
       JdbcIO.DataSourceConfiguration dsConfig =
-          JdbcIO.DataSourceConfiguration.create(config.getDriverClassName(), config.getJdbcUrl())
+          JdbcIO.DataSourceConfiguration.create(driverClassName, config.getJdbcUrl())
               .withUsername("".equals(config.getUsername()) ? null : config.getUsername())
               .withPassword("".equals(config.getPassword()) ? null : config.getPassword());
       String connectionProperties = config.getConnectionProperties();
@@ -131,7 +157,11 @@ public class JdbcReadSchemaTransformProvider
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class JdbcReadSchemaTransformConfiguration implements Serializable {
+    @Nullable
     public abstract String getDriverClassName();
+
+    @Nullable
+    public abstract String getJdbcType();
 
     public abstract String getJdbcUrl();
 
@@ -164,11 +194,16 @@ public class JdbcReadSchemaTransformProvider
     public abstract String getDriverJars();
 
     public void validate() throws IllegalArgumentException {
-      if (Strings.isNullOrEmpty(getDriverClassName())) {
-        throw new IllegalArgumentException("JDBC Driver class name cannot be blank.");
+      if (Strings.isNullOrEmpty(getDriverClassName()) && Strings.isNullOrEmpty(getJdbcType())) {
+        throw new IllegalArgumentException(
+            "Either JDBC Driver class name or JDBC type must be set.");
       }
       if (Strings.isNullOrEmpty(getJdbcUrl())) {
         throw new IllegalArgumentException("JDBC URL cannot be blank");
+      }
+      if (!Strings.isNullOrEmpty(getJdbcType())
+          && !JDBCTypes.contains(getJdbcType().toLowerCase())) {
+        throw new IllegalArgumentException("JDBC type must be one of " + JDBCTypes);
       }
 
       boolean readQueryPresent = (getReadQuery() != null && !"".equals(getReadQuery()));
@@ -191,6 +226,8 @@ public class JdbcReadSchemaTransformProvider
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setDriverClassName(String value);
+
+      public abstract Builder setJdbcType(String value);
 
       public abstract Builder setJdbcUrl(String value);
 

@@ -22,6 +22,7 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -50,6 +52,9 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 public class JdbcWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration> {
+
+  private static final List<String> JDBCTypes =
+      ImmutableList.of("mysql", "postgres", "oracle", "mssql");
 
   @Override
   protected @UnknownKeyFor @NonNull @Initialized Class<JdbcWriteSchemaTransformConfiguration>
@@ -73,8 +78,29 @@ public class JdbcWriteSchemaTransformProvider
     }
 
     protected JdbcIO.DataSourceConfiguration dataSourceConfiguration() {
+      String driverClassName = config.getDriverClassName();
+
+      if (Strings.isNullOrEmpty(driverClassName)) {
+        switch (Objects.requireNonNull(config.getJdbcType()).toLowerCase()) {
+          case "mysql":
+            driverClassName = "com.mysql.cj.jdbc.Driver";
+            break;
+          case "postgres":
+            driverClassName = "org.postgresql.Driver";
+            break;
+          case "oracle":
+            driverClassName = "oracle.jdbc.driver.OracleDriver";
+            break;
+          case "mssql":
+            driverClassName = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
+            break;
+          default:
+            throw new IllegalArgumentException("JDBC type must be one of " + JDBCTypes);
+        }
+      }
+
       JdbcIO.DataSourceConfiguration dsConfig =
-          JdbcIO.DataSourceConfiguration.create(config.getDriverClassName(), config.getJdbcUrl())
+          JdbcIO.DataSourceConfiguration.create(driverClassName, config.getJdbcUrl())
               .withUsername("".equals(config.getUsername()) ? null : config.getUsername())
               .withPassword("".equals(config.getPassword()) ? null : config.getPassword());
       String connectionProperties = config.getConnectionProperties();
@@ -162,7 +188,11 @@ public class JdbcWriteSchemaTransformProvider
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class JdbcWriteSchemaTransformConfiguration implements Serializable {
 
+    @Nullable
     public abstract String getDriverClassName();
+
+    @Nullable
+    public abstract String getJdbcType();
 
     public abstract String getJdbcUrl();
 
@@ -192,11 +222,15 @@ public class JdbcWriteSchemaTransformProvider
     public abstract String getDriverJars();
 
     public void validate() throws IllegalArgumentException {
-      if (Strings.isNullOrEmpty(getDriverClassName())) {
+      if (Strings.isNullOrEmpty(getDriverClassName()) && Strings.isNullOrEmpty(getJdbcType())) {
         throw new IllegalArgumentException("JDBC Driver class name cannot be blank.");
       }
       if (Strings.isNullOrEmpty(getJdbcUrl())) {
         throw new IllegalArgumentException("JDBC URL cannot be blank");
+      }
+      if (!Strings.isNullOrEmpty(getJdbcType())
+          && !JDBCTypes.contains(getJdbcType().toLowerCase())) {
+        throw new IllegalArgumentException("JDBC type must be one of " + JDBCTypes);
       }
 
       boolean writeStatementPresent =
@@ -220,6 +254,8 @@ public class JdbcWriteSchemaTransformProvider
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setDriverClassName(String value);
+
+      public abstract Builder setJdbcType(String value);
 
       public abstract Builder setJdbcUrl(String value);
 

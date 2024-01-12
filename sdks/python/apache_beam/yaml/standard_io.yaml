@@ -193,6 +193,7 @@
     mappings:
       'ReadFromJdbc':
         driver_class_name: 'driverClassName'
+        type: 'jdbcType'
         url: 'jdbcUrl'
         username: 'username'
         password: 'password'
@@ -203,6 +204,7 @@
         connection_init_sql: 'connectionInitSql'
       'WriteToJdbc':
         driver_class_name: 'driverClassName'
+        type: 'jdbcType'
         url: 'jdbcUrl'
         username: 'username'
         password: 'password'
@@ -220,21 +222,21 @@
       'WriteToSqlServer': 'WriteToJdbc'
     defaults:
       'ReadFromMySql':
-        driverClassName: 'com.mysql.jdbc.Driver'
+        jdbcType: 'mysql'
       'WriteToMySql':
-        driverClassName: 'com.mysql.jdbc.Driver'
+        jdbcType: 'mysql'
       'ReadFromPostgres':
-        driverClassName: 'org.postgresql.Driver'
+        jdbcType: 'postgres'
       'WriteToPostgres':
-        driverClassName: 'org.postgresql.Driver'
+        jdbcType: 'postgres'
       'ReadFromOracle':
-        driverClassName: 'oracle.jdbc.driver.OracleDriver'
+        jdbcType: 'oracle'
       'WriteToOracle':
-        driverClassName: 'oracle.jdbc.driver.OracleDriver'
+        jdbcType: 'oracle'
       'ReadFromSqlServer':
-        driverClassName: 'com.microsoft.sqlserver.jdbc.SQLServerDriver'
+        jdbcType: 'mssql'
       'WriteToSqlServer':
-        driverClassName: 'com.microsoft.sqlserver.jdbc.SQLServerDriver'
+        jdbcType: 'mssql'
     underlying_provider:
       type: beamJar
       transforms:
