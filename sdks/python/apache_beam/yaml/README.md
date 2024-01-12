@@ -98,15 +98,44 @@ pipeline:
         keep: "col3 > 100"
       input: ReadFromCsv
     - type: Sql
-      name: MySqlTransform
       config:
         query: "select col1, count(*) as cnt from PCOLLECTION group by col1"
       input: Filter
     - type: WriteToJson
       config:
         path: /path/to/output.json
+      input: Sql
+```
+
+Transforms can be named to help with monitoring and debugging.
+
+```
+pipeline:
+  transforms:
+    - type: ReadFromCsv
+      name: ReadMyData
+      config:
+        path: /path/to/input*.csv
+    - type: Filter
+      name: KeepBigRecords
+      config:
+        language: python
+        keep: "col3 > 100"
+      input: ReadMyData
+    - type: Sql
+      name: MySqlTransform
+      config:
+        query: "select col1, count(*) as cnt from PCOLLECTION group by col1"
+      input: KeepBigRecords
+    - type: WriteToJson
+      name: WriteTheOutput
+      config:
+        path: /path/to/output.json
       input: MySqlTransform
 ```
+
+(This is also needed to disambiguate if more than one transform of the same
+type is used.)
 
 If the pipeline is linear, we can let the inputs be implicit by designating
 the pipeline as a `chain` type.
