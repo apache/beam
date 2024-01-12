@@ -338,7 +338,7 @@ class FakeEmbeddingsManager(base.EmbeddingsManager):
     super().__init__(columns=columns)
 
   def get_model_handler(self) -> ModelHandler:
-    FakeModelHandler.__repr__ = lambda x: 'FakeEmbeddingsManager'
+    FakeModelHandler.__repr__ = lambda x: 'FakeEmbeddingsManager'  # type: ignore[assignment]
     return FakeModelHandler()
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
