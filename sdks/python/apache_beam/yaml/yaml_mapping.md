@@ -37,7 +37,7 @@ To rename fields one can write
 
 will result in an output where each record has two fields,
 `new_col1` and `new_col2`, whose values are those of `col1` and `col2`
-respectively.
+respectively (which are the names of two fields from the input schema).
 
 One can specify the append parameter which indicates the original fields should
 be retained similar to the use of `*` in an SQL select statement. For example
@@ -73,7 +73,8 @@ two new ones.
 
 Of course one may want to do transformations beyond just dropping and renaming
 fields.  Beam YAML has the ability to inline simple UDFs.
-This requires a language specification. For example
+This requires a language specification. For example, we can provide a
+Python expression referencing the input fields
 
 ```
 - type: MapToFields
@@ -116,7 +117,7 @@ this up as a dependency and simply refer to it by fully qualified name, e.g.
         callable: pkg.module.fn
 ```
 
-Currently, in addition to Python, SQL expressions are supported as well
+Currently, in addition to Python, Java and SQL expressions are supported as well
 
 ```
 - type: MapToFields
