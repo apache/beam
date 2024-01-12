@@ -680,14 +680,44 @@ def create_builtin_provider():
       # TODO: Triggering, etc.
       return beam.WindowInto(window_fn)
 
-  def LogForTesting():
+  def LogForTesting(level: Optional[str]='INFO', prefix:Optional[str]=''):
     """Logs each element of its input PCollection.
 
     The output of this transform is a copy of its input for ease of use in
     chain-style pipelines.
+
+    Args:
+      level: one of ERROR, INFO, or DEBUG, mapped to a corresponding
+        language-specific logging level
+      prefix: an optional identifier that will get prepended to the element
+        being logged
     """
+    # Keeping this simple to be language agnostic.
+    # The intent is not to develop a logging library (and users can always do)
+    # their own mappings to get fancier output.
+    log_levels = {
+      'ERROR': logging.error,
+      'INFO': logging.info,
+      'DEBUG': logging.debug,
+    }
+    if level not in log_levels:
+      raise ValueError(f'Unknown long level {level} not in {list(log_levels.keys)}')
+    logger = log_levels[level]
+
+    def to_loggable_json_recursive(o):
+      if isinstance(o, (str, bytes)):
+        return o
+      elif callable(getattr(o, '_asdict', None)):
+        return to_loggable_json_recursive(o._asdict())
+      elif isinstance(o, Mapping) and callable(getattr(o, 'items', None)):
+        return {str(k): to_loggable_json_recursive(v) for k, v in o.items()}
+      elif isinstance(o, Iterable):
+        return [to_loggable_json_recursive(x) for x in o]
+      else:
+        return o
+
     def log_and_return(x):
-      logging.info(x)
+      logger(prefix + json.dumps(to_loggable_json_recursive(x)))
       return x
 
     return beam.Map(log_and_return)
