@@ -24,6 +24,12 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.yaml.yaml_transform import YamlTransform
 
+try:
+  # pylint: disable=wrong-import-order, wrong-import-position
+  from apache_beam.ml.transforms import tft
+except ImportError:
+  raise unittest.SkipTest('tensorflow_transform is not installed.')
+
 TRAIN_DATA = [
     beam.Row(num=0, text='And God said, Let there be light,'),
     beam.Row(num=2, text='And there was light'),

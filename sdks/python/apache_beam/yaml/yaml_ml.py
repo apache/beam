@@ -22,12 +22,15 @@ from typing import List
 from typing import Optional
 
 import apache_beam as beam
-from apache_beam.ml.transforms import tft
-from apache_beam.ml.transforms.base import MLTransform
 from apache_beam.yaml import options
 
-# TODO(robertwb): Is this all of them?
-_transform_constructors = tft.__dict__
+try:
+  from apache_beam.ml.transforms import tft
+  from apache_beam.ml.transforms.base import MLTransform
+  # TODO(robertwb): Is this all of them?
+  _transform_constructors = tft.__dict__
+except ImportError:
+  tft = None
 
 
 def _config_to_obj(spec):
@@ -47,6 +50,9 @@ def ml_transform(
     write_artifact_location: Optional[str] = None,
     read_artifact_location: Optional[str] = None,
     transforms: Optional[List[Any]] = None):
+  if tft is None:
+    raise ValueError(
+        'tensorflow-transform must be installed to use this MLTransform')
   options.YamlOptions.check_enabled(pcoll.pipeline, 'ML')
   # TODO(robertwb): Perhaps _config_to_obj could be pushed into MLTransform
   # itself for better cross-language support?
