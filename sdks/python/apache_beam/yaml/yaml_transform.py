@@ -965,8 +965,7 @@ class YamlTransform(beam.PTransform):
 
     # Label goog-dataflow-yaml if job is started using Beam YAML.
     options = pipeline.options.view_as(GoogleCloudOptions)
-    yaml_version = (
-        'goog-dataflow-yaml=' + beam.version.__version__.replace('.', '_'))
+    yaml_version = ('beam-yaml=' + beam.version.__version__.replace('.', '_'))
     if not options.labels:
       options.labels = []
     if yaml_version not in options.labels:
