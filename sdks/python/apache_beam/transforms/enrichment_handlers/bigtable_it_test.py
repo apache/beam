@@ -15,8 +15,8 @@
 # limitations under the License.
 #
 
+import datetime
 import unittest
-from datetime import datetime
 from typing import Dict
 from typing import List
 from typing import NamedTuple
