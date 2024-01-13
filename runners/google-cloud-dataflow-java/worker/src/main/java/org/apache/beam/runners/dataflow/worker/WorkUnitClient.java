@@ -51,7 +51,12 @@ interface WorkUnitClient {
    * @return a {@link WorkItemServiceState} (e.g. a new stop position)
    */
   WorkItemServiceState reportWorkItemStatus(WorkItemStatus workItemStatus) throws IOException;
-
+  /**
+   * Creates a {@link WorkerMessage} containing the given Streaming Scaling Report
+   *
+   * @param report the StreamingScalingReport containing autoscaling metrics
+   * @return a {@link WorkerMessage}
+   */
   WorkerMessage createWorkerMessageFromStreamingScalingReport(StreamingScalingReport report);
   /**
    * Reports the autoscaling signals with a {@link StreamingScalingReport}.

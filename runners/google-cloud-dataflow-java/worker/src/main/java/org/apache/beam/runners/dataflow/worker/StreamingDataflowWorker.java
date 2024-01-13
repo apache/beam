@@ -253,8 +253,8 @@ public class StreamingDataflowWorker {
   private final Counter<Integer, Integer> totalAllocatedThreads;
   private final Counter<Long, Long> outstandingBytes;
   private final Counter<Long, Long> maxOutstandingBytes;
-  private final Counter<Integer, Integer> outstandingBundles;
-  private final Counter<Integer, Integer> maxOutstandingBundles;
+  private final Counter<Long, Long> outstandingBundles;
+  private final Counter<Long, Long> maxOutstandingBundles;
   private final Counter<Integer, Integer> windmillMaxObservedWorkItemCommitBytes;
   private final Counter<Integer, Integer> memoryThrashing;
   private final boolean publishCounters;
@@ -351,10 +351,10 @@ public class StreamingDataflowWorker {
         pendingCumulativeCounters.longSum(
             StreamingSystemCounterNames.MAX_OUTSTANDING_BYTES.counterName());
     this.outstandingBundles =
-        pendingCumulativeCounters.intSum(
+        pendingCumulativeCounters.longSum(
             StreamingSystemCounterNames.OUTSTANDING_BUNDLES.counterName());
     this.maxOutstandingBundles =
-        pendingCumulativeCounters.intSum(
+        pendingCumulativeCounters.longSum(
             StreamingSystemCounterNames.MAX_OUTSTANDING_BUNDLES.counterName());
     this.totalAllocatedThreads =
         pendingCumulativeCounters.intSum(
@@ -1754,9 +1754,9 @@ public class StreamingDataflowWorker {
     maxOutstandingBytes.getAndReset();
     maxOutstandingBytes.addValue(workUnitExecutor.maximumBytesOutstanding());
     outstandingBundles.getAndReset();
-    outstandingBundles.addValue(workUnitExecutor.elementsOutstanding());
+    outstandingBundles.addValue((long) workUnitExecutor.elementsOutstanding());
     maxOutstandingBundles.getAndReset();
-    maxOutstandingBundles.addValue(workUnitExecutor.maximumElementsOutstanding());
+    maxOutstandingBundles.addValue((long) workUnitExecutor.maximumElementsOutstanding());
   }
 
   private void sendWorkerMessage() throws IOException {

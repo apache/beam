@@ -232,7 +232,7 @@ public class DataflowWorkUnitClientTest {
   }
 
   @Test
-  public void testReportWorkerMessageEmptyResponse() throws Exception {
+  public void testReportWorkerMessage() throws Exception {
     MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
     response.setContentType(Json.MEDIA_TYPE);
     SendWorkerMessagesResponse workerMessage = new SendWorkerMessagesResponse();
