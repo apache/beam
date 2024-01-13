@@ -24,6 +24,8 @@ import * as internal from "../transforms/internal";
 import { AsyncPTransform, withName } from "../transforms/transform";
 import { RowCoder } from "../coders/row_coder";
 import { BytesCoder } from "../coders/required_coders";
+import { requireForSerialization } from "../serialization";
+import { packageName } from "../utils/packageJson";
 import { serviceProviderFromJavaGradleTarget } from "../utils/service";
 import { camelToSnakeOptions } from "../utils/utils";
 
@@ -134,5 +136,4 @@ export function writeToPubSub(topic: string, options: WriteOptions = {}) {
   };
 }
 
-import { requireForSerialization } from "../serialization";
-requireForSerialization("apache-beam/io/pubsub", PubSub);
+requireForSerialization(`${packageName}/io/pubsub`, PubSub);

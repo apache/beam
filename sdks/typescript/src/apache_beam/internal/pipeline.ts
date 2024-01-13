@@ -26,6 +26,8 @@ import {
   extractName,
 } from "../transforms/transform";
 import { globalWindows } from "../transforms/windowings";
+import { requireForSerialization } from "../serialization";
+import { packageName } from "../utils/packageJson";
 import * as pvalue from "../pvalue";
 import { createWindowingStrategyProto } from "../transforms/window";
 import * as environments from "./environments";
@@ -345,5 +347,4 @@ function onlyValueOr<T>(
   }
 }
 
-import { requireForSerialization } from "../serialization";
-requireForSerialization("apache-beam/internal/pipeline", exports);
+requireForSerialization(`${packageName}/internal/pipeline`, exports);

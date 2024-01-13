@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
@@ -178,9 +179,11 @@ func TestWorker_Data_HappyPath(t *testing.T) {
 	b := &B{
 		InstID: instID,
 		PBDID:  "teststageID",
-		InputData: [][]byte{
-			{1, 1, 1, 1, 1, 1},
-		},
+		Input: []*engine.Block{
+			{
+				Kind:  engine.BlockData,
+				Bytes: [][]byte{{1, 1, 1, 1, 1, 1}},
+			}},
 		OutputCount: 1,
 	}
 	b.Init()
@@ -206,6 +209,20 @@ func TestWorker_Data_HappyPath(t *testing.T) {
 		t.Fatalf("couldn't receive data elements ID: got %v, want %v", got, want)
 	}
 	if got, want := elements.GetData()[0].GetData(), []byte{1, 1, 1, 1, 1, 1}; !bytes.Equal(got, want) {
+		t.Fatalf("client Data received %v, want %v", got, want)
+	}
+	if got, want := elements.GetData()[0].GetIsLast(), false; got != want {
+		t.Fatalf("client Data received was last: got %v, want %v", got, want)
+	}
+
+	elements, err = dataStream.Recv()
+	if err != nil {
+		t.Fatal("expected 2nd data elements:", err)
+	}
+	if got, want := elements.GetData()[0].GetInstructionId(), b.InstID; got != want {
+		t.Fatalf("couldn't receive data elements ID: got %v, want %v", got, want)
+	}
+	if got, want := elements.GetData()[0].GetData(), []byte(nil); !bytes.Equal(got, want) {
 		t.Fatalf("client Data received %v, want %v", got, want)
 	}
 	if got, want := elements.GetData()[0].GetIsLast(), true; got != want {
