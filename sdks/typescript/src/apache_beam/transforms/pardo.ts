@@ -23,13 +23,10 @@ import { GeneralObjectCoder } from "../coders/js_coders";
 import { PCollection } from "../pvalue";
 import { Pipeline } from "../internal/pipeline";
 import { serializeFn } from "../internal/serialize";
-import {
-  PTransform,
-  PTransformClass,
-  withName,
-  extractName,
-} from "./transform";
+import { PTransform, withName, extractName } from "./transform";
 import { PaneInfo, Instant, Window, WindowedValue } from "../values";
+import { requireForSerialization } from "../serialization";
+import { packageName } from "../utils/packageJson";
 
 /**
  * The interface used to apply an elementwise MappingFn to a PCollection.
@@ -473,5 +470,4 @@ export function distribution(name: string): Metric<number> {
 // TODO: (Extension) Add providers for state, timers,
 // restriction trackers, etc.
 
-import { requireForSerialization } from "../serialization";
-requireForSerialization("apache-beam/transforms/pardo", exports);
+requireForSerialization(`${packageName}/transforms/pardo`, exports);

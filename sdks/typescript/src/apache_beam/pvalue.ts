@@ -26,8 +26,10 @@ import {
   extractName,
   withName,
 } from "./transforms/transform";
-import { parDo, DoFn, extractContext } from "./transforms/pardo";
+import { parDo, extractContext } from "./transforms/pardo";
 import * as runnerApi from "./proto/beam_runner_api";
+import { requireForSerialization } from "./serialization";
+import { packageName } from "./utils/packageJson";
 
 /**
  * The base object on which one can start building a Beam DAG.
@@ -322,5 +324,4 @@ class AsyncPTransformClassFromCallable<
   }
 }
 
-import { requireForSerialization } from "./serialization";
-requireForSerialization("apache-beam/pvalue", exports);
+requireForSerialization(`${packageName}/pvalue`, exports);
