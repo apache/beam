@@ -83,7 +83,7 @@
 ## Security Fixes
 * Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
 * Go SDK base container image moved to distroless/base-debian12, reducing vulnerable container surface ([#Y](https://github.com/apache/beam/issues/Y)).
-   * Fixes (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Go) 
+   * Fixes (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Go)
 
 ## Known Issues
 
