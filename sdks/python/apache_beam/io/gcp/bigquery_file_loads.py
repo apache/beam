@@ -701,6 +701,20 @@ class TriggerLoadJobs(beam.DoFn):
         load_job_name_prefix, destination_hash, pane_info.index, partition_key)
     _LOGGER.info('Load job has %s files. Job name is %s.', len(files), job_name)
 
+    # if there is no input schema, try to fetch the destination table's schema
+    if schema is None:
+      try:
+        schema = bigquery_tools.table_schema_to_dict(
+            bigquery_tools.BigQueryWrapper().get_table(
+                project_id=table_reference.projectId,
+                dataset_id=table_reference.datasetId,
+                table_id=table_reference.tableId).schema)
+      except Exception as e:
+        _LOGGER.exception(
+            "Input schema is absent and could not fetch the final"
+            " destination table's schema [%s]",
+            e)
+
     create_disposition = self.create_disposition
     if self.temporary_tables:
       # If we are using temporary tables, then we must always create the
