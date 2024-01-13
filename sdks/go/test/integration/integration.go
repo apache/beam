@@ -157,8 +157,8 @@ var prismFilters = []string{
 	// OOMs currently only lead to heap dumps on Dataflow runner
 	"TestOomParDo",
 
-	// The prism runner does not support timers https://github.com/apache/beam/issues/29772.
-	"TestTimers.*",
+	// The prism runner does not support processing time timers https://github.com/apache/beam/issues/29772.
+	"TestTimers_ProcessingTime.*",
 }
 
 var flinkFilters = []string{

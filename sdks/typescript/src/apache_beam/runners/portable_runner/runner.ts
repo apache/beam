@@ -43,7 +43,7 @@ import * as artifacts from "../artifacts";
 import { Service as JobService } from "../../utils/service";
 
 import * as serialization from "../../serialization";
-import { version } from "../../version";
+import { beamVersion } from "../../utils/packageJson";
 
 const TERMINAL_STATES = [
   JobState_Enum.DONE,
@@ -232,8 +232,8 @@ export class PortableRunner extends Runner {
           pipeline.components!.environments[envId] =
             environments.asDockerEnvironment(
               env,
-              options.sdkContainerImage ||
-                DOCKER_BASE + ":" + version.replace("-SNAPSHOT", ".dev"),
+              (options as any)?.sdkContainerImage ||
+                DOCKER_BASE + ":" + beamVersion.replace("-SNAPSHOT", ".dev"),
             );
           const deps = pipeline.components!.environments[envId].dependencies;
 

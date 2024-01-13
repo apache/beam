@@ -319,7 +319,19 @@ public final class PubsubResourceManager implements ResourceManager {
 
       for (TopicName topic : createdTopics) {
         LOG.info("Deleting topic '{}'", topic);
-        Failsafe.with(retryOnDeadlineExceeded()).run(() -> topicAdminClient.deleteTopic(topic));
+        Failsafe.with(retryOnDeadlineExceeded())
+            .run(
+                () -> {
+
+                  // Delete subscriptions that would be orphaned.
+                  for (String topicSub :
+                      topicAdminClient.listTopicSubscriptions(topic).iterateAll()) {
+                    LOG.info("Deleting subscription '{}'", topicSub);
+                    subscriptionAdminClient.deleteSubscription(topicSub);
+                  }
+
+                  topicAdminClient.deleteTopic(topic);
+                });
       }
 
       for (SchemaName schemaName : createdSchemas) {
