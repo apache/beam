@@ -27,6 +27,7 @@ import java.util.Objects;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransform.ErrorCounterFn;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -56,7 +57,6 @@ public class KafkaWriteSchemaTransformProviderTest {
 
   private static final Schema BEAM_RAW_SCHEMA =
       Schema.of(Schema.Field.of("payload", Schema.FieldType.BYTES));
-  private static final Schema ERRORSCHEMA = KafkaWriteSchemaTransformProvider.ERROR_SCHEMA;
 
   private static final Schema BEAM_PROTO_SCHEMA =
       Schema.builder()
@@ -135,12 +135,14 @@ public class KafkaWriteSchemaTransformProviderTest {
             KV.of(new byte[1], "{\"name\":\"c\"}".getBytes("UTF8")));
 
     PCollection<Row> input = p.apply(Create.of(ROWS));
+    Schema errorSchema = ErrorHandling.errorSchema(BEAMSCHEMA);
     PCollectionTuple output =
         input.apply(
-            ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", valueMapper))
+            ParDo.of(
+                    new ErrorCounterFn("Kafka-write-error-counter", valueMapper, errorSchema, true))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-    output.get(ERROR_TAG).setRowSchema(ERRORSCHEMA);
+    output.get(ERROR_TAG).setRowSchema(errorSchema);
 
     PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(msg);
     p.run().waitUntilFinish();
@@ -155,12 +157,15 @@ public class KafkaWriteSchemaTransformProviderTest {
             KV.of(new byte[1], "c".getBytes("UTF8")));
 
     PCollection<Row> input = p.apply(Create.of(RAW_ROWS));
+    Schema errorSchema = ErrorHandling.errorSchema(BEAM_RAW_SCHEMA);
     PCollectionTuple output =
         input.apply(
-            ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", valueRawMapper))
+            ParDo.of(
+                    new ErrorCounterFn(
+                        "Kafka-write-error-counter", valueRawMapper, errorSchema, true))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-    output.get(ERROR_TAG).setRowSchema(ERRORSCHEMA);
+    output.get(ERROR_TAG).setRowSchema(errorSchema);
 
     PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(msg);
     p.run().waitUntilFinish();
@@ -169,12 +174,15 @@ public class KafkaWriteSchemaTransformProviderTest {
   @Test
   public void testKafkaErrorFnProtoSuccess() {
     PCollection<Row> input = p.apply(Create.of(PROTO_ROWS));
+    Schema errorSchema = ErrorHandling.errorSchema(BEAM_PROTO_SCHEMA);
     PCollectionTuple output =
         input.apply(
-            ParDo.of(new ErrorCounterFn("Kafka-write-error-counter", protoValueRawMapper))
+            ParDo.of(
+                    new ErrorCounterFn(
+                        "Kafka-write-error-counter", protoValueRawMapper, errorSchema, true))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-    PAssert.that(output.get(ERROR_TAG).setRowSchema(ERRORSCHEMA)).empty();
+    output.get(ERROR_TAG).setRowSchema(errorSchema);
     p.run().waitUntilFinish();
   }
 }

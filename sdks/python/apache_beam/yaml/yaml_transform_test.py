@@ -590,6 +590,40 @@ class YamlWindowingTest(unittest.TestCase):
           providers=TEST_PROVIDERS)
       assert_that(result, equal_to([6, 9]))
 
+  def test_assign_timestamps(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['Combine'
+                                                                  ])) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: Create
+              config:
+                elements:
+                  - {t: 1, v: 1}
+                  - {t: 10, v: 2}
+                  - {t: 11, v: 3}
+            - type: AssignTimestamps
+              config:
+                timestamp: t
+            - type: Combine
+              config:
+                group_by: []
+                combine:
+                  v: sum
+              windowing:
+                type: fixed
+                size: 10
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(
+          result | beam.Map(lambda x: beam.Row(**x._asdict())),
+          equal_to([
+              beam.Row(v=1),
+              beam.Row(v=5),
+          ]))
+
 
 class AnnotatingProvider(yaml_provider.InlineProvider):
   """A provider that vends transforms that do nothing but record that this

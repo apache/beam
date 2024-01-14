@@ -125,7 +125,7 @@ export function writeToPubSub(topic: string, options: WriteOptions = {}) {
   return async function writeToPubSub(dataPColl: beam.PCollection<Uint8Array>) {
     return dataPColl
       .map(
-        withName("writeToPubSubEncode", (data) =>
+        withName("WriteToPubSubEncode", (data) =>
           PubSub.protos.google.pubsub.v1.PubsubMessage.encode({
             data,
           }).finish(),

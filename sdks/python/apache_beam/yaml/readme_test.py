@@ -185,7 +185,10 @@ def replace_recursive(spec, transform_type, arg_name, arg_value):
 
 
 def create_test_method(test_type, test_name, test_yaml):
-  test_yaml = test_yaml.replace('pkg.module.fn', 'str')
+  test_yaml = test_yaml.replace(
+      'pkg.module.', 'apache_beam.yaml.readme_test._Fakes.')
+  test_yaml = test_yaml.replace(
+      'apache_beam.pkg.module.', 'apache_beam.yaml.readme_test._Fakes.')
 
   def test(self):
     with TestEnvironment() as env:
@@ -265,6 +268,17 @@ def createTestSuite(name, path):
     return type(name, (unittest.TestCase, ), dict(parse_test_methods(readme)))
 
 
+class _Fakes:
+  fn = str
+
+  class SomeTransform(beam.PTransform):
+    def __init__(*args, **kwargs):
+      pass
+
+    def expand(self, pcoll):
+      return pcoll
+
+
 ReadMeTest = createTestSuite(
     'ReadMeTest', os.path.join(os.path.dirname(__file__), 'README.md'))
 
@@ -274,6 +288,10 @@ ErrorHandlingTest = createTestSuite(
 
 CombineTest = createTestSuite(
     'CombineTest', os.path.join(os.path.dirname(__file__), 'yaml_combine.md'))
+
+InlinePythonTest = createTestSuite(
+    'InlinePythonTest',
+    os.path.join(os.path.dirname(__file__), 'inline_python.md'))
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()

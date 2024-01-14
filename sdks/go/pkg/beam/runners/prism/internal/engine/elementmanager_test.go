@@ -294,7 +294,9 @@ func TestStageState_updateWatermarks(t *testing.T) {
 			ss.input = test.initInput
 			ss.output = test.initOutput
 			ss.updateUpstreamWatermark(inputCol, test.upstream)
-			ss.updateWatermarks(test.minPending, test.minStateHold, em)
+			ss.pending = append(ss.pending, element{timestamp: test.minPending})
+			ss.watermarkHoldHeap = append(ss.watermarkHoldHeap, test.minStateHold)
+			ss.updateWatermarks(em)
 			if got, want := ss.input, test.wantInput; got != want {
 				pcol, up := ss.UpstreamWatermark()
 				t.Errorf("ss.updateWatermarks(%v,%v); ss.input = %v, want %v (upstream %v %v)", test.minPending, test.minStateHold, got, want, pcol, up)
