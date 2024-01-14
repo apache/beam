@@ -121,7 +121,7 @@ public class RedisClientIT {
     externalClients.getActualClient().setex(keyBytes, keyBytes, expiry);
     assertTrue(externalClients.getValidatingClient().exists(keyBytes));
     assertTrue(externalClients.getValidatingClient().ttl(keyBytes) > 0L);
-    Thread.sleep(expiry.getMillis());
+    Thread.sleep(expiry.plus(Duration.millis(100L)).getMillis());
     assertFalse(externalClients.getValidatingClient().exists(keyBytes));
   }
 

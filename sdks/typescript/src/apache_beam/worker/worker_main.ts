@@ -82,7 +82,7 @@ async function main() {
   );
   console.info("Worker started.");
   if (pushLogs) {
-    await pushLogs();
+    pushLogs().catch();
   }
   await worker.wait();
   console.info("Worker stoped.");

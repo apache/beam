@@ -17,6 +17,8 @@
  */
 package org.apache.beam.io.requestresponse;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
@@ -26,7 +28,6 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.Instant;
 
 /** {@link ApiIOError} is a data class for storing details about an error. */
@@ -41,10 +42,10 @@ public abstract class ApiIOError {
    * Instantiate an {@link ApiIOError} from an {@link ErrorT} {@link T} element. The {@link T}
    * element is converted to a JSON string.
    */
-  static <T, ErrorT extends Exception> ApiIOError of(@NonNull ErrorT e, @NonNull T element)
+  static <T, ErrorT extends Exception> ApiIOError of(ErrorT e, T element)
       throws JsonProcessingException {
 
-    String json = OBJECT_MAPPER.writeValueAsString(element);
+    String json = OBJECT_MAPPER.writeValueAsString(checkStateNotNull(element));
 
     return ApiIOError.builder()
         .setRequestAsJsonString(json)
