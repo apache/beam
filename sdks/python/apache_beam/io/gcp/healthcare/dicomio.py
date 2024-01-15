@@ -77,7 +77,7 @@ transform. Here is a sample usage:
 
 In the example above, the pipeline is listening to a pubsub topic and waiting
 for messages from DICOM API. When a new DICOM file comes into the storage, the
-pipeline will receive a pubsub message, convert it to a Qido request dict and
+pipeline will receive a pubsub message, convert it to a Qido request dict, and
 feed it to DicomSearch() PTransform. As a result, users can get the metadata for
 every new DICOM file. Note that not every pubsub message received is from DICOM
 API, so we to filter the results first.
@@ -94,19 +94,17 @@ this PTransform. Here are the examples:
   temp_dir = '%s%s' % (self._new_tempdir(), os.sep)
   self._create_temp_file(dir=temp_dir, content=str_input)
   with Pipeline() as p:
-    results = (
-      p | beam.Create([FileSystems.join(temp_dir, '*')])
-        | fileio.MatchAll()
-        | fileio.ReadMatches()
-        | UploadToDicomStore(input_dict, 'fileio'))
+  results = (
+  p | beam.Create([FileSystems.join(temp_dir, '*')])
+  | fileio.MatchAll() | fileio.ReadMatches()
+  | UploadToDicomStore(input_dict, 'fileio'))
 
   input_dict = {'project_id': 'abc123', 'type': 'instances',...}
   str_input = json.dumps(dict_input)
   bytes_input = bytes(str_input.encode("utf-8"))
   with Pipeline() as p:
-    results = (
-      p | beam.Create([bytes_input])
-        | UploadToDicomStore(input_dict, 'bytes'))
+  results = (
+  p | beam.Create([bytes_input]) | UploadToDicomStore(input_dict, 'bytes'))
 
 The first example uses a PCollection of fileio objects as input.
 UploadToDicomStore will read DICOM files from the objects and send them
