@@ -95,20 +95,18 @@ this PTransform. Here are the examples:
   self._create_temp_file(dir=temp_dir, content=str_input)
   with Pipeline() as p:
     results = (
-          p
-          | beam.Create([FileSystems.join(temp_dir, '*')])
-          | fileio.MatchAll()
-          | fileio.ReadMatches()
-          | UploadToDicomStore(input_dict, 'fileio'))
+      p | beam.Create([FileSystems.join(temp_dir, '*')])
+        | fileio.MatchAll()
+        | fileio.ReadMatches()
+        | UploadToDicomStore(input_dict, 'fileio'))
 
   input_dict = {'project_id': 'abc123', 'type': 'instances',...}
   str_input = json.dumps(dict_input)
   bytes_input = bytes(str_input.encode("utf-8"))
   with Pipeline() as p:
     results = (
-          p
-          | beam.Create([bytes_input])
-          | UploadToDicomStore(input_dict, 'bytes'))
+      p | beam.Create([bytes_input])
+        | UploadToDicomStore(input_dict, 'bytes'))
 
 The first example uses a PCollection of fileio objects as input.
 UploadToDicomStore will read DICOM files from the objects and send them
