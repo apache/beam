@@ -1,10 +1,10 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "website": "liferoad"
+    "website": "kennknowles"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
-  "committerAssigned": false
+  "committerAssigned": true
 }
