@@ -243,10 +243,10 @@ pipeline:
 
     - type: Sql
       config:
-        query: select left.col1, right.col2 from left join right using (col3)
+        query: select A.col1, B.col2 from A join B using (col3)
       input:
-        left: ReadLeft
-        right: ReadRight
+        A: ReadLeft
+        B: ReadRight
 
     - type: WriteToJson
       name: WriteAll
@@ -287,10 +287,10 @@ pipeline:
 
     - type: Sql
       config:
-        query: select left.col1, right.col2 from left join right using (col3)
+        query: select A.col1, B.col2 from A join B using (col3)
       input:
-        left: ReadLeft
-        right: ReadRight
+        A: ReadLeft
+        B: ReadRight
 
     - type: WriteToJson
       name: WriteAll
@@ -426,10 +426,10 @@ pipeline:
 
     - type: Sql
       config:
-        query: select left.col1, right.col2 from left join right using (col3)
+        query: select A.col1, B.col2 from A join B using (col3)
       input:
-        left: ReadLeft
-        right: ReadRight
+        A: ReadLeft
+        B: ReadRight
       windowing:
         type: fixed
         size: 60
