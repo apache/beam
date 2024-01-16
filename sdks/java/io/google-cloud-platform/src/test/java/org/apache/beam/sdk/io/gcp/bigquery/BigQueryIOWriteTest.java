@@ -2629,13 +2629,15 @@ public class BigQueryIOWriteTest implements Serializable {
             BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED,
             3,
             "kms_key",
-            null);
+            null,
+            jobIdTokenView);
 
-    DoFnTester<Iterable<KV<TableDestination, WriteTables.Result>>, TableDestination> tester =
-        DoFnTester.of(writeRename);
-    tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
-    tester.processElement(tempTablesElement);
-    tester.finishBundle();
+    //Unfortunate hack to have create treat tempTablesElement as a single element, instead of as an
+    //iterable
+    p.apply(Create.of(ImmutableList.of((Iterable<KV<TableDestination,WriteTables.Result>>)tempTablesElement)))
+        .apply(writeRename);
+
+    p.run().waitUntilFinish();
 
     for (Map.Entry<TableDestination, Collection<String>> entry : tempTables.asMap().entrySet()) {
       TableDestination tableDestination = entry.getKey();
@@ -2683,7 +2685,7 @@ public class BigQueryIOWriteTest implements Serializable {
     tableRefs.add(
         BigQueryHelpers.parseTableSpec(String.format("%s:%s.%s", projectId, datasetId, "table4")));
 
-    WriteRename.removeTemporaryTables(datasetService, tableRefs);
+    WriteRename.TempTableCleanupFn.removeTemporaryTables(datasetService, tableRefs);
 
     for (TableReference ref : tableRefs) {
       loggedWriteRename.verifyDebug("Deleting table " + toJsonString(ref));
