@@ -34,7 +34,6 @@ try:
   from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.transforms.enrichment_handlers.bigtable import EnrichWithBigTable
 except ImportError:
-  Client = None
   raise unittest.SkipTest('GCP BigTable dependencies are not installed.')
 
 
@@ -128,10 +127,6 @@ def create_rows(table):
 
 
 @pytest.mark.it_postcommit
-@unittest.skipIf(
-    Client is None,
-    'BigTable dependencies are not installed, '
-    'skipping BigTable Enrichment test.')
 class TestBigTableEnrichment(unittest.TestCase):
   def setUp(self):
     self.project_id = 'apache-beam-testing'
