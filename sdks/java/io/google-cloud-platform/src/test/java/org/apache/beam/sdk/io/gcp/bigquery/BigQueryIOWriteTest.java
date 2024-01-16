@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
+import static org.apache.beam.sdk.io.gcp.bigquery.WriteTables.ResultCoder.INSTANCE;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -92,6 +93,7 @@ import org.apache.avro.io.Encoder;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
@@ -105,6 +107,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.WritePartition.ResultCoder;
+import org.apache.beam.sdk.io.gcp.bigquery.WriteRename.TempTableCleanupFn;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteTables.Result;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
@@ -256,7 +259,9 @@ public class BigQueryIOWriteTest implements Serializable {
       };
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
-  @Rule public transient ExpectedLogs loggedWriteRename = ExpectedLogs.none(WriteRename.class);
+
+  @Rule
+  public transient ExpectedLogs loggedWriteRename = ExpectedLogs.none(TempTableCleanupFn.class);
 
   private FakeDatasetService fakeDatasetService = new FakeDatasetService();
   private FakeJobService fakeJobService = new FakeJobService();
@@ -2529,7 +2534,7 @@ public class BigQueryIOWriteTest implements Serializable {
     PCollection<KV<TableDestination, WriteTables.Result>> writeTablesOutput =
         writeTablesInput
             .apply(writeTables)
-            .setCoder(KvCoder.of(StringUtf8Coder.of(), WriteTables.ResultCoder.INSTANCE))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), INSTANCE))
             .apply(
                 ParDo.of(
                     new DoFn<
@@ -2632,9 +2637,13 @@ public class BigQueryIOWriteTest implements Serializable {
             null,
             jobIdTokenView);
 
-    //Unfortunate hack to have create treat tempTablesElement as a single element, instead of as an
-    //iterable
-    p.apply(Create.of(ImmutableList.of((Iterable<KV<TableDestination,WriteTables.Result>>)tempTablesElement)))
+    // Unfortunate hack to have create treat tempTablesElement as a single element, instead of as an
+    // iterable
+    p.apply(
+            Create.of(
+                    ImmutableList.of(
+                        (Iterable<KV<TableDestination, WriteTables.Result>>) tempTablesElement))
+                .withCoder(IterableCoder.of(KvCoder.of(TableDestinationCoder.of(), INSTANCE))))
         .apply(writeRename);
 
     p.run().waitUntilFinish();

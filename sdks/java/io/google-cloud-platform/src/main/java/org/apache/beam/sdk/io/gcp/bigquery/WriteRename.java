@@ -23,6 +23,7 @@ import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -49,8 +50,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayL
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
-import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,21 +111,24 @@ class WriteRename
                         kmsKey,
                         loadJobProjectId))
                 .withSideInputs(copyJobIdPrefixView))
+        // We apply a fusion break here to ensure that the temp file renaming won't attempt to
+        // rename a temp file is then deleted in the TempTableCleanupFn
         .apply(Reshuffle.viaRandomKey())
-        .apply("RemoveTempTables", ParDo.of(new TempTableCleanupFn(bqServices)));
+        .apply("RemoveTempTables", ParDo.of(new TempTableCleanupFn(bqServices)))
+        .setCoder(TableDestinationCoder.of());
   }
 
-  public static class PendingJobData {
+  public static class PendingJobData implements Serializable {
 
     final BigQueryHelpers.PendingJob retryJob;
     final TableDestination tableDestination;
-    final List<TableReference> tempTables;
+    final List<String> tempTables;
     final BoundedWindow window;
 
     public PendingJobData(
         BigQueryHelpers.PendingJob retryJob,
         TableDestination tableDestination,
-        List<TableReference> tempTables,
+        List<String> tempTables,
         BoundedWindow window) {
       this.retryJob = retryJob;
       this.tableDestination = tableDestination;
@@ -269,6 +271,12 @@ class WriteRename
                       BigQueryHelpers.fromJsonString(result.getTableName(), TableReference.class))
               .collect(Collectors.toList());
 
+      List<String> tempTableStrings =
+          StreamSupport.stream(tempTableNames.spliterator(), false)
+              .map(Result::getTableName)
+              .collect(Collectors.toList());
+      ;
+
       // Make sure each destination table gets a unique job id.
       String jobIdPrefix =
           BigQueryResourceNaming.createJobIdWithDestination(
@@ -285,7 +293,7 @@ class WriteRename
               createDisposition,
               kmsKey,
               loadJobProjectId);
-      return new PendingJobData(retryJob, finalTableDestination, tempTables, window);
+      return new PendingJobData(retryJob, finalTableDestination, tempTableStrings, window);
     }
 
     private BigQueryHelpers.PendingJob startCopy(
@@ -393,15 +401,20 @@ class WriteRename
     private final BigQueryServices bqServices;
     private transient @Nullable DatasetService datasetService;
 
-    public TempTableCleanupFn(BigQueryServices bqServices){
+    public TempTableCleanupFn(BigQueryServices bqServices) {
       this.bqServices = bqServices;
     }
+
     @ProcessElement
     public void processElement(
         PipelineOptions pipelineOptions,
         @Element PendingJobData pendingJobData,
         OutputReceiver<TableDestination> destinationOutputReceiver) {
-      removeTemporaryTables(getDatasetService(pipelineOptions), pendingJobData.tempTables);
+      List<TableReference> tableReferences =
+          pendingJobData.tempTables.stream()
+              .map(tableName -> BigQueryHelpers.fromJsonString(tableName, TableReference.class))
+              .collect(Collectors.toList());
+      removeTemporaryTables(getDatasetService(pipelineOptions), tableReferences);
       destinationOutputReceiver.output(pendingJobData.tableDestination);
     }
 
@@ -413,7 +426,8 @@ class WriteRename
     }
 
     @VisibleForTesting
-    public static void removeTemporaryTables(DatasetService datasetService, List<TableReference> tempTables){
+    public static void removeTemporaryTables(
+        DatasetService datasetService, List<TableReference> tempTables) {
       for (TableReference tableRef : tempTables) {
         try {
           LOG.debug("Deleting table {}", BigQueryHelpers.toJsonString(tableRef));
