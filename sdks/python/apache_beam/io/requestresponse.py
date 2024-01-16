@@ -150,7 +150,7 @@ def _execute_request(
     try:
       return future.result(timeout=timeout)
     except TooManyRequests as e:
-      _LOGGER.warning(
+      _LOGGER.info(
           'request could not be completed. got code %i from the service.',
           e.code)
       raise e
@@ -264,10 +264,10 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
       caller: Caller[RequestT, ResponseT],
       timeout: Optional[float] = DEFAULT_TIMEOUT_SECS,
       should_backoff: Optional[ShouldBackOff] = None,
-      repeater: Optional[Repeater] = ExponentialBackOffRepeater(),
+      repeater: Repeater = ExponentialBackOffRepeater(),
       cache_reader: Optional[CacheReader] = None,
       cache_writer: Optional[CacheWriter] = None,
-      throttler: Optional[PreCallThrottler] = DefaultThrottler(),
+      throttler: PreCallThrottler = DefaultThrottler(),
   ):
     """
     Instantiates a RequestResponseIO transform.
@@ -343,8 +343,8 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
       caller: Caller[RequestT, ResponseT],
       timeout: Optional[float] = DEFAULT_TIMEOUT_SECS,
       should_backoff: Optional[ShouldBackOff] = None,
-      repeater: Optional[Repeater] = None,
-      throttler: Optional[PreCallThrottler] = None,
+      repeater: Repeater = None,
+      throttler: PreCallThrottler = None,
   ):
     self._caller = caller
     self._timeout = timeout

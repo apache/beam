@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+import logging
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -37,6 +37,8 @@ OutputT = TypeVar('OutputT')
 
 JoinFn = Callable[[Dict[str, Any], Dict[str, Any]], beam.Row]
 
+_LOGGER = logging.getLogger(__name__)
+
 
 def cross_join(left: Dict[str, Any], right: Dict[str, Any]) -> beam.Row:
   """cross_join performs a cross join on two `dict` objects.
@@ -54,6 +56,12 @@ def cross_join(left: Dict[str, Any], right: Dict[str, Any]) -> beam.Row:
     if k not in left:
       # Don't override the values in left.
       left[k] = v
+    elif left[k] != v:
+      _LOGGER.warning(
+          '%s exists in the input row as well the row fetched '
+          'from API but have different values. Using the input '
+          'value, you can override this behavior by passing a '
+          'custom `join_fn`.' % k)
   return beam.Row(**left)
 
 
