@@ -27,7 +27,6 @@ import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.StreamingScalingReport;
-import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
@@ -277,14 +276,11 @@ public class StreamingDataflowWorker {
   private final HotKeyLogger hotKeyLogger;
   // Periodic sender of debug information to the debug capture service.
   private final DebugCapture.@Nullable Manager debugCaptureManager;
-  private ScheduledExecutorService refreshWorkTimer;
-  private ScheduledExecutorService statusPageTimer;
-  private ScheduledExecutorService globalWorkerUpdatesTimer;
-  private ScheduledExecutorService workerMessageReportTimer;
+  // Map from timer name to ScheduledExecutorService
+  private ConcurrentMap<String, ScheduledExecutorService> timersMap = new ConcurrentHashMap();
   private int retryLocallyDelayMs = 10000;
   // Periodically fires a global config request to dataflow service. Only used when windmill service
   // is enabled.
-  private ScheduledExecutorService globalConfigRefreshTimer;
   // Possibly overridden by streaming engine config.
   private int maxWorkItemCommitBytes = Integer.MAX_VALUE;
 
@@ -581,81 +577,91 @@ public class StreamingDataflowWorker {
     sampler.start();
 
     // Periodically report workers counters and other updates.
-    globalWorkerUpdatesTimer = executorSupplier.apply("GlobalWorkerUpdatesTimer");
-    globalWorkerUpdatesTimer.scheduleWithFixedDelay(
-        this::reportPeriodicWorkerUpdates,
-        0,
-        options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
-        TimeUnit.MILLISECONDS);
+    timersMap.put("GlobalWorkerUpdatesTimer", executorSupplier.apply("GlobalWorkerUpdates"));
+    timersMap
+        .get("GlobalWorkerUpdatesTimer")
+        .scheduleWithFixedDelay(
+            this::reportPeriodicWorkerUpdates,
+            0,
+            options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
+            TimeUnit.MILLISECONDS);
 
-    workerMessageReportTimer = executorSupplier.apply("WorkerMessageTimer");
+    timersMap.put("WorkerMessageTimer", executorSupplier.apply("ReportWorkerMessage"));
     if (options.getWindmillHarnessUpdateReportingPeriod().getMillis() > 0) {
-      workerMessageReportTimer.scheduleWithFixedDelay(
-          this::reportPeriodicWorkerMessage,
-          0,
-          options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
-          TimeUnit.MILLISECONDS);
+      timersMap
+          .get("WorkerMessageTimer")
+          .scheduleWithFixedDelay(
+              this::reportPeriodicWorkerMessage,
+              0,
+              options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
+              TimeUnit.MILLISECONDS);
     }
 
-    refreshWorkTimer = executorSupplier.apply("RefreshWork");
+    timersMap.put("RefreshWorkTimer", executorSupplier.apply("RefreshWork"));
     if (options.getActiveWorkRefreshPeriodMillis() > 0) {
-      refreshWorkTimer.scheduleWithFixedDelay(
-          new Runnable() {
-            @Override
-            public void run() {
-              try {
-                refreshActiveWork();
-              } catch (RuntimeException e) {
-                LOG.warn("Failed to refresh active work: ", e);
-              }
-            }
-          },
-          options.getActiveWorkRefreshPeriodMillis(),
-          options.getActiveWorkRefreshPeriodMillis(),
-          TimeUnit.MILLISECONDS);
+      timersMap
+          .get("RefreshWorkTimer")
+          .scheduleWithFixedDelay(
+              new Runnable() {
+                @Override
+                public void run() {
+                  try {
+                    refreshActiveWork();
+                  } catch (RuntimeException e) {
+                    LOG.warn("Failed to refresh active work: ", e);
+                  }
+                }
+              },
+              options.getActiveWorkRefreshPeriodMillis(),
+              options.getActiveWorkRefreshPeriodMillis(),
+              TimeUnit.MILLISECONDS);
     }
     if (windmillServiceEnabled && options.getStuckCommitDurationMillis() > 0) {
       int periodMillis = Math.max(options.getStuckCommitDurationMillis() / 10, 100);
-      refreshWorkTimer.scheduleWithFixedDelay(
-          this::invalidateStuckCommits, periodMillis, periodMillis, TimeUnit.MILLISECONDS);
+      timersMap
+          .get("RefreshWorkTimer")
+          .scheduleWithFixedDelay(
+              this::invalidateStuckCommits, periodMillis, periodMillis, TimeUnit.MILLISECONDS);
     }
 
     if (options.getPeriodicStatusPageOutputDirectory() != null) {
-      statusPageTimer = executorSupplier.apply("DumpStatusPages");
-      statusPageTimer.scheduleWithFixedDelay(
-          () -> {
-            Collection<Capturable> pages = statusPages.getDebugCapturePages();
-            if (pages.isEmpty()) {
-              LOG.warn("No captured status pages.");
-            }
-            Long timestamp = clock.get().getMillis();
-            for (Capturable page : pages) {
-              PrintWriter writer = null;
-              try {
-                File outputFile =
-                    new File(
-                        options.getPeriodicStatusPageOutputDirectory(),
-                        ("StreamingDataflowWorker"
-                                + options.getWorkerId()
-                                + "_"
-                                + page.pageName()
-                                + timestamp
-                                + ".html")
-                            .replaceAll("/", "_"));
-                writer = new PrintWriter(outputFile, UTF_8.name());
-                page.captureData(writer);
-              } catch (IOException e) {
-                LOG.warn("Error dumping status page.", e);
-              } finally {
-                if (writer != null) {
-                  writer.close();
+      timersMap.put("StatusPageTimer", executorSupplier.apply("DumpStatusPages"));
+      timersMap
+          .get("StatusPageTimer")
+          .scheduleWithFixedDelay(
+              () -> {
+                Collection<Capturable> pages = statusPages.getDebugCapturePages();
+                if (pages.isEmpty()) {
+                  LOG.warn("No captured status pages.");
                 }
-              }
-            }
-          },
-          60,
-          60,
-          TimeUnit.SECONDS);
+                Long timestamp = clock.get().getMillis();
+                for (Capturable page : pages) {
+                  PrintWriter writer = null;
+                  try {
+                    File outputFile =
+                        new File(
+                            options.getPeriodicStatusPageOutputDirectory(),
+                            ("StreamingDataflowWorker"
+                                    + options.getWorkerId()
+                                    + "_"
+                                    + page.pageName()
+                                    + timestamp
+                                    + ".html")
+                                .replaceAll("/", "_"));
+                    writer = new PrintWriter(outputFile, UTF_8.name());
+                    page.captureData(writer);
+                  } catch (IOException e) {
+                    LOG.warn("Error dumping status page.", e);
+                  } finally {
+                    if (writer != null) {
+                      writer.close();
+                    }
+                  }
+                }
+              },
+              60,
+              60,
+              TimeUnit.SECONDS);
     }
 
     reportHarnessStartup();
@@ -687,25 +693,15 @@ public class StreamingDataflowWorker {
 
   public void stop() {
     try {
-      if (globalConfigRefreshTimer != null) {
-        globalConfigRefreshTimer.shutdown();
+      for (var timer : timersMap.entrySet) {
+        if (timer != null) {
+          timer.shutdown();
+        }
       }
-      globalWorkerUpdatesTimer.shutdown();
-      if (refreshWorkTimer != null) {
-        refreshWorkTimer.shutdown();
-      }
-      if (statusPageTimer != null) {
-        statusPageTimer.shutdown();
-      }
-      if (globalConfigRefreshTimer != null) {
-        globalConfigRefreshTimer.awaitTermination(300, TimeUnit.SECONDS);
-      }
-      globalWorkerUpdatesTimer.awaitTermination(300, TimeUnit.SECONDS);
-      if (refreshWorkTimer != null) {
-        refreshWorkTimer.awaitTermination(300, TimeUnit.SECONDS);
-      }
-      if (statusPageTimer != null) {
-        statusPageTimer.awaitTermination(300, TimeUnit.SECONDS);
+      for (var timer : timersMap.entrySet) {
+        if (timer != null) {
+          timer.awaitTermination(300, TimeUnit.SECONDS);
+        }
       }
       statusPages.stop();
       if (debugCaptureManager != null) {
@@ -1596,12 +1592,14 @@ public class StreamingDataflowWorker {
     LOG.info("windmillServerStub is now ready");
 
     // Now start a thread that periodically refreshes the windmill service endpoint.
-    globalConfigRefreshTimer = executorSupplier.apply("GlobalConfigRefreshTimer");
-    globalConfigRefreshTimer.scheduleWithFixedDelay(
-        this::getGlobalConfig,
-        0,
-        options.getGlobalConfigRefreshPeriod().getMillis(),
-        TimeUnit.MILLISECONDS);
+    timersMap.put("GlobalConfigRefreshTimer", executorSupplier.apply("GlobalConfigRefreshTimer"));
+    timersMap
+        .get("GlobalConfigRefreshTimer")
+        .scheduleWithFixedDelay(
+            this::getGlobalConfig,
+            0,
+            options.getGlobalConfigRefreshPeriod().getMillis(),
+            TimeUnit.MILLISECONDS);
   }
 
   private void getGlobalConfig() {
