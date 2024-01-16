@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 import logging
+from typing import Any
+from typing import Dict
 from typing import Optional
 
 from google.api_core.exceptions import NotFound
@@ -71,7 +73,7 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
     Args:
     request: the input `beam.Row` to enrich.
     """
-    response_dict = {}
+    response_dict: Dict[str, Any] = {}
     try:
       request_dict = request._asdict()
       row_key = str(request_dict[self._row_key]).encode()

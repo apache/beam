@@ -20,12 +20,17 @@ import unittest
 from google.api_core.exceptions import TooManyRequests
 
 import apache_beam as beam
-from apache_beam.io.requestresponse import Caller
-from apache_beam.io.requestresponse import RequestResponseIO
-from apache_beam.io.requestresponse import UserCodeExecutionException
-from apache_beam.io.requestresponse import UserCodeTimeoutException
-from apache_beam.io.requestresponse import retry_on_exception
 from apache_beam.testing.test_pipeline import TestPipeline
+
+# pylint: disable=ungrouped-imports
+try:
+  from apache_beam.io.requestresponse import Caller
+  from apache_beam.io.requestresponse import RequestResponseIO
+  from apache_beam.io.requestresponse import UserCodeExecutionException
+  from apache_beam.io.requestresponse import UserCodeTimeoutException
+  from apache_beam.io.requestresponse import retry_on_exception
+except ImportError:
+  raise unittest.SkipTest('RequestResponseIO dependencies are not installed.')
 
 
 class AckCaller(Caller[str, str]):

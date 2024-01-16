@@ -19,7 +19,12 @@ import logging
 import unittest
 
 import apache_beam as beam
-from apache_beam.transforms.enrichment import cross_join
+
+# pylint: disable=ungrouped-imports
+try:
+  from apache_beam.transforms.enrichment import cross_join
+except ImportError:
+  raise unittest.SkipTest('RequestResponseIO dependencies are not installed.')
 
 
 class TestEnrichmentTransform(unittest.TestCase):

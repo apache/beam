@@ -25,12 +25,17 @@ from typing import Union
 import urllib3
 
 import apache_beam as beam
-from apache_beam.io.requestresponse import Caller
-from apache_beam.io.requestresponse import RequestResponseIO
-from apache_beam.io.requestresponse import UserCodeExecutionException
-from apache_beam.io.requestresponse import UserCodeQuotaException
-from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.options.pipeline_options import PipelineOptions
+
+# pylint: disable=ungrouped-imports
+try:
+  from apache_beam.io.requestresponse import Caller
+  from apache_beam.io.requestresponse import RequestResponseIO
+  from apache_beam.io.requestresponse import UserCodeExecutionException
+  from apache_beam.io.requestresponse import UserCodeQuotaException
+except ImportError:
+  raise unittest.SkipTest('RequestResponseIO dependencies are not installed.')
 
 _HTTP_PATH = '/v1/echo'
 _PAYLOAD = base64.b64encode(bytes('payload', 'utf-8'))

@@ -22,14 +22,17 @@ from typing import List
 from typing import NamedTuple
 
 import pytest
-from google.cloud.bigtable import Client
-from google.cloud.bigtable.row_filters import ColumnRangeFilter
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import BeamAssertException
-from apache_beam.transforms.enrichment import Enrichment
-from apache_beam.transforms.enrichment_handlers.bigtable import EnrichWithBigTable
+
+# pylint: disable=ungrouped-imports
+try:
+  from apache_beam.transforms.enrichment import Enrichment
+  from apache_beam.transforms.enrichment_handlers.bigtable import EnrichWithBigTable
+except ImportError:
+  raise unittest.SkipTest('GCP BigTable dependencies are not installed.')
 
 
 class ValidateResponse(beam.DoFn):

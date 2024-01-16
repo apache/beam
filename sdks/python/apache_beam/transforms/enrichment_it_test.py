@@ -25,14 +25,19 @@ import pytest
 import urllib3
 
 import apache_beam as beam
-from apache_beam.io.requestresponse import UserCodeExecutionException
-from apache_beam.io.requestresponse import UserCodeQuotaException
-from apache_beam.io.requestresponse_it_test import _PAYLOAD
-from apache_beam.io.requestresponse_it_test import EchoITOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import BeamAssertException
-from apache_beam.transforms.enrichment import Enrichment
-from apache_beam.transforms.enrichment import EnrichmentSourceHandler
+
+# pylint: disable=ungrouped-imports
+try:
+  from apache_beam.io.requestresponse import UserCodeExecutionException
+  from apache_beam.io.requestresponse import UserCodeQuotaException
+  from apache_beam.io.requestresponse_it_test import _PAYLOAD
+  from apache_beam.io.requestresponse_it_test import EchoITOptions
+  from apache_beam.transforms.enrichment import Enrichment
+  from apache_beam.transforms.enrichment import EnrichmentSourceHandler
+except ImportError:
+  raise unittest.SkipTest('RequestResponseIO dependencies are not installed.')
 
 
 class Request(NamedTuple):
