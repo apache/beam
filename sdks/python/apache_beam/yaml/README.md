@@ -348,7 +348,9 @@ pipeline:
       windowing:
         type: fixed
         size: 60
-    - type: SomeAggregation
+    - type: SomeGroupingTransform
+      config:
+        arg: ...
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
@@ -368,7 +370,9 @@ pipeline:
         topic: myPubSubTopic
         format: ...
         schema: ...
-    - type: SomeAggregation
+    - type: SomeGroupingTransform
+      config:
+        arg: ...
       windowing:
         type: sliding
         size: 60

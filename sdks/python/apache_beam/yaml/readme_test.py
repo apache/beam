@@ -119,7 +119,10 @@ class FakeWriteToPubSub(beam.PTransform):
     return pcoll
 
 
-class SomeAggregation(beam.PTransform):
+class FakeAggregation(beam.PTransform):
+  def __init__(self, **unused_kwargs):
+    pass
+
   def expand(self, pcoll):
     return pcoll | beam.GroupBy(lambda _: 'key').aggregate_field(
         lambda _: 1, sum, 'count')
@@ -130,7 +133,7 @@ TEST_TRANSFORMS = {
     'Sql': FakeSql,
     'ReadFromPubSub': FakeReadFromPubSub,
     'WriteToPubSub': FakeWriteToPubSub,
-    'SomeAggregation': SomeAggregation,
+    'SomeGroupingTransform': FakeAggregation,
 }
 
 
