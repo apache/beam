@@ -29,6 +29,7 @@ from typing import TypeVar
 from google.api_core.exceptions import TooManyRequests
 
 import apache_beam as beam
+from apache_beam.coders import coders
 from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
 from apache_beam.metrics import Metrics
 from apache_beam.ml.inference.vertex_ai_inference import MSEC_TO_SEC
@@ -221,6 +222,37 @@ class CacheReader(abc.ABC):
 class CacheWriter(abc.ABC):
   """CacheWriter provides mechanism to write to the cache."""
   pass
+
+
+class Cache(abc.ABC):
+  """Base Cache class for
+  :class:`apache_beam.io.requestresponse.RequestResponseIO`."""
+  @abc.abstractmethod
+  def get_read(self):
+    """get_read returns a PTransform that reads from the cache."""
+    pass
+
+  @abc.abstractmethod
+  def get_write(self):
+    """get_write returns a PTransform that writes to the cache."""
+    pass
+
+
+class RedisCache(Cache):
+  def __init__(
+      self, uri: str, request_coder: coders.Coder,
+      response_coder: coders.Coder):
+    self._uri = uri
+    self._request_coder = request_coder
+    self._response_coder = response_coder
+
+  def get_read(self):
+    """get_read returns a PTransform that reads from the cache."""
+    pass
+
+  def get_write(self):
+    """get_write returns a PTransform that writes to the cache."""
+    pass
 
 
 class PreCallThrottler(abc.ABC):
