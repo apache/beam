@@ -244,10 +244,11 @@ public class StreamingDataflowWorker {
   private final Counter<Long, Long> windmillStateBytesRead;
   private final Counter<Long, Long> windmillStateBytesWritten;
   private final Counter<Long, Long> windmillQuotaThrottling;
+  private final Counter<Long, Long> timeAtMaxActiveThreads;
   // Built-in cumulative counters.
   private final Counter<Long, Long> javaHarnessUsedMemory;
   private final Counter<Long, Long> javaHarnessMaxMemory;
-  private final Counter<Long, Long> timeAtMaxActiveThreads;
+  private final Counter<Long, Long> timeAtMaxActiveThreadsAggregate;
   private final Counter<Integer, Integer> activeThreads;
   private final Counter<Integer, Integer> totalAllocatedThreads;
   private final Counter<Long, Long> outstandingBytes;
@@ -340,6 +341,9 @@ public class StreamingDataflowWorker {
     this.javaHarnessMaxMemory =
         pendingCumulativeCounters.longSum(
             StreamingSystemCounterNames.JAVA_HARNESS_MAX_MEMORY.counterName());
+     this.timeAtMaxActiveThreadsAggregate =
+        pendingCumulativeCounters.longSum(
+            StreamingSystemCounterNames.TIME_AT_MAX_ACTIVE_THREADS.counterName());
     this.activeThreads =
         pendingCumulativeCounters.intSum(StreamingSystemCounterNames.ACTIVE_THREADS.counterName());
     this.outstandingBytes =
@@ -1731,10 +1735,12 @@ public class StreamingDataflowWorker {
   }
 
   private void updateThreadMetrics() {
-    LOG.info("[chengedward] old time at max threads: " + timeAtMaxActiveThreads.getAggregate());
+    LOG.info("[chengedward] time at max threads: " + timeAtMaxActiveThreads.getAggregate());
+    LOG.info("[chengedward] aggregated time at max threads: " + timeAtMaxActiveThreadsAggregate.getAggregate());
     timeAtMaxActiveThreads.getAndReset();
-    timeAtMaxActiveThreads.addValue(workUnitExecutor.allThreadsActiveTime());
-    LOG.info("[chengedward] old time at max threads: " + timeAtMaxActiveThreads.getAggregate());
+    timeAtMaxActiveThreads.addValue(workUnitExecutor.allThreadsActiveTime() - timeAtMaxActiveThreadsAggregate.getAggregate());
+    timeAtMaxActiveThreadsAggregate.getAndReset();
+    timeAtMaxActiveThreadsAggregate.addValue(workUnitExecutor.allThreadsActiveTime());
     activeThreads.getAndReset();
     activeThreads.addValue(workUnitExecutor.activeCount());
     totalAllocatedThreads.getAndReset();
