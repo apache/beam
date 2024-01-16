@@ -27,6 +27,7 @@ import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.StreamingScalingReport;
+import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
@@ -693,12 +694,12 @@ public class StreamingDataflowWorker {
 
   public void stop() {
     try {
-      for (ScheduledExecutorService timer : timersMap.entrySet) {
+      for (ScheduledExecutorService timer : timersMap.values()) {
         if (timer != null) {
           timer.shutdown();
         }
       }
-      for (ScheduledExecutorService timer : timersMap.entrySet) {
+      for (ScheduledExecutorService timer : timersMap.values()) {
         if (timer != null) {
           timer.awaitTermination(300, TimeUnit.SECONDS);
         }
