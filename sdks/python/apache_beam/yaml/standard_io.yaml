@@ -71,6 +71,7 @@
         'producer_config_updates': 'producerConfigUpdates'
         'file_descriptor_path': 'fileDescriptorPath'
         'message_name': 'messageName'
+        'schema': 'schema'
     underlying_provider:
       type: beamJar
       transforms:
@@ -239,13 +240,5 @@
       transforms:
         'ReadFromJdbc': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
         'WriteToJdbc': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
-        'ReadFromMySql': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
-        'WriteToMySql': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
-        'ReadFromPostgres': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
-        'WriteToPostgres': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
-        'ReadFromOracle': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
-        'WriteToOracle': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
-        'ReadFromSqlServer': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
-        'WriteToSqlServer': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
       config:
         gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'

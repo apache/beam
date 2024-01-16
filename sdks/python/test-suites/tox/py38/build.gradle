@@ -89,6 +89,10 @@ toxTask "testPy38pandas-15", "py38-pandas-15", "${posargs}"
 test.dependsOn "testPy38pandas-15"
 preCommitPyCoverage.dependsOn "testPy38pandas-15"
 
+toxTask "testPy38pandas-20", "py38-pandas-20", "${posargs}"
+test.dependsOn "testPy38pandas-20"
+preCommitPyCoverage.dependsOn "testPy38pandas-20"
+
 // Create a test task for each minor version of pytorch
 toxTask "testPy38pytorch-19", "py38-pytorch-19", "${posargs}"
 test.dependsOn "testPy38pytorch-19"
@@ -140,6 +144,10 @@ preCommitPyCoverage.dependsOn "testPy38transformers-429"
 toxTask "testPy38transformers-430", "py38-transformers-430", "${posargs}"
 test.dependsOn "testPy38transformers-430"
 preCommitPyCoverage.dependsOn "testPy38transformers-430"
+
+toxTask "testPy38embeddingsMLTransform", "py38-embeddings", "${posargs}"
+test.dependsOn "testPy38embeddingsMLTransform"
+preCommitPyCoverage.dependsOn "testPy38embeddingsMLTransform"
 
 toxTask "whitespacelint", "whitespacelint", "${posargs}"
 

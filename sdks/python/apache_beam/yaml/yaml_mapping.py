@@ -27,6 +27,7 @@ from typing import Dict
 from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
+from typing import TypeVar
 from typing import Union
 
 import js2py
@@ -37,6 +38,7 @@ from js2py.internals import simplex
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.portability.api import schema_pb2
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import row_type
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
@@ -46,6 +48,17 @@ from apache_beam.yaml import json_utils
 from apache_beam.yaml import options
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_provider import dicts_to_rows
+
+
+def normalize_mapping(spec):
+  """
+  Normalizes various fields for mapping transforms.
+  """
+  if spec['type'] == 'MapToFields':
+    config = spec.get('config')
+    if isinstance(config.get('drop'), str):
+      config['drop'] = [config['drop']]
+  return spec
 
 
 def _check_mapping_arguments(
@@ -228,6 +241,27 @@ def _validator(beam_type: schema_pb2.FieldType) -> Callable[[Any], bool]:
     raise ValueError(f"Unrecognized type_info: {type_info!r}")
 
 
+def _as_callable_for_pcoll(
+    pcoll,
+    fn_spec: Union[str, Dict[str, str]],
+    msg: str,
+    language: Optional[str]):
+  if language == 'javascript':
+    options.YamlOptions.check_enabled(pcoll.pipeline, 'javascript')
+
+  try:
+    input_schema = dict(named_fields_from_element_type(pcoll.element_type))
+  except (TypeError, ValueError) as exn:
+    if is_expr(fn_spec):
+      raise ValueError("Can only use expressions on a schema'd input.") from exn
+    input_schema = {}  # unused
+
+  if isinstance(fn_spec, str) and fn_spec in input_schema:
+    return lambda row: getattr(row, fn_spec)
+  else:
+    return _as_callable(list(input_schema.keys()), fn_spec, msg, language)
+
+
 def _as_callable(original_fields, expr, transform_name, language):
   if expr in original_fields:
     return expr
@@ -326,6 +360,28 @@ def maybe_with_exception_handling_transform_fn(transform_fn):
 
 
 class _Explode(beam.PTransform):
+  """Explodes (aka unnest/flatten) one or more fields producing multiple rows.
+
+  Given one or more fields of iterable type, produces multiple rows, one for
+  each value of that field. For example, a row of the form `('a', [1, 2, 3])`
+  would expand to `('a', 1)`, `('a', 2')`, and `('a', 3)` when exploded on
+  the second field.
+
+  This is akin to a `FlatMap` when paired with the MapToFields transform.
+
+  Args:
+      fields: The list of fields to expand.
+      cross_product: If multiple fields are specified, indicates whether the
+          full cross-product of combinations should be produced, or if the
+          first element of the first field corresponds to the first element
+          of the second field, etc. For example, the row
+          `(['a', 'b'], [1, 2])` would expand to the four rows
+          `('a', 1)`, `('a', 2)`, `('b', 1)`, and `('b', 2)` when
+          `cross_product` is set to `true` but only the two rows
+          `('a', 1)` and `('b', 2)` when it is set to `false`.
+          Only meaningful (and required) if multiple rows are specified.
+      error_handling: Whether and how to handle errors during iteration.
+  """
   def __init__(
       self,
       fields: Union[str, Collection[str]],
@@ -398,20 +454,7 @@ class _Explode(beam.PTransform):
 @maybe_with_exception_handling_transform_fn
 def _PyJsFilter(
     pcoll, keep: Union[str, Dict[str, str]], language: Optional[str] = None):
-  if language == 'javascript':
-    options.YamlOptions.check_enabled(pcoll.pipeline, 'javascript')
-
-  try:
-    input_schema = dict(named_fields_from_element_type(pcoll.element_type))
-  except (TypeError, ValueError) as exn:
-    if is_expr(keep):
-      raise ValueError("Can only use expressions on a schema'd input.") from exn
-    input_schema = {}  # unused
-
-  if isinstance(keep, str) and keep in input_schema:
-    keep_fn = lambda row: getattr(row, keep)
-  else:
-    keep_fn = _as_callable(list(input_schema.keys()), keep, "keep", language)
+  keep_fn = _as_callable_for_pcoll(pcoll, keep, "keep", language)
   return pcoll | beam.Filter(keep_fn)
 
 
@@ -431,8 +474,6 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
       raise ValueError("Can only use expressions on a schema'd input.") from exn
     input_schema = {}
 
-  if isinstance(drop, str):
-    drop = [drop]
   if drop and not append:
     raise ValueError("Can only drop fields if append is true.")
   for name in drop:
@@ -509,12 +550,26 @@ def _SqlMapToFieldsTransform(pcoll, sql_transform_constructor, **mapping_args):
   return pcoll | sql_transform_constructor(query)
 
 
+@beam.ptransform.ptransform_fn
+def _AssignTimestamps(
+    pcoll,
+    timestamp: Union[str, Dict[str, str]],
+    language: Optional[str] = None):
+  timestamp_fn = _as_callable_for_pcoll(pcoll, timestamp, 'timestamp', language)
+  T = TypeVar('T')
+  return pcoll | beam.Map(lambda x: TimestampedValue(x, timestamp_fn(x))
+                          ).with_input_types(T).with_output_types(T)
+
+
 def create_mapping_providers():
   # These are MetaInlineProviders because their expansion is in terms of other
   # YamlTransforms, but in a way that needs to be deferred until the input
   # schema is known.
   return [
       yaml_provider.InlineProvider({
+          'AssignTimestamps-python': _AssignTimestamps,
+          'AssignTimestamps-javascript': _AssignTimestamps,
+          'AssignTimestamps-generic': _AssignTimestamps,
           'Explode': _Explode,
           'Filter-python': _PyJsFilter,
           'Filter-javascript': _PyJsFilter,

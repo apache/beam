@@ -37,7 +37,9 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
@@ -46,6 +48,7 @@ import org.junit.runners.Parameterized.Parameters;
 /** Tests for {@link LengthPrefixUnknownCoders}. */
 @RunWith(Parameterized.class)
 public class LengthPrefixUnknownCodersTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   private static class UnknownCoder extends CustomCoder<String> {
     private static final Coder<?> INSTANCE = new UnknownCoder();

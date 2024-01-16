@@ -179,11 +179,16 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 			ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
 			wDec, wEnc := getWindowValueCoders(comps, col, coders)
 
+			var kd func(io.Reader) []byte
+			if kcid, ok := extractKVCoderID(col.GetCoderId(), coders); ok {
+				kd = collectionPullDecoder(kcid, coders, comps)
+			}
 			stage.OutputsToCoders[onlyOut] = engine.PColInfo{
 				GlobalID: onlyOut,
 				WDec:     wDec,
 				WEnc:     wEnc,
 				EDec:     ed,
+				KeyDec:   kd,
 			}
 
 			// There's either 0, 1 or many inputs, but they should be all the same
@@ -208,11 +213,17 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 					col := comps.GetPcollections()[global]
 					ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
 					wDec, wEnc := getWindowValueCoders(comps, col, coders)
+
+					var kd func(io.Reader) []byte
+					if kcid, ok := extractKVCoderID(col.GetCoderId(), coders); ok {
+						kd = collectionPullDecoder(kcid, coders, comps)
+					}
 					stage.inputInfo = engine.PColInfo{
 						GlobalID: global,
 						WDec:     wDec,
 						WEnc:     wEnc,
 						EDec:     ed,
+						KeyDec:   kd,
 					}
 				}
 				em.StageAggregates(stage.ID)
@@ -234,6 +245,9 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 			outputs := maps.Keys(stage.OutputsToCoders)
 			sort.Strings(outputs)
 			em.AddStage(stage.ID, []string{stage.primaryInput}, outputs, stage.sideInputs)
+			if stage.stateful {
+				em.StageStateful(stage.ID)
+			}
 		default:
 			err := fmt.Errorf("unknown environment[%v]", t.GetEnvironmentId())
 			slog.Error("Execute", err)
@@ -284,6 +298,14 @@ func collectionPullDecoder(coldCId string, coders map[string]*pipepb.Coder, comp
 		panic(err)
 	}
 	return pullDecoder(coders[cID], coders)
+}
+
+func extractKVCoderID(coldCId string, coders map[string]*pipepb.Coder) (string, bool) {
+	c := coders[coldCId]
+	if c.GetSpec().GetUrn() == urns.CoderKV {
+		return c.GetComponentCoderIds()[0], true
+	}
+	return "", false
 }
 
 func getWindowValueCoders(comps *pipepb.Components, col *pipepb.PCollection, coders map[string]*pipepb.Coder) (exec.WindowDecoder, exec.WindowEncoder) {

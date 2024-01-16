@@ -180,13 +180,13 @@ Beam offers a way to provide your own custom container image. The easiest way to
 1. Copy necessary artifacts from Apache Beam base image to your image.
   ```
   # This can be any container image,
- FROM python:3.7-bullseye
+ FROM python:3.8-bookworm
 
  # Install SDK. (needed for Python SDK)
- RUN pip install --no-cache-dir apache-beam[gcp]==2.35.0
+ RUN pip install --no-cache-dir apache-beam[gcp]==2.52.0
 
  # Copy files from official SDK image, including script/dependencies.
- COPY --from=apache/beam_python3.7_sdk:2.35.0 /opt/apache/beam /opt/apache/beam
+ COPY --from=apache/beam_python3.8_sdk:2.52.0 /opt/apache/beam /opt/apache/beam
 
  # Perform any additional customizations if desired
 
@@ -194,7 +194,7 @@ Beam offers a way to provide your own custom container image. The easiest way to
  ENTRYPOINT ["/opt/apache/beam/boot"]
 
   ```
->**NOTE**: This example assumes necessary dependencies (in this case, Python 3.7 and pip) have been installed on the existing base image. Installing the Apache Beam SDK into the image will ensure that the image has the necessary SDK dependencies and reduce the worker startup time.
+>**NOTE**: This example assumes necessary dependencies (in this case, Python 3.8 and pip) have been installed on the existing base image. Installing the Apache Beam SDK into the image will ensure that the image has the necessary SDK dependencies and reduce the worker startup time.
 >The version specified in the `RUN` instruction must match the version used to launch the pipeline.<br>
 >**Make sure that the Python or Java runtime version specified in the base image is the same as the version used to run the pipeline.**
 
@@ -202,7 +202,7 @@ Beam offers a way to provide your own custom container image. The easiest way to
 
 2. [Build](https://docs.docker.com/engine/reference/commandline/build/) and [push](https://docs.docker.com/engine/reference/commandline/push/) the image using Docker.
   ```
-    export BASE_IMAGE="apache/beam_python3.7_sdk:2.25.0"
+    export BASE_IMAGE="apache/beam_python3.8_sdk:2.52.0"
     export IMAGE_NAME="myremoterepo/mybeamsdk"
     export TAG="latest"
 

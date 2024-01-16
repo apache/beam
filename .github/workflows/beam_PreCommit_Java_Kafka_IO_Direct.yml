@@ -75,7 +75,7 @@ jobs:
       matrix:
         job_name: ["beam_PreCommit_Java_Kafka_IO_Direct"]
         job_phrase: ["Run Java_Kafka_IO_Direct PreCommit"]
-    timeout-minutes: 60
+    timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
@@ -102,7 +102,7 @@ jobs:
             -PdisableCheckStyle=true \
             --no-parallel \
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         with:
           name: JUnit Test Results
@@ -115,7 +115,7 @@ jobs:
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'
       - name: Archive SpotBugs Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: SpotBugs Results

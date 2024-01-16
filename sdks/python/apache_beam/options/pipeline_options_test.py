@@ -21,11 +21,14 @@
 
 import json
 import logging
+import os
 import unittest
 
 import hamcrest as hc
+import mock
 from parameterized import parameterized
 
+from apache_beam.options.pipeline_options import CrossLanguageOptions
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -394,6 +397,36 @@ class PipelineOptionsTest(unittest.TestCase):
     worker_options = options.view_as(WorkerOptions)
     self.assertEqual(worker_options.machine_type, 'abc')
     self.assertEqual(worker_options.disk_type, 'def')
+
+  def test_beam_services_empty(self):
+    with mock.patch.dict(os.environ, {}, clear=True):
+      options = PipelineOptions().view_as(CrossLanguageOptions)
+      self.assertEqual(options.beam_services, {})
+
+  def test_beam_services_from_env(self):
+    with mock.patch.dict(os.environ,
+                         {'BEAM_SERVICE_OVERRIDES': '{"foo": "bar"}'},
+                         clear=True):
+      options = PipelineOptions().view_as(CrossLanguageOptions)
+      self.assertEqual(options.beam_services, {'foo': 'bar'})
+
+  def test_beam_services_from_flag(self):
+    with mock.patch.dict(os.environ, {}, clear=True):
+      options = PipelineOptions(['--beam_services={"foo": "bar"}'
+                                 ]).view_as(CrossLanguageOptions)
+      self.assertEqual(options.beam_services, {'foo': 'bar'})
+
+  def test_beam_services_from_env_and_flag(self):
+    with mock.patch.dict(
+        os.environ,
+        {'BEAM_SERVICE_OVERRIDES': '{"foo": "bar", "other": "zzz"}'},
+        clear=True):
+      options = PipelineOptions(['--beam_services={"foo": "override"}'
+                                 ]).view_as(CrossLanguageOptions)
+      self.assertEqual(
+          options.beam_services, {
+              'foo': 'override', 'other': 'zzz'
+          })
 
   def test_option_modifications_are_shared_between_views(self):
     pipeline_options = PipelineOptions([

@@ -363,11 +363,9 @@ public abstract class FlinkSourceReaderTestBase<OutputT> {
     }
 
     public boolean allRecordsConsumed() {
-      boolean allRecordsConsumed = true;
-      for (Source<?> source : sources) {
-        allRecordsConsumed = allRecordsConsumed && ((TestSource) source).isConsumptionCompleted();
-      }
-      return allRecordsConsumed;
+      return sources.stream()
+          .map(TestSource.class::cast)
+          .allMatch(TestSource::isConsumptionCompleted);
     }
 
     public boolean allTimestampReceived() {

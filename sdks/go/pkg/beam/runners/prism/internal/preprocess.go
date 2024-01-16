@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
+	"google.golang.org/protobuf/proto"
 )
 
 // transformPreparer is an interface for handling different urns in the preprocessor
@@ -440,7 +441,18 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 		inputs[pid] = true
 		for _, link := range plinks {
 			t := comps.GetTransforms()[link.Transform]
-			sis, _ := getSideInputs(t)
+
+			var sis map[string]*pipepb.SideInput
+			if t.GetSpec().GetUrn() == urns.TransformParDo {
+				pardo := &pipepb.ParDoPayload{}
+				if err := (proto.UnmarshalOptions{}).Unmarshal(t.GetSpec().GetPayload(), pardo); err != nil {
+					return fmt.Errorf("unable to decode ParDoPayload for %v", link.Transform)
+				}
+				if len(pardo.GetTimerFamilySpecs())+len(pardo.GetStateSpecs())+len(pardo.GetOnWindowExpirationTimerFamilySpec()) > 0 {
+					stg.stateful = true
+				}
+				sis = pardo.GetSideInputs()
+			}
 			if _, ok := sis[link.Local]; ok {
 				sideInputs = append(sideInputs, engine.LinkID{Transform: link.Transform, Global: link.Global, Local: link.Local})
 			} else {

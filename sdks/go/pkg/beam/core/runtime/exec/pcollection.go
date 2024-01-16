@@ -16,12 +16,14 @@
 package exec
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math"
 	"math/rand"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 )
@@ -32,19 +34,23 @@ import (
 // In particular, must not be placed after a Multiplex, and must be placed
 // after a Flatten.
 type PCollection struct {
-	UID    UnitID
-	PColID string
-	Out    Node // Out is the consumer of this PCollection.
-	Coder  *coder.Coder
-	Seed   int64
+	UID         UnitID
+	PColID      string
+	Out         Node // Out is the consumer of this PCollection.
+	Coder       *coder.Coder
+	WindowCoder *coder.WindowCoder
+	Seed        int64
 
 	r             *rand.Rand
 	nextSampleIdx int64 // The index of the next value to sample.
 	elementCoder  ElementEncoder
+	windowCoder   WindowEncoder
 
-	elementCount                         int64 // must use atomic operations.
+	bundleElementCount                   int64 // must use atomic operations.
+	pCollectionElementCount              int64 // track the total number of elements this instance has processed. Local use only, no concurrent read/write.
 	sizeMu                               sync.Mutex
 	sizeCount, sizeSum, sizeMin, sizeMax int64
+	dataSampler                          *DataSampler
 }
 
 // ID returns the debug id for this unit.
@@ -57,12 +63,13 @@ func (p *PCollection) Up(ctx context.Context) error {
 	// dedicated rand source
 	p.r = rand.New(rand.NewSource(p.Seed))
 	p.elementCoder = MakeElementEncoder(p.Coder)
+	p.windowCoder = MakeWindowEncoder(p.WindowCoder)
 	return nil
 }
 
 // StartBundle resets collected metrics for this PCollection, and propagates bundle start.
 func (p *PCollection) StartBundle(ctx context.Context, id string, data DataContext) error {
-	atomic.StoreInt64(&p.elementCount, 0)
+	atomic.StoreInt64(&p.bundleElementCount, 0)
 	p.nextSampleIdx = 1
 	p.resetSize()
 	return MultiStartBundle(ctx, id, data, p.Out)
@@ -79,8 +86,8 @@ func (w *byteCounter) Write(p []byte) (n int, err error) {
 
 // ProcessElement increments the element count and sometimes takes size samples of the elements.
 func (p *PCollection) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
-	cur := atomic.AddInt64(&p.elementCount, 1)
-	if cur == p.nextSampleIdx {
+	cur := atomic.AddInt64(&p.bundleElementCount, 1)
+	if cur+p.pCollectionElementCount == p.nextSampleIdx {
 		// Always encode the first 3 elements. Otherwise...
 		// We pick the next sampling index based on how large this pcollection already is.
 		// We don't want to necessarily wait until the pcollection has doubled, so we reduce the range.
@@ -91,11 +98,21 @@ func (p *PCollection) ProcessElement(ctx context.Context, elm *FullValue, values
 		if p.nextSampleIdx < 4 {
 			p.nextSampleIdx++
 		} else {
-			p.nextSampleIdx = cur + p.r.Int63n(cur/10+2) + 1
+			p.nextSampleIdx = cur + p.r.Int63n((cur+p.pCollectionElementCount)/10+2) + 1
 		}
-		var w byteCounter
-		p.elementCoder.Encode(elm, &w)
-		p.addSize(int64(w.count))
+
+		if p.dataSampler == nil {
+			var w byteCounter
+			p.elementCoder.Encode(elm, &w)
+			p.addSize(int64(w.count))
+		} else {
+			var buf bytes.Buffer
+			EncodeWindowedValueHeader(p.windowCoder, elm.Windows, elm.Timestamp, elm.Pane, &buf)
+			winSize := buf.Len()
+			p.elementCoder.Encode(elm, &buf)
+			p.addSize(int64(buf.Len() - winSize))
+			p.dataSampler.SendSample(p.PColID, buf.Bytes(), time.Now())
+		}
 	}
 	return p.Out.ProcessElement(ctx, elm, values...)
 }
@@ -124,6 +141,7 @@ func (p *PCollection) resetSize() {
 
 // FinishBundle propagates bundle termination.
 func (p *PCollection) FinishBundle(ctx context.Context) error {
+	p.pCollectionElementCount += atomic.LoadInt64(&p.bundleElementCount)
 	return MultiFinishBundle(ctx, p.Out)
 }
 
@@ -149,7 +167,7 @@ func (p *PCollection) snapshot() PCollectionSnapshot {
 	defer p.sizeMu.Unlock()
 	return PCollectionSnapshot{
 		ID:           p.PColID,
-		ElementCount: atomic.LoadInt64(&p.elementCount),
+		ElementCount: atomic.LoadInt64(&p.bundleElementCount),
 		SizeCount:    p.sizeCount,
 		SizeSum:      p.sizeSum,
 		SizeMin:      p.sizeMin,

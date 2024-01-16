@@ -119,6 +119,10 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
 
     @Override
     public void addErrorCollection(PCollection<ErrorT> errorCollection) {
+      if (isClosed()) {
+        throw new IllegalStateException(
+            "Error collections cannot be added after Error Handler is closed");
+      }
       errorCollections.add(errorCollection);
     }
 

@@ -16,15 +16,15 @@
 #
 
 import argparse
+import contextlib
 import re
 
 import yaml
 
-from apache_beam.yaml import yaml_provider
 from apache_beam.portability.api import schema_pb2
-from apache_beam.typehints import native_type_compatibility
-from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.utils import subprocess_server
+from apache_beam.yaml import json_utils
+from apache_beam.yaml import yaml_provider
 
 
 def _fake_value(name, beam_type):
@@ -96,7 +96,9 @@ def config_docs(schema):
     elif type_info == "iterable_type":
       return f'Iterable[{pretty_type(beam_type.iterable_type.element_type)}]'
     elif type_info == "map_type":
-      return f'Map[{pretty_type(beam_type.map_type.key_type)}, {pretty_type(beam_type.map_type.value_type)}]'
+      return (
+          f'Map[{pretty_type(beam_type.map_type.key_type)}, '
+          f'{pretty_type(beam_type.map_type.value_type)}]')
     elif type_info == "row_type":
       return 'Row'
     else:
@@ -116,7 +118,7 @@ def config_docs(schema):
       yield ''.join([
           f'**{f.name}** `{pretty_type(f.type)}`',
           maybe_optional(f.type),
-          ': ' + f.description if f.description else '',
+          indent(': ' + f.description if f.description else '', 2),
           maybe_row_parameters(f.type),
       ])
 
@@ -166,7 +168,8 @@ def transform_docs(t, providers):
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument('output_file')
+  parser.add_argument('--markdown_file')
+  parser.add_argument('--schema_file')
   parser.add_argument('--include', default='.*')
   parser.add_argument(
       '--exclude', default='(Combine)|(Filter)|(MapToFields)-.*')
@@ -175,13 +178,52 @@ def main():
   exclude = re.compile(options.exclude).match
 
   with subprocess_server.SubprocessServer.cache_subprocesses():
-    with open(options.output_file, 'w') as fout:
+    json_config_schemas = []
+    with contextlib.ExitStack() as stack:
+      if options.markdown_file:
+        markdown_out = stack.enter_context(open(options.markdown_file, 'w'))
       providers = yaml_provider.standard_providers()
       for transform in sorted(providers.keys(), key=io_grouping_key):
         if include(transform) and not exclude(transform):
           print(transform)
-          fout.write(transform_docs(transform, providers[transform]))
-          fout.write('\n\n')
+          if options.markdown_file:
+            markdown_out.write(transform_docs(transform, providers[transform]))
+            markdown_out.write('\n\n')
+          if options.schema_file:
+            schema = providers[transform][0].config_schema(transform)
+            if schema:
+              json_config_schemas.append({
+                  'if': {
+                      'properties': {
+                          'type': {
+                              'const': transform
+                          }
+                      }
+                  },
+                  'then': {
+                      'properties': {
+                          'config': {
+                              'type': 'object',
+                              'properties': {
+                                  '__line__': {
+                                      'type': 'integer'
+                                  },
+                                  '__uuid__': {},
+                                  **{
+                                      f.name: json_utils.beam_type_to_json_type(
+                                          f.type)
+                                      for f in schema.fields
+                                  }
+                              },
+                              'additionalProperties': False,
+                          }
+                      }
+                  }
+              })
+
+    if options.schema_file:
+      with open(options.schema_file, 'w') as fout:
+        yaml.dump(json_config_schemas, fout, sort_keys=False)
 
 
 if __name__ == '__main__':

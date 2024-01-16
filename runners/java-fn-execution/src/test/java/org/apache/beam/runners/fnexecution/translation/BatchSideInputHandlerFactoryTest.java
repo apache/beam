@@ -55,6 +55,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -77,6 +78,7 @@ public class BatchSideInputHandlerFactoryTest {
                       COLLECTION_ID, RunnerApi.PCollection.getDefaultInstance()))));
 
   @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   @Mock private BatchSideInputHandlerFactory.SideInputGetter context;
 

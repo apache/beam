@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -61,6 +62,8 @@ type stage struct {
 	sideInputs   []engine.LinkID // Non-parallel input PCollections and their consumers
 	internalCols []string        // PCollections that escape. Used for precise coder sending.
 	envID        string
+	stateful     bool
+	hasTimers    []string
 
 	exe              transformExecuter
 	inputTransformID string
@@ -76,7 +79,7 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 	slog.Debug("Execute: starting bundle", "bundle", rb)
 
 	var b *worker.B
-	inputData := em.InputForBundle(rb, s.inputInfo)
+	initialState := em.StateForBundle(rb)
 	var dataReady <-chan struct{}
 	switch s.envID {
 	case "": // Runner Transforms
@@ -85,7 +88,7 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 		}
 		tid := s.transforms[0]
 		// Runner transforms are processed immeadiately.
-		b = s.exe.ExecuteTransform(s.ID, tid, comps.GetTransforms()[tid], comps, rb.Watermark, inputData)
+		b = s.exe.ExecuteTransform(s.ID, tid, comps.GetTransforms()[tid], comps, rb.Watermark, em.InputForBundle(rb, s.inputInfo))
 		b.InstID = rb.BundleID
 		slog.Debug("Execute: runner transform", "bundle", rb, slog.String("tid", tid))
 
@@ -96,14 +99,18 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 		close(closed)
 		dataReady = closed
 	case wk.Env:
+		input, estimatedElements := em.DataAndTimerInputForBundle(rb, s.inputInfo)
 		b = &worker.B{
 			PBDID:  s.ID,
 			InstID: rb.BundleID,
 
 			InputTransformID: s.inputTransformID,
 
-			// TODO Here's where we can split data for processing in multiple bundles.
-			InputData: inputData,
+			Input:                  input,
+			EstimatedInputElements: estimatedElements,
+
+			OutputData: initialState,
+			HasTimers:  s.hasTimers,
 
 			SinkToPCollection: s.SinkToPCollection,
 			OutputCount:       len(s.outputs),
@@ -123,7 +130,9 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 
 	// Progress + split loop.
 	previousIndex := int64(-2)
-	var splitsDone bool
+	previousTotalCount := int64(-2) // Total count of all pcollection elements.
+
+	unsplit := true
 	progTick := time.NewTicker(100 * time.Millisecond)
 	defer progTick.Stop()
 	var dataFinished, bundleFinished bool
@@ -163,8 +172,10 @@ progress:
 				j.AddMetricShortIDs(md)
 			}
 			slog.Debug("progress report", "bundle", rb, "index", index, "prevIndex", previousIndex)
-			// Progress for the bundle hasn't advanced. Try splitting.
-			if previousIndex == index && !splitsDone {
+
+			// Check if there has been any measurable progress by the input, or all output pcollections since last report.
+			slow := previousIndex == index["index"] && previousTotalCount == index["totalCount"]
+			if slow && unsplit {
 				slog.Debug("splitting report", "bundle", rb, "index", index)
 				sr, err := b.Split(ctx, wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if err != nil {
@@ -173,7 +184,7 @@ progress:
 				}
 				if sr.GetChannelSplits() == nil {
 					slog.Debug("SDK returned no splits", "bundle", rb)
-					splitsDone = true
+					unsplit = false
 					continue progress
 				}
 				// TODO sort out rescheduling primary Roots on bundle failure.
@@ -193,17 +204,19 @@ progress:
 				cs := sr.GetChannelSplits()[0]
 				fr := cs.GetFirstResidualElement()
 				// The first residual can be after the end of data, so filter out those cases.
-				if len(b.InputData) >= int(fr) {
-					b.InputData = b.InputData[:int(fr)]
+				if b.EstimatedInputElements >= int(fr) {
+					b.EstimatedInputElements = int(fr) // Update the estimate for the next split.
+					// Residuals are returned right away for rescheduling.
 					em.ReturnResiduals(rb, int(fr), s.inputInfo, residualData)
 				}
 			} else {
-				previousIndex = index
+				previousIndex = index["index"]
+				previousTotalCount = index["totalCount"]
 			}
 		}
 	}
 	// Tentative Data is ready, commit it to the main datastore.
-	slog.Debug("Execute: commiting data", "bundle", rb, slog.Any("outputsWithData", maps.Keys(b.OutputData.Raw)), slog.Any("outputs", maps.Keys(s.OutputsToCoders)))
+	slog.Debug("Execute: committing data", "bundle", rb, slog.Any("outputsWithData", maps.Keys(b.OutputData.Raw)), slog.Any("outputs", maps.Keys(s.OutputsToCoders)))
 
 	// Tally metrics immeadiately so they're available before
 	// pipeline termination.
@@ -283,7 +296,71 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 	transforms := map[string]*pipepb.PTransform{}
 
 	for _, tid := range stg.transforms {
-		transforms[tid] = comps.GetTransforms()[tid]
+		t := comps.GetTransforms()[tid]
+
+		transforms[tid] = t
+
+		if t.GetSpec().GetUrn() != urns.TransformParDo {
+			continue
+		}
+
+		pardo := &pipepb.ParDoPayload{}
+		if err := (proto.UnmarshalOptions{}).Unmarshal(t.GetSpec().GetPayload(), pardo); err != nil {
+			return fmt.Errorf("unable to decode ParDoPayload for %v in stage %v", tid, stg.ID)
+		}
+
+		// We need to ensure the coders can be handled by prism, and are available in the bundle descriptor.
+		// So we rewrite the transform's Payload with updated coder ids here.
+		var rewrite bool
+		var rewriteErr error
+		for stateID, s := range pardo.GetStateSpecs() {
+			rewrite = true
+			rewriteCoder := func(cid *string) {
+				newCid, err := lpUnknownCoders(*cid, coders, comps.GetCoders())
+				if err != nil {
+					rewriteErr = fmt.Errorf("unable to rewrite coder %v for state %v for transform %v in stage %v:%w", *cid, stateID, tid, stg.ID, err)
+					return
+				}
+				*cid = newCid
+			}
+			switch s := s.GetSpec().(type) {
+			case *pipepb.StateSpec_BagSpec:
+				rewriteCoder(&s.BagSpec.ElementCoderId)
+			case *pipepb.StateSpec_SetSpec:
+				rewriteCoder(&s.SetSpec.ElementCoderId)
+			case *pipepb.StateSpec_OrderedListSpec:
+				rewriteCoder(&s.OrderedListSpec.ElementCoderId)
+			case *pipepb.StateSpec_CombiningSpec:
+				rewriteCoder(&s.CombiningSpec.AccumulatorCoderId)
+			case *pipepb.StateSpec_MapSpec:
+				rewriteCoder(&s.MapSpec.KeyCoderId)
+				rewriteCoder(&s.MapSpec.ValueCoderId)
+			case *pipepb.StateSpec_MultimapSpec:
+				rewriteCoder(&s.MultimapSpec.KeyCoderId)
+				rewriteCoder(&s.MultimapSpec.ValueCoderId)
+			case *pipepb.StateSpec_ReadModifyWriteSpec:
+				rewriteCoder(&s.ReadModifyWriteSpec.CoderId)
+			}
+			if rewriteErr != nil {
+				return rewriteErr
+			}
+		}
+		for timerID, v := range pardo.GetTimerFamilySpecs() {
+			stg.hasTimers = append(stg.hasTimers, tid)
+			rewrite = true
+			newCid, err := lpUnknownCoders(v.GetTimerFamilyCoderId(), coders, comps.GetCoders())
+			if err != nil {
+				return fmt.Errorf("unable to rewrite coder %v for timer %v for transform %v in stage %v: %w", v.GetTimerFamilyCoderId(), timerID, tid, stg.ID, err)
+			}
+			v.TimerFamilyCoderId = newCid
+		}
+		if rewrite {
+			pyld, err := proto.MarshalOptions{}.Marshal(pardo)
+			if err != nil {
+				return fmt.Errorf("unable to encode ParDoPayload for %v in stage %v after rewrite", tid, stg.ID)
+			}
+			t.Spec.Payload = pyld
+		}
 	}
 	if len(transforms) == 0 {
 		return fmt.Errorf("buildDescriptor: invalid stage - no transforms at all %v", stg.ID)
@@ -300,6 +377,12 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 		}
 		sinkID := o.Transform + "_" + o.Local
 		ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
+
+		var kd func(io.Reader) []byte
+		if kcid, ok := extractKVCoderID(col.GetCoderId(), coders); ok {
+			kd = collectionPullDecoder(kcid, coders, comps)
+		}
+
 		wDec, wEnc := getWindowValueCoders(comps, col, coders)
 		sink2Col[sinkID] = o.Global
 		col2Coders[o.Global] = engine.PColInfo{
@@ -307,6 +390,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 			WDec:     wDec,
 			WEnc:     wEnc,
 			EDec:     ed,
+			KeyDec:   kd,
 		}
 		transforms[sinkID] = sinkTransform(sinkID, portFor(wOutCid, wk), o.Global)
 	}
@@ -350,14 +434,20 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 	if err != nil {
 		return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for primary input, pcol %q %v:\n%w\n%v", stg.ID, stg.primaryInput, prototext.Format(col), err, stg.transforms)
 	}
-
 	ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
 	wDec, wEnc := getWindowValueCoders(comps, col, coders)
+
+	var kd func(io.Reader) []byte
+	if kcid, ok := extractKVCoderID(col.GetCoderId(), coders); ok {
+		kd = collectionPullDecoder(kcid, coders, comps)
+	}
+
 	inputInfo := engine.PColInfo{
 		GlobalID: stg.primaryInput,
 		WDec:     wDec,
 		WEnc:     wEnc,
 		EDec:     ed,
+		KeyDec:   kd,
 	}
 
 	stg.inputTransformID = stg.ID + "_source"
@@ -370,6 +460,13 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 
 	reconcileCoders(coders, comps.GetCoders())
 
+	var timerServiceDescriptor *pipepb.ApiServiceDescriptor
+	if len(stg.hasTimers) > 0 {
+		timerServiceDescriptor = &pipepb.ApiServiceDescriptor{
+			Url: wk.Endpoint(),
+		}
+	}
+
 	desc := &fnpb.ProcessBundleDescriptor{
 		Id:                  stg.ID,
 		Transforms:          transforms,
@@ -379,6 +476,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 		StateApiServiceDescriptor: &pipepb.ApiServiceDescriptor{
 			Url: wk.Endpoint(),
 		},
+		TimerApiServiceDescriptor: timerServiceDescriptor,
 	}
 
 	stg.desc = desc

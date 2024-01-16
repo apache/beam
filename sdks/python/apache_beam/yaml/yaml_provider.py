@@ -26,6 +26,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import subprocess
 import sys
 import urllib.parse
@@ -48,11 +49,9 @@ from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms import external
 from apache_beam.transforms import window
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
-from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.schemas import named_tuple_to_schema
-from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.utils import python_callable
 from apache_beam.utils import subprocess_server
@@ -206,7 +205,7 @@ class ExternalProvider(Provider):
         raise ValueError(
             f'Missing {required} in provider '
             f'at line {SafeLineLoader.get_line(spec)}')
-    urns = spec['transforms']
+    urns = SafeLineLoader.strip_metadata(spec['transforms'])
     type = spec['type']
     config = SafeLineLoader.strip_metadata(spec.get('config', {}))
     extra_params = set(SafeLineLoader.strip_metadata(spec).keys()) - set(
@@ -330,8 +329,7 @@ def python(urns, packages=()):
   else:
     return InlineProvider({
         name:
-        python_callable.PythonCallableWithSource.load_from_fully_qualified_name(
-            constructor)
+        python_callable.PythonCallableWithSource.load_from_source(constructor)
         for (name, constructor) in urns.items()
     })
 
@@ -349,6 +347,10 @@ class ExternalPythonProvider(ExternalProvider):
 
   def create_external_transform(self, urn, args):
     # Python transforms are "registered" by fully qualified name.
+    if not re.match(r'^[\w.]*$', urn):
+      # Treat it as source.
+      args = {'source': urn, **args}
+      urn = '__constructor__'
     return external.ExternalTransform(
         "beam:transforms:python:fully_qualified_named",
         external.ImplicitSchemaPayloadBuilder({
@@ -453,14 +455,16 @@ class InlineProvider(Provider):
 
     docs = self.get_docs(typ)
     return (
-        empty_if_none(docs.short_description) + '\n\n' +
+        empty_if_none(docs.short_description) +
+        ('\n\n' if docs.blank_after_short_description else '\n') +
         empty_if_none(docs.long_description)).strip() or None
 
   def get_docs(self, typ):
     docstring = self._transform_factories[typ].__doc__ or ''
     # These "extra" docstring parameters are not relevant for YAML and mess
     # up the parsing.
-    docstring = re.sub('Pandas Parameters\s+-----.*', '', docstring, flags=re.S)
+    docstring = re.sub(
+        r'Pandas Parameters\s+-----.*', '', docstring, flags=re.S)
     return docstring_parser.parse(
         docstring, docstring_parser.DocstringStyle.GOOGLE)
 
@@ -547,7 +551,7 @@ def dicts_to_rows(o):
 
 
 def create_builtin_provider():
-  def create(elements: Iterable[Any], reshuffle: bool = True):
+  def create(elements: Iterable[Any], reshuffle: Optional[bool] = True):
     """Creates a collection containing a specified set of elements.
 
     YAML/JSON-style mappings will be interpreted as Beam rows. For example::
@@ -561,17 +565,48 @@ def create_builtin_provider():
     Args:
         elements: The set of elements that should belong to the PCollection.
             YAML/JSON-style mappings will be interpreted as Beam rows.
-        reshuffle (optional): Whether to introduce a reshuffle if there is more
-            than one element in the collection. Defaults to True.
+        reshuffle (optional): Whether to introduce a reshuffle (to possibly
+            redistribute the work) if there is more than one element in the
+            collection. Defaults to True.
     """
-    return beam.Create([element_to_rows(e) for e in elements], reshuffle)
+    return beam.Create([element_to_rows(e) for e in elements],
+                       reshuffle=reshuffle is not False)
 
   # Or should this be posargs, args?
   # pylint: disable=dangerous-default-value
   def fully_qualified_named_transform(
       constructor: str,
-      args: Iterable[Any] = (),
-      kwargs: Mapping[str, Any] = {}):
+      args: Optional[Iterable[Any]] = (),
+      kwargs: Optional[Mapping[str, Any]] = {}):
+    """A Python PTransform identified by fully qualified name.
+
+    This allows one to import, construct, and apply any Beam Python transform.
+    This can be useful for using transforms that have not yet been exposed
+    via a YAML interface. Note, however, that conversion may be required if this
+    transform does not accept or produce Beam Rows.
+
+    For example,
+
+        type: PyTransform
+        config:
+          constructor: apache_beam.pkg.mod.SomeClass
+          args: [1, 'foo']
+          kwargs:
+             baz: 3
+
+    can be used to access the transform
+    `apache_beam.pkg.mod.SomeClass(1, 'foo', baz=3)`.
+
+    Args:
+        constructor: Fully qualified name of a callable used to construct the
+            transform.  Often this is a class such as
+            `apache_beam.pkg.mod.SomeClass` but it can also be a function or
+            any other callable that returns a PTransform.
+        args: A list of parameters to pass to the callable as positional
+            arguments.
+        kwargs: A list of parameters to pass to the callable as keyword
+            arguments.
+    """
     with FullyQualifiedNamedTransform.with_filter('*'):
       return constructor >> FullyQualifiedNamedTransform(
           constructor, args, kwargs)
@@ -580,6 +615,19 @@ def create_builtin_provider():
   # exactly zero or one PCollection in yaml (as they would be interpreted as
   # PBegin and the PCollection itself respectively).
   class Flatten(beam.PTransform):
+    """Flattens multiple PCollections into a single PCollection.
+
+    The elements of the resulting PCollection will be the (disjoint) union of
+    all the elements of all the inputs.
+
+    Note that in YAML transforms can always take a list of inputs which will
+    be implicitly flattened.
+    """
+    def __init__(self):
+      # Suppress the "label" argument from the superclass for better docs.
+      # pylint: disable=useless-parent-delegation
+      super().__init__()
+
     def expand(self, pcolls):
       if isinstance(pcolls, beam.PCollection):
         pipeline_arg = {}
@@ -593,6 +641,24 @@ def create_builtin_provider():
       return pcolls | beam.Flatten(**pipeline_arg)
 
   class WindowInto(beam.PTransform):
+    # pylint: disable=line-too-long
+
+    """A window transform assigning windows to each element of a PCollection.
+
+    The assigned windows will affect all downstream aggregating operations,
+    which will aggregate by window as well as by key.
+
+    See [the Beam documentation on windowing](https://beam.apache.org/documentation/programming-guide/#windowing)
+    for more details.
+
+    Note that any Yaml transform can have a
+    [windowing parameter](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/README.md#windowing),
+    which is applied to its inputs (if any) or outputs (if there are no inputs)
+    which means that explicit WindowInto operations are not typically needed.
+
+    Args:
+      windowing: the type and parameters of the windowing to perform
+    """
     def __init__(self, windowing):
       self._window_transform = self._parse_window_spec(windowing)
 
@@ -618,13 +684,21 @@ def create_builtin_provider():
       # TODO: Triggering, etc.
       return beam.WindowInto(window_fn)
 
-  def log_and_return(x):
-    logging.info(x)
-    return x
+  def LogForTesting():
+    """Logs each element of its input PCollection.
+
+    The output of this transform is a copy of its input for ease of use in
+    chain-style pipelines.
+    """
+    def log_and_return(x):
+      logging.info(x)
+      return x
+
+    return beam.Map(log_and_return)
 
   return InlineProvider({
       'Create': create,
-      'LogForTesting': lambda: beam.Map(log_and_return),
+      'LogForTesting': LogForTesting,
       'PyTransform': fully_qualified_named_transform,
       'Flatten': Flatten,
       'WindowInto': WindowInto,
@@ -660,36 +734,49 @@ class PypiExpansionService:
   def _create_venv_from_scratch(cls, base_python, packages):
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
-      subprocess.run([base_python, '-m', 'venv', venv], check=True)
-      venv_python = os.path.join(venv, 'bin', 'python')
-      subprocess.run([venv_python, '-m', 'ensurepip'], check=True)
-      subprocess.run([venv_python, '-m', 'pip', 'install'] + packages,
-                     check=True)
-      with open(venv + '-requirements.txt', 'w') as fout:
-        fout.write('\n'.join(packages))
+      try:
+        subprocess.run([base_python, '-m', 'venv', venv], check=True)
+        venv_python = os.path.join(venv, 'bin', 'python')
+        venv_pip = os.path.join(venv, 'bin', 'pip')
+        subprocess.run([venv_python, '-m', 'ensurepip'], check=True)
+        subprocess.run([venv_pip, 'install'] + packages, check=True)
+        with open(venv + '-requirements.txt', 'w') as fout:
+          fout.write('\n'.join(packages))
+      except:  # pylint: disable=bare-except
+        if os.path.exists(venv):
+          shutil.rmtree(venv, ignore_errors=True)
+        raise
     return venv
 
   @classmethod
   def _create_venv_from_clone(cls, base_python, packages):
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
-      clonable_venv = cls._create_venv_to_clone(base_python)
-      clonable_python = os.path.join(clonable_venv, 'bin', 'python')
-      subprocess.run(
-          [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
-          check=True)
-      venv_binary = os.path.join(venv, 'bin', 'python')
-      subprocess.run([venv_binary, '-m', 'pip', 'install'] + packages,
-                     check=True)
-      with open(venv + '-requirements.txt', 'w') as fout:
-        fout.write('\n'.join(packages))
+      try:
+        clonable_venv = cls._create_venv_to_clone(base_python)
+        clonable_python = os.path.join(clonable_venv, 'bin', 'python')
+        subprocess.run(
+            [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
+            check=True)
+        venv_pip = os.path.join(venv, 'bin', 'pip')
+        subprocess.run([venv_pip, 'install'] + packages, check=True)
+        with open(venv + '-requirements.txt', 'w') as fout:
+          fout.write('\n'.join(packages))
+      except:  # pylint: disable=bare-except
+        if os.path.exists(venv):
+          shutil.rmtree(venv, ignore_errors=True)
+        raise
     return venv
 
   @classmethod
   def _create_venv_to_clone(cls, base_python):
+    if '.dev' in beam_version:
+      base_venv = os.path.dirname(os.path.dirname(base_python))
+      print('Cloning dev environment from', base_venv)
     return cls._create_venv_from_scratch(
-        base_python, [
-            'apache_beam[dataframe,gcp,test]==' + beam_version,
+        base_python,
+        [
+            'apache_beam[dataframe,gcp,test,yaml]==' + beam_version,
             'virtualenv-clone'
         ])
 
@@ -783,10 +870,11 @@ class RenamingProvider(Provider):
         ])
 
   def description(self, typ):
-    return self._underlying_provider.description(typ)
+    return self._underlying_provider.description(self._transforms[typ])
 
   def requires_inputs(self, typ, args):
-    return self._underlying_provider.requires_inputs(typ, args)
+    return self._underlying_provider.requires_inputs(
+        self._transforms[typ], args)
 
   def create_transform(
       self,
