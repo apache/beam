@@ -693,12 +693,12 @@ public class StreamingDataflowWorker {
 
   public void stop() {
     try {
-      for (var timer : timersMap.entrySet) {
+      for (ScheduledExecutorService timer : timersMap.entrySet) {
         if (timer != null) {
           timer.shutdown();
         }
       }
-      for (var timer : timersMap.entrySet) {
+      for (ScheduledExecutorService timer : timersMap.entrySet) {
         if (timer != null) {
           timer.awaitTermination(300, TimeUnit.SECONDS);
         }
