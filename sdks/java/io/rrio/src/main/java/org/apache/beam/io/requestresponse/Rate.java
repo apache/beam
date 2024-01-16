@@ -23,7 +23,7 @@ import org.joda.time.Duration;
 /** Configures the number of elements at most emitted within a time interval. */
 public class Rate implements Serializable {
 
-  public Rate of(int numElements, Duration interval) {
+  public static Rate of(int numElements, Duration interval) {
     return new Rate(numElements, interval);
   }
 

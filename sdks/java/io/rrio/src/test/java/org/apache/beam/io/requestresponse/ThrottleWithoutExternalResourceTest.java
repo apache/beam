@@ -17,11 +17,21 @@
  */
 package org.apache.beam.io.requestresponse;
 
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** Tests for {@link ThrottleWithoutExternalResource}. */
 @RunWith(JUnit4.class)
@@ -38,11 +48,35 @@ public class ThrottleWithoutExternalResourceTest {
   public void givenLargeElementSize_thenThrowsWithSizeReport() {}
 
   @Test
-  public void givenSparseElements_thenPartitionToFirstOnly() {}
+  public void givenSparseElementPulse_thenEmitsAllImmediately() {
+    Rate rate = Rate.of(1000, Duration.standardSeconds(1L));
+    List<Integer> list = Stream.iterate(0, i->i+1).limit(3).collect(Collectors.toList());
+
+    PCollection<Integer> throttled = pipeline
+            .apply(Create.of(list))
+            .apply(ThrottleWithoutExternalResource.of(ThrottleWithoutExternalResource.Configuration.builder()
+                            .setMaximumRate(rate)
+                    .build()));
+
+    PAssert.that(throttled).containsInAnyOrder(list);
+
+    pipeline.run();
+  }
 
   @Test
-  public void givenToFromDiffEq1_OffsetRange_thenGetFractionOf_equalsFrom() {}
+  public void offsetRange_isSerializable() {
+    SerializableUtils.ensureSerializable(ThrottleWithoutExternalResource.OffsetRange.empty());
+  }
 
   @Test
-  public void givenToFromDiffEq2_OffsetRange_thenGetFractionOf_equalsFromPlus1() {}
+  public void offsetRangeTracker_isSerializable() {
+    SerializableUtils.ensureSerializable(ThrottleWithoutExternalResource.OffsetRange.empty().newTracker());
+  }
+
+  @Test
+  public void configuration_isSerializable() {
+    SerializableUtils.ensureSerializable(ThrottleWithoutExternalResource.Configuration.builder()
+                    .setMaximumRate(Rate.of(1, Duration.ZERO))
+            .build());
+  }
 }

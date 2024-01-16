@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.apache.beam.sdk.values.TypeDescriptors.kvs;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
@@ -31,6 +30,13 @@ import java.util.Random;
 import java.util.Spliterator;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.metrics.Metric;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -60,18 +66,21 @@ class ThrottleWithoutExternalResource<RequestT>
     extends PTransform<PCollection<RequestT>, PCollection<RequestT>> {
 
   static <RequestT> ThrottleWithoutExternalResource<RequestT> of(
-      Configuration<RequestT> configuration) {
+      Configuration configuration) {
     return new ThrottleWithoutExternalResource<>(configuration);
   }
 
-  private final Configuration<RequestT> configuration;
+  private final Configuration configuration;
 
-  private ThrottleWithoutExternalResource(Configuration<RequestT> configuration) {
+  private ThrottleWithoutExternalResource(Configuration configuration) {
     this.configuration = configuration;
   }
 
   @Override
   public PCollection<RequestT> expand(PCollection<RequestT> input) {
+    ListCoder<RequestT> listCoder = ListCoder.of(input.getCoder());
+    Coder<KV<Integer, List<RequestT>>> kvCoder = KvCoder.of(VarIntCoder.of(), listCoder);
+
     return input
         // Break up the PCollection into fixed channels assigned to an int key [0,
         // Rate::numElements).
@@ -83,13 +92,15 @@ class ThrottleWithoutExternalResource<RequestT>
         // processing by ThrottleFn; IterableCoder uses a List for IterableLikeCoder's
         // structuralValue.
         .apply("ConvertToList", toList())
+            .setCoder(kvCoder)
         // Finally apply a splittable DoFn by splitting the Iterable<RequestT>, controlling the
         // output via the watermark estimator.
-        .apply(ThrottleFn.class.getSimpleName(), throttle());
+        .apply(ThrottleFn.class.getSimpleName(), throttle())
+            .setCoder(input.getCoder());
   }
 
   private ParDo.SingleOutput<KV<Integer, List<RequestT>>, RequestT> throttle() {
-    return ParDo.of(new ThrottleFn());
+    return ParDo.of(new ThrottleFn<>(configuration));
   }
 
   /**
@@ -97,33 +108,39 @@ class ThrottleWithoutExternalResource<RequestT>
    * implementation with the exception that instead of emitting an {@link Instant}, it emits a
    * {@link RequestT}.
    */
-  private class ThrottleFn extends DoFn<KV<Integer, List<RequestT>>, RequestT> {
+  static class ThrottleFn<RequestT> extends DoFn<KV<Integer, List<RequestT>>, RequestT> {
 
-//    @GetInitialRestriction
-//    public OffsetRange getInitialRange(@Element KV<Integer, List<RequestT>> element) {
-//      int size = 0;
-//      if (element.getValue() != null) {
-//        size = element.getValue().size();
-//      }
-//      return null;
-//    }
-//
-//    @NewTracker
-//    public RestrictionTracker<OffsetRange, Integer> newTracker(
-//        @Restriction OffsetRange restriction) {
-//      return new OffsetRangeTracker(restriction);
-//    }
-//
-//    @TruncateRestriction
-//    public RestrictionTracker.TruncateResult<OffsetRange> truncate(
-//        @Restriction OffsetRange restriction) {
-//      return new RestrictionTracker.TruncateResult<OffsetRange>() {
-//        @Override
-//        public ThrottleWithoutExternalResource.@Nullable OffsetRange getTruncatedRestriction() {
-//          return restriction;
-//        }
-//      };
-//    }
+    private final Configuration configuration;
+
+      ThrottleFn(Configuration configuration) {
+          this.configuration = configuration;
+      }
+
+      @GetInitialRestriction
+    public OffsetRange getInitialRange(@Element KV<Integer, List<RequestT>> element) {
+      int size = 0;
+      if (element.getValue() != null) {
+        size = element.getValue().size();
+      }
+      return OffsetRange.ofSize(size);
+    }
+
+    @NewTracker
+    public RestrictionTracker<OffsetRange, Integer> newTracker(
+        @Restriction OffsetRange restriction) {
+      return new OffsetRangeTracker(restriction);
+    }
+
+    @TruncateRestriction
+    public RestrictionTracker.TruncateResult<OffsetRange> truncate(
+        @Restriction OffsetRange restriction) {
+      return new RestrictionTracker.TruncateResult<OffsetRange>() {
+        @Override
+        public ThrottleWithoutExternalResource.@Nullable OffsetRange getTruncatedRestriction() {
+          return restriction;
+        }
+      };
+    }
 
     /**
      * The {@link GetInitialWatermarkEstimatorState} initializes to this DoFn's output watermark to
@@ -151,8 +168,34 @@ class ThrottleWithoutExternalResource<RequestT>
     public void process(
         @Element KV<Integer, List<RequestT>> element,
         ManualWatermarkEstimator<Instant> estimator,
-        RestrictionTracker<org.apache.beam.sdk.io.range.OffsetRange, Long> restrictionTracker,
-        OutputReceiver<RequestT> receiver) {}
+        RestrictionTracker<OffsetRange, Integer> tracker,
+        OutputReceiver<RequestT> receiver) {
+
+      if (element.getValue() == null || element.getValue().isEmpty()) {
+        return;
+      }
+
+      while(tracker.tryClaim(tracker.currentRestriction().getCurrent() + 1)) {
+        Instant nextEmittedTimestamp = estimator.currentWatermark().plus(configuration.getMaximumRate().getInterval());
+        int index = tracker.currentRestriction().getCurrent();
+        RequestT requestT = element.getValue().get(index);
+        outputAndSetWatermark(nextEmittedTimestamp, requestT, estimator, receiver);
+      }
+    }
+
+    private void outputAndSetWatermark(
+            Instant nextEmittedTimestamp,
+            RequestT requestT,
+            ManualWatermarkEstimator<Instant> estimator,
+            DoFn.OutputReceiver<RequestT> receiver) {
+      Instant now = Instant.now();
+      while(now.isBefore(nextEmittedTimestamp)) {
+        now = Instant.now();
+      }
+      estimator.setWatermark(nextEmittedTimestamp);
+      receiver.outputWithTimestamp(requestT, nextEmittedTimestamp);
+    }
+
   }
 
   /**
@@ -222,74 +265,142 @@ class ThrottleWithoutExternalResource<RequestT>
             });
   }
 
+  /**
+   * An integer based range [{@link #getFromInclusive()}, {@link #getToExclusive()}) restriction for
+   * an {@link OffsetRangeTracker}. During tracking, {@link #getFromInclusive()} and {@link
+   * #getToExclusive()} remain fixed, while the {@link OffsetRange} increments {@link #getCurrent()}
+   * within [from, to) constraints.
+   */
   @AutoValue
   abstract static class OffsetRange
       implements Serializable, HasDefaultTracker<OffsetRange, OffsetRangeTracker> {
 
-    static OffsetRange of(int from, int to) {
-      return OffsetRange.builder()
-              .setFromInclusive(from)
-              .setToExclusive(to)
-              .build();
+    /**
+     * Instantiates an {@link OffsetRange} using {@link #of(int, int)} using -1 and size,
+     * respectively. Hence {@link #getFromInclusive()} and {@link #getCurrent()} is -1 and {@link
+     * #getToExclusive()} is size.
+     */
+    static OffsetRange ofSize(int size) {
+      return of(-1, size);
     }
 
-    static Builder builder() {
+    /**
+     * Instantiates an {@link OffsetRange} assigning the from and to function arguments to {@link
+     * #getFromInclusive()} and {@link #getToExclusive()}, respectively. {@link #getCurrent()} is
+     * set to {@link #getFromInclusive()}. Throws an {@link IllegalArgumentException} if function
+     * arguments do not satisfy [from, to).
+     */
+    static OffsetRange of(int from, int to) {
+      return OffsetRange.builder()
+          .setCurrent(from)
+          .setFromInclusive(from)
+          .setToExclusive(to)
+          .build();
+    }
+
+    /** Instantiates a {@link OffsetRange} where [from, to) is set to [-1, 0) and current == -1. */
+    static OffsetRange empty() {
+      return OffsetRange.builder().setCurrent(-1).setFromInclusive(-1).setToExclusive(0).build();
+    }
+
+    private static Builder builder() {
       return new AutoValue_ThrottleWithoutExternalResource_OffsetRange.Builder();
     }
 
-    public static OffsetRange empty() {
-      return OffsetRange.builder()
-              .setCurrent(-1)
-              .setFromInclusive(-1)
-              .setToExclusive(0)
-              .build();
-    }
-
+    /**
+     * The current position of the offset range. Designed to begin a {@link #getFromInclusive()} and
+     * increment to {@link #getToExclusive()}.
+     */
     abstract Integer getCurrent();
+
+    /** The starting position, inclusive, of the offset range. */
     abstract Integer getFromInclusive();
+
+    /** The ending position, exclusive, of the offset range. */
     abstract Integer getToExclusive();
 
     abstract Builder toBuilder();
 
+    /** Computes the fraction of {@link #getSize()}. */
     int getFractionOf(double fraction) {
-      double difference = Integer.valueOf(getSize()).doubleValue();
-      return Double.valueOf(difference * fraction).intValue() + getFromInclusive();
+      if (getSize() == 0) {
+        return 0;
+      }
+      double fractionOfSize = getSizeDouble() * fraction;
+      return (int) fractionOfSize;
     }
 
+    /**
+     * Queries whether we can increment {@link #getCurrent()} i.e. is < {@link #getToExclusive()} -
+     * 1.
+     */
     boolean hasMoreOffset() {
-      return getFromInclusive() < getToExclusive();
+      return getCurrent() < getToExclusive() - 1;
     }
 
+    /** The size of the range, inclusive: [from, to-1]. */
     int getSize() {
       return getToExclusive() - getFromInclusive() - 1;
     }
 
+    private double getSizeDouble() {
+      return Integer.valueOf(getSize()).doubleValue();
+    }
+
+    /** The amount {@link #getCurrent()} has incremented compared to {@link #getFromInclusive()}. */
     int getProgress() {
       return getCurrent() - getFromInclusive();
     }
 
+    /** The amount {@link #getCurrent()} can increment until {@link #getToExclusive()}. */
     int getRemaining() {
       return getSize() - getProgress();
     }
 
+    /**
+     * Reports {@link #getProgress()} as a fraction of {@link #getSize()}. Required by {@link
+     * OffsetRangeTracker#getProgress()}.
+     */
     double getFractionProgress() {
       if (getProgress() == 0) {
         return 0.0;
       }
-      return Integer.valueOf(getProgress()).doubleValue() / Integer.valueOf(getSize()).doubleValue();
+      return Integer.valueOf(getProgress()).doubleValue()
+          / Integer.valueOf(getSize()).doubleValue();
     }
 
+    /**
+     * Reports {@link #getRemaining()} as a fraction of {@link #getSize()}. Required by {@link
+     * OffsetRangeTracker#getProgress()}.
+     */
     double getFractionRemaining() {
       if (getRemaining() == 0) {
         return 0.0;
       }
-      return Integer.valueOf(getRemaining()).doubleValue() / Integer.valueOf(getSize()).doubleValue();
+      return Integer.valueOf(getRemaining()).doubleValue()
+          / Integer.valueOf(getSize()).doubleValue();
     }
 
-    OffsetRange offset(Integer position) {
+    /**
+     * Offsets {@link #getCurrent()} by position, keeping {@link #getFromInclusive()} and {@link
+     * #getToExclusive()} unchanged. Throws an {@link IllegalArgumentException} if {@link
+     * #hasMoreOffset()} is false prior to calling this method.
+     */
+    OffsetRange offset(int position) {
+      if (position < getFromInclusive() || position >= getToExclusive()) {
+        String message =
+            String.format(
+                "Illegal value for offset position: %s, must be [%s, %s)",
+                position, getFromInclusive(), getToExclusive());
+        throw new IllegalArgumentException(message);
+      }
       return toBuilder().setCurrent(position).build();
     }
 
+    /**
+     * Instantiates a {@link RestrictionTracker} with a {@link OffsetRangeTracker} and {@link
+     * OffsetRange} restriction.
+     */
     @Override
     public OffsetRangeTracker newTracker() {
       return new OffsetRangeTracker(this);
@@ -297,58 +408,92 @@ class ThrottleWithoutExternalResource<RequestT>
 
     @AutoValue.Builder
     abstract static class Builder {
+
+      /** See {@link #getCurrent()}. */
       abstract Builder setCurrent(Integer value);
 
+      /** See {@link #getFromInclusive()}. */
       abstract Builder setFromInclusive(Integer value);
 
+      /** See {@link #getToExclusive()}. */
       abstract Builder setToExclusive(Integer value);
+
       abstract OffsetRange autoBuild();
 
+      /**
+       * Checks whether [{@link #getFromInclusive()}, {@link #getToExclusive()}) and {@link
+       * #getCurrent()} is [from, to).
+       */
       final OffsetRange build() {
         OffsetRange result = autoBuild();
-        checkArgument(result.getFromInclusive() < result.getToExclusive(), "Malformed range [%s, %s)", result.getFromInclusive(), result.getToExclusive());
-        checkArgument(result.getCurrent() >= result.getFromInclusive() && result.getCurrent() < result.getToExclusive(),
-                "Illegal value for current: %s, must be [%s, %s)", result.getCurrent(), result.getFromInclusive(), result.getToExclusive());
+        checkArgument(
+            result.getFromInclusive() < result.getToExclusive(),
+            "Malformed range [%s, %s)",
+            result.getFromInclusive(),
+            result.getToExclusive());
+        checkArgument(
+            result.getCurrent() >= result.getFromInclusive()
+                && result.getCurrent() < result.getToExclusive(),
+            "Illegal value for current: %s, must be [%s, %s)",
+            result.getCurrent(),
+            result.getFromInclusive(),
+            result.getToExclusive());
         return result;
       }
     }
   }
 
+  /**
+   * An implementation of {@link RestrictionTracker} parameterized with an {@link OffsetRange} and
+   * Integer.
+   */
   static class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Integer>
-      implements RestrictionTracker.HasProgress {
+      implements Serializable, RestrictionTracker.HasProgress {
 
     private OffsetRange restriction;
 
-    OffsetRangeTracker(OffsetRange restriction) {
+    private OffsetRangeTracker(OffsetRange restriction) {
       this.restriction = restriction;
     }
 
+    /**
+     * {@link OffsetRange#offset}s with position. Returns whether {@link
+     * OffsetRange#hasMoreOffset()}. Each invocation of this method increases {@link
+     * OffsetRange#getCurrent()} while holding the {@link OffsetRange#getFromInclusive()} and {@link
+     * OffsetRange#getToExclusive()} constant.
+     */
     @Override
     public boolean tryClaim(Integer position) {
       restriction = restriction.offset(position);
       return restriction.hasMoreOffset();
     }
 
+    /** Returns the current {@link OffsetRange} state as a result of {@link #tryClaim}. */
     @Override
     public OffsetRange currentRestriction() {
       return restriction;
     }
 
+    /** Always return null and hence not splittable. */
     @Override
     public @Nullable SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
       return null;
     }
 
+    /** A no-op method as checks are performed during {@link #tryClaim}. */
     @Override
-    public void checkDone() throws IllegalStateException {
+    public void checkDone() throws IllegalStateException {}
 
-    }
-
+    /** Always {@link IsBounded#BOUNDED}. */
     @Override
     public IsBounded isBounded() {
       return IsBounded.BOUNDED;
     }
 
+    /**
+     * Returns a {@link Progress} instantiated from {@link OffsetRange#getFractionProgress()} and
+     * {@link OffsetRange#getFractionRemaining()}.
+     */
     @Override
     public Progress getProgress() {
       return Progress.from(restriction.getFractionProgress(), restriction.getFractionRemaining());
@@ -356,25 +501,32 @@ class ThrottleWithoutExternalResource<RequestT>
   }
 
   @AutoValue
-  abstract static class Configuration<RequestT> {
+  abstract static class Configuration implements Serializable {
 
-    /** The maximum */
+    static Builder builder() {
+      return new AutoValue_ThrottleWithoutExternalResource_Configuration.Builder();
+    }
+
+    /** The maximum {@link Rate} of throughput. */
     abstract Rate getMaximumRate();
 
+    /** Configures whether to collect {@link Metric}s. Defaults to false. */
     abstract Boolean getCollectMetrics();
 
     @AutoValue.Builder
-    abstract static class Builder<RequestT> {
+    abstract static class Builder {
 
-      abstract Builder<RequestT> setMaximumRate(Rate value);
+      /** See {@link #getMaximumRate()}. */
+      abstract Builder setMaximumRate(Rate value);
 
-      abstract Builder<RequestT> setCollectMetrics(Boolean value);
+      /** See {@link Configuration#getCollectMetrics()}. */
+      abstract Builder setCollectMetrics(Boolean value);
 
       abstract Optional<Boolean> getCollectMetrics();
 
-      abstract Configuration<RequestT> autoBuild();
+      abstract Configuration autoBuild();
 
-      final Configuration<RequestT> build() {
+      final Configuration build() {
         if (!getCollectMetrics().isPresent()) {
           setCollectMetrics(false);
         }
