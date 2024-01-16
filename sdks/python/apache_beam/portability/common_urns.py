@@ -47,12 +47,12 @@ SessionWindowsPayload = standard_window_fns_pb2_urns.SessionWindowsPayload
 SlidingWindowsPayload = standard_window_fns_pb2_urns.SlidingWindowsPayload
 
 primitives = StandardPTransforms.Primitives
-executable_stage = "beam:runner:executable_stage:v1"
 deprecated_primitives = StandardPTransforms.DeprecatedPrimitives
 composites = StandardPTransforms.Composites
 combine_components = StandardPTransforms.CombineComponents
 sdf_components = StandardPTransforms.SplittableParDoComponents
 group_into_batches_components = StandardPTransforms.GroupIntoBatchesComponents
+executable_stage = "beam:runner:executable_stage:v1"
 
 user_state = StandardUserStateTypes.Enum
 side_inputs = StandardSideInputTypes.Enum
