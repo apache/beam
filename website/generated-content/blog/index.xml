@@ -121,7 +121,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-&lt;h1 id="scaling-a-streaming-workload-on-apache-beam">Scaling a streaming workload on Apache Beam&lt;/h1>
 &lt;p>&lt;img class="center-block"
 src="/images/blog/scaling-streaming-workload/0-intro.png"
 alt="Streaming Processing">&lt;/p>
