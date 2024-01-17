@@ -585,6 +585,7 @@ public class StreamingDataflowWorker {
         0,
         options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
         TimeUnit.MILLISECONDS);
+    scheduledExecutors.add(workerUpdateTimer);
 
     ScheduledExecutorService workerMessageTimer = executorSupplier.apply("ReportWorkerMessage");
     if (options.getWindmillHarnessUpdateReportingPeriod().getMillis() > 0) {
