@@ -988,10 +988,13 @@ class YamlTransform(beam.PTransform):
         self._spec['input'] = {name: name for name in pcolls.keys()}
     python_provider = yaml_provider.InlineProvider({})
 
+    # Label goog-dataflow-yaml if job is started using Beam YAML.
     options = pipeline.options.view_as(GoogleCloudOptions)
+    yaml_version = ('beam-yaml=' + beam.version.__version__.replace('.', '_'))
     if not options.labels:
       options.labels = []
-    options.labels += ["yaml=true"]
+    if yaml_version not in options.labels:
+      options.labels.append(yaml_version)
 
     result = expand_transform(
         self._spec,
