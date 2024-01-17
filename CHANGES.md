@@ -127,6 +127,10 @@
 
 * Upgraded to go 1.21.5 to build, fixing [CVE-2023-45285](https://security-tracker.debian.org/tracker/CVE-2023-45285) and [CVE-2023-39326](https://security-tracker.debian.org/tracker/CVE-2023-39326)
 
+## Known Issues
+
+* ([#29987](https://github.com/apache/beam/issues/29987)).
+
 # [2.52.0] - 2023-11-17
 
 ## Highlights
