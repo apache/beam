@@ -278,14 +278,14 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
       timeout (float): timeout value in seconds to wait for response from API.
       should_backoff (~apache_beam.io.requestresponse.ShouldBackOff):
         (Optional) provides methods for backoff.
-      repeater (~apache_beam.io.requestresponse.Repeater): (Optional)
-        provides methods to repeat requests to API.
+      repeater (~apache_beam.io.requestresponse.Repeater): provides methods to
+        repeat requests to API.
       cache_reader (~apache_beam.io.requestresponse.CacheReader): (Optional)
         provides methods to read external cache.
       cache_writer (~apache_beam.io.requestresponse.CacheWriter): (Optional)
         provides methods to write to external cache.
       throttler (~apache_beam.io.requestresponse.PreCallThrottler):
-        (Optional) provides methods to pre-throttle a request.
+        provides methods to pre-throttle a request.
     """
     self._caller = caller
     self._timeout = timeout
@@ -387,7 +387,7 @@ class _CallDoFn(beam.DoFn):
         _LOGGER.info(
             "Delaying request for %d seconds" % self._throttler.delay_secs)
         time.sleep(self._throttler.delay_secs)
-        self._metrics_collector.throttled_secs.inc(5)
+        self._metrics_collector.throttled_secs.inc(self._throttler.delay_secs)
         is_throttled_request = True
 
     if is_throttled_request:

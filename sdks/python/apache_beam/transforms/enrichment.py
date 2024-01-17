@@ -22,7 +22,8 @@ from typing import Optional
 from typing import TypeVar
 
 import apache_beam as beam
-from apache_beam.io.requestresponse import DEFAULT_TIMEOUT_SECS
+from apache_beam.io.requestresponse import DEFAULT_TIMEOUT_SECS, ExponentialBackOffRepeater, Repeater, DefaultThrottler, \
+  PreCallThrottler
 from apache_beam.io.requestresponse import Caller
 from apache_beam.io.requestresponse import RequestResponseIO
 
@@ -96,20 +97,32 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
     join_fn: A lambda function to join original element with lookup metadata.
       Defaults to `CROSS_JOIN`.
     timeout: (Optional) timeout for source requests. Defaults to 30 seconds.
+    repeater (~apache_beam.io.requestresponse.Repeater): provides methods to
+      repeat requests to API.
+    throttler (~apache_beam.io.requestresponse.PreCallThrottler):
+      provides methods to pre-throttle a request.
   """
   def __init__(
       self,
       source_handler: EnrichmentSourceHandler,
       join_fn: JoinFn = cross_join,
-      timeout: Optional[float] = DEFAULT_TIMEOUT_SECS):
+      timeout: Optional[float] = DEFAULT_TIMEOUT_SECS,
+      repeater: Repeater = ExponentialBackOffRepeater,
+      throttler: PreCallThrottler = DefaultThrottler(),
+  ):
     self._source_handler = source_handler
     self._join_fn = join_fn
     self._timeout = timeout
+    self._repeater = repeater
+    self._throttler = throttler
 
   def expand(self,
              input_row: beam.PCollection[InputT]) -> beam.PCollection[OutputT]:
     fetched_data = input_row | RequestResponseIO(
-        caller=self._source_handler, timeout=self._timeout)
+        caller=self._source_handler,
+        timeout=self._timeout,
+        repeater=self._repeater,
+        throttler=self._throttler)
 
     # EnrichmentSourceHandler returns a tuple of (request,response).
     return fetched_data | beam.Map(

@@ -41,12 +41,12 @@ class ExceptionLevel(Enum):
   returns an empty row.
 
   Members:
-    - WARNING_ONLY: Log a warning for exception without raising it.
     - RAISE: Raise the exception.
+    - WARN: Log a warning for exception without raising it.
     - QUIET: Neither log nor raise the exception.
   """
-  WARNING_ONLY = 0
-  RAISE = 1
+  RAISE = 0
+  WARN = 1
   QUIET = 2
 
 
@@ -66,7 +66,7 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
     exception_level: a `enum.Enum` value from
       ``apache_beam.transforms.enrichment_handlers.bigtable.ExceptionLevel``
       to set the level when an empty row is returned from the BigTable query.
-      Defaults to ``ExceptionLevel.QUIET``.
+      Defaults to ``ExceptionLevel.WARN``.
   """
   def __init__(
       self,
@@ -75,7 +75,7 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
       table_id: str,
       row_key: str,
       row_filter: Optional[RowFilter] = None,
-      exception_level: ExceptionLevel = ExceptionLevel.QUIET,
+      exception_level: ExceptionLevel = ExceptionLevel.WARN,
   ):
     self._project_id = project_id
     self._instance_id = instance_id
@@ -99,10 +99,11 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
     request: the input `beam.Row` to enrich.
     """
     response_dict: Dict[str, Any] = {}
-    row_key: str = ""
+    row_key_str: str = ""
     try:
       request_dict = request._asdict()
-      row_key = str(request_dict[self._row_key]).encode()
+      row_key_str = str(request_dict[self._row_key])
+      row_key = row_key_str.encode()
       row = self._table.read_row(row_key, filter_=self._row_filter)
       if row:
         for cf_id, cf_v in row.cells.items():
@@ -110,16 +111,16 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
           for k, v in cf_v.items():
             response_dict[cf_id][k.decode('utf-8')] = \
               v[0].value.decode('utf-8')
-      elif self._exception_level == ExceptionLevel.WARNING_ONLY:
+      elif self._exception_level == ExceptionLevel.WARN:
         _LOGGER.warning(
             'no matching row found for row_key: %s '
-            'with row_filter: %s' % (row_key, self._row_filter))
+            'with row_filter: %s' % (row_key_str, self._row_filter))
       elif self._exception_level == ExceptionLevel.RAISE:
         raise ValueError(
             'no matching row found for row_key: %s '
-            'with row_filter=%s' % (row_key, self._row_filter))
+            'with row_filter=%s' % (row_key_str, self._row_filter))
     except KeyError:
-      raise KeyError('row_key %s not found in input PCollection.' % row_key)
+      raise KeyError('row_key %s not found in input PCollection.' % row_key_str)
     except NotFound:
       raise NotFound(
           'GCP BigTable cluster `%s:%s:%s` not found.' %
