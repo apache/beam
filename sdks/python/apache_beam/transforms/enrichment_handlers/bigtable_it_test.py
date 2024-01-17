@@ -271,8 +271,8 @@ class TestBigTableEnrichment(unittest.TestCase):
             | "Enrich W/ BigTable" >> Enrichment(bigtable))
 
   def test_enrichment_with_bigtable_exception_level(self):
-    """raises a `NotFound` exception when the GCP BigTable Cluster
-    doesn't exist."""
+    """raises a `ValueError` exception when the GCP BigTable query returns
+    an empty row."""
     bigtable = EnrichWithBigTable(
         project_id=self.project_id,
         instance_id=self.instance_id,
