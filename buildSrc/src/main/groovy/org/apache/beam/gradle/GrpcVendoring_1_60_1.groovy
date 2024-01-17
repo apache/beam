@@ -67,7 +67,7 @@ class GrpcVendoring_1_60_1 {
   }
 
   /**
-   * Returns the list of runtime time dependencies that should be exported as runtime
+   * Returns the list of dependencies that should be exported as runtime
    * dependencies within the vendored jar.
    */
   static List<String> runtimeDependencies() {
