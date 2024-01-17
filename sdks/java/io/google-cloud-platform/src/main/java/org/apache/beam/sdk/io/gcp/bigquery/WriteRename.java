@@ -138,7 +138,8 @@ class WriteRename
   }
 
   public static class WriteRenameFn
-      extends DoFn<Iterable<KV<TableDestination, WriteTables.Result>>, PendingJobData> {
+      extends DoFn<
+          Iterable<KV<TableDestination, WriteTables.Result>>, KV<TableDestination, List<String>>> {
     private static final Logger LOG = LoggerFactory.getLogger(WriteRenameFn.class);
 
     private final BigQueryServices bqServices;
@@ -228,7 +229,10 @@ class WriteRename
                           .setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
                       pendingJob.tableDestination.getTableDescription());
                 }
-                c.output(pendingJob, pendingJob.window.maxTimestamp(), pendingJob.window);
+                c.output(
+                    KV.of(pendingJob.tableDestination, pendingJob.tempTables),
+                    pendingJob.window.maxTimestamp(),
+                    pendingJob.window);
                 return null;
               } catch (IOException | InterruptedException e) {
                 return e;
@@ -394,7 +398,8 @@ class WriteRename
     }
   }
 
-  public static class TempTableCleanupFn extends DoFn<PendingJobData, TableDestination> {
+  public static class TempTableCleanupFn
+      extends DoFn<KV<TableDestination, List<String>>, TableDestination> {
 
     private static final Logger LOG = LoggerFactory.getLogger(TempTableCleanupFn.class);
 
@@ -408,14 +413,14 @@ class WriteRename
     @ProcessElement
     public void processElement(
         PipelineOptions pipelineOptions,
-        @Element PendingJobData pendingJobData,
+        @Element KV<TableDestination, List<String>> tempTable,
         OutputReceiver<TableDestination> destinationOutputReceiver) {
       List<TableReference> tableReferences =
-          pendingJobData.tempTables.stream()
+          tempTable.getValue().stream()
               .map(tableName -> BigQueryHelpers.fromJsonString(tableName, TableReference.class))
               .collect(Collectors.toList());
       removeTemporaryTables(getDatasetService(pipelineOptions), tableReferences);
-      destinationOutputReceiver.output(pendingJobData.tableDestination);
+      destinationOutputReceiver.output(tempTable.getKey());
     }
 
     private DatasetService getDatasetService(PipelineOptions pipelineOptions) {
