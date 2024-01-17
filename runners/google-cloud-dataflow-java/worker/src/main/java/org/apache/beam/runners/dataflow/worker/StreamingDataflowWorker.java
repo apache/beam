@@ -1735,8 +1735,8 @@ public class StreamingDataflowWorker {
   }
 
   private void updateThreadMetrics() {
-    LOG.info("[chengedward] time at max threads: " + timeAtMaxActiveThreads.getAggregate());
-    LOG.info("[chengedward] aggregated time at max threads: " + timeAtMaxActiveThreadsAggregate.getAggregate());
+    LOG.info("[chengedward] delta time at max threads: " + timeAtMaxActiveThreads.getAggregate() + " id: " + options.getWorkerId());
+    LOG.info("[chengedward] aggregated time at max threads: " + timeAtMaxActiveThreadsAggregate.getAggregate() + " id: " + options.getWorkerId());
     timeAtMaxActiveThreads.getAndReset();
     timeAtMaxActiveThreads.addValue(workUnitExecutor.allThreadsActiveTime() - timeAtMaxActiveThreadsAggregate.getAggregate());
     timeAtMaxActiveThreadsAggregate.getAndReset();
