@@ -59,9 +59,10 @@ def cross_join(left: Dict[str, Any], right: Dict[str, Any]) -> beam.Row:
     elif left[k] != v:
       _LOGGER.warning(
           '%s exists in the input row as well the row fetched '
-          'from API but have different values. Using the input '
-          'value, you can override this behavior by passing a '
-          'custom `join_fn`.' % k)
+          'from API but have different values - %s and %s. Using the input '
+          'value (%s) for the enriched row. You can override this behavior by '
+          'passing a custom `join_fn` to Enrichment transform.' %
+          (k, left[k], v, left[k]))
   return beam.Row(**left)
 
 

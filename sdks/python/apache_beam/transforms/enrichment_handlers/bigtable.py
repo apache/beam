@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import logging
+from enum import Enum
 from typing import Any
 from typing import Dict
 from typing import Optional
@@ -28,9 +29,25 @@ from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 __all__ = [
     'EnrichWithBigTable',
+    'ExceptionLevel',
 ]
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class ExceptionLevel(Enum):
+  """ExceptionLevel defines the exception level options to either
+  log a warning, or raise an exception, or do nothing when a BigTable query
+  returns an empty row.
+
+  Members:
+    - WARNING_ONLY: Log a warning for exception without raising it.
+    - RAISE: Raise the exception.
+    - QUIET: Neither log nor raise the exception.
+  """
+  WARNING_ONLY = 0
+  RAISE = 1
+  QUIET = 2
 
 
 class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
@@ -42,9 +59,14 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
     project_id (str): GCP project-id of the BigTable cluster.
     instance_id (str): GCP instance-id of the BigTable cluster.
     table_id (str): GCP table-id of the BigTable.
-    row_key (str): unique row key for BigTable
+    row_key (str): unique row-key field name from the input `beam.Row` object
+      to use as `row_key` for BigTable querying.
     row_filter: a ``:class:`google.cloud.bigtable.row_filters.RowFilter``` to
       filter data read with ``read_row()``.
+    exception_level: a `enum.Enum` value from
+      ``apache_beam.transforms.enrichment_handlers.bigtable.ExceptionLevel``
+      to set the level when an empty row is returned from the BigTable query.
+      Defaults to ``ExceptionLevel.QUIET``.
   """
   def __init__(
       self,
@@ -52,12 +74,15 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
       instance_id: str,
       table_id: str,
       row_key: str,
-      row_filter: Optional[RowFilter] = None):
+      row_filter: Optional[RowFilter] = None,
+      exception_level: ExceptionLevel = ExceptionLevel.QUIET,
+  ):
     self._project_id = project_id
     self._instance_id = instance_id
     self._table_id = table_id
     self._row_key = row_key
     self._row_filter = row_filter
+    self._exception_level = exception_level
 
   def __enter__(self):
     """connect to the Google BigTable cluster."""
@@ -67,13 +92,14 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
 
   def __call__(self, request: beam.Row, *args, **kwargs):
     """
-    Reads a row from the Google BigTable and returns
+    Reads a row from the GCP BigTable and returns
     a `Tuple` of request and response.
 
     Args:
     request: the input `beam.Row` to enrich.
     """
     response_dict: Dict[str, Any] = {}
+    row_key: str = ""
     try:
       request_dict = request._asdict()
       row_key = str(request_dict[self._row_key]).encode()
@@ -82,9 +108,22 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
         for cf_id, cf_v in row.cells.items():
           response_dict[cf_id] = {}
           for k, v in cf_v.items():
-            response_dict[cf_id][k.decode('utf-8')] = v[0].value.decode('utf-8')
+            response_dict[cf_id][k.decode('utf-8')] = \
+              v[0].value.decode('utf-8')
+      elif self._exception_level == ExceptionLevel.WARNING_ONLY:
+        _LOGGER.warning(
+            'no matching row found for row_key: %s '
+            'with row_filter: %s' % (row_key, self._row_filter))
+      elif self._exception_level == ExceptionLevel.RAISE:
+        raise ValueError(
+            'no matching row found for row_key: %s '
+            'with row_filter=%s' % (row_key, self._row_filter))
+    except KeyError:
+      raise KeyError('row_key %s not found in input PCollection.' % row_key)
     except NotFound:
-      _LOGGER.warning('request row_key: %s not found')
+      raise NotFound(
+          'GCP BigTable cluster `%s:%s:%s` not found.' %
+          (self._project_id, self._instance_id, self._table_id))
     except Exception as e:
       raise e
 

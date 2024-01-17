@@ -29,10 +29,12 @@ from apache_beam.testing.util import BeamAssertException
 
 # pylint: disable=ungrouped-imports
 try:
+  from google.api_core.exceptions import NotFound
   from google.cloud.bigtable import Client
   from google.cloud.bigtable.row_filters import ColumnRangeFilter
   from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.transforms.enrichment_handlers.bigtable import EnrichWithBigTable
+  from apache_beam.transforms.enrichment_handlers.bigtable import ExceptionLevel
 except ImportError:
   raise unittest.SkipTest('GCP BigTable dependencies are not installed.')
 
@@ -156,7 +158,10 @@ class TestBigTableEnrichment(unittest.TestCase):
         'product': ['product_id', 'product_name', 'product_stock'],
     }
     bigtable = EnrichWithBigTable(
-        self.project_id, self.instance_id, self.table_id, self.row_key)
+        project_id=self.project_id,
+        instance_id=self.instance_id,
+        table_id=self.table_id,
+        row_key=self.row_key)
     with TestPipeline(is_integration_test=True) as test_pipeline:
       _ = (
           test_pipeline
@@ -178,10 +183,10 @@ class TestBigTableEnrichment(unittest.TestCase):
     start_column = 'product_name'.encode()
     column_filter = ColumnRangeFilter(self.column_family_id, start_column)
     bigtable = EnrichWithBigTable(
-        self.project_id,
-        self.instance_id,
-        self.table_id,
-        self.row_key,
+        project_id=self.project_id,
+        instance_id=self.instance_id,
+        table_id=self.table_id,
+        row_key=self.row_key,
         row_filter=column_filter)
     with TestPipeline(is_integration_test=True) as test_pipeline:
       _ = (
@@ -195,12 +200,15 @@ class TestBigTableEnrichment(unittest.TestCase):
                   expected_enriched_fields)))
 
   def test_enrichment_with_bigtable_no_enrichment(self):
+    # row_key which is product_id=11 doesn't exist, so the enriched field
+    # won't be added. Hence, the response is same as the request.
     expected_fields = ['sale_id', 'customer_id', 'product_id', 'quantity']
     expected_enriched_fields = {}
     bigtable = EnrichWithBigTable(
-        self.project_id, self.instance_id, self.table_id, self.row_key)
-    # row_key which is product_id=11 doesn't exist, so the enriched field
-    # won't be added. Hence, the response is same as the request.
+        project_id=self.project_id,
+        instance_id=self.instance_id,
+        table_id=self.table_id,
+        row_key=self.row_key)
     req = [beam.Row(sale_id=1, customer_id=1, product_id=11, quantity=1)]
     with TestPipeline(is_integration_test=True) as test_pipeline:
       _ = (
@@ -217,31 +225,67 @@ class TestBigTableEnrichment(unittest.TestCase):
     # in case of a bad column filter, that is, incorrect column_family_id and
     # columns, no enrichment is done. If the column_family is correct but not
     # column names then all columns in that column_family are returned.
-    expected_fields = [
-        'sale_id',
-        'customer_id',
-        'product_id',
-        'quantity',
-    ]
-    expected_enriched_fields = {}
     start_column = 'car_name'.encode()
     column_filter = ColumnRangeFilter('car_name', start_column)
     bigtable = EnrichWithBigTable(
-        self.project_id,
-        self.instance_id,
-        self.table_id,
-        self.row_key,
+        project_id=self.project_id,
+        instance_id=self.instance_id,
+        table_id=self.table_id,
+        row_key=self.row_key,
         row_filter=column_filter)
-    with TestPipeline(is_integration_test=True) as test_pipeline:
-      _ = (
-          test_pipeline
-          | "Create" >> beam.Create(self.req)
-          | "Enrich W/ BigTable" >> Enrichment(bigtable)
-          | "Validate Response" >> beam.ParDo(
-              ValidateResponse(
-                  len(expected_fields),
-                  expected_fields,
-                  expected_enriched_fields)))
+    with self.assertRaises(NotFound):
+      with TestPipeline(is_integration_test=True) as test_pipeline:
+        _ = (
+            test_pipeline
+            | "Create" >> beam.Create(self.req)
+            | "Enrich W/ BigTable" >> Enrichment(bigtable))
+
+  def test_enrichment_with_bigtable_raises_key_error(self):
+    """raises a `KeyError` when the row_key doesn't exist in
+    the input PCollection."""
+    bigtable = EnrichWithBigTable(
+        project_id=self.project_id,
+        instance_id=self.instance_id,
+        table_id=self.table_id,
+        row_key='car_name')
+    with self.assertRaises(KeyError):
+      with TestPipeline(is_integration_test=True) as test_pipeline:
+        _ = (
+            test_pipeline
+            | "Create" >> beam.Create(self.req)
+            | "Enrich W/ BigTable" >> Enrichment(bigtable))
+
+  def test_enrichment_with_bigtable_raises_not_found(self):
+    """raises a `NotFound` exception when the GCP BigTable Cluster
+    doesn't exist."""
+    bigtable = EnrichWithBigTable(
+        project_id=self.project_id,
+        instance_id=self.instance_id,
+        table_id='invalid_table',
+        row_key=self.row_key)
+    with self.assertRaises(NotFound):
+      with TestPipeline(is_integration_test=True) as test_pipeline:
+        _ = (
+            test_pipeline
+            | "Create" >> beam.Create(self.req)
+            | "Enrich W/ BigTable" >> Enrichment(bigtable))
+
+  def test_enrichment_with_bigtable_exception_level(self):
+    """raises a `NotFound` exception when the GCP BigTable Cluster
+    doesn't exist."""
+    bigtable = EnrichWithBigTable(
+        project_id=self.project_id,
+        instance_id=self.instance_id,
+        table_id=self.table_id,
+        row_key=self.row_key,
+        exception_level=ExceptionLevel.RAISE)
+    req = [beam.Row(sale_id=1, customer_id=1, product_id=11, quantity=1)]
+    with self.assertRaises(ValueError):
+      with TestPipeline(is_integration_test=True) as test_pipeline:
+        _ = (
+            test_pipeline
+            | "Create" >> beam.Create(req)
+            | "Enrich W/ BigTable" >> Enrichment(bigtable))
 
 
 if __name__ == '__main__':
