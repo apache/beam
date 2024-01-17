@@ -278,7 +278,8 @@ public class StreamingDataflowWorker {
   // Periodic sender of debug information to the debug capture service.
   private final DebugCapture.@Nullable Manager debugCaptureManager;
   // Map from timer name to ScheduledExecutorService
-  private ConcurrentMap<String, ScheduledExecutorService> timersMap = new ConcurrentHashMap();
+  private ArrayList<ScheduledExecutorService> scheduledExecutors =
+      new ArrayList<ScheduledExecutorService>();
   private int retryLocallyDelayMs = 10000;
   // Periodically fires a global config request to dataflow service. Only used when windmill service
   // is enabled.
@@ -578,91 +579,85 @@ public class StreamingDataflowWorker {
     sampler.start();
 
     // Periodically report workers counters and other updates.
-    timersMap.put("GlobalWorkerUpdatesTimer", executorSupplier.apply("GlobalWorkerUpdates"));
-    timersMap
-        .get("GlobalWorkerUpdatesTimer")
-        .scheduleWithFixedDelay(
-            this::reportPeriodicWorkerUpdates,
-            0,
-            options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
-            TimeUnit.MILLISECONDS);
+    ScheduledExecutorService workerUpdateTimer = executorSupplier.apply("GlobalWorkerUpdates");
+    workerUpdateTimer.scheduleWithFixedDelay(
+        this::reportPeriodicWorkerUpdates,
+        0,
+        options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
+        TimeUnit.MILLISECONDS);
 
-    timersMap.put("WorkerMessageTimer", executorSupplier.apply("ReportWorkerMessage"));
+    ScheduledExecutorService workerMessageTimer = executorSupplier.apply("ReportWorkerMessage");
     if (options.getWindmillHarnessUpdateReportingPeriod().getMillis() > 0) {
-      timersMap
-          .get("WorkerMessageTimer")
-          .scheduleWithFixedDelay(
-              this::reportPeriodicWorkerMessage,
-              0,
-              options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
-              TimeUnit.MILLISECONDS);
+      workerMessageTimer.scheduleWithFixedDelay(
+          this::reportPeriodicWorkerMessage,
+          0,
+          options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
+          TimeUnit.MILLISECONDS);
+      scheduledExecutors.add(workerMessageTimer);
     }
 
-    timersMap.put("RefreshWorkTimer", executorSupplier.apply("RefreshWork"));
+    ScheduledExecutorService refreshWorkTimer = executorSupplier.apply("RefreshWork");
     if (options.getActiveWorkRefreshPeriodMillis() > 0) {
-      timersMap
-          .get("RefreshWorkTimer")
-          .scheduleWithFixedDelay(
-              new Runnable() {
-                @Override
-                public void run() {
-                  try {
-                    refreshActiveWork();
-                  } catch (RuntimeException e) {
-                    LOG.warn("Failed to refresh active work: ", e);
-                  }
-                }
-              },
-              options.getActiveWorkRefreshPeriodMillis(),
-              options.getActiveWorkRefreshPeriodMillis(),
-              TimeUnit.MILLISECONDS);
+      refreshWorkTimer.scheduleWithFixedDelay(
+          new Runnable() {
+            @Override
+            public void run() {
+              try {
+                refreshActiveWork();
+              } catch (RuntimeException e) {
+                LOG.warn("Failed to refresh active work: ", e);
+              }
+            }
+          },
+          options.getActiveWorkRefreshPeriodMillis(),
+          options.getActiveWorkRefreshPeriodMillis(),
+          TimeUnit.MILLISECONDS);
+      scheduledExecutors.add(refreshWorkTimer);
     }
     if (windmillServiceEnabled && options.getStuckCommitDurationMillis() > 0) {
       int periodMillis = Math.max(options.getStuckCommitDurationMillis() / 10, 100);
-      timersMap
-          .get("RefreshWorkTimer")
-          .scheduleWithFixedDelay(
-              this::invalidateStuckCommits, periodMillis, periodMillis, TimeUnit.MILLISECONDS);
+      refreshWorkTimer.scheduleWithFixedDelay(
+          this::invalidateStuckCommits, periodMillis, periodMillis, TimeUnit.MILLISECONDS);
+      scheduledExecutors.add(refreshWorkTimer);
     }
 
     if (options.getPeriodicStatusPageOutputDirectory() != null) {
-      timersMap.put("StatusPageTimer", executorSupplier.apply("DumpStatusPages"));
-      timersMap
-          .get("StatusPageTimer")
-          .scheduleWithFixedDelay(
-              () -> {
-                Collection<Capturable> pages = statusPages.getDebugCapturePages();
-                if (pages.isEmpty()) {
-                  LOG.warn("No captured status pages.");
+      ScheduledExecutorService statusPageTimer = executorSupplier.apply("DumpStatusPages");
+      statusPageTimer.scheduleWithFixedDelay(
+          () -> {
+            Collection<Capturable> pages = statusPages.getDebugCapturePages();
+            if (pages.isEmpty()) {
+              LOG.warn("No captured status pages.");
+            }
+            Long timestamp = clock.get().getMillis();
+            for (Capturable page : pages) {
+              PrintWriter writer = null;
+              try {
+                File outputFile =
+                    new File(
+                        options.getPeriodicStatusPageOutputDirectory(),
+                        ("StreamingDataflowWorker"
+                                + options.getWorkerId()
+                                + "_"
+                                + page.pageName()
+                                + timestamp
+                                + ".html")
+                            .replaceAll("/", "_"));
+                writer = new PrintWriter(outputFile, UTF_8.name());
+                page.captureData(writer);
+              } catch (IOException e) {
+                LOG.warn("Error dumping status page.", e);
+              } finally {
+                if (writer != null) {
+                  writer.close();
                 }
-                Long timestamp = clock.get().getMillis();
-                for (Capturable page : pages) {
-                  PrintWriter writer = null;
-                  try {
-                    File outputFile =
-                        new File(
-                            options.getPeriodicStatusPageOutputDirectory(),
-                            ("StreamingDataflowWorker"
-                                    + options.getWorkerId()
-                                    + "_"
-                                    + page.pageName()
-                                    + timestamp
-                                    + ".html")
-                                .replaceAll("/", "_"));
-                    writer = new PrintWriter(outputFile, UTF_8.name());
-                    page.captureData(writer);
-                  } catch (IOException e) {
-                    LOG.warn("Error dumping status page.", e);
-                  } finally {
-                    if (writer != null) {
-                      writer.close();
-                    }
-                  }
-                }
-              },
-              60,
-              60,
-              TimeUnit.SECONDS);
+              }
+            }
+          },
+          60,
+          60,
+          TimeUnit.SECONDS);
+      scheduledExecutors.add(statusPageTimer);
     }
 
     reportHarnessStartup();
@@ -694,12 +689,12 @@ public class StreamingDataflowWorker {
 
   public void stop() {
     try {
-      for (ScheduledExecutorService timer : timersMap.values()) {
+      for (ScheduledExecutorService timer : scheduledExecutors) {
         if (timer != null) {
           timer.shutdown();
         }
       }
-      for (ScheduledExecutorService timer : timersMap.values()) {
+      for (ScheduledExecutorService timer : scheduledExecutors) {
         if (timer != null) {
           timer.awaitTermination(300, TimeUnit.SECONDS);
         }
@@ -1593,14 +1588,14 @@ public class StreamingDataflowWorker {
     LOG.info("windmillServerStub is now ready");
 
     // Now start a thread that periodically refreshes the windmill service endpoint.
-    timersMap.put("GlobalConfigRefreshTimer", executorSupplier.apply("GlobalConfigRefreshTimer"));
-    timersMap
-        .get("GlobalConfigRefreshTimer")
-        .scheduleWithFixedDelay(
-            this::getGlobalConfig,
-            0,
-            options.getGlobalConfigRefreshPeriod().getMillis(),
-            TimeUnit.MILLISECONDS);
+    ScheduledExecutorService configRefreshTimer =
+        executorSupplier.apply("GlobalConfigRefreshTimer");
+    configRefreshTimer.scheduleWithFixedDelay(
+        this::getGlobalConfig,
+        0,
+        options.getGlobalConfigRefreshPeriod().getMillis(),
+        TimeUnit.MILLISECONDS);
+    scheduledExecutors.add(configRefreshTimer);
   }
 
   private void getGlobalConfig() {
