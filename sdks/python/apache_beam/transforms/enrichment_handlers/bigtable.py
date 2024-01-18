@@ -21,7 +21,9 @@ from typing import Dict
 from typing import Optional
 
 from google.api_core.exceptions import NotFound
+from google.cloud import bigtable
 from google.cloud.bigtable import Client
+from google.cloud.bigtable.row_filters import CellsColumnLimitFilter
 from google.cloud.bigtable.row_filters import RowFilter
 
 import apache_beam as beam
@@ -63,6 +65,10 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
       to use as `row_key` for BigTable querying.
     row_filter: a ``:class:`google.cloud.bigtable.row_filters.RowFilter``` to
       filter data read with ``read_row()``.
+      Defaults to `CellsColumnLimitFilter(1)`.
+    app_profile_id (str): App profile ID to use for BigTable.
+    encoding (str): encoding type to convert the string to bytes and vice-versa
+      from BigTable. Default is `utf-8`.
     exception_level: a `enum.Enum` value from
       ``apache_beam.transforms.enrichment_handlers.bigtable.ExceptionLevel``
       to set the level when an empty row is returned from the BigTable query.
@@ -74,7 +80,9 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
       instance_id: str,
       table_id: str,
       row_key: str,
-      row_filter: Optional[RowFilter] = None,
+      row_filter: Optional[RowFilter] = CellsColumnLimitFilter(1),
+      app_profile_id: str = None,
+      encoding: str = 'utf-8',
       exception_level: ExceptionLevel = ExceptionLevel.WARN,
   ):
     self._project_id = project_id
@@ -82,13 +90,18 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
     self._table_id = table_id
     self._row_key = row_key
     self._row_filter = row_filter
+    self._app_profile_id = app_profile_id
+    self._encoding = encoding
     self._exception_level = exception_level
 
   def __enter__(self):
     """connect to the Google BigTable cluster."""
     self.client = Client(project=self._project_id)
     self.instance = self.client.instance(self._instance_id)
-    self._table = self.instance.table(self._table_id)
+    self._table = bigtable.table.Table(
+        table_id=self._table_id,
+        instance=self.instance,
+        app_profile_id=self._app_profile_id)
 
   def __call__(self, request: beam.Row, *args, **kwargs):
     """
@@ -103,14 +116,14 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
     try:
       request_dict = request._asdict()
       row_key_str = str(request_dict[self._row_key])
-      row_key = row_key_str.encode()
+      row_key = row_key_str.encode(self._encoding)
       row = self._table.read_row(row_key, filter_=self._row_filter)
       if row:
         for cf_id, cf_v in row.cells.items():
           response_dict[cf_id] = {}
           for k, v in cf_v.items():
-            response_dict[cf_id][k.decode('utf-8')] = \
-              v[0].value.decode('utf-8')
+            response_dict[cf_id][k.decode(self._encoding)] = \
+              v[0].value.decode(self._encoding)
       elif self._exception_level == ExceptionLevel.WARN:
         _LOGGER.warning(
             'no matching row found for row_key: %s '

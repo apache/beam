@@ -22,9 +22,12 @@ from typing import Optional
 from typing import TypeVar
 
 import apache_beam as beam
-from apache_beam.io.requestresponse import DEFAULT_TIMEOUT_SECS, ExponentialBackOffRepeater, Repeater, DefaultThrottler, \
-  PreCallThrottler
+from apache_beam.io.requestresponse import DEFAULT_TIMEOUT_SECS
 from apache_beam.io.requestresponse import Caller
+from apache_beam.io.requestresponse import DefaultThrottler
+from apache_beam.io.requestresponse import ExponentialBackOffRepeater
+from apache_beam.io.requestresponse import PreCallThrottler
+from apache_beam.io.requestresponse import Repeater
 from apache_beam.io.requestresponse import RequestResponseIO
 
 __all__ = [
@@ -107,7 +110,7 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
       source_handler: EnrichmentSourceHandler,
       join_fn: JoinFn = cross_join,
       timeout: Optional[float] = DEFAULT_TIMEOUT_SECS,
-      repeater: Repeater = ExponentialBackOffRepeater,
+      repeater: Repeater = ExponentialBackOffRepeater(),
       throttler: PreCallThrottler = DefaultThrottler(),
   ):
     self._source_handler = source_handler
