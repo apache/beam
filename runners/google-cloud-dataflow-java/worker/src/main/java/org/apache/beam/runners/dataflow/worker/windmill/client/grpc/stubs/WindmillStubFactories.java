@@ -17,16 +17,27 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc.CloudWindmillMetadataServiceV1Alpha1Stub;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
+import com.google.auth.Credentials;
+import java.util.function.Function;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
-/** Used to create stubs to talk to Streaming Engine. */
 @Internal
-public interface WindmillStubFactory {
-  CloudWindmillServiceV1Alpha1Stub createWindmillServiceStub(WindmillServiceAddress serviceAddress);
+public final class WindmillStubFactories {
 
-  CloudWindmillMetadataServiceV1Alpha1Stub createWindmillMetadataServiceStub(
-      WindmillServiceAddress serviceAddress);
+  public static WindmillStubFactory remote(int rpcChannelTimeoutSec, Credentials gcpCredentials) {
+    return new RemoteWindmillStubFactory(rpcChannelTimeoutSec, gcpCredentials);
+  }
+
+  @VisibleForTesting
+  public static WindmillStubFactory inProcess(
+      String testName, Function<String, ManagedChannel> channelFactory) {
+    return new InProcessWindmillStubFactory(testName, channelFactory);
+  }
+
+  @VisibleForTesting
+  public static WindmillStubFactory inProcess(String testName) {
+    return inProcess(testName, WindmillChannelFactory::inProcessChannel);
+  }
 }
