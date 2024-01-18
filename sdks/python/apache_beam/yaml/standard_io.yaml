@@ -38,6 +38,7 @@
         create_disposition: 'createDisposition'
         write_disposition: 'writeDisposition'
         error_handling: 'errorHandling'
+        num_streams: 'numStreams'
     underlying_provider:
       type: beamJar
       transforms:
@@ -45,6 +46,14 @@
         'WriteToBigQuery': 'beam:schematransform:org.apache.beam:bigquery_storage_write:v2'
       config:
         gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
+    requires_unbounded_window:
+      'WriteToBigQuery': true
+    required_parameters:
+      'WriteToBigQuery':
+        streaming:
+          - 'num_streams'
+        batch:
+          - 'num_streams'
 
 - type: renaming
   transforms:
@@ -172,6 +181,11 @@
         'WriteToParquet': 'apache_beam.io.WriteToParquet'
         'ReadFromAvro': 'apache_beam.io.ReadFromAvro'
         'WriteToAvro': 'apache_beam.io.WriteToAvro'
+    requires_unbounded_window:
+      'WriteToCsv': true
+      'WriteToJson': true
+      'WriteToParquet': true
+      'WriteToAvro': true
 
 - type: beamJar
   transforms:

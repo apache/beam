@@ -60,6 +60,25 @@ from apache_beam.version import __version__ as beam_version
 
 class Provider:
   """Maps transform types names and args to concrete PTransform instances."""
+  def __init__(self, requires_unbounded_window=None, required_parameters=None):
+    self._requires_unbounded_window = requires_unbounded_window or {}
+    self._required_parameters = required_parameters or {}
+
+  def requires_unbounded_windowing(self, typ: str):
+    return self._requires_unbounded_window.get(typ, False)
+
+  def required_streaming_parameters(self, typ: str):
+    return self._get_required_parameters(typ, 'streaming')
+
+  def required_batch_parameters(self, typ: str):
+    return self._get_required_parameters(typ, 'batch')
+
+  def _get_required_parameters(self, typ: str, is_streaming: str):
+    required = []
+    if typ in self._required_parameters:
+      required = self._required_parameters[typ].get(is_streaming, [])
+    return required
+
   def available(self) -> bool:
     """Returns whether this provider is available to use in this environment."""
     raise NotImplementedError(type(self))
@@ -144,6 +163,7 @@ class ExternalProvider(Provider):
   _provider_types: Dict[str, Callable[..., Provider]] = {}
 
   def __init__(self, urns, service):
+    super().__init__()
     self._urns = urns
     self._service = service
     self._schema_transforms = None
@@ -406,6 +426,7 @@ def fix_pycallable():
 
 class InlineProvider(Provider):
   def __init__(self, transform_factories, no_input_transforms=()):
+    super().__init__()
     self._transform_factories = transform_factories
     self._no_input_transforms = set(no_input_transforms)
 
@@ -493,6 +514,7 @@ class SqlBackedProvider(Provider):
       self,
       transforms: Mapping[str, Callable[..., beam.PTransform]],
       sql_provider: Optional[Provider] = None):
+    super().__init__()
     self._transforms = transforms
     if sql_provider is None:
       sql_provider = beam_jar(
@@ -807,7 +829,15 @@ class PypiExpansionService:
 
 @ExternalProvider.register_provider_type('renaming')
 class RenamingProvider(Provider):
-  def __init__(self, transforms, mappings, underlying_provider, defaults=None):
+  def __init__(
+      self,
+      transforms,
+      mappings,
+      underlying_provider,
+      defaults=None,
+      required_parameters=None,
+      requires_unbounded_window=None):
+    super().__init__(requires_unbounded_window, required_parameters)
     if isinstance(underlying_provider, dict):
       underlying_provider = ExternalProvider.provider_from_spec(
           underlying_provider)

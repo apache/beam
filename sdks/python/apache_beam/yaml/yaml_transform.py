@@ -35,6 +35,7 @@ from yaml.loader import SafeLoader
 import apache_beam as beam
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
+from apache_beam.transforms.window import GlobalWindows
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_combine import normalize_combine
 from apache_beam.yaml.yaml_mapping import normalize_mapping
@@ -412,6 +413,24 @@ class Scope(LightweightScope):
 
         record_providers(result)
         return result
+
+      pcoll_map = input_pcolls.mapping
+      required_func = provider.required_batch_parameters
+      for pcoll_name in pcoll_map:
+        pcoll = pcoll_map[pcoll_name]
+        if not pcoll.is_bounded:
+          required_func = provider.required_streaming_parameters
+          if provider.requires_unbounded_windowing(spec['type']):
+            if isinstance(input_pcolls.mapping['input'].windowing.windowfn,
+                          GlobalWindows):
+              raise ValueError(
+                  f"Transform {identify_object(spec)} requires a windowing "
+                  f"strategy, but one was not provided.")
+
+      for key in required_func(spec['type']):
+        if key not in config:
+          raise ValueError(
+              f'{identify_object(spec)} requires parameter {key} to be set.')
 
       ptransform.expand = recording_expand
       return ptransform
