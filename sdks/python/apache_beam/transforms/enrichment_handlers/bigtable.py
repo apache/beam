@@ -81,7 +81,7 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
       table_id: str,
       row_key: str,
       row_filter: Optional[RowFilter] = CellsColumnLimitFilter(1),
-      app_profile_id: str = None,
+      app_profile_id: str = "",
       encoding: str = 'utf-8',
       exception_level: ExceptionLevel = ExceptionLevel.WARN,
   ):
