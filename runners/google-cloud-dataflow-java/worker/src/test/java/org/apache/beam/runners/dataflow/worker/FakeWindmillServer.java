@@ -83,7 +83,7 @@ class FakeWindmillServer extends WindmillServerStub {
   private final ErrorCollector errorCollector;
   private final ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> droppedStreamingCommits;
   private int commitsRequested = 0;
-  private List<Windmill.GetDataRequest> getDataRequests = new ArrayList<>();
+  private final List<Windmill.GetDataRequest> getDataRequests = new ArrayList<>();
   private boolean isReady = true;
   private boolean dropStreamingCommits = false;
   private Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses;
@@ -95,7 +95,7 @@ class FakeWindmillServer extends WindmillServerStub {
     dataToOffer =
         new ResponseQueue<GetDataRequest, GetDataResponse>()
             .returnByDefault(GetDataResponse.getDefaultInstance())
-            // Sleep for a little bit to ensure that *-windmill-read state-sampled counters show up.
+            // Sleep for a bit to ensure that *-windmill-read state-sampled counters show up.
             .delayEachResponseBy(Duration.millis(500));
     commitsToOffer =
         new ResponseQueue<Windmill.CommitWorkRequest, CommitWorkResponse>()
@@ -113,7 +113,7 @@ class FakeWindmillServer extends WindmillServerStub {
   public void setProcessHeartbeatResponses(
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     this.processHeartbeatResponses = processHeartbeatResponses;
-  };
+  }
 
   public void setDropStreamingCommits(boolean dropStreamingCommits) {
     this.dropStreamingCommits = dropStreamingCommits;
@@ -320,20 +320,30 @@ class FakeWindmillServer extends WindmillServerStub {
 
       @Override
       public void refreshActiveWork(
-          Map<String, List<KeyedGetDataRequest>> active,
-          Map<String, List<HeartbeatRequest>> heartbeats) {
+          Map<String, List<HeartbeatRequest>> heartbeats, boolean sendKeyedGetDataRequests) {
         Windmill.GetDataRequest.Builder builder = Windmill.GetDataRequest.newBuilder();
-        for (Map.Entry<String, List<KeyedGetDataRequest>> entry : active.entrySet()) {
-          builder.addRequests(
-              ComputationGetDataRequest.newBuilder()
-                  .setComputationId(entry.getKey())
-                  .addAllRequests(entry.getValue()));
-        }
-        for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
-          builder.addComputationHeartbeatRequest(
-              ComputationHeartbeatRequest.newBuilder()
-                  .setComputationId(entry.getKey())
-                  .addAllHeartbeatRequests(entry.getValue()));
+        if (sendKeyedGetDataRequests) {
+          for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+            Windmill.ComputationGetDataRequest.Builder perComputationBuilder =
+                Windmill.ComputationGetDataRequest.newBuilder().setComputationId(entry.getKey());
+            for (HeartbeatRequest request : entry.getValue()) {
+              perComputationBuilder.addRequests(
+                  Windmill.KeyedGetDataRequest.newBuilder()
+                      .setShardingKey(request.getShardingKey())
+                      .setWorkToken(request.getWorkToken())
+                      .setCacheToken(request.getCacheToken())
+                      .addAllLatencyAttribution(request.getLatencyAttributionList())
+                      .build());
+            }
+            builder.addRequests(perComputationBuilder.build());
+          }
+        } else {
+          for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+            builder.addComputationHeartbeatRequest(
+                ComputationHeartbeatRequest.newBuilder()
+                    .setComputationId(entry.getKey())
+                    .addAllHeartbeatRequests(entry.getValue()));
+          }
         }
 
         getData(builder.build());

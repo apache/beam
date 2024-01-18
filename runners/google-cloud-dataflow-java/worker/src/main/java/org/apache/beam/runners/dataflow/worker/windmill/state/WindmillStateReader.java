@@ -416,7 +416,8 @@ public class WindmillStateReader {
   private KeyedGetDataResponse tryGetDataFromWindmill(HashSet<StateTag<?>> stateTags)
       throws Exception {
     if (workItemIsFailed.get()) {
-      throw new WorkItemFailedException("Windmill failed work item.");
+      throw new WorkItemFailedException(
+          "Skipping state read as work item is no longer valid in backend.");
     }
     KeyedGetDataRequest keyedGetDataRequest = createRequest(stateTags);
     try (AutoCloseable ignored = readWrapperSupplier.get()) {

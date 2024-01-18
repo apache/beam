@@ -183,49 +183,65 @@ public final class GrpcGetDataStream
 
   @Override
   public void refreshActiveWork(
-      Map<String, List<KeyedGetDataRequest>> active,
-      Map<String, List<HeartbeatRequest>> heartbeats) {
-    long builderBytes = 0;
+      Map<String, List<HeartbeatRequest>> heartbeats, boolean sendKeyedGetDataRequests) {
     StreamingGetDataRequest.Builder builder = StreamingGetDataRequest.newBuilder();
-    for (Map.Entry<String, List<KeyedGetDataRequest>> entry : active.entrySet()) {
-      for (KeyedGetDataRequest request : entry.getValue()) {
-        // Calculate the bytes with some overhead for proto encoding.
-        long bytes = (long) entry.getKey().length() + request.getSerializedSize() + 10;
-        if (builderBytes > 0
-            && (builderBytes + bytes > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE
-                || builder.getRequestIdCount() >= streamingRpcBatchLimit)) {
-          send(builder.build());
-          builderBytes = 0;
-          builder.clear();
+    if (sendKeyedGetDataRequests) {
+      long builderBytes = 0;
+      for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+        for (HeartbeatRequest request : entry.getValue()) {
+          // Calculate the bytes with some overhead for proto encoding.
+          long bytes = (long) entry.getKey().length() + request.getSerializedSize() + 10;
+          if (builderBytes > 0
+              && (builderBytes + bytes > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE
+                  || builder.getRequestIdCount() >= streamingRpcBatchLimit)) {
+            send(builder.build());
+            builderBytes = 0;
+            builder.clear();
+          }
+          builderBytes += bytes;
+          builder.addStateRequest(
+              ComputationGetDataRequest.newBuilder()
+                  .setComputationId(entry.getKey())
+                  .addRequests(
+                      Windmill.KeyedGetDataRequest.newBuilder()
+                          .setShardingKey(request.getShardingKey())
+                          .setWorkToken(request.getWorkToken())
+                          .setCacheToken(request.getCacheToken())
+                          .addAllLatencyAttribution(request.getLatencyAttributionList())
+                          .build()));
         }
-        builderBytes += bytes;
-        builder.addStateRequest(
-            ComputationGetDataRequest.newBuilder()
-                .setComputationId(entry.getKey())
-                .addRequests(request));
       }
-    }
-    for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
-      for (HeartbeatRequest request : entry.getValue()) {
-        // Calculate the bytes with some overhead for proto encoding.
-        long bytes = (long) entry.getKey().length() + request.getSerializedSize() + 10;
-        if (builderBytes > 0
-            && (builderBytes + bytes > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE
-                || builder.getRequestIdCount() >= streamingRpcBatchLimit)) {
-          send(builder.build());
-          builderBytes = 0;
-          builder.clear();
-        }
-        builderBytes += bytes;
-        builder.addComputationHeartbeatRequest(
-            ComputationHeartbeatRequest.newBuilder()
-                .setComputationId(entry.getKey())
-                .addHeartbeatRequests(request));
-      }
-    }
 
-    if (builderBytes > 0) {
-      send(builder.build());
+      if (builderBytes > 0) {
+        send(builder.build());
+      }
+    } else {
+      // No translation necessary, but we must still respect `RPC_STREAM_CHUNK_SIZE`.
+      long builderBytes = 0;
+      for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+        ComputationHeartbeatRequest.Builder computationHeartbeatBuilder =
+            ComputationHeartbeatRequest.newBuilder().setComputationId(entry.getKey());
+        for (HeartbeatRequest request : entry.getValue()) {
+          long bytes = (long) entry.getKey().length() + request.getSerializedSize() + 10;
+          if (builderBytes > 0
+              && builderBytes + bytes > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
+            if (computationHeartbeatBuilder.getHeartbeatRequestsCount() > 0) {
+              builder.addComputationHeartbeatRequest(computationHeartbeatBuilder.build());
+            }
+            send(builder.build());
+            builderBytes = 0;
+            builder.clear();
+            computationHeartbeatBuilder.clear().setComputationId(entry.getKey());
+          }
+          builderBytes += bytes;
+          computationHeartbeatBuilder.addHeartbeatRequests(request);
+        }
+        builder.addComputationHeartbeatRequest(computationHeartbeatBuilder.build());
+      }
+
+      if (builderBytes > 0) {
+        send(builder.build());
+      }
     }
   }
 

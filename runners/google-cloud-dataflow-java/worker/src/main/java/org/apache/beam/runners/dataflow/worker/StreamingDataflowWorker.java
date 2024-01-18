@@ -953,10 +953,6 @@ public class StreamingDataflowWorker {
     final Windmill.WorkItem workItem = work.getWorkItem();
     final String computationId = computationState.getComputationId();
     final ByteString key = workItem.getKey();
-    if (work.isFailed()) {
-      LOG.debug("Not processing failed work for {}:\n{}", computationId, work);
-      return;
-    }
     work.setState(State.PROCESSING);
 
     setUpWorkLoggingContext(work.getLatencyTrackingId(), computationId);
@@ -987,6 +983,9 @@ public class StreamingDataflowWorker {
     String counterName = "dataflow_source_bytes_processed-" + mapTask.getSystemName();
 
     try {
+      if (work.isFailed()) {
+        throw new WorkItemFailedException(key.toStringUtf8());
+      }
       executionState = computationState.getExecutionStateQueue().poll();
       if (executionState == null) {
         MutableNetwork<Node, Edge> mapTaskNetwork = mapTaskToNetwork.apply(mapTask);
@@ -1895,14 +1894,14 @@ public class StreamingDataflowWorker {
       Map<Long, List<FailedTokens>> failedWork = new HashMap<>();
       for (Windmill.HeartbeatResponse heartbeatResponse :
           computationHeartbeatResponse.getHeartbeatResponsesList()) {
-        failedWork.putIfAbsent(heartbeatResponse.getShardingKey(), new ArrayList<>());
-        failedWork
-            .get(heartbeatResponse.getShardingKey())
-            .add(
-                new FailedTokens(
-                    heartbeatResponse.getWorkToken(), heartbeatResponse.getCacheToken()));
+        List<FailedTokens> keyTokens =
+            failedWork.putIfAbsent(heartbeatResponse.getShardingKey(), new ArrayList<>());
+        if (keyTokens == null) keyTokens = failedWork.get(heartbeatResponse.getShardingKey());
+        keyTokens.add(
+            new FailedTokens(heartbeatResponse.getWorkToken(), heartbeatResponse.getCacheToken()));
       }
-      computationMap.get(computationHeartbeatResponse.getComputationId()).failWork(failedWork);
+      ComputationState state = computationMap.get(computationHeartbeatResponse.getComputationId());
+      if (state != null) state.failWork(failedWork);
     }
   }
 
@@ -1914,22 +1913,19 @@ public class StreamingDataflowWorker {
    * StreamingDataflowWorkerOptions#getActiveWorkRefreshPeriodMillis}.
    */
   private void refreshActiveWork() {
-    Map<String, List<Windmill.KeyedGetDataRequest>> active = new HashMap<>();
     Map<String, List<Windmill.HeartbeatRequest>> heartbeats = new HashMap<>();
     Instant refreshDeadline =
         clock.get().minus(Duration.millis(options.getActiveWorkRefreshPeriodMillis()));
 
+    boolean sendKeyedGetDataRequests =
+        !windmillServiceEnabled
+            || !DataflowRunner.hasExperiment(
+                options, "streaming_engine_send_new_heartbeat_requests");
     for (Map.Entry<String, ComputationState> entry : computationMap.entrySet()) {
-      if (windmillServiceEnabled
-          && DataflowRunner.hasExperiment(
-              options, "streaming_engine_send_new_heartbeat_requests")) {
-        heartbeats.put(entry.getKey(), entry.getValue().getKeyHeartbeats(refreshDeadline, sampler));
-      } else {
-        active.put(entry.getKey(), entry.getValue().getKeysToRefresh(refreshDeadline, sampler));
-      }
+      heartbeats.put(entry.getKey(), entry.getValue().getKeyHeartbeats(refreshDeadline, sampler));
     }
 
-    metricTrackingWindmillServer.refreshActiveWork(active, heartbeats);
+    metricTrackingWindmillServer.refreshActiveWork(heartbeats, sendKeyedGetDataRequests);
   }
 
   private void invalidateStuckCommits() {

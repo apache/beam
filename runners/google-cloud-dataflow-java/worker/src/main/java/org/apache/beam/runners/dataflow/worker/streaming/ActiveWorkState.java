@@ -36,7 +36,6 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -144,13 +143,16 @@ public final class ActiveWorkState {
           WorkItem workItem = queuedWork.getWorkItem();
           if (workItem.getWorkToken() == failedToken.workToken
               && workItem.getCacheToken() == failedToken.cacheToken) {
-            LOG.error(
-                "failing work "
+            LOG.debug(
+                "Failing work "
+                    + computationStateCache.getComputation()
+                    + " "
                     + entry.getKey().shardingKey()
                     + " "
                     + failedToken.workToken
                     + " "
-                    + failedToken.cacheToken);
+                    + failedToken.cacheToken
+                    + ". The work will be retried and is not lost.");
             queuedWork.setState(Work.State.FAILED);
             break;
           }
@@ -248,33 +250,6 @@ public final class ActiveWorkState {
     }
 
     return stuckCommits.build();
-  }
-
-  synchronized ImmutableList<KeyedGetDataRequest> getKeysToRefresh(
-      Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
-    return activeWork.entrySet().stream()
-        .flatMap(entry -> toKeyedGetDataRequestStream(entry, refreshDeadline, sampler))
-        .collect(toImmutableList());
-  }
-
-  private static Stream<KeyedGetDataRequest> toKeyedGetDataRequestStream(
-      Entry<ShardedKey, Deque<Work>> shardedKeyAndWorkQueue,
-      Instant refreshDeadline,
-      DataflowExecutionStateSampler sampler) {
-    ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
-    Deque<Work> workQueue = shardedKeyAndWorkQueue.getValue();
-
-    return workQueue.stream()
-        .filter(work -> work.getStartTime().isBefore(refreshDeadline))
-        .map(
-            work ->
-                Windmill.KeyedGetDataRequest.newBuilder()
-                    .setKey(shardedKey.key())
-                    .setShardingKey(shardedKey.shardingKey())
-                    .setWorkToken(work.getWorkItem().getWorkToken())
-                    .addAllLatencyAttribution(
-                        work.getLatencyAttributions(true, work.getLatencyTrackingId(), sampler))
-                    .build());
   }
 
   synchronized ImmutableList<HeartbeatRequest> getKeyHeartbeats(

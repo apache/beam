@@ -27,7 +27,6 @@ import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.FailedTokens;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -125,12 +124,6 @@ public class ComputationState implements AutoCloseable {
 
   private void forceExecute(Work work) {
     executor.forceExecute(work, work.getWorkItem().getSerializedSize());
-  }
-
-  /** Adds any work started before the refreshDeadline to the GetDataRequest builder. */
-  public ImmutableList<KeyedGetDataRequest> getKeysToRefresh(
-      Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
-    return activeWorkState.getKeysToRefresh(refreshDeadline, sampler);
   }
 
   /** Gets HeartbeatRequests for any work started before refreshDeadline. */

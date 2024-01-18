@@ -478,9 +478,10 @@ message GetWorkResponse {
 // GetData
 
 message KeyedGetDataRequest {
-  required bytes key = 1;
+  optional bytes key = 1;
   required fixed64 work_token = 2;
   optional fixed64 sharding_key = 6;
+  optional fixed64 cache_token = 11;
   repeated TagValue values_to_fetch = 3;
   repeated TagValuePrefixRequest tag_value_prefixes_to_fetch = 10;
   repeated TagBag bags_to_fetch = 8;
@@ -828,16 +829,11 @@ message StreamingGetDataResponse {
   // Remaining bytes field applies only to the last serialized_response
   optional int64 remaining_bytes_for_response = 3;
 
-  // Work item fingerprints available only for complete items. So if
-  // remaining_bytes_for_response > 0 the size of farmhash_fingerprint array is
-  // one less than the size of serialized_response as the fingerprint for the
-  // last message is not yet available.
-  // Will not be populated when heartbeat_response is set.
-  repeated uint64 farmhash_fingerprint = 4;
-
   // Only set if ComputationHeartbeatRequest was sent, prior versions do not
   // expect a response for heartbeats.
   repeated ComputationHeartbeatResponse computation_heartbeat_response = 5;
+
+  reserved 4;
 }
 
 message StreamingCommitWorkRequest {

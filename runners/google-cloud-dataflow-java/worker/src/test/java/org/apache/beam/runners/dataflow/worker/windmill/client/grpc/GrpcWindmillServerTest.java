@@ -793,8 +793,9 @@ public class GrpcWindmillServerTest {
     for (String key : keys) {
       result.add(
           Windmill.KeyedGetDataRequest.newBuilder()
-              .setKey(ByteString.copyFromUtf8(key))
+              .setShardingKey(key.hashCode())
               .setWorkToken(0)
+              .setCacheToken(0)
               .build());
     }
     return result;
@@ -814,10 +815,9 @@ public class GrpcWindmillServerTest {
   }
 
   @Test
-  public void testStreamingGetDataHeartbeats() throws Exception {
+  public void testStreamingGetDataHeartbeatsAsKeyedGetDataRequests() throws Exception {
     // This server records the heartbeats observed but doesn't respond.
     final Map<String, List<KeyedGetDataRequest>> getDataHeartbeats = new HashMap<>();
-    final Map<String, List<HeartbeatRequest>> heartbeatRequests = new HashMap<>();
 
     serviceRegistry.addService(
         new CloudWindmillServiceV1Alpha1ImplBase() {
@@ -843,9 +843,6 @@ public class GrpcWindmillServerTest {
                     sawHeader = true;
                   } else {
                     LOG.info("Received {} getDataHeartbeats", chunk.getStateRequestCount());
-                    LOG.info(
-                        "Received {} computationHeartbeatRequests",
-                        chunk.getComputationHeartbeatRequestCount());
                     errorCollector.checkThat(
                         chunk.getSerializedSize(), Matchers.lessThanOrEqualTo(STREAM_CHUNK_SIZE));
                     errorCollector.checkThat(chunk.getRequestIdCount(), Matchers.is(0));
@@ -858,16 +855,6 @@ public class GrpcWindmillServerTest {
                         getDataHeartbeats
                             .get(request.getComputationId())
                             .add(request.getRequestsList().get(0));
-                      }
-                    }
-                    synchronized (heartbeatRequests) {
-                      for (ComputationHeartbeatRequest request :
-                          chunk.getComputationHeartbeatRequestList()) {
-                        heartbeatRequests.putIfAbsent(
-                            request.getComputationId(), new ArrayList<>());
-                        for (HeartbeatRequest heartbeat : request.getHeartbeatRequestsList()) {
-                          heartbeatRequests.get(request.getComputationId()).add(heartbeat);
-                        }
                       }
                     }
                   }
@@ -887,8 +874,6 @@ public class GrpcWindmillServerTest {
           }
         });
 
-    Map<String, List<KeyedGetDataRequest>> activeMap = new HashMap<>();
-    Map<String, List<HeartbeatRequest>> heartbeatRequestMap = new HashMap<>();
     List<String> computation1Keys = new ArrayList<>();
     List<String> computation2Keys = new ArrayList<>();
 
@@ -896,32 +881,128 @@ public class GrpcWindmillServerTest {
       computation1Keys.add("Computation1Key" + i);
       computation2Keys.add("Computation2Key" + largeString(i * 20));
     }
-    activeMap.put("Computation1", makeGetDataHeartbeatRequest(computation1Keys));
-    activeMap.put("Computation2", makeGetDataHeartbeatRequest(computation2Keys));
-    heartbeatRequestMap.put("Computation1", makeHeartbeatRequest(computation1Keys));
-    heartbeatRequestMap.put("Computation2", makeHeartbeatRequest(computation2Keys));
+    // We're adding HeartbeatRequests to refreshActiveWork, but expecting to get back
+    // KeyedGetDataRequests, so make a Map of both types.
+    Map<String, List<KeyedGetDataRequest>> expectedKeyedGetDataRequests = new HashMap<>();
+    expectedKeyedGetDataRequests.put("Computation1", makeGetDataHeartbeatRequest(computation1Keys));
+    expectedKeyedGetDataRequests.put("Computation2", makeGetDataHeartbeatRequest(computation2Keys));
+    Map<String, List<HeartbeatRequest>> heartbeatsToRefresh = new HashMap<>();
+    heartbeatsToRefresh.put("Computation1", makeHeartbeatRequest(computation1Keys));
+    heartbeatsToRefresh.put("Computation2", makeHeartbeatRequest(computation2Keys));
 
     GetDataStream stream = client.getDataStream();
-    stream.refreshActiveWork(activeMap, heartbeatRequestMap);
+    stream.refreshActiveWork(heartbeatsToRefresh, true);
     stream.close();
     assertTrue(stream.awaitTermination(60, TimeUnit.SECONDS));
 
     boolean receivedAllGetDataHeartbeats = false;
-    boolean receivedAllHeartbeatRequests = false;
-    while (!receivedAllGetDataHeartbeats || !receivedAllHeartbeatRequests) {
+    while (!receivedAllGetDataHeartbeats) {
       Thread.sleep(100);
       synchronized (getDataHeartbeats) {
-        if (getDataHeartbeats.size() != activeMap.size()) {
+        if (getDataHeartbeats.size() != expectedKeyedGetDataRequests.size()) {
           continue;
         }
-        assertEquals(getDataHeartbeats, activeMap);
+        assertEquals(expectedKeyedGetDataRequests, getDataHeartbeats);
         receivedAllGetDataHeartbeats = true;
       }
-      synchronized (heartbeatRequests) {
-        if (heartbeatRequests.size() != heartbeatRequestMap.size()) {
+    }
+  }
+
+  @Test
+  public void testStreamingGetDataHeartbeatsAsHeartbeatRequests() throws Exception {
+    // This server records the heartbeats observed but doesn't respond.
+    final List<ComputationHeartbeatRequest> receivedHeartbeats = new ArrayList<>();
+
+    serviceRegistry.addService(
+        new CloudWindmillServiceV1Alpha1ImplBase() {
+          @Override
+          public StreamObserver<StreamingGetDataRequest> getDataStream(
+              StreamObserver<StreamingGetDataResponse> responseObserver) {
+            return new StreamObserver<StreamingGetDataRequest>() {
+              boolean sawHeader = false;
+
+              @Override
+              public void onNext(StreamingGetDataRequest chunk) {
+                try {
+                  if (!sawHeader) {
+                    LOG.info("Received header");
+                    errorCollector.checkThat(
+                        chunk.getHeader(),
+                        Matchers.equalTo(
+                            JobHeader.newBuilder()
+                                .setJobId("job")
+                                .setProjectId("project")
+                                .setWorkerId("worker")
+                                .build()));
+                    sawHeader = true;
+                  } else {
+                    LOG.info(
+                        "Received {} computationHeartbeatRequests",
+                        chunk.getComputationHeartbeatRequestCount());
+                    errorCollector.checkThat(
+                        chunk.getSerializedSize(), Matchers.lessThanOrEqualTo(STREAM_CHUNK_SIZE));
+                    errorCollector.checkThat(chunk.getRequestIdCount(), Matchers.is(0));
+
+                    synchronized (receivedHeartbeats) {
+                      receivedHeartbeats.addAll(chunk.getComputationHeartbeatRequestList());
+                    }
+                  }
+                } catch (Exception e) {
+                  errorCollector.addError(e);
+                }
+              }
+
+              @Override
+              public void onError(Throwable throwable) {}
+
+              @Override
+              public void onCompleted() {
+                responseObserver.onCompleted();
+              }
+            };
+          }
+        });
+
+    List<String> computation1Keys = new ArrayList<>();
+    List<String> computation2Keys = new ArrayList<>();
+
+    // When sending heartbeats as HeartbeatRequest protos, all keys for the same computation should
+    // be batched into the same ComputationHeartbeatRequest. Compare to the KeyedGetDataRequest
+    // version in the test above, which only sends one key per ComputationGetDataRequest.
+    List<ComputationHeartbeatRequest> expectedHeartbeats = new ArrayList<>();
+    ComputationHeartbeatRequest.Builder comp1Builder =
+        ComputationHeartbeatRequest.newBuilder().setComputationId("Computation1");
+    ComputationHeartbeatRequest.Builder comp2Builder =
+        ComputationHeartbeatRequest.newBuilder().setComputationId("Computation2");
+    for (int i = 0; i < 100; ++i) {
+      String computation1Key = "Computation1Key" + i;
+      computation1Keys.add(computation1Key);
+      comp1Builder.addHeartbeatRequests(
+          makeHeartbeatRequest(Collections.singletonList(computation1Key)).get(0));
+      String computation2Key = "Computation2Key" + largeString(i * 20);
+      computation2Keys.add(computation2Key);
+      comp2Builder.addHeartbeatRequests(
+          makeHeartbeatRequest(Collections.singletonList(computation2Key)).get(0));
+    }
+    expectedHeartbeats.add(comp1Builder.build());
+    expectedHeartbeats.add(comp2Builder.build());
+    Map<String, List<HeartbeatRequest>> heartbeatRequestMap = new HashMap<>();
+    heartbeatRequestMap.put("Computation1", makeHeartbeatRequest(computation1Keys));
+    heartbeatRequestMap.put("Computation2", makeHeartbeatRequest(computation2Keys));
+
+    GetDataStream stream = client.getDataStream();
+    stream.refreshActiveWork(heartbeatRequestMap, false);
+    stream.close();
+    assertTrue(stream.awaitTermination(60, TimeUnit.SECONDS));
+
+    boolean receivedAllHeartbeatRequests = false;
+    while (!receivedAllHeartbeatRequests) {
+      Thread.sleep(100);
+      synchronized (receivedHeartbeats) {
+        if (receivedHeartbeats.size() != expectedHeartbeats.size()) {
           continue;
         }
-        assertEquals(heartbeatRequests, heartbeatRequestMap);
+        assertEquals(expectedHeartbeats, receivedHeartbeats);
         receivedAllHeartbeatRequests = true;
       }
     }

@@ -28,7 +28,6 @@ import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
@@ -239,30 +238,43 @@ public class MetricTrackingWindmillServerStub {
     }
   }
 
-  /** Tells windmill processing is ongoing for the given keys. */
+  /**
+   * Tells windmill processing is ongoing for the given keys. If sendKeyedGetDataRequests is true
+   * then these heartbeat messages are sent as KeyedGetDataRequests. Otherwise, they are sent as
+   * HeartbeatRequest protos.
+   */
   public void refreshActiveWork(
-      Map<String, List<KeyedGetDataRequest>> active,
-      Map<String, List<HeartbeatRequest>> heartbeats) {
-    activeHeartbeats.set(active.size());
+      Map<String, List<HeartbeatRequest>> heartbeats, boolean sendKeyedGetDataRequests) {
+    activeHeartbeats.set(heartbeats.size());
     try {
       if (useStreamingRequests) {
         // With streaming requests, always send the request even when it is empty, to ensure that
         // we trigger health checks for the stream even when it is idle.
         GetDataStream stream = streamPool.getStream();
         try {
-          stream.refreshActiveWork(active, heartbeats);
+          stream.refreshActiveWork(heartbeats, sendKeyedGetDataRequests);
         } finally {
           streamPool.releaseStream(stream);
         }
-      } else if (!active.isEmpty()) {
-        // Note: We don't send HeartbeatRequest's if we aren't using streaming requests since
-        // it's not supported by appliance.
+      } else if (!heartbeats.isEmpty()) {
+        // This code path is only used by appliance which sends heartbeats (used to refresh active
+        // work) as KeyedGetDataRequests. So we must translate the HeartbeatRequest to a
+        // KeyedGetDataRequest here regardless of the value of sendKeyedGetDataRequests.
         Windmill.GetDataRequest.Builder builder = Windmill.GetDataRequest.newBuilder();
-        for (Map.Entry<String, List<KeyedGetDataRequest>> entry : active.entrySet()) {
-          builder.addRequests(
-              Windmill.ComputationGetDataRequest.newBuilder()
-                  .setComputationId(entry.getKey())
-                  .addAllRequests(entry.getValue()));
+        for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+          Windmill.ComputationGetDataRequest.Builder perComputationBuilder =
+              Windmill.ComputationGetDataRequest.newBuilder();
+          perComputationBuilder.setComputationId(entry.getKey());
+          for (HeartbeatRequest request : entry.getValue()) {
+            perComputationBuilder.addRequests(
+                Windmill.KeyedGetDataRequest.newBuilder()
+                    .setShardingKey(request.getShardingKey())
+                    .setWorkToken(request.getWorkToken())
+                    .setCacheToken(request.getCacheToken())
+                    .addAllLatencyAttribution(request.getLatencyAttributionList())
+                    .build());
+          }
+          builder.addRequests(perComputationBuilder.build());
         }
         server.getData(builder.build());
       }

@@ -136,10 +136,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.stateNameMap = ImmutableMap.copyOf(stateNameMap);
     this.stateCache = stateCache;
     this.backlogBytes = UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
-    this.workIsFailed =
-        () -> {
-          return Boolean.FALSE;
-        };
+    this.workIsFailed = () -> Boolean.FALSE;
   }
 
   @VisibleForTesting
@@ -163,9 +160,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       @Nullable Supplier<Boolean> workFailed) {
     this.key = key;
     this.work = work;
-    if (workFailed != null) {
-      this.workIsFailed = workFailed;
-    }
+    this.workIsFailed = (workFailed != null) ? workFailed : () -> Boolean.FALSE;
     this.computationKey =
         WindmillComputationKey.create(computationId, work.getKey(), work.getShardingKey());
     this.sideInputStateFetcher = sideInputStateFetcher;
@@ -442,7 +437,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
   /**
    * Execution states in Streaming are shared between multiple map-task executors. Thus this class
-   * needs to be thread safe for multiple writers. A single stage could have have multiple executors
+   * needs to be thread safe for multiple writers. A single stage could have multiple executors
    * running concurrently.
    */
   public static class StreamingModeExecutionState
@@ -683,7 +678,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     private NavigableSet<TimerData> modifiedUserSynchronizedProcessingTimersOrdered = null;
     // A list of timer keys that were modified by user processing earlier in this bundle. This
     // serves a tombstone, so
-    // that we know not to fire any bundle tiemrs that were moddified.
+    // that we know not to fire any bundle timers that were modified.
     private Table<String, StateNamespace, TimerData> modifiedUserTimerKeys = null;
 
     public StepContext(DataflowOperationContext operationContext) {

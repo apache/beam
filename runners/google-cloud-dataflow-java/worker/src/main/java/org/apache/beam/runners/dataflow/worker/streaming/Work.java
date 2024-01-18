@@ -87,6 +87,8 @@ public class Work implements Runnable {
   }
 
   public void setState(State state) {
+    // Once the work has been failed, it can't transition to any other state.
+    if (isFailed()) return;
     Instant now = clock.get();
     totalDurationPerState.compute(
         this.currentState.state().toLatencyAttributionState(),
