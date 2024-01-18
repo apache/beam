@@ -690,8 +690,11 @@ def create_builtin_provider():
     The output of this transform is a copy of its input for ease of use in
     chain-style pipelines.
     """
+    logger = logging.getLogger(LogForTesting.__name__)
+    logger.setLevel('INFO')
+
     def log_and_return(x):
-      logging.info(x)
+      logger.info(x)
       return x
 
     return beam.Map(log_and_return)

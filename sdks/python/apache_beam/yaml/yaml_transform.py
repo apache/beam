@@ -892,6 +892,20 @@ def ensure_config(spec):
   return spec
 
 
+def process_logging(spec):
+  if 'logging' in spec:
+    log_level = str(spec['logging']).upper()
+    if log_level not in logging.getLevelNamesMapping():
+      raise ValueError(
+          'Invalid logging level set: '
+          f"{identify_object(spec['logging'])}. "
+          'Valid levels are '
+          f'{", ".join(logging.getLevelNamesMapping())}')
+    logging.getLogger().setLevel(log_level)
+  else:
+    _LOGGER.setLevel('INFO')
+
+
 def preprocess(spec, verbose=False, known_transforms=None):
   if verbose:
     pprint.pprint(spec)
@@ -1021,6 +1035,7 @@ def expand_pipeline(
   # this could certainly be handy as a first pass when Beam is not available.
   if validate_schema and validate_schema != 'none':
     validate_against_schema(pipeline_spec, validate_schema)
+  process_logging(pipeline_spec)
   # Calling expand directly to avoid outer layer of nesting.
   return YamlTransform(
       pipeline_as_composite(pipeline_spec['pipeline']),

@@ -527,3 +527,23 @@ in a yaml file as
 ```
 python -m apache_beam.yaml.main --yaml_pipeline_file=/path/to/pipeline.yaml [other pipeline options such as the runner]
 ```
+
+## Logging
+
+The logging level can be set to increase or decrease logging output during
+pipeline translation.
+
+```
+pipeline:
+  transforms:
+    - type: ReadFromCsv
+      config:
+        path: /path/to/input*.csv
+    - type: WriteToJson
+      config:
+        path: /path/to/output.json
+      input: ReadFromCsv
+logging: ERROR
+```
+
+The default logging level is INFO if one is not provided.
