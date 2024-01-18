@@ -42,6 +42,7 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.INT16;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.INT32;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.Serializable;
 import java.sql.ResultSet;
@@ -87,9 +88,7 @@ class SingleStoreDefaultRowMapper
 
   @Override
   public Row mapRow(ResultSet resultSet) throws Exception {
-    if (schema == null) {
-      throw new UnsupportedOperationException("mapRow is called before init");
-    }
+    Schema schema = checkStateNotNull(this.schema, "mapRow is called before init");
 
     Row.Builder rowBuilder = Row.withSchema(schema);
 

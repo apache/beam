@@ -15,21 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 
-import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
-
-/**
- * Represents the capture type of a change stream. The only supported value at the moment is
- * OLD_AND_NEW_VALUES, meaning that {@link Mod}s will include the column values before and after the
- * database operations were applied.
- */
-@DefaultCoder(AvroCoder.class)
-public enum ValueCaptureType {
-  NEW_ROW,
-  NEW_VALUES,
-  OLD_AND_NEW_VALUES,
-  NEW_ROW_AND_OLD_VALUES,
-  UNKNOWN
-}
+project    = "apache-beam-testing"
+network    = "default"
+subnetwork = "default"
+region     = "us-west1"

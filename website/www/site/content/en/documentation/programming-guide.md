@@ -7945,7 +7945,7 @@ implementation of your desired logic. You can do this by simply defining both
 class MultiplyByTwo(beam.DoFn):
   def process(self, element: np.int64) -> Iterator[np.int64]:
     # Multiply an individual int64 by 2
-    yield batch * 2
+    yield element * 2
 
   def process_batch(self, batch: np.ndarray) -> Iterator[np.ndarray]:
     # Multiply a _batch_ of int64s by 2
