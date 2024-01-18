@@ -234,11 +234,13 @@ class TestBigTableEnrichment(unittest.TestCase):
         row_key=self.row_key,
         row_filter=column_filter)
     with self.assertRaises(NotFound):
-      with TestPipeline(is_integration_test=True) as test_pipeline:
-        _ = (
-            test_pipeline
-            | "Create" >> beam.Create(self.req)
-            | "Enrich W/ BigTable" >> Enrichment(bigtable))
+      test_pipeline = beam.Pipeline()
+      _ = (
+          test_pipeline
+          | "Create" >> beam.Create(self.req)
+          | "Enrich W/ BigTable" >> Enrichment(bigtable))
+      res = test_pipeline.run()
+      res.wait_until_finish()
 
   def test_enrichment_with_bigtable_raises_key_error(self):
     """raises a `KeyError` when the row_key doesn't exist in
@@ -249,11 +251,13 @@ class TestBigTableEnrichment(unittest.TestCase):
         table_id=self.table_id,
         row_key='car_name')
     with self.assertRaises(KeyError):
-      with TestPipeline(is_integration_test=True) as test_pipeline:
-        _ = (
-            test_pipeline
-            | "Create" >> beam.Create(self.req)
-            | "Enrich W/ BigTable" >> Enrichment(bigtable))
+      test_pipeline = beam.Pipeline()
+      _ = (
+          test_pipeline
+          | "Create" >> beam.Create(self.req)
+          | "Enrich W/ BigTable" >> Enrichment(bigtable))
+      res = test_pipeline.run()
+      res.wait_until_finish()
 
   def test_enrichment_with_bigtable_raises_not_found(self):
     """raises a `NotFound` exception when the GCP BigTable Cluster
@@ -264,11 +268,13 @@ class TestBigTableEnrichment(unittest.TestCase):
         table_id='invalid_table',
         row_key=self.row_key)
     with self.assertRaises(NotFound):
-      with TestPipeline(is_integration_test=True) as test_pipeline:
-        _ = (
-            test_pipeline
-            | "Create" >> beam.Create(self.req)
-            | "Enrich W/ BigTable" >> Enrichment(bigtable))
+      test_pipeline = beam.Pipeline()
+      _ = (
+          test_pipeline
+          | "Create" >> beam.Create(self.req)
+          | "Enrich W/ BigTable" >> Enrichment(bigtable))
+      res = test_pipeline.run()
+      res.wait_until_finish()
 
   def test_enrichment_with_bigtable_exception_level(self):
     """raises a `ValueError` exception when the GCP BigTable query returns
@@ -281,11 +287,13 @@ class TestBigTableEnrichment(unittest.TestCase):
         exception_level=ExceptionLevel.RAISE)
     req = [beam.Row(sale_id=1, customer_id=1, product_id=11, quantity=1)]
     with self.assertRaises(ValueError):
-      with TestPipeline(is_integration_test=True) as test_pipeline:
-        _ = (
-            test_pipeline
-            | "Create" >> beam.Create(req)
-            | "Enrich W/ BigTable" >> Enrichment(bigtable))
+      test_pipeline = beam.Pipeline()
+      _ = (
+          test_pipeline
+          | "Create" >> beam.Create(req)
+          | "Enrich W/ BigTable" >> Enrichment(bigtable))
+      res = test_pipeline.run()
+      res.wait_until_finish()
 
 
 if __name__ == '__main__':
