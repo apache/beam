@@ -48,7 +48,8 @@ import apache_beam.transforms.util
 from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms import external
 from apache_beam.transforms import window
-from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
+from apache_beam.transforms.fully_qualified_named_transform import \
+  FullyQualifiedNamedTransform
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.schemas import named_tuple_to_schema
@@ -652,8 +653,9 @@ def create_builtin_provider():
     for more details.
 
     Sizes, offsets, periods and gaps (where applicable) must be defined using
-    a time unit suffix 's', 'm', 'h' or 'd' for seconds, minutes, hours
-    or days, respectively.
+    a time unit suffix 'ms', 's', 'm', 'h' or 'd' for milliseconds, seconds,
+    minutes, hours or days, respectively. If a time unit is not specified, it
+    will default to 's'.
 
     For example:
 
@@ -677,12 +679,14 @@ def create_builtin_provider():
 
     @staticmethod
     def _parse_time_unit(value, name):
-      time_units = {'s': 1, 'm': 60, 'h': 60 * 60, 'd': 60 * 60 * 12}
-      value, suffix = str(value)[:-1], str(value)[-1]
+      time_units = {
+          'ms': 0.001, 's': 1, 'm': 60, 'h': 60 * 60, 'd': 60 * 60 * 12
+      }
+      value, suffix = re.match(r'^(.*?)([^\d]*)$', str(value)).groups()
       # Default to seconds if time unit suffix is not defined
-      if suffix.isnumeric():
-        value, suffix = value + suffix, 's'
-      elif not value or not value.isnumeric():
+      if not suffix:
+        suffix = 's'
+      if not value:
         raise ValueError(
             f"Invalid windowing {name} value "
             f"'{suffix if not value else value}'. "
@@ -694,6 +698,7 @@ def create_builtin_provider():
                 name,
                 suffix,
                 ', '.join("'{}'".format(k) for k in time_units.keys())))
+      print(f'name: {name}\nvalue: {value}\nsuffix: {suffix}\n')
       return float(value) * float(time_units[suffix])
 
     @staticmethod
