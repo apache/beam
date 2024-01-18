@@ -80,7 +80,6 @@ public class VarIntBenchmark {
   @State(Scope.Benchmark)
   public static class Bytes {
     long[] values = new long[VALUES_PER_INVOCATION];
-    int encodedSize = 0;
 
     @Setup
     public void setup() {
@@ -98,7 +97,6 @@ public class VarIntBenchmark {
   @State(Scope.Benchmark)
   public static class Longs {
     long[] values = new long[VALUES_PER_INVOCATION];
-    int encodedSize = 0;
 
     @Setup
     public void setup() {
