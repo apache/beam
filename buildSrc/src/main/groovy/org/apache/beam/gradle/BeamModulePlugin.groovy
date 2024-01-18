@@ -731,7 +731,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // Keep version consistent with the version in google_cloud_resourcemanager, managed by google_cloud_platform_libraries_bom
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20230806-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20231203-$google_clients_version",
-        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20231101-$google_clients_version",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20240110-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         // Keep version consistent with the version in google_cloud_nio, managed by google_cloud_platform_libraries_bom
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20231202-$google_clients_version",
@@ -754,7 +754,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // The release notes shows the versions set by the BOM:
         // https://github.com/googleapis/java-cloud-bom/releases/tag/v26.21.0
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.28.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.29.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",

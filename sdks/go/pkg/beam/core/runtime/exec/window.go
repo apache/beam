@@ -105,6 +105,8 @@ type MapWindows struct {
 	UID UnitID
 	Fn  WindowMapper
 	Out Node
+
+	FnUrn string // Keep the urn for debugging purposes.
 }
 
 // ID returns the UnitID for this unit.
@@ -122,11 +124,17 @@ func (m *MapWindows) StartBundle(ctx context.Context, id string, data DataContex
 }
 
 func (m *MapWindows) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
-	w, ok := elm.Elm2.(window.IntervalWindow)
-	if !ok {
-		return errors.Errorf("not an IntervalWindow, got %T", elm.Elm2)
+	// MapWindows ends up with the wrappedDecode path, which can pass the value window through the
+	// Window field. Use that as the default for resilience to a change to match the coder correctly.
+	win := elm.Windows[0]
+	if elm.Elm2 != nil {
+		w, ok := elm.Elm2.(typex.Window)
+		if !ok {
+			return errors.Errorf("not a Window Value, got %T", elm.Elm2)
+		}
+		win = w
 	}
-	newW, err := m.Fn.MapWindow(w)
+	newW, err := m.Fn.MapWindow(win)
 	if err != nil {
 		return err
 	}
@@ -151,7 +159,7 @@ func (m *MapWindows) Down(_ context.Context) error {
 }
 
 func (m *MapWindows) String() string {
-	return fmt.Sprintf("MapWindows[%v]. Out:%v", m.Fn, m.Out.ID())
+	return fmt.Sprintf("MapWindows[%v]. Out:%v", m.FnUrn, m.Out.ID())
 }
 
 // WindowMapper defines an interface maps windows from a main input window space

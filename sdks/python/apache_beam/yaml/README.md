@@ -525,5 +525,5 @@ Once the prerequisites are installed, you can execute a pipeline defined
 in a yaml file as
 
 ```
-python -m apache_beam.yaml.main --pipeline_spec_file=/path/to/pipeline.yaml [other pipeline options such as the runner]
+python -m apache_beam.yaml.main --yaml_pipeline_file=/path/to/pipeline.yaml [other pipeline options such as the runner]
 ```

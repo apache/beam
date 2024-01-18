@@ -38,4 +38,13 @@ public class UserCodeRemoteSystemException extends UserCodeExecutionException {
       String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
+
+  /**
+   * Reports that remote system errors should be repeated. These may be transient errors of a remote
+   * API service that resolve in time. Thus requests should be repeated..
+   */
+  @Override
+  public boolean shouldRepeat() {
+    return true;
+  }
 }

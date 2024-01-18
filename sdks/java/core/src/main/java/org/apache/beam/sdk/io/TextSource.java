@@ -323,10 +323,13 @@ public class TextSource extends FileBasedSource<String> {
 
         // Consume any LF after CR if it is the first character of the next buffer
         if (skipLineFeedAtStart && buffer[bufferPosn] == LF) {
-          ++bytesConsumed;
           ++startPosn;
           ++bufferPosn;
           skipLineFeedAtStart = false;
+
+          // Right now, startOfRecord is pointing at the position of LF, but the actual start
+          // position of the new record should be the position after LF.
+          ++startOfRecord;
         }
 
         // Search for the newline

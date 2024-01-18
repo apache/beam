@@ -235,14 +235,14 @@ tasks.register("javaPreCommit") {
   dependsOn(":model:pipeline:build")
   dependsOn(":model:job-management:build")
   dependsOn(":model:fn-execution:build")
-  dependsOn(":runners:google-cloud-dataflow-java:worker:build")
   dependsOn(":sdks:java:core:buildNeeded")
 
   // Inline :sdks:java:core:buildDependents so we can carve out pieces at a time
   dependsOn(":beam-validate-runner:build")
   dependsOn(":examples:java:build")
+  dependsOn(":examples:java:preCommit")
   dependsOn(":examples:java:twitter:build")
-  dependsOn(":examples:kotlin:build")
+  dependsOn(":examples:java:twitter:preCommit")
   dependsOn(":examples:multi-language:build")
   dependsOn(":model:fn-execution:build")
   dependsOn(":model:job-management:build")
@@ -250,6 +250,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:core-construction-java:build")
   dependsOn(":runners:core-java:build")
   dependsOn(":runners:direct-java:build")
+  dependsOn(":runners:direct-java:needsRunnerTests")
   dependsOn(":runners:extensions-java:metrics:build")
   // lowest supported flink version
   var flinkVersions = project.ext.get("allFlinkVersions") as Array<*>
@@ -271,6 +272,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:spark:3:job-server:build")
   dependsOn(":runners:twister2:build")
   dependsOn(":sdks:java:build-tools:build")
+  dependsOn(":sdks:java:container:java8:docker")
   dependsOn(":sdks:java:core:build")
   dependsOn(":sdks:java:core:jmh:build")
   dependsOn(":sdks:java:expansion-service:build")
@@ -289,16 +291,6 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:extensions:schemaio-expansion-service:build")
   dependsOn(":sdks:java:extensions:sketching:build")
   dependsOn(":sdks:java:extensions:sorter:build")
-  dependsOn(":sdks:java:extensions:sql:build")
-  dependsOn(":sdks:java:extensions:sql:datacatalog:build")
-  dependsOn(":sdks:java:extensions:sql:expansion-service:build")
-  dependsOn(":sdks:java:extensions:sql:hcatalog:build")
-  dependsOn(":sdks:java:extensions:sql:jdbc:build")
-  dependsOn(":sdks:java:extensions:sql:perf-tests:build")
-  dependsOn(":sdks:java:extensions:sql:shell:build")
-  dependsOn(":sdks:java:extensions:sql:udf-test-provider:build")
-  dependsOn(":sdks:java:extensions:sql:udf:build")
-  dependsOn(":sdks:java:extensions:sql:zetasql:build")
   dependsOn(":sdks:java:extensions:timeseries:build")
   dependsOn(":sdks:java:extensions:zetasketch:build")
   dependsOn(":sdks:java:fn-execution:build")
@@ -312,6 +304,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:io:sparkreceiver:2:build")
   dependsOn(":sdks:java:io:synthetic:build")
   dependsOn(":sdks:java:io:xml:build")
+  dependsOn(":sdks:java:javadoc:allJavadoc")
   dependsOn(":sdks:java:testing:expansion-service:build")
   dependsOn(":sdks:java:testing:jpms-tests:build")
   dependsOn(":sdks:java:testing:load-tests:build")
@@ -321,13 +314,6 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:testing:watermarks:build")
   dependsOn(":sdks:java:transform-service:build")
   dependsOn(":sdks:java:transform-service:launcher:build")
-
-  dependsOn(":examples:java:preCommit")
-  dependsOn(":examples:java:twitter:preCommit")
-  dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
-  dependsOn(":sdks:java:javadoc:allJavadoc")
-  dependsOn(":runners:direct-java:needsRunnerTests")
-  dependsOn(":sdks:java:container:java8:docker")
 }
 
 // a precommit task build multiple IOs (except those splitting into single jobs)
@@ -380,10 +366,18 @@ tasks.register("flinkPreCommit") {
 }
 
 tasks.register("sqlPreCommit") {
-  dependsOn(":sdks:java:extensions:sql:runBasicExample")
-  dependsOn(":sdks:java:extensions:sql:runPojoExample")
-  dependsOn(":sdks:java:extensions:sql:build")
+  dependsOn(":sdks:java:extensions:sql:preCommit")
   dependsOn(":sdks:java:extensions:sql:buildDependents")
+  dependsOn(":sdks:java:extensions:sql:datacatalog:build")
+  dependsOn(":sdks:java:extensions:sql:expansion-service:build")
+  dependsOn(":sdks:java:extensions:sql:hcatalog:build")
+  dependsOn(":sdks:java:extensions:sql:jdbc:build")
+  dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
+  dependsOn(":sdks:java:extensions:sql:perf-tests:build")
+  dependsOn(":sdks:java:extensions:sql:shell:build")
+  dependsOn(":sdks:java:extensions:sql:udf-test-provider:build")
+  dependsOn(":sdks:java:extensions:sql:udf:build")
+  dependsOn(":sdks:java:extensions:sql:zetasql:build")
 }
 
 tasks.register("javaPreCommitPortabilityApi") {
@@ -728,7 +722,6 @@ if (project.hasProperty("testJavaVersion")) {
 
   tasks.getByName("javaPreCommitPortabilityApi").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion$testVer")
   tasks.getByName("javaExamplesDataflowPrecommit").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion$testVer")
-  tasks.getByName("sqlPreCommit").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion$testVer")
 } else {
   allprojects {
     tasks.withType(Test::class).configureEach {

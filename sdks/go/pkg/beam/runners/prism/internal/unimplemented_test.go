@@ -141,3 +141,25 @@ func TestStateAPI(t *testing.T) {
 		})
 	}
 }
+
+func TestTimers(t *testing.T) {
+	initRunner(t)
+
+	tests := []struct {
+		pipeline func(s beam.Scope)
+	}{
+		{pipeline: primitives.TimersEventTimeBounded},
+		{pipeline: primitives.TimersEventTimeUnbounded},
+	}
+
+	for _, test := range tests {
+		t.Run(initTestName(test.pipeline), func(t *testing.T) {
+			p, s := beam.NewPipelineWithRoot()
+			test.pipeline(s)
+			_, err := executeWithT(context.Background(), t, p)
+			if err != nil {
+				t.Fatalf("pipeline failed, but feature should be implemented in Prism: %v", err)
+			}
+		})
+	}
+}

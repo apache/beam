@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -61,8 +62,9 @@ public class SideInputStateFetcher {
   private final MetricTrackingWindmillServerStub server;
   private long bytesRead = 0L;
 
-  public SideInputStateFetcher(MetricTrackingWindmillServerStub server) {
-    this(server, SideInputCache.create());
+  public SideInputStateFetcher(
+      MetricTrackingWindmillServerStub server, DataflowPipelineDebugOptions options) {
+    this(server, SideInputCache.create(options));
   }
 
   SideInputStateFetcher(MetricTrackingWindmillServerStub server, SideInputCache sideInputCache) {

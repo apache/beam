@@ -43,7 +43,7 @@ import * as artifacts from "../artifacts";
 import { Service as JobService } from "../../utils/service";
 
 import * as serialization from "../../serialization";
-import { version } from "../../version";
+import { beamVersion } from "../../utils/packageJson";
 
 const TERMINAL_STATES = [
   JobState_Enum.DONE,
@@ -67,7 +67,7 @@ class PortableRunnerPipelineResult extends PipelineResult {
   constructor(
     runner: PortableRunner,
     jobId: string,
-    completionCallbacks: completionCallback[]
+    completionCallbacks: completionCallback[],
   ) {
     super();
     this.runner = runner;
@@ -142,7 +142,7 @@ export class PortableRunner extends Runner {
 
   constructor(
     options: string | { jobEndpoint: string; [others: string]: any },
-    private jobService: JobService | undefined = undefined
+    private jobService: JobService | undefined = undefined,
   ) {
     super();
     if (typeof options === "string") {
@@ -161,7 +161,7 @@ export class PortableRunner extends Runner {
         new GrpcTransport({
           host: this.defaultOptions?.jobEndpoint,
           channelCredentials: ChannelCredentials.createInsecure(),
-        })
+        }),
       );
     }
     return this.client;
@@ -184,19 +184,19 @@ export class PortableRunner extends Runner {
 
   async runPipeline(
     pipeline: runnerApiProto.Pipeline,
-    options?: PipelineOptions
+    options?: PipelineOptions,
   ): Promise<PipelineResult> {
     return this.runPipelineWithProto(pipeline, options);
   }
 
   async runPipelineWithProto(
     pipeline: runnerApiProto.Pipeline,
-    options?: PipelineOptions
+    options?: PipelineOptions,
   ) {
     options = { ...this.defaultOptions, ...(options || {}) };
 
     for (const [_, pcoll] of Object.entries(
-      pipeline.components!.pcollections
+      pipeline.components!.pcollections,
     )) {
       if (pcoll.isBounded == runnerApiProto.IsBounded_Enum.UNBOUNDED) {
         (options as any).streaming = true;
@@ -221,7 +221,7 @@ export class PortableRunner extends Runner {
     // Replace the default environment according to the pipeline options.
     pipeline = runnerApiProto.Pipeline.clone(pipeline);
     for (const [envId, env] of Object.entries(
-      pipeline.components!.environments
+      pipeline.components!.environments,
     )) {
       if (env.urn === environments.TYPESCRIPT_DEFAULT_ENVIRONMENT_URN) {
         if (loopbackAddress) {
@@ -233,7 +233,7 @@ export class PortableRunner extends Runner {
             environments.asDockerEnvironment(
               env,
               (options as any)?.sdkContainerImage ||
-                DOCKER_BASE + ":" + version.replace("-SNAPSHOT", ".dev")
+                DOCKER_BASE + ":" + beamVersion.replace("-SNAPSHOT", ".dev"),
             );
           const deps = pipeline.components!.environments[envId].dependencies;
 
@@ -244,7 +244,7 @@ export class PortableRunner extends Runner {
             ["pack", "--pack-destination", tmpDir],
             {
               encoding: "latin1",
-            }
+            },
           );
           if (result.status === 0) {
             console.debug(result.stdout);
@@ -252,7 +252,7 @@ export class PortableRunner extends Runner {
             throw new Error(result.output);
           }
           const packFile = path.resolve(
-            path.join(tmpDir, result.stdout.trim())
+            path.join(tmpDir, result.stdout.trim()),
           );
           deps.push(fileArtifact(packFile, "beam:artifact:type:npm:v1"));
 
@@ -267,8 +267,8 @@ export class PortableRunner extends Runner {
                     fileArtifact(
                       path,
                       "beam:artifact:type:npm_dep:v1",
-                      new TextEncoder().encode(dep)
-                    )
+                      new TextEncoder().encode(dep),
+                    ),
                   );
                 }
               }
@@ -296,8 +296,8 @@ export class PortableRunner extends Runner {
           Object.entries(options).map(([k, v]) => [
             `beam:option:${camel_to_snake(k)}:v1`,
             v,
-          ])
-        )
+          ]),
+        ),
       );
     }
     const client = await this.getClient();
@@ -314,10 +314,10 @@ export class PortableRunner extends Runner {
           new GrpcTransport({
             host: prepareResponse.artifactStagingEndpoint.url,
             channelCredentials: ChannelCredentials.createInsecure(),
-          })
+          }),
         ),
         prepareResponse.stagingSessionToken,
-        "/"
+        "/",
       );
     }
 
@@ -340,7 +340,7 @@ export class PortableRunner extends Runner {
 function fileArtifact(
   filePath: string,
   roleUrn: string,
-  rolePayload: Uint8Array | undefined = undefined
+  rolePayload: Uint8Array | undefined = undefined,
 ) {
   const hasher = crypto.createHash("sha256");
   hasher.update(fs.readFileSync(filePath));

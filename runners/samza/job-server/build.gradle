@@ -182,6 +182,8 @@ def portableValidatesRunnerTask(String name, boolean docker) {
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew'
             // TODO(https://github.com/apache/beam/issues/22650)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState'
+            // TODO(https://github.com/apache/beam/issues/29973)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata'
         }
   )
 }

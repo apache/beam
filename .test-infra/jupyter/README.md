@@ -37,4 +37,4 @@ jupyter notebook  # Should open a browser window.
 # Pull Requests
 
 To minimize file size, diffs, and ease reviews, please clear all cell output
-(cell -> all output -> clear) before commiting.
+(cell -> all output -> clear) before committing.

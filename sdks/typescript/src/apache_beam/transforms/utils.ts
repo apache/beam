@@ -30,8 +30,8 @@ export function reshuffle<T>(): PTransform<PCollection<T>, PCollection<T>> {
       .apply(
         withName(
           "groupByRandomKey",
-          groupBy((x) => Math.random())
-        )
+          groupBy((x) => Math.random()),
+        ),
       )
       .flatMap(withName("dropKeys", (kvs) => kvs.value));
   }

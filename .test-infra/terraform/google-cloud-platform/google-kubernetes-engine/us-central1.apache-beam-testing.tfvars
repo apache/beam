@@ -18,5 +18,5 @@
 
 project    = "apache-beam-testing"
 network    = "default"
-subnetwork = "default"
+subnetwork = "default-f91f013bcf8bd369"
 region     = "us-central1"

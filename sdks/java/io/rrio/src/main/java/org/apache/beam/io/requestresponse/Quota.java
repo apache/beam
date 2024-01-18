@@ -19,7 +19,6 @@ package org.apache.beam.io.requestresponse;
 
 import java.io.Serializable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -29,9 +28,9 @@ import org.joda.time.Duration;
  */
 public class Quota implements Serializable {
   private final long numRequests;
-  private final @NonNull Duration interval;
+  private final Duration interval;
 
-  public Quota(long numRequests, @NonNull Duration interval) {
+  public Quota(long numRequests, Duration interval) {
     this.numRequests = numRequests;
     this.interval = interval;
   }
@@ -42,7 +41,7 @@ public class Quota implements Serializable {
   }
 
   /** The duration context within which to allow requests. */
-  public @NonNull Duration getInterval() {
+  public Duration getInterval() {
     return interval;
   }
 

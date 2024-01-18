@@ -35,4 +35,12 @@ public class UserCodeExecutionException extends Exception {
       String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
+
+  /**
+   * Reports whether when thrown warrants repeat execution. Some errors are not necessarily due to
+   * user code such as quota or remote service errors and may warrant repeating.
+   */
+  public boolean shouldRepeat() {
+    return false;
+  }
 }

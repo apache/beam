@@ -2101,7 +2101,9 @@ public class BigQueryIO {
    * <p>By default, tables will be created if they do not exist, which corresponds to a {@link
    * Write.CreateDisposition#CREATE_IF_NEEDED} disposition that matches the default of BigQuery's
    * Jobs API. A schema must be provided (via {@link Write#withSchema(TableSchema)}), or else the
-   * transform may fail at runtime with an {@link IllegalArgumentException}.
+   * transform may fail at runtime with an {@link IllegalArgumentException}. When updating a
+   * pipeline with a new schema, the existing schmea fields must stay in the same order, or the
+   * pipeline will break.
    *
    * <p>By default, writes require an empty table, which corresponds to a {@link
    * Write.WriteDisposition#WRITE_EMPTY} disposition that matches the default of BigQuery's Jobs
@@ -2539,7 +2541,9 @@ public class BigQueryIO {
      *
      * <p>Note from the BigQuery API doc -- Schema update options are supported in two cases: when
      * writeDisposition is WRITE_APPEND; when writeDisposition is WRITE_TRUNCATE and the destination
-     * table is a partition of a table, specified by partition decorators.
+     * table is a partition of a table, specified by partition decorators. When updating a pipeline
+     * with a new schema, the existing schmea fields must stay in the same order, or the pipeline
+     * will break.
      *
      * @see <a
      *     href="https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationquery">

@@ -63,6 +63,9 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Adding support for Tuples DataType in ClickHouse (Java) ([#29715](https://github.com/apache/beam/pull/29715)).
+* Added support for handling bad records to FileIO, TextIO, AvroIO ([#29670](https://github.com/apache/beam/pull/29670)).
+* Added support for handling bad records to BigtableIO ([#29885](https://github.com/apache/beam/pull/29885)).
 
 ## New Features / Improvements
 
@@ -87,21 +90,20 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.53.0] - Unreleased
+# [2.53.0] - 2024-01-04
 
 ## Highlights
 
 * Python streaming users that use 2.47.0 and newer versions of Beam should update to version 2.53.0, which fixes a known issue: ([#27330](https://github.com/apache/beam/issues/27330)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 
 ## I/Os
 
 * TextIO now supports skipping multiple header lines (Java) ([#17990](https://github.com/apache/beam/issues/17990)).
 * Python GCSIO is now implemented with GCP GCS Client instead of apitools ([#25676](https://github.com/apache/beam/issues/25676))
-* Adding support for LowCardinality DataType in ClickHouse (Java) ([#29533](https://github.com/apache/beam/pull/29533)).
 * Added support for handling bad records to KafkaIO (Java) ([#29546](https://github.com/apache/beam/pull/29546))
 * Add support for generating text embeddings in MLTransform for Vertex AI and Hugging Face Hub models.([#29564](https://github.com/apache/beam/pull/29564))
 * NATS IO connector added (Go) ([#29000](https://github.com/apache/beam/issues/29000)).
+* Adding support for LowCardinality (Java) ([#29533](https://github.com/apache/beam/pull/29533)).
 
 ## New Features / Improvements
 
@@ -112,10 +114,6 @@
 * Framework for adding Error Handlers to composite transforms added in Java ([#29164](https://github.com/apache/beam/pull/29164)).
 * Python 3.11 images now include google-cloud-profiler ([#29561](https://github.com/apache/beam/pull/29651)).
 
-## Breaking Changes
-
-* Upgraded to go 1.21.5 to build, fixing [CVE-2023-45285](https://security-tracker.debian.org/tracker/CVE-2023-45285) and [CVE-2023-39326](https://security-tracker.debian.org/tracker/CVE-2023-39326)
-
 ## Deprecations
 
 * Euphoria DSL is deprecated and will be removed in a future release (not before 2.56.0) ([#29451](https://github.com/apache/beam/issues/29451))
@@ -125,13 +123,13 @@
 * (Python) Fixed sporadic crashes in streaming pipelines that affected some users of 2.47.0 and newer SDKs ([#27330](https://github.com/apache/beam/issues/27330)).
 * (Python) Fixed a bug that caused MLTransform to drop identical elements in the output PCollection ([#29600](https://github.com/apache/beam/issues/29600)).
 
-
 ## Security Fixes
-* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+
+* Upgraded to go 1.21.5 to build, fixing [CVE-2023-45285](https://security-tracker.debian.org/tracker/CVE-2023-45285) and [CVE-2023-39326](https://security-tracker.debian.org/tracker/CVE-2023-39326)
 
 ## Known Issues
 
-* ([#X](https://github.com/apache/beam/issues/X)).
+* ([#29987](https://github.com/apache/beam/issues/29987)).
 
 # [2.52.0] - 2023-11-17
 

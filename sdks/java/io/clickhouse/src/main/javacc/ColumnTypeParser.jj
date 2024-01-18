@@ -17,6 +17,10 @@
  */
 options {
     IGNORE_CASE=true;
+    DEBUG_PARSER = false;
+    DEBUG_LOOKAHEAD = false;
+    DEBUG_TOKEN_MANAGER = false;
+    STATIC = false;
 }
 
 PARSER_BEGIN(ColumnTypeParser)
@@ -99,6 +103,7 @@ TOKEN :
   | < EQ             : "=" >
   | < BOOL           : "BOOL" >
   | < LOWCARDINALITY : "LOWCARDINALITY" >
+  | < TUPLE          : "TUPLE" >
 }
 
 public ColumnType columnType() :
@@ -113,6 +118,7 @@ public ColumnType columnType() :
         | ct = array()
         | ct = nullable()
         | ct = lowcardenality()
+        | ct = tuple()
     )
     {
         return ct;
@@ -263,6 +269,33 @@ private Map<String, Integer> enumElements() :
     }
 }
 
+private Map.Entry<String, ColumnType> tupleElement() :
+{
+    String key;
+    ColumnType value;
+    Token token;
+}
+{
+    ( (key = string() ) ( value = columnType() ) )  {
+        return Maps.immutableEntry(key, value);
+    }
+}
+
+private Map<String, ColumnType> tupleElements() :
+{
+    Map.Entry<String, ColumnType> el;
+    List<Map.Entry<String, ColumnType>> entries = Lists.newArrayList();
+}
+{
+    (
+                  ( el = tupleElement() { entries.add(el); } )
+        ( <COMMA> ( el = tupleElement() { entries.add(el); } ) )*
+    )
+    {
+        return ImmutableMap.copyOf(entries);
+    }
+}
+
 private ColumnType enum_() :
 {
     Map<String, Integer> elements;
@@ -289,4 +322,18 @@ private ColumnType lowcardenality() :
     (
         (<LOWCARDINALITY> <LPAREN> (ct = primitive()) <RPAREN>) { return ct; }
     )
+}
+
+private ColumnType tuple() :
+{
+    Map<String, ColumnType> elements;
+}
+{
+    (
+        (<TUPLE> <LPAREN> ( elements = tupleElements() ) <RPAREN>)
+        {
+            return ColumnType.tuple(elements);
+        }
+    )
+
 }
