@@ -100,10 +100,15 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
     join_fn: A lambda function to join original element with lookup metadata.
       Defaults to `CROSS_JOIN`.
     timeout: (Optional) timeout for source requests. Defaults to 30 seconds.
-    repeater (~apache_beam.io.requestresponse.Repeater): provides methods to
-      repeat requests to API.
+    repeater (~apache_beam.io.requestresponse.Repeater): provides method to
+      repeat failed requests to API due to service errors. Defaults to
+      :class:`apache_beam.io.requestresponse.ExponentialBackOffRepeater` to
+      repeat requests with exponential backoff.
     throttler (~apache_beam.io.requestresponse.PreCallThrottler):
-      provides methods to pre-throttle a request.
+      provides methods to pre-throttle a request. Defaults to
+      :class:`apache_beam.io.requestresponse.DefaultThrottler` for
+      client-side adaptive throttling using
+      :class:`apache_beam.io.components.adaptive_throttler.AdaptiveThrottler`.
   """
   def __init__(
       self,

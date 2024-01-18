@@ -67,6 +67,7 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
       filter data read with ``read_row()``.
       Defaults to `CellsColumnLimitFilter(1)`.
     app_profile_id (str): App profile ID to use for BigTable.
+      See https://cloud.google.com/bigtable/docs/app-profiles for more details.
     encoding (str): encoding type to convert the string to bytes and vice-versa
       from BigTable. Default is `utf-8`.
     exception_level: a `enum.Enum` value from
@@ -81,7 +82,7 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
       table_id: str,
       row_key: str,
       row_filter: Optional[RowFilter] = CellsColumnLimitFilter(1),
-      app_profile_id: str = "",
+      app_profile_id: str = None,  # type: ignore[assignment]
       encoding: str = 'utf-8',
       exception_level: ExceptionLevel = ExceptionLevel.WARN,
   ):

@@ -278,14 +278,19 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
       timeout (float): timeout value in seconds to wait for response from API.
       should_backoff (~apache_beam.io.requestresponse.ShouldBackOff):
         (Optional) provides methods for backoff.
-      repeater (~apache_beam.io.requestresponse.Repeater): provides methods to
-        repeat requests to API.
+      repeater (~apache_beam.io.requestresponse.Repeater): provides method to
+        repeat failed requests to API due to service errors. Defaults to
+        :class:`apache_beam.io.requestresponse.ExponentialBackOffRepeater` to
+        repeat requests with exponential backoff.
       cache_reader (~apache_beam.io.requestresponse.CacheReader): (Optional)
         provides methods to read external cache.
       cache_writer (~apache_beam.io.requestresponse.CacheWriter): (Optional)
         provides methods to write to external cache.
       throttler (~apache_beam.io.requestresponse.PreCallThrottler):
-        provides methods to pre-throttle a request.
+        provides methods to pre-throttle a request. Defaults to
+        :class:`apache_beam.io.requestresponse.DefaultThrottler` for
+        client-side adaptive throttling using
+        :class:`apache_beam.io.components.adaptive_throttler.AdaptiveThrottler`
     """
     self._caller = caller
     self._timeout = timeout
