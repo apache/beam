@@ -680,7 +680,7 @@ def create_builtin_provider():
       # TODO: Triggering, etc.
       return beam.WindowInto(window_fn)
 
-  def LogForTesting(level: Optional[str]='INFO', prefix:Optional[str]=''):
+  def LogForTesting(level: Optional[str] = 'INFO', prefix: Optional[str] = ''):
     """Logs each element of its input PCollection.
 
     The output of this transform is a copy of its input for ease of use in
@@ -696,12 +696,13 @@ def create_builtin_provider():
     # The intent is not to develop a logging library (and users can always do)
     # their own mappings to get fancier output.
     log_levels = {
-      'ERROR': logging.error,
-      'INFO': logging.info,
-      'DEBUG': logging.debug,
+        'ERROR': logging.error,
+        'INFO': logging.info,
+        'DEBUG': logging.debug,
     }
     if level not in log_levels:
-      raise ValueError(f'Unknown long level {level} not in {list(log_levels.keys)}')
+      raise ValueError(
+          f'Unknown long level {level} not in {list(log_levels.keys())}')
     logger = log_levels[level]
 
     def to_loggable_json_recursive(o):
