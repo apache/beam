@@ -554,7 +554,7 @@ def create_builtin_provider():
   def create(elements: Iterable[Any], reshuffle: Optional[bool] = True):
     """Creates a collection containing a specified set of elements.
 
-    YAML/JSON-style mappings will be interpreted as Beam rows. For example::
+    YAML/JSON-style mappings will be interpreted as Beam rows. For example:
 
         type: Create
         elements:
@@ -651,6 +651,16 @@ def create_builtin_provider():
     See [the Beam documentation on windowing](https://beam.apache.org/documentation/programming-guide/#windowing)
     for more details.
 
+    Sizes, offsets, periods and gaps (where applicable) must be defined using
+    a time unit suffix 's', 'm', 'h' or 'd' for seconds, minutes, hours
+    or days, respectively.
+
+    For example:
+
+      windowing:
+        type: fixed
+        size: 30s
+
     Note that any Yaml transform can have a
     [windowing parameter](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/README.md#windowing),
     which is applied to its inputs (if any) or outputs (if there are no inputs)
@@ -666,6 +676,27 @@ def create_builtin_provider():
       return pcoll | self._window_transform
 
     @staticmethod
+    def _parse_time_unit(value, name):
+      time_units = {'s': 1, 'm': 60, 'h': 60 * 60, 'd': 60 * 60 * 12}
+      value, suffix = str(value)[:-1], str(value)[-1]
+      # Default to seconds if time unit suffix is not defined
+      if suffix.isnumeric():
+        value, suffix = value + suffix, 's'
+      elif not value or not value.isnumeric():
+        raise ValueError(
+            f"Invalid windowing {name} value "
+            f"'{suffix if not value else value}'. "
+            f"Must provide numeric value.")
+      if suffix not in time_units:
+        raise ValueError((
+            "Invalid windowing {} time unit '{}'. " +
+            "Valid time units are {}.").format(
+                name,
+                suffix,
+                ', '.join("'{}'".format(k) for k in time_units.keys())))
+      return float(value) * float(time_units[suffix])
+
+    @staticmethod
     def _parse_window_spec(spec):
       spec = dict(spec)
       window_type = spec.pop('type')
@@ -673,12 +704,17 @@ def create_builtin_provider():
       if window_type == 'global':
         window_fn = window.GlobalWindows()
       elif window_type == 'fixed':
-        window_fn = window.FixedWindows(spec.pop('size'), spec.pop('offset', 0))
+        window_fn = window.FixedWindows(
+            WindowInto._parse_time_unit(spec.pop('size'), 'size'),
+            WindowInto._parse_time_unit(spec.pop('offset', 0), 'offset'))
       elif window_type == 'sliding':
         window_fn = window.SlidingWindows(
-            spec.pop('size'), spec.pop('period'), spec.pop('offset', 0))
+            WindowInto._parse_time_unit(spec.pop('size'), 'size'),
+            WindowInto._parse_time_unit(spec.pop('period'), 'period'),
+            WindowInto._parse_time_unit(spec.pop('offset', 0), 'offset'))
       elif window_type == 'sessions':
-        window_fn = window.FixedWindows(spec.pop('gap'))
+        window_fn = window.Sessions(
+            WindowInto._parse_time_unit(spec.pop('gap'), 'gap'))
       if spec:
         raise ValueError(f'Unknown parameters {spec.keys()}')
       # TODO: Triggering, etc.
