@@ -642,16 +642,23 @@ public class JdbcIO {
           String password = getPassword().get();
           basicDataSource.setPassword(password);
         }
-        if (getConnectionProperties() != null && getConnectionProperties().get() != null) {
-          basicDataSource.setConnectionProperties(getConnectionProperties().get());
+        if (getConnectionProperties() != null) {
+          String connectionProperties = getConnectionProperties().get();
+          if (connectionProperties != null) {
+            basicDataSource.setConnectionProperties(connectionProperties);
+          }
         }
-        if (getConnectionInitSqls() != null
-            && getConnectionInitSqls().get() != null
-            && !getConnectionInitSqls().get().isEmpty()) {
-          basicDataSource.setConnectionInitSqls(getConnectionInitSqls().get());
+        if (getConnectionInitSqls() != null) {
+          Collection<String> connectionInitSqls = getConnectionInitSqls().get();
+          if (connectionInitSqls != null && !connectionInitSqls.isEmpty()) {
+            basicDataSource.setConnectionInitSqls(connectionInitSqls);
+          }
         }
-        if (getMaxConnections() != null && getMaxConnections().get() != null) {
-          basicDataSource.setMaxTotal(getMaxConnections().get());
+        if (getMaxConnections() != null) {
+          Integer maxConnections = getMaxConnections().get();
+          if (maxConnections != null) {
+            basicDataSource.setMaxTotal(maxConnections);
+          }
         }
         if (getDriverClassLoader() != null) {
           basicDataSource.setDriverClassLoader(getDriverClassLoader());
@@ -1769,6 +1776,8 @@ public class JdbcIO {
                     @Nullable List<T> outputList;
 
                     @ProcessElement
+                    @SuppressWarnings(
+                        "nullness") // https://github.com/typetools/checker-framework/issues/6389
                     public void process(ProcessContext c) {
                       if (outputList == null) {
                         outputList = new ArrayList<>();
@@ -2513,11 +2522,13 @@ public class JdbcIO {
     }
 
     private Connection getConnection() throws SQLException {
+      Connection connection = this.connection;
       if (connection == null) {
         connection = checkStateNotNull(dataSource).getConnection();
         connection.setAutoCommit(false);
         preparedStatement =
             connection.prepareStatement(checkStateNotNull(spec.getStatement()).get());
+        this.connection = connection;
       }
       return connection;
     }
