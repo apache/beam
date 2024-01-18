@@ -34,6 +34,7 @@ import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -441,10 +442,13 @@ public class ExpansionServiceSchemaTransformProviderTest {
     assertNotEquals(spec.getPayload(), equivalentSpec.getPayload());
 
     TestSchemaTransform transform =
-        (TestSchemaTransform) ExpansionServiceSchemaTransformProvider.of().getTransform(spec);
+        (TestSchemaTransform)
+            ExpansionServiceSchemaTransformProvider.of()
+                .getTransform(spec, PipelineOptionsFactory.create());
     TestSchemaTransform equivalentTransform =
         (TestSchemaTransform)
-            ExpansionServiceSchemaTransformProvider.of().getTransform(equivalentSpec);
+            ExpansionServiceSchemaTransformProvider.of()
+                .getTransform(equivalentSpec, PipelineOptionsFactory.create());
 
     assertEquals(transform.int1, equivalentTransform.int1);
     assertEquals(transform.int2, equivalentTransform.int2);

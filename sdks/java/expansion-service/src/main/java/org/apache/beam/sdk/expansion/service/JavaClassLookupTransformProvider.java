@@ -46,6 +46,7 @@ import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.ClassUtils;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.expansion.service.ExpansionService.TransformProvider;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -90,7 +91,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
 
   @SuppressWarnings("argument")
   @Override
-  public PTransform<PInput, POutput> getTransform(FunctionSpec spec) {
+  public PTransform<PInput, POutput> getTransform(FunctionSpec spec, PipelineOptions options) {
     JavaClassLookupPayload payload;
     try {
       payload = JavaClassLookupPayload.parseFrom(spec.getPayload());

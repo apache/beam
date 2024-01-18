@@ -94,7 +94,7 @@ public class ExpansionServiceTest {
 
     @Override
     public Map<String, ExpansionService.TransformProvider> knownTransforms() {
-      return ImmutableMap.of(TEST_URN, spec -> Count.perElement());
+      return ImmutableMap.of(TEST_URN, (spec, options) -> Count.perElement());
     }
   }
 

@@ -167,23 +167,23 @@ public class ExternalTest implements Serializable {
     public Map<String, ExpansionService.TransformProvider> knownTransforms() {
       return ImmutableMap.of(
           TEST_URN_SIMPLE,
-              spec -> MapElements.into(TypeDescriptors.strings()).via((String x) -> x + x),
+          (spec, options) -> MapElements.into(TypeDescriptors.strings()).via((String x) -> x + x),
           TEST_URN_LE,
-              spec -> Filter.lessThanEq(Integer.parseInt(spec.getPayload().toStringUtf8())),
+          (spec, options) -> Filter.lessThanEq(Integer.parseInt(spec.getPayload().toStringUtf8())),
           TEST_URN_MULTI,
-              spec ->
-                  ParDo.of(
-                          new DoFn<Integer, Integer>() {
-                            @ProcessElement
-                            public void processElement(ProcessContext c) {
-                              if (c.element() % 2 == 0) {
-                                c.output(c.element());
-                              } else {
-                                c.output(odd, c.element());
-                              }
-                            }
-                          })
-                      .withOutputTags(even, TupleTagList.of(odd)));
+          (spec, options) ->
+              ParDo.of(
+                      new DoFn<Integer, Integer>() {
+                        @ProcessElement
+                        public void processElement(ProcessContext c) {
+                          if (c.element() % 2 == 0) {
+                            c.output(c.element());
+                          } else {
+                            c.output(odd, c.element());
+                          }
+                        }
+                      })
+                  .withOutputTags(even, TupleTagList.of(odd)));
     }
   }
 }

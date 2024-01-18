@@ -111,14 +111,13 @@ public class PipelineTranslation {
       res = elideDeprecatedViews(res);
     }
 
-    ExternalTranslationOptions externalTranslationOptions =
-        pipeline.getOptions().as(ExternalTranslationOptions.class);
-    List<String> urnsToOverride = externalTranslationOptions.getTransformsToOverride();
+    List<String> urnsToOverride =
+        pipeline.getOptions().as(ExternalTranslationOptions.class).getTransformsToOverride();
     if (urnsToOverride.size() > 0 && upgradeTransforms) {
       try (TransformUpgrader upgrader = TransformUpgrader.of()) {
         res =
             upgrader.upgradeTransformsViaTransformService(
-                res, urnsToOverride, externalTranslationOptions);
+                res, urnsToOverride, pipeline.getOptions());
       } catch (Exception e) {
         throw new RuntimeException(
             "Could not override the transforms with URNs " + urnsToOverride, e);

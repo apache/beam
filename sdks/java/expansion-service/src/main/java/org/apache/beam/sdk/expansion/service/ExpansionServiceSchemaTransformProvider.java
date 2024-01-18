@@ -29,6 +29,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.expansion.service.ExpansionService.TransformProvider;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -91,7 +92,7 @@ public class ExpansionServiceSchemaTransformProvider
   }
 
   @Override
-  public PTransform getTransform(FunctionSpec spec) {
+  public PTransform getTransform(FunctionSpec spec, PipelineOptions options) {
     SchemaTransformPayload payload;
     try {
       payload = SchemaTransformPayload.parseFrom(spec.getPayload());

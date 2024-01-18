@@ -41,8 +41,11 @@ import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transformservice.launcher.TransformServiceLauncher;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
@@ -97,7 +100,7 @@ public class TransformUpgrader implements AutoCloseable {
    * @throws Exception
    */
   public RunnerApi.Pipeline upgradeTransformsViaTransformService(
-      RunnerApi.Pipeline pipeline, List<String> urnsToOverride, ExternalTranslationOptions options)
+      RunnerApi.Pipeline pipeline, List<String> urnsToOverride, PipelineOptions options)
       throws IOException, TimeoutException {
     List<String> transformsToOverride =
         pipeline.getComponents().getTransformsMap().entrySet().stream()
@@ -127,13 +130,15 @@ public class TransformUpgrader implements AutoCloseable {
     String serviceAddress;
     TransformServiceLauncher service = null;
 
-    if (options.getTransformServiceAddress() != null) {
-      serviceAddress = options.getTransformServiceAddress();
-    } else if (options.getTransformServiceBeamVersion() != null) {
+    ExternalTranslationOptions externalTranslationOptions =
+        options.as(ExternalTranslationOptions.class);
+    if (externalTranslationOptions.getTransformServiceAddress() != null) {
+      serviceAddress = externalTranslationOptions.getTransformServiceAddress();
+    } else if (externalTranslationOptions.getTransformServiceBeamVersion() != null) {
       String projectName = UUID.randomUUID().toString();
       int port = findAvailablePort();
       service = TransformServiceLauncher.forProject(projectName, port, null);
-      service.setBeamVersion(options.getTransformServiceBeamVersion());
+      service.setBeamVersion(externalTranslationOptions.getTransformServiceBeamVersion());
 
       // Starting the transform service.
       service.start();
@@ -169,7 +174,7 @@ public class TransformUpgrader implements AutoCloseable {
           RunnerApi.Pipeline runnerAPIpipeline,
           String transformId,
           Endpoints.ApiServiceDescriptor transformServiceEndpoint,
-          ExternalTranslationOptions options)
+          PipelineOptions options)
           throws IOException {
     RunnerApi.PTransform transformToUpgrade =
         runnerAPIpipeline.getComponents().getTransformsMap().get(transformId);
@@ -207,11 +212,22 @@ public class TransformUpgrader implements AutoCloseable {
 
     ExpansionApi.ExpansionRequest.Builder requestBuilder =
         ExpansionApi.ExpansionRequest.newBuilder();
+
+    // Creating a clone here so that we can set properties without modifying the original
+    // PipelineOptions object.
+    PipelineOptions optionsClone =
+        PipelineOptionsTranslation.fromProto(PipelineOptionsTranslation.toProto(options));
+    // Setting the option 'updateCompatibilityVersion' to the current SDK version so that the
+    // TransformService uses a compatible schema.
+    optionsClone
+        .as(StreamingOptions.class)
+        .setUpdateCompatibilityVersion(ReleaseInfo.getReleaseInfo().getSdkVersion());
     ExpansionApi.ExpansionRequest request =
         requestBuilder
             .setComponents(runnerAPIpipeline.getComponents())
             .setTransform(ptransformBuilder.build())
             .setNamespace(UPGRADE_NAMESPACE)
+            .setPipelineOptions(PipelineOptionsTranslation.toProto(optionsClone))
             .addAllRequirements(runnerAPIpipeline.getRequirementsList())
             .build();
 
