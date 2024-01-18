@@ -57,7 +57,8 @@ public class WriteFilesTranslationTest {
         WriteFiles.to(new DummySink()),
         WriteFiles.to(new DummySink()).withWindowedWrites(),
         WriteFiles.to(new DummySink()).withNumShards(17),
-        WriteFiles.to(new DummySink()).withWindowedWrites().withNumShards(42));
+        WriteFiles.to(new DummySink()).withWindowedWrites().withNumShards(42),
+        WriteFiles.to(new DummySink()).withAutoSharding());
   }
 
   @Parameter(0)
@@ -105,6 +106,9 @@ public class WriteFilesTranslationTest {
         equalTo(
             writeFiles.getNumShardsProvider() == null && writeFiles.getComputeNumShards() == null));
 
+    assertThat(
+        WriteFilesTranslation.isAutoSharded(appliedPTransform),
+        equalTo(writeFiles.getWithAutoSharding()));
     assertThat(
         WriteFilesTranslation.isWindowedWrites(appliedPTransform),
         equalTo(writeFiles.getWindowedWrites()));
