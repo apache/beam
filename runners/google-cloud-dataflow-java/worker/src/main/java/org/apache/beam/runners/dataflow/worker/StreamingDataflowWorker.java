@@ -277,7 +277,7 @@ public class StreamingDataflowWorker {
   private final HotKeyLogger hotKeyLogger;
   // Periodic sender of debug information to the debug capture service.
   private final DebugCapture.@Nullable Manager debugCaptureManager;
-  // Map from timer name to ScheduledExecutorService
+  // Collection of ScheduledExecutorServices that are running periodic functions.
   private ArrayList<ScheduledExecutorService> scheduledExecutors =
       new ArrayList<ScheduledExecutorService>();
   private int retryLocallyDelayMs = 10000;
