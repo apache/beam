@@ -28,6 +28,7 @@ from decimal import Decimal
 
 import pytest
 from hamcrest.core import assert_that as hamcrest_assert
+from hamcrest.core.core.allof import all_of
 
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery import StorageWriteToBigQuery
@@ -132,6 +133,8 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           self.project)
 
   def parse_expected_data(self, expected_elements):
+    if not isinstance(expected_elements, list):
+      expected_elements = [expected_elements]
     data = []
     for row in expected_elements:
       values = list(row.values())
@@ -246,6 +249,66 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               table=table_id, expansion_service=self.expansion_service))
     hamcrest_assert(p, bq_matcher)
 
+  def test_write_to_dynamic_destinations(self):
+    base_table_spec = '{}.dynamic_dest_'.format(self.dataset_id)
+    spec_with_project = '{}:{}'.format(self.project, base_table_spec)
+    tables = [base_table_spec + str(record['int']) for record in self.ELEMENTS]
+
+    bq_matchers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % tables[i],
+            data=self.parse_expected_data(self.ELEMENTS[i]))
+        for i in range(len(tables))
+    ]
+
+    with beam.Pipeline(argv=self.args) as p:
+      _ = (
+          p
+          | beam.Create(self.ELEMENTS)
+          | beam.io.WriteToBigQuery(
+              table=lambda record: spec_with_project + str(record['int']),
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              schema=self.ALL_TYPES_SCHEMA,
+              use_at_least_once=False,
+              expansion_service=self.expansion_service))
+    hamcrest_assert(p, all_of(*bq_matchers))
+
+  def test_write_to_dynamic_destinations_with_beam_rows(self):
+    base_table_spec = '{}.dynamic_dest_'.format(self.dataset_id)
+    spec_with_project = '{}:{}'.format(self.project, base_table_spec)
+    tables = [base_table_spec + str(record['int']) for record in self.ELEMENTS]
+
+    bq_matchers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % tables[i],
+            data=self.parse_expected_data(self.ELEMENTS[i]))
+        for i in range(len(tables))
+    ]
+
+    row_elements = [
+        beam.Row(
+            my_int=e['int'],
+            my_float=e['float'],
+            my_numeric=e['numeric'],
+            my_string=e['str'],
+            my_bool=e['bool'],
+            my_bytes=e['bytes'],
+            my_timestamp=e['timestamp']) for e in self.ELEMENTS
+    ]
+
+    with beam.Pipeline(argv=self.args) as p:
+      _ = (
+          p
+          | beam.Create(row_elements)
+          | beam.io.WriteToBigQuery(
+              table=lambda record: spec_with_project + str(record.my_int),
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              use_at_least_once=False,
+              expansion_service=self.expansion_service))
+    hamcrest_assert(p, all_of(*bq_matchers))
+
   def run_streaming(self, table_name, num_streams=0, use_at_least_once=False):
     elements = self.ELEMENTS.copy()
     schema = self.ALL_TYPES_SCHEMA
@@ -278,13 +341,16 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               expansion_service=self.expansion_service))
     hamcrest_assert(p, bq_matcher)
 
-  def test_streaming_with_fixed_num_streams(self):
+  def skip_if_not_dataflow_runner(self) -> bool:
     # skip if dataflow runner is not specified
     if not self._runner or "dataflowrunner" not in self._runner.lower():
       self.skipTest(
-          "The exactly-once route has the requirement "
+          "Streaming with exactly-once route has the requirement "
           "`beam:requirement:pardo:on_window_expiration:v1`, "
           "which is currently only supported by the Dataflow runner")
+
+  def test_streaming_with_fixed_num_streams(self):
+    self.skip_if_not_dataflow_runner()
     table = 'streaming_fixed_num_streams'
     self.run_streaming(table_name=table, num_streams=4)
 
@@ -292,6 +358,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
       "Streaming to the Storage Write API sink with autosharding is broken "
       "with Dataflow Runner V2.")
   def test_streaming_with_auto_sharding(self):
+    self.skip_if_not_dataflow_runner()
     table = 'streaming_with_auto_sharding'
     self.run_streaming(table_name=table)
 

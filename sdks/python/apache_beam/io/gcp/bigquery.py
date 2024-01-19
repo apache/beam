@@ -484,6 +484,12 @@ Note: The actual limit is 10MB, but we set it to 9MB to make room for request
 overhead: https://cloud.google.com/bigquery/quotas#streaming_inserts
 """
 MAX_INSERT_PAYLOAD_SIZE = 9 << 20
+"""
+A magic string reserved for the Storage Write API mode, which utilizes 
+multi-lang. This tells the Java SchemaTransform connector that the incoming
+rows are meant to go to dynamic destinations.
+"""
+DYNAMIC_DESTINATIONS = "DYNAMIC_DESTINATIONS"
 
 
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
@@ -2232,7 +2238,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
               "for writing with STORAGE_WRITE_API.") from exn
       elif callable(self.schema):
         raise NotImplementedError(
-            "Writing to dynamic destinations is not"
+            "Writing with dynamic schemas is not"
             "supported for this write method.")
       elif isinstance(self.schema, vp.ValueProvider):
         schema = self.schema.get()
@@ -2244,18 +2250,67 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       table = bigquery_tools.get_hashable_destination(self.table_reference)
       # None type is not supported
       triggering_frequency = self.triggering_frequency or 0
-      # SchemaTransform expects Beam Rows, so map to Rows first
-      if is_rows:
-        input_beam_rows = pcoll
-      else:
-        input_beam_rows = (
+
+      # For dynamic destinations, we first figure out where each row is going.
+      # Then we append the destination to each row before sending it over to
+      # the Java SchemaTransform.
+      # We need to do this here because there are obstacles to passing the
+      # destinations function to Java
+      if callable(table):
+        # call function and append destination to each row
+        input_rows = (
             pcoll
-            | "Convert dict to Beam Row" >> beam.Map(
-                lambda row: bigquery_tools.beam_row_from_dict(row, schema)
-            ).with_output_types(
-                RowTypeConstraint.from_fields(
-                    bigquery_tools.get_beam_typehints_from_tableschema(schema)))
-        )
+            | "Append dynamic destinations" >> beam.ParDo(
+                bigquery_tools.AppendDestinationsFn(table),
+                *self.table_side_inputs))
+
+        # if input type is Beam Row, just wrap everything in another Row
+        if is_rows:
+          input_beam_rows = (
+              input_rows
+              | "Wrap in Beam Row" >>
+              beam.Map(lambda row: beam.Row(destination=row[0], record=row[
+                  1])).with_output_types(
+                      RowTypeConstraint.from_fields([
+                          ('destination', str), ('record', pcoll.element_type)
+                      ])))
+        # otherwise, convert to Beam Rows.
+        else:
+          input_beam_rows = (
+              input_rows
+              | "Convert dict to Beam Row" >> beam.Map(
+                  lambda row: beam.Row(
+                      destination=row[0],
+                      record=bigquery_tools.beam_row_from_dict(row[1], schema))
+              ).with_output_types(
+                  RowTypeConstraint.from_fields([
+                      ('destination', str),
+                      (
+                          'record',
+                          RowTypeConstraint.from_fields(
+                              bigquery_tools.
+                              get_beam_typehints_from_tableschema(schema)))
+                  ])))
+          input_beam_rows | beam.Map(
+              lambda e: logging.warning("input_beam_rows: %s", e))
+
+        # # communicate to Java that this write should use dynamic destinations
+        table = DYNAMIC_DESTINATIONS
+
+      # if writing to one destination, just convert to Beam rows and send over
+      else:
+        if is_rows:
+          input_beam_rows = pcoll
+        else:
+          input_beam_rows = (
+              pcoll
+              | "Convert dict to Beam Row" >> beam.Map(
+                  lambda row: bigquery_tools.beam_row_from_dict(row, schema)).
+              with_output_types(
+                  RowTypeConstraint.from_fields(
+                      bigquery_tools.get_beam_typehints_from_tableschema(
+                          schema))))
+
       output_beam_rows = (
           input_beam_rows
           | StorageWriteToBigQuery(
