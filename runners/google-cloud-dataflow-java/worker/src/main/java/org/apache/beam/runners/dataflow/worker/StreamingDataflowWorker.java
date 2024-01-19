@@ -1894,11 +1894,14 @@ public class StreamingDataflowWorker {
       Map<Long, List<FailedTokens>> failedWork = new HashMap<>();
       for (Windmill.HeartbeatResponse heartbeatResponse :
           computationHeartbeatResponse.getHeartbeatResponsesList()) {
-        List<FailedTokens> keyTokens =
-            failedWork.putIfAbsent(heartbeatResponse.getShardingKey(), new ArrayList<>());
-        if (keyTokens == null) keyTokens = failedWork.get(heartbeatResponse.getShardingKey());
-        keyTokens.add(
-            new FailedTokens(heartbeatResponse.getWorkToken(), heartbeatResponse.getCacheToken()));
+        if (heartbeatResponse.getFailed()) {
+          List<FailedTokens> keyTokens =
+              failedWork.putIfAbsent(heartbeatResponse.getShardingKey(), new ArrayList<>());
+          if (keyTokens == null) keyTokens = failedWork.get(heartbeatResponse.getShardingKey());
+            keyTokens.add(
+                new FailedTokens(heartbeatResponse.getWorkToken(),
+                    heartbeatResponse.getCacheToken()));
+        }
       }
       ComputationState state = computationMap.get(computationHeartbeatResponse.getComputationId());
       if (state != null) state.failWork(failedWork);
