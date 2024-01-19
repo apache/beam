@@ -264,7 +264,7 @@ In order to meaningfully aggregate elements in a streaming pipeline,
 some kind of windowing is typically required. Beam's
 [windowing](https://beam.apache.org/documentation/programming-guide/#windowing)
 and [triggering](https://beam.apache.org/documentation/programming-guide/#triggers)
-can be be declared using the same WindowInto transform available in all other
+can be declared using the same WindowInto transform available in all other
 SDKs.
 
 ```
@@ -284,7 +284,7 @@ pipeline:
     - type: WindowInto
       windowing:
         type: fixed
-        size: 60
+        size: 60s
     - type: SomeAggregation
     - type: WriteToPubSub
       config:
@@ -308,8 +308,8 @@ pipeline:
     - type: SomeAggregation
       windowing:
         type: sliding
-        size: 60
-        period: 10
+        size: 60s
+        period: 10s
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
@@ -334,7 +334,7 @@ pipeline:
         query: "select col1, count(*) as c from PCOLLECTION"
       windowing:
         type: sessions
-        gap: 60
+        gap: 60s
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
@@ -369,7 +369,7 @@ pipeline:
         right: ReadRight
       windowing:
         type: fixed
-        size: 60
+        size: 60s
 ```
 
 For a transform with no inputs, the specified windowing is instead applied to
@@ -387,7 +387,7 @@ pipeline:
         schema: ...
       windowing:
         type: fixed
-        size: 60
+        size: 60s
     - type: Sql
       config:
         query: "select col1, count(*) as c from PCOLLECTION"
@@ -438,7 +438,7 @@ pipeline:
       schema: ...
     windowing:
       type: fixed
-      size: 10
+      size: 10s
 
   transforms:
     - type: Sql
@@ -451,7 +451,7 @@ pipeline:
       path: /path/to/output.json
     windowing:
       type: fixed
-      size: 300
+      size: 5m
 ```
 
 

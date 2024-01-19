@@ -208,8 +208,9 @@ class ExternalProvider(Provider):
     urns = SafeLineLoader.strip_metadata(spec['transforms'])
     type = spec['type']
     config = SafeLineLoader.strip_metadata(spec.get('config', {}))
-    extra_params = set(SafeLineLoader.strip_metadata(spec).keys()) - set(
-        ['transforms', 'type', 'config'])
+    extra_params = set(SafeLineLoader.strip_metadata(spec).keys()) - {
+        'transforms', 'type', 'config'
+    }
     if extra_params:
       raise ValueError(
           f'Unexpected parameters in provider of type {type} '
@@ -260,6 +261,7 @@ def maven_jar(
       urns,
       lambda: subprocess_server.JavaJarServer.path_to_maven_jar(
           artifact_id=artifact_id,
+          group_id=group_id,
           version=version,
           repository=repository,
           classifier=classifier,
@@ -550,7 +552,8 @@ def dicts_to_rows(o):
     return o
 
 
-def create_builtin_provider():
+class YamlProviders:
+  @staticmethod
   def create(elements: Iterable[Any], reshuffle: Optional[bool] = True):
     """Creates a collection containing a specified set of elements.
 
@@ -565,7 +568,7 @@ def create_builtin_provider():
     Args:
         elements: The set of elements that should belong to the PCollection.
             YAML/JSON-style mappings will be interpreted as Beam rows.
-        reshuffle (optional): Whether to introduce a reshuffle (to possibly
+        reshuffle: (optional) Whether to introduce a reshuffle (to possibly
             redistribute the work) if there is more than one element in the
             collection. Defaults to True.
     """
@@ -574,6 +577,7 @@ def create_builtin_provider():
 
   # Or should this be posargs, args?
   # pylint: disable=dangerous-default-value
+  @staticmethod
   def fully_qualified_named_transform(
       constructor: str,
       args: Optional[Iterable[Any]] = (),
@@ -585,13 +589,13 @@ def create_builtin_provider():
     via a YAML interface. Note, however, that conversion may be required if this
     transform does not accept or produce Beam Rows.
 
-    For example,
+    For example::
 
         type: PyTransform
         config:
-          constructor: apache_beam.pkg.mod.SomeClass
-          args: [1, 'foo']
-          kwargs:
+           constructor: apache_beam.pkg.mod.SomeClass
+           args: [1, 'foo']
+           kwargs:
              baz: 3
 
     can be used to access the transform
@@ -651,6 +655,17 @@ def create_builtin_provider():
     See [the Beam documentation on windowing](https://beam.apache.org/documentation/programming-guide/#windowing)
     for more details.
 
+    Sizes, offsets, periods and gaps (where applicable) must be defined using
+    a time unit suffix 'ms', 's', 'm', 'h' or 'd' for milliseconds, seconds,
+    minutes, hours or days, respectively. If a time unit is not specified, it
+    will default to 's'.
+
+    For example::
+
+        windowing:
+           type: fixed
+           size: 30s
+
     Note that any Yaml transform can have a
     [windowing parameter](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/README.md#windowing),
     which is applied to its inputs (if any) or outputs (if there are no inputs)
@@ -666,6 +681,29 @@ def create_builtin_provider():
       return pcoll | self._window_transform
 
     @staticmethod
+    def _parse_duration(value, name):
+      time_units = {
+          'ms': 0.001, 's': 1, 'm': 60, 'h': 60 * 60, 'd': 60 * 60 * 12
+      }
+      value, suffix = re.match(r'^(.*?)([^\d]*)$', str(value)).groups()
+      # Default to seconds if time unit suffix is not defined
+      if not suffix:
+        suffix = 's'
+      if not value:
+        raise ValueError(
+            f"Invalid windowing {name} value "
+            f"'{suffix if not value else value}'. "
+            f"Must provide numeric value.")
+      if suffix not in time_units:
+        raise ValueError((
+            "Invalid windowing {} time unit '{}'. " +
+            "Valid time units are {}.").format(
+                name,
+                suffix,
+                ', '.join("'{}'".format(k) for k in time_units.keys())))
+      return float(value) * time_units[suffix]
+
+    @staticmethod
     def _parse_window_spec(spec):
       spec = dict(spec)
       window_type = spec.pop('type')
@@ -673,18 +711,27 @@ def create_builtin_provider():
       if window_type == 'global':
         window_fn = window.GlobalWindows()
       elif window_type == 'fixed':
-        window_fn = window.FixedWindows(spec.pop('size'), spec.pop('offset', 0))
+        window_fn = window.FixedWindows(
+            YamlProviders.WindowInto._parse_duration(spec.pop('size'), 'size'),
+            YamlProviders.WindowInto._parse_duration(
+                spec.pop('offset', 0), 'offset'))
       elif window_type == 'sliding':
         window_fn = window.SlidingWindows(
-            spec.pop('size'), spec.pop('period'), spec.pop('offset', 0))
+            YamlProviders.WindowInto._parse_duration(spec.pop('size'), 'size'),
+            YamlProviders.WindowInto._parse_duration(
+                spec.pop('period'), 'period'),
+            YamlProviders.WindowInto._parse_duration(
+                spec.pop('offset', 0), 'offset'))
       elif window_type == 'sessions':
-        window_fn = window.FixedWindows(spec.pop('gap'))
+        window_fn = window.Sessions(
+            YamlProviders.WindowInto._parse_duration(spec.pop('gap'), 'gap'))
       if spec:
         raise ValueError(f'Unknown parameters {spec.keys()}')
       # TODO: Triggering, etc.
       return beam.WindowInto(window_fn)
 
-  def LogForTesting():
+  @staticmethod
+  def log_for_testing():
     """Logs each element of its input PCollection.
 
     The output of this transform is a copy of its input for ease of use in
@@ -694,16 +741,18 @@ def create_builtin_provider():
       logging.info(x)
       return x
 
-    return beam.Map(log_and_return)
+    return "LogForTesting" >> beam.Map(log_and_return)
 
-  return InlineProvider({
-      'Create': create,
-      'LogForTesting': LogForTesting,
-      'PyTransform': fully_qualified_named_transform,
-      'Flatten': Flatten,
-      'WindowInto': WindowInto,
-  },
-                        no_input_transforms=('Create', ))
+  @staticmethod
+  def create_builtin_provider():
+    return InlineProvider({
+        'Create': YamlProviders.create,
+        'LogForTesting': YamlProviders.log_for_testing,
+        'PyTransform': YamlProviders.fully_qualified_named_transform,
+        'Flatten': YamlProviders.Flatten,
+        'WindowInto': YamlProviders.WindowInto,
+    },
+                          no_input_transforms=('Create', ))
 
 
 class PypiExpansionService:
@@ -943,7 +992,7 @@ def standard_providers():
     standard_providers = yaml.load(fin, Loader=SafeLoader)
 
   return merge_providers(
-      create_builtin_provider(),
+      YamlProviders.create_builtin_provider(),
       create_mapping_providers(),
       create_combine_providers(),
       io_providers(),
