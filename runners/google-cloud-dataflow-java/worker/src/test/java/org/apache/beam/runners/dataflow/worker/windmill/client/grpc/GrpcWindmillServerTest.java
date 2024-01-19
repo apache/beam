@@ -346,6 +346,7 @@ public class GrpcWindmillServerTest {
                                 .setJobId("job")
                                 .setProjectId("project")
                                 .setWorkerId("worker")
+                                .setClientId(client.clientId())
                                 .build()));
                     sawHeader = true;
                   } else {
@@ -555,6 +556,7 @@ public class GrpcWindmillServerTest {
                       .setJobId("job")
                       .setProjectId("project")
                       .setWorkerId("worker")
+                      .setClientId(client.clientId())
                       .build()));
           sawHeader = true;
           LOG.info("Received header");
@@ -839,6 +841,7 @@ public class GrpcWindmillServerTest {
                                 .setJobId("job")
                                 .setProjectId("project")
                                 .setWorkerId("worker")
+                                .setClientId(client.clientId())
                                 .build()));
                     sawHeader = true;
                   } else {
