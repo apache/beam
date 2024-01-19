@@ -29,8 +29,6 @@ import org.joda.time.Instant;
  * state.
  *
  * @param <W> The kind of window that is being reshuffled.
- * @deprecated The intended side effect of {@link Reshuffle} is not portable; it will likely be
- *     removed
  */
 @Internal
 @Deprecated
