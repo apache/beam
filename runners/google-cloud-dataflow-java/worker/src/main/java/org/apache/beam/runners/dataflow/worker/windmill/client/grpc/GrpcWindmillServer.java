@@ -27,6 +27,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -97,6 +98,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   private final GrpcDispatcherClient dispatcherClient;
   private final StreamingDataflowWorkerOptions options;
   private final StreamingEngineThrottleTimers throttleTimers;
+  private final long clientId;
   private Duration maxBackoff;
   private @Nullable WindmillApplianceGrpc.WindmillApplianceBlockingStub syncApplianceStub;
   // If true, then active work refreshes will be sent as KeyedGetDataRequests. Otherwise, use the
@@ -109,12 +111,14 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     this.options = options;
     this.throttleTimers = StreamingEngineThrottleTimers.create();
     this.maxBackoff = MAX_BACKOFF;
+    this.clientId = new Random().nextLong();
     this.windmillStreamFactory =
         GrpcWindmillStreamFactory.of(
                 JobHeader.newBuilder()
                     .setJobId(options.getJobId())
                     .setProjectId(options.getProject())
                     .setWorkerId(options.getWorkerId())
+                    .setClientId(clientId)
                     .build())
             .setWindmillMessagesBetweenIsReadyChecks(
                 options.getWindmillMessagesBetweenIsReadyChecks())
@@ -125,7 +129,6 @@ public final class GrpcWindmillServer extends WindmillServerStub {
             .build();
     windmillStreamFactory.scheduleHealthChecks(
         options.getWindmillServiceStreamingRpcHealthCheckPeriodMs());
-
     this.dispatcherClient = grpcDispatcherClient;
     this.syncApplianceStub = null;
     this.sendKeyedGetDataRequests =
@@ -315,6 +318,11 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     }
 
     throw new RpcException(unsupportedUnaryRequestInStreamingEngineException("GetWork"));
+  }
+
+  @Override
+  public long clientId() {
+    return clientId;
   }
 
   @Override

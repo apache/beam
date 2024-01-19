@@ -205,7 +205,6 @@ public class StreamingDataflowWorker {
   private static final int MAX_FAILURES_TO_REPORT_IN_UPDATE = 1000;
 
   private static final Duration MAX_LOCAL_PROCESSING_RETRY_DURATION = Duration.standardMinutes(5);
-  private static final Random clientIdGenerator = new Random();
   final WindmillStateCache stateCache;
   // Maps from computation ids to per-computation state.
   private final ConcurrentMap<String, ComputationState> computationMap = new ConcurrentHashMap<>();
@@ -234,7 +233,6 @@ public class StreamingDataflowWorker {
   private final SideInputStateFetcher sideInputStateFetcher;
   private final StreamingDataflowWorkerOptions options;
   private final boolean windmillServiceEnabled;
-  private final long clientId;
   private final MetricTrackingWindmillServerStub metricTrackingWindmillServer;
   private final CounterSet pendingDeltaCounters = new CounterSet();
   private final CounterSet pendingCumulativeCounters = new CounterSet();
@@ -438,7 +436,6 @@ public class StreamingDataflowWorker {
             .setNumGetDataStreams(options.getWindmillGetDataStreamCount())
             .build();
     this.sideInputStateFetcher = new SideInputStateFetcher(metricTrackingWindmillServer, options);
-    this.clientId = clientIdGenerator.nextLong();
 
     for (MapTask mapTask : mapTasks) {
       addComputation(mapTask.getSystemName(), mapTask, ImmutableMap.of());
@@ -844,7 +841,7 @@ public class StreamingDataflowWorker {
       GetWorkStream stream =
           windmillServer.getWorkStream(
               Windmill.GetWorkRequest.newBuilder()
-                  .setClientId(clientId)
+                  .setClientId(windmillServer.clientId())
                   .setMaxItems(chooseMaximumBundlesOutstanding())
                   .setMaxBytes(MAX_GET_WORK_FETCH_BYTES)
                   .build(),
@@ -1506,7 +1503,7 @@ public class StreamingDataflowWorker {
   private Windmill.GetWorkResponse getWork() {
     return windmillServer.getWork(
         Windmill.GetWorkRequest.newBuilder()
-            .setClientId(clientId)
+            .setClientId(windmillServer.clientId())
             .setMaxItems(chooseMaximumBundlesOutstanding())
             .setMaxBytes(MAX_GET_WORK_FETCH_BYTES)
             .build());
@@ -2026,7 +2023,7 @@ public class StreamingDataflowWorker {
     @Override
     public void appendSummaryHtml(PrintWriter writer) {
       writer.println("Running: " + running.get() + "<br>");
-      writer.println("ID: " + clientId + "<br>");
+      writer.println("ID: " + windmillServer.clientId() + "<br>");
     }
   }
 

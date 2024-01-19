@@ -79,6 +79,10 @@ public abstract class WindmillServerStub implements StatusDataProvider {
   /** Returns the amount of time the server has been throttled and resets the time to 0. */
   public abstract long getAndResetThrottleTime();
 
+  public long clientId() {
+    return 0L;
+  }
+
   @Override
   public void appendSummaryHtml(PrintWriter writer) {}
 
