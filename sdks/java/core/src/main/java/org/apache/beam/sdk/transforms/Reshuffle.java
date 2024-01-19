@@ -44,7 +44,10 @@ import org.joda.time.Duration;
  *
  * <p>A {@link PTransform} that returns a {@link PCollection} equivalent to its input but
  * operationally provides some of the side effects of a {@link GroupByKey}, in particular
- * checkpointing, and preventing fusion of the surrounding transforms.
+ * redistribution of elements between workers, checkpointing, and preventing fusion of the
+ * surrounding transforms. Some of these side effects (e.g. checkpointing) are not portable
+ * and will not occur on workers that don't have these properties when performing a
+ * {@link GroupByKey}.
  *
  * <p>Performs a {@link GroupByKey} so that the data is key-partitioned. Configures the {@link
  * WindowingStrategy} so that no data is dropped, but doesn't affect the need for the user to
@@ -52,10 +55,8 @@ import org.joda.time.Duration;
  *
  * @param <K> The type of key being reshuffled on.
  * @param <V> The type of value being reshuffled.
- * @deprecated this transform's intended side effects are not portable; it will likely be removed
  */
 @Internal
-@Deprecated
 public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
 
   private Reshuffle() {}
