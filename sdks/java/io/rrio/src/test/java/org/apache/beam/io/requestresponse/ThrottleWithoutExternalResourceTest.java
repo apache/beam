@@ -17,22 +17,35 @@
  */
 package org.apache.beam.io.requestresponse;
 
+import static org.apache.beam.io.requestresponse.ThrottleWithoutExternalResource.DISTRIBUTION_METRIC_NAME;
+import static org.apache.beam.sdk.values.TypeDescriptors.longs;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.hamcrest.Matchers.notNullValue;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.commons.math3.distribution.UniformIntegerDistribution;
-import org.apache.commons.math3.stat.inference.ChiSquareTest;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -44,63 +57,65 @@ public class ThrottleWithoutExternalResourceTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
   /**
-   * The purpose of this test is to assert, in the setting of elements greater than the desired
-   * rate, that a Chi Square hypothesis cannot be rejected against a uniform integer distribution.
-   * In other words, does {@link ThrottleWithoutExternalResource#assignChannels} uniformly
-   * distribute the key space among the elements? While we cannot "prove" a distribution, failure to
-   * reject a null hypothesis suggests that the code is doing what we expect.
+   * Tests whether a pulse of elements totaled less than the maximum rate are just emitted
+   * immediately without throttling.
    */
   @Test
-  public void givenNonSparseElements_thenAssignChannelsDistribution_cannotRejectChiSqNullTest() {
+  public void givenSparseElementPulse_thenEmitsAllImmediately() {
     Rate rate = Rate.of(1000, Duration.standardSeconds(1L));
-    testAssignChannelsDistribution(rate, 10000);
+    testEmitsAtRate(rate, 100, 1.0, 100);
+  }
+
+  /** Tests whether a pulse of elements totaled greater than the maximum rate are throttled. */
+  @Test
+  public void givenNonSparseElementPulse_thenEmitsAtRate() {
+    long size = 4L;
+    Rate rate = Rate.of(1, Duration.standardSeconds(1L));
+    double expectedMean = (double) rate.getInterval().getMillis() / (double) rate.getNumElements();
+    testEmitsAtRate(rate, size, expectedMean, rate.getInterval().getMillis());
   }
 
   /**
-   * This test is similar to {@link
-   * #givenNonSparseElements_thenAssignChannelsDistribution_cannotRejectChiSqNullTest()} in the
-   * setting of elements less than the desired rate.
+   * Helper method to test emission timestamp intervals according to the rate and size of the
+   * element count, asserting that the resulting intervals between elements is the expectedMean +/-
+   * 5% and does not exceed doesNotExceedMillis.
    */
-  @Test
-  public void givenSparseElements_thenAssignChannelsNominallyDistributed() {
-    Rate rate = Rate.of(1000, Duration.standardSeconds(1L));
-    testAssignChannelsDistribution(rate, 100);
-  }
+  private void testEmitsAtRate(
+      Rate rate, long size, double expectedMean, long doesNotExceedMillis) {
+    checkArgument(size > 0);
 
-  private void testAssignChannelsDistribution(Rate rate, int size) {
     List<Integer> list = Stream.iterate(0, i -> i + 1).limit(size).collect(Collectors.toList());
 
-    ThrottleWithoutExternalResource<Integer> transform = transformOf(rate);
+    PCollection<Integer> throttled = pipeline.apply(Create.of(list)).apply(transformOf(rate));
+    PCollection<Long> elementTimestamps =
+        throttled.apply(MapElements.into(longs()).via(ignored -> Instant.now().getMillis()));
 
-    PCollection<KV<Integer, Integer>> kv =
-        pipeline.apply(Create.of(list)).apply(transform.assignChannels());
-    PCollection<KV<Integer, Long>> countPerKey = kv.apply(Count.perKey());
-    PAssert.that(countPerKey)
+    PAssert.that(elementTimestamps)
         .satisfies(
             itr -> {
-              // Instantiate a uniform integer distribution [0, Rate#numElements).
-              UniformIntegerDistribution distribution =
-                  new UniformIntegerDistribution(0, rate.getNumElements() - 1);
-              ChiSquareTest chiSquareTest = new ChiSquareTest();
-              // Compute the expected distribution of counts.
-              double[] expected = new double[rate.getNumElements()];
-              for (int i = 0; i < expected.length; i++) {
-                expected[i] =
-                    (double) list.size()
-                        / (double) rate.getNumElements()
-                        * distribution.probability(i);
-              }
-              // Compute the observed distribution of counts.
-              long[] observed = new long[rate.getNumElements()];
-              for (KV<Integer, Long> entry : itr) {
-                observed[entry.getKey()] = entry.getValue();
+              List<Long> timestamps =
+                  StreamSupport.stream(itr.spliterator(), false)
+                      .sorted()
+                      .collect(Collectors.toList());
+              assertThat(timestamps.size(), is((int) size));
+              double sum = 0.0;
+              long max = 0L;
+              Long previous = timestamps.get(0);
+
+              for (int i = 1; i < timestamps.size(); i++) {
+                long interval = timestamps.get(i) - previous;
+                sum += interval;
+                if (interval > max) {
+                  max = interval;
+                }
+                previous = timestamps.get(i);
               }
 
-              // Perform the statistical test.
-              boolean chiSq = chiSquareTest.chiSquareTest(expected, observed, 0.05);
+              double mean = sum / (double) size;
 
-              // Assert that we cannot reject the null hypothesis.
-              assertThat(chiSq, is(false));
+              assertThat(max, lessThanOrEqualTo(doesNotExceedMillis));
+              assertWithin5PercentOf(expectedMean, mean);
+
               return null;
             });
 
@@ -108,15 +123,47 @@ public class ThrottleWithoutExternalResourceTest {
   }
 
   @Test
-  public void givenSparseElementPulse_thenEmitsAllImmediately() {
-    Rate rate = Rate.of(1000, Duration.standardSeconds(1L));
-    List<Integer> list = Stream.iterate(0, i -> i + 1).limit(100).collect(Collectors.toList());
+  public void givenCollectMetricsTrue_thenPopulatesDistributionMetric() {
+    long size = 1_000;
+    Rate rate = Rate.of(10, Duration.standardSeconds(1L));
+    double expectedMean = 1.0;
+    double expectedMin = 0.0;
+    double expectedMax = 100.0;
 
-    PCollection<Integer> throttled = pipeline.apply(Create.of(list)).apply(transformOf(rate));
+    List<Integer> list = Stream.iterate(0, i -> i + 1).limit(size).collect(Collectors.toList());
 
-    PAssert.that(throttled).containsInAnyOrder(list);
+    pipeline.apply(Create.of(list)).apply(transformOf(rate).withMetricsCollected());
 
-    pipeline.run();
+    PipelineResult pipelineResult = pipeline.run();
+    pipelineResult.waitUntilFinish();
+    MetricResults results = pipelineResult.metrics();
+    MetricQueryResults metricQueryResults =
+        results.queryMetrics(
+            MetricsFilter.builder()
+                .addNameFilter(
+                    MetricNameFilter.named(
+                        ThrottleWithoutExternalResource.class, DISTRIBUTION_METRIC_NAME))
+                .build());
+    assertThat(metricQueryResults, notNullValue());
+    Iterator<MetricResult<DistributionResult>> itr =
+        metricQueryResults.getDistributions().iterator();
+    assertThat(itr.hasNext(), is(true));
+    MetricResult<DistributionResult> metricResult = itr.next();
+    DistributionResult distributionResult = metricResult.getCommitted();
+    long count = distributionResult.getCount();
+
+    double mean = distributionResult.getMean();
+    double min = distributionResult.getMin();
+    double max = distributionResult.getMax();
+
+    assertThat(count, is(size - 1));
+    assertWithin5PercentOf(expectedMean, mean);
+    assertThat(min, greaterThanOrEqualTo(expectedMin));
+    assertThat(max, lessThanOrEqualTo(expectedMax));
+  }
+
+  private static void assertWithin5PercentOf(double expected, double observed) {
+    assertThat(0.95 * expected <= observed || observed <= 1.05 * expected, is(true));
   }
 
   @Test
@@ -139,10 +186,6 @@ public class ThrottleWithoutExternalResourceTest {
   }
 
   private static ThrottleWithoutExternalResource<Integer> transformOf(Rate rate) {
-    return ThrottleWithoutExternalResource.of(configurationOf(rate));
-  }
-
-  private static ThrottleWithoutExternalResource.Configuration configurationOf(Rate rate) {
-    return ThrottleWithoutExternalResource.Configuration.builder().setMaximumRate(rate).build();
+    return ThrottleWithoutExternalResource.of(rate);
   }
 }
