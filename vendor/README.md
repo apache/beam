@@ -91,8 +91,8 @@ Steps:
 mkdir -p tempLib/org/apache/beam
 
 # Copy files (jar/poms/metadata) to your beam repository
-cp -R ~/.m2/repository/org/apache/beam/beam-vendor-grpc-1_54_0/ \
-      tempLib/org/apache/beam
+cp -R ~/.m2/repository/org/apache/beam/beam-vendor-grpc-1_54_0 \
+      tempLib/org/apache/beam/
 ```
 
 2. Add the folder to the expected project repositories:

@@ -227,8 +227,7 @@ public class SpannerIOWriteTest implements Serializable {
                     }
                     Statement st = (Statement) argument;
                     return st.getSql().contains("information_schema.columns")
-                        && st.getSql()
-                            .contains("('information_schema', 'spanner_sys', 'pg_catalog')");
+                        && st.getSql().contains("'public'");
                   }
                 })))
         .thenReturn(ResultSets.forRows(type, rows));

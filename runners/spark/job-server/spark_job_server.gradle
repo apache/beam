@@ -157,6 +157,8 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
         excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest'
         // // Assertion error: incorrect output
         excludeTestsMatching 'CombineTest$BasicTests.testHotKeyCombining'
+        // TODO(https://github.com/apache/beam/issues/29973)
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata'
       }
     }
     else {

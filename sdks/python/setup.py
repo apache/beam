@@ -166,7 +166,7 @@ else:
 # Exclude 1.5.0 and 1.5.1 because of
 # https://github.com/pandas-dev/pandas/issues/45725
 dataframe_dependency = [
-    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<1.6;python_version>="3.8"',
+    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.1;python_version>="3.8"',
 ]
 
 def find_by_ext(root_dir, ext):
@@ -302,7 +302,7 @@ if __name__ == '__main__':
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
           'numpy>=1.14.3,<1.25.0',  # Update pyproject.toml as well.
-          'objsize>=0.6.1,<0.7.0',
+          'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
           'pymongo>=3.8.0,<5.0.0',
           'proto-plus>=1.7.1,<2',
@@ -337,14 +337,14 @@ if __name__ == '__main__':
               # Pinning docutils as a workaround for Sphinx issue:
               # https://github.com/sphinx-doc/sphinx/issues/9727
               'docutils==0.17.1',
-              'pandas<2.0.0',
+              'pandas<2.1.0',
           ],
           'test': [
               'docstring-parser>=0.15,<1.0',
               'freezegun>=0.3.12',
               'joblib>=1.0.1',
               'mock>=1.0.1,<6.0.0',
-              'pandas<2.0.0',
+              'pandas<2.1.0',
               'parameterized>=0.7.1,<0.10.0',
               'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
               'pyyaml>=3.12,<7.0.0',
@@ -424,6 +424,7 @@ if __name__ == '__main__':
           'yaml': [
               'docstring-parser>=0.15,<1.0',
               'pyyaml>=3.12,<7.0.0',
+              'virtualenv-clone>=0.5,<1.0',
           ] + dataframe_dependency
       },
       zip_safe=False,

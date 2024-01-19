@@ -23,7 +23,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 # pylint: disable=ungrouped-imports
 try:
   from google.api_core.exceptions import TooManyRequests
-  from apache_beam.io.requestresponse import Caller
+  from apache_beam.io.requestresponse import Caller, DefaultThrottler
   from apache_beam.io.requestresponse import RequestResponseIO
   from apache_beam.io.requestresponse import UserCodeExecutionException
   from apache_beam.io.requestresponse import UserCodeTimeoutException
@@ -127,6 +127,29 @@ class TestCaller(unittest.TestCase):
             | beam.Create(["sample_request"])
             | RequestResponseIO(caller=caller, repeater=None))
     self.assertRegex(cm.exception.message, 'retries = 0')
+
+  def test_default_throttler(self):
+    caller = CallerWithTimeout()
+    throttler = DefaultThrottler(
+        window_ms=10000, bucket_ms=5000, overload_ratio=1)
+    # manually override the number of received requests for testing.
+    throttler.throttler._all_requests.add(time.time() * 1000, 100)
+    test_pipeline = TestPipeline()
+    _ = (
+        test_pipeline
+        | beam.Create(['sample_request'])
+        | RequestResponseIO(caller=caller, throttler=throttler))
+    result = test_pipeline.run()
+    result.wait_until_finish()
+    metrics = result.metrics().query(
+        beam.metrics.MetricsFilter().with_name('throttled_requests'))
+    self.assertEqual(metrics['counters'][0].committed, 1)
+    metrics = result.metrics().query(
+        beam.metrics.MetricsFilter().with_name('cumulativeThrottlingSeconds'))
+    self.assertGreater(metrics['counters'][0].committed, 0)
+    metrics = result.metrics().query(
+        beam.metrics.MetricsFilter().with_name('responses'))
+    self.assertEqual(metrics['counters'][0].committed, 1)
 
 
 if __name__ == '__main__':

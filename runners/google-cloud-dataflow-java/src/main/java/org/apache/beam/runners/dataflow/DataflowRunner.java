@@ -2446,6 +2446,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         if (WriteFilesTranslation.isWindowedWrites(transform)) {
           replacement = replacement.withWindowedWrites();
         }
+
+        if (WriteFilesTranslation.isAutoSharded(transform)) {
+          replacement = replacement.withAutoSharding();
+          return PTransformReplacement.of(
+              PTransformReplacements.getSingletonMainInput(transform), replacement);
+        }
+
         return PTransformReplacement.of(
             PTransformReplacements.getSingletonMainInput(transform),
             replacement.withNumShards(numShards));

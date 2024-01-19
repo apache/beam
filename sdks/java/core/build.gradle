@@ -21,6 +21,7 @@ applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk',
   classesTriggerCheckerBugs: [
     'DoFnTester': 'https://github.com/typetools/checker-framework/issues/3776',
+    'FileIO': 'https://github.com/typetools/checker-framework/issues/6388',
     'MergingActiveWindowSetTest': 'https://github.com/typetools/checker-framework/issues/3776',
     'WindowFnTestUtils': 'https://github.com/typetools/checker-framework/issues/3776',
   ],

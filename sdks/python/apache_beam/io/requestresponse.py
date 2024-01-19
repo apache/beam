@@ -151,7 +151,7 @@ def _execute_request(
     try:
       return future.result(timeout=timeout)
     except TooManyRequests as e:
-      _LOGGER.warning(
+      _LOGGER.info(
           'request could not be completed. got code %i from the service.',
           e.code)
       raise e
@@ -296,10 +296,10 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
       caller: Caller[RequestT, ResponseT],
       timeout: Optional[float] = DEFAULT_TIMEOUT_SECS,
       should_backoff: Optional[ShouldBackOff] = None,
-      repeater: Optional[Repeater] = ExponentialBackOffRepeater(),
+      repeater: Repeater = ExponentialBackOffRepeater(),
       cache_reader: Optional[CacheReader] = None,
       cache_writer: Optional[CacheWriter] = None,
-      throttler: Optional[PreCallThrottler] = DefaultThrottler(),
+      throttler: PreCallThrottler = DefaultThrottler(),
   ):
     """
     Instantiates a RequestResponseIO transform.
@@ -310,14 +310,19 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
       timeout (float): timeout value in seconds to wait for response from API.
       should_backoff (~apache_beam.io.requestresponse.ShouldBackOff):
         (Optional) provides methods for backoff.
-      repeater (~apache_beam.io.requestresponse.Repeater): (Optional)
-        provides methods to repeat requests to API.
+      repeater (~apache_beam.io.requestresponse.Repeater): provides method to
+        repeat failed requests to API due to service errors. Defaults to
+        :class:`apache_beam.io.requestresponse.ExponentialBackOffRepeater` to
+        repeat requests with exponential backoff.
       cache_reader (~apache_beam.io.requestresponse.CacheReader): (Optional)
         provides methods to read external cache.
       cache_writer (~apache_beam.io.requestresponse.CacheWriter): (Optional)
         provides methods to write to external cache.
       throttler (~apache_beam.io.requestresponse.PreCallThrottler):
-        (Optional) provides methods to pre-throttle a request.
+        provides methods to pre-throttle a request. Defaults to
+        :class:`apache_beam.io.requestresponse.DefaultThrottler` for
+        client-side adaptive throttling using
+        :class:`apache_beam.io.components.adaptive_throttler.AdaptiveThrottler`
     """
     self._caller = caller
     self._timeout = timeout
@@ -375,8 +380,8 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
       caller: Caller[RequestT, ResponseT],
       timeout: Optional[float] = DEFAULT_TIMEOUT_SECS,
       should_backoff: Optional[ShouldBackOff] = None,
-      repeater: Optional[Repeater] = None,
-      throttler: Optional[PreCallThrottler] = None,
+      repeater: Repeater = None,
+      throttler: PreCallThrottler = None,
   ):
     self._caller = caller
     self._timeout = timeout
@@ -419,7 +424,7 @@ class _CallDoFn(beam.DoFn):
         _LOGGER.info(
             "Delaying request for %d seconds" % self._throttler.delay_secs)
         time.sleep(self._throttler.delay_secs)
-        self._metrics_collector.throttled_secs.inc(5)
+        self._metrics_collector.throttled_secs.inc(self._throttler.delay_secs)
         is_throttled_request = True
 
     if is_throttled_request:

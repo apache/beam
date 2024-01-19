@@ -37,8 +37,10 @@ import org.apache.beam.sdk.fn.server.InProcessServerFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.junit.Rule;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 
 /**
  * A {@link TestRule} which creates a {@link FnHarness} in a thread, services required for that
@@ -46,6 +48,7 @@ import org.junit.rules.TestRule;
  * during test execution.
  */
 public class EmbeddedSdkHarness extends ExternalResource implements TestRule {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   public static EmbeddedSdkHarness create() {
     return new EmbeddedSdkHarness();

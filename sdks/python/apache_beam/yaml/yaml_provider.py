@@ -26,6 +26,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import subprocess
 import sys
 import urllib.parse
@@ -204,7 +205,7 @@ class ExternalProvider(Provider):
         raise ValueError(
             f'Missing {required} in provider '
             f'at line {SafeLineLoader.get_line(spec)}')
-    urns = spec['transforms']
+    urns = SafeLineLoader.strip_metadata(spec['transforms'])
     type = spec['type']
     config = SafeLineLoader.strip_metadata(spec.get('config', {}))
     extra_params = set(SafeLineLoader.strip_metadata(spec).keys()) - set(
@@ -328,8 +329,7 @@ def python(urns, packages=()):
   else:
     return InlineProvider({
         name:
-        python_callable.PythonCallableWithSource.load_from_fully_qualified_name(
-            constructor)
+        python_callable.PythonCallableWithSource.load_from_source(constructor)
         for (name, constructor) in urns.items()
     })
 
@@ -347,6 +347,10 @@ class ExternalPythonProvider(ExternalProvider):
 
   def create_external_transform(self, urn, args):
     # Python transforms are "registered" by fully qualified name.
+    if not re.match(r'^[\w.]*$', urn):
+      # Treat it as source.
+      args = {'source': urn, **args}
+      urn = '__constructor__'
     return external.ExternalTransform(
         "beam:transforms:python:fully_qualified_named",
         external.ImplicitSchemaPayloadBuilder({
@@ -451,7 +455,8 @@ class InlineProvider(Provider):
 
     docs = self.get_docs(typ)
     return (
-        empty_if_none(docs.short_description) + '\n\n' +
+        empty_if_none(docs.short_description) +
+        ('\n\n' if docs.blank_after_short_description else '\n') +
         empty_if_none(docs.long_description)).strip() or None
 
   def get_docs(self, typ):
@@ -729,36 +734,49 @@ class PypiExpansionService:
   def _create_venv_from_scratch(cls, base_python, packages):
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
-      subprocess.run([base_python, '-m', 'venv', venv], check=True)
-      venv_python = os.path.join(venv, 'bin', 'python')
-      subprocess.run([venv_python, '-m', 'ensurepip'], check=True)
-      subprocess.run([venv_python, '-m', 'pip', 'install'] + packages,
-                     check=True)
-      with open(venv + '-requirements.txt', 'w') as fout:
-        fout.write('\n'.join(packages))
+      try:
+        subprocess.run([base_python, '-m', 'venv', venv], check=True)
+        venv_python = os.path.join(venv, 'bin', 'python')
+        venv_pip = os.path.join(venv, 'bin', 'pip')
+        subprocess.run([venv_python, '-m', 'ensurepip'], check=True)
+        subprocess.run([venv_pip, 'install'] + packages, check=True)
+        with open(venv + '-requirements.txt', 'w') as fout:
+          fout.write('\n'.join(packages))
+      except:  # pylint: disable=bare-except
+        if os.path.exists(venv):
+          shutil.rmtree(venv, ignore_errors=True)
+        raise
     return venv
 
   @classmethod
   def _create_venv_from_clone(cls, base_python, packages):
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
-      clonable_venv = cls._create_venv_to_clone(base_python)
-      clonable_python = os.path.join(clonable_venv, 'bin', 'python')
-      subprocess.run(
-          [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
-          check=True)
-      venv_binary = os.path.join(venv, 'bin', 'python')
-      subprocess.run([venv_binary, '-m', 'pip', 'install'] + packages,
-                     check=True)
-      with open(venv + '-requirements.txt', 'w') as fout:
-        fout.write('\n'.join(packages))
+      try:
+        clonable_venv = cls._create_venv_to_clone(base_python)
+        clonable_python = os.path.join(clonable_venv, 'bin', 'python')
+        subprocess.run(
+            [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
+            check=True)
+        venv_pip = os.path.join(venv, 'bin', 'pip')
+        subprocess.run([venv_pip, 'install'] + packages, check=True)
+        with open(venv + '-requirements.txt', 'w') as fout:
+          fout.write('\n'.join(packages))
+      except:  # pylint: disable=bare-except
+        if os.path.exists(venv):
+          shutil.rmtree(venv, ignore_errors=True)
+        raise
     return venv
 
   @classmethod
   def _create_venv_to_clone(cls, base_python):
+    if '.dev' in beam_version:
+      base_venv = os.path.dirname(os.path.dirname(base_python))
+      print('Cloning dev environment from', base_venv)
     return cls._create_venv_from_scratch(
-        base_python, [
-            'apache_beam[dataframe,gcp,test]==' + beam_version,
+        base_python,
+        [
+            'apache_beam[dataframe,gcp,test,yaml]==' + beam_version,
             'virtualenv-clone'
         ])
 
@@ -852,10 +870,11 @@ class RenamingProvider(Provider):
         ])
 
   def description(self, typ):
-    return self._underlying_provider.description(typ)
+    return self._underlying_provider.description(self._transforms[typ])
 
   def requires_inputs(self, typ, args):
-    return self._underlying_provider.requires_inputs(typ, args)
+    return self._underlying_provider.requires_inputs(
+        self._transforms[typ], args)
 
   def create_transform(
       self,

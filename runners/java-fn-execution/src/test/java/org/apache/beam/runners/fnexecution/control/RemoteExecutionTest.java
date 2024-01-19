@@ -157,6 +157,7 @@ import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.LoggerFactory;
@@ -174,7 +175,7 @@ import org.slf4j.LoggerFactory;
   "unused"
 })
 public class RemoteExecutionTest implements Serializable {
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Rule public transient ResetDateTimeProvider resetDateTimeProvider = new ResetDateTimeProvider();
 
   private static final String WORKER_ID = "remote_test";

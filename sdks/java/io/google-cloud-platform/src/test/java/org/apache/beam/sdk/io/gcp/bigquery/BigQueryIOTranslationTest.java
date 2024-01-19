@@ -100,7 +100,7 @@ public class BigQueryIOTranslationTest {
         "getPropagateSuccessfulStorageApiWrites", "propagate_successful_storage_api_writes");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getMaxFilesPerPartition", "max_files_per_partition");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getMaxBytesPerPartition", "max_bytes_per_partition");
-    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getTriggeringFrequency", "triggerring_frequency");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getTriggeringFrequency", "triggering_frequency");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getMethod", "method");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getLoadJobProjectId", "load_job_project_id");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getFailedInsertRetryPolicy", "failed_insert_retry_policy");

@@ -127,7 +127,7 @@ public class BoundedQueueExecutor {
     return bytesOutstanding;
   }
 
-  public long elementsOutstanding() {
+  public int elementsOutstanding() {
     return elementsOutstanding;
   }
 
@@ -135,7 +135,7 @@ public class BoundedQueueExecutor {
     return maximumBytesOutstanding;
   }
 
-  public long maximumElementsOutstanding() {
+  public int maximumElementsOutstanding() {
     return maximumElementsOutstanding;
   }
 

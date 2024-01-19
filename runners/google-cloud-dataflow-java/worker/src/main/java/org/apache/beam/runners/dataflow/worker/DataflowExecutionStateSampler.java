@@ -86,7 +86,8 @@ public final class DataflowExecutionStateSampler extends ExecutionStateSampler {
       return;
     }
     DataflowExecutionStateTracker dfTracker = (DataflowExecutionStateTracker) tracker;
-    completedProcessingMetrics.put(dfTracker.getWorkItemId(), dfTracker.getProcessingTimesByStep());
+    completedProcessingMetrics.put(
+        dfTracker.getWorkItemId(), dfTracker.getProcessingTimesByStepCopy());
     activeTrackersByWorkId.remove(dfTracker.getWorkItemId());
 
     // Attribute any remaining time since the last sampling while removing the tracker.
@@ -126,7 +127,7 @@ public final class DataflowExecutionStateSampler extends ExecutionStateSampler {
     DataflowExecutionStateTracker tracker = activeTrackersByWorkId.get(workId);
     return mergeStepStatsMaps(
         completedProcessingMetrics.getOrDefault(workId, new HashMap<>()),
-        tracker.getProcessingTimesByStep());
+        tracker.getProcessingTimesByStepCopy());
   }
 
   public void resetForWorkId(String workId) {

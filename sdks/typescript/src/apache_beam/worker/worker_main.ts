@@ -48,7 +48,7 @@ async function main() {
       console.error(
         `**ERROR**
       Unable to require module '${m}' used in requireForSerialization:
-      please ensure that it is available in the package exports.`
+      please ensure that it is available in the package exports.`,
       );
       // Explicitly exit the process to avoid the error getting swallowed
       // by a long traceback.
@@ -62,12 +62,12 @@ async function main() {
     {
       controlUrl: argv.control_endpoint,
     },
-    options
+    options,
   );
-  if (pushLogs) {
-    await pushLogs();
-  }
   console.info("Worker started.");
+  if (pushLogs) {
+    pushLogs().catch();
+  }
   await worker.wait();
   console.info("Worker stoped.");
 }
