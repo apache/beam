@@ -35,14 +35,20 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class FlinkRunner(portable_runner.PortableRunner):
-  def run_pipeline(self, pipeline, options):
+  """A runner for launching jobs on Flink, automatically starting a local
+  flink master if one is not given.
+  """
+
+  # Inherits run_portable_pipeline from PortableRunner.
+
+  def default_environment(self, options):
     portable_options = options.view_as(pipeline_options.PortableOptions)
     flink_options = options.view_as(pipeline_options.FlinkRunnerOptions)
     if (flink_options.flink_master in MAGIC_HOST_NAMES and
         not portable_options.environment_type and
         not portable_options.output_executable_path):
       portable_options.environment_type = 'LOOPBACK'
-    return super().run_pipeline(pipeline, options)
+    return super().default_environment(options)
 
   def default_job_server(self, options):
     flink_options = options.view_as(pipeline_options.FlinkRunnerOptions)

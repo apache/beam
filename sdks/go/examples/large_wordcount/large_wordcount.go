@@ -73,6 +73,7 @@ import (
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dot"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/samza"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/spark"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal"

@@ -40,7 +40,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.sdk.io.aws2.common.AsyncBatchWriteHandler.Stats;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.function.ThrowingRunnable;
 import org.mockito.Mockito;

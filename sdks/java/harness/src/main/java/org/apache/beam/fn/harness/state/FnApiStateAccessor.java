@@ -17,8 +17,8 @@
  */
 package org.apache.beam.fn.harness.state;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.Cache;
@@ -33,7 +34,9 @@ import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest.CacheToken;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -62,9 +65,9 @@ import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Provides access to side inputs and state via a {@link BeamFnStateClient}. */
@@ -74,6 +77,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   private final PipelineOptions pipelineOptions;
+  private final Set<String> runnerCapabilites;
   private final Map<StateKey, Object> stateKeyObjectCache;
   private final Map<TupleTag<?>, SideInputSpec> sideInputSpecMap;
   private final BeamFnStateClient beamFnStateClient;
@@ -91,6 +95,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
   public FnApiStateAccessor(
       PipelineOptions pipelineOptions,
+      Set<String> runnerCapabilites,
       String ptransformId,
       Supplier<String> processBundleInstructionId,
       Supplier<List<CacheToken>> cacheTokens,
@@ -103,6 +108,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       Supplier<K> currentKeySupplier,
       Supplier<BoundedWindow> currentWindowSupplier) {
     this.pipelineOptions = pipelineOptions;
+    this.runnerCapabilites = runnerCapabilites;
     this.stateKeyObjectCache = Maps.newHashMap();
     this.sideInputSpecMap = sideInputSpecMap;
     this.beamFnStateClient = beamFnStateClient;
@@ -238,7 +244,11 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                               processBundleInstructionId.get(),
                               key,
                               ((KvCoder) sideInputSpec.getCoder()).getKeyCoder(),
-                              ((KvCoder) sideInputSpec.getCoder()).getValueCoder()));
+                              ((KvCoder) sideInputSpec.getCoder()).getValueCoder(),
+                              runnerCapabilites.contains(
+                                  BeamUrns.getUrn(
+                                      RunnerApi.StandardRunnerProtocols.Enum
+                                          .MULTIMAP_KEYS_VALUES_SIDE_INPUT))));
                 default:
                   throw new IllegalStateException(
                       String.format(

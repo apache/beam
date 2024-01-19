@@ -40,9 +40,9 @@ import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
 import org.apache.beam.sdk.metrics.MetricsContainer;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.format.PeriodFormatter;
@@ -264,7 +264,12 @@ public class DataflowOperationContext implements OperationContext {
           .append(" for at least ")
           .append(formatDuration(lullDuration))
           .append(" without outputting or completing in state ")
-          .append(getStateName());
+          .append(getStateName())
+          .append(" in thread ")
+          .append(trackedThread.getName())
+          .append(" with id ")
+          .append(trackedThread.getId());
+
       message.append("\n");
 
       message.append(getStackTraceForLullMessage(trackedThread.getStackTrace()));

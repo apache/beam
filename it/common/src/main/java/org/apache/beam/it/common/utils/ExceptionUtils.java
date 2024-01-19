@@ -40,4 +40,24 @@ public class ExceptionUtils {
 
     return containsMessage(exception.getCause(), message);
   }
+
+  /**
+   * Utility to check if the given exception or any of its causes have a specific type.
+   *
+   * @param exception Exception to check.
+   * @param type Type to search for.
+   * @return true if the type is found in the exception or any of the causes, false otherwise.
+   */
+  public static boolean containsType(
+      @Nullable Throwable exception, Class<? extends Throwable> type) {
+    if (exception == null) {
+      return false;
+    }
+
+    if (type.isAssignableFrom(exception.getClass())) {
+      return true;
+    }
+
+    return containsType(exception.getCause(), type);
+  }
 }

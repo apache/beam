@@ -18,7 +18,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.TEST_STREAM_TRANSFORM_URN;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -168,7 +168,7 @@ public class TestStreamTranslation {
   /** A translator registered to translate {@link TestStream} objects to protobuf representation. */
   static class TestStreamTranslator implements TransformPayloadTranslator<TestStream<?>> {
     @Override
-    public String getUrn(TestStream<?> transform) {
+    public String getUrn() {
       return TEST_STREAM_TRANSFORM_URN;
     }
 

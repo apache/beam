@@ -17,9 +17,9 @@
 # pytype: skip-file
 
 import collections
-import hashlib
 import os
 import typing
+import uuid
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -48,6 +48,8 @@ from tensorflow_transform.tf_metadata import schema_utils
 __all__ = [
     'TFTProcessHandler',
 ]
+
+_ID_COLUMN = 'tmp_uuid'  # Name for a temporary column.
 
 RAW_DATA_METADATA_DIR = 'raw_data_metadata'
 SCHEMA_FILE = 'schema.pbtxt'
@@ -80,12 +82,12 @@ tft_process_handler_input_type = typing.Union[typing.NamedTuple,
 tft_process_handler_output_type = typing.Union[beam.Row, Dict[str, np.ndarray]]
 
 
-class ConvertScalarValuesToListValues(beam.DoFn):
+class _ConvertScalarValuesToListValues(beam.DoFn):
   def process(
       self,
       element,
   ):
-    hash_key, element = element
+    id, element = element
     new_dict = {}
     for key, value in element.items():
       if isinstance(value,
@@ -93,10 +95,10 @@ class ConvertScalarValuesToListValues(beam.DoFn):
         new_dict[key] = [value]
       else:
         new_dict[key] = value
-    yield (hash_key, new_dict)
+    yield (id, new_dict)
 
 
-class ConvertNamedTupleToDict(
+class _ConvertNamedTupleToDict(
     beam.PTransform[beam.PCollection[typing.Union[beam.Row, typing.NamedTuple]],
                     beam.PCollection[Dict[str,
                                           common_types.InstanceDictType]]]):
@@ -121,76 +123,75 @@ class ConvertNamedTupleToDict(
       return pcoll | beam.Map(lambda x: x._asdict())
 
 
-class ComputeAndAttachHashKey(beam.DoFn):
+class _ComputeAndAttachUniqueID(beam.DoFn):
   """
-  Computes and attaches a hash key to the element.
-  Only for internal use. No backwards compatibility guarantees.
+  Computes and attaches a unique id to each element in the PCollection.
   """
   def process(self, element):
-    hash_object = hashlib.sha256()
-    for _, value in element.items():
-      # handle the case where value is a list or numpy array
-      if isinstance(value, (list, np.ndarray)):
-        hash_object.update(str(list(value)).encode())
-      else:  # assume value is a primitive that can be turned into str
-        hash_object.update(str(value).encode())
-    yield (hash_object.hexdigest(), element)
+    # UUID1 includes machine-specific bits and has a counter. As long as not too
+    # many are generated at the same time, they should be unique.
+    # UUID4 generation should be unique in practice as long as underlying random
+    # number generation is not compromised.
+    # A combintation of both should avoid the anecdotal pitfalls where
+    # replacing one with the other has helped some users.
+    # UUID collision will result in data loss, but we can detect that and fail.
+
+    # TODO(https://github.com/apache/beam/issues/29593): Evaluate MLTransform
+    # implementation without CoGBK.
+    unique_key = uuid.uuid1().bytes + uuid.uuid4().bytes
+    yield (unique_key, element)
 
 
-class GetMissingColumnsPColl(beam.DoFn):
+class _GetMissingColumns(beam.DoFn):
   """
   Returns data containing only the columns that are not
   present in the schema. This is needed since TFT only outputs
   columns that are transformed by any of the data processing transforms.
-
-  Only for internal use. No backwards compatibility guarantees.
   """
   def __init__(self, existing_columns):
     self.existing_columns = existing_columns
 
   def process(self, element):
-    new_dict = {}
-    hash_key, element = element
-    for key, value in element.items():
-      if key not in self.existing_columns:
-        new_dict[key] = value
-    yield (hash_key, new_dict)
+    id, row_dict = element
+    new_dict = {
+        k: v
+        for k, v in row_dict.items() if k not in self.existing_columns
+    }
+    yield (id, new_dict)
 
 
-class MakeHashKeyAsColumn(beam.DoFn):
+class _MakeIdAsColumn(beam.DoFn):
   """
-  Extracts the hash key from the element and adds it as a column.
-
-  Only for internal use. No backwards compatibility guarantees.
+  Extracts the id from the element and adds it as a column instead.
   """
   def process(self, element):
-    hash_key, element = element
-    element['hash_key'] = hash_key
+    id, element = element
+    element[_ID_COLUMN] = id
     yield element
 
 
-class ExtractHashAndKeyPColl(beam.DoFn):
+class _ExtractIdAndKeyPColl(beam.DoFn):
   """
-  Extracts the hash key and return hashkey and element as a tuple.
-
-  Only for internal use. No backwards compatibility guarantees.
+  Extracts the id and return id and element as a tuple.
   """
   def process(self, element):
-    hashkey = element['hash_key'][0]
-    del element['hash_key']
-    yield (hashkey.decode('utf-8'), element)
+    id = element[_ID_COLUMN][0]
+    del element[_ID_COLUMN]
+    yield (id, element)
 
 
-class MergeDicts(beam.DoFn):
+class _MergeDicts(beam.DoFn):
   """
-  Merges the dictionaries in the PCollection.
-
-  Only for internal use. No backwards compatibility guarantees.
+  Merges processed and unprocessed columns from CoGBK result into a single row.
   """
   def process(self, element):
-    _, element = element
+    unused_row_id, row_dicts_tuple = element
     new_dict = {}
-    for d in element:
+    for d in row_dicts_tuple:
+      # After CoGBK, dicts with processed and unprocessed portions of each row
+      # are wrapped in 1-element lists, since all rows have a unique id.
+      # Assertion could fail due to UUID collision.
+      assert len(d) == 1, f"Expected 1 element, got: {len(d)}."
       new_dict.update(d[0])
     yield new_dict
 
@@ -323,7 +324,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
   def get_raw_data_metadata(
       self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
     raw_data_feature_spec = self.get_raw_data_feature_spec(input_types)
-    raw_data_feature_spec['hash_key'] = tf.io.VarLenFeature(dtype=tf.string)
+    raw_data_feature_spec[_ID_COLUMN] = tf.io.VarLenFeature(dtype=tf.string)
     return self.convert_raw_data_feature_spec_to_dataset_metadata(
         raw_data_feature_spec)
 
@@ -387,7 +388,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
         transformed_types[name] = typing.Sequence[bytes]  # type: ignore[assignment]
     return transformed_types
 
-  def process_data(
+  def expand(
       self, raw_data: beam.PCollection[tft_process_handler_input_type]
   ) -> beam.PCollection[tft_process_handler_output_type]:
     """
@@ -417,14 +418,14 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
         # convert Row or NamedTuple to Dict
         raw_data = (
             raw_data
-            | ConvertNamedTupleToDict().with_output_types(
+            | _ConvertNamedTupleToDict().with_output_types(
                 Dict[str, typing.Union[tuple(column_type_mapping.values())]]))  # type: ignore
         # AnalyzeAndTransformDataset raise type hint since this is
         # schema'd PCollection and the current output type would be a
         # custom type(NamedTuple) or a beam.Row type.
       else:
         column_type_mapping = self._map_column_names_to_types_from_transforms()
-        # Add hash key so TFT can output hash_key as output but as a no-op.
+        # Add id so TFT can output id as output but as a no-op.
       raw_data_metadata = self.get_raw_data_metadata(
           input_types=column_type_mapping)
       # Write untransformed metadata to a file so that it can be re-used
@@ -437,28 +438,29 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       if not os.path.exists(os.path.join(
           self.artifact_location, RAW_DATA_METADATA_DIR, SCHEMA_FILE)):
         raise FileNotFoundError(
-            "Artifacts not found at location: %s when artifact_mode=consume."
-            "Make sure you've run the pipeline in `produce` mode using "
-            "this artifact location before setting artifact_mode to `consume`."
-            % os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
+            "Artifacts not found at location: %s when using "
+            "read_artifact_location. Make sure you've run the pipeline with "
+            "write_artifact_location using this artifact location before "
+            "running with read_artifact_location set." %
+            os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
       raw_data_metadata = metadata_io.read_metadata(
           os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
 
-    keyed_raw_data = (raw_data | beam.ParDo(ComputeAndAttachHashKey()))
+    keyed_raw_data = (raw_data | beam.ParDo(_ComputeAndAttachUniqueID()))
 
     feature_set = [feature.name for feature in raw_data_metadata.schema.feature]
-    columns_not_in_schema_with_hash = (
+    keyed_columns_not_in_schema = (
         keyed_raw_data
-        | beam.ParDo(GetMissingColumnsPColl(feature_set)))
+        | beam.ParDo(_GetMissingColumns(feature_set)))
 
     # To maintain consistency by outputting numpy array all the time,
     # whether a scalar value or list or np array is passed as input,
     #  we will convert scalar values to list values and TFT will ouput
     # numpy array all the time.
     keyed_raw_data = keyed_raw_data | beam.ParDo(
-        ConvertScalarValuesToListValues())
+        _ConvertScalarValuesToListValues())
 
-    raw_data_list = (keyed_raw_data | beam.ParDo(MakeHashKeyAsColumn()))
+    raw_data_list = (keyed_raw_data | beam.ParDo(_MakeIdAsColumn()))
 
     with tft_beam.Context(temp_dir=self.artifact_location):
       data = (raw_data_list, raw_data_metadata)
@@ -466,7 +468,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
         transform_fn = (
             data
             | "AnalyzeDataset" >> tft_beam.AnalyzeDataset(self.process_data_fn))
-        # TODO: Remove the 'hash_key' column from the transformed
+        # TODO: Remove the 'id' column from the transformed
         # dataset schema generated by TFT.
         self.write_transform_artifacts(transform_fn, self.artifact_location)
       else:
@@ -489,7 +491,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       # So we will use a RowTypeConstraint to create a schema'd PCollection.
       # this is needed since new columns are included in the
       # transformed_dataset.
-      del self.transformed_schema['hash_key']
+      del self.transformed_schema[_ID_COLUMN]
       row_type = RowTypeConstraint.from_fields(
           list(self.transformed_schema.items()))
 
@@ -497,21 +499,21 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       # is not transformed by any of the transforms, then the output will
       # not have that column. So we will join the missing columns from the
       # raw_data to the transformed_dataset.
-      transformed_dataset = (
-          transformed_dataset | beam.ParDo(ExtractHashAndKeyPColl()))
+      keyed_transformed_dataset = (
+          transformed_dataset | beam.ParDo(_ExtractIdAndKeyPColl()))
 
       # The grouping is needed here since tensorflow transform only outputs
       # columns that are transformed by any of the transforms. So we will
       # join the missing columns from the raw_data to the transformed_dataset
-      # using the hash key.
+      # using the id.
       transformed_dataset = (
-          (transformed_dataset, columns_not_in_schema_with_hash)
+          (keyed_transformed_dataset, keyed_columns_not_in_schema)
           | beam.CoGroupByKey()
-          | beam.ParDo(MergeDicts()))
+          | beam.ParDo(_MergeDicts()))
 
       # The schema only contains the columns that are transformed.
       transformed_dataset = (
-          transformed_dataset | "ConvertToRowType" >>
+          transformed_dataset
+          | "ConvertToRowType" >>
           beam.Map(lambda x: beam.Row(**x)).with_output_types(row_type))
-
       return transformed_dataset

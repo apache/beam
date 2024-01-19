@@ -24,9 +24,12 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 /**
  * Reduce function reducing iterable of elements into multiple elements (of possibly different
  * type).
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
+@Deprecated
 public interface ReduceFunctor<InputT, OutputT> extends UnaryFunctor<Stream<InputT>, OutputT> {
 
   /**

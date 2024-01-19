@@ -64,11 +64,12 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -94,8 +95,15 @@ public class BigQueryUtils {
   // For parsing the format used to refer to tables parameters in BigQueryIO.
   // "{project_id}:{dataset_id}.{table_id}" or
   // "{project_id}.{dataset_id}.{table_id}"
+  // following documentation in
+  // https://cloud.google.com/resource-manager/docs/creating-managing-projects#before_you_begin,
+  // https://cloud.google.com/bigquery/docs/datasets#dataset-naming, and
+  // https://cloud.google.com/bigquery/docs/tables#table_naming
   private static final Pattern SIMPLE_TABLE_PATTERN =
-      Pattern.compile("^(?<PROJECT>[^\\.:]+)[\\.:](?<DATASET>[^\\.:]+)[\\.](?<TABLE>[^\\.:]+)$");
+      Pattern.compile(
+          "^(?<PROJECT>[a-z][a-z0-9.\\-:]{4,28}[a-z0-9])[\\:.]"
+              + "(?<DATASET>[a-zA-Z0-9_]{1,1024})[\\.]"
+              + "(?<TABLE>[\\p{L}\\p{M}\\p{N}\\p{Pc}\\p{Pd}\\p{Zs}$]{1,1024})$");
 
   /** Options for how to convert BigQuery data to Beam data. */
   @AutoValue
@@ -626,21 +634,8 @@ public class BigQueryUtils {
     // 2. TableSchema objects are not serializable and are therefore harder to propagate through a
     // pipeline.
     return rowSchema.getFields().stream()
-        .map(field -> toBeamRowFieldValue(field, jsonBqRow.get(field.getName())))
+        .map(field -> toBeamValue(field, jsonBqRow.get(field.getName())))
         .collect(toRow(rowSchema));
-  }
-
-  private static Object toBeamRowFieldValue(Field field, Object bqValue) {
-    if (bqValue == null) {
-      if (field.getType().getNullable()) {
-        return null;
-      } else {
-        throw new IllegalArgumentException(
-            "Received null value for non-nullable field \"" + field.getName() + "\"");
-      }
-    }
-
-    return toBeamValue(field.getType(), bqValue);
   }
 
   /**
@@ -664,11 +659,22 @@ public class BigQueryUtils {
 
     return IntStream.range(0, rowSchema.getFieldCount())
         .boxed()
-        .map(index -> toBeamValue(rowSchema.getField(index).getType(), rawJsonValues.get(index)))
+        .map(index -> toBeamValue(rowSchema.getField(index), rawJsonValues.get(index)))
         .collect(toRow(rowSchema));
   }
 
-  private static @Nullable Object toBeamValue(FieldType fieldType, Object jsonBQValue) {
+  private static @Nullable Object toBeamValue(Field field, Object jsonBQValue) {
+    FieldType fieldType = field.getType();
+
+    if (jsonBQValue == null) {
+      if (fieldType.getNullable()) {
+        return null;
+      } else {
+        throw new IllegalArgumentException(
+            "Received null value for non-nullable field \"" + field.getName() + "\"");
+      }
+    }
+
     if (jsonBQValue instanceof String
         || jsonBQValue instanceof Number
         || jsonBQValue instanceof Boolean) {
@@ -691,6 +697,10 @@ public class BigQueryUtils {
       }
     }
 
+    if (jsonBQValue instanceof byte[] && fieldType.getTypeName() == TypeName.BYTES) {
+      return jsonBQValue;
+    }
+
     if (jsonBQValue instanceof List) {
       if (fieldType.getCollectionElementType() == null) {
         throw new IllegalArgumentException(
@@ -710,7 +720,7 @@ public class BigQueryUtils {
                       (!innerTypeIsMap && v instanceof Map)
                           ? ((Map<String, Object>) v).get("v")
                           : v)
-              .map(v -> toBeamValue(fieldType.getCollectionElementType(), v))
+              .map(v -> toBeamValue(field.withType(fieldType.getCollectionElementType()), v))
               .collect(toList());
     }
 
@@ -996,6 +1006,25 @@ public class BigQueryUtils {
           .setTableId(m.group("TABLE"));
     }
     return null;
+  }
+
+  /**
+   * @param tableReference - a BigQueryTableIdentifier that may or may not include the project.
+   * @return a String representation of the table destination in the form:
+   *     `myproject.mydataset.mytable`
+   */
+  public static @Nullable String toTableSpec(TableReference tableReference) {
+    if (tableReference.getDatasetId() == null || tableReference.getTableId() == null) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Table reference [%s] must include at least a dataset and a table.", tableReference));
+    }
+    String tableSpec =
+        String.format("%s.%s", tableReference.getDatasetId(), tableReference.getTableId());
+    if (!Strings.isNullOrEmpty(tableReference.getProjectId())) {
+      tableSpec = String.format("%s.%s", tableReference.getProjectId(), tableSpec);
+    }
+    return tableSpec;
   }
 
   private static @Nullable ServiceCallMetric callMetricForMethod(

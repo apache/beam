@@ -77,6 +77,13 @@ def parse_known_args(argv):
       dest='model_path',
       required=True,
       help='Path to load the Sklearn model for Inference.')
+  parser.add_argument(
+      '--large_model',
+      action='store_true',
+      dest='large_model',
+      default=False,
+      help='Set to true if your model is large enough to run into memory '
+      'pressure if you load multiple copies.')
   return parser.parse_known_args(argv)
 
 
@@ -103,7 +110,8 @@ def run(
   model_loader = KeyedModelHandler(
       SklearnModelHandlerNumpy(
           model_file_type=ModelFileType.PICKLE,
-          model_uri=known_args.model_path))
+          model_uri=known_args.model_path,
+          large_model=known_args.large_model))
 
   pipeline = test_pipeline
   if not test_pipeline:

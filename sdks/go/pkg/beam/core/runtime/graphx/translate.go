@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/contextreg"
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
@@ -47,6 +48,7 @@ const (
 	URNCombinePerKey = "beam:transform:combine_per_key:v1"
 	URNWindow        = "beam:transform:window_into:v1"
 	URNMapWindows    = "beam:transform:map_windows:v1"
+	URNToString      = "beam:transform:to_string:v1"
 
 	URNIterableSideInput = "beam:side_input:iterable:v1"
 	URNMultimapSideInput = "beam:side_input:multimap:v1"
@@ -71,6 +73,7 @@ const (
 	URNMultiCore             = "beam:protocol:multi_core_bundle_processing:v1"
 	URNWorkerStatus          = "beam:protocol:worker_status:v1"
 	URNMonitoringInfoShortID = "beam:protocol:monitoring_info_short_ids:v1"
+	URNDataSampling          = "beam:protocol:data_sampling:v1"
 
 	URNRequiresSplittableDoFn     = "beam:requirement:pardo:splittable_dofn:v1"
 	URNRequiresBundleFinalization = "beam:requirement:pardo:finalization:v1"
@@ -106,6 +109,8 @@ func goCapabilities() []string {
 		URNWorkerStatus,
 		URNMonitoringInfoShortID,
 		URNBaseVersionGo,
+		URNToString,
+		URNDataSampling,
 	}
 	return append(capabilities, knownStandardCoders()...)
 }
@@ -152,6 +157,18 @@ type Options struct {
 
 	// PipelineResourceHints for setting defaults across the whole pipeline.
 	PipelineResourceHints resource.Hints
+
+	// ContextReg is an override for the context extractor registry for testing.
+	ContextReg *contextreg.Registry
+}
+
+// GetContextReg returns the default context registry if the option is
+// unset, and the field version otherwise.
+func (opts *Options) GetContextReg() *contextreg.Registry {
+	if opts.ContextReg == nil {
+		return contextreg.Default()
+	}
+	return opts.ContextReg
 }
 
 // Marshal converts a graph to a model pipeline.
@@ -271,10 +288,14 @@ func (m *marshaller) addScopeTree(s *ScopeTree) (string, error) {
 		subtransforms = append(subtransforms, id)
 	}
 
+	metadata := m.opt.GetContextReg().ExtractTransformMetadata(s.Scope.Scope.Context)
+
 	transform := &pipepb.PTransform{
 		UniqueName:    s.Scope.Name,
 		Subtransforms: subtransforms,
 		EnvironmentId: m.addDefaultEnv(),
+		Annotations:   metadata.Annotations,
+		// DisplayData: metadata.DisplayData,
 	}
 
 	if err := m.updateIfCombineComposite(s, transform); err != nil {

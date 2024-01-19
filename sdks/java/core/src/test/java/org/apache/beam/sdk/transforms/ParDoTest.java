@@ -27,7 +27,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.include
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
@@ -154,13 +154,13 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.DateTimeUtils;
@@ -514,7 +514,7 @@ public class ParDoTest implements Serializable {
       DoFn<String, String> fn =
           new DoFn<String, String>() {
             @ProcessElement
-            public void proccessElement(ProcessContext c) {}
+            public void processElement(ProcessContext c) {}
 
             @Override
             public void populateDisplayData(DisplayData.Builder builder) {
@@ -542,7 +542,7 @@ public class ParDoTest implements Serializable {
             final StateSpec<MapState<String, SerializableClass>> mapState = StateSpecs.map();
 
             @ProcessElement
-            public void proccessElement(ProcessContext c) {}
+            public void processElement(ProcessContext c) {}
           };
 
       SingleOutput<KV<String, String>, String> parDo = ParDo.of(fn);
@@ -1569,7 +1569,7 @@ public class ParDoTest implements Serializable {
       DoFn<String, String> fn =
           new DoFn<String, String>() {
             @ProcessElement
-            public void proccessElement(ProcessContext c) {}
+            public void processElement(ProcessContext c) {}
 
             @Override
             public void populateDisplayData(DisplayData.Builder builder) {
@@ -5734,7 +5734,7 @@ public class ParDoTest implements Serializable {
     @Test
     @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
     public void testRelativeTimerWithOutputTimestamp() {
-      DoFn<KV<Void, String>, String> buffferFn =
+      DoFn<KV<Void, String>, String> bufferFn =
           new DoFn<KV<Void, String>, String>() {
 
             @TimerId("timer")
@@ -5798,7 +5798,7 @@ public class ParDoTest implements Serializable {
                   .addElements(TimestampedValue.of(KV.of(null, "foo"), new Instant(1)))
                   .addElements(TimestampedValue.of(KV.of(null, "bar"), new Instant(2)))
                   .advanceWatermarkToInfinity());
-      PCollection<String> result = input.apply(ParDo.of(buffferFn));
+      PCollection<String> result = input.apply(ParDo.of(bufferFn));
       PAssert.that(result).containsInAnyOrder("foo", "bar");
       pipeline.run();
     }

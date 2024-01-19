@@ -321,7 +321,7 @@ class InteractiveRunnerTest(unittest.TestCase):
         Record('c', 18, 150)
     ]
 
-    aggregate = lambda df: df.groupby('height').mean()
+    aggregate = lambda df: df.groupby('height').mean(numeric_only=True)
 
     deferred_df = aggregate(to_dataframe(p | beam.Create(data)))
     df_expected = aggregate(pd.DataFrame(data))

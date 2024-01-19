@@ -37,7 +37,7 @@ dependencies {
   permitUnusedDeclared project(path: ":sdks:java:expansion-service") // BEAM-11761
   implementation project(path: ":sdks:java:extensions:sql")
   implementation project(path: ":sdks:java:extensions:sql:zetasql")
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
 
 }
 

@@ -40,7 +40,7 @@ export interface WindowFn<W extends Window> {
 export function createWindowingStrategyProto(
   pipeline: Pipeline,
   windowFn: WindowFn<any>,
-  windowingStrategyBase: runnerApi.WindowingStrategy | undefined = undefined
+  windowingStrategyBase: runnerApi.WindowingStrategy | undefined = undefined,
 ): runnerApi.WindowingStrategy {
   let result: runnerApi.WindowingStrategy;
   if (windowingStrategyBase === null || windowingStrategyBase === undefined) {
@@ -78,14 +78,14 @@ export function createWindowingStrategyProto(
  */
 export function windowInto<T, W extends Window>(
   windowFn: WindowFn<W>,
-  windowingStrategyBase: runnerApi.WindowingStrategy | undefined = undefined
+  windowingStrategyBase: runnerApi.WindowingStrategy | undefined = undefined,
 ): PTransform<PCollection<T>, PCollection<T>> {
   return withName(
     `WindowInto(${extractName(windowFn)}, ${windowingStrategyBase})`,
     (
       input: PCollection<T>,
       pipeline: Pipeline,
-      transformProto: runnerApi.PTransform
+      transformProto: runnerApi.PTransform,
     ) => {
       transformProto.spec = runnerApi.FunctionSpec.create({
         urn: parDo.urn,
@@ -95,29 +95,29 @@ export function windowInto<T, W extends Window>(
               urn: urns.JS_WINDOW_INTO_DOFN_URN,
               payload: serializeFn({ windowFn: windowFn }),
             }),
-          })
+          }),
         ),
       });
 
       const inputCoder = pipeline.context.getPCollectionCoderId(input);
       return pipeline.createPCollectionInternal<T>(
         inputCoder,
-        createWindowingStrategyProto(pipeline, windowFn, windowingStrategyBase)
+        createWindowingStrategyProto(pipeline, windowFn, windowingStrategyBase),
       );
-    }
+    },
   );
 }
 
 // TODO: (Cleanup) Add restrictions on moving backwards?
 export function assignTimestamps<T>(
-  timestampFn: (T, Instant) => typeof Instant
+  timestampFn: (T, Instant) => typeof Instant,
 ): PTransform<PCollection<T>, PCollection<T>> {
   return withName(
     `assignTimestamp(${extractName(timestampFn)})`,
     (
       input: PCollection<T>,
       pipeline: Pipeline,
-      transformProto: runnerApi.PTransform
+      transformProto: runnerApi.PTransform,
     ) => {
       transformProto.spec = runnerApi.FunctionSpec.create({
         urn: parDo.urn,
@@ -127,13 +127,13 @@ export function assignTimestamps<T>(
               urn: urns.JS_ASSIGN_TIMESTAMPS_DOFN_URN,
               payload: serializeFn({ func: timestampFn }),
             }),
-          })
+          }),
         ),
       });
 
       return pipeline.createPCollectionInternal<T>(
-        pipeline.context.getPCollectionCoderId(input)
+        pipeline.context.getPCollectionCoderId(input),
       );
-    }
+    },
   );
 }

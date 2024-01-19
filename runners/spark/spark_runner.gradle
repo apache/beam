@@ -63,8 +63,9 @@ def sparkTestProperties(overrides = [:]) {
 
 
 def sparkTestJvmArgs() {
-  // run tests with Java 17 using -PcompileAndRunTestsWithJava17 -Pjava17Home=???
-  if (project.hasProperty("compileAndRunTestsWithJava17")) {
+  // run tests with Java 17 using -PtestJavaVersion=17 -Pjava17Home=???
+  if (project.hasProperty('testJavaVersion') &&
+          project.getProperty('testJavaVersion') in ['17', '21']) {
     return [
       "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
       // add-opens below required for Kryo FieldSerializer / SparkRunnerKryoRegistratorTest
@@ -171,7 +172,7 @@ dependencies {
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(":sdks:java:fn-execution")
   implementation library.java.vendored_grpc_1_54_0
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   spark.components.each { component ->
     provided "$component:$spark_version"
   }
@@ -364,7 +365,7 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
   // Register various other classes used in tests
   systemProperty 'spark.kryo.classesToRegister',
     'org.apache.beam.sdk.transforms.ViewTest$NonDeterministicStringCoder,' +
-    'org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.RegularImmutableList'
+    'org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.RegularImmutableList'
   jvmArgs += sparkTestJvmArgs()
   jvmArgs '-Xmx7g' // Increase memory heap in order to avoid OOM errors
 

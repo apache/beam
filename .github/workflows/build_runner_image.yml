@@ -22,7 +22,7 @@ on:
   push:
     branches: ['master']
     paths: ['.github/gh-actions-self-hosted-runners/arc/images/**','.github/workflows/build_runner_image.yml']
-  pull_request_target:
+  pull_request:
     branches: ['master']
     paths: ['.github/gh-actions-self-hosted-runners/arc/images/**']
 env:
@@ -30,13 +30,14 @@ env:
   docker_repo: apache-beam-testing/beam-github-actions/beam-arc-runner
 jobs:
   build-and-version-runner:
+    if: github.repository == 'apache/beam'
     env:
         working-directory: .github/gh-actions-self-hosted-runners/arc/images/
     runs-on: [self-hosted, ubuntu-20.04]
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         ref: ${{ github.event.pull_request.head.sha }}
     - name: Authenticate on GCP

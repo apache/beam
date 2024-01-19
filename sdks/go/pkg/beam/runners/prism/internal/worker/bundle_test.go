@@ -17,12 +17,13 @@ package worker
 
 import (
 	"bytes"
+	"context"
 	"sync"
 	"testing"
 )
 
 func TestBundle_ProcessOn(t *testing.T) {
-	wk := New("test")
+	wk := New("test", "testEnv")
 	b := &B{
 		InstID:      "testInst",
 		PBDID:       "testPBDID",
@@ -33,7 +34,7 @@ func TestBundle_ProcessOn(t *testing.T) {
 	var completed sync.WaitGroup
 	completed.Add(1)
 	go func() {
-		b.ProcessOn(wk)
+		b.ProcessOn(context.Background(), wk)
 		completed.Done()
 	}()
 	b.DataDone()

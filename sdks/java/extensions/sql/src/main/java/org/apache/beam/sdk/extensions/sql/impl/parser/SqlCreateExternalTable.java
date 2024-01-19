@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
-import static com.alibaba.fastjson.JSON.parseObject;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Static.RESOURCE;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import com.alibaba.fastjson.JSONObject;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -159,8 +158,8 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
         .location(SqlDdlNodes.getString(location))
         .properties(
             (tblProperties == null)
-                ? new JSONObject()
-                : parseObject(SqlDdlNodes.getString(tblProperties)))
+                ? TableUtils.emptyProperties()
+                : TableUtils.parseProperties(SqlDdlNodes.getString(tblProperties)))
         .build();
   }
 }

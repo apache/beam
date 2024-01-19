@@ -22,3 +22,7 @@ RewriteRule ^(.*)$ https://beam.apache.org/$1 [L,R=301]
 RedirectMatch permanent "/documentation/sdks/(javadoc|pydoc)(.*)" "https://beam.apache.org/releases/$1$2"
 
 RedirectMatch "/contribute/design-documents" "https://cwiki.apache.org/confluence/display/BEAM/Design+Documents"
+
+RedirectMatch "/contribute/release-guide" "https://github.com/apache/beam/blob/master/contributor-docs/release-guide.md"
+
+RedirectMatch "/contribute/committer-guide" "https://github.com/apache/beam/blob/master/contributor-docs/committer-guide.md"

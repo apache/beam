@@ -68,6 +68,7 @@ var directFilters = []string{
 	"TestXLang.*",
 	"TestKafkaIO.*",
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
 	"TestSpannerIO.*",
 	"TestDebeziumIO_BasicRead",
 	"TestJDBCIO_BasicReadWrite",
@@ -102,6 +103,7 @@ var directFilters = []string{
 	"TestMapStateClear",
 	"TestSetState",
 	"TestSetStateClear",
+	"TestTimers.*", // no timer support for the go direct runner.
 }
 
 var portableFilters = []string{
@@ -114,6 +116,7 @@ var portableFilters = []string{
 	"TestKafkaIO.*",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
 	"TestSpannerIO.*",
 	// The portable runner does not support self-checkpointing
 	"TestCheckpointing",
@@ -123,17 +126,39 @@ var portableFilters = []string{
 	"TestFhirIO.*",
 	// OOMs currently only lead to heap dumps on Dataflow runner
 	"TestOomParDo",
-	// The portable runner does not support user state.
-	"TestValueState",
-	"TestValueStateWindowed",
-	"TestValueStateClear",
-	"TestBagState",
-	"TestBagStateClear",
-	"TestCombiningState",
+	// The portable runner does not support user map states.
 	"TestMapState",
 	"TestMapStateClear",
 	"TestSetState",
 	"TestSetStateClear",
+
+	// The portable runner does not uniquify timers. (data elements re-fired)
+	"TestTimers.*",
+}
+
+var prismFilters = []string{
+	// The prism runner does not yet support Java's CoGBK.
+	"TestXLang_CoGroupBy",
+	// The prism runner does not support the TestStream primitive
+	"TestTestStream.*",
+	// The trigger and pane tests uses TestStream
+	"TestTrigger.*",
+	"TestPanes",
+
+	// TODO(https://github.com/apache/beam/issues/21058): Xlang ios don't yet work on prism.
+	"TestKafkaIO.*",
+	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
+	"TestBigQueryIO.*",
+	"TestSpannerIO.*",
+	// The prism runner does not support pipeline drain for SDF.
+	"TestDrain",
+	// FhirIO currently only supports Dataflow runner
+	"TestFhirIO.*",
+	// OOMs currently only lead to heap dumps on Dataflow runner
+	"TestOomParDo",
+
+	// The prism runner does not support timers https://github.com/apache/beam/issues/29772.
+	"TestTimers.*",
 }
 
 var flinkFilters = []string{
@@ -142,6 +167,7 @@ var flinkFilters = []string{
 	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
 	"TestSpannerIO.*",
 	// The number of produced outputs in AfterSynchronizedProcessingTime varies in different runs.
 	"TestTriggerAfterSynchronizedProcessingTime",
@@ -156,6 +182,8 @@ var flinkFilters = []string{
 	"TestMapStateClear",
 	"TestSetStateClear",
 	"TestSetState",
+
+	"TestTimers_EventTime_Unbounded", // (failure when comparing on side inputs (NPE on window lookup))
 }
 
 var samzaFilters = []string{
@@ -171,6 +199,7 @@ var samzaFilters = []string{
 	"TestWordCount.*",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
 	"TestSpannerIO.*",
 	// The Samza runner does not support self-checkpointing
 	"TestCheckpointing",
@@ -193,6 +222,9 @@ var samzaFilters = []string{
 	"TestSetStateClear",
 	// TODO(https://github.com/apache/beam/issues/26126): Java runner issue (AcitveBundle has no regsitered handler)
 	"TestDebeziumIO_BasicRead",
+
+	// Samza does not support state.
+	"TestTimers.*",
 }
 
 var sparkFilters = []string{
@@ -209,6 +241,7 @@ var sparkFilters = []string{
 	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
 	"TestBigQueryIO.*",
+	"TestBigtableIO.*",
 	"TestSpannerIO.*",
 	// The spark runner does not support self-checkpointing
 	"TestCheckpointing",
@@ -223,6 +256,8 @@ var sparkFilters = []string{
 	"TestMapStateClear",
 	"TestSetStateClear",
 	"TestSetState",
+
+	"TestTimers_EventTime_Unbounded", // Side inputs in executable stage not supported.
 }
 
 var dataflowFilters = []string{
@@ -249,7 +284,7 @@ var dataflowFilters = []string{
 	"TestCheckpointing",
 	// TODO(21761): This test needs to provide GCP project to expansion service.
 	"TestBigQueryIO_BasicWriteQueryRead",
-	// Can't handle the test spanner container or access a local spanner. 
+	// Can't handle the test spanner container or access a local spanner.
 	"TestSpannerIO.*",
 	// Dataflow does not drain jobs by itself.
 	"TestDrain",
@@ -282,7 +317,6 @@ func CheckFilters(t *testing.T) {
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)
 	*jobopts.JobName = fmt.Sprintf("go-%v-%v", strings.ToLower(n), r1.Intn(1000))
-
 	// Test for runner-specific skipping second.
 	var filters []string
 	runner := *ptest.Runner
@@ -292,6 +326,8 @@ func CheckFilters(t *testing.T) {
 	switch runner {
 	case "direct", "DirectRunner":
 		filters = directFilters
+	case "prism", "PrismRunner":
+		filters = prismFilters
 	case "portable", "PortableRunner":
 		filters = portableFilters
 	case "flink", "FlinkRunner":

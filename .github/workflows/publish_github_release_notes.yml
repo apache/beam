@@ -36,7 +36,7 @@ jobs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3        
+        uses: actions/checkout@v4        
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
@@ -49,7 +49,7 @@ jobs:
     name: Publish Github Release Notes
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Publish github release notes
         run: |
           POST_PATH="website/www/site/content/en/blog/beam-${{env.RELEASE_VERSION}}.md"

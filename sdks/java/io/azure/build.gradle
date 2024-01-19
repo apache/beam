@@ -38,7 +38,7 @@ dependencies {
   implementation library.java.jackson_core
   implementation library.java.jackson_databind
   implementation library.java.slf4j_api
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation "com.azure:azure-core", excludeNetty
   implementation "com.azure:azure-identity", excludeNetty
   implementation "com.azure:azure-storage-blob", excludeNetty

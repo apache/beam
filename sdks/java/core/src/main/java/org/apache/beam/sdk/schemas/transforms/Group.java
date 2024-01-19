@@ -44,7 +44,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -998,6 +998,8 @@ public class Group {
 
     abstract @Nullable Fanout getFanout();
 
+    abstract Boolean getFewKeys();
+
     abstract ByFields<InputT> getByFields();
 
     abstract SchemaAggregateFn.Inner getSchemaAggregateFn();
@@ -1011,6 +1013,8 @@ public class Group {
     @AutoValue.Builder
     abstract static class Builder<InputT> {
       public abstract Builder<InputT> setFanout(@Nullable Fanout value);
+
+      public abstract Builder<InputT> setFewKeys(Boolean fewKeys);
 
       abstract Builder<InputT> setByFields(ByFields<InputT> byFields);
 
@@ -1033,6 +1037,9 @@ public class Group {
           .setSchemaAggregateFn(schemaAggregateFn)
           .setKeyField(keyField)
           .setValueField(valueField)
+          .setFewKeys(
+              true) // We are often selecting only certain fields, so combiner lifting usually
+          // helps.
           .build();
     }
 
@@ -1044,6 +1051,17 @@ public class Group {
     /** Set the name of the value field in the resulting schema. */
     public CombineFieldsByFields<InputT> witValueField(String valueField) {
       return toBuilder().setValueField(valueField).build();
+    }
+
+    /**
+     * Enable precombining.
+     *
+     * <p>This is on by default. In certain cases (e.g. if there are many unique field values and
+     * the combiner's intermediate state is larger than the average row size) precombining makes
+     * things worse, in which case it can be turned off.
+     */
+    public CombineFieldsByFields<InputT> withPrecombining(boolean value) {
+      return toBuilder().setFewKeys(value).build();
     }
 
     public CombineFieldsByFields<InputT> withHotKeyFanout(int n) {
@@ -1267,7 +1285,7 @@ public class Group {
             throw new RuntimeException("Unexpected kind: " + fanout.getKind());
         }
       }
-      return Combine.perKey(fn);
+      return getFewKeys() ? Combine.fewKeys(fn) : Combine.perKey(fn);
     }
 
     @Override

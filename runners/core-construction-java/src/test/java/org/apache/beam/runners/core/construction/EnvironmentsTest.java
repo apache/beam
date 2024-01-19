@@ -19,16 +19,23 @@ package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.Environments.JAVA_SDK_HARNESS_CONTAINER_URL;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ArtifactInformation;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
@@ -41,6 +48,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -49,7 +57,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -60,6 +68,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class EnvironmentsTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient ExpectedLogs expectedLogs = ExpectedLogs.none(Environments.class);
 
   @Test
   public void createEnvironmentDockerFromEnvironmentConfig() throws IOException {
@@ -285,6 +294,8 @@ public class EnvironmentsTest implements Serializable {
     assertEquals("java11", JavaVersion.java11.legacyName());
     assertEquals(JavaVersion.java17, JavaVersion.forSpecification("17"));
     assertEquals("java17", JavaVersion.java17.legacyName());
+    assertEquals(JavaVersion.java21, JavaVersion.forSpecification("21"));
+    assertEquals("java21", JavaVersion.java21.legacyName());
   }
 
   @Test
@@ -297,11 +308,90 @@ public class EnvironmentsTest implements Serializable {
     assertEquals(JavaVersion.java17, JavaVersion.forSpecification("15"));
     assertEquals(JavaVersion.java17, JavaVersion.forSpecification("16"));
     assertEquals(JavaVersion.java17, JavaVersion.forSpecification("18"));
-    assertEquals(JavaVersion.java17, JavaVersion.forSpecification("19"));
+    assertEquals(JavaVersion.java21, JavaVersion.forSpecification("19"));
+    assertEquals(JavaVersion.java21, JavaVersion.forSpecification("20"));
+    assertEquals(JavaVersion.java21, JavaVersion.forSpecification("21"));
   }
 
   @Test(expected = UnsupportedOperationException.class)
   public void testJavaVersionStrictInvalid() {
     assertEquals(JavaVersion.java8, JavaVersion.forSpecificationStrict("invalid"));
+  }
+
+  @Test
+  public void testGetArtifactsExistingNoLogs() throws Exception {
+    File file1 = File.createTempFile("file1-", ".txt");
+    file1.deleteOnExit();
+    File file2 = File.createTempFile("file2-", ".txt");
+    file2.deleteOnExit();
+
+    List<ArtifactInformation> artifacts =
+        Environments.getArtifacts(ImmutableList.of(file1.getAbsolutePath(), "file2=" + file2));
+
+    assertThat(artifacts, hasSize(2));
+    expectedLogs.verifyNotLogged("was not found");
+  }
+
+  @Test
+  public void testGetArtifactsBadFileLogsInfo() throws Exception {
+    File file1 = File.createTempFile("file1-", ".txt");
+    file1.deleteOnExit();
+
+    List<ArtifactInformation> artifacts =
+        Environments.getArtifacts(ImmutableList.of(file1.getAbsolutePath(), "spurious_file"));
+
+    assertThat(artifacts, hasSize(1));
+    expectedLogs.verifyInfo("'spurious_file' was not found");
+  }
+
+  @Test
+  public void testGetArtifactsBadNamedFileLogsWarn() throws Exception {
+    File file1 = File.createTempFile("file1-", ".txt");
+    file1.deleteOnExit();
+
+    List<ArtifactInformation> artifacts =
+        Environments.getArtifacts(
+            ImmutableList.of(file1.getAbsolutePath(), "file_name=spurious_file"));
+
+    assertThat(artifacts, hasSize(1));
+    expectedLogs.verifyWarn("name 'file_name' was not found");
+  }
+
+  @Test
+  public void testExpandAnyOfEnvironmentsOnOrdinaryEnvironment() {
+    Environment env = Environments.createDockerEnvironment("java");
+    assertThat(Environments.expandAnyOfEnvironments(env), contains(env));
+  }
+
+  @Test
+  public void testExpandAnyOfEnvironmentsOnNestedEnvironment() {
+    Environment envA = Environments.createDockerEnvironment("A");
+    Environment envB = Environments.createDockerEnvironment("B");
+    Environment envC = Environments.createDockerEnvironment("C");
+    Environment env =
+        Environments.createAnyOfEnvironment(envA, Environments.createAnyOfEnvironment(envB, envC));
+    assertThat(Environments.expandAnyOfEnvironments(env), contains(envA, envB, envC));
+  }
+
+  @Test
+  public void testResolveAnyOfEnvironment() {
+    Environment dockerEnv = Environments.createDockerEnvironment("A");
+    Environment processEnv =
+        Environments.createProcessEnvironment("os", "arch", "cmd", new HashMap<>());
+    Environment env =
+        Environments.createAnyOfEnvironment(
+            dockerEnv, Environments.createAnyOfEnvironment(processEnv));
+    assertThat(
+        Environments.resolveAnyOfEnvironment(
+            env, BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER)),
+        equalTo(dockerEnv));
+    assertThat(
+        Environments.resolveAnyOfEnvironment(
+            env, BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS)),
+        equalTo(processEnv));
+    assertThat(
+        Environments.resolveAnyOfEnvironment(
+            env, BeamUrns.getUrn(StandardEnvironments.Environments.EXTERNAL)),
+        notNullValue());
   }
 }

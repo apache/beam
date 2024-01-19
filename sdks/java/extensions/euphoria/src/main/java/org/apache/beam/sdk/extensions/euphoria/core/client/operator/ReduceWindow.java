@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static java.util.Objects.requireNonNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -74,6 +74,8 @@ import org.joda.time.Duration;
  *   <li>{@code [accumulationMode] .......} windowing accumulation mode, follows [triggeredBy]
  *   <li>{@code output ...................} build output dataset
  * </ol>
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.CONSTANT_IF_COMBINABLE, repartitions = 1)
@@ -81,6 +83,7 @@ import org.joda.time.Duration;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class ReduceWindow<InputT, ValueT, AccT, OutputT>
     extends ShuffleOperator<InputT, Byte, OutputT>
     implements TypeAware.Value<ValueT>, CompositeOperator<InputT, OutputT> {
@@ -243,7 +246,7 @@ public class ReduceWindow<InputT, ValueT, AccT, OutputT>
         CombinableBinaryFunction<AccT> mergeAccumulators,
         UnaryFunction<AccT, OutputT> outputFn,
         @Nullable TypeDescriptor<AccT> accumulatorDescriptor,
-        @Nullable TypeDescriptor<OutputT> outptuDescriptor);
+        @Nullable TypeDescriptor<OutputT> outputDescriptor);
   }
 
   /** Builder for 'valueBy' / 'reduceBy' step. */

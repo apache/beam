@@ -28,6 +28,7 @@ import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.Hidden;
+import org.apache.beam.sdk.options.MemoryMonitorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
 
@@ -39,7 +40,8 @@ import org.apache.beam.sdk.util.InstanceBuilder;
     "[Internal] Options used to control execution of the Dataflow SDK for "
         + "debugging and testing purposes.")
 @Hidden
-public interface DataflowPipelineDebugOptions extends ExperimentalOptions, PipelineOptions {
+public interface DataflowPipelineDebugOptions
+    extends ExperimentalOptions, MemoryMonitorOptions, PipelineOptions {
 
   /**
    * The root URL for the Dataflow API. {@code dataflowEndpoint} can override this value if it
@@ -235,22 +237,6 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   void setJfrRecordingDurationSec(int value);
 
   /**
-   * The GC thrashing threshold percentage. A given period of time is considered "thrashing" if this
-   * percentage of CPU time is spent in garbage collection. Dataflow will force fail tasks after
-   * sustained periods of thrashing.
-   *
-   * <p>If {@literal 100} is given as the value, MemoryMonitor will be disabled.
-   */
-  @Description(
-      "The GC thrashing threshold percentage. A given period of time is considered \"thrashing\" if this "
-          + "percentage of CPU time is spent in garbage collection. Dataflow will force fail tasks after "
-          + "sustained periods of thrashing.")
-  @Default.Double(50.0)
-  Double getGCThrashingPercentagePerPeriod();
-
-  void setGCThrashingPercentagePerPeriod(Double value);
-
-  /**
    * The size of the worker's in-memory cache, in megabytes.
    *
    * <p>Currently, this cache is used for storing read values of side inputs. as well as the state
@@ -293,6 +279,16 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   Integer getUnboundedReaderMaxWaitForElementsMs();
 
   void setUnboundedReaderMaxWaitForElementsMs(Integer value);
+
+  /**
+   * The desired number of initial splits for UnboundedSources. If this value is <=0, the splits
+   * will be computed based on the number of user workers.
+   */
+  @Description("The desired number of initial splits for UnboundedSources.")
+  @Default.Integer(0)
+  int getDesiredNumUnboundedSourceSplits();
+
+  void setDesiredNumUnboundedSourceSplits(int value);
 
   /**
    * CAUTION: This option implies dumpHeapOnOOM, and has similar caveats. Specifically, heap dumps

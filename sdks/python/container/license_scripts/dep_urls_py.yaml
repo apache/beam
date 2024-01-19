@@ -129,6 +129,8 @@ pip_dependencies:
     notice: "https://raw.githubusercontent.com/apache/arrow/master/NOTICE.txt"
   pyhamcrest:
     license: "https://raw.githubusercontent.com/hamcrest/PyHamcrest/master/LICENSE.txt"
+  pyjsparser:
+    license: "https://github.com/PiotrDabkowski/pyjsparser/blob/master/LICENSE"
   pymongo:
     license: "https://raw.githubusercontent.com/mongodb/mongo-python-driver/master/LICENSE"
   python-gflags:

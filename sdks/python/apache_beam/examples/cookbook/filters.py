@@ -79,7 +79,7 @@ def run(argv=None):
   parser.add_argument(
       '--input',
       help='BigQuery table to read from.',
-      default='clouddataflow-readonly:samples.weather_stations')
+      default='apache-beam-testing.samples.weather_stations')
   parser.add_argument(
       '--output', required=True, help='BigQuery table to write to.')
   parser.add_argument(

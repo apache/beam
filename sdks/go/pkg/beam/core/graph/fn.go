@@ -233,7 +233,7 @@ func init() {
 	}
 }
 
-// lifecycleMethodName returns if the passed in string is one of the lifecycle
+// IsLifecycleMethod return true if the passed in string is one of the lifecycle
 // method names used by the Go SDK as DoFn or CombineFn lifecycle methods. These
 // are the only methods that need shims generated for them.
 func IsLifecycleMethod(n string) bool {

@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -34,7 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Common utility functions and default configurations for {@link KafkaIO.Read} and {@link
  * KafkaIO.ReadSourceDescriptors}.
  */
-final class KafkaIOUtils {
+public final class KafkaIOUtils {
   // A set of config defaults.
   static final Map<String, Object> DEFAULT_CONSUMER_PROPERTIES =
       ImmutableMap.of(
@@ -61,7 +61,7 @@ final class KafkaIOUtils {
           false);
 
   // A set of properties that are not required or don't make sense for our consumer.
-  static final Map<String, String> DISALLOWED_CONSUMER_PROPERTIES =
+  public static final Map<String, String> DISALLOWED_CONSUMER_PROPERTIES =
       ImmutableMap.of(
           ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "Set keyDeserializer instead",
           ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "Set valueDeserializer instead"

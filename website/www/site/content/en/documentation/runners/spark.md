@@ -487,5 +487,48 @@ Provided SparkContext and StreamingListeners are not supported on the Spark port
 {{< /paragraph >}}
 
 ### Kubernetes
+#### Submit beam job without job server
+To submit a beam job directly on spark kubernetes cluster without spinning up an extra job server, you can do:
+```
+spark-submit --master MASTER_URL \
+  --conf spark.kubernetes.driver.podTemplateFile=driver_pod_template.yaml \
+  --conf spark.kubernetes.executor.podTemplateFile=executor_pod_template.yaml \
+  --class org.apache.beam.runners.spark.SparkPipelineRunner \
+  --conf spark.kubernetes.container.image=apache/spark:v3.3.2 \
+  ./wc_job.jar
+```
+Similar to run the beam job on Dataproc, you can bundle the job jar like below. The example use the `PROCESS` type of [SDK harness](https://beam.apache.org/documentation/runtime/sdk-harness-config/) to execute the job by processes.
+```
+python -m beam_example_wc \
+    --runner=SparkRunner \
+    --output_executable_path=./wc_job.jar \
+    --environment_type=PROCESS \
+    --environment_config='{\"command\": \"/opt/apache/beam/boot\"}' \
+    --spark_version=3
+```
 
-An [example](https://github.com/cometta/python-apache-beam-spark) of configuring Spark to run Apache beam job
+And below is an example of kubernetes executor pod template, the `initContainer` is required to download the beam SDK harness to run the beam pipelines.
+```
+spec:
+  containers:
+    - name: spark-kubernetes-executor
+      volumeMounts:
+      - name: beam-data
+        mountPath: /opt/apache/beam/
+  initContainers:
+  - name: init-beam
+    image: apache/beam_python3.7_sdk
+    command:
+    - cp
+    - /opt/apache/beam/boot
+    - /init-container/data/boot
+    volumeMounts:
+    - name: beam-data
+      mountPath: /init-container/data
+  volumes:
+  - name: beam-data
+    emptyDir: {}
+```
+
+#### Submit beam job with job server
+An [example](https://github.com/cometta/python-apache-beam-spark) of configuring Spark to run Apache beam job with a job server.

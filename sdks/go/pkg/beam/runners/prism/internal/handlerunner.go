@@ -41,8 +41,9 @@ import (
 // RunnerCharacteristic holds the configuration for Runner based transforms,
 // such as GBKs, Flattens.
 type RunnerCharacteristic struct {
-	SDKFlatten bool // Sets whether we should force an SDK side flatten.
-	SDKGBK     bool // Sets whether the GBK should be handled by the SDK, if possible by the SDK.
+	SDKFlatten   bool // Sets whether we should force an SDK side flatten.
+	SDKGBK       bool // Sets whether the GBK should be handled by the SDK, if possible by the SDK.
+	SDKReshuffle bool // Sets whether we should use the SDK backup implementation to handle a Reshuffle.
 }
 
 func Runner(config any) *runner {
@@ -63,13 +64,121 @@ func (*runner) ConfigCharacteristic() reflect.Type {
 	return reflect.TypeOf((*RunnerCharacteristic)(nil)).Elem()
 }
 
+var _ transformPreparer = (*runner)(nil)
+
+func (*runner) PrepareUrns() []string {
+	return []string{urns.TransformReshuffle, urns.TransformFlatten}
+}
+
+// PrepareTransform handles special processing with respect runner transforms, like reshuffle.
+func (h *runner) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
+	switch t.GetSpec().GetUrn() {
+	case urns.TransformFlatten:
+		return h.handleFlatten(tid, t, comps)
+	case urns.TransformReshuffle:
+		return h.handleReshuffle(tid, t, comps)
+	default:
+		panic("unknown urn to Prepare: " + t.GetSpec().GetUrn())
+	}
+}
+
+func (h *runner) handleFlatten(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
+	if !h.config.SDKFlatten {
+		t.EnvironmentId = ""         // force the flatten to be a runner transform due to configuration.
+		forcedRoots := []string{tid} // Have runner side transforms be roots.
+
+		// Force runner flatten consumers to be roots.
+		// This resolves merges between two runner transforms trying
+		// to execute together.
+		outColID := getOnlyValue(t.GetOutputs())
+		for ctid, t := range comps.GetTransforms() {
+			for _, gi := range t.GetInputs() {
+				if gi == outColID {
+					forcedRoots = append(forcedRoots, ctid)
+				}
+			}
+		}
+
+		// Return the new components which is the transforms consumer
+		return prepareResult{
+			// We sub this flatten with itself, to not drop it.
+			SubbedComps: &pipepb.Components{
+				Transforms: map[string]*pipepb.PTransform{
+					tid: t,
+				},
+			},
+			RemovedLeaves: nil,
+			ForcedRoots:   forcedRoots,
+		}
+	}
+	return prepareResult{}
+}
+
+func (h *runner) handleReshuffle(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
+	// TODO: Implement the windowing strategy the "backup" transforms used for Reshuffle.
+
+	if h.config.SDKReshuffle {
+		panic("SDK side reshuffle not yet supported")
+	}
+
+	// A Reshuffle, in principle, is a no-op on the pipeline structure, WRT correctness.
+	// It could however affect performance, so it exists to tell the runner that this
+	// point in the pipeline needs a fusion break, to enable the pipeline to change it's
+	// degree of parallelism.
+	//
+	// The change of parallelism goes both ways. It could allow for larger batch sizes
+	// enable smaller batch sizes downstream if it is infact paralleizable.
+	//
+	// But for a single transform node per stage runner, we can elide it entirely,
+	// since the input collection and output collection types match.
+
+	// Get the input and output PCollections, there should only be 1 each.
+	if len(t.GetInputs()) != 1 {
+		panic("Expected single input PCollection in reshuffle: " + prototext.Format(t))
+	}
+	if len(t.GetOutputs()) != 1 {
+		panic("Expected single output PCollection in reshuffle: " + prototext.Format(t))
+	}
+
+	inColID := getOnlyValue(t.GetInputs())
+	outColID := getOnlyValue(t.GetOutputs())
+
+	// We need to find all Transforms that consume the output collection and
+	// replace them so they consume the input PCollection directly.
+
+	// We need to remove the consumers of the output PCollection.
+	toRemove := []string{}
+	// We need to force the consumers to be stage root,
+	// because reshuffle should be a fusion break.
+	forcedRoots := []string{}
+
+	for tid, t := range comps.GetTransforms() {
+		for li, gi := range t.GetInputs() {
+			if gi == outColID {
+				t.GetInputs()[li] = inColID
+				forcedRoots = append(forcedRoots, tid)
+			}
+		}
+	}
+
+	// And all the sub transforms.
+	toRemove = append(toRemove, t.GetSubtransforms()...)
+
+	// Return the new components which is the transforms consumer
+	return prepareResult{
+		SubbedComps:   nil, // Replace the reshuffle with nothing.
+		RemovedLeaves: toRemove,
+		ForcedRoots:   forcedRoots,
+	}
+}
+
 var _ transformExecuter = (*runner)(nil)
 
 func (*runner) ExecuteUrns() []string {
-	return []string{urns.TransformFlatten, urns.TransformGBK}
+	return []string{urns.TransformFlatten, urns.TransformGBK, urns.TransformReshuffle}
 }
 
-// ExecuteWith returns what environment the
+// ExecuteWith returns what environment the transform should execute in.
 func (h *runner) ExecuteWith(t *pipepb.PTransform) string {
 	urn := t.GetSpec().GetUrn()
 	if urn == urns.TransformFlatten && !h.config.SDKFlatten {
@@ -82,7 +191,7 @@ func (h *runner) ExecuteWith(t *pipepb.PTransform) string {
 }
 
 // ExecuteTransform handles special processing with respect to runner specific transforms
-func (h *runner) ExecuteTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components, watermark mtime.Time, inputData [][]byte) *worker.B {
+func (h *runner) ExecuteTransform(stageID, tid string, t *pipepb.PTransform, comps *pipepb.Components, watermark mtime.Time, inputData [][]byte) *worker.B {
 	urn := t.GetSpec().GetUrn()
 	var data [][]byte
 	var onlyOut string
@@ -102,9 +211,18 @@ func (h *runner) ExecuteTransform(tid string, t *pipepb.PTransform, comps *pipep
 		coders := map[string]*pipepb.Coder{}
 
 		// TODO assert this is a KV. It's probably fine, but we should fail anyway.
-		wcID := lpUnknownCoders(ws.GetWindowCoderId(), coders, comps.GetCoders())
-		kcID := lpUnknownCoders(kvc.GetComponentCoderIds()[0], coders, comps.GetCoders())
-		ecID := lpUnknownCoders(kvc.GetComponentCoderIds()[1], coders, comps.GetCoders())
+		wcID, err := lpUnknownCoders(ws.GetWindowCoderId(), coders, comps.GetCoders())
+		if err != nil {
+			panic(fmt.Errorf("ExecuteTransform[GBK] stage %v, transform %q %v: couldn't process window coder:\n%w", stageID, tid, prototext.Format(t), err))
+		}
+		kcID, err := lpUnknownCoders(kvc.GetComponentCoderIds()[0], coders, comps.GetCoders())
+		if err != nil {
+			panic(fmt.Errorf("ExecuteTransform[GBK] stage %v, transform %q %v: couldn't process key coder:\n%w", stageID, tid, prototext.Format(t), err))
+		}
+		ecID, err := lpUnknownCoders(kvc.GetComponentCoderIds()[1], coders, comps.GetCoders())
+		if err != nil {
+			panic(fmt.Errorf("ExecuteTransform[GBK] stage %v, transform %q %v: couldn't process value coder:\n%w", stageID, tid, prototext.Format(t), err))
+		}
 		reconcileCoders(coders, comps.GetCoders())
 
 		wc := coders[wcID]

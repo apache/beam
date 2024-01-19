@@ -46,8 +46,8 @@ import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -171,7 +171,7 @@ public class GcpOptionsTest {
                   + "[dataflow]%n"
                   + "magic = true%n",
               projectId);
-      Files.write(properties, path, StandardCharsets.UTF_8);
+      Files.asCharSink(path, StandardCharsets.UTF_8).write(properties);
     }
 
     private static String runGetProjectTest(File path, Map<String, String> environment)

@@ -17,6 +17,7 @@ package jobservices
 
 import (
 	"fmt"
+	"math"
 	"net"
 	"sync"
 
@@ -29,6 +30,7 @@ import (
 type Server struct {
 	jobpb.UnimplementedJobServiceServer
 	jobpb.UnimplementedArtifactStagingServiceServer
+	jobpb.UnimplementedArtifactRetrievalServiceServer
 	fnpb.UnimplementedProvisionServiceServer
 
 	// Server management
@@ -42,6 +44,9 @@ type Server struct {
 
 	// execute defines how a job is executed.
 	execute func(*Job)
+
+	// Artifact hack
+	artifacts map[string][]byte
 }
 
 // NewServer acquires the indicated port.
@@ -56,10 +61,13 @@ func NewServer(port int, execute func(*Job)) *Server {
 		execute: execute,
 	}
 	slog.Info("Serving JobManagement", slog.String("endpoint", s.Endpoint()))
-	var opts []grpc.ServerOption
+	opts := []grpc.ServerOption{
+		grpc.MaxRecvMsgSize(math.MaxInt32),
+	}
 	s.server = grpc.NewServer(opts...)
 	jobpb.RegisterJobServiceServer(s.server, s)
 	jobpb.RegisterArtifactStagingServiceServer(s.server, s)
+	jobpb.RegisterArtifactRetrievalServiceServer(s.server, s)
 	return s
 }
 
@@ -70,7 +78,8 @@ func (s *Server) getJob(id string) *Job {
 }
 
 func (s *Server) Endpoint() string {
-	return s.lis.Addr().String()
+	_, port, _ := net.SplitHostPort(s.lis.Addr().String())
+	return fmt.Sprintf("localhost:%v", port)
 }
 
 // Serve serves on the started listener. Blocks.

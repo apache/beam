@@ -20,6 +20,7 @@ package org.apache.beam.sdk.fn.stream;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.junit.Assert.assertArrayEquals;
@@ -35,14 +36,15 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.data.WeightedList;
 import org.apache.beam.sdk.fn.stream.DataStreams.DataStreamDecoder;
 import org.apache.beam.sdk.fn.stream.DataStreams.ElementDelimitedOutputStream;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutputStream;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.CountingOutputStream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
@@ -57,6 +59,7 @@ public class DataStreamsTest {
   /** Tests for {@link DataStreams.DataStreamDecoder}. */
   @RunWith(JUnit4.class)
   public static class DataStreamDecoderTest {
+
     @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
@@ -136,12 +139,19 @@ public class DataStreamsTest {
                       singleElementToSplit.substring(0, singleElementToSplit.size() - 1),
                       singleElementToSplit.substring(singleElementToSplit.size() - 1))));
 
-      assertThat(decoder.decodeFromChunkBoundaryToChunkBoundary(), contains("A"));
-      assertThat(decoder.decodeFromChunkBoundaryToChunkBoundary(), contains("B", "BigElementC"));
-      assertThat(decoder.decodeFromChunkBoundaryToChunkBoundary(), contains("D"));
-      assertThat(decoder.decodeFromChunkBoundaryToChunkBoundary(), is(empty()));
-      assertThat(decoder.decodeFromChunkBoundaryToChunkBoundary(), contains("E", "F"));
-      assertThat(decoder.decodeFromChunkBoundaryToChunkBoundary(), contains("BigElementG"));
+      WeightedList<String> weightedListA = decoder.decodeFromChunkBoundaryToChunkBoundary();
+      assertThat(weightedListA.getBacking(), contains("A"));
+      assertThat(weightedListA.getWeight(), equalTo(10L)); // 2 + 8
+
+      WeightedList<String> weightedListBC = decoder.decodeFromChunkBoundaryToChunkBoundary();
+      assertThat(weightedListBC.getBacking(), contains("B", "BigElementC"));
+      assertThat(weightedListBC.getWeight(), equalTo(29L)); // 2 + 8 + 11 + 8
+
+      assertThat(decoder.decodeFromChunkBoundaryToChunkBoundary().getBacking(), contains("D"));
+      assertThat(decoder.decodeFromChunkBoundaryToChunkBoundary().getBacking(), is(empty()));
+      assertThat(decoder.decodeFromChunkBoundaryToChunkBoundary().getBacking(), contains("E", "F"));
+      assertThat(
+          decoder.decodeFromChunkBoundaryToChunkBoundary().getBacking(), contains("BigElementG"));
       assertFalse(decoder.hasNext());
     }
 
@@ -188,6 +198,7 @@ public class DataStreamsTest {
   /** Tests for {@link ElementDelimitedOutputStream delimited streams}. */
   @RunWith(JUnit4.class)
   public static class ElementDelimitedOutputStreamTest {
+
     @Test
     public void testNothingWritten() throws Exception {
       List<ByteString> output = new ArrayList<>();

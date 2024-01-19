@@ -80,6 +80,7 @@ public class GenerateInitialPartitionsActionTest {
         new MetadataTableAdminDao(
             adminClient, null, changeStreamId, MetadataTableAdminDao.DEFAULT_METADATA_TABLE_NAME);
     metadataTableAdminDao.createMetadataTable();
+    metadataTableAdminDao.cleanUpPrefix();
     startTime = Instant.now();
     endTime = startTime.plus(Duration.standardSeconds(10));
   }

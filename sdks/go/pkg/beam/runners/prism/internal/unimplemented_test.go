@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+package internal_test
 
 import (
 	"context"
@@ -27,7 +27,7 @@ import (
 
 // This file covers pipelines with features that aren't yet supported by Prism.
 
-func intTestName(fn any) string {
+func initTestName(fn any) string {
 	name := reflectx.FunctionName(fn)
 	n := strings.LastIndex(name, "/")
 	return name[n+1:]
@@ -41,11 +41,7 @@ func TestUnimplemented(t *testing.T) {
 	tests := []struct {
 		pipeline func(s beam.Scope)
 	}{
-		// These tests don't terminate, so can't be run.
 		// {pipeline: primitives.Drain}, // Can't test drain automatically yet.
-		// {pipeline: primitives.Checkpoints},  // Doesn't self terminate?
-		// {pipeline: primitives.Flatten}, // Times out, should be quick.
-		// {pipeline: primitives.FlattenDup}, // Times out, should be quick.
 
 		{pipeline: primitives.TestStreamBoolSequence},
 		{pipeline: primitives.TestStreamByteSliceSequence},
@@ -72,32 +68,75 @@ func TestUnimplemented(t *testing.T) {
 		{pipeline: primitives.TriggerOrFinally},
 		{pipeline: primitives.TriggerRepeat},
 
-		// Reshuffle (Due to missing windowing strategy features)
-		{pipeline: primitives.Reshuffle},
-		{pipeline: primitives.ReshuffleKV},
-
-		// State API
-		{pipeline: primitives.BagStateParDo},
-		{pipeline: primitives.BagStateParDoClear},
-		{pipeline: primitives.MapStateParDo},
-		{pipeline: primitives.MapStateParDoClear},
-		{pipeline: primitives.SetStateParDo},
-		{pipeline: primitives.SetStateParDoClear},
-		{pipeline: primitives.CombiningStateParDo},
-		{pipeline: primitives.ValueStateParDo},
-		{pipeline: primitives.ValueStateParDoClear},
-		{pipeline: primitives.ValueStateParDoWindowed},
-
 		// TODO: Timers integration tests.
 	}
 
 	for _, test := range tests {
-		t.Run(intTestName(test.pipeline), func(t *testing.T) {
+		t.Run(initTestName(test.pipeline), func(t *testing.T) {
 			p, s := beam.NewPipelineWithRoot()
 			test.pipeline(s)
 			_, err := executeWithT(context.Background(), t, p)
 			if err == nil {
 				t.Fatalf("pipeline passed, but feature should be unimplemented in Prism")
+			}
+		})
+	}
+}
+
+// TODO move these to a more appropriate location.
+// Mostly placed here to have structural parity with the above test
+// and make it easy to move them to a "it works" expectation.
+func TestImplemented(t *testing.T) {
+	initRunner(t)
+
+	tests := []struct {
+		pipeline func(s beam.Scope)
+	}{
+		{pipeline: primitives.Reshuffle},
+		{pipeline: primitives.Flatten},
+		{pipeline: primitives.FlattenDup},
+		{pipeline: primitives.Checkpoints},
+		{pipeline: primitives.CoGBK},
+		{pipeline: primitives.ReshuffleKV},
+	}
+
+	for _, test := range tests {
+		t.Run(initTestName(test.pipeline), func(t *testing.T) {
+			p, s := beam.NewPipelineWithRoot()
+			test.pipeline(s)
+			_, err := executeWithT(context.Background(), t, p)
+			if err != nil {
+				t.Fatalf("pipeline failed, but feature should be implemented in Prism: %v", err)
+			}
+		})
+	}
+}
+
+func TestStateAPI(t *testing.T) {
+	initRunner(t)
+
+	tests := []struct {
+		pipeline func(s beam.Scope)
+	}{
+		{pipeline: primitives.BagStateParDo},
+		{pipeline: primitives.BagStateParDoClear},
+		{pipeline: primitives.CombiningStateParDo},
+		{pipeline: primitives.ValueStateParDo},
+		{pipeline: primitives.ValueStateParDoClear},
+		{pipeline: primitives.ValueStateParDoWindowed},
+		{pipeline: primitives.MapStateParDo},
+		{pipeline: primitives.MapStateParDoClear},
+		{pipeline: primitives.SetStateParDo},
+		{pipeline: primitives.SetStateParDoClear},
+	}
+
+	for _, test := range tests {
+		t.Run(initTestName(test.pipeline), func(t *testing.T) {
+			p, s := beam.NewPipelineWithRoot()
+			test.pipeline(s)
+			_, err := executeWithT(context.Background(), t, p)
+			if err != nil {
+				t.Fatalf("pipeline failed, but feature should be implemented in Prism: %v", err)
 			}
 		})
 	}

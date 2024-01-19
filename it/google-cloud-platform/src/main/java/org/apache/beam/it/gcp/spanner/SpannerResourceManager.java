@@ -19,8 +19,6 @@ package org.apache.beam.it.gcp.spanner;
 
 import static org.apache.beam.it.common.utils.ResourceManagerUtils.checkValidProjectId;
 import static org.apache.beam.it.common.utils.ResourceManagerUtils.generateNewId;
-import static org.apache.beam.it.gcp.spanner.utils.SpannerResourceManagerUtils.generateDatabaseId;
-import static org.apache.beam.it.gcp.spanner.utils.SpannerResourceManagerUtils.generateInstanceId;
 
 import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
@@ -47,8 +45,10 @@ import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
+import javax.annotation.Nullable;
 import org.apache.beam.it.common.ResourceManager;
 import org.apache.beam.it.common.utils.ExceptionUtils;
+import org.apache.beam.it.gcp.spanner.utils.SpannerResourceManagerUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,6 +81,7 @@ public final class SpannerResourceManager implements ResourceManager {
 
   private final String projectId;
   private final String instanceId;
+  private final boolean usingStaticInstance;
   private final String databaseId;
   private final String region;
 
@@ -96,12 +97,20 @@ public final class SpannerResourceManager implements ResourceManager {
         builder.testId,
         builder.projectId,
         builder.region,
-        builder.dialect);
+        builder.dialect,
+        builder.useStaticInstance,
+        builder.instanceId);
   }
 
   @VisibleForTesting
   SpannerResourceManager(
-      Spanner spanner, String testId, String projectId, String region, Dialect dialect) {
+      Spanner spanner,
+      String testId,
+      String projectId,
+      String region,
+      Dialect dialect,
+      boolean useStaticInstance,
+      @Nullable String instanceId) {
     // Check that the project ID conforms to GCP standards
     checkValidProjectId(projectId);
 
@@ -109,9 +118,18 @@ public final class SpannerResourceManager implements ResourceManager {
       testId = generateNewId(testId, MAX_BASE_ID_LENGTH);
     }
     this.projectId = projectId;
-    this.instanceId = generateInstanceId(testId);
-    this.databaseId = generateDatabaseId(testId);
 
+    if (useStaticInstance) {
+      if (instanceId == null) {
+        throw new SpannerResourceManagerException(
+            "This manager was configured to use a static resource, but the instanceId was not properly set.");
+      }
+      this.instanceId = instanceId;
+    } else {
+      this.instanceId = SpannerResourceManagerUtils.generateInstanceId(testId);
+    }
+    this.usingStaticInstance = useStaticInstance;
+    this.databaseId = SpannerResourceManagerUtils.generateDatabaseId(testId);
     this.region = region;
     this.dialect = dialect;
     this.spanner = spanner;
@@ -129,9 +147,17 @@ public final class SpannerResourceManager implements ResourceManager {
 
   private synchronized void maybeCreateInstance() {
     checkIsUsable();
+
+    if (usingStaticInstance) {
+      LOG.info("Not creating Spanner instance - reusing static {}", instanceId);
+      hasInstance = true;
+      return;
+    }
+
     if (hasInstance) {
       return;
     }
+
     LOG.info("Creating instance {} in project {}.", instanceId, projectId);
     try {
       InstanceInfo instanceInfo =
@@ -352,14 +378,30 @@ public final class SpannerResourceManager implements ResourceManager {
   @Override
   public synchronized void cleanupAll() {
     try {
-      LOG.info("Deleting instance {}...", instanceId);
-      instanceAdminClient.deleteInstance(instanceId);
-      hasInstance = false;
+
+      if (usingStaticInstance) {
+        if (databaseAdminClient != null) {
+          Failsafe.with(retryOnQuotaException())
+              .run(() -> databaseAdminClient.dropDatabase(instanceId, databaseId));
+        }
+      } else {
+        LOG.info("Deleting instance {}...", instanceId);
+
+        if (instanceAdminClient != null) {
+          Failsafe.with(retryOnQuotaException())
+              .run(() -> instanceAdminClient.deleteInstance(instanceId));
+        }
+
+        hasInstance = false;
+      }
+
       hasDatabase = false;
     } catch (SpannerException e) {
       throw new SpannerResourceManagerException("Failed to delete instance.", e);
     } finally {
-      spanner.close();
+      if (!spanner.isClosed()) {
+        spanner.close();
+      }
     }
     LOG.info("Manager successfully cleaned up.");
   }
@@ -370,6 +412,8 @@ public final class SpannerResourceManager implements ResourceManager {
     private final String testId;
     private final String projectId;
     private final String region;
+    private boolean useStaticInstance;
+    private @Nullable String instanceId;
 
     private final Dialect dialect;
 
@@ -378,6 +422,33 @@ public final class SpannerResourceManager implements ResourceManager {
       this.projectId = projectId;
       this.region = region;
       this.dialect = dialect;
+      this.instanceId = null;
+    }
+
+    /**
+     * Configures the resource manager to use a static GCP resource instead of creating a new
+     * instance of the resource.
+     *
+     * @return this builder object with the useStaticInstance option enabled.
+     */
+    public Builder useStaticInstance() {
+      this.useStaticInstance = true;
+      return this;
+    }
+
+    /**
+     * Looks at the system properties if there's an instance id, and reuses it if configured.
+     *
+     * @return this builder object with the useStaticInstance option enabled and instance set if
+     *     configured, the same builder otherwise.
+     */
+    @SuppressWarnings("nullness")
+    public Builder maybeUseStaticInstance() {
+      if (System.getProperty("spannerInstanceId") != null) {
+        this.useStaticInstance = true;
+        this.instanceId = System.getProperty("spannerInstanceId");
+      }
+      return this;
     }
 
     public SpannerResourceManager build() {

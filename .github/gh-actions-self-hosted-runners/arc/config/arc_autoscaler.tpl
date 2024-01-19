@@ -27,7 +27,7 @@ spec:
     name: ${name}
   minReplicas: ${min_runners}
   maxReplicas: ${max_runners}
-  %{~ if webhook_scaling == "true" ~}
+  %{~ if webhook_scaling ~}
   scaleUpTriggers:
     - githubEvent:
         workflowJob: {}

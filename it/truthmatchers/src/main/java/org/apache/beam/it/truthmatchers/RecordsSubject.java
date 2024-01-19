@@ -159,7 +159,7 @@ public class RecordsSubject extends Subject {
           .noneMatch(candidate -> convertMapToTreeMap(candidate).toString().contains(expected))) {
         failWithoutActual(
             Fact.simpleFact(
-                "expected that contains the string " + expected + ", but only had " + actual));
+                "expected that contains the string '" + expected + "', but only had " + actual));
       }
     }
   }

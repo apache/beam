@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.TestBigQueryOptions.BIGQUERY_EARLY_ROLLOUT_REGION;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.bigquery.storage.v1.DataFormat;
@@ -44,7 +45,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -65,7 +66,13 @@ public class BigQueryIOStorageReadIT {
           "1T", 11110839000L,
           "multi_field", 11110839L);
 
-  private static final String DATASET_ID = "big_query_storage";
+  private static final String DATASET_ID =
+      TestPipeline.testingPipelineOptions()
+              .as(TestBigQueryOptions.class)
+              .getBigQueryLocation()
+              .equals(BIGQUERY_EARLY_ROLLOUT_REGION)
+          ? "big_query_storage_day0"
+          : "big_query_storage";
   private static final String TABLE_PREFIX = "storage_read_";
 
   private BigQueryIOStorageReadOptions options;

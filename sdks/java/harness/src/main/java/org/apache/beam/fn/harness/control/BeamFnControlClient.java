@@ -17,7 +17,7 @@
  */
 package org.apache.beam.fn.harness.control;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables.getStackTraceAsString;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables.getStackTraceAsString;
 
 import java.util.EnumMap;
 import java.util.concurrent.CompletableFuture;
@@ -118,11 +118,11 @@ public class BeamFnControlClient {
                 sendErrorResponse(e);
                 throw e;
               } finally {
-                BeamFnLoggingMDC.setInstructionId(null);
+                BeamFnLoggingMDC.reset();
               }
             });
       } finally {
-        BeamFnLoggingMDC.setInstructionId(null);
+        BeamFnLoggingMDC.reset();
       }
     }
 

@@ -83,8 +83,7 @@ func (n *DataSource) ID() UnitID {
 
 // Up initializes this datasource.
 func (n *DataSource) Up(ctx context.Context) error {
-	// TODO(https://github.com/apache/beam/issues/23043) - Reenable single iteration or more fully rip this out.
-	safeToSingleIterate := false
+	safeToSingleIterate := true
 	switch n.Out.(type) {
 	case *Expand, *Multiplex:
 		// CoGBK Expands aren't safe, as they may re-iterate the GBK stream.
@@ -242,6 +241,7 @@ func (n *DataSource) Process(ctx context.Context) ([]*Checkpoint, error) {
 				return err
 			}
 			// Collect the actual size of the element, and reset the bytecounter reader.
+			// TODO(zechenj18) 2023-12-07: currently we never sample anything from the DataSource, we need to validate CoGBKs and similar types with the sampling implementation
 			n.PCol.addSize(int64(bcr.reset()))
 
 			// Check if there's a continuation and return residuals

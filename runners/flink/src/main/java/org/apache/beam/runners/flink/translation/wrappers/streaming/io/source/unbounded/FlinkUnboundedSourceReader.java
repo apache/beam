@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.unbounded;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,9 +27,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceReaderBase;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceSplit;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -35,7 +40,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.ValueWithRecordId;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceOutput;
@@ -69,10 +74,11 @@ public class FlinkUnboundedSourceReader<T>
   private volatile boolean shouldEmitWatermark;
 
   public FlinkUnboundedSourceReader(
+      String stepName,
       SourceReaderContext context,
       PipelineOptions pipelineOptions,
       @Nullable Function<WindowedValue<ValueWithRecordId<T>>, Long> timestampExtractor) {
-    super(context, pipelineOptions, timestampExtractor);
+    super(stepName, context, pipelineOptions, timestampExtractor);
     this.readers = new ArrayList<>();
     this.dataAvailableFutureRef = new AtomicReference<>(DUMMY_FUTURE);
     this.currentReaderIndex = 0;
@@ -80,11 +86,12 @@ public class FlinkUnboundedSourceReader<T>
 
   @VisibleForTesting
   protected FlinkUnboundedSourceReader(
+      String stepName,
       SourceReaderContext context,
       PipelineOptions pipelineOptions,
       ScheduledExecutorService executor,
       @Nullable Function<WindowedValue<ValueWithRecordId<T>>, Long> timestampExtractor) {
-    super(executor, context, pipelineOptions, timestampExtractor);
+    super(stepName, executor, context, pipelineOptions, timestampExtractor);
     this.readers = new ArrayList<>();
     this.dataAvailableFutureRef = new AtomicReference<>(DUMMY_FUTURE);
     this.currentReaderIndex = 0;
@@ -124,6 +131,9 @@ public class FlinkUnboundedSourceReader<T>
     if (reader != null) {
       emitRecord(reader, output);
       return InputStatus.MORE_AVAILABLE;
+    } else if (noMoreSplits()) {
+      LOG.trace("No more splits.");
+      return InputStatus.END_OF_INPUT;
     } else {
       LOG.trace("No data available for now.");
       return InputStatus.NOTHING_AVAILABLE;
@@ -172,6 +182,22 @@ public class FlinkUnboundedSourceReader<T>
       // The previous future has not been completed, just use it.
       return future;
     }
+  }
+
+  @Override
+  protected FlinkSourceSplit<T> getReaderCheckpoint(int splitId, ReaderAndOutput readerAndOutput) {
+    // The checkpoint for unbounded sources is fine granular.
+    byte[] checkpointState =
+        getAndEncodeCheckpointMark((UnboundedSource.UnboundedReader<T>) readerAndOutput.reader);
+    return new FlinkSourceSplit<>(
+        splitId, readerAndOutput.reader.getCurrentSource(), checkpointState);
+  }
+
+  @Override
+  protected Source.Reader<T> createReader(@Nonnull FlinkSourceSplit<T> sourceSplit)
+      throws IOException {
+    Source<T> beamSource = sourceSplit.getBeamSplitSource();
+    return createUnboundedSourceReader(beamSource, sourceSplit.getSplitState());
   }
 
   // -------------- private helper methods ----------------
@@ -268,5 +294,35 @@ public class FlinkUnboundedSourceReader<T>
               }
               return pendingBytes;
             });
+  }
+
+  @SuppressWarnings("unchecked")
+  private <CheckpointMarkT extends UnboundedSource.CheckpointMark>
+      byte[] getAndEncodeCheckpointMark(UnboundedSource.UnboundedReader<T> reader) {
+    UnboundedSource<T, CheckpointMarkT> source =
+        (UnboundedSource<T, CheckpointMarkT>) reader.getCurrentSource();
+    CheckpointMarkT checkpointMark = (CheckpointMarkT) reader.getCheckpointMark();
+    Coder<CheckpointMarkT> coder = source.getCheckpointMarkCoder();
+    try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+      coder.encode(checkpointMark, baos);
+      return baos.toByteArray();
+    } catch (IOException ioe) {
+      throw new RuntimeException("Failed to encode checkpoint mark.", ioe);
+    }
+  }
+
+  private <CheckpointMarkT extends UnboundedSource.CheckpointMark>
+      Source.Reader<T> createUnboundedSourceReader(
+          Source<T> beamSource, @Nullable byte[] splitState) throws IOException {
+    UnboundedSource<T, CheckpointMarkT> unboundedSource =
+        (UnboundedSource<T, CheckpointMarkT>) beamSource;
+    Coder<CheckpointMarkT> coder = unboundedSource.getCheckpointMarkCoder();
+    if (splitState == null) {
+      return unboundedSource.createReader(pipelineOptions, null);
+    } else {
+      try (ByteArrayInputStream bais = new ByteArrayInputStream(splitState)) {
+        return unboundedSource.createReader(pipelineOptions, coder.decode(bais));
+      }
+    }
   }
 }

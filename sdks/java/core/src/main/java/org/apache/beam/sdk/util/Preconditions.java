@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings.lenientFormat;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings.lenientFormat;
 
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import org.apache.beam.sdk.annotations.Internal;
@@ -27,7 +27,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Beam-specific variants of {@link
- * org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions} that throws more
+ * org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions} that throws more
  * appropriate exception classes while being static analysis friendly.
  */
 @Internal
@@ -494,7 +494,7 @@ public class Preconditions {
       @Nullable String errorMessageTemplate,
       @Nullable Object... errorMessageArgs) {
     if (obj == null) {
-      throw new IllegalArgumentException(lenientFormat(errorMessageTemplate, errorMessageArgs));
+      throw new IllegalStateException(lenientFormat(errorMessageTemplate, errorMessageArgs));
     }
     return obj;
   }

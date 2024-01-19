@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.coders;
 
 import java.util.Arrays;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**

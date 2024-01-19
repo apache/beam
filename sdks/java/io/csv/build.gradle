@@ -27,7 +27,7 @@ ext.summary = "IO to read and write CSV files."
 dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.commons_csv
-    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_32_1_2_jre
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation library.java.junit
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

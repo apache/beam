@@ -47,7 +47,7 @@ export function globalWindows(): WindowFn<GlobalWindow> {
 
 export function fixedWindows(
   sizeSeconds: number | Long,
-  offsetSeconds: Instant = Long.fromValue(0)
+  offsetSeconds: Instant = Long.fromValue(0),
 ): WindowFn<IntervalWindow> {
   // TODO: (Cleanup) Use a time library?
   const sizeMillis = secsToMillisLong(sizeSeconds);
@@ -79,7 +79,7 @@ export function fixedWindows(
 export function slidingWindows(
   sizeSeconds: number | Long,
   periodSeconds: number | Long,
-  offsetSeconds: Instant = Long.fromValue(0)
+  offsetSeconds: Instant = Long.fromValue(0),
 ): WindowFn<IntervalWindow> {
   const sizeMillis = secsToMillisLong(sizeSeconds);
   const periodMillis = secsToMillisLong(periodSeconds);
@@ -150,13 +150,13 @@ requireForSerialization("apache-beam/transforms/windowings", exports);
 requireForSerialization("apache-beam/transforms/windowings", { millisToProto });
 requireForSerialization(
   "apache-beam/transforms/windowings",
-  FixedWindowsPayload
+  FixedWindowsPayload,
 );
 requireForSerialization(
   "apache-beam/transforms/windowings",
-  SlidingWindowsPayload
+  SlidingWindowsPayload,
 );
 requireForSerialization(
   "apache-beam/transforms/windowings",
-  SessionWindowsPayload
+  SessionWindowsPayload,
 );

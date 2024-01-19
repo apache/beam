@@ -24,7 +24,9 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	ptest.Main(m)
+	// Override with direct runner to avoid
+	// flaky race conditions over the logging services.
+	ptest.MainWithDefault(m, "direct")
 }
 
 func TestHead(t *testing.T) {

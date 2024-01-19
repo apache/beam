@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.firestore.it;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.newArrayList;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists.newArrayList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -55,13 +55,14 @@ import org.apache.beam.sdk.io.gcp.firestore.FirestoreIO;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.WriteFailure;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQosOptions;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
 public final class FirestoreV1IT extends BaseFirestoreIT {
@@ -133,7 +134,7 @@ public final class FirestoreV1IT extends BaseFirestoreIT {
               assertFalse(iterator.hasNext());
               return null;
             });
-    testPipeline.run(this.options);
+    testPipeline.run(TestPipeline.testingPipelineOptions());
 
     ApiFuture<QuerySnapshot> actualDocsQuery =
         helper.getBaseDocument().collection(collectionId).orderBy("__name__").get();

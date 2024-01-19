@@ -19,7 +19,6 @@ package org.apache.beam.it.gcp.kms;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import java.io.IOException;
 import org.apache.beam.it.gcp.GCPBaseIT;
 import org.apache.beam.it.gcp.GoogleCloudIntegrationTest;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -41,12 +40,9 @@ public class KMSResourceManagerIT extends GCPBaseIT {
   private KMSResourceManager kmsResourceManager;
 
   @Before
-  public void setUp() throws IOException {
+  public void setUp() {
     kmsResourceManager =
-        KMSResourceManager.builder(PROJECT)
-            .setCredentialsProvider(credentialsProvider)
-            .setRegion(KMS_REGION)
-            .build();
+        KMSResourceManager.builder(PROJECT, credentialsProvider).setRegion(KMS_REGION).build();
   }
 
   @Test

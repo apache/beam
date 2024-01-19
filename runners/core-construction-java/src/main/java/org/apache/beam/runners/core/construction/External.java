@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -53,10 +54,10 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannelBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -274,6 +275,7 @@ public class External {
               .setTransform(ptransformBuilder.build())
               .setNamespace(getNamespace())
               .build();
+      requestBuilder.setPipelineOptions(PipelineOptionsTranslation.toProto(p.getOptions()));
 
       ExpansionApi.ExpansionResponse response =
           clientFactory.getExpansionServiceClient(endpoint).expand(request);
@@ -295,7 +297,7 @@ public class External {
           response
               .getComponents()
               .toBuilder()
-              .putAllEnvironments(resolveArtifacts(newEnvironmentsWithDependencies))
+              .putAllEnvironments(resolveArtifacts(newEnvironmentsWithDependencies, endpoint))
               .build();
       expandedTransform = response.getTransform();
       expandedRequirements = response.getRequirementsList();
@@ -338,8 +340,8 @@ public class External {
       return toOutputCollection(outputMapBuilder.build());
     }
 
-    private Map<String, RunnerApi.Environment> resolveArtifacts(
-        Map<String, RunnerApi.Environment> environments) {
+    static Map<String, RunnerApi.Environment> resolveArtifacts(
+        Map<String, RunnerApi.Environment> environments, Endpoints.ApiServiceDescriptor endpoint) {
       if (environments.size() == 0) {
         return environments;
       }
@@ -367,7 +369,7 @@ public class External {
       }
     }
 
-    private RunnerApi.Environment resolveArtifacts(
+    private static RunnerApi.Environment resolveArtifacts(
         ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub,
         RunnerApi.Environment environment)
         throws IOException {
@@ -378,7 +380,7 @@ public class External {
           .build();
     }
 
-    private List<RunnerApi.ArtifactInformation> resolveArtifacts(
+    private static List<RunnerApi.ArtifactInformation> resolveArtifacts(
         ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub,
         List<RunnerApi.ArtifactInformation> artifacts)
         throws IOException {
@@ -391,7 +393,8 @@ public class External {
                       .build())
               .getReplacementsList()) {
         Path path = Files.createTempFile("beam-artifact", "");
-        try (FileOutputStream fout = new FileOutputStream(path.toFile())) {
+        File artifactFile = path.toFile();
+        try (FileOutputStream fout = new FileOutputStream(artifactFile)) {
           for (Iterator<ArtifactApi.GetArtifactResponse> it =
                   retrievalStub.getArtifact(
                       ArtifactApi.GetArtifactRequest.newBuilder().setArtifact(artifact).build());
@@ -409,6 +412,8 @@ public class External {
                         .build()
                         .toByteString())
                 .build());
+        // Delete beam-artifact temp File on program exit
+        artifactFile.deleteOnExit();
       }
       return resolved;
     }

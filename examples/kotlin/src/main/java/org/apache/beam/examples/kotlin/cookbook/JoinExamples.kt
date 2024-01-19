@@ -60,7 +60,7 @@ import org.apache.beam.sdk.values.TupleTag
 object JoinExamples {
 
     // A 1000-row sample of the GDELT data here: gdelt-bq:full.events.
-    private const val GDELT_EVENTS_TABLE = "clouddataflow-readonly:samples.gdelt_sample"
+    private const val GDELT_EVENTS_TABLE = "apache-beam-testing.samples.gdelt_sample"
     // A table that maps country codes to country names.
     private const val COUNTRY_CODES = "gdelt-bq:full.crosswalk_geocountrycodetohuman"
 

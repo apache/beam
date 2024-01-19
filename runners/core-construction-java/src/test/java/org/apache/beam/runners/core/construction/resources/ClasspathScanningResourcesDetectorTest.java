@@ -120,7 +120,7 @@ public class ClasspathScanningResourcesDetectorTest {
 
   @Test
   public void shouldNotDetectClassPathResourceThatIsNotAFile() throws Exception {
-    String url = "http://www.google.com/all-the-secrets.jar";
+    String url = "http://www.example.com/all-the-secrets.jar";
     ClassLoader classLoader = new URLClassLoader(new URL[] {new URL(url)});
     ClasspathScanningResourcesDetector detector =
         new ClasspathScanningResourcesDetector(new ClassGraph());

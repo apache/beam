@@ -73,7 +73,7 @@ dependencies {
     implementation library.java.google_code_gson
     implementation library.java.hadoop_common
     implementation library.java.slf4j_api
-    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_32_1_2_jre
     runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 
     // Add dependencies for the PreCommit configurations

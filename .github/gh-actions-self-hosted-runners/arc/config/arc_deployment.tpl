@@ -22,7 +22,11 @@ metadata:
   name: ${name}
 spec:
   template:
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
     spec:
+      dockerMTU: 1460
       %{~ if selector == true  ~}
       nodeSelector:
         runner-pool: ${name} 
@@ -41,7 +45,11 @@ spec:
       %{~ for label in labels ~}
         - ${label}
       %{~ endfor ~}
-      env: []
+      env:
+      - name: POD_UID
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.uid
       resources:
         requests:
           cpu: ${requests.cpu}

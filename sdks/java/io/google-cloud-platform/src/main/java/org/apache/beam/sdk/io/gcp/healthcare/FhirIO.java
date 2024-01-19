@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -84,9 +84,9 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -584,7 +584,7 @@ public class FhirIO {
         ReadResourceFn() {}
 
         /**
-         * Instantiate healthcare client.
+         * Instantiate healthcare client (version v1).
          *
          * @throws IOException the io exception
          */
@@ -1460,7 +1460,7 @@ public class FhirIO {
       }
 
       /**
-       * Initialize healthcare client.
+       * Initialize healthcare client (version v1).
        *
        * @throws IOException If the Healthcare client cannot be created.
        */
@@ -1964,7 +1964,7 @@ public class FhirIO {
       }
 
       /**
-       * Instantiate healthcare client.
+       * Instantiate healthcare client (version v1).
        *
        * @throws IOException the io exception
        */

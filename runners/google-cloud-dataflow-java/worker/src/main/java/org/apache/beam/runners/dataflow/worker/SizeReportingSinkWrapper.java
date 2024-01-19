@@ -19,7 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import java.io.IOException;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
  * A wrapper for Sink that reports bytes buffered (or written) to {@link DataflowExecutionContext}.

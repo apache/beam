@@ -2258,6 +2258,18 @@ class _PValueWithErrors(object):
     self._exception_handling_args = exception_handling_args
     self._upstream_errors = upstream_errors
 
+  @property
+  def pipeline(self):
+    return self._pcoll.pipeline
+
+  @property
+  def element_type(self):
+    return self._pcoll.element_type
+
+  @element_type.setter
+  def element_type(self, value):
+    self._pcoll.element_type = value
+
   def main_output_tag(self):
     return self._exception_handling_args.get('main_tag', 'good')
 
@@ -2268,17 +2280,24 @@ class _PValueWithErrors(object):
     return self.apply(transform)
 
   def apply(self, transform):
-    result = self._pcoll | transform.with_exception_handling(
-        **self._exception_handling_args)
-    if result[self.main_output_tag()].element_type == typehints.Any:
-      result[self.main_output_tag()].element_type = transform.infer_output_type(
-          self._pcoll.element_type)
-    # TODO(BEAM-18957): Add support for tagged type hints.
-    result[self.error_output_tag()].element_type = typehints.Any
-    return _PValueWithErrors(
-        result[self.main_output_tag()],
-        self._exception_handling_args,
-        self._upstream_errors + (result[self.error_output_tag()], ))
+    if hasattr(transform, 'with_exception_handling'):
+      result = self._pcoll | transform.with_exception_handling(
+          **self._exception_handling_args)
+      if result[self.main_output_tag()].element_type == typehints.Any:
+        result[
+            self.main_output_tag()].element_type = transform.infer_output_type(
+                self._pcoll.element_type)
+      # TODO(BEAM-18957): Add support for tagged type hints.
+      result[self.error_output_tag()].element_type = typehints.Any
+      return _PValueWithErrors(
+          result[self.main_output_tag()],
+          self._exception_handling_args,
+          self._upstream_errors + (result[self.error_output_tag()], ))
+    else:
+      return _PValueWithErrors(
+          self._pcoll | transform,
+          self._exception_handling_args,
+          self._upstream_errors)
 
   def accumulated_errors(self):
     if len(self._upstream_errors) == 1:
@@ -2308,6 +2327,18 @@ class _MaybePValueWithErrors(object):
       self._pvalue = pvalue
     else:
       self._pvalue = _PValueWithErrors(pvalue, exception_handling_args)
+
+  @property
+  def pipeline(self):
+    return self._pvalue.pipeline
+
+  @property
+  def element_type(self):
+    return self._pvalue.element_type
+
+  @element_type.setter
+  def element_type(self, value):
+    self._pvalue.element_type = value
 
   def __or__(self, transform):
     return self.apply(transform)
@@ -3341,9 +3372,16 @@ class Select(PTransform):
                    for name, expr in self._fields}))).as_result()
 
   def infer_output_type(self, input_type):
+    def extract_return_type(expr):
+      expr_hints = get_type_hints(expr)
+      if (expr_hints and expr_hints.has_simple_output_type() and
+          expr_hints.simple_output_type(None) != typehints.Any):
+        return expr_hints.simple_output_type(None)
+      else:
+        return trivial_inference.infer_return_type(expr, [input_type])
+
     return row_type.RowTypeConstraint.from_fields([
-        (name, trivial_inference.infer_return_type(expr, [input_type]))
-        for (name, expr) in self._fields
+        (name, extract_return_type(expr)) for (name, expr) in self._fields
     ])
 
 

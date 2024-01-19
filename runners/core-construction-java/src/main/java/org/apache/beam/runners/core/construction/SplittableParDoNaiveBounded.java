@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.construction.SplittableParDo.ProcessKeyedElements;
@@ -53,7 +54,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -525,6 +526,15 @@ public class SplittableParDoNaiveBounded {
           public void outputWithTimestamp(OutputT output, Instant timestamp) {
             outerContext.outputWithTimestamp(output, timestamp);
           }
+
+          @Override
+          public void outputWindowedValue(
+              OutputT output,
+              Instant timestamp,
+              Collection<? extends BoundedWindow> windows,
+              PaneInfo paneInfo) {
+            outerContext.outputWindowedValue(output, timestamp, windows, paneInfo);
+          }
         };
       }
 
@@ -542,6 +552,15 @@ public class SplittableParDoNaiveBounded {
               @Override
               public void outputWithTimestamp(T output, Instant timestamp) {
                 outerContext.outputWithTimestamp(tag, output, timestamp);
+              }
+
+              @Override
+              public void outputWindowedValue(
+                  T output,
+                  Instant timestamp,
+                  Collection<? extends BoundedWindow> windows,
+                  PaneInfo paneInfo) {
+                outerContext.outputWindowedValue(tag, output, timestamp, windows, paneInfo);
               }
             };
           }
@@ -584,6 +603,15 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public void outputWindowedValue(
+          OutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo) {
+        outerContext.outputWindowedValue(output, timestamp, windows, paneInfo);
+      }
+
+      @Override
       public <T> void output(TupleTag<T> tag, T output) {
         outerContext.output(tag, output);
       }
@@ -591,6 +619,16 @@ public class SplittableParDoNaiveBounded {
       @Override
       public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
         outerContext.outputWithTimestamp(tag, output, timestamp);
+      }
+
+      @Override
+      public <T> void outputWindowedValue(
+          TupleTag<T> tag,
+          T output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo) {
+        outerContext.outputWindowedValue(tag, output, timestamp, windows, paneInfo);
       }
 
       @Override

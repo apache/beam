@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.neo4j;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
@@ -45,7 +45,7 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -814,23 +814,19 @@ public class Neo4jIO {
       // We could actually read and write here depending on the type of transaction
       // we picked.  As long as the Cypher statement returns values it's fine.
       //
-      TransactionWork<Void> transactionWork =
+      TransactionWork<Long> transactionWork =
           transaction -> {
+            long count = 0L;
             Result result = transaction.run(cypher, parametersMap);
             while (result.hasNext()) {
-              Record record = result.next();
               try {
-                OutputT outputT = rowMapper.mapRow(record);
-                processContext.output(outputT);
+                processContext.output(rowMapper.mapRow(result.next()));
               } catch (Exception e) {
-                throw new RuntimeException("error mapping Neo4j record to row", e);
+                throw new RuntimeException("Error mapping Neo4J result", e);
               }
+              count++;
             }
-
-            // We deliver no specific Neo4j transaction output beyond what goes to the context
-            // output
-            //
-            return null;
+            return count;
           };
 
       if (logCypher) {
@@ -852,11 +848,13 @@ public class Neo4jIO {
       if (driverSession.session == null) {
         throw new RuntimeException("neo4j session was not initialized correctly");
       } else {
+        final Long count;
         if (writeTransaction) {
-          driverSession.session.writeTransaction(transactionWork, transactionConfig);
+          count = driverSession.session.writeTransaction(transactionWork, transactionConfig);
         } else {
-          driverSession.session.readTransaction(transactionWork, transactionConfig);
+          count = driverSession.session.readTransaction(transactionWork, transactionConfig);
         }
+        LOG.debug("Retrieved " + count + " elements from Neo4J");
       }
     }
   }
@@ -1168,13 +1166,7 @@ public class Neo4jIO {
       //
       TransactionWork<Void> transactionWork =
           transaction -> {
-            Result result = transaction.run(cypher, parametersMap);
-            while (result.hasNext()) {
-              // This just consumes any output but the function basically has no output
-              // To be revisited based on requirements.
-              //
-              result.next();
-            }
+            transaction.run(cypher, parametersMap).consume();
             return null;
           };
 

@@ -28,8 +28,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.AnyOfEnvironmentPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ArtifactInformation;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
@@ -49,15 +52,15 @@ import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashCode;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,7 +97,8 @@ public class Environments {
   public enum JavaVersion {
     java8("java", "1.8", 8),
     java11("java11", "11", 11),
-    java17("java17", "17", 17);
+    java17("java17", "17", 17),
+    java21("java21", "21", 21);
 
     // Legacy name, as used in container image
     private final String legacyName;
@@ -119,6 +123,7 @@ public class Environments {
       return this.specification;
     }
 
+    /** Return the LTS java version given the Java specification version. */
     public static JavaVersion forSpecification(String specification) {
       for (JavaVersion ver : JavaVersion.values()) {
         if (ver.specification.equals(specification)) {
@@ -137,7 +142,7 @@ public class Environments {
         }
       }
       LOG.warn(
-          "unsupported Java version: {}, falling back to: {}",
+          "Unsupported Java version: {}, falling back to: {}",
           specification,
           fallback.specification);
       return fallback;
@@ -289,6 +294,50 @@ public class Environments {
         .build();
   }
 
+  public static Environment createAnyOfEnvironment(Environment... environments) {
+    AnyOfEnvironmentPayload.Builder payload = AnyOfEnvironmentPayload.newBuilder();
+    for (Environment environment : environments) {
+      payload.addEnvironments(environment);
+    }
+    return Environment.newBuilder()
+        .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.ANYOF))
+        .setPayload(payload.build().toByteString())
+        .build();
+  }
+
+  public static List<Environment> expandAnyOfEnvironments(Environment environment) {
+    return Stream.of(environment)
+        .flatMap(
+            env -> {
+              if (BeamUrns.getUrn(StandardEnvironments.Environments.ANYOF)
+                  .equals(environment.getUrn())) {
+                try {
+                  return AnyOfEnvironmentPayload.parseFrom(environment.getPayload())
+                      .getEnvironmentsList().stream()
+                      .flatMap(subenv -> expandAnyOfEnvironments(subenv).stream());
+                } catch (InvalidProtocolBufferException exn) {
+                  throw new RuntimeException(exn);
+                }
+              } else {
+                return Stream.of(env);
+              }
+            })
+        .collect(Collectors.toList());
+  }
+
+  public static Environment resolveAnyOfEnvironment(
+      Environment environment, String... preferredEnvironmentTypes) {
+    List<Environment> allEnvironments = expandAnyOfEnvironments(environment);
+    for (String urn : preferredEnvironmentTypes) {
+      for (Environment env : allEnvironments) {
+        if (urn.equals(env.getUrn())) {
+          return env;
+        }
+      }
+    }
+    return allEnvironments.iterator().next();
+  }
+
   public static Optional<Environment> getEnvironment(String ptransformId, Components components) {
     PTransform ptransform = components.getTransformsOrThrow(ptransformId);
     String envId = ptransform.getEnvironmentId();
@@ -328,51 +377,65 @@ public class Environments {
       } else {
         file = new File(path);
       }
-      // Spurious items get added to the classpath. Filter by just those that exist.
-      if (file.exists()) {
-        ArtifactInformation.Builder artifactBuilder = ArtifactInformation.newBuilder();
-        artifactBuilder.setTypeUrn(BeamUrns.getUrn(StandardArtifacts.Types.FILE));
-        artifactBuilder.setRoleUrn(BeamUrns.getUrn(StandardArtifacts.Roles.STAGING_TO));
-        HashCode hashCode;
-        if (file.isDirectory()) {
-          File zippedFile;
-          try {
-            zippedFile = zipDirectory(file);
-            hashCode = Files.asByteSource(zippedFile).hash(Hashing.sha256());
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
 
-          artifactBuilder.setTypePayload(
-              RunnerApi.ArtifactFilePayload.newBuilder()
-                  .setPath(zippedFile.getPath())
-                  .setSha256(hashCode.toString())
-                  .build()
-                  .toByteString());
-
+      // Spurious items get added to the classpath, but ignoring silently can cause confusion.
+      // Therefore, issue logs if a file does not exist before ignoring. The level will be warning
+      // if they have a staged name, as those are likely to cause problems or unintended behavior
+      // (e.g., dataflow-worker.jar, windmill_main).
+      if (!file.exists()) {
+        if (stagedName != null) {
+          LOG.warn(
+              "Stage Artifact '{}' with the name '{}' was not found, staging will be ignored.",
+              file,
+              stagedName);
         } else {
-          try {
-            hashCode = Files.asByteSource(file).hash(Hashing.sha256());
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-          artifactBuilder.setTypePayload(
-              RunnerApi.ArtifactFilePayload.newBuilder()
-                  .setPath(file.getPath())
-                  .setSha256(hashCode.toString())
-                  .build()
-                  .toByteString());
+          LOG.info("Stage Artifact '{}' was not found, staging will be ignored.", file);
         }
-        if (stagedName == null) {
-          stagedName = createStagingFileName(file, hashCode);
+        continue;
+      }
+
+      ArtifactInformation.Builder artifactBuilder = ArtifactInformation.newBuilder();
+      artifactBuilder.setTypeUrn(BeamUrns.getUrn(StandardArtifacts.Types.FILE));
+      artifactBuilder.setRoleUrn(BeamUrns.getUrn(StandardArtifacts.Roles.STAGING_TO));
+      HashCode hashCode;
+      if (file.isDirectory()) {
+        File zippedFile;
+        try {
+          zippedFile = zipDirectory(file);
+          hashCode = Files.asByteSource(zippedFile).hash(Hashing.sha256());
+        } catch (IOException e) {
+          throw new RuntimeException(e);
         }
-        artifactBuilder.setRolePayload(
-            RunnerApi.ArtifactStagingToRolePayload.newBuilder()
-                .setStagedName(stagedName)
+
+        artifactBuilder.setTypePayload(
+            RunnerApi.ArtifactFilePayload.newBuilder()
+                .setPath(zippedFile.getPath())
+                .setSha256(hashCode.toString())
                 .build()
                 .toByteString());
-        artifactsBuilder.add(artifactBuilder.build());
+
+      } else {
+        try {
+          hashCode = Files.asByteSource(file).hash(Hashing.sha256());
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        artifactBuilder.setTypePayload(
+            RunnerApi.ArtifactFilePayload.newBuilder()
+                .setPath(file.getPath())
+                .setSha256(hashCode.toString())
+                .build()
+                .toByteString());
       }
+      if (stagedName == null) {
+        stagedName = createStagingFileName(file, hashCode);
+      }
+      artifactBuilder.setRolePayload(
+          RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+              .setStagedName(stagedName)
+              .build()
+              .toByteString());
+      artifactsBuilder.add(artifactBuilder.build());
     }
     return artifactsBuilder.build();
   }

@@ -43,8 +43,8 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 @AutoService(SchemaTransformProvider.class)
 public class SqlTransformSchemaTransformProvider implements SchemaTransformProvider {
@@ -72,6 +72,21 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
   }
 
   @Override
+  public String description() {
+    return "A transform that executes a SQL query on its input PCollections.\n\n"
+        + "If a single input is given, it may be referred to as `PCOLLECTION`, e.g. the query could be of the form"
+        + "\n\n"
+        + "    SELECT a, sum(b) FROM PCOLLECTION"
+        + "\n\n"
+        + "If multiple inputs are given, the should be named as they are in the query, e.g."
+        + "\n\n"
+        + "    SELECT a, b, c FROM pcoll_1 join pcoll_2 using (b)"
+        + "\n\n"
+        + "For more details about Beam SQL in general see "
+        + "[the Beam SQL documentation](https://beam.apache.org/documentation/dsls/sql/overview/).";
+  }
+
+  @Override
   public Schema configurationSchema() {
     List<String> providers = new ArrayList<>();
     ServiceLoader.load(TableProvider.class)
@@ -82,7 +97,7 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
     EnumerationType providerEnum = EnumerationType.create(providers);
 
     return Schema.of(
-        Schema.Field.of("query", Schema.FieldType.STRING),
+        Schema.Field.of("query", Schema.FieldType.STRING).withDescription("SQL query to execute"),
         Schema.Field.nullable(
             "ddl", Schema.FieldType.STRING), // TODO: Underlying builder seems more capable?
         Schema.Field.nullable("dialect", Schema.FieldType.logicalType(QUERY_ENUMERATION)),

@@ -145,9 +145,9 @@ func query(s beam.Scope, project, query string, t reflect.Type, options ...func(
 }
 
 type queryFn struct {
-	// Project is the project
+	// Project is the project.
 	Project string `json:"project"`
-	// Table is the table identifier.
+	// Query is the query statement.
 	Query string `json:"query"`
 	// Type is the encoded schema type.
 	Type beam.EncodedType `json:"type"`

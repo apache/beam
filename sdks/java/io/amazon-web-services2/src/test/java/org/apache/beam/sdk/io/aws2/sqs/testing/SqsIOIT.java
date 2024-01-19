@@ -114,7 +114,9 @@ public class SqsIOIT {
         .apply("Prepare TestRows", ParDo.of(new DeterministicallyConstructTestRowFn()))
         .apply(
             "Write to SQS",
-            SqsIO.<TestRow>writeBatches((b, row) -> b.messageBody(row.name())).to(sqsQueue.url));
+            SqsIO.<TestRow>writeBatches()
+                .withEntryMapper((b, row) -> b.messageBody(row.name()))
+                .to(sqsQueue.url));
 
     // Read test dataset from SQS.
     PCollection<String> output =

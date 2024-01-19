@@ -1,0 +1,256 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+spanner_io_read:
+  test_description: |
+    SpannerIO Read test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testSpannerWriteAndRead,read-spanner
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+spanner_io_read_runnerV2:
+  test_description: |
+    SpannerIO RunnerV2 Read test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testSpannerWriteAndRead,read_spanner_v2
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+spanner_io_write:
+  test_description: |
+    SpannerIO write test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testSpannerWriteAndRead,write-spanner
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+spanner_io_write_runnerV2:
+  test_description: |
+    SpannerIO RunnerV2 write test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testSpannerWriteAndRead,write_spanner_v2
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+bigquery_io_storage_api_read:
+  test_description: |
+    BigQueryIO Storage write API read test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testStorageAPIWriteThenRead,read-bigquery
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+bigquery_io_storage_api_read_runnerV2:
+  test_description: |
+    BigQueryIO RunnerV2 Storage write API read test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testStorageAPIWriteThenRead,read_bigquery_v2
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+bigquery_io_storage_api_write:
+  test_description: |
+    BigQueryIO Storage write API write test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testStorageAPIWriteThenRead,write-bigquery
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+bigquery_io_storage_api_write_runnerV2:
+  test_description: |
+    BigQueryIO Storage write API write test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testStorageAPIWriteThenRead,write_bigquery_v2
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+bigquery_io_avro_file_loads_read:
+  test_description: |
+    BigQueryIO Avro file loads read test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testAvroFileLoadsWriteThenRead,read-bigquery
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+bigquery_io_avro_file_loads_read_runnerV2:
+  test_description: |
+    BigQueryIO RunnerV2 Avro file loads read test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testAvroFileLoadsWriteThenRead,read_bigquery_v2
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+bigquery_io_avro_file_loads_write:
+  test_description: |
+    BigQueryIO Avro file loads write test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testAvroFileLoadsWriteThenRead,write-bigquery
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+bigquery_io_avro_file_loads_write_runnerV2:
+  test_description: |
+    BigQueryIO RunnerV2 Avro file loads write test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testAvroFileLoadsWriteThenRead,write_bigquery_v2
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+bigquery_io_json_file_loads_read:
+  test_description: |
+    BigQueryIO Json file loads read test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testJsonFileLoadsWriteThenRead,read-bigquery
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+bigquery_io_json_file_loads_write:
+  test_description: |
+    BigQueryIO Json file loads write test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testJsonFileLoadsWriteThenRead,write-bigquery
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+bigtable_io_read:
+  test_description: |
+    BigTableIO read test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testBigtableWriteAndRead,read-bigtable
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+bigtable_io_write:
+  test_description: |
+    BigTableIO write test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testBigtableWriteAndRead,write-bigtable
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+text_io_read:
+  test_description: |
+    TextIO read test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testTextIOWriteThenRead,read-textio
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+text_io_read_runnerV2:
+  test_description: |
+    TextIO RunnerV2 read test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testTextIOWriteThenRead,read_textio_v2
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+text_io_write:
+  test_description: |
+    TextIO write test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testTextIOWriteThenRead,write-textio
+  metric_name:
+    - RunTime
+    - EstimatedCost
+
+text_io_write_runnerV2:
+  test_description: |
+    TextIO RunnerV2 write test 100 GB.
+  project: apache-beam-testing
+  metrics_dataset: performance_tests
+  metrics_table: io_performance_metrics
+  # test_name is in the format testName,pipelineName
+  test_name: testTextIOWriteThenRead,write_textio_v2
+  metric_name:
+    - RunTime
+    - EstimatedCost

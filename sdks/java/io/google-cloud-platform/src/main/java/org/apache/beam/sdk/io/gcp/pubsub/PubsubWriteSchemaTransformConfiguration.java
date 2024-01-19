@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import com.google.auto.value.AutoValue;
+import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
@@ -41,6 +43,45 @@ public abstract class PubsubWriteSchemaTransformConfiguration {
       "The name of the topic to write data to. " + "Format: projects/${PROJECT}/topics/${TOPIC}")
   public abstract String getTopic();
 
+  @SchemaFieldDescription(
+      "The set of fields to write as PubSub attributes instead of part of the payload.")
+  public abstract @Nullable List<String> getAttributes();
+
+  @SchemaFieldDescription(
+      "A map field to write as PubSub attributes instead of part of the payload.")
+  public abstract @Nullable String getAttributesMap();
+
+  @SchemaFieldDescription(
+      "If set, will set an attribute for each Cloud Pub/Sub message with the given name and a unique value. "
+          + "This attribute can then be used in a ReadFromPubSub PTransform to deduplicate messages.")
+  public abstract @Nullable String getIdAttribute();
+
+  @SchemaFieldDescription(
+      "If set, will set an attribute for each Cloud Pub/Sub message with the given name and the message's "
+          + "publish time as the value.")
+  public abstract @Nullable String getTimestampAttribute();
+
+  @SchemaFieldDescription("Specifies how to handle errors.")
+  public abstract @Nullable ErrorHandling getErrorHandling();
+
+  @AutoValue
+  public abstract static class ErrorHandling {
+    @SchemaFieldDescription("The name of the output PCollection containing failed writes.")
+    public abstract String getOutput();
+
+    public static PubsubWriteSchemaTransformConfiguration.ErrorHandling.Builder builder() {
+      return new AutoValue_PubsubWriteSchemaTransformConfiguration_ErrorHandling.Builder();
+    }
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract PubsubWriteSchemaTransformConfiguration.ErrorHandling.Builder setOutput(
+          String output);
+
+      public abstract PubsubWriteSchemaTransformConfiguration.ErrorHandling build();
+    }
+  }
+
   public static Builder builder() {
     return new AutoValue_PubsubWriteSchemaTransformConfiguration.Builder();
   }
@@ -50,6 +91,16 @@ public abstract class PubsubWriteSchemaTransformConfiguration {
     public abstract Builder setFormat(String format);
 
     public abstract Builder setTopic(String topic);
+
+    public abstract Builder setAttributes(@Nullable List<String> attributes);
+
+    public abstract Builder setAttributesMap(@Nullable String attributesMap);
+
+    public abstract Builder setIdAttribute(@Nullable String idAttribute);
+
+    public abstract Builder setTimestampAttribute(@Nullable String timestampAttribute);
+
+    public abstract Builder setErrorHandling(@Nullable ErrorHandling errorHandling);
 
     public abstract PubsubWriteSchemaTransformConfiguration build();
   }

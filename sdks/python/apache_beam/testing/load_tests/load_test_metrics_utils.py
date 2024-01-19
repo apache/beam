@@ -33,12 +33,13 @@ import json
 import logging
 import time
 import uuid
+from typing import Any
+from typing import Dict
 from typing import List
 from typing import Mapping
 from typing import Optional
 from typing import Union
 
-import pandas as pd
 import requests
 from requests.auth import HTTPBasicAuth
 
@@ -46,6 +47,7 @@ import apache_beam as beam
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.timestamp import Timestamp
@@ -66,6 +68,7 @@ ID_LABEL = 'test_id'
 SUBMIT_TIMESTAMP_LABEL = 'timestamp'
 METRICS_TYPE_LABEL = 'metric'
 VALUE_LABEL = 'value'
+JOB_ID_LABEL = 'job_id'
 
 SCHEMA = [{
     'name': ID_LABEL, 'field_type': 'STRING', 'mode': 'REQUIRED'
@@ -81,6 +84,8 @@ SCHEMA = [{
               'mode': 'REQUIRED'
           }, {
               'name': VALUE_LABEL, 'field_type': 'FLOAT', 'mode': 'REQUIRED'
+          }, {
+              'name': JOB_ID_LABEL, 'field_type': 'STRING', 'mode': 'NULLABLE'
           }]
 
 _LOGGER = logging.getLogger(__name__)
@@ -255,12 +260,26 @@ class MetricsReader(object):
     # Under each key there is list of objects of each metric type. It is
     # required to prepare metrics for publishing purposes. Expected is to have
     # a list of dictionaries matching the schema.
+
     insert_dicts = self._prepare_all_metrics(metrics, metric_id)
 
     insert_dicts += self._prepare_extra_metrics(metric_id, extra_metrics)
+
+    # Add job id for dataflow jobs for easier debugging.
+    job_id = None
+    if isinstance(result, DataflowPipelineResult):
+      job_id = result.job_id()
+      self._add_job_id_to_metrics(insert_dicts, job_id)
+
     if len(insert_dicts) > 0:
       for publisher in self.publishers:
         publisher.publish(insert_dicts)
+
+  def _add_job_id_to_metrics(self, metrics: List[Dict[str, Any]],
+                             job_id) -> List[Dict[str, Any]]:
+    for metric in metrics:
+      metric[JOB_ID_LABEL] = job_id
+    return metrics
 
   def _prepare_extra_metrics(
       self, metric_id: str, extra_metrics: Optional[dict] = None):
@@ -480,6 +499,12 @@ class BigQueryClient(object):
       table = bigquery.Table(table_ref, schema=bq_schemas)
       self._bq_table = self._client.create_table(table)
 
+  def _update_schema(self):
+    table_schema = self._bq_table.schema
+    if self.schema and len(table_schema) != self.schema:
+      self._bq_table.schema = self._prepare_schema()
+      self._bq_table = self._client.update_table(self._bq_table, ["schema"])
+
   def _get_dataset(self, dataset_name):
     bq_dataset_ref = self._client.dataset(dataset_name)
     try:
@@ -491,6 +516,8 @@ class BigQueryClient(object):
     return bq_dataset
 
   def save(self, results):
+    # update schema if needed
+    self._update_schema()
     return self._client.insert_rows(self._bq_table, results)
 
 
@@ -536,7 +563,8 @@ class InfluxDBMetricsPublisher(MetricsPublisher):
       self.options.http_auth_enabled() else None
 
     try:
-      response = requests.post(url, params=query_str, data=payload, auth=auth)
+      response = requests.post(
+          url, params=query_str, data=payload, auth=auth, timeout=60)
     except requests.exceptions.RequestException as e:
       _LOGGER.warning('Failed to publish metrics to InfluxDB: ' + str(e))
     else:
@@ -650,13 +678,3 @@ class AssignTimestamps(beam.DoFn):
   def process(self, element):
     yield self.timestamp_val_fn(
         element, self.timestamp_fn(micros=int(self.time_fn() * 1000000)))
-
-
-class BigQueryMetricsFetcher:
-  def __init__(self):
-    self.client = bigquery.Client()
-
-  def fetch(self, query) -> pd.DataFrame:
-    query_job = self.client.query(query=query)
-    result = query_job.result()
-    return result.to_dataframe()

@@ -24,6 +24,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
+import logging
 import sys
 import threading
 import traceback
@@ -38,6 +39,7 @@ from typing import Optional
 from typing import Tuple
 
 from apache_beam.coders import TupleCoder
+from apache_beam.coders import coders
 from apache_beam.internal import util
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
@@ -54,6 +56,7 @@ from apache_beam.transforms import userstate
 from apache_beam.transforms.core import RestrictionProvider
 from apache_beam.transforms.core import WatermarkEstimatorProvider
 from apache_beam.transforms.window import GlobalWindow
+from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.typehints import typehints
@@ -72,6 +75,14 @@ if TYPE_CHECKING:
   from apache_beam.io.iobase import RestrictionProgress
   from apache_beam.iobase import RestrictionTracker
   from apache_beam.iobase import WatermarkEstimator
+
+IMPULSE_VALUE_CODER_IMPL = coders.WindowedValueCoder(
+    coders.BytesCoder(), coders.GlobalWindowCoder()).get_impl()
+
+ENCODED_IMPULSE_VALUE = IMPULSE_VALUE_CODER_IMPL.encode_nested(
+    GlobalWindows.windowed_value(b''))
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class NameContext(object):
@@ -754,6 +765,7 @@ class PerWindowInvoker(DoFnInvoker):
     # Try to prepare all the arguments that can just be filled in
     # without any additional work. in the process function.
     # Also cache all the placeholders needed in the process function.
+    input_args = list(input_args)
     (
         self.placeholders_for_process,
         self.args_for_process,
@@ -1426,7 +1438,8 @@ class DoFnRunner:
       return []
 
   def _maybe_sample_exception(
-      self, exn: BaseException, windowed_value: WindowedValue) -> None:
+      self, exn: BaseException,
+      windowed_value: Optional[WindowedValue]) -> None:
 
     if self.execution_context is None:
       return
@@ -1530,6 +1543,7 @@ class DoFnRunner:
 
     new_exn = new_exn.with_traceback(tb)
     self._maybe_sample_exception(exc_info, windowed_value)
+    _LOGGER.exception(new_exn)
     raise new_exn
 
 
@@ -1915,6 +1929,12 @@ def validate_pipeline_graph(pipeline_proto):
         raise ValueError(
             "Incompatible input coder %s and output coder %s for transform %s" %
             (transform_id, input_coder, output_coder))
+    elif transform_proto.spec.urn == common_urns.primitives.ASSIGN_WINDOWS.urn:
+      if not transform_proto.inputs:
+        raise ValueError("Missing input for transform: %s" % transform_proto)
+    elif transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn:
+      if not transform_proto.inputs:
+        raise ValueError("Missing input for transform: %s" % transform_proto)
 
     for t in transform_proto.subtransforms:
       validate_transform(t)

@@ -60,12 +60,12 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -495,6 +495,20 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
         boolean pythonAvailable = isPythonAvailable();
         boolean dockerAvailable = isDockerAvailable();
 
+        File requirementsFile = null;
+        if (!extraPackages.isEmpty()) {
+          requirementsFile = File.createTempFile("requirements", ".txt");
+          requirementsFile.deleteOnExit();
+          try (Writer fout =
+              new OutputStreamWriter(
+                  new FileOutputStream(requirementsFile.getAbsolutePath()), Charsets.UTF_8)) {
+            for (String pkg : extraPackages) {
+              fout.write(pkg);
+              fout.write('\n');
+            }
+          }
+        }
+
         // We use the transform service if either of the following is true.
         // * It was explicitly requested.
         // * Python executable is not available in the system but Docker is available.
@@ -514,19 +528,16 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
               projectName,
               port);
 
-          TransformServiceLauncher service = TransformServiceLauncher.forProject(projectName, port);
+          String pythonRequirementsFile =
+              requirementsFile != null ? requirementsFile.getAbsolutePath() : null;
+          TransformServiceLauncher service =
+              TransformServiceLauncher.forProject(projectName, port, pythonRequirementsFile);
           service.setBeamVersion(ReleaseInfo.getReleaseInfo().getSdkVersion());
-          // TODO(https://github.com/apache/beam/issues/26833): add support for installing extra
-          // packages.
-          if (!extraPackages.isEmpty()) {
-            throw new RuntimeException(
-                "Transform Service does not support installing extra packages yet");
-          }
           try {
             // Starting the transform service.
             service.start();
             // Waiting the service to be ready.
-            service.waitTillUp(15000);
+            service.waitTillUp(-1);
             // Expanding the transform.
             output = apply(input, String.format("localhost:%s", port), payload);
           } finally {
@@ -539,17 +550,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
           ImmutableList.Builder<String> args = ImmutableList.builder();
           args.add(
               "--port=" + port, "--fully_qualified_name_glob=*", "--pickle_library=cloudpickle");
-          if (!extraPackages.isEmpty()) {
-            File requirementsFile = File.createTempFile("requirements", ".txt");
-            requirementsFile.deleteOnExit();
-            try (Writer fout =
-                new OutputStreamWriter(
-                    new FileOutputStream(requirementsFile.getAbsolutePath()), Charsets.UTF_8)) {
-              for (String pkg : extraPackages) {
-                fout.write(pkg);
-                fout.write('\n');
-              }
-            }
+          if (requirementsFile != null) {
             args.add("--requirements_file=" + requirementsFile.getAbsolutePath());
           }
           PythonService service =

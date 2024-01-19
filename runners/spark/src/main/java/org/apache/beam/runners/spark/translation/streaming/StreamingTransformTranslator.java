@@ -18,8 +18,8 @@
 package org.apache.beam.runners.spark.translation.streaming;
 
 import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectStateAndTimers;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.util.ArrayList;
@@ -84,7 +84,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.JavaSparkContext$;
@@ -636,7 +636,7 @@ public final class StreamingTransformTranslator {
           ConsoleIO.Write.Unbound<?>> {
 
     @Override
-    public String getUrn(ConsoleIO.Write.Unbound<?> transform) {
+    public String getUrn() {
       return ConsoleIO.Write.Unbound.TRANSFORM_URN;
     }
   }
@@ -645,7 +645,7 @@ public final class StreamingTransformTranslator {
       extends PTransformTranslation.TransformPayloadTranslator.NotSerializable<CreateStream<?>> {
 
     @Override
-    public String getUrn(CreateStream<?> transform) {
+    public String getUrn() {
       return CreateStream.TRANSFORM_URN;
     }
   }

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
+import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
 import javax.annotation.Nullable;
@@ -73,6 +74,11 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
     @Override
     public TableSchema getTableSchema() {
       return tableSchema;
+    }
+
+    @Override
+    public DescriptorProtos.DescriptorProto getDescriptor(boolean includeCdcColumns) {
+      return cdcDescriptor != null ? cdcDescriptor.toProto() : descriptor.toProto();
     }
 
     @Override

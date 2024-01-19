@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
+import com.google.api.core.ApiFuture;
 import com.google.api.gax.batching.Batcher;
+import com.google.api.gax.batching.BatchingException;
 import com.google.api.gax.grpc.GrpcCallContext;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.ResponseObserver;
@@ -61,6 +63,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
@@ -69,14 +72,14 @@ import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ComparisonChain;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.FutureCallback;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ComparisonChain;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.FutureCallback;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Futures;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.SettableFuture;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -101,33 +104,13 @@ class BigtableServiceImpl implements BigtableService {
   private static final long MIN_BYTE_BUFFER_SIZE = 100 * 1024 * 1024; // 100MB
 
   BigtableServiceImpl(BigtableDataSettings settings) throws IOException {
-    this(settings, null);
-  }
-
-  // TODO remove this constructor once https://github.com/googleapis/gapic-generator-java/pull/1473
-  // is resolved. readWaitTimeout is a hack to workaround incorrect mapping from attempt timeout to
-  // Watchdog's wait timeout.
-  BigtableServiceImpl(BigtableDataSettings settings, Duration readWaitTimeout) throws IOException {
     this.projectId = settings.getProjectId();
     this.instanceId = settings.getInstanceId();
     RetrySettings retry = settings.getStubSettings().readRowsSettings().getRetrySettings();
     this.readAttemptTimeout = Duration.millis(retry.getInitialRpcTimeout().toMillis());
     this.readOperationTimeout = Duration.millis(retry.getTotalTimeout().toMillis());
-    BigtableDataSettings.Builder builder = settings.toBuilder();
-    if (readWaitTimeout != null) {
-      builder
-          .stubSettings()
-          .readRowsSettings()
-          .setRetrySettings(
-              retry
-                  .toBuilder()
-                  .setInitialRpcTimeout(
-                      org.threeten.bp.Duration.ofMillis(readWaitTimeout.getMillis()))
-                  .setMaxRpcTimeout(org.threeten.bp.Duration.ofMillis(readWaitTimeout.getMillis()))
-                  .build());
-    }
-    LOG.info("Started Bigtable service with settings " + builder.build());
-    this.client = BigtableDataClient.create(builder.build());
+    this.client = BigtableDataClient.create(settings);
+    LOG.info("Started Bigtable service with settings {}", settings);
   }
 
   private final BigtableDataClient client;
@@ -139,8 +122,13 @@ class BigtableServiceImpl implements BigtableService {
   private final Duration readOperationTimeout;
 
   @Override
-  public BigtableWriterImpl openForWriting(String tableId) {
-    return new BigtableWriterImpl(client, projectId, instanceId, tableId);
+  public BigtableWriterImpl openForWriting(BigtableWriteOptions writeOptions) {
+    return new BigtableWriterImpl(
+        client,
+        projectId,
+        instanceId,
+        writeOptions.getTableId().get(),
+        writeOptions.getCloseWaitTimeout());
   }
 
   @VisibleForTesting
@@ -337,7 +325,8 @@ class BigtableServiceImpl implements BigtableService {
       this.serviceCallMetric = serviceCallMetric;
       this.buffer = new ArrayDeque<>();
       // Asynchronously refill buffer when there is 10% of the elements are left
-      this.refillSegmentWaterMark = (int) (request.getRowsLimit() * WATERMARK_PERCENTAGE);
+      this.refillSegmentWaterMark =
+          Math.max(1, (int) (request.getRowsLimit() * WATERMARK_PERCENTAGE));
       this.attemptTimeout = attemptTimeout;
       this.operationTimeout = operationTimeout;
     }
@@ -350,11 +339,16 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public boolean advance() throws IOException {
+      if (future != null && future.isDone()) {
+        // Add rows from the future to the buffer and reset the future
+        // so we can do prefetching
+        consumeReadRowsFuture();
+      }
       if (buffer.size() < refillSegmentWaterMark && future == null) {
         future = fetchNextSegment();
       }
       if (buffer.isEmpty() && future != null) {
-        waitReadRowsFuture();
+        consumeReadRowsFuture();
       }
       currentRow = buffer.poll();
       return currentRow != null;
@@ -418,7 +412,7 @@ class BigtableServiceImpl implements BigtableService {
       return future;
     }
 
-    private void waitReadRowsFuture() throws IOException {
+    private void consumeReadRowsFuture() throws IOException {
       try {
         UpstreamResults r = future.get();
         buffer.addAll(r.rows);
@@ -489,34 +483,22 @@ class BigtableServiceImpl implements BigtableService {
     private String projectId;
     private String instanceId;
     private String tableId;
+    private Duration closeWaitTimeout;
 
     private Distribution bulkSize = Metrics.distribution("BigTable-" + tableId, "batchSize");
     private Distribution latency = Metrics.distribution("BigTable-" + tableId, "batchLatencyMs");
 
     BigtableWriterImpl(
-        BigtableDataClient client, String projectId, String instanceId, String tableId) {
+        BigtableDataClient client,
+        String projectId,
+        String instanceId,
+        String tableId,
+        Duration closeWaitTimeout) {
       this.projectId = projectId;
       this.instanceId = instanceId;
       this.tableId = tableId;
+      this.closeWaitTimeout = closeWaitTimeout;
       this.bulkMutation = client.newBulkMutationBatcher(tableId);
-    }
-
-    @Override
-    public void flush() throws IOException {
-      if (bulkMutation != null) {
-        try {
-          stopwatch.start();
-          bulkMutation.flush();
-          bulkSize.update(outstandingMutations);
-          outstandingMutations = 0;
-          stopwatch.stop();
-          latency.update(stopwatch.elapsed(TimeUnit.MILLISECONDS));
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          // We fail since flush() operation was interrupted.
-          throw new IOException(e);
-        }
-      }
     }
 
     @Override
@@ -524,15 +506,32 @@ class BigtableServiceImpl implements BigtableService {
       if (bulkMutation != null) {
         try {
           stopwatch.start();
-          bulkMutation.flush();
-          bulkMutation.close();
+          // closeAsync will send any remaining elements in the batch.
+          // If the experimental close wait timeout flag is set,
+          // set a timeout waiting for the future.
+          ApiFuture<Void> future = bulkMutation.closeAsync();
+          if (Duration.ZERO.isShorterThan(closeWaitTimeout)) {
+            future.get(closeWaitTimeout.getMillis(), TimeUnit.MILLISECONDS);
+          } else {
+            future.get();
+          }
           bulkSize.update(outstandingMutations);
           outstandingMutations = 0;
           stopwatch.stop();
           latency.update(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        } catch (BatchingException e) {
+          // Ignore batching failures because element failures are tracked as is in
+          // BigtableIOWriteFn.
+          // TODO: Bigtable client already tracks BatchingExceptions, use BatchingExceptions
+          // instead of tracking them separately in BigtableIOWriteFn.
+        } catch (TimeoutException e) {
+          // We fail because future.get() timed out
+          throw new IOException("BulkMutation took too long to close", e);
+        } catch (ExecutionException e) {
+          throw new IOException("Failed to close batch", e.getCause());
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
-          // We fail since flush() operation was interrupted.
+          // We fail since close() operation was interrupted.
           throw new IOException(e);
         }
         bulkMutation = null;

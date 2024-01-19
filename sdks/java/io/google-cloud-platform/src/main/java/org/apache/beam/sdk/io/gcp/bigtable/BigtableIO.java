@@ -19,9 +19,9 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.sdk.io.gcp.bigtable.BigtableServiceFactory.BigtableServiceEntry;
 import static org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Mutation;
@@ -49,6 +49,7 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.BigtableChangeStreamAccessor;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.BigtableClientOverride;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn.DetectNewPartitionsDoFn;
@@ -59,6 +60,7 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.CoderSizeEsti
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -72,12 +74,12 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.ToStringHelper;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.ToStringHelper;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -178,6 +180,27 @@ import org.slf4j.LoggerFactory;
  *         .withTableId("table")
  *         .withBatchElements(100)); // every batch will have 100 elements
  * }</pre>
+ *
+ * <p>Configure timeout for writes:
+ *
+ * <pre>{@code
+ * // Let each attempt run for 1 second, retry if the attempt failed.
+ * // Give up after the request is retried for 60 seconds.
+ * Duration attemptTimeout = Duration.millis(1000);
+ * Duration operationTimeout = Duration.millis(60 * 1000);
+ * data.apply("write",
+ *     BigtableIO.write()
+ *         .withProjectId("project")
+ *         .withInstanceId("instance")
+ *         .withTableId("table")
+ *         .withAttemptTimeout(attemptTimeout)
+ *         .withOperationTimeout(operationTimeout));
+ * }</pre>
+ *
+ * <p>You can also limit the wait time in the finish bundle step by setting the
+ * bigtable_writer_wait_timeout_ms experimental flag when you run the pipeline. For example,
+ * --experiments=bigtable_writer_wait_timeout_ms=60000 will limit the wait time in finish bundle to
+ * be 10 minutes.
  *
  * <p>Optionally, BigtableIO.write() may be configured to emit {@link BigtableWriteResult} elements
  * after each group of inputs is written to Bigtable. These can be used to then trigger user code
@@ -457,6 +480,25 @@ public class BigtableIO {
     }
 
     /**
+     * Returns a new {@link BigtableIO.Read} that will read using the specified app profile id.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withAppProfileId(ValueProvider<String> appProfileId) {
+      BigtableConfig config = getBigtableConfig();
+      return toBuilder().setBigtableConfig(config.withAppProfileId(appProfileId)).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Read} that will read using the specified app profile id.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withAppProfileId(String appProfileId) {
+      return withAppProfileId(StaticValueProvider.of(appProfileId));
+    }
+
+    /**
      * WARNING: Should be used only to specify additional parameters for connection to the Cloud
      * Bigtable, instanceId and projectId should be provided over {@link #withInstanceId} and {@link
      * #withProjectId} respectively.
@@ -688,14 +730,13 @@ public class BigtableIO {
     private void validateTableExists(
         BigtableConfig config, BigtableReadOptions readOptions, PipelineOptions options) {
       if (config.getValidate() && config.isDataAccessible() && readOptions.isDataAccessible()) {
-        String tableId = checkNotNull(readOptions.getTableId().get());
+        ValueProvider<String> tableIdProvider = checkArgumentNotNull(readOptions.getTableId());
+        String tableId = checkArgumentNotNull(tableIdProvider.get());
         try {
-          checkArgument(
-              getServiceFactory().checkTableExists(config, options, tableId),
-              "Table %s does not exist",
-              tableId);
+          boolean exists = getServiceFactory().checkTableExists(config, options, tableId);
+          checkArgument(exists, "Table %s does not exist", tableId);
         } catch (IOException e) {
-          LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
+          throw new RuntimeException(e);
         }
       }
     }
@@ -835,6 +876,31 @@ public class BigtableIO {
      */
     public Write withTableId(String tableId) {
       return withTableId(StaticValueProvider.of(tableId));
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} that will write using the specified app profile id.
+     *
+     * <p>Remember that in order to use single-row transactions, this must use a single-cluster
+     * routing policy.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withAppProfileId(ValueProvider<String> appProfileId) {
+      BigtableConfig config = getBigtableConfig();
+      return toBuilder().setBigtableConfig(config.withAppProfileId(appProfileId)).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} that will write using the specified app profile id.
+     *
+     * <p>Remember that in order to use single-row transactions, this must use a single-cluster
+     * routing policy.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withAppProfileId(String appProfileId) {
+      return withAppProfileId(StaticValueProvider.of(appProfileId));
     }
 
     /**
@@ -1074,6 +1140,8 @@ public class BigtableIO {
       extends PTransform<
           PCollection<KV<ByteString, Iterable<Mutation>>>, PCollection<BigtableWriteResult>> {
 
+    private static final String BIGTABLE_WRITER_WAIT_TIMEOUT_MS = "bigtable_writer_wait_timeout_ms";
+
     private final BigtableConfig bigtableConfig;
     private final BigtableWriteOptions bigtableWriteOptions;
 
@@ -1094,8 +1162,23 @@ public class BigtableIO {
       bigtableConfig.validate();
       bigtableWriteOptions.validate();
 
+      // Get experimental flag and set on BigtableWriteOptions
+      PipelineOptions pipelineOptions = input.getPipeline().getOptions();
+      String closeWaitTimeoutStr =
+          ExperimentalOptions.getExperimentValue(pipelineOptions, BIGTABLE_WRITER_WAIT_TIMEOUT_MS);
+      Duration closeWaitTimeout = null;
+      if (closeWaitTimeoutStr != null) {
+        long closeWaitTimeoutMs = Long.parseLong(closeWaitTimeoutStr);
+        checkState(closeWaitTimeoutMs > 0, "Close wait timeout must be positive");
+        closeWaitTimeout = Duration.millis(closeWaitTimeoutMs);
+      }
+
       return input.apply(
-          ParDo.of(new BigtableWriterFn(factory, bigtableConfig, bigtableWriteOptions)));
+          ParDo.of(
+              new BigtableWriterFn(
+                  factory,
+                  bigtableConfig,
+                  bigtableWriteOptions.toBuilder().setCloseWaitTimeout(closeWaitTimeout).build())));
     }
 
     @Override
@@ -1121,14 +1204,13 @@ public class BigtableIO {
     private void validateTableExists(
         BigtableConfig config, BigtableWriteOptions writeOptions, PipelineOptions options) {
       if (config.getValidate() && config.isDataAccessible() && writeOptions.isDataAccessible()) {
-        String tableId = checkNotNull(writeOptions.getTableId().get());
+        ValueProvider<String> tableIdProvider = checkArgumentNotNull(writeOptions.getTableId());
+        String tableId = checkArgumentNotNull(tableIdProvider.get());
         try {
-          checkArgument(
-              factory.checkTableExists(config, options, writeOptions.getTableId().get()),
-              "Table %s does not exist",
-              tableId);
+          boolean exists = factory.checkTableExists(config, options, tableId);
+          checkArgument(exists, "Table %s does not exist", tableId);
         } catch (IOException e) {
-          LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
+          throw new RuntimeException(e);
         }
       }
     }
@@ -1152,6 +1234,7 @@ public class BigtableIO {
       this.writeOptions = writeOptions;
       this.failures = new ConcurrentLinkedQueue<>();
       this.id = factory.newId();
+      LOG.debug("Created Bigtable Write Fn with writeOptions {} ", writeOptions);
     }
 
     @StartBundle
@@ -1162,7 +1245,7 @@ public class BigtableIO {
       if (bigtableWriter == null) {
         serviceEntry =
             factory.getServiceForWriting(id, config, writeOptions, c.getPipelineOptions());
-        bigtableWriter = serviceEntry.getService().openForWriting(writeOptions.getTableId().get());
+        bigtableWriter = serviceEntry.getService().openForWriting(writeOptions);
       }
     }
 
@@ -1184,27 +1267,26 @@ public class BigtableIO {
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
-      bigtableWriter.flush();
-      checkForFailures();
-      LOG.debug("Wrote {} records", recordsWritten);
+      try {
+        if (bigtableWriter != null) {
+          bigtableWriter.close();
+          bigtableWriter = null;
+        }
 
-      for (Map.Entry<BoundedWindow, Long> entry : seenWindows.entrySet()) {
-        c.output(
-            BigtableWriteResult.create(entry.getValue()),
-            entry.getKey().maxTimestamp(),
-            entry.getKey());
-      }
-    }
+        checkForFailures();
+        LOG.debug("Wrote {} records", recordsWritten);
 
-    @Teardown
-    public void tearDown() throws Exception {
-      if (bigtableWriter != null) {
-        bigtableWriter.close();
-        bigtableWriter = null;
-      }
-      if (serviceEntry != null) {
-        serviceEntry.close();
-        serviceEntry = null;
+        for (Map.Entry<BoundedWindow, Long> entry : seenWindows.entrySet()) {
+          c.output(
+              BigtableWriteResult.create(entry.getValue()),
+              entry.getKey().maxTimestamp(),
+              entry.getKey());
+        }
+      } finally {
+        if (serviceEntry != null) {
+          serviceEntry.close();
+          serviceEntry = null;
+        }
       }
     }
 
@@ -1327,7 +1409,11 @@ public class BigtableIO {
       long maximumNumberOfSplits = 4000;
       long sizeEstimate = getEstimatedSizeBytes(options);
       desiredBundleSizeBytes =
-          Math.max(sizeEstimate / maximumNumberOfSplits, desiredBundleSizeBytes);
+          Math.max(
+              sizeEstimate / maximumNumberOfSplits,
+              // BoundedReadEvaluatorFactory may provide us with a desiredBundleSizeBytes of 0
+              // https://github.com/apache/beam/issues/28793
+              Math.max(1, desiredBundleSizeBytes));
 
       // Delegate to testable helper.
       List<BigtableSource> splits =
@@ -1985,6 +2071,24 @@ public class BigtableIO {
       return toBuilder()
           .setMetadataTableBigtableConfig(
               config.withAppProfileId(StaticValueProvider.of(appProfileId)))
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that overrides the config of data and/or
+     * admin client for streaming changes and for managing the metadata. For testing purposes only.
+     * Not intended for use.
+     *
+     * <p>Does not modify this object.
+     */
+    @VisibleForTesting
+    ReadChangeStream withBigtableClientOverride(BigtableClientOverride clientOverride) {
+      BigtableConfig config = getBigtableConfig();
+      BigtableConfig metadataTableConfig = getMetadataTableBigtableConfig();
+      return toBuilder()
+          .setBigtableConfig(config.withBigtableClientOverride(clientOverride))
+          .setMetadataTableBigtableConfig(
+              metadataTableConfig.withBigtableClientOverride(clientOverride))
           .build();
     }
 

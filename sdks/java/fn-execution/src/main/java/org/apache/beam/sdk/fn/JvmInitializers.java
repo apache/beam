@@ -35,6 +35,7 @@ public class JvmInitializers {
       // We write to standard out since logging has yet to be initialized.
       System.out.format("Running JvmInitializer#onStartup for %s%n", initializer);
       initializer.onStartup();
+      System.out.format("Completed JvmInitializer#onStartup for %s%n", initializer);
     }
   }
 
@@ -52,6 +53,7 @@ public class JvmInitializers {
     for (JvmInitializer initializer : ReflectHelpers.loadServicesOrdered(JvmInitializer.class)) {
       logger.info("Running JvmInitializer#beforeProcessing for {}", initializer);
       initializer.beforeProcessing(options);
+      logger.info("Completed JvmInitializer#beforeProcessing for {}", initializer);
     }
   }
 }

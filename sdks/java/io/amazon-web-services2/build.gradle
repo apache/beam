@@ -33,7 +33,7 @@ def excludeNetty = {
 }
 
 dependencies {
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation library.java.error_prone_annotations
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.aws_java_sdk2_cloudwatch, excludeNetty

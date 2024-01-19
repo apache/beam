@@ -17,9 +17,15 @@
  */
 import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionWithHiddenFeatures
 
+pluginManagement {
+  plugins {
+     id("org.javacc.javacc") version "3.0.2" // enable the JavaCC parser generator
+  }
+}
+
 plugins {
-  id("com.gradle.enterprise") version "3.13.2"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.10"
+  id("com.gradle.enterprise") version "3.15.1"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.12.1"
 }
 
 
@@ -56,7 +62,7 @@ buildCache {
       username = System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME")
       password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
     }
-    isEnabled = true
+    isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
     isPush = isCi
   }
 }
@@ -80,6 +86,7 @@ include(":examples:multi-language")
 include(":learning")
 include(":learning:tour-of-beam")
 include(":learning:tour-of-beam:frontend")
+include(":learning:tour-of-beam:terraform")
 include(":model:fn-execution")
 include(":model:job-management")
 include(":model:pipeline")
@@ -97,20 +104,22 @@ include(":playground:backend:containers:scio")
 include(":playground:terraform")
 include(":playground:kafka-emulator")
 
+include(":it:cassandra")
 include(":it:common")
 include(":it:conditions")
+include(":it:elasticsearch")
 include(":it:google-cloud-platform")
+include(":it:jdbc")
+include(":it:kafka")
+include(":it:testcontainers")
 include(":it:truthmatchers")
-
-include(":learning:tour-of-beam:frontend")
-
+include(":it:mongodb")
+include(":it:splunk")
+include(":it:neo4j")
 include(":runners:core-construction-java")
 include(":runners:core-java")
 include(":runners:direct-java")
 include(":runners:extensions-java:metrics")
-include(":learning")
-include(":learning:tour-of-beam")
-include(":learning:tour-of-beam:terraform")
 /* Begin Flink Runner related settings */
 // Flink 1.12
 include(":runners:flink:1.12")
@@ -135,6 +144,7 @@ include(":runners:flink:1.16:job-server-container")
 /* End Flink Runner related settings */
 include(":runners:twister2")
 include(":runners:google-cloud-dataflow-java")
+include(":runners:google-cloud-dataflow-java:arm")
 include(":runners:google-cloud-dataflow-java:examples")
 include(":runners:google-cloud-dataflow-java:examples-streaming")
 include(":runners:java-fn-execution")
@@ -160,6 +170,7 @@ include(":sdks:java:container:agent")
 include(":sdks:java:container:java8")
 include(":sdks:java:container:java11")
 include(":sdks:java:container:java17")
+include(":sdks:java:container:java21")
 include(":sdks:java:core")
 include(":sdks:java:core:jmh")
 include(":sdks:java:expansion-service")
@@ -219,6 +230,7 @@ include(":sdks:java:io:bigquery-io-perf-tests")
 include(":sdks:java:io:cdap")
 include(":sdks:java:io:csv")
 include(":sdks:java:io:file-schema-transform")
+include(":sdks:java:io:google-ads")
 include(":sdks:java:io:google-cloud-platform")
 include(":sdks:java:io:google-cloud-platform:expansion-service")
 include(":sdks:java:io:hadoop-common")
@@ -228,7 +240,9 @@ include(":sdks:java:io:hbase")
 include(":sdks:java:io:hcatalog")
 include(":sdks:java:io:jdbc")
 include(":sdks:java:io:jms")
+include(":sdks:java:io:json")
 include(":sdks:java:io:kafka")
+include(":sdks:java:io:kafka:upgrade")
 include(":sdks:java:io:kinesis")
 include(":sdks:java:io:kinesis:expansion-service")
 include(":sdks:java:io:kudu")
@@ -239,6 +253,7 @@ include(":sdks:java:io:parquet")
 include(":sdks:java:io:pulsar")
 include(":sdks:java:io:rabbitmq")
 include(":sdks:java:io:redis")
+include(":sdks:java:io:rrio")
 include(":sdks:java:io:solr")
 include(":sdks:java:io:sparkreceiver:2")
 include(":sdks:java:io:snowflake")
@@ -297,22 +312,25 @@ include(":sdks:python:test-suites:tox:py311")
 include(":sdks:python:test-suites:xlang")
 include(":sdks:typescript")
 include(":sdks:typescript:container")
-include(":vendor:bytebuddy-1_12_8")
 include(":vendor:grpc-1_54_0")
 include(":vendor:calcite-1_28_0")
-include(":vendor:guava-26_0-jre")
+include(":vendor:guava-32_1_2-jre")
 include(":website")
 include(":runners:google-cloud-dataflow-java:worker")
 include(":runners:google-cloud-dataflow-java:worker:windmill")
 // no dots allowed for project paths
 include("beam-test-infra-metrics")
 project(":beam-test-infra-metrics").projectDir = file(".test-infra/metrics")
+include("beam-test-infra-mock-apis")
+project(":beam-test-infra-mock-apis").projectDir = file(".test-infra/mock-apis")
 include("beam-test-infra-pipelines")
 project(":beam-test-infra-pipelines").projectDir = file(".test-infra/pipelines")
 include("beam-test-tools")
 project(":beam-test-tools").projectDir = file(".test-infra/tools")
 include("beam-test-jenkins")
 project(":beam-test-jenkins").projectDir = file(".test-infra/jenkins")
+include("beam-test-gha")
+project(":beam-test-gha").projectDir = file(".github")
 include("beam-validate-runner")
 project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")
 include("com.google.api.gax.batching")

@@ -28,9 +28,9 @@ import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -100,7 +100,10 @@ public class KafkaReadSchemaTransformProviderTest {
             "consumerConfigUpdates",
             "format",
             "confluentSchemaRegistrySubject",
-            "confluentSchemaRegistryUrl"),
+            "confluentSchemaRegistryUrl",
+            "errorHandling",
+            "fileDescriptorPath",
+            "messageName"),
         kafkaProvider.configurationSchema().getFields().stream()
             .map(field -> field.getName())
             .collect(Collectors.toSet()));
@@ -146,5 +149,75 @@ public class KafkaReadSchemaTransformProviderTest {
                             getClass().getResourceAsStream("/json-schema/basic_json_schema.json"))),
                     StandardCharsets.UTF_8))
             .build());
+  }
+
+  @Test
+  public void testBuildTransformWithRawFormat() {
+    ServiceLoader<SchemaTransformProvider> serviceLoader =
+        ServiceLoader.load(SchemaTransformProvider.class);
+    List<SchemaTransformProvider> providers =
+        StreamSupport.stream(serviceLoader.spliterator(), false)
+            .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
+            .collect(Collectors.toList());
+    KafkaReadSchemaTransformProvider kafkaProvider =
+        (KafkaReadSchemaTransformProvider) providers.get(0);
+    kafkaProvider.from(
+        KafkaReadSchemaTransformConfiguration.builder()
+            .setTopic("anytopic")
+            .setBootstrapServers("anybootstrap")
+            .setFormat("RAW")
+            .build());
+  }
+
+  @Test
+  public void testBuildTransformWithProtoFormat() {
+    ServiceLoader<SchemaTransformProvider> serviceLoader =
+        ServiceLoader.load(SchemaTransformProvider.class);
+    List<SchemaTransformProvider> providers =
+        StreamSupport.stream(serviceLoader.spliterator(), false)
+            .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
+            .collect(Collectors.toList());
+    KafkaReadSchemaTransformProvider kafkaProvider =
+        (KafkaReadSchemaTransformProvider) providers.get(0);
+
+    kafkaProvider.from(
+        KafkaReadSchemaTransformConfiguration.builder()
+            .setTopic("anytopic")
+            .setBootstrapServers("anybootstrap")
+            .setFormat("PROTO")
+            .setMessageName("MyMessage")
+            .setFileDescriptorPath(
+                Objects.requireNonNull(
+                        getClass().getResource("/proto_byte/file_descriptor/proto_byte_utils.pb"))
+                    .getPath())
+            .build());
+  }
+
+  @Test
+  public void testBuildTransformWithProtoFormatWrongMessageName() {
+    ServiceLoader<SchemaTransformProvider> serviceLoader =
+        ServiceLoader.load(SchemaTransformProvider.class);
+    List<SchemaTransformProvider> providers =
+        StreamSupport.stream(serviceLoader.spliterator(), false)
+            .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
+            .collect(Collectors.toList());
+    KafkaReadSchemaTransformProvider kafkaProvider =
+        (KafkaReadSchemaTransformProvider) providers.get(0);
+
+    assertThrows(
+        NullPointerException.class,
+        () ->
+            kafkaProvider.from(
+                KafkaReadSchemaTransformConfiguration.builder()
+                    .setTopic("anytopic")
+                    .setBootstrapServers("anybootstrap")
+                    .setFormat("PROTO")
+                    .setMessageName("MyOtherMessage")
+                    .setFileDescriptorPath(
+                        Objects.requireNonNull(
+                                getClass()
+                                    .getResource("/proto_byte/file_descriptor/proto_byte_utils.pb"))
+                            .getPath())
+                    .build()));
   }
 }

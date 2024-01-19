@@ -72,10 +72,13 @@ public class PartitionReconciler {
   private final List<NewPartition> newPartitions = new ArrayList<>();
   private final MetadataTableDao metadataTableDao;
   private final ChangeStreamMetrics metrics;
+  // Ensure that we added the missing partitions before writing the missing partitions to the
+  // metadata table.
+  private boolean hasAddedMissingPartitions = false;
 
   // The amount of delay allowed before we consider a partition to be probably missing.
-  private static final Duration MISSING_PARTITION_SHORT_DELAY = Duration.standardMinutes(1);
-  private static final Duration MISSING_PARTITION_LONG_DELAY = Duration.standardMinutes(10);
+  private static final Duration MISSING_PARTITION_SHORT_DELAY = Duration.standardMinutes(2);
+  private static final Duration MISSING_PARTITION_LONG_DELAY = Duration.standardMinutes(20);
 
   public PartitionReconciler(MetadataTableDao metadataTableDao, ChangeStreamMetrics metrics) {
     this.metadataTableDao = metadataTableDao;
@@ -100,6 +103,7 @@ public class PartitionReconciler {
    * @param missingPartitions partitions not being streamed.
    */
   public void addMissingPartitions(List<ByteStringRange> missingPartitions) {
+    hasAddedMissingPartitions = true;
     HashMap<ByteStringRange, Instant> alreadyMissingPartitionDurations =
         metadataTableDao.readDetectNewPartitionMissingPartitions();
     missingPartitionDurations = new HashMap<>();
@@ -156,6 +160,8 @@ public class PartitionReconciler {
    * For missing partitions, try to organize the mismatched parent tokens in a way to fill the
    * missing partitions.
    *
+   * <p>Must call {@link #addMissingPartitions(List)} before this.
+   *
    * <p>If there are parent tokens that when combined form a missing partition, it can be outputted
    * as a merge of the missing partition.
    *
@@ -169,6 +175,14 @@ public class PartitionReconciler {
    * @return reconciled PartitionRecord.
    */
   public List<PartitionRecord> getPartitionsToReconcile(Instant lowWatermark, Instant startTime) {
+    // We update the metadata table with the partitions that are still missing after reconciliation.
+    // So we must ensure that we have already added the missing partitions, otherwise, we will
+    // update the metadata table with an empty list of missing partitions.
+    if (!hasAddedMissingPartitions) {
+      return Collections.emptyList();
+    }
+    // Reset to ensure we get an updated list of missing partitions before reconciling again.
+    hasAddedMissingPartitions = false;
     // This value is calculated in case that we reconcile without continuation tokens, we will use
     // an hour prior to low watermark because low watermark is only an estimate. By reading back 1
     // hour, it should cover any changes missed. We also want to make sure that the reconcile time
@@ -177,7 +191,10 @@ public class PartitionReconciler {
     if (reconciledTime.compareTo(startTime) < 0) {
       reconciledTime = startTime;
     }
-    List<PartitionRecord> reconciledPartitions = new ArrayList<>();
+    // PartitionRecord formed using mismatched partitions by the reconciler
+    List<PartitionRecord> partitionsToReconcile = new ArrayList<>();
+    // Partitions from the list of missing partitions that are reconciled and no longer missing
+    List<ByteStringRange> missingPartitionsToRemove = new ArrayList<>();
     for (Map.Entry<ByteStringRange, Instant> partitionDuration :
         missingPartitionDurations.entrySet()) {
       // The partition hasn't been missing for even the short duration.
@@ -201,11 +218,13 @@ public class PartitionReconciler {
         PartitionRecord record =
             new PartitionRecord(
                 missingPartition, allTokens, lowWatermark, overlappingNewPartitions);
-        reconciledPartitions.add(record);
+        // Remove this partition from the list of missing partitions.
+        missingPartitionsToRemove.add(missingPartition);
+        partitionsToReconcile.add(record);
         continue;
       }
       // The parents are not equal to the missing partition. If the missing partition has been
-      // around for more than 10 minutes, it needs to be reconciled.
+      // around for more than 20 minutes, it needs to be reconciled.
       if (partitionDuration.getValue().plus(MISSING_PARTITION_LONG_DELAY).isBeforeNow()) {
         // Try outputting the parent partitions as their own new partition, so they can get more
         // recent merge targets.
@@ -217,7 +236,7 @@ public class PartitionReconciler {
                   newPartition.getChangeStreamContinuationTokens(),
                   lowWatermark,
                   Collections.singletonList(newPartition));
-          reconciledPartitions.add(record);
+          partitionsToReconcile.add(record);
         }
         // Also output partition not overlapped by new partitions.
         // Get the missing partition from parentPartitions and missingPartition.
@@ -232,11 +251,21 @@ public class PartitionReconciler {
           metrics.incPartitionReconciledWithoutTokenCount();
           PartitionRecord record =
               new PartitionRecord(missing, reconciledTime, lowWatermark, Collections.emptyList());
-          reconciledPartitions.add(record);
+          partitionsToReconcile.add(record);
           LOG.error("DNP: Reconciling partition because we're missing a token {}", record);
         }
+
+        // Remove this partition from the list of missing partitions.
+        missingPartitionsToRemove.add(missingPartition);
       }
     }
-    return reconciledPartitions;
+
+    // Write to the metadata table without the reconciled partitions.
+    for (ByteStringRange missingPartitionToRemove : missingPartitionsToRemove) {
+      missingPartitionDurations.remove(missingPartitionToRemove);
+    }
+    metadataTableDao.writeDetectNewPartitionMissingPartitions(missingPartitionDurations);
+
+    return partitionsToReconcile;
   }
 }

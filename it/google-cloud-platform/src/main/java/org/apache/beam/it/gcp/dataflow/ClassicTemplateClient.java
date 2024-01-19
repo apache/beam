@@ -19,7 +19,7 @@ package org.apache.beam.it.gcp.dataflow;
 
 import static org.apache.beam.it.common.logging.LogStrings.formatForLogging;
 import static org.apache.beam.it.common.utils.RetryUtil.clientRetryPolicy;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.googleapis.util.Utils;
 import com.google.api.services.dataflow.Dataflow;
@@ -28,7 +28,6 @@ import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.RuntimeEnvironment;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
-import com.google.auth.oauth2.GoogleCredentials;
 import dev.failsafe.Failsafe;
 import java.io.IOException;
 import org.slf4j.Logger;
@@ -55,8 +54,8 @@ public final class ClassicTemplateClient extends AbstractPipelineLauncher {
     return new ClassicTemplateClient(dataflow);
   }
 
-  public static Builder builder() throws IOException {
-    return new Builder();
+  public static Builder builder(Credentials credentials) {
+    return new Builder(credentials);
   }
 
   @Override
@@ -110,8 +109,8 @@ public final class ClassicTemplateClient extends AbstractPipelineLauncher {
 
     private Credentials credentials;
 
-    private Builder() throws IOException {
-      this.credentials = GoogleCredentials.getApplicationDefault();
+    private Builder(Credentials credentials) {
+      this.credentials = credentials;
     }
 
     public Credentials getCredentials() {

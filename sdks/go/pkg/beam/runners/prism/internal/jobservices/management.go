@@ -24,7 +24,9 @@ import (
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -69,7 +71,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 	defer s.mu.Unlock()
 
 	// Since jobs execute in the background, they should not be tied to a request's context.
-	rootCtx, cancelFn := context.WithCancel(context.Background())
+	rootCtx, cancelFn := context.WithCancelCause(context.Background())
 	job := &Job{
 		key:        s.nextId(),
 		Pipeline:   req.GetPipeline(),
@@ -78,6 +80,8 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 		streamCond: sync.NewCond(&sync.Mutex{}),
 		RootCtx:    rootCtx,
 		CancelFn:   cancelFn,
+
+		artifactEndpoint: s.Endpoint(),
 	}
 
 	// Queue initial state of the job.
@@ -90,28 +94,68 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 		return nil, err
 	}
 	var errs []error
-	check := func(feature string, got, want any) {
-		if got != want {
-			err := unimplementedError{
-				feature: feature,
-				value:   got,
+	check := func(feature string, got any, wants ...any) {
+		for _, want := range wants {
+			if got == want {
+				return
 			}
-			errs = append(errs, err)
 		}
+
+		err := unimplementedError{
+			feature: feature,
+			value:   got,
+		}
+		errs = append(errs, err)
 	}
 
 	// Inspect Transforms for unsupported features.
-	for _, t := range job.Pipeline.GetComponents().GetTransforms() {
+	bypassedWindowingStrategies := map[string]bool{}
+	ts := job.Pipeline.GetComponents().GetTransforms()
+	for tid, t := range ts {
 		urn := t.GetSpec().GetUrn()
 		switch urn {
 		case urns.TransformImpulse,
-			urns.TransformParDo,
 			urns.TransformGBK,
 			urns.TransformFlatten,
 			urns.TransformCombinePerKey,
+			urns.TransformCombineGlobally,      // Used by Java SDK
+			urns.TransformCombineGroupedValues, // Used by Java SDK
 			urns.TransformAssignWindows:
 		// Very few expected transforms types for submitted pipelines.
 		// Most URNs are for the runner to communicate back to the SDK for execution.
+		case urns.TransformReshuffle:
+			// Reshuffles use features we don't yet support, but we would like to
+			// support them by making them the no-op they are, and be precise about
+			// what we're ignoring.
+			var cols []string
+			for _, stID := range t.GetSubtransforms() {
+				st := ts[stID]
+				// Only check the outputs, since reshuffle re-instates any previous WindowingStrategy
+				// so we still validate the strategy used by the input, avoiding skips.
+				cols = append(cols, maps.Values(st.GetOutputs())...)
+			}
+
+			pcs := job.Pipeline.GetComponents().GetPcollections()
+			for _, col := range cols {
+				wsID := pcs[col].GetWindowingStrategyId()
+				bypassedWindowingStrategies[wsID] = true
+			}
+
+		case urns.TransformParDo:
+			var pardo pipepb.ParDoPayload
+			if err := proto.Unmarshal(t.GetSpec().GetPayload(), &pardo); err != nil {
+				return nil, fmt.Errorf("unable to unmarshal ParDoPayload for %v - %q: %w", tid, t.GetUniqueName(), err)
+			}
+
+			// Validate all the state features
+			for _, spec := range pardo.GetStateSpecs() {
+				check("StateSpec.Protocol.Urn", spec.GetProtocol().GetUrn(), urns.UserStateBag, urns.UserStateMultiMap)
+			}
+			// Validate all the timer features
+			for _, spec := range pardo.GetTimerFamilySpecs() {
+				check("TimerFamilySpecs.TimeDomain.Urn", spec.GetTimeDomain())
+			}
+
 		case "":
 			// Composites can often have no spec
 			if len(t.GetSubtransforms()) > 0 {
@@ -124,24 +168,26 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 	}
 
 	// Inspect Windowing strategies for unsupported features.
-	for _, ws := range job.Pipeline.GetComponents().GetWindowingStrategies() {
+	for wsID, ws := range job.Pipeline.GetComponents().GetWindowingStrategies() {
 		check("WindowingStrategy.AllowedLateness", ws.GetAllowedLateness(), int64(0))
 		check("WindowingStrategy.ClosingBehaviour", ws.GetClosingBehavior(), pipepb.ClosingBehavior_EMIT_IF_NONEMPTY)
 		check("WindowingStrategy.AccumulationMode", ws.GetAccumulationMode(), pipepb.AccumulationMode_DISCARDING)
 		if ws.GetWindowFn().GetUrn() != urns.WindowFnSession {
 			check("WindowingStrategy.MergeStatus", ws.GetMergeStatus(), pipepb.MergeStatus_NON_MERGING)
 		}
-		check("WindowingStrategy.OnTimerBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY)
-		check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW)
-		// Non nil triggers should fail.
-		if ws.GetTrigger().GetDefault() == nil {
-			check("WindowingStrategy.Trigger", ws.GetTrigger(), &pipepb.Trigger_Default{})
+		if !bypassedWindowingStrategies[wsID] {
+			check("WindowingStrategy.OnTimeBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY, pipepb.OnTimeBehavior_FIRE_ALWAYS)
+			check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW)
+			// Non nil triggers should fail.
+			if ws.GetTrigger().GetDefault() == nil {
+				check("WindowingStrategy.Trigger", ws.GetTrigger(), &pipepb.Trigger_Default{})
+			}
 		}
 	}
 	if len(errs) > 0 {
 		jErr := &joinError{errs: errs}
 		slog.Error("unable to run job", slog.String("cause", "unimplemented features"), slog.String("jobname", req.GetJobName()), slog.String("errors", jErr.Error()))
-		err := fmt.Errorf("found %v uses of features unimplemented in prism in job %v: %v", len(errs), req.GetJobName(), jErr)
+		err := fmt.Errorf("found %v uses of features unimplemented in prism in job %v:\n%v", len(errs), req.GetJobName(), jErr)
 		job.Failed(err)
 		return nil, err
 	}
@@ -204,7 +250,7 @@ func (s *Server) GetMessageStream(req *jobpb.JobMessagesRequest, stream jobpb.Jo
 			job.streamCond.Wait()
 			select { // Quit out if the external connection is done.
 			case <-stream.Context().Done():
-				return stream.Context().Err()
+				return context.Cause(stream.Context())
 			default:
 			}
 		}

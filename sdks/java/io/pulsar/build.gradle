@@ -26,7 +26,7 @@ def pulsar_version = '2.8.2'
 
 
 dependencies {
-    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_32_1_2_jre
     implementation library.java.slf4j_api
     implementation library.java.joda_time
 

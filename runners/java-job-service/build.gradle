@@ -23,7 +23,7 @@ applyJavaNature(
 description = "Apache Beam :: Runners :: Java Job Service"
 
 dependencies {
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation project(":runners:core-construction-java")
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(path: ":sdks:java:core", configuration: "shadow")

@@ -39,6 +39,19 @@ var (
 //
 // A PartitionFn has the signature `func(T) int.`
 //
+//	func lenToTen(s string) int {
+//		if len(s) > 9 {
+//			return 10
+//		}
+//		return len(s)
+//	}
+//
+//	// Partition functions must be registered with Beam, and must not be closures.
+//	func init() { register.Function1x1(lenToTen) }
+//
+//	// The number of partitions goes up to 11 since we can return 0 through 10
+//	wordsByLength := beam.Partition(s, 11, lenToTen, inputStrings)
+//
 // T is permitted to be a KV.
 func Partition(s Scope, n int, fn any, col PCollection) []PCollection {
 	s = s.Scope(fmt.Sprintf("Partition(%v)", n))

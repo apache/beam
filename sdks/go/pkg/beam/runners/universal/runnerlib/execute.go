@@ -48,7 +48,7 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 		} else {
 			// Cross-compile as last resort.
 
-			worker, err := BuildTempWorkerBinary(ctx)
+			worker, err := BuildTempWorkerBinary(ctx, CompileOpts{})
 			if err != nil {
 				return presult, err
 			}

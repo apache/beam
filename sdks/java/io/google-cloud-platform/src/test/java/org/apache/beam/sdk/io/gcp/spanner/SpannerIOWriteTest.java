@@ -83,9 +83,9 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
@@ -758,12 +758,22 @@ public class SpannerIOWriteTest implements Serializable {
 
   @Test
   public void retryOnSchemaChangeException() throws InterruptedException {
-    List<Mutation> mutationList = Arrays.asList(buildUpsertMutation((long) 1));
-
     String errString =
         "Transaction aborted. "
             + "Database schema probably changed during transaction, retry may succeed.";
+    retryOnAbortedExceptionWithMessage(errString);
+  }
 
+  @Test
+  public void retryOnEmulatorRejectedConcurrentTransaction() throws InterruptedException {
+    String errString =
+        "Transaction 199 aborted due to active transaction 167. "
+            + "The emulator only supports one transaction at a time.";
+    retryOnAbortedExceptionWithMessage(errString);
+  }
+
+  public void retryOnAbortedExceptionWithMessage(String errString) throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(buildUpsertMutation((long) 1));
     // mock sleeper so that it does not actually sleep.
     WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
 
@@ -806,11 +816,22 @@ public class SpannerIOWriteTest implements Serializable {
 
   @Test
   public void retryMaxOnSchemaChangeException() throws InterruptedException {
-    List<Mutation> mutationList = Arrays.asList(buildUpsertMutation((long) 1));
-
     String errString =
         "Transaction aborted. "
             + "Database schema probably changed during transaction, retry may succeed.";
+    retryMaxOnAbortedExceptionWithMessage(errString);
+  }
+
+  @Test
+  public void retryMaxOnEmulatorRejectedConcurrentTransaction() throws InterruptedException {
+    String errString =
+        "Transaction 199 aborted due to active transaction 167. "
+            + "The emulator only supports one transaction at a time.";
+    retryOnAbortedExceptionWithMessage(errString);
+  }
+
+  public void retryMaxOnAbortedExceptionWithMessage(String errString) throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(buildUpsertMutation((long) 1));
 
     // mock sleeper so that it does not actually sleep.
     WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);

@@ -224,17 +224,26 @@ class FnApiRunner(runner.PipelineRunner):
     return self.run_stages(stage_context, stages)
 
   def embed_default_docker_image(self, pipeline_proto):
+    """Updates the pipeline proto to execute transforms that would normally
+    be executed in the default docker image for this SDK to execute inline
+    via the "embedded" environment.
+    """
     # Context is unused for these types.
     embedded_env = environments.EmbeddedPythonEnvironment.default(
     ).to_runner_api(None)  # type: ignore[arg-type]
     docker_env = environments.DockerEnvironment.from_container_image(
         environments.DockerEnvironment.default_docker_image()).to_runner_api(
             None)  # type: ignore[arg-type]
-    for env_id, env in pipeline_proto.components.environments.items():
-      if env == docker_env:
-        docker_env_id = env_id
-        break
-    else:
+
+    def is_this_python_docker_env(env):
+      return any(
+          e == docker_env for e in environments.expand_anyof_environments(env))
+
+    python_docker_environments = set(
+        env_id
+        for (env_id, env) in pipeline_proto.components.environments.items()
+        if is_this_python_docker_env(env))
+    if not python_docker_environments:
       # No matching docker environments.
       return pipeline_proto
 
@@ -243,13 +252,15 @@ class FnApiRunner(runner.PipelineRunner):
         embedded_env_id = env_id
         break
     else:
-      # No existing embedded environment.
-      pipeline_proto.components.environments[docker_env_id].CopyFrom(
+      # No existing embedded environment. Create one.
+      embedded_env_id = "python_embedded_env"
+      while embedded_env_id in pipeline_proto.components.environments:
+        embedded_env_id += '_'
+      pipeline_proto.components.environments[embedded_env_id].CopyFrom(
           embedded_env)
-      return pipeline_proto
 
     for transform in pipeline_proto.components.transforms.values():
-      if transform.environment_id == docker_env_id:
+      if transform.environment_id in python_docker_environments:
         transform.environment_id = embedded_env_id
     return pipeline_proto
 
@@ -825,7 +836,8 @@ class FnApiRunner(runner.PipelineRunner):
 
     buffers_to_clean = set()
     known_consumers = set()
-    for _, buffer_id in bundle_context_manager.stage_data_outputs.items():
+    for transform_id, buffer_id in (
+      bundle_context_manager.stage_data_outputs.items()):
       for (consuming_stage_name, consuming_transform) in \
           runner_execution_context.buffer_id_to_consumer_pairs.get(buffer_id,
                                                                    []):
@@ -840,6 +852,13 @@ class FnApiRunner(runner.PipelineRunner):
           # so we create a copy of the buffer for every new stage.
           runner_execution_context.pcoll_buffers[buffer_id] = buffer.copy()
           buffer = runner_execution_context.pcoll_buffers[buffer_id]
+
+        # empty buffer. Add it to the pcoll_buffer to avoid element
+        # duplication.
+        if buffer_id not in runner_execution_context.pcoll_buffers:
+          buffer = bundle_context_manager.get_buffer(buffer_id, transform_id)
+          runner_execution_context.pcoll_buffers[buffer_id] = buffer
+          buffers_to_clean.add(buffer_id)
 
         # If the buffer has already been added to be consumed by
         # (stage, transform), then we don't need to add it again. This case

@@ -60,7 +60,7 @@ public class WordCountIT extends IOLoadTestBase {
             .addParameter("runner", "DataflowRunner")
             .build();
 
-    LaunchInfo launchInfo = pipelineLauncher.launch(PROJECT, REGION, options);
+    LaunchInfo launchInfo = pipelineLauncher.launch(project, region, options);
     assertThatPipeline(launchInfo).isRunning();
     Result result =
         pipelineOperator.waitUntilDone(createConfig(launchInfo, Duration.ofMinutes(20)));

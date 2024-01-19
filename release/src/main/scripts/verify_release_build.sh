@@ -27,9 +27,8 @@
 #      Instructions: https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line
 #   2. Please set RELEASE_BUILD_CONFIGS in script.config before running this
 #      script.
-#   3. Please manually comment trigger phrases to the created PR to start
-#      Gradle release build and all PostCommit jobs, or run mass_comment.py
-#      to do so. Phrases are listed in COMMENTS_TO_ADD in mass_comment.py.
+#   3. Please manually start "Release Nightly Snapshot" GHA workflow on the
+#      release branch to start Gradle release build.
 
 
 . script.config
@@ -136,17 +135,17 @@ if [[ ! -z `which hub` ]]; then
   # Without changing to dev version, the dataflow pipeline will fail because of non-existed worker containers.
   # Note that dataflow worker containers should be built after RC has been built.
   bash "$SCRIPT_DIR"/set_version.sh "$RELEASE_VER" --git-add
-  # In case the version string was not changed, append a newline to CHANGES.md
-  echo "" >> CHANGES.md
-  git add CHANGES.md
+  # add a file that will trigger all relevant GHA workflows. Need to be .json extension to be excluded from RAT check
+  echo "{}" > release/trigger_all_tests.json
+  git add release/trigger_all_tests.json
   git commit -m "Changed version.py and gradle.properties to python dev version to create a test PR" --quiet
   git push -f ${GITHUB_USERNAME} ${WORKING_BRANCH} --quiet
 
   hub pull-request -b apache:${RELEASE_BRANCH} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE] Run all PostCommit and PreCommit Tests against Release Branch
 
-  You can run many tests automatically using release/src/main/scripts/mass_comment.py."
+  Tests run on GHA should be queued shortly."
 
   echo ""
-  echo "[NOTE]: Please make sure all test targets have been invoked."
+  echo "[NOTE]: Please make sure all test targets (GHA) have been invoked."
   echo "Please check the test results. If there is any failure, follow the policy in release guide."
 fi

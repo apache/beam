@@ -661,10 +661,8 @@ type SplittableUnit interface {
 // the singleWindowSplit and multiWindowSplit methods.
 func (n *ProcessSizedElementsAndRestrictions) Split(ctx context.Context, f float64) ([]*FullValue, []*FullValue, error) {
 	// Get the watermark state immediately so that we don't overestimate our current watermark.
-	var pWeState any
-	var rWeState any
-	rWeState = n.wesInv.Invoke(n.PDo.we)
-	pWeState = rWeState
+	rWeState := n.wesInv.Invoke(n.PDo.we)
+	pWeState := rWeState
 	// If we've processed elements, the initial watermark estimator state will be set.
 	// In that case we should hold the output watermark at that initial state so that we don't
 	// Advance past where the current elements are holding the watermark
@@ -783,7 +781,7 @@ func (n *ProcessSizedElementsAndRestrictions) singleWindowSplit(ctx context.Cont
 func (n *ProcessSizedElementsAndRestrictions) multiWindowSplit(ctx context.Context, f float64, pWeState any, rWeState any) ([]*FullValue, []*FullValue, error) {
 	// Get the split point in window range, to see what window it falls in.
 	done, rem := n.rt.GetProgress()
-	cwp := done / (done + rem)                      // Progress in current window.
+	cwp := progressFraction(done, rem)              // Progress in current window.
 	p := (float64(n.currW) + cwp) / float64(n.numW) // Progress of whole element.
 	sp := p + (f * (1.0 - p))                       // Split point in range of entire element [0, 1].
 	wsp := sp * float64(n.numW)                     // Split point in window range [0, numW].
@@ -925,7 +923,7 @@ func (n *ProcessSizedElementsAndRestrictions) newSplitResult(ctx context.Context
 // DoFns, so 1.0 is only returned once all windows have been processed.
 func (n *ProcessSizedElementsAndRestrictions) GetProgress() float64 {
 	d, r := n.rt.GetProgress()
-	frac := d / (d + r)
+	frac := progressFraction(d, r)
 
 	if n.numW == 1 {
 		return frac
@@ -959,6 +957,13 @@ func (n *ProcessSizedElementsAndRestrictions) GetOutputWatermark() map[string]*t
 	}
 
 	return nil
+}
+
+func progressFraction(done float64, remaining float64) float64 {
+	if done == 0 {
+		return 0
+	}
+	return done / (done + remaining)
 }
 
 // SdfFallback is an executor used when an SDF isn't expanded into steps by the

@@ -29,7 +29,6 @@ Some examples are also used in [our benchmarks](http://s.apache.org/beam-communi
 You must have the latest (possibly unreleased) `apache-beam` or greater installed from the Beam repo in order to run these pipelines,
 because some examples rely on the latest features that are actively in development. To install Beam, run the following from the `sdks/python` directory:
 ```
-pip install -r build-requirements.txt
 pip install -e .[gcp]
 ```
 
@@ -41,6 +40,7 @@ The RunInference API supports the Tensorflow framework. To use Tensorflow locall
 ```
 pip install tensorflow==2.12.0
 ```
+
 
 ### PyTorch dependencies
 
@@ -63,6 +63,21 @@ pip install transformers
 
 For installation of the `torch` dependency on a distributed runner such as Dataflow, refer to the
 [PyPI dependency instructions](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#pypi-dependencies).
+
+
+### Transformers dependencies
+
+The following installation requirement is for the Hugging Face model handler examples.
+
+The RunInference API supports loading models from the Hugging Face Hub. To use it, first install `transformers`.
+```
+pip install transformers==4.30.0
+```
+Additional dependicies for PyTorch and TensorFlow may need to be installed separately:
+```
+pip install tensorflow==2.12.0
+pip install torch==1.10.0
+```
 
 
 ### TensorRT dependencies
@@ -98,7 +113,7 @@ pip install skl2onnx
 
 ### Additional resources
 For more information, see the
-[Machine Learning](/documentation/sdks/python-machine-learning) and the
+[About Beam ML](/documentation/ml/about-ml) and the
 [RunInference transform](/documentation/transforms/python/elementwise/runinference) documentation.
 
 ---
@@ -208,6 +223,62 @@ This writes the output to the `predictions.csv` with contents like:
 ...
 ```
 Each line has data separated by a semicolon ";". The first item is the file name. The second item is a list of predicted instances.
+
+---
+## Per Key Image segmentation
+
+[`pytorch_model_per_key_image_segmentation.py`](./pytorch_model_per_key_image_segmentation.py) contains an implementation for a RunInference pipeline that performs image segementation using multiple different trained models based on the `maskrcnn_resnet50_fpn` architecture.
+
+The pipeline reads images, performs basic preprocessing, passes the images to the PyTorch implementation of RunInference, and then writes predictions to a text file.
+
+### Dataset and model for image segmentation
+
+To use this transform, you need a dataset and model for image segmentation. If you've already done the previous example (Image segmentation with pytorch_image_segmentation.py you can reuse the results from some of those setup steps).
+
+1. Create a directory named `IMAGES_DIR`. Create or download images and put them in this directory. The directory is not required if image names in the input file `IMAGE_FILE_NAMES.txt` you create in step 2 have absolute paths.
+A popular dataset is from [Coco](https://cocodataset.org/#home). Follow their instructions to download the images.
+2. Create a file named `IMAGE_FILE_NAMES.txt` that contains the absolute paths of each of the images in `IMAGES_DIR` that you want to use to run image segmentation. The path to the file can be different types of URIs such as your local file system, an AWS S3 bucket, or a GCP Cloud Storage bucket. For example:
+```
+/absolute/path/to/image1.jpg
+/absolute/path/to/image2.jpg
+```
+3. Download the [maskrcnn_resnet50_fpn](https://pytorch.org/vision/0.12/models.html#id70) and [maskrcnn_resnet50_fpn_v2](https://pytorch.org/vision/main/models/generated/torchvision.models.detection.maskrcnn_resnet50_fpn_v2.html) models from Pytorch's repository of pretrained models. These models require the torchvision library. To download this model, run the following commands from a Python shell:
+```
+import torch
+from torchvision.models.detection import maskrcnn_resnet50_fpn
+from torchvision.models.detection import maskrcnn_resnet50_fpn_v2
+model = maskrcnn_resnet50_fpn(pretrained=True)
+torch.save(model.state_dict(), 'maskrcnn_resnet50_fpn.pth') # You can replace maskrcnn_resnet50_fpn.pth with your preferred file name for your model state dictionary.
+model = maskrcnn_resnet50_fpn_v2(pretrained=True)
+torch.save(model.state_dict(), 'maskrcnn_resnet50_fpn_v2.pth') # You can replace maskrcnn_resnet50_fpn_v2.pth with your preferred file name for your model state dictionary.
+```
+4. Note a path to an `OUTPUT` file that can be used by the pipeline to write the predictions.
+
+### Running `pytorch_model_per_key_image_segmentation.py`
+
+To run the image segmentation pipeline locally, use the following command:
+```sh
+python -m apache_beam.examples.inference.pytorch_model_per_key_image_segmentation \
+  --input IMAGE_FILE_NAMES \
+  --images_dir IMAGES_DIR \
+  --output OUTPUT \
+  --model_state_dict_paths MODEL_STATE_DICT1,MODEL_STATE_DICT2
+```
+`images_dir` is only needed if your `IMAGE_FILE_NAMES.txt` file contains relative paths (they will be relative from `IMAGES_DIR`).
+
+For example, if you've followed the naming conventions recommended above:
+```sh
+python -m apache_beam.examples.inference.pytorch_model_per_key_image_segmentation \
+  --input IMAGE_FILE_NAMES.txt \
+  --output predictions.csv \
+  --model_state_dict_path 'maskrcnn_resnet50_fpn.pth,maskrcnn_resnet50_fpn_v2.pth'
+```
+This writes the output to the `predictions.csv` with contents like:
+```
+/Users/dannymccormick/Downloads/images/datasets_coco_raw-data_val2017_000000000139.jpg --- v1 predictions: ['chair', 'tv','potted plant'] --- v2 predictions: ['motorcycle', 'frisbee', 'couch']
+...
+```
+Each image has 2 pieces of associated data - `v1 predictions` and `v2 predictions` corresponding to the version of the model that was used for segmentation.
 
 ---
 ## Object Detection
@@ -687,3 +758,128 @@ MilkQualityAggregation(bad_quality_measurements=6, medium_quality_measurements=4
 MilkQualityAggregation(bad_quality_measurements=3, medium_quality_measurements=3, high_quality_measurements=3)
 MilkQualityAggregation(bad_quality_measurements=1, medium_quality_measurements=2, high_quality_measurements=1)
 ```
+
+---
+## Language modeling with Hugging Face Hub
+
+[`huggingface_language_modeling.py`](./huggingface_language_modeling.py) contains an implementation for a RunInference pipeline that performs masked language modeling (that is, decoding a masked token in a sentence) using the `AutoModelForMaskedLM` architecture from Hugging Face.
+
+The pipeline reads sentences, performs basic preprocessing to convert the last word into a `<mask>` token, passes the masked sentence to the Hugging Face implementation of RunInference, and then writes the predictions to a text file.
+
+### Dataset and model for language modeling
+
+To use this transform, you need a dataset and model for language modeling.
+
+1. Choose a checkpoint to load from Hugging Face Hub, eg:[MaskedLanguageModel](https://huggingface.co/stevhliu/my_awesome_eli5_mlm_model).
+2. (Optional) Create a file named `SENTENCES.txt` that contains sentences to feed into the model. The content of the file should be similar to the following example:
+```
+The capital of France is Paris .
+He looked up and saw the sun and stars .
+...
+```
+
+### Running `huggingface_language_modeling.py`
+
+To run the language modeling pipeline locally, use the following command:
+```sh
+python -m apache_beam.examples.inference.huggingface_language_modeling \
+  --input SENTENCES \
+  --output OUTPUT \
+  --model_name REPOSITORY_ID
+```
+The `input` argument is optional. If none is provided, it will run the pipeline with some
+example sentences.
+
+For example, if you've followed the naming conventions recommended above:
+```sh
+python -m apache_beam.examples.inference.huggingface_language_modeling \
+  --input SENTENCES.txt \
+  --output predictions.csv \
+  --model_name "stevhliu/my_awesome_eli5_mlm_model"
+```
+Or, using the default example sentences:
+```sh
+python -m apache_beam.examples.inference.huggingface_language_modeling \
+  --output predictions.csv \
+  --model_name "stevhliu/my_awesome_eli5_mlm_model"
+```
+
+This writes the output to the `predictions.csv` with contents like:
+```
+The capital of France is Paris .;paris
+He looked up and saw the sun and stars .;moon
+...
+```
+Each line has data separated by a semicolon ";".
+The first item is the input sentence. The model masks the last word and tries to predict it;
+the second item is the word that the model predicts for the mask.
+
+---
+## Image classifcation with Vertex AI
+
+[`vertex_ai_image_classification.py`](./vertex_ai_image_classification.py) contains an implementation for a RunInference pipeline that performs image classification using a model hosted on Vertex AI (based on https://cloud.google.com/vertex-ai/docs/tutorials/image-recognition-custom).
+
+The pipeline reads image urls, performs basic preprocessing to convert them into a List of floats, passes the masked sentence to the Vertex AI implementation of RunInference, and then writes the predictions to a text file.
+
+### Dataset and model for image classification
+
+To use this transform, you need a dataset and model hosted on Vertex AI for image classification.
+
+1. Train a model by following the tutorial at https://cloud.google.com/vertex-ai/docs/tutorials/image-recognition-custom
+2. Create a file named `IMAGE_FILE_NAMES.txt` that contains the absolute paths of each of the images in `IMAGES_DIR` that you want to use to run image classification. The path to the file can be different types of URIs such as your local file system, an AWS S3 bucket, or a GCP Cloud Storage bucket. For example:
+```
+/absolute/path/to/image1.jpg
+/absolute/path/to/image2.jpg
+```
+
+### Running `vertex_ai_image_classification.py`
+
+To run the image classification  pipeline locally, use the following command:
+```sh
+python -m apache_beam.examples.inference.vertex_ai_image_classification \
+  --endpoint_id '<endpoint of trained model>' \
+  --endpoint_project '<gcp project>' \
+  --endpoint_region '<gcp region>' \
+  --input 'path/to/IMAGE_FILE_NAMES.txt' \
+  --output 'path/to/output/file.txt'
+```
+
+This writes the output to the output file with contents like:
+```
+path/to/my/image: tulips (90)
+path/to/my/image2: dandelions (78)
+...
+```
+Each line represents a prediction of the flower type along with the confidence in that prediction.
+
+---
+## Text classifcation with a Vertex AI LLM
+
+[`vertex_ai_llm_text_classification.py`](./vertex_ai_llm_text_classification.py) contains an implementation for a RunInference pipeline that performs image classification using a model hosted on Vertex AI (based on https://cloud.google.com/vertex-ai/docs/tutorials/image-recognition-custom).
+
+The pipeline reads image urls, performs basic preprocessing to convert them into a List of floats, passes the masked sentence to the Vertex AI implementation of RunInference, and then writes the predictions to a text file.
+
+### Dataset and model for image classification
+
+To use this transform, you need a model hosted on Vertex AI for text classification.
+You can get this by tuning the text-bison model following the instructions here -
+https://cloud.google.com/vertex-ai/docs/generative-ai/models/tune-models#create_a_model_tuning_job
+
+### Running `vertex_ai_llm_text_classification.py`
+
+To run the text classification  pipeline locally, use the following command:
+```sh
+python -m apache_beam.examples.inference.vertex_ai_llm_text_classification \
+  --endpoint_id '<endpoint of trained LLM>' \
+  --endpoint_project '<gcp project>' \
+  --endpoint_region '<gcp region>'
+```
+
+This writes the output to the output file with contents like:
+```
+('What is 5+2?', PredictionResult(example={'prompt': 'What is 5+2?'}, inference={'content': '7', 'citationMetadata': {'citations': []}, 'safetyAttributes': {'blocked': False, 'scores': [], 'categories': []}}, model_id='6795590989097467904'))
+...
+```
+Each line represents a tuple containing the example, a [PredictionResult](https://beam.apache.org/releases/pydoc/2.40.0/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.PredictionResult)
+object with the response from the model in the inference field, and the endpoint id representing the model id.
+---

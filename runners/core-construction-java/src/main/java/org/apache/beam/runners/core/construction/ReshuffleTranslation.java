@@ -38,7 +38,7 @@ public class ReshuffleTranslation {
 
   static class ReshuffleTranslator implements TransformPayloadTranslator<Reshuffle<?, ?>> {
     @Override
-    public String getUrn(Reshuffle<?, ?> transform) {
+    public String getUrn() {
       return PTransformTranslation.RESHUFFLE_URN;
     }
 

@@ -20,10 +20,10 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.bigtable;
 import static java.util.stream.Collectors.toSet;
 import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.COLUMNS_MAPPING;
 import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.KEY;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps.newHashMap;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets.newHashSet;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps.newHashMap;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets.newHashSet;
 
-import com.alibaba.fastjson.JSONObject;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
@@ -47,7 +47,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 
 public class BigtableTable extends SchemaBaseBeamTable implements Serializable {
   // Should match:
@@ -84,9 +84,9 @@ public class BigtableTable extends SchemaBaseBeamTable implements Serializable {
       this.emulatorHost = host;
     }
 
-    JSONObject properties = table.getProperties();
-    if (properties.containsKey(COLUMNS_MAPPING)) {
-      columnsMapping = parseColumnsMapping(properties.getString(COLUMNS_MAPPING));
+    ObjectNode properties = table.getProperties();
+    if (properties.has(COLUMNS_MAPPING)) {
+      columnsMapping = parseColumnsMapping(properties.get(COLUMNS_MAPPING).asText());
       validateColumnsMapping(columnsMapping, schema);
       useFlatSchema = true;
     }

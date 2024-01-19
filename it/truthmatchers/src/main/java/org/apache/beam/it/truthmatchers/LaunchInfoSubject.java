@@ -26,6 +26,9 @@ import org.apache.beam.it.common.PipelineLauncher.LaunchInfo;
  * Subject that has assertion operations for {@link LaunchInfo}, which has the information for a
  * recently launched pipeline.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class LaunchInfoSubject extends Subject {
 
   private final LaunchInfo actual;
@@ -40,7 +43,7 @@ public final class LaunchInfoSubject extends Subject {
   }
 
   /**
-   * Check if the subject reflects succeeded states. A successfully {@link LaunchInfo} does not mean
+   * Check if the subject reflects succeeded states. A successful {@link LaunchInfo} does not mean
    * that the pipeline finished and no errors happened, it just means that the job was able to get
    * itself into an active state (RUNNING, UPDATED).
    */

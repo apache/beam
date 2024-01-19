@@ -36,7 +36,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import com.alibaba.fastjson.JSONObject;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.cloud.bigtable.emulator.v2.BigtableEmulatorRule;
 import java.io.IOException;
 import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
@@ -95,9 +95,9 @@ public class BigtableTableFlatTest {
     assertNotNull(table);
     assertEquals(TEST_FLAT_SCHEMA, table.getSchema());
 
-    JSONObject properties = table.getProperties();
-    assertTrue(properties.containsKey(COLUMNS_MAPPING));
-    assertEquals(columnsMappingString(), properties.getString(COLUMNS_MAPPING));
+    ObjectNode properties = table.getProperties();
+    assertTrue(properties.has(COLUMNS_MAPPING));
+    assertEquals(columnsMappingString(), properties.get(COLUMNS_MAPPING).asText());
   }
 
   @Test
@@ -139,7 +139,7 @@ public class BigtableTableFlatTest {
   }
 
   @Test
-  public void testSegementedInsert() {
+  public void testSegmentedInsert() {
     final String tableId = "beamWriteTableWithSegmentedRead";
     emulatorWrapper.createTable(tableId, FAMILY_TEST);
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new BigtableTableProvider());

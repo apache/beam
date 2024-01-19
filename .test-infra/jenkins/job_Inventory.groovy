@@ -32,7 +32,7 @@ nums.each {
     commonJobProperties.setTopLevelMainJobProperties(delegate)
 
     // Sets that this is a cron job.
-    commonJobProperties.setCronJob(delegate, '45 6,18 * * *')
+    commonJobProperties.setCronJob(delegate, '45 */8 * * *')
 
     // Allows triggering this build against pull requests.
     commonJobProperties.enablePhraseTriggeringFromPullRequest(
@@ -50,7 +50,7 @@ nums.each {
       }
       stringParam {
         name("tmp_unaccessed_for")
-        defaultValue("48")
+        defaultValue("24")
         description("Files from /tmp dir that were not accessed for last `tmp_unaccessed_for` hours will be deleted.")
         trim(true)
       }

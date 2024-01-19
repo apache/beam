@@ -28,6 +28,9 @@ import org.apache.beam.it.common.PipelineOperator.Result;
  * Subject that has assertion operations for {@link Result}, which is the end result of a pipeline
  * run.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public final class ResultSubject extends Subject {
 
   private final Result actual;

@@ -72,9 +72,9 @@ func testFunction() int64 {
 
 func TestFormatParDoError(t *testing.T) {
 	got := formatParDoError(testFunction, 2, 1)
-	want := "beam.testFunction has 2 outputs, but ParDo requires 1 outputs, use ParDo2 instead."
+	want := "has 2 outputs, but ParDo requires 1 outputs, use ParDo2 instead."
 	if !strings.Contains(got, want) {
-		t.Errorf("formatParDoError(testFunction,2,1) = %v, want = %v", got, want)
+		t.Errorf("formatParDoError(testFunction,2,1) = \n%q want =\n%q", got, want)
 	}
 }
 

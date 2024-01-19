@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.dataflow.DataflowRunner.getContainerImageForJob;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files.getFileExtension;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files.getFileExtension;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
@@ -171,9 +171,9 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -242,13 +242,29 @@ public class DataflowRunnerTest implements Serializable {
     mockJobs = mock(Dataflow.Projects.Locations.Jobs.class);
   }
 
-  private Pipeline buildDataflowPipeline(DataflowPipelineOptions options) {
+  private static Pipeline buildDataflowPipeline(DataflowPipelineOptions options) {
     options.setStableUniqueNames(CheckEnabled.ERROR);
     options.setRunner(DataflowRunner.class);
     Pipeline p = Pipeline.create(options);
 
     p.apply("ReadMyFile", TextIO.read().from("gs://bucket/object"))
         .apply("WriteMyFile", TextIO.write().to("gs://bucket/object"));
+
+    // Enable the FileSystems API to know about gs:// URIs in this test.
+    FileSystems.setDefaultPipelineOptions(options);
+
+    return p;
+  }
+
+  private static Pipeline buildDataflowPipelineWithLargeGraph(DataflowPipelineOptions options) {
+    options.setStableUniqueNames(CheckEnabled.ERROR);
+    options.setRunner(DataflowRunner.class);
+    Pipeline p = Pipeline.create(options);
+
+    for (int i = 0; i < 100; i++) {
+      p.apply("ReadMyFile_" + i, TextIO.read().from("gs://bucket/object"))
+          .apply("WriteMyFile_" + i, TextIO.write().to("gs://bucket/object"));
+    }
 
     // Enable the FileSystems API to know about gs:// URIs in this test.
     FileSystems.setDefaultPipelineOptions(options);
@@ -811,6 +827,24 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setExperiments(Arrays.asList("upload_graph"));
     Pipeline p = buildDataflowPipeline(options);
+    p.run();
+
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
+    assertValidJob(jobCaptor.getValue());
+    assertTrue(jobCaptor.getValue().getSteps().isEmpty());
+    assertTrue(
+        jobCaptor
+            .getValue()
+            .getStepsLocation()
+            .startsWith("gs://valid-bucket/temp/staging/dataflow_graph"));
+  }
+
+  /** Test for automatically using upload_graph when the job graph is too large (>10MB). */
+  @Test
+  public void testUploadGraphWithAutoUpload() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    Pipeline p = buildDataflowPipelineWithLargeGraph(options);
     p.run();
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
@@ -1632,7 +1666,7 @@ public class DataflowRunnerTest implements Serializable {
   private static class TestTransformTranslator
       implements TransformPayloadTranslator<TestTransform> {
     @Override
-    public String getUrn(TestTransform transform) {
+    public String getUrn() {
       return "test_transform";
     }
 

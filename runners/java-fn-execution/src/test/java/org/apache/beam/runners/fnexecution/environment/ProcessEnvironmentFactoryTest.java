@@ -40,7 +40,9 @@ import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.RemoteEnvironmentOptions;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -50,7 +52,7 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link ProcessEnvironmentFactory}. */
 @RunWith(JUnit4.class)
 public class ProcessEnvironmentFactoryTest {
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final ApiServiceDescriptor SERVICE_DESCRIPTOR =
       ApiServiceDescriptor.newBuilder().setUrl("service-url").build();
   private static final String COMMAND = "my-command";

@@ -34,7 +34,7 @@ import (
 // See: https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/JoinExamples.java
 
 const (
-	gdeltEventsTable  = "clouddataflow-readonly:samples.gdelt_sample"
+	gdeltEventsTable  = "apache-beam-testing.samples.gdelt_sample"
 	countryCodesTable = "gdelt-bq:full.crosswalk_geocountrycodetohuman"
 )
 

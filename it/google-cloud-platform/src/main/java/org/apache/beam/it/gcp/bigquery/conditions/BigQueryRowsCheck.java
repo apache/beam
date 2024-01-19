@@ -49,7 +49,7 @@ public abstract class BigQueryRowsCheck extends ConditionCheck {
   @Override
   @SuppressWarnings("unboxing.of.nullable")
   public CheckResult check() {
-    long totalRows = resourceManager().getRowCount(tableId().getTable());
+    long totalRows = getRowCount();
     if (totalRows < minRows()) {
       return new CheckResult(
           false, String.format("Expected %d but has only %d", minRows(), totalRows));
@@ -74,6 +74,10 @@ public abstract class BigQueryRowsCheck extends ConditionCheck {
     return new AutoValue_BigQueryRowsCheck.Builder()
         .setResourceManager(resourceManager)
         .setTableId(tableId);
+  }
+
+  public Long getRowCount() {
+    return resourceManager().getRowCount(tableId().getTable());
   }
 
   /** Builder for {@link BigQueryRowsCheck}. */

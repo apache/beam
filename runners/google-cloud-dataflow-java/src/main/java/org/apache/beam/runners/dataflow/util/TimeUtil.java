@@ -19,7 +19,7 @@ package org.apache.beam.runners.dataflow.util;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -50,7 +50,7 @@ public final class TimeUtil {
   private static final Pattern TIME_PATTERN =
       Pattern.compile("(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d+))?Z");
 
-  /** Converts a {@link ReadableInstant} into a Dateflow API time value. */
+  /** Converts a {@link ReadableInstant} into a Dataflow API time value. */
   public static String toCloudTime(ReadableInstant instant) {
     // Note that since Joda objects use millisecond resolution, we always
     // produce either no fractional seconds or fractional seconds with

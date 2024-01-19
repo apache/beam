@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -34,8 +34,8 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -51,6 +51,7 @@ class FlinkStreamingTranslationContext {
 
   private final StreamExecutionEnvironment env;
   private final PipelineOptions options;
+  private final boolean isStreaming;
 
   /**
    * Keeps a mapping between the output value of the PTransform and the Flink Operator that produced
@@ -62,9 +63,11 @@ class FlinkStreamingTranslationContext {
 
   private AppliedPTransform<?, ?, ?> currentTransform;
 
-  public FlinkStreamingTranslationContext(StreamExecutionEnvironment env, PipelineOptions options) {
+  public FlinkStreamingTranslationContext(
+      StreamExecutionEnvironment env, PipelineOptions options, boolean isStreaming) {
     this.env = checkNotNull(env);
     this.options = checkNotNull(options);
+    this.isStreaming = isStreaming;
   }
 
   public StreamExecutionEnvironment getExecutionEnvironment() {
@@ -73,6 +76,10 @@ class FlinkStreamingTranslationContext {
 
   public PipelineOptions getPipelineOptions() {
     return options;
+  }
+
+  public boolean isStreaming() {
+    return isStreaming;
   }
 
   @SuppressWarnings("unchecked")

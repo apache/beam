@@ -49,6 +49,10 @@ EMBEDDED_PYTHON = "beam:env:embedded_python:v1"
 # the state cache, as a decimal string, e.g. '2,1000'.
 EMBEDDED_PYTHON_GRPC = "beam:env:embedded_python_grpc:v1"
 
+# Invoke UserFns via a yet-to-be-started loopback external worker.
+# Payload: None.
+EMBEDDED_PYTHON_LOOPBACK = "beam:env:embedded_python_loopback:v1"
+
 # Instantiate SDK harness via a command line provided in the payload.
 # This is different than the standard process environment in that it
 # starts up the SDK harness directly, rather than the bootstrapping

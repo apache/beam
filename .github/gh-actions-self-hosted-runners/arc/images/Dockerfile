@@ -31,7 +31,7 @@ RUN curl -OL https://nodejs.org/dist/v18.16.0/node-v18.16.0-linux-x64.tar.xz && 
     mv /usr/local/node-v18.16.0-linux-x64 /usr/local/node
 ENV PATH="${PATH}:/usr/local/node/bin"
 #Install Go
-ARG go_version=1.20.5
+ARG go_version=1.21.0
 RUN curl -OL https://go.dev/dl/go${go_version}.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go${go_version}.linux-amd64.tar.gz && \
     rm go${go_version}.linux-amd64.tar.gz
@@ -59,10 +59,24 @@ RUN curl -OL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-c
     rm google-cloud-sdk-367.0.0-linux-x86_64.tar.gz && \
     mv google-cloud-sdk /usr/local/google-cloud-sdk && \
     /usr/local/google-cloud-sdk/install.sh --quiet && \
-    /usr/local/google-cloud-sdk/bin/gcloud components install kubectl && \
-    chown -R runner:runner /home/runner/.config/gcloud
+    /usr/local/google-cloud-sdk/bin/gcloud components install gke-gcloud-auth-plugin && \
+    #revert permission
+    chown -R runner:runner /home/runner/.config
+ENV USE_GKE_GCLOUD_AUTH_PLUGIN=True
 ENV PATH="${PATH}:/usr/local/google-cloud-sdk/bin"
+#Install Kubectl
+RUN curl -OL https://dl.k8s.io/release/v1.28.1/bin/linux/amd64/kubectl && \
+    chmod +x ./kubectl && \
+    mv ./kubectl /usr/local/bin/kubectl
+#Install Apache Maven
+RUN curl -OL https://dlcdn.apache.org/maven/maven-3/3.9.4/binaries/apache-maven-3.9.4-bin.tar.gz && \
+    tar -xvf apache-maven-3.9.4-bin.tar.gz && \
+    rm apache-maven-3.9.4-bin.tar.gz && \
+    mv apache-maven-3.9.4 /usr/local/maven
+ENV PATH="${PATH}:/usr/local/maven/bin"
+ENV MAVEN_HOME="/usr/local/maven"
 
 # Needed to transfer path addtitions to runner environment
 RUN echo PATH=$PATH >> /runnertmp/.env
+RUN echo USE_GKE_GCLOUD_AUTH_PLUGIN=$USE_GKE_GCLOUD_AUTH_PLUGIN >> /runnertmp/.env
 USER runner

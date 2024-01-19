@@ -44,8 +44,8 @@ class GenerateSequenceTable extends SchemaBaseBeamTable implements Serializable 
 
   GenerateSequenceTable(Table table) {
     super(TABLE_SCHEMA);
-    if (table.getProperties().containsKey("elementsPerSecond")) {
-      elementsPerSecond = table.getProperties().getInteger("elementsPerSecond");
+    if (table.getProperties().has("elementsPerSecond")) {
+      elementsPerSecond = table.getProperties().get("elementsPerSecond").asInt();
     }
   }
 

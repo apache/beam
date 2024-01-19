@@ -22,10 +22,12 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.runners.core.construction.SdkComponents;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -100,13 +102,47 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
       SchemaApi.Schema.Builder schemaBuilder = SchemaApi.Schema.newBuilder();
       JsonFormat.parser().merge(Structs.getString(cloudObject, SCHEMA), schemaBuilder);
       Schema schema = SchemaTranslation.schemaFromProto(schemaBuilder.build());
-      @Nullable UUID uuid = schema.getUUID();
-      if (schema.isEncodingPositionsOverridden() && uuid != null) {
-        SchemaCoder.overrideEncodingPositions(uuid, schema.getEncodingPositions());
-      }
+      overrideEncodingPositions(schema);
       return SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction);
     } catch (IOException e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  static void overrideEncodingPositions(Schema schema) {
+    @Nullable UUID uuid = schema.getUUID();
+    if (schema.isEncodingPositionsOverridden() && uuid != null) {
+      RowCoder.overrideEncodingPositions(uuid, schema.getEncodingPositions());
+    }
+    schema.getFields().stream()
+        .map(Schema.Field::getType)
+        .forEach(SchemaCoderCloudObjectTranslator::overrideEncodingPositions);
+  }
+
+  private static void overrideEncodingPositions(Schema.FieldType fieldType) {
+    switch (fieldType.getTypeName()) {
+      case ROW:
+        overrideEncodingPositions(Preconditions.checkArgumentNotNull(fieldType.getRowSchema()));
+        break;
+      case ARRAY:
+      case ITERABLE:
+        overrideEncodingPositions(
+            Preconditions.checkArgumentNotNull(fieldType.getCollectionElementType()));
+        break;
+      case MAP:
+        overrideEncodingPositions(Preconditions.checkArgumentNotNull(fieldType.getMapKeyType()));
+        overrideEncodingPositions(Preconditions.checkArgumentNotNull(fieldType.getMapValueType()));
+        break;
+      case LOGICAL_TYPE:
+        Schema.LogicalType logicalType =
+            Preconditions.checkArgumentNotNull(fieldType.getLogicalType());
+        @Nullable Schema.FieldType argumentType = logicalType.getArgumentType();
+        if (argumentType != null) {
+          overrideEncodingPositions(argumentType);
+        }
+        overrideEncodingPositions(logicalType.getBaseType());
+        break;
+      default:
     }
   }
 

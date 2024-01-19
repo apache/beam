@@ -26,13 +26,14 @@ import static org.hamcrest.Matchers.lessThan;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.fnexecution.environment.testing.NeedsDocker;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -40,7 +41,7 @@ import org.junit.runners.JUnit4;
 @Category(NeedsDocker.class)
 @RunWith(JUnit4.class)
 public class DockerCommandTest {
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test

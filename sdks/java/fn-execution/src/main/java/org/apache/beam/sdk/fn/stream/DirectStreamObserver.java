@@ -96,9 +96,13 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
           // been invoked.
           if (initialPhase == phase) {
             LOG.info(
-                "Output channel stalled for {}s, outbound thread {}. See: "
-                    + "https://issues.apache.org/jira/browse/BEAM-4280 for the history for "
-                    + "this issue.",
+                "Output channel stalled for {}s, outbound thread {}. OnReady notification was "
+                    + "not invoked, ensure the inbound gRPC thread is not used for output.",
+                totalSecondsWaited,
+                Thread.currentThread().getName());
+          } else if (totalSecondsWaited > 60) {
+            LOG.warn(
+                "Output channel stalled for {}s, outbound thread {}.",
                 totalSecondsWaited,
                 Thread.currentThread().getName());
           } else {

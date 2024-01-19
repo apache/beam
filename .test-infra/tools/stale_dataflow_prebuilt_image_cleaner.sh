@@ -22,8 +22,8 @@ set -euo pipefail
 # Clean up private registry (us.gcr.io)
 # Images more than 5 day old and not the latest (either has latest label or newest)
 
-PUBLIC_REPOSITORIES=(beam-sdk beam_portability)
-PRIVATE_REPOSITORIES=(java-postcommit-it python-postcommit-it jenkins)
+PUBLIC_REPOSITORIES=(beam-sdk beam_portability beamgrafana beammetricssyncjenkins beammetricssyncgithub)
+PRIVATE_REPOSITORIES=(java-postcommit-it python-postcommit-it jenkins github-actions)
 # set as the same as 6-week release period
 DELETE_BEFORE_DAY=$(date --iso-8601=s -d '6 weeks ago')
 
@@ -51,6 +51,7 @@ done
 
 for image_name in ${IMAGE_NAMES[@]}; do
   echo IMAGES FOR image ${image_name}
+  FAILED_TO_DELETE=""
   # get the newest image without latest label
   LATEST_IN_TIME=$(gcloud container images list-tags \
      ${image_name} --sort-by="~TIMESTAMP"  --filter="NOT tags:latest " --format="get(digest)" --limit=1)
@@ -69,11 +70,42 @@ for image_name in ${IMAGE_NAMES[@]}; do
       # do not delete the one with latest label and the newest image without latest label
       # this make sure we leave at least one container under each image name, either labelled "latest" or not
       if [ "$LATEST_IN_TIME" != "$current" ]; then
-        echo "Deleting image. Command: gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q"
-        gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q
+        # Check to see if this image is built on top of earlier images. This is the case for multiarch images,
+        # they will have a virtual size of 0 and a created date at the start of the epoch, but their manifests will
+        # point to active images. These images should only be deleted when all of their dependencies can be safely
+        # deleted.
+        MANIFEST=$(docker manifest inspect ${image_name}@"${current}")
+        SHOULD_DELETE=0
+        DIGEST=$(echo $MANIFEST |  jq -r '.manifests[0].digest')
+        if [ "$DIGEST" != "null" ]
+        then
+          SHOULD_DELETE=1
+          for i in ${STALE_IMAGES_CURRENT[@]}
+          do
+            echo "$i"
+            if [ "$i" = "$DIGEST" ]
+            then
+              SHOULD_DELETE=0
+            fi
+          done
+        fi
+
+        if [ $SHOULD_DELETE = 0 ]
+        then
+          echo "Deleting image. Command: gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q"
+          gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q || FAILED_TO_DELETE+="${current} "
+        fi
       fi
     done
   fi
+
+  # Some images may not be successfully deleted the first time due to flakiness or having a dependency that hasn't been deleted yet.
+  RETRY_DELETE=("${FAILED_TO_DELETE[@]}")
+  echo "Failed to delete the following images: ${FAILED_TO_DELETE}. Retrying each of them."
+  for current in $RETRY_DELETE; do
+    echo "Trying again to delete image ${image_name}@"${current}". Command: gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q"
+    gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q
+  done
 done
 
 if [[ ${STALE_IMAGES} ]]; then

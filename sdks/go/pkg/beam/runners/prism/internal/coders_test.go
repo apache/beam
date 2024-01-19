@@ -62,7 +62,7 @@ func Test_isLeafCoder(t *testing.T) {
 func Test_makeWindowedValueCoder(t *testing.T) {
 	coders := map[string]*pipepb.Coder{}
 
-	gotID := makeWindowedValueCoder("testPID", &pipepb.Components{
+	gotID, err := makeWindowedValueCoder("testPID", &pipepb.Components{
 		Pcollections: map[string]*pipepb.PCollection{
 			"testPID": {CoderId: "testCoderID"},
 		},
@@ -74,7 +74,9 @@ func Test_makeWindowedValueCoder(t *testing.T) {
 			},
 		},
 	}, coders)
-
+	if err != nil {
+		t.Errorf("makeWindowedValueCoder(...) = error %v, want nil", err)
+	}
 	if gotID == "" {
 		t.Errorf("makeWindowedValueCoder(...) = %v, want non-empty", gotID)
 	}

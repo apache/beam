@@ -19,7 +19,7 @@ package org.apache.beam.it.gcp.dataflow;
 
 import static org.apache.beam.it.common.logging.LogStrings.formatForLogging;
 import static org.apache.beam.sdk.testing.TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_OPTIONS;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.googleapis.util.Utils;
@@ -53,11 +53,11 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,8 +109,8 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
                 : new HttpCredentialsAdapter(builder.getCredentials())));
   }
 
-  public static Builder builder() {
-    return new Builder();
+  public static Builder builder(Credentials credentials) {
+    return new Builder(credentials);
   }
 
   @Override
@@ -360,11 +360,22 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
             options.executable() != null,
             "Cannot launch a dataflow job "
                 + "without executable specified. Please specify executable and try again!");
+        if (options.requirementsFile() != null) {
+          // install requirements
+          cmd.add(
+              "virtualenv . && source ./bin/activate && pip3 install -r "
+                  + options.requirementsFile());
+          cmd.add("&&");
+        }
         LOG.info("Using the executable at {}", options.executable());
         cmd.add("python3");
         cmd.add(options.executable());
         cmd.addAll(extractOptions(project, region, options));
-        jobId = executeCommandAndParseResponse(cmd);
+        if (options.requirementsFile() != null) {
+          cmd.add("&&");
+          cmd.add("deactivate");
+        }
+        jobId = executeCommandAndParseResponse(String.join(" ", cmd));
         break;
       case GO:
         checkState(
@@ -376,7 +387,7 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
         cmd.add("run");
         cmd.add(options.executable());
         cmd.addAll(extractOptions(project, region, options));
-        jobId = executeCommandAndParseResponse(cmd);
+        jobId = executeCommandAndParseResponse(String.join(" ", cmd));
         break;
       default:
         throw new RuntimeException(
@@ -399,9 +410,9 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
     // config pipelineName
     String pipelineName = PipelineUtils.extractJobName(options.jobName());
     String overrideName = null;
-    if (pipelineName.endsWith("write")) {
+    if (pipelineName.startsWith("write")) {
       overrideName = System.getProperty(WRITE_PIPELINE_NAME_OVERWRITE);
-    } else if (pipelineName.endsWith("read")) {
+    } else if (pipelineName.startsWith("read")) {
       overrideName = System.getProperty(READ_PIPELINE_NAME_OVERWRITE);
     }
     if (!Strings.isNullOrEmpty(overrideName)) {
@@ -441,10 +452,13 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
   }
 
   /** Executes the specified command and parses the response to get the Job ID. */
-  private String executeCommandAndParseResponse(List<String> cmd) throws IOException {
-    Process process = new ProcessBuilder().command(cmd).redirectErrorStream(true).start();
+  private String executeCommandAndParseResponse(String cmd) throws IOException {
+    LOG.info("Running command: {}", cmd);
+    Process process =
+        new ProcessBuilder().command("/bin/bash", "-c", cmd).redirectErrorStream(true).start();
     String output =
         new String(ByteStreams.toByteArray(process.getInputStream()), StandardCharsets.UTF_8);
+    LOG.info(output);
     Matcher m = JOB_ID_PATTERN.matcher(output);
     if (!m.find()) {
       throw new RuntimeException(
@@ -462,15 +476,12 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
   public static final class Builder {
     private Credentials credentials;
 
-    private Builder() {}
+    private Builder(Credentials credentials) {
+      this.credentials = credentials;
+    }
 
     public Credentials getCredentials() {
       return credentials;
-    }
-
-    public Builder setCredentials(Credentials value) {
-      credentials = value;
-      return this;
     }
 
     public DefaultPipelineLauncher build() {

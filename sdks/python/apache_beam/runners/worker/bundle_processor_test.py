@@ -267,7 +267,7 @@ class DataSamplingTest(unittest.TestCase):
     """
     descriptor = beam_fn_api_pb2.ProcessBundleDescriptor()
     descriptor.pcollections['a'].unique_name = 'a'
-    _ = BundleProcessor(descriptor, None, None)
+    _ = BundleProcessor(set(), descriptor, None, None)
     self.assertEqual(len(descriptor.transforms), 0)
 
   def test_can_sample(self):
@@ -301,7 +301,7 @@ class DataSamplingTest(unittest.TestCase):
       # Create and process a fake bundle. The instruction id doesn't matter
       # here.
       processor = BundleProcessor(
-          descriptor, None, None, data_sampler=data_sampler)
+          set(), descriptor, None, None, data_sampler=data_sampler)
       processor.process_bundle('instruction_id')
 
       samples = data_sampler.wait_for_samples([PCOLLECTION_ID])
@@ -377,7 +377,7 @@ class DataSamplingTest(unittest.TestCase):
       # Create and process a fake bundle. The instruction id doesn't matter
       # here.
       processor = BundleProcessor(
-          descriptor, None, None, data_sampler=data_sampler)
+          set(), descriptor, None, None, data_sampler=data_sampler)
 
       with self.assertRaisesRegex(RuntimeError, 'expected exception'):
         processor.process_bundle('instruction_id')
@@ -400,6 +400,26 @@ class DataSamplingTest(unittest.TestCase):
 
     finally:
       data_sampler.stop()
+
+
+class EnvironmentCompatibilityTest(unittest.TestCase):
+  def test_rc_environments_are_compatible_with_released_images(self):
+    # TODO(https://github.com/apache/beam/issues/28084): remove when
+    # resolved.
+    self.assertTrue(
+        bundle_processor._environments_compatible(
+            "beam:version:sdk_base:apache/beam_python3.5_sdk:2.1.0rc1",
+            "beam:version:sdk_base:apache/beam_python3.5_sdk:2.1.0"))
+
+  def test_user_modified_sdks_need_to_be_installed_in_runtime_env(self):
+    self.assertFalse(
+        bundle_processor._environments_compatible(
+            "beam:version:sdk_base:apache/beam_python3.5_sdk:2.1.0-custom",
+            "beam:version:sdk_base:apache/beam_python3.5_sdk:2.1.0"))
+    self.assertTrue(
+        bundle_processor._environments_compatible(
+            "beam:version:sdk_base:apache/beam_python3.5_sdk:2.1.0-custom",
+            "beam:version:sdk_base:apache/beam_python3.5_sdk:2.1.0-custom"))
 
 
 if __name__ == '__main__':

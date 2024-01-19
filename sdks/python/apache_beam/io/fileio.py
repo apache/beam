@@ -195,7 +195,8 @@ class MatchFiles(beam.PTransform):
     self._empty_match_treatment = empty_match_treatment
 
   def expand(self, pcoll) -> beam.PCollection[filesystem.FileMetadata]:
-    return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll()
+    return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll(
+        empty_match_treatment=self._empty_match_treatment)
 
 
 class MatchAll(beam.PTransform):
@@ -266,6 +267,13 @@ class MatchContinuously(beam.PTransform):
 
   MatchContinuously is experimental.  No backwards-compatibility
   guarantees.
+
+  Matching continuously scales poorly, as it is stateful, and requires storing
+  file ids in memory. In addition, because it is memory-only, if a pipeline is
+  restarted, already processed files will be reprocessed. Consider an alternate
+  technique, such as Pub/Sub Notifications
+  (https://cloud.google.com/storage/docs/pubsub-notifications)
+  when using GCS if possible.
   """
   def __init__(
       self,
@@ -299,6 +307,11 @@ class MatchContinuously(beam.PTransform):
     self.match_upd = match_updated_files
     self.apply_windowing = apply_windowing
     self.empty_match_treatment = empty_match_treatment
+    _LOGGER.warning(
+        'Matching Continuously is stateful, and can scale poorly. '
+        'Consider using Pub/Sub Notifications '
+        '(https://cloud.google.com/storage/docs/pubsub-notifications) '
+        'if possible')
 
   def expand(self, pbegin) -> beam.PCollection[filesystem.FileMetadata]:
     # invoke periodic impulse
@@ -727,7 +740,9 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
 
       if len(orphaned_files) > 0:
         _LOGGER.info(
-            'Some files may be left orphaned in the temporary folder: %s',
+            'Some files may be left orphaned in the temporary folder: %s. '
+            'This may be a result of insufficient permissions to delete'
+            'these temp files.',
             orphaned_files)
     except BeamIOError as e:
       _LOGGER.info('Exceptions when checking orphaned files: %s', e)

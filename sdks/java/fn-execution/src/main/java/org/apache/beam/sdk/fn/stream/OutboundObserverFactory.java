@@ -89,7 +89,9 @@ public abstract class OutboundObserverFactory {
         BasicFactory<ReqT, RespT> baseOutboundObserverFactory,
         StreamObserver<ReqT> inboundObserver) {
       AdvancingPhaser phaser = new AdvancingPhaser(1);
-      inboundObserver = ForwardingClientResponseObserver.create(inboundObserver, phaser::arrive);
+      inboundObserver =
+          ForwardingClientResponseObserver.create(
+              inboundObserver, phaser::arrive, phaser::forceTermination);
       CallStreamObserver<RespT> outboundObserver =
           (CallStreamObserver<RespT>)
               baseOutboundObserverFactory.outboundObserverFor(inboundObserver);
@@ -126,7 +128,9 @@ public abstract class OutboundObserverFactory {
         BasicFactory<ReqT, RespT> baseOutboundObserverFactory,
         StreamObserver<ReqT> inboundObserver) {
       AdvancingPhaser phaser = new AdvancingPhaser(1);
-      inboundObserver = ForwardingClientResponseObserver.create(inboundObserver, phaser::arrive);
+      inboundObserver =
+          ForwardingClientResponseObserver.create(
+              inboundObserver, phaser::arrive, phaser::forceTermination);
       CallStreamObserver<RespT> outboundObserver =
           (CallStreamObserver<RespT>)
               baseOutboundObserverFactory.outboundObserverFor(inboundObserver);

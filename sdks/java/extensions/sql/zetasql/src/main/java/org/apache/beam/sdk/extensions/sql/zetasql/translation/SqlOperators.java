@@ -66,8 +66,8 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.validate.Sq
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Optionality;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Util;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 
 /**
  * A separate SqlOperators table for those functions that do not exist or not compatible with

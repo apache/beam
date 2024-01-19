@@ -58,8 +58,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -99,22 +99,16 @@ public final class BigQueryIOLT extends IOLoadTestBase {
   private static final String READ_ELEMENT_METRIC_NAME = "read_count";
   private Configuration configuration;
   private String tempLocation;
-
   private TableSchema schema;
-
-  private static final String READ_PCOLLECTION = "Counting element.out0";
-  private static final String WRITE_PCOLLECTION = "Map records.out0";
 
   @Rule public TestPipeline writePipeline = TestPipeline.create();
   @Rule public TestPipeline readPipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void beforeClass() throws IOException {
+  public static void beforeClass() {
     resourceManager =
-        BigQueryResourceManager.builder("io-bigquery-lt", PROJECT)
-            .setCredentials(CREDENTIALS)
-            .build();
-    resourceManager.createDataset(REGION);
+        BigQueryResourceManager.builder("io-bigquery-lt", project, CREDENTIALS).build();
+    resourceManager.createDataset(region);
   }
 
   @Before
@@ -126,7 +120,7 @@ public final class BigQueryIOLT extends IOLoadTestBase {
                 .withZone(ZoneId.of("UTC"))
                 .format(java.time.Instant.now())
             + UUID.randomUUID().toString().substring(0, 10);
-    tableQualifier = String.format("%s:%s.%s", PROJECT, resourceManager.getDatasetId(), tableName);
+    tableQualifier = String.format("%s:%s.%s", project, resourceManager.getDatasetId(), tableName);
 
     // parse configuration
     String testConfig =
@@ -270,13 +264,13 @@ public final class BigQueryIOLT extends IOLoadTestBase {
                 .withCustomGcsTempLocation(ValueProvider.StaticValueProvider.of(tempLocation)));
 
     PipelineLauncher.LaunchConfig options =
-        PipelineLauncher.LaunchConfig.builder("test-bigquery-write")
+        PipelineLauncher.LaunchConfig.builder("write-bigquery")
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(writePipeline)
             .addParameter("runner", configuration.runner)
             .build();
 
-    PipelineLauncher.LaunchInfo launchInfo = pipelineLauncher.launch(PROJECT, REGION, options);
+    PipelineLauncher.LaunchInfo launchInfo = pipelineLauncher.launch(project, region, options);
     PipelineOperator.Result result =
         pipelineOperator.waitUntilDone(
             createConfig(launchInfo, Duration.ofMinutes(configuration.pipelineTimeout)));
@@ -286,7 +280,10 @@ public final class BigQueryIOLT extends IOLoadTestBase {
 
     // export metrics
     MetricsConfiguration metricsConfig =
-        MetricsConfiguration.builder().setInputPCollection(WRITE_PCOLLECTION).build();
+        MetricsConfiguration.builder()
+            .setInputPCollection("Map records.out0")
+            .setInputPCollectionV2("Map records/ParMultiDo(MapKVToV).out0")
+            .build();
     try {
       exportMetricsToBigQuery(launchInfo, getMetrics(launchInfo, metricsConfig));
     } catch (ParseException | InterruptedException e) {
@@ -303,13 +300,13 @@ public final class BigQueryIOLT extends IOLoadTestBase {
         .apply("Counting element", ParDo.of(new CountingFn<>(READ_ELEMENT_METRIC_NAME)));
 
     PipelineLauncher.LaunchConfig options =
-        PipelineLauncher.LaunchConfig.builder("test-bigquery-read")
+        PipelineLauncher.LaunchConfig.builder("read-bigquery")
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(readPipeline)
             .addParameter("runner", configuration.runner)
             .build();
 
-    PipelineLauncher.LaunchInfo launchInfo = pipelineLauncher.launch(PROJECT, REGION, options);
+    PipelineLauncher.LaunchInfo launchInfo = pipelineLauncher.launch(project, region, options);
     PipelineOperator.Result result =
         pipelineOperator.waitUntilDone(
             createConfig(launchInfo, Duration.ofMinutes(configuration.pipelineTimeout)));
@@ -320,15 +317,18 @@ public final class BigQueryIOLT extends IOLoadTestBase {
     // check metrics
     double numRecords =
         pipelineLauncher.getMetric(
-            PROJECT,
-            REGION,
+            project,
+            region,
             launchInfo.jobId(),
             getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
     assertEquals(configuration.numRecords, numRecords, 0.5);
 
     // export metrics
     MetricsConfiguration metricsConfig =
-        MetricsConfiguration.builder().setOutputPCollection(READ_PCOLLECTION).build();
+        MetricsConfiguration.builder()
+            .setOutputPCollection("Counting element.out0")
+            .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
+            .build();
     try {
       exportMetricsToBigQuery(launchInfo, getMetrics(launchInfo, metricsConfig));
     } catch (ParseException | InterruptedException e) {

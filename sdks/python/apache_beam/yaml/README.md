@@ -44,8 +44,9 @@ or consumption (e.g. a lineage analysis tool) and expect it to be more
 easily manipulated and semantically meaningful than the Beam protos
 themselves (which concern themselves more with execution).
 
-It should be noted that everything here is still EXPERIMENTAL and subject
-to change. Feedback is welcome at dev@apache.beam.org.
+It should be noted that everything here is still under development, but any
+features already included are considered stable. Feedback is welcome at
+dev@apache.beam.org.
 
 ## Example pipelines
 
@@ -56,9 +57,11 @@ writes it out in json format.
 pipeline:
   transforms:
     - type: ReadFromCsv
-      path: /path/to/input*.csv
+      config:
+        path: /path/to/input*.csv
     - type: WriteToJson
-      path: /path/to/output.json
+      config:
+        path: /path/to/output.json
       input: ReadFromCsv
 ```
 
@@ -68,13 +71,17 @@ We can also add a transformation
 pipeline:
   transforms:
     - type: ReadFromCsv
-      path: /path/to/input*.csv
-    - type: PyFilter
-      keep: "lambda x: x.col3 > 100"
+      config:
+        path: /path/to/input*.csv
+    - type: Filter
+      config:
+        language: python
+        keep: "col3 > 100"
       input: ReadFromCsv
     - type: WriteToJson
-      path: /path/to/output.json
-      input: PyFilter
+      config:
+        path: /path/to/output.json
+      input: Filter
 ```
 
 or two.
@@ -83,16 +90,21 @@ or two.
 pipeline:
   transforms:
     - type: ReadFromCsv
-      path: /path/to/input*.csv
-    - type: PyFilter
-      keep: "lambda x: x.col3 > 100"
+      config:
+        path: /path/to/input*.csv
+    - type: Filter
+      config:
+        language: python
+        keep: "col3 > 100"
       input: ReadFromCsv
     - type: Sql
       name: MySqlTransform
-      query: "select col1, count(*) as cnt from PCOLLECTION group by col1"
-      input: PyFilter
+      config:
+        query: "select col1, count(*) as cnt from PCOLLECTION group by col1"
+      input: Filter
     - type: WriteToJson
-      path: /path/to/output.json
+      config:
+        path: /path/to/output.json
       input: MySqlTransform
 ```
 
@@ -105,14 +117,19 @@ pipeline:
 
   transforms:
     - type: ReadFromCsv
-      path: /path/to/input*.csv
-    - type: PyFilter
-      keep: "lambda x: x.col3 > 100"
+      config:
+        path: /path/to/input*.csv
+    - type: Filter
+      config:
+        language: python
+        keep: "col3 > 100"
     - type: Sql
       name: MySqlTransform
-      query: "select col1, count(*) as cnt from PCOLLECTION group by col1"
+      config:
+        query: "select col1, count(*) as cnt from PCOLLECTION group by col1"
     - type: WriteToJson
-      path: /path/to/output.json
+      config:
+        path: /path/to/output.json
 ```
 
 As syntactic sugar, we can name the first and last transforms in our pipeline
@@ -124,19 +141,24 @@ pipeline:
 
   source:
     type: ReadFromCsv
-    path: /path/to/input*.csv
+    config:
+      path: /path/to/input*.csv
 
   transforms:
-    - type: PyFilter
-      keep: "lambda x: x.col3 > 100"
+    - type: Filter
+      config:
+        language: python
+        keep: "col3 > 100"
 
     - type: Sql
       name: MySqlTransform
-      query: "select col1, count(*) as cnt from PCOLLECTION group by col1"
+      config:
+        query: "select col1, count(*) as cnt from PCOLLECTION group by col1"
 
   sink:
     type: WriteToJson
-    path: /path/to/output.json
+    config:
+      path: /path/to/output.json
 ```
 
 Arbitrary non-linear pipelines are supported as well, though in this case
@@ -145,34 +167,42 @@ Here we read two sources, join them, and write two outputs.
 
 ```
 pipeline:
-  - type: ReadFromCsv
-    name: ReadLeft
-    path: /path/to/left*.csv
+  transforms:
+    - type: ReadFromCsv
+      name: ReadLeft
+      config:
+        path: /path/to/left*.csv
 
-  - type: ReadFromCsv
-    name: ReadRight
-    path: /path/to/right*.csv
+    - type: ReadFromCsv
+      name: ReadRight
+      config:
+        path: /path/to/right*.csv
 
-  - type: Sql
-    query: select left.col1, right.col2 from left join right using (col3)
-    input:
-      left: ReadLeft
-      right: ReadRight
+    - type: Sql
+      config:
+        query: select left.col1, right.col2 from left join right using (col3)
+      input:
+        left: ReadLeft
+        right: ReadRight
 
-  - type: WriteToJson
-    name: WriteAll
-    input: Sql
-    path: /path/to/all.json
+    - type: WriteToJson
+      name: WriteAll
+      input: Sql
+      config:
+        path: /path/to/all.json
 
-  - type: PyFilter
-    name: FilterToBig
-    input: Sql
-    keep: "lambda x: x.col2 > 100"
+    - type: Filter
+      name: FilterToBig
+      input: Sql
+      config:
+        language: python
+        keep: "col2 > 100"
 
-  - type: WriteToCsv
-    name: WriteBig
-    input: FilterToBig
-    path: /path/to/big.csv
+    - type: WriteToCsv
+      name: WriteBig
+      input: FilterToBig
+      config:
+        path: /path/to/big.csv
 ```
 
 One can, however, nest `chains` within a non-linear pipeline.
@@ -181,38 +211,50 @@ that has a single input and contains its own sink.
 
 ```
 pipeline:
-  - type: ReadFromCsv
-    name: ReadLeft
-    path: /path/to/left*.csv
+  transforms:
+    - type: ReadFromCsv
+      name: ReadLeft
+      config:
+        path: /path/to/left*.csv
 
-  - type: ReadFromCsv
-    name: ReadRight
-    path: /path/to/right*.csv
+    - type: ReadFromCsv
+      name: ReadRight
+      config:
+        path: /path/to/right*.csv
 
-  - type: Sql
-    query: select left.col1, right.col2 from left join right using (col3)
-    input:
-      left: ReadLeft
-      right: ReadRight
+    - type: Sql
+      config:
+        query: select left.col1, right.col2 from left join right using (col3)
+      input:
+        left: ReadLeft
+        right: ReadRight
 
-  - type: WriteToJson
-    name: WriteAll
-    input: Sql
-    path: /path/to/all.json
+    - type: WriteToJson
+      name: WriteAll
+      input: Sql
+      config:
+        path: /path/to/all.json
 
-  - type: chain
-    name: ExtraProcessingForBigRows
-    input: Sql
-    transforms:
-      - type: PyFilter
-        keep: "lambda x: x.col2 > 100"
-      - type: PyFilter
-        keep: "lambda x: len(x.col1) > 10"
-      - type: PyFilter
-        keep: "lambda x: x.col1 > 'z'"
-    sink:
-      type: WriteToCsv
-      path: /path/to/big.csv
+    - type: chain
+      name: ExtraProcessingForBigRows
+      input: Sql
+      transforms:
+        - type: Filter
+          config:
+            language: python
+            keep: "col2 > 100"
+        - type: Filter
+          config:
+            language: python
+            keep: "len(col1) > 10"
+        - type: Filter
+          config:
+            language: python
+            keep: "col1 > 'z'"
+      sink:
+        type: WriteToCsv
+        config:
+          path: /path/to/big.csv
 ```
 
 ## Windowing
@@ -230,14 +272,24 @@ pipeline:
   type: chain
   transforms:
     - type: ReadFromPubSub
-      topic: myPubSubTopic
+      config:
+        topic: myPubSubTopic
+        format: json
+        schema:
+          type: object
+          properties:
+            col1: {type: string}
+            col2: {type: integer}
+            col3: {type: number}
     - type: WindowInto
       windowing:
         type: fixed
         size: 60
     - type: SomeAggregation
     - type: WriteToPubSub
-      topic: anotherPubSubTopic
+      config:
+        topic: anotherPubSubTopic
+        format: json
 ```
 
 Rather than using an explicit `WindowInto` operation, one may instead tag a
@@ -249,14 +301,19 @@ pipeline:
   type: chain
   transforms:
     - type: ReadFromPubSub
-      topic: myPubSubTopic
+      config:
+        topic: myPubSubTopic
+        format: ...
+        schema: ...
     - type: SomeAggregation
       windowing:
         type: sliding
         size: 60
         period: 10
     - type: WriteToPubSub
-      topic: anotherPubSubTopic
+      config:
+        topic: anotherPubSubTopic
+        format: json
 ```
 
 Note that the `Sql` operation itself is often a from of aggregation, and
@@ -268,14 +325,20 @@ pipeline:
   type: chain
   transforms:
     - type: ReadFromPubSub
-      topic: myPubSubTopic
+      config:
+        topic: myPubSubTopic
+        format: ...
+        schema: ...
     - type: Sql
-      query: "select col1, count(*) as c from PCOLLECTION"
+      config:
+        query: "select col1, count(*) as c from PCOLLECTION"
       windowing:
         type: sessions
         gap: 60
     - type: WriteToPubSub
-      topic: anotherPubSubTopic
+      config:
+        topic: anotherPubSubTopic
+        format: json
 ```
 
 The specified windowing is applied to all inputs, in this case resulting in
@@ -283,22 +346,30 @@ a join per window.
 
 ```
 pipeline:
-  - type: ReadFromPubSub
-    name: ReadLeft
-    topic: leftTopic
+  transforms:
+    - type: ReadFromPubSub
+      name: ReadLeft
+      config:
+        topic: leftTopic
+        format: ...
+        schema: ...
 
-  - type: ReadFromPubSub
-    name: ReadRight
-    topic: rightTopic
+    - type: ReadFromPubSub
+      name: ReadRight
+      config:
+        topic: rightTopic
+        format: ...
+        schema: ...
 
-  - type: Sql
-    query: select left.col1, right.col2 from left join right using (col3)
-    input:
-      left: ReadLeft
-      right: ReadRight
-    windowing:
-      type: fixed
-      size: 60
+    - type: Sql
+      config:
+        query: select left.col1, right.col2 from left join right using (col3)
+      input:
+        left: ReadLeft
+        right: ReadRight
+      windowing:
+        type: fixed
+        size: 60
 ```
 
 For a transform with no inputs, the specified windowing is instead applied to
@@ -310,14 +381,20 @@ pipeline:
   type: chain
   transforms:
     - type: ReadFromPubSub
-      topic: myPubSubTopic
+      config:
+        topic: myPubSubTopic
+        format: ...
+        schema: ...
       windowing:
         type: fixed
         size: 60
     - type: Sql
-      query: "select col1, count(*) as c from PCOLLECTION"
+      config:
+        query: "select col1, count(*) as c from PCOLLECTION"
     - type: WriteToPubSub
-      topic: anotherPubSubTopic
+      config:
+        topic: anotherPubSubTopic
+        format: json
 ```
 
 One can also specify windowing at the top level of a pipeline (or composite),
@@ -330,11 +407,17 @@ pipeline:
   type: chain
   transforms:
     - type: ReadFromPubSub
-      topic: myPubSubTopic
+      config:
+        topic: myPubSubTopic
+        format: ...
+        schema: ...
     - type: Sql
-      query: "select col1, count(*) as c from PCOLLECTION"
+      config:
+        query: "select col1, count(*) as c from PCOLLECTION"
     - type: WriteToPubSub
-      topic: anotherPubSubTopic
+      config:
+        topic: anotherPubSubTopic
+        format: json
   windowing:
     type: fixed
     size: 60
@@ -349,18 +432,23 @@ pipeline:
 
   source:
     type: ReadFromPubSub
-    topic: myPubSubTopic
+    config:
+      topic: myPubSubTopic
+      format: ...
+      schema: ...
     windowing:
       type: fixed
       size: 10
 
   transforms:
     - type: Sql
-      query: "select col1, count(*) as c from PCOLLECTION"
+      config:
+        query: "select col1, count(*) as c from PCOLLECTION"
 
   sink:
     type: WriteToCsv
-    path: /path/to/output.json
+    config:
+      path: /path/to/output.json
     windowing:
       type: fixed
       size: 300
@@ -384,16 +472,18 @@ pipeline:
   type: chain
   source:
     type: ReadFromCsv
-    path: /path/to/input*.csv
+    config:
+      path: /path/to/input*.csv
 
   transforms:
     - type: MyCustomTransform
-      args:
+      config:
         arg: whatever
 
   sink:
     type: WriteToJson
-    path: /path/to/output.json
+    config:
+      path: /path/to/output.json
 
 providers:
   - type: javaJar
@@ -420,7 +510,7 @@ The Beam yaml parser is currently included as part of the Apache Beam Python SDK
 This can be installed (e.g. within a virtual environment) as
 
 ```
-pip install apache_beam
+pip install apache_beam[yaml,gcp]
 ```
 
 In addition, several of the provided transforms (such as SQL) are implemented

@@ -48,13 +48,16 @@ import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link FnApiControlClientPoolService}. */
 @RunWith(JUnit4.class)
 public class FnApiControlClientPoolServiceTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final String WORKER_ID = "test_worker_id";
   private final ControlClientPool pool = MapControlClientPool.create();
   private final FnApiControlClientPoolService controlService =

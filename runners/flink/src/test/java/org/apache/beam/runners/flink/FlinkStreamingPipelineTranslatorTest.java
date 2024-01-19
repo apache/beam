@@ -46,8 +46,8 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.ShardedKey;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -156,7 +156,7 @@ public class FlinkStreamingPipelineTranslatorTest {
   private JobGraph getStatefulParDoAfterCombineChainingJobGraph(boolean stablePartitioning) {
     final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
     final FlinkStreamingPipelineTranslator translator =
-        new FlinkStreamingPipelineTranslator(env, PipelineOptionsFactory.create());
+        new FlinkStreamingPipelineTranslator(env, PipelineOptionsFactory.create(), true);
     final PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
     pipelineOptions.setRunner(FlinkRunner.class);
     final Pipeline pipeline = Pipeline.create(pipelineOptions);
@@ -188,7 +188,7 @@ public class FlinkStreamingPipelineTranslatorTest {
   private JobGraph getStatefulParDoAfterGroupByKeyChainingJobGraph(boolean stablePartitioning) {
     final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
     final FlinkStreamingPipelineTranslator translator =
-        new FlinkStreamingPipelineTranslator(env, PipelineOptionsFactory.create());
+        new FlinkStreamingPipelineTranslator(env, PipelineOptionsFactory.create(), true);
     final PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
     pipelineOptions.setRunner(FlinkRunner.class);
     final Pipeline pipeline = Pipeline.create(pipelineOptions);

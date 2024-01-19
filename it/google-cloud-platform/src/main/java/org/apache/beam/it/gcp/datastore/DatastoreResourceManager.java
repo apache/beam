@@ -17,10 +17,9 @@
  */
 package org.apache.beam.it.gcp.datastore;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auth.Credentials;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.Entity;
@@ -29,15 +28,14 @@ import com.google.cloud.datastore.GqlQuery;
 import com.google.cloud.datastore.Key;
 import com.google.cloud.datastore.Query.ResultType;
 import com.google.cloud.datastore.QueryResults;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.it.common.ResourceManager;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
 /** Client for managing Datastore resources. */
 public class DatastoreResourceManager implements ResourceManager {
@@ -138,10 +136,10 @@ public class DatastoreResourceManager implements ResourceManager {
     keys.clear();
   }
 
-  public static Builder builder(String project, String namespace) throws IOException {
+  public static Builder builder(String project, String namespace, Credentials credentials) {
     checkArgument(!Strings.isNullOrEmpty(project), "project can not be empty");
     checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty");
-    return new Builder(project, namespace);
+    return new Builder(project, namespace, credentials);
   }
 
   public static final class Builder {
@@ -150,10 +148,10 @@ public class DatastoreResourceManager implements ResourceManager {
     private final String namespace;
     private Credentials credentials;
 
-    private Builder(String project, String namespace) throws IOException {
+    private Builder(String project, String namespace, Credentials credentials) {
       this.project = project;
       this.namespace = namespace;
-      this.credentials = GoogleCredentials.getApplicationDefault();
+      this.credentials = credentials;
     }
 
     public Builder credentials(Credentials credentials) {

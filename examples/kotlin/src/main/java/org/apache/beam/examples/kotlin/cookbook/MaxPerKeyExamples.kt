@@ -60,12 +60,12 @@ import java.util.ArrayList
  * See examples/java/README.md for instructions about how to configure different runners.
  *
  *
- * The BigQuery input table defaults to `clouddataflow-readonly:samples.weather_stations `
+ * The BigQuery input table defaults to `apache-beam-testing.samples.weather_stations `
  * and can be overridden with `--input`.
  */
 object MaxPerKeyExamples {
     // Default to using a 1000 row subset of the public weather station table publicdata:samples.gsod.
-    private const val WEATHER_SAMPLES_TABLE = "clouddataflow-readonly:samples.weather_stations"
+    private const val WEATHER_SAMPLES_TABLE = "apache-beam-testing.samples.weather_stations"
 
     /**
      * Examines each row (weather reading) in the input table. Output the month of the reading, and

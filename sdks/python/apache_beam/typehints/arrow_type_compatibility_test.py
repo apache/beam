@@ -206,7 +206,7 @@ class ArrowBatchConverterErrorsTest(unittest.TestCase):
     (
       pa.Table,
       Any,
-      r'Element type must be compatible with Beam Schemas',
+      r'Element type .* must be compatible with Beam Schemas',
     ),
   ])
   def test_construction_errors(

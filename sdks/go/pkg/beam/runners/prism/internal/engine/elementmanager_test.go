@@ -61,7 +61,7 @@ func TestElementHeap(t *testing.T) {
 func TestStageState_minPendingTimestamp(t *testing.T) {
 
 	newState := func() *stageState {
-		return makeStageState("test", []string{"testInput"}, nil, []string{"testOutput"})
+		return makeStageState("test", []string{"testInput"}, []string{"testOutput"}, nil)
 	}
 	t.Run("noElements", func(t *testing.T) {
 		ss := newState()
@@ -188,13 +188,13 @@ func TestStageState_minPendingTimestamp(t *testing.T) {
 }
 
 func TestStageState_UpstreamWatermark(t *testing.T) {
-	impulse := makeStageState("impulse", nil, nil, []string{"output"})
+	impulse := makeStageState("impulse", nil, []string{"output"}, nil)
 	_, up := impulse.UpstreamWatermark()
 	if got, want := up, mtime.MaxTimestamp; got != want {
 		t.Errorf("impulse.UpstreamWatermark() = %v, want %v", got, want)
 	}
 
-	dofn := makeStageState("dofn", []string{"input"}, nil, []string{"output"})
+	dofn := makeStageState("dofn", []string{"input"}, []string{"output"}, nil)
 	dofn.updateUpstreamWatermark("input", 42)
 
 	_, up = dofn.UpstreamWatermark()
@@ -202,7 +202,7 @@ func TestStageState_UpstreamWatermark(t *testing.T) {
 		t.Errorf("dofn.UpstreamWatermark() = %v, want %v", got, want)
 	}
 
-	flatten := makeStageState("flatten", []string{"a", "b", "c"}, nil, []string{"output"})
+	flatten := makeStageState("flatten", []string{"a", "b", "c"}, []string{"output"}, nil)
 	flatten.updateUpstreamWatermark("a", 50)
 	flatten.updateUpstreamWatermark("b", 42)
 	flatten.updateUpstreamWatermark("c", 101)
@@ -216,7 +216,7 @@ func TestStageState_updateWatermarks(t *testing.T) {
 	inputCol := "testInput"
 	outputCol := "testOutput"
 	newState := func() (*stageState, *stageState, *ElementManager) {
-		underTest := makeStageState("underTest", []string{inputCol}, nil, []string{outputCol})
+		underTest := makeStageState("underTest", []string{inputCol}, []string{outputCol}, nil)
 		outStage := makeStageState("outStage", []string{outputCol}, nil, nil)
 		em := &ElementManager{
 			consumers: map[string][]string{
@@ -315,7 +315,7 @@ func TestStageState_updateWatermarks(t *testing.T) {
 func TestElementManager(t *testing.T) {
 	t.Run("impulse", func(t *testing.T) {
 		em := NewElementManager(Config{})
-		em.AddStage("impulse", nil, nil, []string{"output"})
+		em.AddStage("impulse", nil, []string{"output"}, nil)
 		em.AddStage("dofn", []string{"output"}, nil, nil)
 
 		em.Impulse("impulse")
@@ -370,8 +370,8 @@ func TestElementManager(t *testing.T) {
 
 	t.Run("dofn", func(t *testing.T) {
 		em := NewElementManager(Config{})
-		em.AddStage("impulse", nil, nil, []string{"input"})
-		em.AddStage("dofn1", []string{"input"}, nil, []string{"output"})
+		em.AddStage("impulse", nil, []string{"input"}, nil)
+		em.AddStage("dofn1", []string{"input"}, []string{"output"}, nil)
 		em.AddStage("dofn2", []string{"output"}, nil, nil)
 		em.Impulse("impulse")
 
@@ -421,9 +421,9 @@ func TestElementManager(t *testing.T) {
 
 	t.Run("side", func(t *testing.T) {
 		em := NewElementManager(Config{})
-		em.AddStage("impulse", nil, nil, []string{"input"})
-		em.AddStage("dofn1", []string{"input"}, nil, []string{"output"})
-		em.AddStage("dofn2", []string{"input"}, []string{"output"}, nil)
+		em.AddStage("impulse", nil, []string{"input"}, nil)
+		em.AddStage("dofn1", []string{"input"}, []string{"output"}, nil)
+		em.AddStage("dofn2", []string{"input"}, nil, []LinkID{{Transform: "dofn2", Global: "output", Local: "local"}})
 		em.Impulse("impulse")
 
 		var i int
@@ -472,7 +472,7 @@ func TestElementManager(t *testing.T) {
 	})
 	t.Run("residual", func(t *testing.T) {
 		em := NewElementManager(Config{})
-		em.AddStage("impulse", nil, nil, []string{"input"})
+		em.AddStage("impulse", nil, []string{"input"}, nil)
 		em.AddStage("dofn", []string{"input"}, nil, nil)
 		em.Impulse("impulse")
 

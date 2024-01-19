@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayDeque;
 import java.util.Iterator;
@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.CheckForNull;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -35,9 +36,9 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.AbstractIterator;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import scala.Tuple2;
@@ -141,7 +142,7 @@ class UnboundedSparkInputDataProcessor<FnInputT, FnOutputT>
     }
 
     @Override
-    protected Tuple2<TupleTag<?>, WindowedValue<?>> computeNext() {
+    protected @CheckForNull Tuple2<TupleTag<?>, WindowedValue<?>> computeNext() {
       try {
         // Process each element from the (input) iterator, which produces, zero, one or more
         // output elements (of type V) in the output iterator. Note that the output
@@ -304,7 +305,7 @@ class BoundedSparkInputDataProcessor<FnInputT, FnOutputT>
     }
 
     @Override
-    protected Tuple2<TupleTag<?>, WindowedValue<?>> computeNext() {
+    protected @CheckForNull Tuple2<TupleTag<?>, WindowedValue<?>> computeNext() {
 
       if (outputProducerTask == null) {
         outputProducerTask = startOutputProducerTask();

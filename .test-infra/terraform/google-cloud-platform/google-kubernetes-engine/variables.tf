@@ -26,17 +26,22 @@ variable "region" {
   description = "The Google Cloud Platform (GCP) region in which to provision resources"
 }
 
-variable "resource_name_prefix" {
+variable "cluster_name_prefix" {
   type        = string
-  description = "The basis to name all provisioned resources i.e. service account, network, cluster, etc."
+  description = "The prefix to assign the provisioned Google Kubernetes Engine (GKE) cluster; a random string is appended to this value"
 }
 
-variable "subnetwork_cidr_range" {
+variable "network" {
   type        = string
-  description = "The address range for this subnet, in CIDR notation. Use a standard private VPC network address range: for example, 10.128.0.0/20"
+  description = "The Google Cloud Virtual Private Cloud (VPC) network name"
 }
 
-variable "bastion_compute_machine_type" {
+variable "subnetwork" {
   type        = string
-  description = "The machine type of the Bastion host. See gcloud compute machine-types list for available types, for example e2-standard-2"
+  description = "The Google Cloud Virtual Private Cloud (VPC) subnetwork name"
+}
+
+variable "service_account_id" {
+  type        = string
+  description = "The ID of the service account bound to the Google Kubernetes Engine (GKE) cluster"
 }

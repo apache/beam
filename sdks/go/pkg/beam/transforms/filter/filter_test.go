@@ -48,17 +48,17 @@ func TestInclude(t *testing.T) {
 	}{
 		{
 			[]int{1, 2, 3},
-			func(a int) bool { return true },
+			alwaysTrue,
 			[]int{1, 2, 3},
 		},
 		{
 			[]int{1, 2, 3},
-			func(a int) bool { return a == 1 },
+			isOne,
 			[]int{1},
 		},
 		{
 			[]int{1, 2, 3},
-			func(a int) bool { return a > 1 },
+			greaterThanOne,
 			[]int{2, 3},
 		},
 	}
@@ -81,17 +81,17 @@ func TestExclude(t *testing.T) {
 	}{
 		{
 			[]int{1, 2, 3},
-			func(a int) bool { return false },
+			alwaysFalse,
 			[]int{1, 2, 3},
 		},
 		{
 			[]int{1, 2, 3},
-			func(a int) bool { return a == 1 },
+			isOne,
 			[]int{2, 3},
 		},
 		{
 			[]int{1, 2, 3},
-			func(a int) bool { return a > 1 },
+			greaterThanOne,
 			[]int{1},
 		},
 	}

@@ -22,6 +22,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow/dataflowlib"
@@ -313,6 +314,15 @@ func TestGetJobOptions_DockerNoImage(t *testing.T) {
 	}
 }
 
+func TestGetJobOptions_DockerGCROverride(t *testing.T) {
+	resetGlobals()
+	*jobopts.EnvironmentType = "docker"
+
+	if got, want := getContainerImage(context.Background()), "gcr.io/cloud-dataflow/v1beta3/beam_go_sdk:"+core.SdkVersion; got != want {
+		t.Fatalf("getContainerImage() = %q, want %q", got, want)
+	}
+}
+
 func TestGetJobOptions_TransformMapping(t *testing.T) {
 	resetGlobals()
 	*stagingLocation = "gs://testStagingLocation"
@@ -427,6 +437,81 @@ func TestGetJobOptions_AliasAreEffective(t *testing.T) {
 	}
 }
 
+func TestGetJobOptions_BadTruePublicIPs(t *testing.T) {
+	resetGlobals()
+	*usePublicIPs = true
+	*noUsePublicIPs = true
+
+	opts, err := getJobOptions(context.Background(), false)
+	if err == nil {
+		t.Error("getJobOptions() returned error nil, want an error")
+	}
+	if opts != nil {
+		t.Errorf("getJobOptions() returned JobOptions when it should not have, got %#v, want nil", opts)
+	}
+}
+
+func TestGetJobOptions_BadFalsePublicIPs(t *testing.T) {
+	resetGlobals()
+	*usePublicIPs = false
+	*noUsePublicIPs = false
+
+	opts, err := getJobOptions(context.Background(), false)
+	if err == nil {
+		t.Error("getJobOptions() returned error nil, want an error")
+	}
+	if opts != nil {
+		t.Errorf("getJobOptions() returned JobOptions when it should not have, got %#v, want nil", opts)
+	}
+}
+
+func TestGetJobOptions_DefaultPublicIPs(t *testing.T) {
+	resetGlobals()
+	*labels = `{"label1": "val1", "label2": "val2"}`
+	*stagingLocation = "gs://testStagingLocation"
+	*minCPUPlatform = "testPlatform"
+	*flexRSGoal = "FLEXRS_SPEED_OPTIMIZED"
+	*dataflowServiceOptions = "opt1,opt2"
+
+	*gcpopts.Project = "testProject"
+	*gcpopts.Region = "testRegion"
+
+	*jobopts.Experiments = "use_runner_v2,use_portable_job_submission"
+	*jobopts.JobName = "testJob"
+
+	opts, err := getJobOptions(context.Background(), false)
+	if err != nil {
+		t.Fatalf("getJobOptions() returned error %q, want %q", err, "nil")
+	}
+	if got, want := opts.NoUsePublicIPs, false; got != want {
+		t.Errorf("getJobOptions().NoUsePublicIPs = %t, want %t", got, want)
+	}
+}
+
+func TestGetJobOptions_NoUsePublicIPs(t *testing.T) {
+	resetGlobals()
+	*labels = `{"label1": "val1", "label2": "val2"}`
+	*stagingLocation = "gs://testStagingLocation"
+	*minCPUPlatform = "testPlatform"
+	*flexRSGoal = "FLEXRS_SPEED_OPTIMIZED"
+	*dataflowServiceOptions = "opt1,opt2"
+	*noUsePublicIPs = true
+
+	*gcpopts.Project = "testProject"
+	*gcpopts.Region = "testRegion"
+
+	*jobopts.Experiments = "use_runner_v2,use_portable_job_submission"
+	*jobopts.JobName = "testJob"
+
+	opts, err := getJobOptions(context.Background(), false)
+	if err != nil {
+		t.Fatalf("getJobOptions() returned error %q, want %q", err, "nil")
+	}
+	if got, want := opts.NoUsePublicIPs, true; got != want {
+		t.Errorf("getJobOptions().NoUsePublicIPs = %t, want %t", got, want)
+	}
+}
+
 func getFieldFromOpt(fieldName string, opts *dataflowlib.JobOptions) string {
 	return reflect.ValueOf(opts).Elem().FieldByName(fieldName).String()
 }
@@ -447,6 +532,8 @@ func resetGlobals() {
 	*stagingLocation = ""
 	*transformMapping = ""
 	*update = false
+	*usePublicIPs = true
+	*noUsePublicIPs = false
 	*workerHarnessImage = ""
 	*workerMachineType = ""
 	*machineType = ""

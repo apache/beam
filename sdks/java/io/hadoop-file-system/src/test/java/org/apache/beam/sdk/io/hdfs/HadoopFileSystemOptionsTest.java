@@ -30,9 +30,9 @@ import java.util.AbstractMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 import org.apache.hadoop.conf.Configuration;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -74,10 +74,10 @@ public class HadoopFileSystemOptionsTest {
 
   @Test
   public void testDefaultJustSetHadoopConfDirConfiguration() throws IOException {
-    Files.write(
-        createPropertyData("A"), tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8);
-    Files.write(
-        createPropertyData("B"), tmpFolder.newFile("hdfs-site.xml"), StandardCharsets.UTF_8);
+    Files.asCharSink(tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8)
+        .write(createPropertyData("A"));
+    Files.asCharSink(tmpFolder.newFile("hdfs-site.xml"), StandardCharsets.UTF_8)
+        .write(createPropertyData("B"));
     HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
         spy(new HadoopFileSystemOptions.ConfigurationLocator());
     Map<String, String> environment = Maps.newHashMap();
@@ -96,10 +96,10 @@ public class HadoopFileSystemOptionsTest {
     File hadoopConfDir = tmpFolder.newFolder("hadoop");
     File otherConfDir = tmpFolder.newFolder("_other_");
 
-    Files.write(
-        createPropertyData("A"), new File(hadoopConfDir, "core-site.xml"), StandardCharsets.UTF_8);
-    Files.write(
-        createPropertyData("B"), new File(hadoopConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8);
+    Files.asCharSink(new File(hadoopConfDir, "core-site.xml"), StandardCharsets.UTF_8)
+        .write(createPropertyData("A"));
+    Files.asCharSink(new File(hadoopConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8)
+        .write(createPropertyData("B"));
 
     HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
         spy(new HadoopFileSystemOptions.ConfigurationLocator());
@@ -119,10 +119,10 @@ public class HadoopFileSystemOptionsTest {
 
   @Test
   public void testDefaultJustSetYarnConfDirConfiguration() throws IOException {
-    Files.write(
-        createPropertyData("A"), tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8);
-    Files.write(
-        createPropertyData("B"), tmpFolder.newFile("hdfs-site.xml"), StandardCharsets.UTF_8);
+    Files.asCharSink(tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8)
+        .write(createPropertyData("A"));
+    Files.asCharSink(tmpFolder.newFile("hdfs-site.xml"), StandardCharsets.UTF_8)
+        .write(createPropertyData("B"));
     HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
         spy(new HadoopFileSystemOptions.ConfigurationLocator());
     Map<String, String> environment = Maps.newHashMap();
@@ -141,10 +141,10 @@ public class HadoopFileSystemOptionsTest {
     File hadoopConfDir = tmpFolder.newFolder("hadoop");
     File otherConfDir = tmpFolder.newFolder("_other_");
 
-    Files.write(
-        createPropertyData("A"), new File(hadoopConfDir, "core-site.xml"), StandardCharsets.UTF_8);
-    Files.write(
-        createPropertyData("B"), new File(hadoopConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8);
+    Files.asCharSink(new File(hadoopConfDir, "core-site.xml"), StandardCharsets.UTF_8)
+        .write(createPropertyData("A"));
+    Files.asCharSink(new File(hadoopConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8)
+        .write(createPropertyData("B"));
 
     HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
         spy(new HadoopFileSystemOptions.ConfigurationLocator());
@@ -164,10 +164,10 @@ public class HadoopFileSystemOptionsTest {
 
   @Test
   public void testDefaultSetYarnConfDirAndHadoopConfDirAndSameConfiguration() throws IOException {
-    Files.write(
-        createPropertyData("A"), tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8);
-    Files.write(
-        createPropertyData("B"), tmpFolder.newFile("hdfs-site.xml"), StandardCharsets.UTF_8);
+    Files.asCharSink(tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8)
+        .write(createPropertyData("A"));
+    Files.asCharSink(tmpFolder.newFile("hdfs-site.xml"), StandardCharsets.UTF_8)
+        .write(createPropertyData("B"));
     HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
         spy(new HadoopFileSystemOptions.ConfigurationLocator());
     Map<String, String> environment = Maps.newHashMap();
@@ -184,10 +184,10 @@ public class HadoopFileSystemOptionsTest {
 
   @Test
   public void testDefaultSetYarnConfDirAndHadoopConfDirAndSameDir() throws IOException {
-    Files.write(
-        createPropertyData("A"), tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8);
-    Files.write(
-        createPropertyData("B"), tmpFolder.newFile("hdfs-site.xml"), StandardCharsets.UTF_8);
+    Files.asCharSink(tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8)
+        .write(createPropertyData("A"));
+    Files.asCharSink(tmpFolder.newFile("hdfs-site.xml"), StandardCharsets.UTF_8)
+        .write(createPropertyData("B"));
     HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
         spy(new HadoopFileSystemOptions.ConfigurationLocator());
     Map<String, String> environment = Maps.newHashMap();
@@ -208,10 +208,10 @@ public class HadoopFileSystemOptionsTest {
     File hadoopConfDir = tmpFolder.newFolder("hadoop");
     File otherConfDir = tmpFolder.newFolder("_other_");
 
-    Files.write(
-        createPropertyData("A"), new File(hadoopConfDir, "core-site.xml"), StandardCharsets.UTF_8);
-    Files.write(
-        createPropertyData("B"), new File(hadoopConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8);
+    Files.asCharSink(new File(hadoopConfDir, "core-site.xml"), StandardCharsets.UTF_8)
+        .write(createPropertyData("A"));
+    Files.asCharSink(new File(hadoopConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8)
+        .write(createPropertyData("B"));
 
     HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
         spy(new HadoopFileSystemOptions.ConfigurationLocator());
@@ -234,14 +234,14 @@ public class HadoopFileSystemOptionsTest {
   public void testDefaultSetYarnConfDirAndHadoopConfDirNotSameConfiguration() throws IOException {
     File hadoopConfDir = tmpFolder.newFolder("hadoop");
     File yarnConfDir = tmpFolder.newFolder("yarn");
-    Files.write(
-        createPropertyData("A"), new File(hadoopConfDir, "core-site.xml"), StandardCharsets.UTF_8);
-    Files.write(
-        createPropertyData("B"), new File(hadoopConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8);
-    Files.write(
-        createPropertyData("C"), new File(yarnConfDir, "core-site.xml"), StandardCharsets.UTF_8);
-    Files.write(
-        createPropertyData("D"), new File(yarnConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8);
+    Files.asCharSink(new File(hadoopConfDir, "core-site.xml"), StandardCharsets.UTF_8)
+        .write(createPropertyData("A"));
+    Files.asCharSink(new File(hadoopConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8)
+        .write(createPropertyData("B"));
+    Files.asCharSink(new File(yarnConfDir, "core-site.xml"), StandardCharsets.UTF_8)
+        .write(createPropertyData("C"));
+    Files.asCharSink(new File(yarnConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8)
+        .write(createPropertyData("D"));
     HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
         spy(new HadoopFileSystemOptions.ConfigurationLocator());
     Map<String, String> environment = Maps.newHashMap();

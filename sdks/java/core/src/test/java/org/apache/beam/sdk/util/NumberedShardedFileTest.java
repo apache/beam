@@ -32,7 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.io.LocalResources;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.Before;
 import org.junit.Rule;
@@ -88,9 +88,9 @@ public class NumberedShardedFileTest {
     File tmpFile1 = tmpFolder.newFile("result-000-of-002");
     File tmpFile2 = tmpFolder.newFile("result-001-of-002");
     File tmpFile3 = tmpFolder.newFile("tmp");
-    Files.write(contents1, tmpFile1, StandardCharsets.UTF_8);
-    Files.write(contents2, tmpFile2, StandardCharsets.UTF_8);
-    Files.write(contents3, tmpFile3, StandardCharsets.UTF_8);
+    Files.asCharSink(tmpFile1, StandardCharsets.UTF_8).write(contents1);
+    Files.asCharSink(tmpFile2, StandardCharsets.UTF_8).write(contents2);
+    Files.asCharSink(tmpFile3, StandardCharsets.UTF_8).write(contents3);
 
     filePattern =
         LocalResources.fromFile(tmpFolder.getRoot(), true)
@@ -104,7 +104,7 @@ public class NumberedShardedFileTest {
   @Test
   public void testReadEmpty() throws Exception {
     File emptyFile = tmpFolder.newFile("result-000-of-001");
-    Files.write("", emptyFile, StandardCharsets.UTF_8);
+    Files.asCharSink(emptyFile, StandardCharsets.UTF_8).write("");
     NumberedShardedFile shardedFile = new NumberedShardedFile(filePattern);
 
     assertThat(shardedFile.readFilesWithRetries(), empty());
@@ -117,8 +117,8 @@ public class NumberedShardedFileTest {
     // Customized template: resultSSS-totalNNN
     File tmpFile1 = tmpFolder.newFile("result0-total2");
     File tmpFile2 = tmpFolder.newFile("result1-total2");
-    Files.write(contents1, tmpFile1, StandardCharsets.UTF_8);
-    Files.write(contents2, tmpFile2, StandardCharsets.UTF_8);
+    Files.asCharSink(tmpFile1, StandardCharsets.UTF_8).write(contents1);
+    Files.asCharSink(tmpFile2, StandardCharsets.UTF_8).write(contents2);
 
     Pattern customizedTemplate =
         Pattern.compile("(?x) result (?<shardnum>\\d+) - total (?<numshards>\\d+)");
@@ -130,7 +130,7 @@ public class NumberedShardedFileTest {
   @Test
   public void testReadWithRetriesFailsWhenTemplateIncorrect() throws Exception {
     File tmpFile = tmpFolder.newFile();
-    Files.write("Test for file checksum verifier.", tmpFile, StandardCharsets.UTF_8);
+    Files.asCharSink(tmpFile, StandardCharsets.UTF_8).write("Test for file checksum verifier.");
 
     NumberedShardedFile shardedFile =
         new NumberedShardedFile(filePattern, Pattern.compile("incorrect-template"));
@@ -145,7 +145,7 @@ public class NumberedShardedFileTest {
   @Test
   public void testReadWithRetriesFailsSinceFilesystemError() throws Exception {
     File tmpFile = tmpFolder.newFile();
-    Files.write("Test for file checksum verifier.", tmpFile, StandardCharsets.UTF_8);
+    Files.asCharSink(tmpFile, StandardCharsets.UTF_8).write("Test for file checksum verifier.");
     NumberedShardedFile shardedFile = spy(new NumberedShardedFile(filePattern));
     doThrow(IOException.class).when(shardedFile).readLines(anyCollection());
 

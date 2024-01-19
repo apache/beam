@@ -104,4 +104,13 @@ EOT
 # Remove pkg_resources to guard against
 # https://stackoverflow.com/questions/39577984/what-is-pkg-resources-0-0-0-in-output-of-pip-freeze-command
 pip freeze | grep -v pkg_resources >> "$REQUIREMENTS_FILE"
+
+if grep -q "tensorflow==" "$REQUIREMENTS_FILE"; then
+  # Get the version of tensorflow from the .txt file.
+  TF_VERSION=$(grep -Po "tensorflow==\K[^;]+" "$REQUIREMENTS_FILE")
+  TF_ENTRY="tensorflow==${TF_VERSION}"
+  TF_AARCH64_ENTRY="tensorflow-cpu-aws==${TF_VERSION};platform_machine==\"aarch64\""
+  sed -i "s/${TF_ENTRY}/${TF_ENTRY}\n${TF_AARCH64_ENTRY}/g" $REQUIREMENTS_FILE
+fi
+
 rm -rf "$ENV_PATH"

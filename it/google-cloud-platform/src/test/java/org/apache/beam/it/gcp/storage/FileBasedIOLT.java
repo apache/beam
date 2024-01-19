@@ -44,7 +44,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -117,10 +117,9 @@ public class FileBasedIOLT extends IOLoadTestBase {
   }
 
   @BeforeClass
-  public static void beforeClass() throws IOException {
+  public static void beforeClass() {
     resourceManager =
-        GcsResourceManager.builder(TestProperties.artifactBucket(), "textiolt")
-            .setCredentials(CREDENTIALS)
+        GcsResourceManager.builder(TestProperties.artifactBucket(), "textiolt", CREDENTIALS)
             .build();
   }
 
@@ -161,8 +160,6 @@ public class FileBasedIOLT extends IOLoadTestBase {
 
   @Test
   public void testTextIOWriteThenRead() throws IOException {
-    final String readPCollection = "Counting element.out0";
-    final String writePCollection = "Map records.out0";
 
     TextIO.TypedWrite<String, Object> write =
         TextIO.write()
@@ -183,12 +180,12 @@ public class FileBasedIOLT extends IOLoadTestBase {
         .apply("Counting element", ParDo.of(new CountingFn<>(READ_ELEMENT_METRIC_NAME)));
 
     PipelineLauncher.LaunchConfig writeOptions =
-        PipelineLauncher.LaunchConfig.builder("test-textio-write")
+        PipelineLauncher.LaunchConfig.builder("write-textio")
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(writePipeline)
             .addParameter("runner", configuration.runner)
             .build();
-    PipelineLauncher.LaunchInfo writeInfo = pipelineLauncher.launch(PROJECT, REGION, writeOptions);
+    PipelineLauncher.LaunchInfo writeInfo = pipelineLauncher.launch(project, region, writeOptions);
     PipelineOperator.Result writeResult =
         pipelineOperator.waitUntilDone(
             createConfig(writeInfo, Duration.ofMinutes(configuration.pipelineTimeout)));
@@ -197,12 +194,12 @@ public class FileBasedIOLT extends IOLoadTestBase {
     assertThatResult(writeResult).isLaunchFinished();
 
     PipelineLauncher.LaunchConfig readOptions =
-        PipelineLauncher.LaunchConfig.builder("test-textio-read")
+        PipelineLauncher.LaunchConfig.builder("read-textio")
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(readPipeline)
             .addParameter("runner", configuration.runner)
             .build();
-    PipelineLauncher.LaunchInfo readInfo = pipelineLauncher.launch(PROJECT, REGION, readOptions);
+    PipelineLauncher.LaunchInfo readInfo = pipelineLauncher.launch(project, region, readOptions);
     PipelineOperator.Result readResult =
         pipelineOperator.waitUntilDone(
             createConfig(readInfo, Duration.ofMinutes(configuration.pipelineTimeout)));
@@ -213,8 +210,8 @@ public class FileBasedIOLT extends IOLoadTestBase {
     // check metrics
     double numRecords =
         pipelineLauncher.getMetric(
-            PROJECT,
-            REGION,
+            project,
+            region,
             readInfo.jobId(),
             getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
 
@@ -223,8 +220,10 @@ public class FileBasedIOLT extends IOLoadTestBase {
     // export metrics
     MetricsConfiguration metricsConfig =
         MetricsConfiguration.builder()
-            .setInputPCollection(writePCollection)
-            .setOutputPCollection(readPCollection)
+            .setInputPCollection("Map records.out0")
+            .setInputPCollectionV2("Map records/ParMultiDo(MapKVToString).out0")
+            .setOutputPCollection("Counting element.out0")
+            .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
             .build();
     try {
       exportMetricsToBigQuery(writeInfo, getMetrics(writeInfo, metricsConfig));

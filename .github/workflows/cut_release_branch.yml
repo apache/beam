@@ -21,28 +21,21 @@
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
 # Workflow used after https://github.com/apache/beam/commit/4183e747becebd18becee5fff547af365910fc9c
-# If help is needed debugging issues, you can view the cut_release_branch.sh and start_snapshot_build.sh scripts at that commit
+# If help is needed debugging issues, you can view the cut_release_branch.sh script at that commit
 # for guidance on how to do this manually.
-# (https://github.com/apache/beam/blob/4183e747becebd18becee5fff547af365910fc9c/release/src/main/scripts/cut_release_branch.sh and 
-# https://github.com/apache/beam/blob/4183e747becebd18becee5fff547af365910fc9c/release/src/main/scripts/start_snapshot_build.sh).
+# (https://github.com/apache/beam/blob/4183e747becebd18becee5fff547af365910fc9c/release/src/main/scripts/cut_release_branch.sh).
 name: Cut Release Branch
 on:
   workflow_dispatch:
     inputs:
       RELEASE_VERSION:
-        description: Beam version of current release
+        description: Beam version of current release (branch being cut)
         required: true
         default: '2.XX.0'
       NEXT_VERSION:
         description: Next release version
         required: true
         default: '2.XX.0'
-      JENKINS_USERNAME:
-        description: Username of the current Jenkins user. Used to update mass_comment.py with all Jenkins jobs.
-        required: true
-      JENKINS_TOKEN:
-        description: API Token for the current Jenkins user. Can be generated at https://ci-beam.apache.org/user/<user>/configure
-        required: true
       CREATE_RELEASE_BRANCH:
         description: Whether to cut the release branch. You shouldnt skip this unless it has already been completed successfully (yes/no)
         required: true
@@ -68,7 +61,7 @@ jobs:
             exit 1
           fi
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR
@@ -102,11 +95,6 @@ jobs:
       SCRIPT_DIR: ./release/src/main/scripts
       RELEASE: ${{ github.event.inputs.RELEASE_VERSION }}
     steps:
-      - name: Mask Jenkins token
-        run: |
-          echo "::add-mask::$JENKINS_TOKEN"
-        env:
-          JENKINS_TOKEN: ${{ github.event.inputs.JENKINS_TOKEN }}
       - name: Validate Next Version
         run: |
           if [[ $NEXT_RELEASE =~ ([0-9]+\.[0-9]+\.[0-9]+) ]]; then
@@ -116,41 +104,13 @@ jobs:
             exit 1
           fi
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR
           git config user.email actions@"$RUNNER_NAME".local
       - name: Install xmllint
         run: sudo apt-get install -y libxml2-utils
-      - name: Update mass_comment.py with new Jenkins jobs
-        run: |
-          rm release/src/main/scripts/jenkins_jobs.txt
-          for obj in $(curl https://ci-beam.apache.org/api/json | jq '.jobs[]' -c); do
-            echo $obj
-            url=$(echo $obj | jq '.url' -r || echo "")
-            name=$(echo $obj | jq '.name' -r || echo "")
-            if [ "$url" != "" ] && [ "$name" != "" ]; then
-            curl --user $JENKINS_USERNAME:$JENKINS_TOKEN $url/config.xml > /tmp/config.xml
-
-              if [ "$(xmllint --xpath 'string(//disabled)' /tmp/config.xml)" = "true" ]; then
-                echo "SKIPPING $url - disabled"
-              else
-                phrase=$(xmllint --xpath 'string(//triggers/org.jenkinsci.plugins.ghprb.GhprbTrigger/triggerPhrase)' /tmp/config.xml)
-                if [ "$phrase" != "" ]; then
-                  echo "Appending ${phrase},${name}"
-                  echo "${phrase},${name}" >> /tmp/result
-                fi
-              fi
-
-              rm /tmp/config.xml
-            fi
-          done
-
-          cat /tmp/result | sort | uniq | grep -i -E 'precommit|postcommit|validates|vr|example|test' | grep -v -i -E 'load|perf|website' >> release/src/main/scripts/jenkins_jobs.txt
-        env:
-          JENKINS_USERNAME: ${{ github.event.inputs.JENKINS_USERNAME }}
-          JENKINS_TOKEN: ${{ github.event.inputs.JENKINS_TOKEN }}
       - name: Update .asf.yaml to protect new release branch from force push
         run: |
           sed -i -e "s/master: {}/master: {}\n    release-${RELEASE}: {}/g" .asf.yaml
@@ -177,36 +137,6 @@ jobs:
       BRANCH_NAME: snapshot_build-${{ github.event.inputs.RELEASE_VERSION }}
       RELEASE_BRANCH: release-${{ github.event.inputs.RELEASE_VERSION }}
     steps:
-      - name: Install Hub
+      - name: Trigger snapshot build
         run: |
-          cd ~
-          wget https://github.com/github/hub/releases/download/v2.14.2/hub-linux-amd64-2.14.2.tgz
-          tar zvxvf hub-linux-amd64-2.14.2.tgz
-          sudo ./hub-linux-amd64-2.14.2/install
-          echo "eval "$(hub alias -s)"" >> ~/.bashrc
-      - uses: actions/checkout@v3
-      - name: Set git config
-        run: |
-          git config user.name $GITHUB_ACTOR
-          git config user.email actions@"$RUNNER_NAME".local
-      - name: Create Snapshot Branch
-        run: |
-          git remote add ${REMOTE_NAME} ${REMOTE_URL}
-          git checkout -b ${BRANCH_NAME}
-          touch empty_file.json
-          git add -A
-          git commit -m "Add empty file in order to create PR"
-          git push -f ${REMOTE_NAME}
-      - name: Create Pull Request
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          hub pull-request -b apache:${RELEASE_BRANCH} -F- <<<"[DO NOT MERGE]Start snapshot build for release process
-          
-          
-          Run Gradle Publish"
-          
-          echo "NOTE: If there is no jenkins job started, please comment generated PR with: Run Gradle Publish"
-          echo "Things remained you need to do manually after build successful:"
-          echo "1. Close this generated PR in github website."
-          echo "2. Delete your remote branch ${BRANCH_NAME} form your beam repo in github website."
+          echo "Working in progress. Please trigger 'Release Nightly Snapshot' GHA workflow manually."

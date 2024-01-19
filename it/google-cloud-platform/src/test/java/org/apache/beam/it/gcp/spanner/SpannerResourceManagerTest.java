@@ -22,14 +22,17 @@ import static com.google.cloud.spanner.Value.string;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Database;
+import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Instance;
 import com.google.cloud.spanner.InstanceAdminClient;
@@ -64,6 +67,7 @@ public final class SpannerResourceManagerTest {
   @Mock private Database database;
   @Mock private Instance instance;
   @Mock private InstanceAdminClient instanceAdminClient;
+  @Mock private DatabaseAdminClient databaseAdminClient;
   @Mock private ResultSet resultSet;
 
   private static final String TEST_ID = "test";
@@ -79,7 +83,8 @@ public final class SpannerResourceManagerTest {
 
   @Before
   public void setUp() {
-    testManager = new SpannerResourceManager(spanner, TEST_ID, PROJECT_ID, REGION, DIALECT);
+    testManager =
+        new SpannerResourceManager(spanner, TEST_ID, PROJECT_ID, REGION, DIALECT, false, null);
   }
 
   private void prepareCreateInstanceMock() throws ExecutionException, InterruptedException {
@@ -181,7 +186,7 @@ public final class SpannerResourceManagerTest {
 
     assertThat(actualInstanceId).matches(TEST_ID + "-\\d{8}-\\d{6}-\\d{6}");
 
-    assertThat(actualDatabaseId).isEqualTo(TEST_ID);
+    assertThat(actualDatabaseId).matches(TEST_ID + "_\\d{8}_\\d{6}_\\d{6}");
     assertThat(actualStatement).containsExactlyElementsIn(ImmutableList.of(statement));
   }
 
@@ -191,7 +196,6 @@ public final class SpannerResourceManagerTest {
     // arrange
     prepareTable();
     when(spanner.getDatabaseClient(any()).write(any())).thenReturn(Timestamp.now());
-    // spotless:off
     Mutation testMutation =
         Mutation.newInsertOrUpdateBuilder("SingerId")
             .set("SingerId")
@@ -201,7 +205,6 @@ public final class SpannerResourceManagerTest {
             .set("LastName")
             .to("Richards")
             .build();
-    // spotless:on
 
     // act
     testManager.write(testMutation);
@@ -215,7 +218,6 @@ public final class SpannerResourceManagerTest {
   @Test
   public void testWriteSingleRecordShouldThrowExceptionWhenCalledBeforeExecuteDdlStatement() {
     // arrange
-    // spotless:off
     Mutation testMutation =
         Mutation.newInsertOrUpdateBuilder("SingerId")
             .set("SingerId")
@@ -225,7 +227,6 @@ public final class SpannerResourceManagerTest {
             .set("LastName")
             .to("Richards")
             .build();
-    // spotless:on
 
     // act & assert
     assertThrows(IllegalStateException.class, () -> testManager.write(testMutation));
@@ -237,7 +238,6 @@ public final class SpannerResourceManagerTest {
     // arrange
     prepareTable();
     when(spanner.getDatabaseClient(any()).write(any())).thenThrow(SpannerException.class);
-    // spotless:off
     Mutation testMutation =
         Mutation.newInsertOrUpdateBuilder("SingerId")
             .set("SingerId")
@@ -247,7 +247,6 @@ public final class SpannerResourceManagerTest {
             .set("LastName")
             .to("Richards")
             .build();
-    // spotless:on
 
     // act & assert
     assertThrows(SpannerResourceManagerException.class, () -> testManager.write(testMutation));
@@ -259,7 +258,6 @@ public final class SpannerResourceManagerTest {
     // arrange
     prepareTable();
     when(spanner.getDatabaseClient(any()).write(any())).thenReturn(Timestamp.now());
-    // spotless:off
     ImmutableList<Mutation> testMutations =
         ImmutableList.of(
             Mutation.newInsertOrUpdateBuilder("SingerId")
@@ -278,7 +276,6 @@ public final class SpannerResourceManagerTest {
                 .set("LastName")
                 .to("Smith")
                 .build());
-    // spotless:on
 
     // act
     testManager.write(testMutations);
@@ -293,7 +290,6 @@ public final class SpannerResourceManagerTest {
   @Test
   public void testWriteMultipleRecordsShouldThrowExceptionWhenCalledBeforeExecuteDdlStatement() {
     // arrange
-    // spotless:off
     ImmutableList<Mutation> testMutations =
         ImmutableList.of(
             Mutation.newInsertOrUpdateBuilder("SingerId")
@@ -312,7 +308,6 @@ public final class SpannerResourceManagerTest {
                 .set("LastName")
                 .to("Smith")
                 .build());
-    // spotless:on
 
     // act & assert
     assertThrows(IllegalStateException.class, () -> testManager.write(testMutations));
@@ -324,7 +319,6 @@ public final class SpannerResourceManagerTest {
     // arrange
     prepareTable();
     when(spanner.getDatabaseClient(any()).write(any())).thenThrow(SpannerException.class);
-    // spotless:off
     ImmutableList<Mutation> testMutations =
         ImmutableList.of(
             Mutation.newInsertOrUpdateBuilder("SingerId")
@@ -343,7 +337,6 @@ public final class SpannerResourceManagerTest {
                 .set("LastName")
                 .to("Smith")
                 .build());
-    // spotless:on
 
     // act & assert
     assertThrows(SpannerResourceManagerException.class, () -> testManager.write(testMutations));
@@ -355,7 +348,6 @@ public final class SpannerResourceManagerTest {
     // arrange
     prepareTable();
     when(resultSet.next()).thenReturn(true).thenReturn(true).thenReturn(false);
-    // spotless:off
     Struct struct1 =
         Struct.newBuilder()
             .set("SingerId")
@@ -374,7 +366,6 @@ public final class SpannerResourceManagerTest {
             .set("LastName")
             .to(string("Smith"))
             .build();
-    // spotless:on
     when(resultSet.getCurrentRowAsStruct()).thenReturn(struct1).thenReturn(struct2);
     when(spanner.getDatabaseClient(any()).singleUse().read(any(), any(), any()))
         .thenReturn(resultSet);
@@ -394,7 +385,6 @@ public final class SpannerResourceManagerTest {
     // arrange
     prepareTable();
     when(resultSet.next()).thenReturn(true).thenReturn(false);
-    // spotless:off
     Struct struct =
         Struct.newBuilder()
             .set("SingerId")
@@ -404,7 +394,6 @@ public final class SpannerResourceManagerTest {
             .set("LastName")
             .to(string("Richards"))
             .build();
-    // spotless:on
     when(resultSet.getCurrentRowAsStruct()).thenReturn(struct);
     when(spanner.getDatabaseClient(any()).singleUse().read(any(), any(), any()))
         .thenReturn(resultSet);
@@ -451,7 +440,8 @@ public final class SpannerResourceManagerTest {
     // arrange
     doThrow(SpannerException.class).when(instanceAdminClient).deleteInstance(any());
     when(spanner.getInstanceAdminClient()).thenReturn(instanceAdminClient);
-    testManager = new SpannerResourceManager(spanner, TEST_ID, PROJECT_ID, REGION, DIALECT);
+    testManager =
+        new SpannerResourceManager(spanner, TEST_ID, PROJECT_ID, REGION, DIALECT, false, null);
 
     // act & assert
     assertThrows(SpannerResourceManagerException.class, () -> testManager.cleanupAll());
@@ -462,7 +452,8 @@ public final class SpannerResourceManagerTest {
     // arrange
     doNothing().when(instanceAdminClient).deleteInstance(any());
     when(spanner.getInstanceAdminClient()).thenReturn(instanceAdminClient);
-    testManager = new SpannerResourceManager(spanner, TEST_ID, PROJECT_ID, REGION, DIALECT);
+    testManager =
+        new SpannerResourceManager(spanner, TEST_ID, PROJECT_ID, REGION, DIALECT, false, null);
 
     // act
     testManager.cleanupAll();
@@ -478,7 +469,8 @@ public final class SpannerResourceManagerTest {
     doNothing().when(instanceAdminClient).deleteInstance(any());
     when(spanner.getInstanceAdminClient()).thenReturn(instanceAdminClient);
     when(spanner.isClosed()).thenReturn(true);
-    testManager = new SpannerResourceManager(spanner, TEST_ID, PROJECT_ID, REGION, DIALECT);
+    testManager =
+        new SpannerResourceManager(spanner, TEST_ID, PROJECT_ID, REGION, DIALECT, false, null);
     testManager.cleanupAll();
     String statement =
         "CREATE TABLE Singers (\n"
@@ -486,7 +478,6 @@ public final class SpannerResourceManagerTest {
             + "  FirstName  STRING(1024),\n"
             + "  LastName   STRING(1024),\n"
             + ") PRIMARY KEY (SingerId)";
-    // spotless:off
     Mutation testMutation =
         Mutation.newInsertOrUpdateBuilder("SingerId")
             .set("SingerId")
@@ -496,7 +487,6 @@ public final class SpannerResourceManagerTest {
             .set("LastName")
             .to("Richards")
             .build();
-    // spotless:on
     ImmutableList<String> columnNames = ImmutableList.of("SingerId");
 
     // act & assert
@@ -508,6 +498,25 @@ public final class SpannerResourceManagerTest {
     assertThrows(IllegalStateException.class, () -> testManager.write(testMutation));
     assertThrows(
         IllegalStateException.class, () -> testManager.write(ImmutableList.of(testMutation)));
+  }
+
+  @Test
+  public void testCleanupAllShouldNotDeleteInstanceWhenStatic() {
+    // arrange
+    doNothing().when(databaseAdminClient).dropDatabase(any(), any());
+    when(spanner.getInstanceAdminClient()).thenReturn(instanceAdminClient);
+    when(spanner.getDatabaseAdminClient()).thenReturn(databaseAdminClient);
+    testManager =
+        new SpannerResourceManager(
+            spanner, TEST_ID, PROJECT_ID, REGION, DIALECT, true, "existing-instance");
+
+    // act
+    testManager.cleanupAll();
+
+    // assert
+    verify(spanner.getDatabaseAdminClient()).dropDatabase(eq("existing-instance"), any());
+    verify(spanner.getInstanceAdminClient(), never()).deleteInstance(any());
+    verify(spanner).close();
   }
 
   private void prepareCreateDatabaseMock() throws ExecutionException, InterruptedException {

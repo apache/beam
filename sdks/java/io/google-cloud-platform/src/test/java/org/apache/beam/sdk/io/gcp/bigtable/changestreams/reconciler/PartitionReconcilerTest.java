@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.reconciler;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
@@ -54,8 +55,8 @@ public class PartitionReconcilerTest {
   @ClassRule
   public static final BigtableEmulatorRule BIGTABLE_EMULATOR_RULE = BigtableEmulatorRule.create();
 
-  private static final Duration MORE_THAN_ONE_MINUTE = Duration.standardSeconds(61);
-  private static final Duration MORE_THAN_TEN_MINUTES = Duration.standardSeconds(10 * 60 + 1);
+  private static final Duration MISSING_SHORT_PERIOD = Duration.standardSeconds(2 * 60 + 1);
+  private static final Duration MISSING_LONG_PERIOD = Duration.standardSeconds(20 * 60 + 1);
 
   private MetadataTableDao metadataTableDao;
 
@@ -90,6 +91,7 @@ public class PartitionReconcilerTest {
         new MetadataTableAdminDao(
             adminClient, null, changeStreamId, MetadataTableAdminDao.DEFAULT_METADATA_TABLE_NAME);
     metadataTableAdminDao.createMetadataTable();
+    metadataTableAdminDao.cleanUpPrefix();
     metadataTableDao =
         new MetadataTableDao(
             dataClient,
@@ -135,7 +137,7 @@ public class PartitionReconcilerTest {
 
     // Artificially create that partitionAB has been missing for more than 1 minute.
     HashMap<ByteStringRange, Instant> missingPartitionDurations = new HashMap<>();
-    missingPartitionDurations.put(partitionAB, Instant.now().minus(MORE_THAN_ONE_MINUTE));
+    missingPartitionDurations.put(partitionAB, Instant.now().minus(MISSING_SHORT_PERIOD));
     metadataTableDao.writeDetectNewPartitionMissingPartitions(missingPartitionDurations);
 
     PartitionReconciler partitionReconciler = new PartitionReconciler(metadataTableDao, metrics);
@@ -174,7 +176,7 @@ public class PartitionReconcilerTest {
         ChangeStreamContinuationToken.create(ByteStringRange.create("C", "D"), "CD");
     // Artificially create that partitionAD has been missing for more than 10 minutes.
     HashMap<ByteStringRange, Instant> missingPartitionDurations = new HashMap<>();
-    missingPartitionDurations.put(partitionAD, Instant.now().minus(MORE_THAN_TEN_MINUTES));
+    missingPartitionDurations.put(partitionAD, Instant.now().minus(MISSING_LONG_PERIOD));
     metadataTableDao.writeDetectNewPartitionMissingPartitions(missingPartitionDurations);
 
     PartitionReconciler partitionReconciler = new PartitionReconciler(metadataTableDao, metrics);
@@ -228,7 +230,7 @@ public class PartitionReconcilerTest {
 
     // Artificially create that partitionAC has been missing for more than 10 minutes.
     HashMap<ByteStringRange, Instant> missingPartitionDurations = new HashMap<>();
-    missingPartitionDurations.put(partitionAC, Instant.now().minus(MORE_THAN_TEN_MINUTES));
+    missingPartitionDurations.put(partitionAC, Instant.now().minus(MISSING_LONG_PERIOD));
     metadataTableDao.writeDetectNewPartitionMissingPartitions(missingPartitionDurations);
 
     PartitionReconciler partitionReconciler = new PartitionReconciler(metadataTableDao, metrics);
@@ -263,7 +265,7 @@ public class PartitionReconcilerTest {
 
     // Artificially create that partitionAB has been missing for more than 10 minutes.
     HashMap<ByteStringRange, Instant> missingPartitionDurations = new HashMap<>();
-    missingPartitionDurations.put(partitionAB, Instant.now().minus(MORE_THAN_TEN_MINUTES));
+    missingPartitionDurations.put(partitionAB, Instant.now().minus(MISSING_LONG_PERIOD));
     metadataTableDao.writeDetectNewPartitionMissingPartitions(missingPartitionDurations);
 
     PartitionReconciler partitionReconciler = new PartitionReconciler(metadataTableDao, metrics);
@@ -276,10 +278,11 @@ public class PartitionReconcilerTest {
         new PartitionRecord(partitionAB, startTime, lowWatermark, Collections.emptyList());
     assertEquals(1, reconciledPartitions.size());
     assertEquals(expectedRecord, reconciledPartitions.get(0));
+    assertTrue(metadataTableDao.readDetectNewPartitionMissingPartitions().isEmpty());
   }
 
-  // We're missing AD but we only have partition AB and CD. We should reconcile by outputting AB and
-  // CD and then create a new partition for BC with start_time = low watermark - 1 hour
+  // We're missing AD, but we only have partition AB and CD. We should reconcile by outputting AB
+  // and CD and then create a new partition for BC with start_time = low watermark - 1 hour
   @Test
   public void testMissingPartitionWithSomeToken() {
     ByteStringRange partitionAD = ByteStringRange.create("A", "D");
@@ -291,7 +294,7 @@ public class PartitionReconcilerTest {
 
     // Artificially create that partitionAD has been missing for more than 10 minutes.
     HashMap<ByteStringRange, Instant> missingPartitionDurations = new HashMap<>();
-    missingPartitionDurations.put(partitionAD, Instant.now().minus(MORE_THAN_TEN_MINUTES));
+    missingPartitionDurations.put(partitionAD, Instant.now().minus(MISSING_LONG_PERIOD));
     metadataTableDao.writeDetectNewPartitionMissingPartitions(missingPartitionDurations);
 
     PartitionReconciler partitionReconciler = new PartitionReconciler(metadataTableDao, metrics);
@@ -332,5 +335,42 @@ public class PartitionReconcilerTest {
         reconciledPartitions,
         containsInAnyOrder(
             Arrays.asList(expectedRecordAB, expectedRecordBC, expectedRecordCD).toArray()));
+  }
+
+  // A partition that's missing for more than 10 minutes (DNP could have not run for more than 10
+  // minutes) has continuation token should get reconciled with token.
+  @Test
+  public void testMissingPartitionWithTokenMoreThan10Minutes() {
+    ByteStringRange partitionAD = ByteStringRange.create("A", "D");
+    ByteStringRange partitionAB = ByteStringRange.create("A", "B");
+    ChangeStreamContinuationToken tokenAB = ChangeStreamContinuationToken.create(partitionAB, "AB");
+
+    // Artificially create that partitionAB has been missing for more than 10 minutes.
+    HashMap<ByteStringRange, Instant> missingPartitionDurations = new HashMap<>();
+    missingPartitionDurations.put(partitionAB, Instant.now().minus(MISSING_LONG_PERIOD));
+    metadataTableDao.writeDetectNewPartitionMissingPartitions(missingPartitionDurations);
+
+    PartitionReconciler partitionReconciler = new PartitionReconciler(metadataTableDao, metrics);
+    partitionReconciler.addMissingPartitions(Collections.singletonList(partitionAB));
+
+    NewPartition newPartitionAD =
+        new NewPartition(partitionAD, Collections.singletonList(tokenAB), Instant.now());
+    partitionReconciler.addIncompleteNewPartitions(newPartitionAD);
+
+    List<PartitionRecord> reconciledPartitions =
+        partitionReconciler.getPartitionsToReconcile(lowWatermark, startTime);
+    assertTrue(metadataTableDao.readDetectNewPartitionMissingPartitions().isEmpty());
+    assertEquals(1, reconciledPartitions.size());
+
+    NewPartition newPartitionADWithAB =
+        new NewPartition(
+            partitionAD, Collections.singletonList(tokenAB), newPartitionAD.getLowWatermark());
+    PartitionRecord expectedRecordAB =
+        new PartitionRecord(
+            partitionAB,
+            Collections.singletonList(tokenAB),
+            lowWatermark,
+            Collections.singletonList(newPartitionADWithAB));
+    assertEquals(reconciledPartitions, Collections.singletonList(expectedRecordAB));
   }
 }

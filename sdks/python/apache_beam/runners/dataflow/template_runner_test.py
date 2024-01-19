@@ -51,17 +51,16 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
     dummy_dir = tempfile.mkdtemp()
 
     remote_runner = DataflowRunner()
-    with Pipeline(remote_runner,
-                  options=PipelineOptions(['--dataflow_endpoint=ignored',
-                                           '--sdk_location=' + dummy_file_name,
-                                           '--job_name=test-job',
-                                           '--project=test-project',
-                                           '--staging_location=' + dummy_dir,
-                                           '--temp_location=/dev/null',
-                                           '--template_location=' +
-                                           dummy_file_name,
-                                           '--no_auth'])) as pipeline:
-
+    options = PipelineOptions([
+        '--sdk_location=' + dummy_file_name,
+        '--job_name=test-job',
+        '--project=apache-beam-testing',
+        '--region=us-central1',
+        '--staging_location=gs://apache-beam-testing-stg/stg/',
+        '--temp_location=gs://apache-beam-testing-temp/tmp',
+        '--template_location=' + dummy_file_name
+    ])
+    with Pipeline(remote_runner, options) as pipeline:
       pipeline | beam.Create([1, 2, 3]) | beam.Map(lambda x: x)  # pylint: disable=expression-not-assigned
 
     with open(dummy_file_name) as template_file:
@@ -69,7 +68,7 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
       self.assertEqual(
           saved_job_dict['environment']['sdkPipelineOptions']['options']
           ['project'],
-          'test-project')
+          'apache-beam-testing')
       self.assertEqual(
           saved_job_dict['environment']['sdkPipelineOptions']['options']
           ['job_name'],

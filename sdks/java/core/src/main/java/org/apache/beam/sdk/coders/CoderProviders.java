@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -26,7 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 
 /** Static utility methods for creating and working with {@link CoderProvider}s. */
 public final class CoderProviders {
@@ -178,7 +178,12 @@ public final class CoderProviders {
     @Override
     public <T> Coder<T> coderFor(TypeDescriptor<T> type, List<? extends Coder<?>> componentCoders)
         throws CannotProvideCoderException {
-      if (!this.type.equals(type)) {
+      boolean isTypeEqual = this.type.equals(type);
+      boolean isAutoValueConcrete =
+          type.getRawType().getName().contains("AutoValue_")
+              && this.type.getRawType().isAssignableFrom(type.getRawType());
+
+      if (!isTypeEqual && !isAutoValueConcrete) {
         throw new CannotProvideCoderException(
             String.format(
                 "Unable to provide coder for %s, this factory can only provide coders for %s",

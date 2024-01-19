@@ -77,7 +77,7 @@ class PythonCallableWithSource(object):
     return o
 
   @staticmethod
-  def load_from_script(source):
+  def load_from_script(source, method_name=None):
     lines = [
         line for line in source.split('\n')
         if line.strip() and line.strip()[0] != '#'
@@ -85,26 +85,27 @@ class PythonCallableWithSource(object):
     common_indent = min(len(line) - len(line.lstrip()) for line in lines)
     lines = [line[common_indent:] for line in lines]
 
-    for ix, line in reversed(list(enumerate(lines))):
-      if line[0] != ' ':
-        if line.startswith('def '):
-          name = line[4:line.index('(')].strip()
-        elif line.startswith('class '):
-          name = line[5:line.index('(') if '(' in
-                      line else line.index(':')].strip()
-        else:
-          name = '__python_callable__'
-          lines[ix] = name + ' = ' + line
-        break
-    else:
-      raise ValueError("Unable to identify callable from %r" % source)
+    if method_name is None:
+      for ix, line in reversed(list(enumerate(lines))):
+        if line[0] != ' ':
+          if line.startswith('def '):
+            method_name = line[4:line.index('(')].strip()
+          elif line.startswith('class '):
+            method_name = line[5:line.index('(') if '(' in
+                               line else line.index(':')].strip()
+          else:
+            method_name = '__python_callable__'
+            lines[ix] = method_name + ' = ' + line
+          break
+      else:
+        raise ValueError("Unable to identify callable from %r" % source)
 
     # pylint: disable=exec-used
     # pylint: disable=ungrouped-imports
     import apache_beam as beam
     exec_globals = {'beam': beam}
     exec('\n'.join(lines), exec_globals)
-    return exec_globals[name]
+    return exec_globals[method_name]
 
   def default_label(self):
     src = self._source.strip()

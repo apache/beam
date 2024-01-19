@@ -29,7 +29,7 @@ import javax.annotation.CheckForNull;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,6 +88,14 @@ public @interface DefaultCoder {
 
         Class<?> clazz = typeDescriptor.getRawType();
         DefaultCoder defaultAnnotation = clazz.getAnnotation(DefaultCoder.class);
+        if (defaultAnnotation == null) {
+          // check if the superclass has DefaultCoder annotation if the class is generated using
+          // AutoValue
+          if (clazz.getName().contains("AutoValue_")) {
+            clazz = clazz.getSuperclass();
+            defaultAnnotation = clazz.getAnnotation(DefaultCoder.class);
+          }
+        }
         if (defaultAnnotation == null) {
           throw new CannotProvideCoderException(
               String.format("Class %s does not have a @DefaultCoder annotation.", clazz.getName()));
