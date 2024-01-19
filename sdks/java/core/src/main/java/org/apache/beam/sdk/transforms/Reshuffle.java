@@ -45,8 +45,8 @@ import org.joda.time.Duration;
  * <p>A {@link PTransform} that returns a {@link PCollection} equivalent to its input but
  * operationally provides some of the side effects of a {@link GroupByKey}, in particular
  * redistribution of elements between workers, checkpointing, and preventing fusion of the
- * surrounding transforms. Some of these side effects (e.g. checkpointing) are not portable and will
- * not occur on workers that don't have these properties when performing a {@link GroupByKey}.
+ * surrounding transforms. Some of these side effects (e.g. checkpointing) are not portable and are
+ * not guaranteed to occur on all runners.
  *
  * <p>Performs a {@link GroupByKey} so that the data is key-partitioned. Configures the {@link
  * WindowingStrategy} so that no data is dropped, but doesn't affect the need for the user to
