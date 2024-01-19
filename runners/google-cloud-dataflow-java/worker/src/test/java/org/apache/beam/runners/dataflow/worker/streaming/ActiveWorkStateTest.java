@@ -32,7 +32,6 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.ActivateWorkResult;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -62,11 +61,7 @@ public class ActiveWorkStateTest {
     return ShardedKey.create(ByteString.copyFromUtf8(str), shardKey);
   }
 
-  private static Work emptyWork() {
-    return createWork(null);
-  }
-
-  private static Work createWork(@Nullable Windmill.WorkItem workItem) {
+  private static Work createWork(Windmill.WorkItem workItem) {
     return Work.create(workItem, Instant::now, Collections.emptyList(), unused -> {});
   }
 
@@ -93,7 +88,8 @@ public class ActiveWorkStateTest {
   @Test
   public void testActivateWorkForKey_EXECUTE_unknownKey() {
     ActivateWorkResult activateWorkResult =
-        activeWorkState.activateWorkForKey(shardedKey("someKey", 1L), emptyWork());
+        activeWorkState.activateWorkForKey(
+            shardedKey("someKey", 1L), createWork(createWorkItem(1L)));
 
     assertEquals(ActivateWorkResult.EXECUTE, activateWorkResult);
   }

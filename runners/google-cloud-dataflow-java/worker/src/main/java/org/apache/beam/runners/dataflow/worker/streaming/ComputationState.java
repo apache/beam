@@ -28,7 +28,6 @@ import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.FailedT
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
-import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -131,13 +130,6 @@ public class ComputationState implements AutoCloseable {
   public ImmutableList<HeartbeatRequest> getKeyHeartbeats(
       Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
     return activeWorkState.getKeyHeartbeats(refreshDeadline, sampler);
-  }
-
-  @SuppressWarnings(
-      "unused" // Remove when direct path is complete and budgeting is owned by user worker.
-  )
-  public GetWorkBudget getActiveWorkBudget() {
-    return activeWorkState.currentActiveWorkBudget();
   }
 
   public void printActiveWork(PrintWriter writer) {

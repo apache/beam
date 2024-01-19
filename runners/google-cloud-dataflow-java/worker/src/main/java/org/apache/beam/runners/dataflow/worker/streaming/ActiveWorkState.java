@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -71,11 +72,14 @@ public final class ActiveWorkState {
   @GuardedBy("this")
   private final WindmillStateCache.ForComputation computationStateCache;
 
+  private final AtomicReference<GetWorkBudget> activeGetWorkBudget;
+
   private ActiveWorkState(
       Map<ShardedKey, Deque<Work>> activeWork,
       WindmillStateCache.ForComputation computationStateCache) {
     this.activeWork = activeWork;
     this.computationStateCache = computationStateCache;
+    this.activeGetWorkBudget = new AtomicReference<>(GetWorkBudget.noBudget());
   }
 
   static ActiveWorkState create(WindmillStateCache.ForComputation computationStateCache) {
@@ -104,12 +108,12 @@ public final class ActiveWorkState {
    */
   synchronized ActivateWorkResult activateWorkForKey(ShardedKey shardedKey, Work work) {
     Deque<Work> workQueue = activeWork.getOrDefault(shardedKey, new ArrayDeque<>());
-
     // This key does not have any work queued up on it. Create one, insert Work, and mark the work
     // to be executed.
     if (!activeWork.containsKey(shardedKey) || workQueue.isEmpty()) {
       workQueue.addLast(work);
       activeWork.put(shardedKey, workQueue);
+      incrementActiveWorkBudget(work);
       return ActivateWorkResult.EXECUTE;
     }
 
@@ -122,6 +126,7 @@ public final class ActiveWorkState {
 
     // Queue the work for later processing.
     workQueue.addLast(work);
+    incrementActiveWorkBudget(work);
     return ActivateWorkResult.QUEUED;
   }
 
@@ -169,6 +174,18 @@ public final class ActiveWorkState {
     }
   }
 
+  private synchronized void incrementActiveWorkBudget(Work work) {
+    GetWorkBudget currentActiveWorkBudget = activeGetWorkBudget.get();
+    activeGetWorkBudget.set(
+        currentActiveWorkBudget.apply(1, work.getWorkItem().getSerializedSize()));
+  }
+
+  private synchronized void decrementActiveWorkBudget(Work work) {
+    GetWorkBudget currentActiveWorkBudget = activeGetWorkBudget.get();
+    activeGetWorkBudget.set(
+        currentActiveWorkBudget.subtract(1, work.getWorkItem().getSerializedSize()));
+  }
+
   /**
    * Removes the complete work from the {@link Queue<Work>}. The {@link Work} is marked as completed
    * if its workToken matches the one that is passed in. Returns the next {@link Work} in the {@link
@@ -209,6 +226,7 @@ public final class ActiveWorkState {
 
     // We consumed the matching work item.
     workQueue.remove();
+    decrementActiveWorkBudget(completedWork);
   }
 
   private synchronized Optional<Work> getNextWork(Queue<Work> workQueue, ShardedKey shardedKey) {
@@ -291,16 +309,8 @@ public final class ActiveWorkState {
    * means that the work is received from Windmill, being processed or queued to be processed in
    * {@link ActiveWorkState}, and not committed back to Windmill.
    */
-  synchronized GetWorkBudget currentActiveWorkBudget() {
-    return activeWork.values().stream()
-        .flatMap(Deque::stream)
-        .map(
-            work ->
-                GetWorkBudget.builder()
-                    .setItems(1)
-                    .setBytes(work.getWorkItem().getSerializedSize())
-                    .build())
-        .reduce(GetWorkBudget.noBudget(), GetWorkBudget::apply);
+  GetWorkBudget currentActiveWorkBudget() {
+    return activeGetWorkBudget.get();
   }
 
   synchronized void printActiveWork(PrintWriter writer, Instant now) {
