@@ -123,7 +123,7 @@ public class ThrottleWithoutExternalResourceTest {
   }
 
   @Test
-  public void givenCollectMetricsTrue_thenPopulatesDistributionMetric() {
+  public void givenCollectMetricsTrue_thenPopulatesMetrics() {
     long size = 1_000;
     Rate rate = Rate.of(10, Duration.standardSeconds(1L));
     double expectedMean = 1.0;
@@ -137,19 +137,7 @@ public class ThrottleWithoutExternalResourceTest {
     PipelineResult pipelineResult = pipeline.run();
     pipelineResult.waitUntilFinish();
     MetricResults results = pipelineResult.metrics();
-    MetricQueryResults metricQueryResults =
-        results.queryMetrics(
-            MetricsFilter.builder()
-                .addNameFilter(
-                    MetricNameFilter.named(
-                        ThrottleWithoutExternalResource.class, DISTRIBUTION_METRIC_NAME))
-                .build());
-    assertThat(metricQueryResults, notNullValue());
-    Iterator<MetricResult<DistributionResult>> itr =
-        metricQueryResults.getDistributions().iterator();
-    assertThat(itr.hasNext(), is(true));
-    MetricResult<DistributionResult> metricResult = itr.next();
-    DistributionResult distributionResult = metricResult.getCommitted();
+    DistributionResult distributionResult = getDistribution(results, DISTRIBUTION_METRIC_NAME);
     long count = distributionResult.getCount();
 
     double mean = distributionResult.getMean();
@@ -187,5 +175,19 @@ public class ThrottleWithoutExternalResourceTest {
 
   private static ThrottleWithoutExternalResource<Integer> transformOf(Rate rate) {
     return ThrottleWithoutExternalResource.of(rate);
+  }
+
+  private static DistributionResult getDistribution(MetricResults metricResults, String name) {
+    MetricQueryResults metricQueryResults =
+        metricResults.queryMetrics(
+            MetricsFilter.builder()
+                .addNameFilter(
+                    MetricNameFilter.named(ThrottleWithoutExternalResource.ThrottleFn.class, name))
+                .build());
+    assertThat(metricQueryResults, notNullValue());
+    Iterator<MetricResult<DistributionResult>> itr =
+        metricQueryResults.getDistributions().iterator();
+    assertThat(itr.hasNext(), is(true));
+    return itr.next().getCommitted();
   }
 }

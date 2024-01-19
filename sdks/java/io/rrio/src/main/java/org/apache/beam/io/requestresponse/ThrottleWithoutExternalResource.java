@@ -17,6 +17,7 @@
  */
 package org.apache.beam.io.requestresponse;
 
+import static org.apache.beam.io.requestresponse.Monitoring.incIfPresent;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.apache.beam.sdk.values.TypeDescriptors.kvs;
@@ -142,11 +143,11 @@ class ThrottleWithoutExternalResource<RequestT>
   /**
    * This {@link DoFn} is inspired by {@link org.apache.beam.sdk.transforms.PeriodicSequence}'s DoFn
    * implementation with the exception that instead of emitting an {@link Instant}, it emits a
-   * {@link RequestT}. Additionally, it uses an Integer based {@link OffsetRange} and its associated {@link OffsetRangeTracker}.
-   * The reason for using an Integer based offset range is due to Java collection sizes limit to int instead of long.
-   * <pre>
-   * Splittable DoFns provide access to hold the watermark, and along with an output with timestamp, allow
-   * the DoFn to emit elements as prescribed intervals.
+   * {@link RequestT}. Additionally, it uses an Integer based {@link OffsetRange} and its associated
+   * {@link OffsetRangeTracker}. The reason for using an Integer based offset range is due to Java
+   * collection sizes limit to int instead of long. Splittable DoFns provide access to hold the
+   * watermark, and along with an output with timestamp, allow the DoFn to emit elements as
+   * prescribed intervals.
    */
   static class ThrottleFn<RequestT> extends DoFn<KV<Integer, List<RequestT>>, RequestT> {
 
@@ -161,8 +162,8 @@ class ThrottleWithoutExternalResource<RequestT>
     @Setup
     public void setup() {
       if (configuration.getCollectMetrics()) {
-        inputElementsCounter = Metrics.counter(ThrottleWithoutExternalResource.class, INPUT_ELEMENTS_COUNTER_NAME);
-        outputElementsCounter = Metrics.counter(ThrottleWithoutExternalResource.class, OUTPUT_ELEMENTS_COUNTER_NAME);
+        inputElementsCounter = Metrics.counter(ThrottleFn.class, INPUT_ELEMENTS_COUNTER_NAME);
+        outputElementsCounter = Metrics.counter(ThrottleFn.class, OUTPUT_ELEMENTS_COUNTER_NAME);
       }
     }
 
@@ -228,6 +229,8 @@ class ThrottleWithoutExternalResource<RequestT>
         RestrictionTracker<OffsetRange, Integer> tracker,
         OutputReceiver<RequestT> receiver) {
 
+      incIfPresent(inputElementsCounter);
+
       if (element.getValue() == null || element.getValue().isEmpty()) {
         return;
       }
@@ -256,6 +259,7 @@ class ThrottleWithoutExternalResource<RequestT>
       }
       estimator.setWatermark(nextEmittedTimestamp);
       receiver.outputWithTimestamp(requestT, nextEmittedTimestamp);
+      incIfPresent(outputElementsCounter);
     }
   }
 
@@ -575,7 +579,7 @@ class ThrottleWithoutExternalResource<RequestT>
 
   private class ComputeMetricsFn extends DoFn<KV<Long, RequestT>, RequestT> {
     private final Distribution durationsBetweenTimestamps =
-        Metrics.distribution(ThrottleWithoutExternalResource.class, DISTRIBUTION_METRIC_NAME);
+        Metrics.distribution(ThrottleFn.class, DISTRIBUTION_METRIC_NAME);
     private static final String LAST_EMITTED_TIMESTAMP_STATE_ID = "last-emitted-timestamp";
 
     @SuppressWarnings("unused")

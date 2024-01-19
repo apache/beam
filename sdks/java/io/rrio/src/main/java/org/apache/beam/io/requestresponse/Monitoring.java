@@ -189,6 +189,8 @@ public abstract class Monitoring implements Serializable {
   /** Count {@link Cache} write failures. */
   public abstract Boolean getCountCacheWriteFailures();
 
+  public abstract Boolean getMonitorThrottling();
+
   /**
    * Turns on all monitoring. The purpose of this method is, when used with {@link #toBuilder} and
    * other setters, to turn everything on except for a few select counters.
@@ -204,6 +206,7 @@ public abstract class Monitoring implements Serializable {
         .setCountBackoffs(true)
         .setCountSleeps(true)
         .setCountShouldBackoff(true)
+        .setMonitorThrottling(true)
         .build()
         .withCountCaching(true);
   }
@@ -272,6 +275,8 @@ public abstract class Monitoring implements Serializable {
 
     public abstract Builder setCountCacheWriteFailures(Boolean value);
 
+    public abstract Builder setMonitorThrottling(Boolean value);
+
     abstract Optional<Boolean> getCountRequests();
 
     abstract Optional<Boolean> getCountResponses();
@@ -303,6 +308,8 @@ public abstract class Monitoring implements Serializable {
     abstract Optional<Boolean> getCountCacheWriteSuccesses();
 
     abstract Optional<Boolean> getCountCacheWriteFailures();
+
+    abstract Optional<Boolean> getMonitorThrottling();
 
     abstract Monitoring autoBuild();
 
@@ -354,6 +361,9 @@ public abstract class Monitoring implements Serializable {
       }
       if (!getCountCacheWriteFailures().isPresent()) {
         setCountCacheWriteFailures(false);
+      }
+      if (!getMonitorThrottling().isPresent()) {
+        setMonitorThrottling(false);
       }
 
       return autoBuild();
