@@ -957,7 +957,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
       # 5...9 going to table 2
       items = [{"col_1": i} for i in range(5)]
       items.extend([{"col_2": i} for i in range(5, 10)])
-      (
+      _ = (
           p | beam.Create(items) | bigquery.WriteToBigQuery(
               table=callable_table,
               create_disposition="CREATE_NEVER",
