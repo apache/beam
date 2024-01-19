@@ -917,13 +917,7 @@ message WorkerMetadataResponse {
   // calls to retrieve that global data.
   map<string, Endpoint> global_data_endpoints = 3;
 
-  // DNS name of the windmill worker service. This is used only in the case
-  // direct path communication is established using VIP. In order to enact
-  // Server Authorization checks, User Worker (client) set authority of the
-  // gRPC channel to this endpoint. Server Authorization checks ensure the
-  // servers clients connect to are being run by authorized borg roles. All
-  // channels connecting to Endpoint.direct_endpoint fields must set this
-  // authority.
+  // Used to set gRPC authority.
   optional string external_endpoint = 5;
 
   reserved 4;

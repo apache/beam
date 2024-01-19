@@ -47,7 +47,11 @@ class GrpcDispatcherClient {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDispatcherClient.class);
   private final WindmillStubFactory windmillStubFactory;
 
-  @GuardedBy("this")
+  /**
+   * Current dispatcher endpoints and stubs used to communicate with Windmill Dispatcher.
+   *
+   * @implNote Reads are lock free, writes are synchronized.
+   */
   private final AtomicReference<DispatcherStubs> dispatcherStubs;
 
   @GuardedBy("this")
@@ -55,16 +59,15 @@ class GrpcDispatcherClient {
 
   private GrpcDispatcherClient(
       WindmillStubFactory windmillStubFactory,
-      AtomicReference<DispatcherStubs> dispatcherStubs,
+      DispatcherStubs initialDispatcherStubs,
       Random rand) {
     this.windmillStubFactory = windmillStubFactory;
     this.rand = rand;
-    this.dispatcherStubs = dispatcherStubs;
+    this.dispatcherStubs = new AtomicReference<>(initialDispatcherStubs);
   }
 
   static GrpcDispatcherClient create(WindmillStubFactory windmillStubFactory) {
-    return new GrpcDispatcherClient(
-        windmillStubFactory, new AtomicReference<>(DispatcherStubs.empty()), new Random());
+    return new GrpcDispatcherClient(windmillStubFactory, DispatcherStubs.empty(), new Random());
   }
 
   @VisibleForTesting
@@ -78,13 +81,12 @@ class GrpcDispatcherClient {
             && windmillServiceStubs.size() == windmillMetadataServiceStubs.size());
     return new GrpcDispatcherClient(
         windmillGrpcStubFactory,
-        new AtomicReference<>(
-            DispatcherStubs.create(
-                dispatcherEndpoints, windmillServiceStubs, windmillMetadataServiceStubs)),
+        DispatcherStubs.create(
+            dispatcherEndpoints, windmillServiceStubs, windmillMetadataServiceStubs),
         new Random());
   }
 
-  synchronized CloudWindmillServiceV1Alpha1Stub getWindmillServiceStub() {
+  CloudWindmillServiceV1Alpha1Stub getWindmillServiceStub() {
     ImmutableList<CloudWindmillServiceV1Alpha1Stub> windmillServiceStubs =
         dispatcherStubs.get().windmillServiceStubs();
     Preconditions.checkState(
@@ -92,10 +94,10 @@ class GrpcDispatcherClient {
 
     return (windmillServiceStubs.size() == 1
         ? windmillServiceStubs.get(0)
-        : windmillServiceStubs.get(rand.nextInt(windmillServiceStubs.size())));
+        : randomlySelectNextStub(windmillServiceStubs));
   }
 
-  synchronized CloudWindmillMetadataServiceV1Alpha1Stub getWindmillMetadataServiceStub() {
+  CloudWindmillMetadataServiceV1Alpha1Stub getWindmillMetadataServiceStub() {
     ImmutableList<CloudWindmillMetadataServiceV1Alpha1Stub> windmillMetadataServiceStubs =
         dispatcherStubs.get().windmillMetadataServiceStubs();
     Preconditions.checkState(
@@ -103,10 +105,14 @@ class GrpcDispatcherClient {
 
     return (windmillMetadataServiceStubs.size() == 1
         ? windmillMetadataServiceStubs.get(0)
-        : windmillMetadataServiceStubs.get(rand.nextInt(windmillMetadataServiceStubs.size())));
+        : randomlySelectNextStub(windmillMetadataServiceStubs));
   }
 
-  synchronized boolean isReady() {
+  private synchronized <T> T randomlySelectNextStub(List<T> stubs) {
+    return stubs.get(rand.nextInt(dispatcherStubs.get().size()));
+  }
+
+  boolean isReady() {
     return dispatcherStubs.get().isReady();
   }
 
@@ -131,6 +137,11 @@ class GrpcDispatcherClient {
     dispatcherStubs.set(DispatcherStubs.create(dispatcherEndpoints, windmillStubFactory));
   }
 
+  /**
+   * Endpoints and gRPC stubs used to communicate with the Windmill Dispatcher. {@link
+   * #dispatcherEndpoints()}, {@link #windmillServiceStubs()}, and {@link
+   * #windmillMetadataServiceStubs()} collections should all be of the same size.
+   */
   @AutoValue
   abstract static class DispatcherStubs {
 
@@ -186,6 +197,10 @@ class GrpcDispatcherClient {
 
       return windmillStubFactory.createWindmillMetadataServiceStub(
           WindmillServiceAddress.create(endpoint));
+    }
+
+    private int size() {
+      return dispatcherEndpoints().size();
     }
 
     private boolean isReady() {

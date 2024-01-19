@@ -27,6 +27,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHear
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 
@@ -79,9 +80,7 @@ public abstract class WindmillServerStub implements StatusDataProvider {
   /** Returns the amount of time the server has been throttled and resets the time to 0. */
   public abstract long getAndResetThrottleTime();
 
-  public long clientId() {
-    return 0L;
-  }
+  public void start(GrpcWindmillStreamFactory grpcWindmillStreamFactory) {};
 
   @Override
   public void appendSummaryHtml(PrintWriter writer) {}

@@ -69,13 +69,15 @@ public abstract class WindmillEndpoints {
     return new AutoValue_WindmillEndpoints.Builder();
   }
 
-  private static Optional<WindmillServiceAddress> parseDirectEndpoint(String directEndpoint) {
+  private static Optional<WindmillServiceAddress> parseDirectEndpoint(
+      Windmill.WorkerMetadataResponse.Endpoint endpointProto) {
     Optional<WindmillServiceAddress> directEndpointIpV6Address =
-        tryParseDirectEndpointIntoIpV6Address(directEndpoint).map(WindmillServiceAddress::create);
+        tryParseDirectEndpointIntoIpV6Address(endpointProto).map(WindmillServiceAddress::create);
 
     return directEndpointIpV6Address.isPresent()
         ? directEndpointIpV6Address
-        : tryParseEndpointIntoHostAndPort(directEndpoint).map(WindmillServiceAddress::create);
+        : tryParseEndpointIntoHostAndPort(endpointProto.getDirectEndpoint())
+            .map(WindmillServiceAddress::create);
   }
 
   private static Optional<HostAndPort> tryParseEndpointIntoHostAndPort(String directEndpoint) {
@@ -87,15 +89,19 @@ public abstract class WindmillEndpoints {
     }
   }
 
-  private static Optional<Inet6Address> tryParseDirectEndpointIntoIpV6Address(
-      String directEndpoint) {
+  private static Optional<HostAndPort> tryParseDirectEndpointIntoIpV6Address(
+      Windmill.WorkerMetadataResponse.Endpoint endpointProto) {
+    if (!endpointProto.hasDirectEndpoint()) {
+      return Optional.empty();
+    }
+
     InetAddress directEndpointAddress = null;
     try {
-      directEndpointAddress = Inet6Address.getByName(directEndpoint);
+      directEndpointAddress = Inet6Address.getByName(endpointProto.getDirectEndpoint());
     } catch (UnknownHostException e) {
       LOG.warn(
           "Error occurred trying to parse direct_endpoint={} into IPv6 address. Exception={}",
-          directEndpoint,
+          endpointProto.getDirectEndpoint(),
           e.toString());
     }
 
@@ -104,11 +110,13 @@ public abstract class WindmillEndpoints {
     if (!(directEndpointAddress instanceof Inet6Address)) {
       LOG.warn(
           "{} is not an IPv6 address. Direct endpoints are expected to be in IPv6 format.",
-          directEndpoint);
+          endpointProto.getDirectEndpoint());
       return Optional.empty();
     }
 
-    return Optional.ofNullable((Inet6Address) directEndpointAddress);
+    return Optional.of(
+        HostAndPort.fromParts(
+            directEndpointAddress.getHostAddress(), (int) endpointProto.getPort()));
   }
 
   /**
@@ -144,12 +152,12 @@ public abstract class WindmillEndpoints {
     public static Endpoint from(
         Windmill.WorkerMetadataResponse.Endpoint endpointProto, String authenticatingService) {
       Endpoint.Builder endpointBuilder = Endpoint.builder();
-      if (endpointProto.hasDirectEndpoint() && !endpointProto.getDirectEndpoint().isEmpty()) {
-        parseDirectEndpoint(endpointProto.getDirectEndpoint())
-            .ifPresent(endpointBuilder::setDirectEndpoint);
+
+      if (!endpointProto.getDirectEndpoint().isEmpty()) {
+        parseDirectEndpoint(endpointProto).ifPresent(endpointBuilder::setDirectEndpoint);
       }
-      if (endpointProto.hasBackendWorkerToken()
-          && !endpointProto.getBackendWorkerToken().isEmpty()) {
+
+      if (!endpointProto.getBackendWorkerToken().isEmpty()) {
         endpointBuilder.setWorkerToken(endpointProto.getBackendWorkerToken());
       }
 

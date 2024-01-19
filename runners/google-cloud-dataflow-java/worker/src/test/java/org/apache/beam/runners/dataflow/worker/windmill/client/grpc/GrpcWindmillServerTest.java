@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -111,6 +112,7 @@ public class GrpcWindmillServerTest {
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServerTest.class);
   private static final int STREAM_CHUNK_SIZE = 2 << 20;
+  private final long clientId = new Random().nextLong();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
   private Server server;
@@ -128,7 +130,7 @@ public class GrpcWindmillServerTest {
             .build()
             .start();
 
-    this.client = GrpcWindmillServer.newTestInstance(name, new ArrayList<>());
+    this.client = GrpcWindmillServer.newTestInstance(name, new ArrayList<>(), clientId);
   }
 
   @After
@@ -346,7 +348,7 @@ public class GrpcWindmillServerTest {
                                 .setJobId("job")
                                 .setProjectId("project")
                                 .setWorkerId("worker")
-                                .setClientId(client.clientId())
+                                .setClientId(clientId)
                                 .build()));
                     sawHeader = true;
                   } else {
@@ -556,7 +558,7 @@ public class GrpcWindmillServerTest {
                       .setJobId("job")
                       .setProjectId("project")
                       .setWorkerId("worker")
-                      .setClientId(client.clientId())
+                      .setClientId(clientId)
                       .build()));
           sawHeader = true;
           LOG.info("Received header");
@@ -841,7 +843,7 @@ public class GrpcWindmillServerTest {
                                 .setJobId("job")
                                 .setProjectId("project")
                                 .setWorkerId("worker")
-                                .setClientId(client.clientId())
+                                .setClientId(clientId)
                                 .build()));
                     sawHeader = true;
                   } else {
