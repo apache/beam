@@ -28,20 +28,25 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Spliterator;
+import java.util.SplittableRandom;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metric;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -49,6 +54,8 @@ import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -65,8 +72,7 @@ import org.joda.time.Instant;
 class ThrottleWithoutExternalResource<RequestT>
     extends PTransform<PCollection<RequestT>, PCollection<RequestT>> {
 
-  static <RequestT> ThrottleWithoutExternalResource<RequestT> of(
-      Configuration configuration) {
+  static <RequestT> ThrottleWithoutExternalResource<RequestT> of(Configuration configuration) {
     return new ThrottleWithoutExternalResource<>(configuration);
   }
 
@@ -81,7 +87,9 @@ class ThrottleWithoutExternalResource<RequestT>
     ListCoder<RequestT> listCoder = ListCoder.of(input.getCoder());
     Coder<KV<Integer, List<RequestT>>> kvCoder = KvCoder.of(VarIntCoder.of(), listCoder);
 
-    return input
+    PCollection<RequestT> result = input
+        // Apply GlobalWindows to prevent multiple window assignment.
+        .apply(GlobalWindows.class.getSimpleName(), Window.into(new GlobalWindows()))
         // Break up the PCollection into fixed channels assigned to an int key [0,
         // Rate::numElements).
         .apply(AssignChannelFn.class.getSimpleName(), assignChannels())
@@ -92,11 +100,21 @@ class ThrottleWithoutExternalResource<RequestT>
         // processing by ThrottleFn; IterableCoder uses a List for IterableLikeCoder's
         // structuralValue.
         .apply("ConvertToList", toList())
-            .setCoder(kvCoder)
+        .setCoder(kvCoder)
         // Finally apply a splittable DoFn by splitting the Iterable<RequestT>, controlling the
         // output via the watermark estimator.
         .apply(ThrottleFn.class.getSimpleName(), throttle())
-            .setCoder(input.getCoder());
+        .setCoder(input.getCoder());
+
+    // If configured to collect metrics, assign a single key to the global window timestamp and apply
+    // ComputeMetricsFn.
+    if (configuration.getCollectMetrics()) {
+      result.apply(BoundedWindow.class.getSimpleName(), WithKeys.of(ignored -> BoundedWindow.TIMESTAMP_MAX_VALUE))
+              .apply(ComputeMetricsFn.class.getSimpleName(), computeMetrics());
+
+    }
+
+    return result;
   }
 
   private ParDo.SingleOutput<KV<Integer, List<RequestT>>, RequestT> throttle() {
@@ -106,17 +124,21 @@ class ThrottleWithoutExternalResource<RequestT>
   /**
    * This {@link DoFn} is inspired by {@link org.apache.beam.sdk.transforms.PeriodicSequence}'s DoFn
    * implementation with the exception that instead of emitting an {@link Instant}, it emits a
-   * {@link RequestT}.
+   * {@link RequestT}. Additionally, it uses an Integer based {@link OffsetRange} and its associated {@link OffsetRangeTracker}.
+   * The reason for using an Integer based offset range is due to Java collection sizes limit to int instead of long.
+   * <pre>
+   * Splittable DoFns provide access to hold the watermark, and along with an output with timestamp, allow
+   * the DoFn to emit elements as prescribed intervals.
    */
   static class ThrottleFn<RequestT> extends DoFn<KV<Integer, List<RequestT>>, RequestT> {
 
     private final Configuration configuration;
 
-      ThrottleFn(Configuration configuration) {
-          this.configuration = configuration;
-      }
+    ThrottleFn(Configuration configuration) {
+      this.configuration = configuration;
+    }
 
-      @GetInitialRestriction
+    @GetInitialRestriction
     public OffsetRange getInitialRange(@Element KV<Integer, List<RequestT>> element) {
       int size = 0;
       if (element.getValue() != null) {
@@ -175,8 +197,9 @@ class ThrottleWithoutExternalResource<RequestT>
         return;
       }
 
-      while(tracker.tryClaim(tracker.currentRestriction().getCurrent() + 1)) {
-        Instant nextEmittedTimestamp = estimator.currentWatermark().plus(configuration.getMaximumRate().getInterval());
+      while (tracker.tryClaim(tracker.currentRestriction().getCurrent() + 1)) {
+        Instant nextEmittedTimestamp =
+            estimator.currentWatermark().plus(configuration.getMaximumRate().getInterval());
         int index = tracker.currentRestriction().getCurrent();
         RequestT requestT = element.getValue().get(index);
         outputAndSetWatermark(nextEmittedTimestamp, requestT, estimator, receiver);
@@ -184,25 +207,24 @@ class ThrottleWithoutExternalResource<RequestT>
     }
 
     private void outputAndSetWatermark(
-            Instant nextEmittedTimestamp,
-            RequestT requestT,
-            ManualWatermarkEstimator<Instant> estimator,
-            DoFn.OutputReceiver<RequestT> receiver) {
+        Instant nextEmittedTimestamp,
+        RequestT requestT,
+        ManualWatermarkEstimator<Instant> estimator,
+        DoFn.OutputReceiver<RequestT> receiver) {
       Instant now = Instant.now();
-      while(now.isBefore(nextEmittedTimestamp)) {
+      while (now.isBefore(nextEmittedTimestamp)) {
         now = Instant.now();
       }
       estimator.setWatermark(nextEmittedTimestamp);
       receiver.outputWithTimestamp(requestT, nextEmittedTimestamp);
     }
-
   }
 
   /**
    * Returns a {@link ParDo.SingleOutput} that assigns each {@link RequestT} a key using {@link
    * AssignChannelFn}.
    */
-  private ParDo.SingleOutput<RequestT, KV<Integer, RequestT>> assignChannels() {
+  ParDo.SingleOutput<RequestT, KV<Integer, RequestT>> assignChannels() {
     return ParDo.of(new AssignChannelFn());
   }
 
@@ -213,11 +235,11 @@ class ThrottleWithoutExternalResource<RequestT>
    * emission is up to {@link Configuration#getMaximumRate()}.
    */
   private class AssignChannelFn extends DoFn<RequestT, KV<Integer, RequestT>> {
-    private transient @MonotonicNonNull Random random;
+    private transient @MonotonicNonNull SplittableRandom random;
 
     @Setup
     public void setup() {
-      random = new Random(Instant.now().getMillis());
+      random = new SplittableRandom();
     }
 
     @ProcessElement
@@ -336,6 +358,11 @@ class ThrottleWithoutExternalResource<RequestT>
      */
     boolean hasMoreOffset() {
       return getCurrent() < getToExclusive() - 1;
+    }
+
+    /** Queries whether we cannot increment {@link #getCurrent()}. */
+    boolean hasNoMoreOffset() {
+      return !hasMoreOffset();
     }
 
     /** The size of the range, inclusive: [from, to-1]. */
@@ -457,15 +484,18 @@ class ThrottleWithoutExternalResource<RequestT>
     }
 
     /**
-     * {@link OffsetRange#offset}s with position. Returns whether {@link
-     * OffsetRange#hasMoreOffset()}. Each invocation of this method increases {@link
-     * OffsetRange#getCurrent()} while holding the {@link OffsetRange#getFromInclusive()} and {@link
-     * OffsetRange#getToExclusive()} constant.
+     * {@link OffsetRange#offset}s with position. If {@link OffsetRange#hasNoMoreOffset()}, then
+     * {@link OffsetRange#getCurrent()} is not incremented. Each invocation of this method increases
+     * {@link OffsetRange#getCurrent()} while holding the {@link OffsetRange#getFromInclusive()} and
+     * {@link OffsetRange#getToExclusive()} constant.
      */
     @Override
     public boolean tryClaim(Integer position) {
+      if (restriction.hasNoMoreOffset()) {
+        return false;
+      }
       restriction = restriction.offset(position);
-      return restriction.hasMoreOffset();
+      return true;
     }
 
     /** Returns the current {@link OffsetRange} state as a result of {@link #tryClaim}. */
@@ -497,6 +527,35 @@ class ThrottleWithoutExternalResource<RequestT>
     @Override
     public Progress getProgress() {
       return Progress.from(restriction.getFractionProgress(), restriction.getFractionRemaining());
+    }
+  }
+
+  private ParDo.SingleOutput<KV<Instant, RequestT>, Void> computeMetrics() {
+    return ParDo.of(new ComputeMetricsFn());
+  }
+
+  private class ComputeMetricsFn extends DoFn<KV<Instant, RequestT>, Void> {
+    private final Distribution durationsBetweenTimestamps =
+        Metrics.distribution(
+            ThrottleWithoutExternalResource.class, "duration_between_element_emissions");
+    private static final String LAST_EMITTED_TIMESTAMP_STATE_ID = "last-emitted-timestamp";
+
+    @StateId(LAST_EMITTED_TIMESTAMP_STATE_ID)
+    private final StateSpec<ValueState<Long>> lastEmittedTimestampStateSpec = StateSpecs.value();
+
+    @ProcessElement
+    public void process(
+        @Element KV<Instant, RequestT> ignored,
+        @AlwaysFetched @StateId(LAST_EMITTED_TIMESTAMP_STATE_ID)
+            ValueState<Long> lastEmittedTimestampState) {
+      if (lastEmittedTimestampState.read() == null) {
+        lastEmittedTimestampState.write(Instant.now().getMillis());
+        return;
+      }
+      long now = Instant.now().getMillis();
+      long lastEmittedMilliTimestamp = checkStateNotNull(lastEmittedTimestampState.read());
+      durationsBetweenTimestamps.update(now - lastEmittedMilliTimestamp);
+      lastEmittedTimestampState.write(now);
     }
   }
 

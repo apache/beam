@@ -31,12 +31,8 @@ public class OffsetRangeTrackerTest {
   /////////////////////////// Empty tests //////////////////////////
 
   @Test
-  public void givenEmpty_thenTryClaimThrows() {
-    IllegalArgumentException error =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> createEmptyRestriction().newTracker().tryClaim(0));
-    assertThat(error.getMessage(), is("Illegal value for offset position: 0, must be [-1, 0)"));
+  public void givenEmpty_thenTryClaim_isFalse() {
+    assertThat(createEmptyRestriction().newTracker().tryClaim(0), is(false));
   }
 
   @Test
@@ -103,11 +99,10 @@ public class OffsetRangeTrackerTest {
   }
 
   @Test
-  public void givenNonEmpty_positionAtEnd_thenTryClaimFalse_setsCurrentRestriction() {
+  public void givenNonEmpty_positionAtEnd_thenTryClaim_isFalse() {
     ThrottleWithoutExternalResource.OffsetRangeTracker tracker =
-        createNonEmpty().toBuilder().setCurrent(98).build().newTracker();
-
-    assertThat(tracker.tryClaim(99), is(false));
+        createNonEmpty().toBuilder().setCurrent(99).build().newTracker();
+    assertThat(tracker.tryClaim(100), is(false));
     ThrottleWithoutExternalResource.OffsetRange restriction = tracker.currentRestriction();
     assertThat(restriction.getCurrent(), is(99));
     assertThat(restriction.getFromInclusive(), is(-1));

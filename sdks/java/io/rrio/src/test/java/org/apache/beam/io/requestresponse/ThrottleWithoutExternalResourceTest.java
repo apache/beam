@@ -17,46 +17,102 @@
  */
 package org.apache.beam.io.requestresponse;
 
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.values.PCollection;
-import org.joda.time.Duration;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.commons.math3.distribution.UniformIntegerDistribution;
+import org.apache.commons.math3.stat.inference.ChiSquareTest;
+import org.joda.time.Duration;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link ThrottleWithoutExternalResource}. */
 @RunWith(JUnit4.class)
 public class ThrottleWithoutExternalResourceTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
+  /**
+   * The purpose of this test is to assert, in the setting of elements greater than the desired
+   * rate, that a Chi Square hypothesis cannot be rejected against a uniform integer distribution.
+   * In other words, does {@link ThrottleWithoutExternalResource#assignChannels} uniformly
+   * distribute the key space among the elements? While we cannot "prove" a distribution, failure to
+   * reject a null hypothesis suggests that the code is doing what we expect.
+   */
   @Test
-  public void givenNonSparseElements_thenAssignChannelsNominallyDistributed() {}
+  public void givenNonSparseElements_thenAssignChannelsDistribution_cannotRejectChiSqNullTest() {
+    Rate rate = Rate.of(1000, Duration.standardSeconds(1L));
+    testAssignChannelsDistribution(rate, 10000);
+  }
 
+  /**
+   * This test is similar to {@link
+   * #givenNonSparseElements_thenAssignChannelsDistribution_cannotRejectChiSqNullTest()} in the
+   * setting of elements less than the desired rate.
+   */
   @Test
-  public void givenSparseElements_thenAssignChannelsNominallyDistributed() {}
+  public void givenSparseElements_thenAssignChannelsNominallyDistributed() {
+    Rate rate = Rate.of(1000, Duration.standardSeconds(1L));
+    testAssignChannelsDistribution(rate, 100);
+  }
 
-  @Test
-  public void givenLargeElementSize_thenThrowsWithSizeReport() {}
+  private void testAssignChannelsDistribution(Rate rate, int size) {
+    List<Integer> list = Stream.iterate(0, i -> i + 1).limit(size).collect(Collectors.toList());
+
+    ThrottleWithoutExternalResource<Integer> transform = transformOf(rate);
+
+    PCollection<KV<Integer, Integer>> kv =
+        pipeline.apply(Create.of(list)).apply(transform.assignChannels());
+    PCollection<KV<Integer, Long>> countPerKey = kv.apply(Count.perKey());
+    PAssert.that(countPerKey)
+        .satisfies(
+            itr -> {
+              // Instantiate a uniform integer distribution [0, Rate#numElements).
+              UniformIntegerDistribution distribution =
+                  new UniformIntegerDistribution(0, rate.getNumElements() - 1);
+              ChiSquareTest chiSquareTest = new ChiSquareTest();
+              // Compute the expected distribution of counts.
+              double[] expected = new double[rate.getNumElements()];
+              for (int i = 0; i < expected.length; i++) {
+                expected[i] =
+                    (double) list.size()
+                        / (double) rate.getNumElements()
+                        * distribution.probability(i);
+              }
+              // Compute the observed distribution of counts.
+              long[] observed = new long[rate.getNumElements()];
+              for (KV<Integer, Long> entry : itr) {
+                observed[entry.getKey()] = entry.getValue();
+              }
+
+              // Perform the statistical test.
+              boolean chiSq = chiSquareTest.chiSquareTest(expected, observed, 0.05);
+
+              // Assert that we cannot reject the null hypothesis.
+              assertThat(chiSq, is(false));
+              return null;
+            });
+
+    pipeline.run();
+  }
 
   @Test
   public void givenSparseElementPulse_thenEmitsAllImmediately() {
     Rate rate = Rate.of(1000, Duration.standardSeconds(1L));
-    List<Integer> list = Stream.iterate(0, i->i+1).limit(3).collect(Collectors.toList());
+    List<Integer> list = Stream.iterate(0, i -> i + 1).limit(100).collect(Collectors.toList());
 
-    PCollection<Integer> throttled = pipeline
-            .apply(Create.of(list))
-            .apply(ThrottleWithoutExternalResource.of(ThrottleWithoutExternalResource.Configuration.builder()
-                            .setMaximumRate(rate)
-                    .build()));
+    PCollection<Integer> throttled = pipeline.apply(Create.of(list)).apply(transformOf(rate));
 
     PAssert.that(throttled).containsInAnyOrder(list);
 
@@ -70,13 +126,23 @@ public class ThrottleWithoutExternalResourceTest {
 
   @Test
   public void offsetRangeTracker_isSerializable() {
-    SerializableUtils.ensureSerializable(ThrottleWithoutExternalResource.OffsetRange.empty().newTracker());
+    SerializableUtils.ensureSerializable(
+        ThrottleWithoutExternalResource.OffsetRange.empty().newTracker());
   }
 
   @Test
   public void configuration_isSerializable() {
-    SerializableUtils.ensureSerializable(ThrottleWithoutExternalResource.Configuration.builder()
-                    .setMaximumRate(Rate.of(1, Duration.ZERO))
+    SerializableUtils.ensureSerializable(
+        ThrottleWithoutExternalResource.Configuration.builder()
+            .setMaximumRate(Rate.of(1, Duration.ZERO))
             .build());
+  }
+
+  private static ThrottleWithoutExternalResource<Integer> transformOf(Rate rate) {
+    return ThrottleWithoutExternalResource.of(configurationOf(rate));
+  }
+
+  private static ThrottleWithoutExternalResource.Configuration configurationOf(Rate rate) {
+    return ThrottleWithoutExternalResource.Configuration.builder().setMaximumRate(rate).build();
   }
 }

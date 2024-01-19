@@ -48,6 +48,7 @@ dependencies {
     testImplementation "com.google.protobuf:protobuf-java-util:${protobufVersion}"
 
     testImplementation platform(library.java.google_cloud_platform_libraries_bom)
+    testImplementation library.java.commons_math3
     testImplementation library.java.google_http_client
     testImplementation library.java.junit
     testImplementation library.java.hamcrest
