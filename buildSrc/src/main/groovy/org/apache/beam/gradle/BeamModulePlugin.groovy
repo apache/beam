@@ -558,7 +558,7 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.containerArchitectures = {
       if (isRelease(project)) {
         // Ensure we always publish the expected containers.
-        return ["amd64", "arm64"];
+        return ["amd64", "arm64"]
       } else if (project.rootProject.findProperty("container-architecture-list") != null) {
         def containerArchitectures = project.rootProject.findProperty("container-architecture-list").split(',')
         if (containerArchitectures.size() > 1 && !project.rootProject.hasProperty("push-containers")) {
@@ -572,6 +572,10 @@ class BeamModulePlugin implements Plugin<Project> {
 
     project.ext.containerPlatforms = {
       return project.containerArchitectures().collect { arch -> "linux/" + arch }
+    }
+
+    project.ext.useBuildx = {
+      return project.containerArchitectures() != [project.nativeArchitecture()]
     }
 
     /** ***********************************************************************************************/
