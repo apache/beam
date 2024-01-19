@@ -31,7 +31,6 @@ import org.joda.time.Instant;
  * @param <W> The kind of window that is being reshuffled.
  */
 @Internal
-@Deprecated
 public class ReshuffleTrigger<W extends BoundedWindow> extends Trigger {
 
   public ReshuffleTrigger() {
