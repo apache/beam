@@ -1740,9 +1740,9 @@ public class StreamingDataflowWorker {
 
   private void updateThreadMetrics() {
     timeAtMaxActiveThreads.getAndReset();
-    timeAtMaxActiveThreads.addValue(
-        workUnitExecutor.allThreadsActiveTime() - previousTimeAtMaxThreads.get());
-    previousTimeAtMaxThreads.set(workUnitExecutor.allThreadsActiveTime());
+    long allThreadsActiveTime = workUnitExecutor.allThreadsActiveTime();
+    timeAtMaxActiveThreads.addValue(allThreadsActiveTime - previousTimeAtMaxThreads.get());
+    previousTimeAtMaxThreads.set(allThreadsActiveTime);
     activeThreads.getAndReset();
     activeThreads.addValue(workUnitExecutor.activeCount());
     totalAllocatedThreads.getAndReset();
