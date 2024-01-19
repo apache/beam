@@ -2291,8 +2291,6 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
                               bigquery_tools.
                               get_beam_typehints_from_tableschema(schema)))
                   ])))
-          input_beam_rows | beam.Map(
-              lambda e: logging.warning("input_beam_rows: %s", e))
 
         # # communicate to Java that this write should use dynamic destinations
         table = DYNAMIC_DESTINATIONS
