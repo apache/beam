@@ -38,6 +38,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -283,6 +284,23 @@ public final class ActiveWorkState {
                     .addAllLatencyAttribution(
                         work.getLatencyAttributions(true, work.getLatencyTrackingId(), sampler))
                     .build());
+  }
+
+  /**
+   * Returns the current aggregate {@link GetWorkBudget} that is active on the user worker. Active
+   * means that the work is received from Windmill, being processed or queued to be processed in
+   * {@link ActiveWorkState}, and not committed back to Windmill.
+   */
+  synchronized GetWorkBudget currentActiveWorkBudget() {
+    return activeWork.values().stream()
+        .flatMap(Deque::stream)
+        .map(
+            work ->
+                GetWorkBudget.builder()
+                    .setItems(1)
+                    .setBytes(work.getWorkItem().getSerializedSize())
+                    .build())
+        .reduce(GetWorkBudget.noBudget(), GetWorkBudget::apply);
   }
 
   synchronized void printActiveWork(PrintWriter writer, Instant now) {
