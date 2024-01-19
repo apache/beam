@@ -217,11 +217,15 @@ public class TransformUpgrader implements AutoCloseable {
     // PipelineOptions object.
     PipelineOptions optionsClone =
         PipelineOptionsTranslation.fromProto(PipelineOptionsTranslation.toProto(options));
-    // Setting the option 'updateCompatibilityVersion' to the current SDK version so that the
-    // TransformService uses a compatible schema.
-    optionsClone
-        .as(StreamingOptions.class)
-        .setUpdateCompatibilityVersion(ReleaseInfo.getReleaseInfo().getSdkVersion());
+    String updateCompatibilityVersion =
+        optionsClone.as(StreamingOptions.class).getUpdateCompatibilityVersion();
+    if (updateCompatibilityVersion == null || updateCompatibilityVersion.isEmpty()) {
+      // Setting the option 'updateCompatibilityVersion' to the current SDK version so that the
+      // TransformService uses a compatible schema.
+      optionsClone
+          .as(StreamingOptions.class)
+          .setUpdateCompatibilityVersion(ReleaseInfo.getReleaseInfo().getSdkVersion());
+    }
     ExpansionApi.ExpansionRequest request =
         requestBuilder
             .setComponents(runnerAPIpipeline.getComponents())
