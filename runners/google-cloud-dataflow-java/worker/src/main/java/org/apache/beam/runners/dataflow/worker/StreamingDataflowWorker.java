@@ -1898,9 +1898,9 @@ public class StreamingDataflowWorker {
           List<FailedTokens> keyTokens =
               failedWork.putIfAbsent(heartbeatResponse.getShardingKey(), new ArrayList<>());
           if (keyTokens == null) keyTokens = failedWork.get(heartbeatResponse.getShardingKey());
-            keyTokens.add(
-                new FailedTokens(heartbeatResponse.getWorkToken(),
-                    heartbeatResponse.getCacheToken()));
+          keyTokens.add(
+              new FailedTokens(
+                  heartbeatResponse.getWorkToken(), heartbeatResponse.getCacheToken()));
         }
       }
       ComputationState state = computationMap.get(computationHeartbeatResponse.getComputationId());
