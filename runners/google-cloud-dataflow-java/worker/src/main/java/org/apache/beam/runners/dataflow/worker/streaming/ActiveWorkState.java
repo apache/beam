@@ -72,6 +72,13 @@ public final class ActiveWorkState {
   @GuardedBy("this")
   private final WindmillStateCache.ForComputation computationStateCache;
 
+  /**
+   * Current budget that is being processed or queued on the user worker. Incremented when work is
+   * activated in {@link #activateWorkForKey(ShardedKey, Work)}, and decremented when work is
+   * completed in {@link #completeWorkAndGetNextWorkForKey(ShardedKey, long)}.
+   *
+   * @implNote Reads are lock free using {@link AtomicReference#get()}, writes are synchronized.
+   */
   private final AtomicReference<GetWorkBudget> activeGetWorkBudget;
 
   private ActiveWorkState(
@@ -91,6 +98,32 @@ public final class ActiveWorkState {
       Map<ShardedKey, Deque<Work>> activeWork,
       WindmillStateCache.ForComputation computationStateCache) {
     return new ActiveWorkState(activeWork, computationStateCache);
+  }
+
+  private static Stream<KeyedGetDataRequest> toKeyedGetDataRequestStream(
+      Entry<ShardedKey, Deque<Work>> shardedKeyAndWorkQueue,
+      Instant refreshDeadline,
+      DataflowExecutionStateSampler sampler) {
+    ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
+    Deque<Work> workQueue = shardedKeyAndWorkQueue.getValue();
+
+    return workQueue.stream()
+        .filter(work -> work.getStartTime().isBefore(refreshDeadline))
+        .map(
+            work ->
+                Windmill.KeyedGetDataRequest.newBuilder()
+                    .setKey(shardedKey.key())
+                    .setShardingKey(shardedKey.shardingKey())
+                    .setWorkToken(work.getWorkItem().getWorkToken())
+                    .addAllLatencyAttribution(
+                        work.getLatencyAttributions(true, work.getLatencyTrackingId(), sampler))
+                    .build());
+  }
+
+  private static String elapsedString(Instant start, Instant end) {
+    Duration activeFor = new Duration(start, end);
+    // Duration's toString always starts with "PT"; remove that here.
+    return activeFor.toString().substring(2);
   }
 
   /**
@@ -356,12 +389,6 @@ public final class ActiveWorkState {
       writer.println(commitsPendingCount - MAX_PRINTABLE_COMMIT_PENDING_KEYS);
       writer.println("<br>");
     }
-  }
-
-  private static String elapsedString(Instant start, Instant end) {
-    Duration activeFor = new Duration(start, end);
-    // Duration's toString always starts with "PT"; remove that here.
-    return activeFor.toString().substring(2);
   }
 
   enum ActivateWorkResult {
