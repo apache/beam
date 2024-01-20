@@ -200,7 +200,7 @@ func pullDecoder(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(io.Reade
 	}
 }
 
-// pullDecoderNoAlloc returns a function that decodes a single eleemnt of the given coder.
+// pullDecoderNoAlloc returns a function that decodes a single element of the given coder.
 // Intended to only be used as an internal function for pullDecoder, which will use a io.TeeReader
 // to extract the bytes.
 func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(io.Reader) {

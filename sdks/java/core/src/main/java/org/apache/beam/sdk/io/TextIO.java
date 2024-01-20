@@ -277,6 +277,7 @@ public class TextIO {
         .setWindowedWrites(false)
         .setNoSpilling(false)
         .setSkipIfEmpty(false)
+        .setAutoSharding(false)
         .build();
   }
 
@@ -702,6 +703,9 @@ public class TextIO {
     /** Whether to write windowed output files. */
     abstract boolean getWindowedWrites();
 
+    /** Whether to enable autosharding. */
+    abstract boolean getAutoSharding();
+
     /** Whether to skip the spilling of data caused by having maxNumWritersPerBundle. */
     abstract boolean getNoSpilling();
 
@@ -754,6 +758,8 @@ public class TextIO {
           @Nullable ValueProvider<Integer> numShards);
 
       abstract Builder<UserT, DestinationT> setWindowedWrites(boolean windowedWrites);
+
+      abstract Builder<UserT, DestinationT> setAutoSharding(boolean windowedWrites);
 
       abstract Builder<UserT, DestinationT> setNoSpilling(boolean noSpilling);
 
@@ -999,6 +1005,10 @@ public class TextIO {
       return toBuilder().setWindowedWrites(true).build();
     }
 
+    public TypedWrite<UserT, DestinationT> withAutoSharding() {
+      return toBuilder().setAutoSharding(true).build();
+    }
+
     /** See {@link WriteFiles#withNoSpilling()}. */
     public TypedWrite<UserT, DestinationT> withNoSpilling() {
       return toBuilder().setNoSpilling(true).build();
@@ -1096,6 +1106,9 @@ public class TextIO {
       }
       if (getWindowedWrites()) {
         write = write.withWindowedWrites();
+      }
+      if (getAutoSharding()) {
+        write = write.withAutoSharding();
       }
       if (getNoSpilling()) {
         write = write.withNoSpilling();
@@ -1266,6 +1279,11 @@ public class TextIO {
     /** See {@link TypedWrite#withWindowedWrites}. */
     public Write withWindowedWrites() {
       return new Write(inner.withWindowedWrites());
+    }
+
+    /** See {@link TypedWrite#withAutoSharding}. */
+    public Write withAutoSharding() {
+      return new Write(inner.withAutoSharding());
     }
 
     /** See {@link TypedWrite#withNoSpilling}. */

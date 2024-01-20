@@ -16,6 +16,7 @@
 #
 
 import collections
+import functools
 import json
 import logging
 import os
@@ -48,17 +49,41 @@ try:
 except ImportError:
   jsonschema = None
 
-if jsonschema is not None:
+
+@functools.lru_cache
+def pipeline_schema(strictness):
   with open(os.path.join(os.path.dirname(__file__),
                          'pipeline.schema.yaml')) as yaml_file:
     pipeline_schema = yaml.safe_load(yaml_file)
+  if strictness == 'per_transform':
+    transform_schemas_path = os.path.join(
+        os.path.dirname(__file__), 'transforms.schema.yaml')
+    if not os.path.exists(transform_schemas_path):
+      raise RuntimeError(
+          "Please run "
+          "python -m apache_beam.yaml.generate_yaml_docs "
+          f"--schema_file='{transform_schemas_path}' "
+          "to run with transform-specific validation.")
+    with open(transform_schemas_path) as fin:
+      pipeline_schema['$defs']['transform']['allOf'].extend(yaml.safe_load(fin))
+  return pipeline_schema
 
 
-def validate_against_schema(pipeline):
+def _closest_line(o, path):
+  best_line = SafeLineLoader.get_line(o)
+  for step in path:
+    o = o[step]
+    maybe_line = SafeLineLoader.get_line(o)
+    if maybe_line != 'unknown':
+      best_line = maybe_line
+  return best_line
+
+
+def validate_against_schema(pipeline, strictness):
   try:
-    jsonschema.validate(pipeline, pipeline_schema)
+    jsonschema.validate(pipeline, pipeline_schema(strictness))
   except jsonschema.ValidationError as exn:
-    exn.message += f" at line {SafeLineLoader.get_line(exn.instance)}"
+    exn.message += f" around line {_closest_line(pipeline, exn.path)}"
     raise exn
 
 
@@ -891,7 +916,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
     return spec
 
   def preprocess_langauges(spec):
-    if spec['type'] in ('Filter', 'MapToFields', 'Combine'):
+    if spec['type'] in ('Filter', 'MapToFields', 'Combine', 'AssignTimestamps'):
       language = spec.get('config', {}).get('language', 'generic')
       new_type = spec['type'] + '-' + language
       if known_transforms and new_type not in known_transforms:
@@ -964,10 +989,13 @@ class YamlTransform(beam.PTransform):
         self._spec['input'] = {name: name for name in pcolls.keys()}
     python_provider = yaml_provider.InlineProvider({})
 
+    # Label goog-dataflow-yaml if job is started using Beam YAML.
     options = pipeline.options.view_as(GoogleCloudOptions)
+    yaml_version = ('beam-yaml=' + beam.version.__version__.replace('.', '_'))
     if not options.labels:
       options.labels = []
-    options.labels += ["yaml=true"]
+    if yaml_version not in options.labels:
+      options.labels.append(yaml_version)
 
     result = expand_transform(
         self._spec,
@@ -990,13 +1018,13 @@ def expand_pipeline(
     pipeline,
     pipeline_spec,
     providers=None,
-    validate_schema=jsonschema is not None):
+    validate_schema='generic' if jsonschema is not None else None):
   if isinstance(pipeline_spec, str):
     pipeline_spec = yaml.load(pipeline_spec, Loader=SafeLineLoader)
   # TODO(robertwb): It's unclear whether this gives as good of errors, but
   # this could certainly be handy as a first pass when Beam is not available.
-  if validate_schema:
-    validate_against_schema(pipeline_spec)
+  if validate_schema and validate_schema != 'none':
+    validate_against_schema(pipeline_spec, validate_schema)
   # Calling expand directly to avoid outer layer of nesting.
   return YamlTransform(
       pipeline_as_composite(pipeline_spec['pipeline']),

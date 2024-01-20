@@ -64,11 +64,12 @@
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Adding support for Tuples DataType in ClickHouse (Java) ([#29715](https://github.com/apache/beam/pull/29715)).
-
+* Added support for handling bad records to FileIO, TextIO, AvroIO ([#29670](https://github.com/apache/beam/pull/29670)).
+* Added support for handling bad records to BigtableIO ([#29885](https://github.com/apache/beam/pull/29885)).
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* [Enrichment Transform](https://s.apache.org/enrichment-transform) along with GCP BigTable handler added to Python SDK ([#30001](https://github.com/apache/beam/pull/30001)).
 
 ## Breaking Changes
 
@@ -125,6 +126,10 @@
 ## Security Fixes
 
 * Upgraded to go 1.21.5 to build, fixing [CVE-2023-45285](https://security-tracker.debian.org/tracker/CVE-2023-45285) and [CVE-2023-39326](https://security-tracker.debian.org/tracker/CVE-2023-39326)
+
+## Known Issues
+
+* ([#29987](https://github.com/apache/beam/issues/29987)).
 
 # [2.52.0] - 2023-11-17
 

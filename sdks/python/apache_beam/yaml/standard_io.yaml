@@ -71,6 +71,7 @@
         'producer_config_updates': 'producerConfigUpdates'
         'file_descriptor_path': 'fileDescriptorPath'
         'message_name': 'messageName'
+        'schema': 'schema'
     underlying_provider:
       type: beamJar
       transforms:
@@ -138,8 +139,11 @@
     mappings:
       'ReadFromCsv':
         path: 'path'
+        delimiter: 'delimiter'
+        comment: 'comment'
       'WriteToCsv':
         path: 'path'
+        delimiter: 'delimiter'
       'ReadFromJson':
         path: 'path'
       'WriteToJson':
