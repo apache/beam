@@ -794,6 +794,7 @@ def create_java_builtin_provider():
   (or only need a simple renaming of parameters) a direct or renaming provider
   is the simpler choice.
   """
+
   # An alternative could be examining the capabilities of various environments
   # during (or as a pre-processing phase before) fusion to align environments
   # where possible.  This would also require extra care in skipping these
@@ -822,7 +823,9 @@ def create_java_builtin_provider():
       transforms={'WindowInto': java_window_into},
       underlying_provider=beam_jar(
           urns={
-              'WindowIntoStrategy': 'beam:schematransform:org.apache.beam:yaml:window_into_strategy:v1'
+              'WindowIntoStrategy': (
+                  'beam:schematransform:'
+                  'org.apache.beam:yaml:window_into_strategy:v1')
           },
           gradle_target=
           'sdks:java:extensions:schemaio-expansion-service:shadowJar'))
