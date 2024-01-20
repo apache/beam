@@ -56,6 +56,14 @@ public class PipelineTranslation {
       final Pipeline pipeline,
       final SdkComponents components,
       boolean useDeprecatedViewTransforms) {
+    return toProto(pipeline, components, useDeprecatedViewTransforms, true);
+  }
+
+  public static RunnerApi.Pipeline toProto(
+      final Pipeline pipeline,
+      final SdkComponents components,
+      boolean useDeprecatedViewTransforms,
+      boolean upgradeTransforms) {
     final List<String> rootIds = new ArrayList<>();
     pipeline.traverseTopologically(
         new PipelineVisitor.Defaults() {
@@ -106,7 +114,7 @@ public class PipelineTranslation {
     ExternalTranslationOptions externalTranslationOptions =
         pipeline.getOptions().as(ExternalTranslationOptions.class);
     List<String> urnsToOverride = externalTranslationOptions.getTransformsToOverride();
-    if (urnsToOverride.size() > 0) {
+    if (urnsToOverride.size() > 0 && upgradeTransforms) {
       try (TransformUpgrader upgrader = TransformUpgrader.of()) {
         res =
             upgrader.upgradeTransformsViaTransformService(
