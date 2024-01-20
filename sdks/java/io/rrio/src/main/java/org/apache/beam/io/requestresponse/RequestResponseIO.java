@@ -26,6 +26,7 @@ import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Triple;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.Keys;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -262,11 +264,26 @@ public class RequestResponseIO<RequestT, ResponseT>
   }
 
   /**
+   * Configures {@link RequestResponseIO} with a default internal {@link PTransform} implementation
+   * that throttles a {@link RequestT} {@link PCollection}, emitting elements at the maximumRate of
+   * {@link Rate#getNumElements()} per {@link Rate#getInterval()}. If monitorThrottling is true, it
+   * will count the number of input and emitted elements as well as the distribution of between
+   * timestamp duration intervals in milliseconds.
+   */
+  public RequestResponseIO<RequestT, ResponseT> withDefaultPreventiveThrottling(
+      Rate maximumRate, boolean monitorThrottling) {
+    ThrottleWithoutExternalResource<RequestT> transform =
+        ThrottleWithoutExternalResource.of(maximumRate);
+    if (monitorThrottling) {
+      transform = transform.withMetricsCollected();
+    }
+    return withPreventiveThrottle(new WrappedThrottleWithoutExternalResource(transform));
+  }
+
+  /**
    * Configures {@link RequestResponseIO} with a {@link PTransform} that holds back {@link
    * RequestT}s to prevent quota errors such as HTTP 429 or gRPC RESOURCE_EXHAUSTION errors.
    */
-  // TODO(damondouglas): Until https://github.com/apache/beam/issues/28930 there is no provided
-  //  solution for this, however this method allows users to provide their own at this time.
   public RequestResponseIO<RequestT, ResponseT> withPreventiveThrottle(
       PTransform<PCollection<RequestT>, Result<RequestT>> throttle) {
     return new RequestResponseIO<>(
@@ -434,8 +451,6 @@ public class RequestResponseIO<RequestT, ResponseT>
    *   <li>Returns appended {@link PCollection} of {@link ApiIOError}s to the failureList.</li>
    * </ol></pre>
    */
-  // TODO(damondouglas): See https://github.com/apache/beam/issues/28930; currently there is no
-  //  provided solution for this, though users could provide their own via withThrottle.
   Pair<PCollection<RequestT>, PCollectionList<ApiIOError>> expandThrottle(
       PCollection<RequestT> input, PCollectionList<ApiIOError> failureList) {
 
@@ -599,6 +614,38 @@ public class RequestResponseIO<RequestT, ResponseT>
     @Override
     public boolean isTrue() {
       return basis.isTrue();
+    }
+  }
+
+  /**
+   * Wraps {@link ThrottleWithoutExternalResource} so that it could be applied to {@link
+   * Configuration#withPreventiveThrottle}.
+   */
+  private class WrappedThrottleWithoutExternalResource
+      extends PTransform<PCollection<RequestT>, Result<RequestT>> {
+
+    private final ThrottleWithoutExternalResource<RequestT> transform;
+
+    private WrappedThrottleWithoutExternalResource(
+        ThrottleWithoutExternalResource<RequestT> transform) {
+      this.transform = transform;
+    }
+
+    @Override
+    public Result<RequestT> expand(PCollection<RequestT> input) {
+      TupleTag<RequestT> outputTag = new TupleTag<RequestT>() {};
+      TupleTag<ApiIOError> errorTag = new TupleTag<ApiIOError>() {};
+
+      PCollection<RequestT> throttled =
+          input.apply(ThrottleWithoutExternalResource.class.getSimpleName(), transform);
+
+      PCollectionTuple pct =
+          PCollectionTuple.of(
+                  errorTag,
+                  input.getPipeline().apply(Create.empty(TypeDescriptor.of(ApiIOError.class))))
+              .and(outputTag, throttled);
+
+      return Result.of(input.getCoder(), outputTag, errorTag, pct);
     }
   }
 }

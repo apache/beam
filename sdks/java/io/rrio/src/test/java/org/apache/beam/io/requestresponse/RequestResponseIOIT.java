@@ -51,7 +51,7 @@ public class RequestResponseIOIT {
   private static final ByteString PAYLOAD = ByteString.copyFromUtf8("payload");
 
   @BeforeClass
-  public static void setUp() throws UserCodeExecutionException {
+  public static void setUp() {
     options = readIOTestPipelineOptions(EchoITOptions.class);
     if (Strings.isNullOrEmpty(options.getGrpcEndpointAddress())) {
       throw new RuntimeException(
