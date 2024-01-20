@@ -262,7 +262,8 @@ public class TransformUpgrader implements AutoCloseable {
 
     // Adds an annotation that denotes the Beam version the transform was upgraded to.
     RunnerApi.PTransform.Builder expandedTransformBuilder = expandedTransform.toBuilder();
-    String transformServiceVersion = options.getTransformServiceBeamVersion();
+    String transformServiceVersion =
+        options.as(ExternalTranslationOptions.class).getTransformServiceBeamVersion();
     if (transformServiceVersion == null || transformServiceVersion.isEmpty()) {
       transformServiceVersion = "unknown";
     }
