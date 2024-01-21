@@ -53,9 +53,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @pytest.mark.uses_gcp_java_expansion_service
-# @unittest.skipUnless(
-#     os.environ.get('EXPANSION_PORT'),
-#     "EXPANSION_PORT environment var is not provided.")
 class BigQueryXlangStorageWriteIT(unittest.TestCase):
   BIGQUERY_DATASET = 'python_xlang_storage_write'
 
@@ -115,7 +112,8 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     _LOGGER.info(
         "Created dataset %s in project %s", self.dataset_id, self.project)
 
-    _LOGGER.info("expansion port: %s", os.environ.get('EXPANSION_PORT'))
+    self.assertTrue(
+        os.environ.get('EXPANSION_PORT'), "Expansion service port not found!")
     self.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
   def tearDown(self):
