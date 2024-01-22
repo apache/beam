@@ -79,6 +79,8 @@ execution graph is, e.g.
 python -m apache_beam.yaml.main --yaml_pipeline_file=/path/to/pipeline.yaml --runner=apache_beam.runners.render.RenderRunner --render_output=out.png [--render_port=0]
 ```
 
+(This requires [Graphviz](https://graphviz.org/download/) to be installed to render the pipeline.)
+
 We intend to support running a pipeline on Dataflow by directly passing the
 yaml specification to a template, no local installation of the Beam SDKs required.
 
