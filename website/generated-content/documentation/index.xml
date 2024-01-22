@@ -5945,7 +5945,7 @@ around to distributed workers). The Beam SDKs provide a data encoding mechanism
 that includes built-in encoding for commonly-used types as well as support for
 specifying custom encodings as needed.&lt;/p>
 &lt;h4 id="element-schema">3.2.2. Element schema&lt;/h4>
-&lt;p>In many cases, the element type in a &lt;code>PCollection&lt;/code> has a structure that can introspected.
+&lt;p>In many cases, the element type in a &lt;code>PCollection&lt;/code> has a structure that can be introspected.
 Examples are JSON, Protocol Buffer, Avro, and database records. Schemas provide a way to
 express types as a set of named fields, allowing for more-expressive aggregations.&lt;/p>
 &lt;h4 id="immutability">3.2.3. Immutability&lt;/h4>
