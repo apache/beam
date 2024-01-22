@@ -739,7 +739,9 @@ def preprocess_windowing(spec):
         'type': 'WindowInto',
         'name': f'WindowInto[{key}]',
         'windowing': windowing,
-        'input': {'input': key},
+        'input': {
+            'input': key
+        },
         '__line__': spec['__line__'],
         '__uuid__': SafeLineLoader.create_uuid(),
     } for key in original_inputs.keys()]
