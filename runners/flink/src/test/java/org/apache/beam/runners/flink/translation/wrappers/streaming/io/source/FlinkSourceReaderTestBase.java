@@ -32,6 +32,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.TestCountingSource;
 import org.apache.beam.sdk.io.Source;
@@ -292,6 +294,12 @@ public abstract class FlinkSourceReaderTestBase<OutputT> {
       splitList.add(new FlinkSourceSplit<>(i, testingSource));
     }
     return splitList;
+  }
+
+  protected <T> List<FlinkSourceSplit<T>> createEmptySplits(int numSplits) {
+    return IntStream.range(0, numSplits)
+        .mapToObj(i -> new FlinkSourceSplit<>(i, new EmptyUnboundedSource<T>()))
+        .collect(Collectors.toList());
   }
 
   protected void verifyBeamReaderClosed(List<FlinkSourceSplit<KV<Integer, Integer>>> splits) {
