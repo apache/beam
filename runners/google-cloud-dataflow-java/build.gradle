@@ -327,7 +327,7 @@ def buildAndPushDockerPythonContainer = tasks.create("buildAndPushDockerPythonCo
     return
   }
   project.evaluationDependsOn(":sdks:python")
-  def pythonVer = project.project(':sdks:python').pythonVersion.replace('.', '')
+  def pythonVer = project.project(':sdks:python').pythonVersion
   dependsOn ":sdks:python:container:py"+pythonVer.replace('.', '')+":docker"
   def defaultDockerImageName = containerImageName(
           name: "${project.docker_image_default_repo_prefix}python${pythonVer}_sdk",
