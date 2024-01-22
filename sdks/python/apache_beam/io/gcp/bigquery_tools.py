@@ -751,7 +751,7 @@ class BigQueryWrapper(object):
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+      retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
   def get_table(self, project_id, dataset_id, table_id):
     """Lookup a table's metadata object.
 

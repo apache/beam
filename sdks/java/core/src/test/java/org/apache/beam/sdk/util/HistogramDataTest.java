@@ -357,27 +357,74 @@ public class HistogramDataTest {
 
   @Test
   public void testGetAndReset_resetSucceeds() {
-    HistogramData originalHistogram = HistogramData.linear(0, 10, 10);
-    originalHistogram.record(15.0, 25.0, 35.0, 45.0);
+    // Records values from [20, 50) in three buckets that have width 10.
+    HistogramData originalHistogram = HistogramData.linear(20, 10, 3);
+    originalHistogram.record(15.0, 25.0, 35.0, 45.0, 55.0);
     originalHistogram.getAndReset();
 
-    HistogramData emptyHistogramData = HistogramData.linear(0, 10, 10);
+    HistogramData emptyHistogramData = HistogramData.linear(20, 10, 3);
     assertThat(originalHistogram, equalTo(emptyHistogramData));
     assertThat(originalHistogram.getMean(), equalTo(0.0));
     assertThat(originalHistogram.getSumOfSquaredDeviations(), equalTo(0.0));
+    assertThat(originalHistogram.getTopBucketMean(), equalTo(0.0));
+    assertThat(originalHistogram.getBottomBucketMean(), equalTo(0.0));
   }
 
   @Test
   public void testGetAndReset_getSucceeds() {
-    HistogramData originalHistogram = HistogramData.linear(0, 10, 10);
+    // Records values from [20, 50) in three buckets that have width 10.
+    HistogramData originalHistogram = HistogramData.linear(20, 10, 3);
     originalHistogram.record(15.0, 25.0, 35.0, 45.0, 55.0);
     HistogramData copyHistogram = originalHistogram.getAndReset();
 
-    HistogramData duplicateHistogram = HistogramData.linear(0, 10, 10);
+    HistogramData duplicateHistogram = HistogramData.linear(20, 10, 3);
     duplicateHistogram.record(15.0, 25.0, 35.0, 45.0, 55.0);
     assertThat(copyHistogram, equalTo(duplicateHistogram));
     assertThat(copyHistogram.getBucketType(), equalTo(originalHistogram.getBucketType()));
     assertThat(copyHistogram.getMean(), equalTo(35.0));
     assertThat(copyHistogram.getSumOfSquaredDeviations(), equalTo(1000.0));
+    assertThat(copyHistogram.getTopBucketMean(), equalTo(55.0));
+    assertThat(copyHistogram.getBottomBucketMean(), equalTo(15.0));
+  }
+
+  @Test
+  public void recordUnderflowValue() {
+    // 'histogram' to record values from [0, 32). Values outside this range are
+    // recorded in the overflow/underflow bin.
+    HistogramData histogram = HistogramData.exponential(0, 5);
+
+    assertThat(histogram.getTopBucketCount(), equalTo(0L));
+    assertThat(histogram.getTopBucketMean(), equalTo(0.0));
+
+    histogram.record(32);
+    assertThat(histogram.getTopBucketCount(), equalTo(1L));
+    assertThat(histogram.getTopBucketMean(), equalTo(32.0));
+
+    histogram.record(40.0, 48.0, 56.0);
+    assertThat(histogram.getTopBucketCount(), equalTo(4L));
+    assertThat(histogram.getTopBucketMean(), equalTo(44.0));
+  }
+
+  @Test
+  public void recordOverflowValue() {
+    // 'histogram' to record values from [50, 150). Values outside this range are
+    // recorded in the overflow/underflow bin.
+    HistogramData histogram = HistogramData.linear(50, 10, 10);
+
+    assertThat(histogram.getBottomBucketCount(), equalTo(0L));
+    assertThat(histogram.getBottomBucketMean(), equalTo(0.0));
+
+    histogram.record(-20);
+    assertThat(histogram.getBottomBucketCount(), equalTo(1L));
+    assertThat(histogram.getBottomBucketMean(), equalTo(-20.0));
+
+    histogram.record(-30.0, -40.0);
+    assertThat(histogram.getBottomBucketCount(), equalTo(3L));
+    assertThat(histogram.getBottomBucketMean(), equalTo(-30.0));
+
+    histogram.clear();
+    histogram.record(25.0, 40.0);
+    assertThat(histogram.getBottomBucketCount(), equalTo(2L));
+    assertThat(histogram.getBottomBucketMean(), equalTo(32.5));
   }
 }

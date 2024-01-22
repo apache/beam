@@ -17,9 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import com.google.api.services.dataflow.model.StreamingScalingReport;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
+import com.google.api.services.dataflow.model.WorkerMessage;
 import java.io.IOException;
 import java.util.Optional;
 
@@ -49,4 +51,19 @@ interface WorkUnitClient {
    * @return a {@link WorkItemServiceState} (e.g. a new stop position)
    */
   WorkItemServiceState reportWorkItemStatus(WorkItemStatus workItemStatus) throws IOException;
+
+  /**
+   * Creates a {@link WorkerMessage} containing the given Streaming Scaling Report
+   *
+   * @param report the StreamingScalingReport containing autoscaling metrics
+   * @return a {@link WorkerMessage}
+   */
+  WorkerMessage createWorkerMessageFromStreamingScalingReport(StreamingScalingReport report);
+
+  /**
+   * Reports the autoscaling signals with a {@link StreamingScalingReport}.
+   *
+   * @param msg the WorkerMessage to report
+   */
+  void reportWorkerMessage(WorkerMessage msg) throws IOException;
 }

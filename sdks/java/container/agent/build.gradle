@@ -21,12 +21,16 @@ plugins {
 }
 
 // the order is intended here
+// Overwrite javaVersion global property if corresponding project property specified
 if (project.hasProperty('java11Home')) {
     javaVersion = "1.11"
 } else if (project.hasProperty('java17Home')) {
     javaVersion = "1.17"
 } else if (project.hasProperty('java21Home')) {
     javaVersion = "1.21"
+} else if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
+    // Otherwise, compile the project with java11 spec
+    javaVersion = "1.11"
 }
 
 applyJavaNature(

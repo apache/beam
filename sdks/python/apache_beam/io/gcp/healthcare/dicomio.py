@@ -77,7 +77,7 @@ transform. Here is a sample usage:
 
 In the example above, the pipeline is listening to a pubsub topic and waiting
 for messages from DICOM API. When a new DICOM file comes into the storage, the
-pipeline will receive a pubsub message, convert it to a Qido request dict and
+pipeline will receive a pubsub message, convert it to a Qido request dict, and
 feed it to DicomSearch() PTransform. As a result, users can get the metadata for
 every new DICOM file. Note that not every pubsub message received is from DICOM
 API, so we to filter the results first.
@@ -85,23 +85,26 @@ API, so we to filter the results first.
 Store a DICOM file in a DICOM storage
 ===================================================
 UploadToDicomStore() wraps store request API and users can use it to send a
-DICOM file to a DICOM store. It supports two types of input: 1.file data in
-byte[] 2.fileio object. Users should set the 'input_type' when initialzing
+DICOM file to a DICOM store. It supports two types of input: 1. fileio object
+2. file data in byte[]. Users should set the 'input_type' when initialzing
 this PTransform. Here are the examples:
 
+  input_dict = {'project_id': 'abc123', 'type': 'instances',...}
+  str_input = json.dumps(dict_input)
+  temp_dir = '%s%s' % (self._new_tempdir(), os.sep)
+  self._create_temp_file(dir=temp_dir, content=str_input)
   with Pipeline() as p:
-    input_dict = {'project_id': 'abc123', 'type': 'instances',...}
-    path = "gcs://bucketname/something/a.dcm"
-    match = p | fileio.MatchFiles(path)
-    fileio_obj = match | fileio.ReadAll()
-    results = fileio_obj | UploadToDicomStore(input_dict, 'fileio')
+  results = (
+  p | beam.Create([FileSystems.join(temp_dir, '*')])
+  | fileio.MatchAll() | fileio.ReadMatches()
+  | UploadToDicomStore(input_dict, 'fileio'))
 
+  input_dict = {'project_id': 'abc123', 'type': 'instances',...}
+  str_input = json.dumps(dict_input)
+  bytes_input = bytes(str_input.encode("utf-8"))
   with Pipeline() as p:
-    input_dict = {'project_id': 'abc123', 'type': 'instances',...}
-    f = open("abc.dcm", "rb")
-    dcm_file = f.read()
-    byte_file = p | 'create byte file' >> beam.Create([dcm_file])
-    results = byte_file | UploadToDicomStore(input_dict, 'bytes')
+  results = (
+  p | beam.Create([bytes_input]) | UploadToDicomStore(input_dict, 'bytes'))
 
 The first example uses a PCollection of fileio objects as input.
 UploadToDicomStore will read DICOM files from the objects and send them

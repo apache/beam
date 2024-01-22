@@ -17,8 +17,13 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.ReshuffleTrigger;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
@@ -27,7 +32,9 @@ import org.apache.beam.sdk.util.IdentityWindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Comparators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedInteger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -37,7 +44,9 @@ import org.joda.time.Duration;
  *
  * <p>A {@link PTransform} that returns a {@link PCollection} equivalent to its input but
  * operationally provides some of the side effects of a {@link GroupByKey}, in particular
- * checkpointing, and preventing fusion of the surrounding transforms.
+ * redistribution of elements between workers, checkpointing, and preventing fusion of the
+ * surrounding transforms. Some of these side effects (e.g. checkpointing) are not portable and are
+ * not guaranteed to occur on all runners.
  *
  * <p>Performs a {@link GroupByKey} so that the data is key-partitioned. Configures the {@link
  * WindowingStrategy} so that no data is dropped, but doesn't affect the need for the user to
@@ -45,10 +54,8 @@ import org.joda.time.Duration;
  *
  * @param <K> The type of key being reshuffled on.
  * @param <V> The type of value being reshuffled.
- * @deprecated this transform's intended side effects are not portable; it will likely be removed
  */
 @Internal
-@Deprecated
 public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
 
   private Reshuffle() {}
@@ -67,6 +74,63 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
 
   @Override
   public PCollection<KV<K, V>> expand(PCollection<KV<K, V>> input) {
+    String requestedVersionString =
+        input.getPipeline().getOptions().as(StreamingOptions.class).getUpdateCompatibilityVersion();
+
+    if (requestedVersionString != null) {
+      List<String> requestedVersion = Arrays.asList(requestedVersionString.split("\\."));
+      List<String> targetVersion = Arrays.asList("2", "53", "0");
+
+      if (Comparators.lexicographical(Comparator.<String>naturalOrder())
+              .compare(requestedVersion, targetVersion)
+          <= 0) {
+        return expand_2_53_0(input);
+      }
+    }
+
+    WindowingStrategy<?, ?> originalStrategy = input.getWindowingStrategy();
+    // If the input has already had its windows merged, then the GBK that performed the merge
+    // will have set originalStrategy.getWindowFn() to InvalidWindows, causing the GBK contained
+    // here to fail. Instead, we install a valid WindowFn that leaves all windows unchanged.
+    // The TimestampCombiner is set to ensure the GroupByKey does not shift elements forwards in
+    // time.
+    // Because this outputs as fast as possible, this should not hold the watermark.
+    Window<KV<K, V>> rewindow =
+        Window.<KV<K, V>>into(new IdentityWindowFn<>(originalStrategy.getWindowFn().windowCoder()))
+            .triggering(new ReshuffleTrigger<>())
+            .discardingFiredPanes()
+            .withTimestampCombiner(TimestampCombiner.EARLIEST)
+            .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
+
+    PCollection<KV<K, ValueInSingleWindow<V>>> reified =
+        input
+            .apply("SetIdentityWindow", rewindow)
+            .apply("ReifyOriginalMetadata", Reify.windowsInValue());
+
+    PCollection<KV<K, Iterable<ValueInSingleWindow<V>>>> grouped =
+        reified.apply(GroupByKey.create());
+    return grouped
+        .apply(
+            "ExpandIterable",
+            ParDo.of(
+                new DoFn<KV<K, Iterable<ValueInSingleWindow<V>>>, KV<K, ValueInSingleWindow<V>>>() {
+                  @ProcessElement
+                  public void processElement(
+                      @Element KV<K, Iterable<ValueInSingleWindow<V>>> element,
+                      OutputReceiver<KV<K, ValueInSingleWindow<V>>> r) {
+                    K key = element.getKey();
+                    for (ValueInSingleWindow<V> value : element.getValue()) {
+                      r.output(KV.of(key, value));
+                    }
+                  }
+                }))
+        .apply("RestoreMetadata", new RestoreMetadata<>())
+        // Set the windowing strategy directly, so that it doesn't get counted as the user having
+        // set allowed lateness.
+        .setWindowingStrategyInternal(originalStrategy);
+  }
+
+  private PCollection<KV<K, V>> expand_2_53_0(PCollection<KV<K, V>> input) {
     WindowingStrategy<?, ?> originalStrategy = input.getWindowingStrategy();
     // If the input has already had its windows merged, then the GBK that performed the merge
     // will have set originalStrategy.getWindowFn() to InvalidWindows, causing the GBK contained
@@ -103,6 +167,31 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
                   }
                 }))
         .apply("RestoreOriginalTimestamps", ReifyTimestamps.extractFromValues());
+  }
+
+  private static class RestoreMetadata<K, V>
+      extends PTransform<PCollection<KV<K, ValueInSingleWindow<V>>>, PCollection<KV<K, V>>> {
+    @Override
+    public PCollection<KV<K, V>> expand(PCollection<KV<K, ValueInSingleWindow<V>>> input) {
+      return input.apply(
+          ParDo.of(
+              new DoFn<KV<K, ValueInSingleWindow<V>>, KV<K, V>>() {
+                @Override
+                public Duration getAllowedTimestampSkew() {
+                  return Duration.millis(Long.MAX_VALUE);
+                }
+
+                @ProcessElement
+                public void processElement(
+                    @Element KV<K, ValueInSingleWindow<V>> kv, OutputReceiver<KV<K, V>> r) {
+                  r.outputWindowedValue(
+                      KV.of(kv.getKey(), kv.getValue().getValue()),
+                      kv.getValue().getTimestamp(),
+                      Collections.singleton(kv.getValue().getWindow()),
+                      kv.getValue().getPane());
+                }
+              }));
+    }
   }
 
   /** Implementation of {@link #viaRandomKey()}. */

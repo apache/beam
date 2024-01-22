@@ -517,3 +517,9 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
           | "ConvertToRowType" >>
           beam.Map(lambda x: beam.Row(**x)).with_output_types(row_type))
       return transformed_dataset
+
+  def with_exception_handling(self):
+    raise NotImplementedError(
+        "with_exception_handling with TensorFlow Transform-based MLTransform "
+        "operations is not supported. To enable exception handling for those "
+        "operations, please create a separate MLTransform instance")

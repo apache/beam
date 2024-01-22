@@ -194,7 +194,7 @@ public class PubsubIO {
 
   private static final Pattern PUBSUB_NAME_REGEXP = Pattern.compile("[a-zA-Z][-._~%+a-zA-Z0-9]+");
 
-  static final int PUBSUB_MESSAGE_MAX_TOTAL_SIZE = 10 << 20;
+  static final int PUBSUB_MESSAGE_MAX_TOTAL_SIZE = 10_000_000;
 
   private static final int PUBSUB_NAME_MIN_LENGTH = 3;
   private static final int PUBSUB_NAME_MAX_LENGTH = 255;

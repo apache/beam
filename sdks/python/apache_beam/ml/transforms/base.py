@@ -27,6 +27,7 @@ from typing import List
 from typing import Mapping
 from typing import Optional
 from typing import Sequence
+from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -38,6 +39,7 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.metrics.metric import Metrics
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import ModelT
+from apache_beam.ml.inference.base import RunInferenceDLQ
 from apache_beam.options.pipeline_options import PipelineOptions
 
 _LOGGER = logging.getLogger(__name__)
@@ -86,6 +88,17 @@ def _convert_dict_of_lists_to_lists_of_dict(
     for i in range(len(values)):
       result[i][key] = values[i]
   return result
+
+
+def _map_errors_to_beam_row(element, cls_name=None):
+  row_elements = {
+      'element': element[0],
+      'msg': str(element[1][1]),
+      'stack': str(element[1][2]),
+  }
+  if cls_name is not None:
+    row_elements['transform_name'] = cls_name
+  return beam.Row(**row_elements)
 
 
 class ArtifactMode(object):
@@ -149,9 +162,12 @@ class BaseOperation(Generic[OperationInputT, OperationOutputT],
     return transformed_data
 
 
-class ProcessHandler(beam.PTransform[beam.PCollection[ExampleT],
-                                     beam.PCollection[MLTransformOutputT]],
-                     abc.ABC):
+class ProcessHandler(
+    beam.PTransform[beam.PCollection[ExampleT],
+                    Union[beam.PCollection[MLTransformOutputT],
+                          Tuple[beam.PCollection[MLTransformOutputT],
+                                beam.PCollection[beam.Row]]]],
+    abc.ABC):
   """
   Only for internal use. No backwards compatibility guarantees.
   """
@@ -196,9 +212,12 @@ class EmbeddingsManager(MLTransformProvider):
     return self.columns
 
 
-class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
-                                  beam.PCollection[MLTransformOutputT]],
-                  Generic[ExampleT, MLTransformOutputT]):
+class MLTransform(
+    beam.PTransform[beam.PCollection[ExampleT],
+                    Union[beam.PCollection[MLTransformOutputT],
+                          Tuple[beam.PCollection[MLTransformOutputT],
+                                beam.PCollection[beam.Row]]]],
+    Generic[ExampleT, MLTransformOutputT]):
   def __init__(
       self,
       *,
@@ -262,6 +281,11 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     if read_artifact_location:
       artifact_location = read_artifact_location
       artifact_mode = ArtifactMode.CONSUME
+      if transforms:
+        raise ValueError(
+            'Transforms should not be passed in read mode. In read mode, '
+            'the transforms are read from the artifact location.')
+
     else:
       artifact_location = write_artifact_location  # type: ignore[assignment]
       artifact_mode = ArtifactMode.PRODUCE
@@ -272,10 +296,14 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     self.transforms = transforms or []
     self._counter = Metrics.counter(
         MLTransform, f'BeamML_{self.__class__.__name__}')
+    self._with_exception_handling = False
+    self._exception_handling_args: Dict[str, Any] = {}
 
   def expand(
       self, pcoll: beam.PCollection[ExampleT]
-  ) -> beam.PCollection[MLTransformOutputT]:
+  ) -> Union[beam.PCollection[MLTransformOutputT],
+             Tuple[beam.PCollection[MLTransformOutputT],
+                   beam.PCollection[beam.Row]]]:
     """
     This is the entrypoint for the MLTransform. This method will
     invoke the process_data() method of the ProcessHandler instance
@@ -289,6 +317,7 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
     Returns:
       A PCollection of MLTransformOutputT type
     """
+    upstream_errors = []
     _ = [self._validate_transform(transform) for transform in self.transforms]
     if self._artifact_mode == ArtifactMode.PRODUCE:
       ptransform_partitioner = _MLTransformToPTransformMapper(
@@ -308,12 +337,35 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
         if hasattr(ptransform_list[i], 'artifact_mode'):
           ptransform_list[i].artifact_mode = self._artifact_mode
 
+    transform_name = None
     for ptransform in ptransform_list:
-      pcoll = pcoll | ptransform
+      if self._with_exception_handling:
+        if hasattr(ptransform, 'with_exception_handling'):
+          ptransform = ptransform.with_exception_handling(
+              **self._exception_handling_args)
+          pcoll, bad_results = pcoll | ptransform
+          # RunInference outputs a RunInferenceDLQ instead of a PCollection.
+          # since TFTProcessHandler and RunInferene are supported, try to infer
+          # the type of bad_results and append it to the list of errors.
+          if isinstance(bad_results, RunInferenceDLQ):
+            bad_results = bad_results.failed_inferences
+            transform_name = ptransform.annotations()['model_handler']
+          elif not isinstance(bad_results, beam.PCollection):
+            raise NotImplementedError(
+                f'Unexpected type for bad_results: {type(bad_results)}')
+          bad_results = bad_results | beam.Map(
+              lambda x: _map_errors_to_beam_row(x, transform_name))
+          upstream_errors.append(bad_results)
 
+      else:
+        pcoll = pcoll | ptransform
     _ = (
         pcoll.pipeline
         | "MLTransformMetricsUsage" >> MLTransformMetricsUsage(self))
+
+    if self._with_exception_handling:
+      bad_pcoll = (upstream_errors | beam.Flatten())
+      return pcoll, bad_pcoll  # type: ignore[return-value]
     return pcoll  # type: ignore[return-value]
 
   def with_transform(self, transform: MLTransformProvider):
@@ -333,6 +385,16 @@ class MLTransform(beam.PTransform[beam.PCollection[ExampleT],
       raise TypeError(
           'transform must be a subclass of BaseOperation. '
           'Got: %s instead.' % type(transform))
+
+  def with_exception_handling(
+      self, *, exc_class=Exception, use_subprocess=False, threshold=1):
+    self._with_exception_handling = True
+    self._exception_handling_args = {
+        'exc_class': exc_class,
+        'use_subprocess': use_subprocess,
+        'threshold': threshold
+    }
+    return self
 
 
 class MLTransformMetricsUsage(beam.PTransform):
@@ -611,6 +673,9 @@ class _TextEmbeddingHandler(ModelHandler):
     if self.embedding_config.min_batch_size:
       batch_sizes_map['min_batch_size'] = self.embedding_config.min_batch_size
     return (self._underlying.batch_elements_kwargs() or batch_sizes_map)
+
+  def __repr__(self):
+    return self._underlying.__repr__()
 
   def validate_inference_args(self, _):
     pass
