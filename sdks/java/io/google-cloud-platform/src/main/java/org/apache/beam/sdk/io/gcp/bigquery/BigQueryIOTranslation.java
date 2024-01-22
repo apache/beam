@@ -57,6 +57,9 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -99,6 +102,8 @@ public class BigQueryIOTranslation {
             .addNullableStringField("from_beam_row_fn")
             .addNullableBooleanField("use_avro_logical_types")
             .addNullableBooleanField("projection_pushdown_applied")
+            .addNullableByteArrayField("bad_record_router")
+            .addNullableByteArrayField("bad_record_error_handler")
             .build();
 
     public static final String BIGQUERY_READ_TRANSFORM_URN =
@@ -183,6 +188,9 @@ public class BigQueryIOTranslation {
         fieldValues.put("use_avro_logical_types", transform.getUseAvroLogicalTypes());
       }
       fieldValues.put("projection_pushdown_applied", transform.getProjectionPushdownApplied());
+      fieldValues.put("bad_record_router", toByteArray(transform.getBadRecordRouter()));
+      fieldValues.put(
+          "bad_record_error_handler", toByteArray(transform.getBadRecordErrorHandler()));
 
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
     }
@@ -302,6 +310,11 @@ public class BigQueryIOTranslation {
         if (projectionPushdownApplied != null) {
           builder = builder.setProjectionPushdownApplied(projectionPushdownApplied);
         }
+        byte[] badRecordRouter = configRow.getBytes("bad_record_router");
+        builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));
+        byte[] badRecordErrorHandler = configRow.getBytes("bad_record_error_handler");
+        builder.setBadRecordErrorHandler(
+            (ErrorHandler<BadRecord, ?>) fromByteArray(badRecordErrorHandler));
 
         return builder.build();
       } catch (InvalidClassException e) {

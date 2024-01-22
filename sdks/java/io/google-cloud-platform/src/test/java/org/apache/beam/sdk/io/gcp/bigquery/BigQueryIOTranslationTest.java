@@ -68,6 +68,8 @@ public class BigQueryIOTranslationTest {
     READ_TRANSFORM_SCHEMA_MAPPING.put("getUseAvroLogicalTypes", "use_avro_logical_types");
     READ_TRANSFORM_SCHEMA_MAPPING.put(
         "getProjectionPushdownApplied", "projection_pushdown_applied");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getBadRecordRouter", "bad_record_router");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getBadRecordErrorHandler", "bad_record_error_handler");
   }
 
   static final Map<String, String> WRITE_TRANSFORM_SCHEMA_MAPPING = new HashMap<>();
