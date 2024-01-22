@@ -240,7 +240,13 @@ public class DataflowWorkUnitClientTest {
     response.setContent(workerMessage.toPrettyString());
     when(request.execute()).thenReturn(response);
     StreamingScalingReport activeThreadsReport =
-        new StreamingScalingReport().setActiveThreadCount(1);
+        new StreamingScalingReport()
+            .setActiveThreadCount(1)
+            .setActiveBundleCount(2)
+            .setOutstandingBytes(3)
+            .setMaximumThreadCount(4)
+            .setMaximumBundleCount(5)
+            .setMaximumBytes(6);
     WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
     WorkerMessage msg = client.createWorkerMessageFromStreamingScalingReport(activeThreadsReport);
     client.reportWorkerMessage(msg);
