@@ -27,6 +27,7 @@ import pytest
 import yaml
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -42,10 +43,11 @@ from apache_beam.transforms.external_schematransform_provider import snake_case_
 try:
   from gen_xlang_wrappers import PYTHON_SUFFIX
   from gen_xlang_wrappers import delete_generated_files
-  from gen_xlang_wrappers import generate_transform_configs
+  from gen_xlang_wrappers import generate_transforms_config
   from gen_xlang_wrappers import get_wrappers_from_transform_configs
   from gen_xlang_wrappers import run_script
   from gen_xlang_wrappers import write_wrappers_to_destinations
+  from gen_protos import PYTHON_SDK_ROOT
 except ImportError:
   run_script = None  # type: ignore[assignment]
 
@@ -115,12 +117,11 @@ class NameUtilsTest(unittest.TestCase):
 
 
 @pytest.mark.uses_io_java_expansion_service
-@unittest.skipUnless(
-    os.environ.get('EXPANSION_PORT'),
-    "EXPANSION_PORT environment var is not provided.")
 class ExternalSchemaTransformProviderTest(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.assertTrue(
+        os.environ.get('EXPANSION_PORT'), "Expansion service port not found!")
 
   def test_generate_sequence_config_schema_and_description(self):
     provider = ExternalSchemaTransformProvider(
@@ -153,9 +154,6 @@ class ExternalSchemaTransformProviderTest(unittest.TestCase):
 
 
 @pytest.mark.uses_io_java_expansion_service
-@unittest.skipUnless(
-    os.environ.get('EXPANSION_PORT'),
-    "EXPANSION_PORT environment var is not provided.")
 @unittest.skipIf(
     run_script is None,
     "Need access to gen_xlang_wrappers.py to run these tests")
@@ -170,6 +168,13 @@ class AutoGenerationScriptTest(unittest.TestCase):
     'beam:schematransform:org.apache.beam:generate_sequence:v1'
 
   def setUp(self):
+    args = TestPipeline(is_integration_test=True).get_full_options_as_args()
+    runner = PipelineOptions(args).get_all_options()['runner']
+    if runner and "direct" not in runner.lower():
+      self.skipTest(
+          "It is sufficient to run this test in the DirectRunner "
+          "test suite only.")
+
     self.test_dir_name = 'test_gen_script_%d_%s' % (
         int(time.time()), secrets.token_hex(3))
     self.test_dir = os.path.join(
@@ -179,6 +184,9 @@ class AutoGenerationScriptTest(unittest.TestCase):
     self.transform_config_path = os.path.join(
         self.test_dir, "test_transform_config.yaml")
     os.mkdir(self.test_dir)
+
+    self.assertTrue(
+        os.environ.get('EXPANSION_PORT'), "Expansion service port not found!")
 
   def tearDown(self):
     shutil.rmtree(self.test_dir, ignore_errors=False)
@@ -194,7 +202,7 @@ class AutoGenerationScriptTest(unittest.TestCase):
       yaml.dump([expansion_service_config], f)
 
     # test that transform config YAML file is created
-    generate_transform_configs(
+    generate_transforms_config(
         self.service_config_path, self.transform_config_path)
     self.assertTrue(os.path.exists(self.transform_config_path))
     expected_destination = \
@@ -271,7 +279,7 @@ class AutoGenerationScriptTest(unittest.TestCase):
       yaml.dump([expansion_service_config], f)
 
     # test that transform config YAML file is successfully created
-    generate_transform_configs(
+    generate_transforms_config(
         self.service_config_path, self.transform_config_path)
     self.assertTrue(os.path.exists(self.transform_config_path))
 
@@ -352,7 +360,7 @@ class AutoGenerationScriptTest(unittest.TestCase):
       yaml.dump([expansion_service_config], f)
 
     # test that transform config YAML file is successfully created
-    generate_transform_configs(
+    generate_transforms_config(
         self.service_config_path, self.transform_config_path)
     self.assertTrue(os.path.exists(self.transform_config_path))
 
@@ -388,7 +396,7 @@ class AutoGenerationScriptTest(unittest.TestCase):
     with open(self.service_config_path, 'w') as f:
       yaml.dump([expansion_service_config], f)
 
-    generate_transform_configs(
+    generate_transforms_config(
         self.service_config_path, self.transform_config_path)
 
     # test that transform config is populated correctly
@@ -429,6 +437,31 @@ class AutoGenerationScriptTest(unittest.TestCase):
           | beam.Map(lambda row: row.value))
 
       assert_that(numbers, equal_to([i for i in range(10)]))
+
+  def test_check_standard_external_transforms_config_in_sync(self):
+    """
+    This test creates a transforms config file and checks it against the file
+    in the SDK root `standard_external_transforms.yaml`. Fails if the
+    test is out of sync.
+
+    Fix by running `python gen_xlang_wrappers.py` and committing the changes.
+    """
+    generate_transforms_config(
+        os.path.join(PYTHON_SDK_ROOT, 'standard_expansion_services.yaml'),
+        self.transform_config_path)
+    with open(self.transform_config_path) as f:
+      test_config = yaml.safe_load(f)
+    with open(os.path.join(PYTHON_SDK_ROOT,
+                           'standard_external_transforms.yaml')) as f:
+      standard_config = yaml.safe_load(f)
+
+    self.assertEqual(
+        test_config,
+        standard_config,
+        "The standard xlang transforms config file "
+        "\"standard_external_transforms.yaml\" is out of sync! "
+        "Please update by running script "
+        "`python gen_xlang_wrappers.py` and commit the changes.")
 
 
 if __name__ == '__main__':

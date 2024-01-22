@@ -208,29 +208,39 @@ def generate_protos_first():
 def generate_external_transform_wrappers():
   try:
     sdk_root = os.path.dirname(os.path.realpath(__file__))
-    if not os.path.exists(os.path.join(sdk_root, 'gen_xlang_wrappers.py')):
+    script_exists = os.path.exists(
+        os.path.join(sdk_root, 'gen_xlang_wrappers.py'))
+    config_exists = os.path.exists(
+        os.path.join(sdk_root, 'standard_external_transforms.yaml'))
+    if not script_exists or not config_exists:
       beam_root = os.path.join(sdk_root, 'apache_beam')
       wrappers = list(find_by_ext(beam_root, '_et.py'))
 
       if not wrappers:
-        warnings.warn(
-          'External transform wrappers have not been generated and the '
-          'generation script `gen_xlang_wrappers.py` cannot be found')
+        message = 'External transform wrappers have not been generated '
+        if not script_exists:
+          message += 'and the generation script `gen_xlang_wrappers.py`'
+        if not config_exists:
+          message += 'and the standard external transforms config'
+        message += 'could not be found'
+        warnings.warn(message)
       else:
-        warnings.warn('Skipping external transform wrapper generation as they '
-                      'are already generated.')
+        warnings.warn(
+            'Skipping external transform wrapper generation as they '
+            'are already generated.')
       return
     out = subprocess.run([
-      sys.executable,
-      os.path.join('gen_xlang_wrappers.py'),
-      '--cleanup',
-      '--input-expansion-services', 'standard_expansion_services.yaml',
-      '--output-transforms-config', 'standard_external_transforms.yaml'],
-      capture_output=True, check=False)
+        sys.executable,
+        os.path.join(sdk_root, 'gen_xlang_wrappers.py'),
+        '--cleanup',
+        '--transforms-config-source',
+        'standard_external_transforms.yaml'
+    ], capture_output=True, check=True)
     print(out.stdout)
   except subprocess.CalledProcessError as err:
-    raise RuntimeError('Could not generate external transform wrappers due to '
-                       'error: %s', err.stderr)
+    raise RuntimeError(
+        'Could not generate external transform wrappers due to '
+        'error: %s', err.stderr)
 
 
 def get_portability_package_data():
