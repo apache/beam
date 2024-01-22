@@ -653,7 +653,7 @@ class MainTest(unittest.TestCase):
           windowing:
             type: fixed
             size: 4
-          input: input
+          input: {{input: input}}
       output: {result['transforms'][0]['__uuid__']}
     '''
     self.assertYaml(expected, result)
