@@ -160,7 +160,7 @@ public final class ActiveWorkState {
                     + " "
                     + failedToken.cacheToken
                     + ". The work will be retried and is not lost.");
-            queuedWork.setFailed(true);
+            queuedWork.setFailed();
             break;
           }
         }

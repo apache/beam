@@ -98,8 +98,8 @@ public class Work implements Runnable {
     this.currentState = TimedState.create(state, now);
   }
 
-  public void setFailed(boolean isFailed) {
-    this.isFailed = isFailed;
+  public void setFailed() {
+    this.isFailed = true;
   }
 
   public boolean isCommitPending() {
