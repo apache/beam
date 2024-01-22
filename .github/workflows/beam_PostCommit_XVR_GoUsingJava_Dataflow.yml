@@ -92,7 +92,6 @@ jobs:
           arguments: |
             -Pdocker-repository-root=us.gcr.io/apache-beam-testing/github-actions \
             -Pdocker-tag=${{ steps.set_tag.outputs.TAG }} \
-            -Ppush-containers \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
