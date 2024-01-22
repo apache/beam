@@ -91,7 +91,6 @@ message LatencyAttribution {
     // GetWorkResponse and ends with the user worker receiving the
     // GetWorkResponse.
     GET_WORK_IN_TRANSIT_TO_USER_WORKER = 7;
-    FAILED = 8;
   }
   optional State state = 1;
   optional int64 total_duration_millis = 2;

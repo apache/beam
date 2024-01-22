@@ -17,19 +17,19 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-/** Indicates that the work item was failed and should not be retried. */
+/** Indicates that the work item was cancelled and should not be retried. */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class WorkItemFailedException extends RuntimeException {
-  public WorkItemFailedException(String key) {
-    super("Work item failed for key " + key);
+public class WorkItemCancelledException extends RuntimeException {
+  public WorkItemCancelledException(long sharding_key) {
+    super("Work item cancelled for key " + sharding_key);
   }
 
-  /** Returns whether an exception was caused by a {@link WorkItemFailedException}. */
-  public static boolean isWorkItemFailedException(Throwable t) {
+  /** Returns whether an exception was caused by a {@link WorkItemCancelledException}. */
+  public static boolean isWorkItemCancelledException(Throwable t) {
     while (t != null) {
-      if (t instanceof WorkItemFailedException) {
+      if (t instanceof WorkItemCancelledException) {
         return true;
       }
       t = t.getCause();

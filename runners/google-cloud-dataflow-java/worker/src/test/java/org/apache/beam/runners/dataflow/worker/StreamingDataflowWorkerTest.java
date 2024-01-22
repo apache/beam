@@ -750,7 +750,6 @@ public class StreamingDataflowWorkerTest {
             hotKeyLogger,
             clock,
             executorSupplier);
-    options.getWindmillServerStub().setProcessHeartbeatResponses(worker::handleHeartbeatResponses);
     worker.addStateNameMappings(
         ImmutableMap.of(DEFAULT_PARDO_USER_NAME, DEFAULT_PARDO_STATE_FAMILY));
     return worker;

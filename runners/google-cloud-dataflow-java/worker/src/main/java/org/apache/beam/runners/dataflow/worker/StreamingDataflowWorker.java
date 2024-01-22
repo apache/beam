@@ -422,6 +422,7 @@ public class StreamingDataflowWorker {
 
     this.publishCounters = publishCounters;
     this.windmillServer = options.getWindmillServerStub();
+    this.windmillServer.setProcessHeartbeatResponses(this::handleHeartbeatResponses);
     this.metricTrackingWindmillServer =
         new MetricTrackingWindmillServerStub(windmillServer, memoryMonitor, windmillServiceEnabled);
     this.metricTrackingWindmillServer.start();
@@ -497,23 +498,17 @@ public class StreamingDataflowWorker {
   public static StreamingDataflowWorker fromDataflowWorkerHarnessOptions(
       DataflowWorkerHarnessOptions options) throws IOException {
 
-    StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            Collections.emptyList(),
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            new DataflowWorkUnitClient(options, LOG),
-            options.as(StreamingDataflowWorkerOptions.class),
-            true,
-            new HotKeyLogger(),
-            Instant::now,
-            (threadName) ->
-                Executors.newSingleThreadScheduledExecutor(
-                    new ThreadFactoryBuilder().setNameFormat(threadName).build()));
-    options
-        .as(StreamingDataflowWorkerOptions.class)
-        .getWindmillServerStub()
-        .setProcessHeartbeatResponses(worker::handleHeartbeatResponses);
-    return worker;
+    return new StreamingDataflowWorker(
+        Collections.emptyList(),
+        IntrinsicMapTaskExecutorFactory.defaultFactory(),
+        new DataflowWorkUnitClient(options, LOG),
+        options.as(StreamingDataflowWorkerOptions.class),
+        true,
+        new HotKeyLogger(),
+        Instant::now,
+        (threadName) ->
+            Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder().setNameFormat(threadName).build()));
   }
 
   private static void sleep(int millis) {
@@ -984,7 +979,7 @@ public class StreamingDataflowWorker {
 
     try {
       if (work.isFailed()) {
-        throw new WorkItemFailedException(key.toStringUtf8());
+        throw new WorkItemCancelledException(workItem.getShardingKey());
       }
       executionState = computationState.getExecutionStateQueue().poll();
       if (executionState == null) {
@@ -1148,7 +1143,7 @@ public class StreamingDataflowWorker {
       executionState.workExecutor().execute();
 
       if (work.isFailed()) {
-        throw new WorkItemFailedException(key.toStringUtf8());
+        throw new WorkItemCancelledException(workItem.getShardingKey());
       }
       // Reports source bytes processed to WorkItemCommitRequest if available.
       try {
@@ -1243,7 +1238,7 @@ public class StreamingDataflowWorker {
                 + "Work will not be retried locally.",
             computationId,
             key.toStringUtf8());
-      } else if (WorkItemFailedException.isWorkItemFailedException(t)) {
+      } else if (WorkItemCancelledException.isWorkItemCancelledException(t)) {
         LOG.debug(
             "Execution of work for computation '{}' on key '{}' failed. "
                 + "Work will not be retried locally.",
@@ -1891,6 +1886,7 @@ public class StreamingDataflowWorker {
 
   public void handleHeartbeatResponses(List<Windmill.ComputationHeartbeatResponse> responses) {
     for (Windmill.ComputationHeartbeatResponse computationHeartbeatResponse : responses) {
+      // Maps sharding key to (work token, cache token) for work that should be marked failed.
       Map<Long, List<FailedTokens>> failedWork = new HashMap<>();
       for (Windmill.HeartbeatResponse heartbeatResponse :
           computationHeartbeatResponse.getHeartbeatResponsesList()) {

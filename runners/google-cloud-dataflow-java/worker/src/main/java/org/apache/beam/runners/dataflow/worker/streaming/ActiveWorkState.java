@@ -38,6 +38,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -52,6 +53,7 @@ import org.slf4j.LoggerFactory;
  * activate, queue, and complete {@link Work} (including invalidating stuck {@link Work}).
  */
 @ThreadSafe
+@Internal
 public final class ActiveWorkState {
   private static final Logger LOG = LoggerFactory.getLogger(ActiveWorkState.class);
 
@@ -122,7 +124,7 @@ public final class ActiveWorkState {
     return ActivateWorkResult.QUEUED;
   }
 
-  public static class FailedTokens {
+  public static final class FailedTokens {
     public long workToken;
     public long cacheToken;
 
@@ -132,6 +134,11 @@ public final class ActiveWorkState {
     }
   }
 
+  /**
+   * Fails any active work matching an element of the input Map.
+   *
+   * @param failedWork a map from sharding_key to tokens for the corresponding work.
+   */
   synchronized void failWorkForKey(Map<Long, List<FailedTokens>> failedWork) {
     // Note we can't construct a ShardedKey and look it up in activeWork directly since
     // HeartbeatResponse doesn't include the user key.
@@ -153,7 +160,7 @@ public final class ActiveWorkState {
                     + " "
                     + failedToken.cacheToken
                     + ". The work will be retried and is not lost.");
-            queuedWork.setState(Work.State.FAILED);
+            queuedWork.setFailed(true);
             break;
           }
         }
