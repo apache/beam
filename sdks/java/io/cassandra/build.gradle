@@ -33,6 +33,9 @@ def achilles_version = "6.1.0"
 
 configurations.testRuntimeClasspath {
   // Force use the old version of JAMM that embedded cassandra server relies on
+  // TODO(yathu) bump to cassandra-5.x which uses newer jamm when
+  // * cassandra-5.x released
+  // * Beam tests with Java11+ (cassandra 5-beta dropped Java8 release)
   resolutionStrategy.force 'com.github.jbellis:jamm:0.3.0'
 }
 
