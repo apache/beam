@@ -243,10 +243,10 @@ public class DataflowWorkUnitClientTest {
         new StreamingScalingReport()
             .setActiveThreadCount(1)
             .setActiveBundleCount(2)
-            .setOutstandingBytes(3)
+            .setOutstandingBytes(3L)
             .setMaximumThreadCount(4)
             .setMaximumBundleCount(5)
-            .setMaximumBytes(6);
+            .setMaximumBytes(6L);
     WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
     WorkerMessage msg = client.createWorkerMessageFromStreamingScalingReport(activeThreadsReport);
     client.reportWorkerMessage(msg);
