@@ -53,9 +53,9 @@ public class BigQuerySinkMetrics {
   public static final String PAYLOAD_TOO_LARGE = "PayloadTooLarge";
 
   // Base Metric names
-  private static final String RPC_REQUESTS = "RpcRequestsCount";
+  private static final String RPC_REQUESTS = "RpcRequests";
   private static final String RPC_LATENCY = "RpcLatency";
-  private static final String APPEND_ROWS_ROW_STATUS = "RowsAppendedCount";
+  private static final String APPEND_ROWS_ROW_STATUS = "AppendRowsRowStatus";
   private static final String THROTTLED_TIME = "ThrottledTime";
 
   // StorageWriteAPI Method names
@@ -73,10 +73,10 @@ public class BigQuerySinkMetrics {
   }
 
   // Metric labels
-  private static final String TABLE_ID_LABEL = "table_id";
-  private static final String RPC_STATUS_LABEL = "rpc_status";
-  private static final String RPC_METHOD = "rpc_method";
-  private static final String ROW_STATUS = "row_status";
+  private static final String TABLE_ID_LABEL = "TableId";
+  private static final String RPC_STATUS_LABEL = "RpcStatus";
+  private static final String RPC_METHOD = "Method";
+  private static final String ROW_STATUS = "RowStatus";
 
   // Delimiters
   private static final char LABEL_DELIMITER = ';';

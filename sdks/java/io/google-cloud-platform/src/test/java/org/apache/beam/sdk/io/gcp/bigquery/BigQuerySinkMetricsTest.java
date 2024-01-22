@@ -112,7 +112,7 @@ public class BigQuerySinkMetricsTest {
     deletesDisabledCounter.inc();
     MetricName deletesDisabledCounterName =
         MetricName.named(
-            "BigQuerySink", "RowsAppendedCount-row_status:SUCCESSFUL;rpc_status:rpcStatus;");
+            "BigQuerySink", "AppendRowsRowStatus-RowStatus:SUCCESSFUL;RpcStatus:rpcStatus;");
     assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(deletesDisabledCounterName));
     assertThat(
         testContainer.perWorkerCounters.get(deletesDisabledCounterName).getCumulative(),
@@ -127,7 +127,7 @@ public class BigQuerySinkMetricsTest {
     MetricName deletesEnabledCounterName =
         MetricName.named(
             "BigQuerySink",
-            "RowsAppendedCount-row_status:SUCCESSFUL;rpc_status:rpcStatus;table_id:tableId;");
+            "AppendRowsRowStatus-RowStatus:SUCCESSFUL;RpcStatus:rpcStatus;TableId:tableId;");
     assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(deletesEnabledCounterName));
     assertThat(
         testContainer.perWorkerCounters.get(deletesEnabledCounterName).getCumulative(),
@@ -160,9 +160,8 @@ public class BigQuerySinkMetricsTest {
     appendRowsThrottleCounter.inc(1);
     assertThat(
         appendRowsThrottleCounter.getName().getName(),
-        equalTo("ThrottledTime-rpc_method:APPEND_ROWS;"));
-    MetricName counterName =
-        MetricName.named("BigQuerySink", "ThrottledTime-rpc_method:APPEND_ROWS;");
+        equalTo("ThrottledTime-Method:APPEND_ROWS;"));
+    MetricName counterName = MetricName.named("BigQuerySink", "ThrottledTime-Method:APPEND_ROWS;");
     assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterName));
     assertThat(testContainer.perWorkerCounters.get(counterName).getCumulative(), equalTo(1L));
   }
@@ -182,9 +181,8 @@ public class BigQuerySinkMetricsTest {
     BigQuerySinkMetrics.reportSuccessfulRpcMetrics(
         c, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, "tableId");
     MetricName counterNameDisabledDeletes =
-        MetricName.named("BigQuerySink", "RpcRequestsCount-rpc_method:APPEND_ROWS;rpc_status:OK;");
-    MetricName histogramName =
-        MetricName.named("BigQuerySink", "RpcLatency-rpc_method:APPEND_ROWS;");
+        MetricName.named("BigQuerySink", "RpcRequests-Method:APPEND_ROWS;RpcStatus:OK;");
+    MetricName histogramName = MetricName.named("BigQuerySink", "RpcLatency-Method:APPEND_ROWS;");
     HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 34);
     assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameDisabledDeletes));
     assertThat(
@@ -201,8 +199,7 @@ public class BigQuerySinkMetricsTest {
         c, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, "tableId");
     MetricName counterNameEnabledDeletes =
         MetricName.named(
-            "BigQuerySink",
-            "RpcRequestsCount-rpc_method:APPEND_ROWS;rpc_status:OK;table_id:tableId;");
+            "BigQuerySink", "RpcRequests-Method:APPEND_ROWS;RpcStatus:OK;TableId:tableId;");
     assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameEnabledDeletes));
     assertThat(
         testContainer.perWorkerCounters.get(counterNameEnabledDeletes).getCumulative(),
@@ -231,10 +228,8 @@ public class BigQuerySinkMetricsTest {
     BigQuerySinkMetrics.reportFailedRPCMetrics(
         c, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, "tableId");
     MetricName counterNameDisabledDeletes =
-        MetricName.named(
-            "BigQuerySink", "RpcRequestsCount-rpc_method:APPEND_ROWS;rpc_status:NOT_FOUND;");
-    MetricName histogramName =
-        MetricName.named("BigQuerySink", "RpcLatency-rpc_method:APPEND_ROWS;");
+        MetricName.named("BigQuerySink", "RpcRequests-Method:APPEND_ROWS;RpcStatus:NOT_FOUND;");
+    MetricName histogramName = MetricName.named("BigQuerySink", "RpcLatency-Method:APPEND_ROWS;");
     HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 34);
     assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameDisabledDeletes));
     assertThat(
@@ -254,8 +249,7 @@ public class BigQuerySinkMetricsTest {
         c, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, "tableId");
     MetricName counterNameEnabledDeletes =
         MetricName.named(
-            "BigQuerySink",
-            "RpcRequestsCount-rpc_method:APPEND_ROWS;rpc_status:NOT_FOUND;table_id:tableId;");
+            "BigQuerySink", "RpcRequests-Method:APPEND_ROWS;RpcStatus:NOT_FOUND;TableId:tableId;");
     assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameEnabledDeletes));
     assertThat(
         testContainer.perWorkerCounters.get(counterNameEnabledDeletes).getCumulative(),
@@ -283,10 +277,8 @@ public class BigQuerySinkMetricsTest {
     BigQuerySinkMetrics.reportFailedRPCMetrics(
         c, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, "tableId");
     MetricName counterNameDisabledDeletes =
-        MetricName.named(
-            "BigQuerySink", "RpcRequestsCount-rpc_method:APPEND_ROWS;rpc_status:UNKNOWN;");
-    MetricName histogramName =
-        MetricName.named("BigQuerySink", "RpcLatency-rpc_method:APPEND_ROWS;");
+        MetricName.named("BigQuerySink", "RpcRequests-Method:APPEND_ROWS;RpcStatus:UNKNOWN;");
+    MetricName histogramName = MetricName.named("BigQuerySink", "RpcLatency-Method:APPEND_ROWS;");
     HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 34);
     assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameDisabledDeletes));
     assertThat(
@@ -303,8 +295,7 @@ public class BigQuerySinkMetricsTest {
         c, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, "tableId");
     MetricName counterNameEnabledDeletes =
         MetricName.named(
-            "BigQuerySink",
-            "RpcRequestsCount-rpc_method:APPEND_ROWS;rpc_status:UNKNOWN;table_id:tableId;");
+            "BigQuerySink", "RpcRequests-Method:APPEND_ROWS;RpcStatus:UNKNOWN;TableId:tableId;");
     assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameEnabledDeletes));
     assertThat(
         testContainer.perWorkerCounters.get(counterNameEnabledDeletes).getCumulative(),
