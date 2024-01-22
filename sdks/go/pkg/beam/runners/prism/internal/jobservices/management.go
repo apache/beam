@@ -176,6 +176,11 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 			if err := proto.Unmarshal(t.GetSpec().GetPayload(), &testStream); err != nil {
 				return nil, fmt.Errorf("unable to unmarshal TestStreamPayload for %v - %q: %w", tid, t.GetUniqueName(), err)
 			}
+			for _, ev := range testStream.GetEvents() {
+				if ev.GetProcessingTimeEvent() != nil {
+					check("TestStream.Event - ProcessingTimeEvents unsupported.", ev.GetProcessingTimeEvent())
+				}
+			}
 
 			t.EnvironmentId = "" // Unset the environment, to ensure it's handled prism side.
 			testStreamIds = append(testStreamIds, tid)
