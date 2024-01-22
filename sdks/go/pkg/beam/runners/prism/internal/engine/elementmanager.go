@@ -166,6 +166,8 @@ type ElementManager struct {
 
 	livePending     atomic.Int64   // An accessible live pending count. DEBUG USE ONLY
 	pendingElements sync.WaitGroup // pendingElements counts all unprocessed elements in a job. Jobs with no pending elements terminate successfully.
+
+	testStreamHandler *testStreamHandler // Optional test stream handler when a test stream is in the pipeline.
 }
 
 func (em *ElementManager) addPending(v int) {
@@ -221,6 +223,16 @@ func (em *ElementManager) StageAggregates(ID string) {
 // processed by key.
 func (em *ElementManager) StageStateful(ID string) {
 	em.stages[ID].stateful = true
+}
+
+// AddTestStream provides a builder interface for the execution layer to build the test stream from
+// the protos.
+func (em *ElementManager) AddTestStream(id string, tagToPCol map[string]string) TestStreamBuilder {
+	impl := &testStreamImpl{em: em}
+	impl.initHandler(id)
+	impl.TagsToPCollections(tagToPCol)
+	// em.addRefreshes(singleSet(id))
+	return impl
 }
 
 // Impulse marks and initializes the given stage as an impulse which
@@ -320,21 +332,27 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 				}
 			}
 			if len(em.inprogressBundles) == 0 && len(em.watermarkRefreshes) == 0 {
-				v := em.livePending.Load()
-				slog.Debug("Bundles: nothing in progress and no refreshes", slog.Int64("pendingElementCount", v))
-				if v > 0 {
-					var stageState []string
-					ids := maps.Keys(em.stages)
-					sort.Strings(ids)
-					for _, id := range ids {
-						ss := em.stages[id]
-						inW := ss.InputWatermark()
-						outW := ss.OutputWatermark()
-						upPCol, upW := ss.UpstreamWatermark()
-						upS := em.pcolParents[upPCol]
-						stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHoldHeap, "holdCounts", ss.watermarkHoldsCounts))
+				nextEvent := em.testStreamHandler.NextEvent()
+				if nextEvent == nil {
+					v := em.livePending.Load()
+					slog.Debug("Bundles: nothing in progress and no refreshes", slog.Int64("pendingElementCount", v))
+					if v > 0 {
+						var stageState []string
+						ids := maps.Keys(em.stages)
+						sort.Strings(ids)
+						for _, id := range ids {
+							ss := em.stages[id]
+							inW := ss.InputWatermark()
+							outW := ss.OutputWatermark()
+							upPCol, upW := ss.UpstreamWatermark()
+							upS := em.pcolParents[upPCol]
+							stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHoldHeap, "holdCounts", ss.watermarkHoldsCounts))
+						}
+						panic(fmt.Sprintf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, strings.Join(stageState, "")))
 					}
-					panic(fmt.Sprintf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, strings.Join(stageState, "")))
+				} else {
+					nextEvent.Execute(em)
+					em.addPending(-1) // Decrement for the event being processed.
 				}
 			} else if len(em.inprogressBundles) == 0 {
 				v := em.livePending.Load()
@@ -429,6 +447,7 @@ const (
 	BlockTimer                  // BlockTimer represents timers for the bundle.
 )
 
+// Block represents a contiguous set of data or timers for the same destination.
 type Block struct {
 	Kind              BlockKind
 	Bytes             [][]byte

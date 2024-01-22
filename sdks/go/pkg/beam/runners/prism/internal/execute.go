@@ -238,6 +238,33 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 			case urns.TransformImpulse:
 				impulses = append(impulses, stage.ID)
 				em.AddStage(stage.ID, nil, []string{getOnlyValue(t.GetOutputs())}, nil)
+			case urns.TransformTestStream:
+				// Add a synthetic stage that should largely be unused.
+				em.AddStage(stage.ID, nil, maps.Values(t.GetOutputs()), nil)
+				// Decode the test stream, and convert it to the various events for the ElementManager.
+				var pyld pipepb.TestStreamPayload
+				if err := proto.Unmarshal(t.GetSpec().GetPayload(), &pyld); err != nil {
+					return fmt.Errorf("prism error building stage %v - decoding TestStreamPayload: \n%w", stage.ID, err)
+				}
+				tsb := em.AddTestStream(stage.ID, t.Outputs)
+				for _, e := range pyld.GetEvents() {
+					switch ev := e.GetEvent().(type) {
+					case *pipepb.TestStreamPayload_Event_ElementEvent:
+						var elms []engine.TestStreamElement
+						for _, e := range ev.ElementEvent.GetElements() {
+							elms = append(elms, engine.TestStreamElement{Encoded: e.GetEncodedElement(), EventTime: mtime.Time(e.GetTimestamp())})
+						}
+						tsb.AddElementEvent(ev.ElementEvent.GetTag(), elms)
+						ev.ElementEvent.GetTag()
+					case *pipepb.TestStreamPayload_Event_WatermarkEvent:
+						tsb.AddWatermarkEvent(ev.WatermarkEvent.GetTag(), mtime.Time(ev.WatermarkEvent.GetNewWatermark()))
+					case *pipepb.TestStreamPayload_Event_ProcessingTimeEvent:
+						tsb.AddProcessingTimeEvent(time.Duration(ev.ProcessingTimeEvent.GetAdvanceDuration()) * time.Millisecond)
+					default:
+						return fmt.Errorf("prism error building stage %v - unknown TestStream event type: %T", stage.ID, ev)
+					}
+				}
+
 			case urns.TransformFlatten:
 				inputs := maps.Values(t.GetInputs())
 				sort.Strings(inputs)

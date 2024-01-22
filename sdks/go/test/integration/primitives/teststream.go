@@ -31,6 +31,7 @@ func TestStreamStrings(s beam.Scope) {
 	col := teststream.Create(s, con)
 
 	passert.Count(s, col, "teststream strings", 3)
+	passert.Equals(s, col, "a", "b", "c")
 }
 
 // TestStreamByteSliceSequence tests the TestStream primitive by inserting byte slice elements
@@ -42,7 +43,7 @@ func TestStreamByteSliceSequence(s beam.Scope) {
 	con.AdvanceWatermarkToInfinity()
 	col := teststream.Create(s, con)
 	passert.Count(s, col, "teststream byte", 1)
-	passert.Equals(s, col, append([]byte{3}, b...))
+	passert.Equals(s, col, b)
 }
 
 // TestStreamInt64Sequence tests the TestStream primitive by inserting int64 elements
