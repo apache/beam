@@ -91,6 +91,12 @@ def _load_model(
         "Model handler specified a 'GPU' device, but GPUs are not available. "
         "Switching to CPU.")
     device = torch.device('cpu')
+  if device == torch.device('mps') and not (torch.backend.mps.is_available() and
+                                            torch.backend.mps.is_built()):
+    logging.warning(
+        "Model handler specified a 'MPS' device, but it is not available. "
+        "Switching to CPU.")
+    device = torch.device('cpu')
 
   try:
     logging.info(
@@ -216,8 +222,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       model_params: A dictionary of arguments required to instantiate the model
         class.
       device: the device on which you wish to run the model. If
-        ``device = GPU`` then a GPU device will be used if it is available.
-        Otherwise, it will be CPU.
+        ``device = GPU`` then a cuda device will be used if it is available.
+        If ``device = MPS`` then a mps device will be used if it is available.
+        Otherwise, it will be cpu.
       inference_fn: the inference function to use during RunInference.
         default=_default_tensor_inference_fn
       torch_script_model_path: Path to the torch script model.
@@ -243,10 +250,10 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     with PyTorch 1.9 and 1.10.
     """
     self._state_dict_path = state_dict_path
-    if device == 'GPU':
+    if device in ['gpu', 'GPU', 'cuda', 'CUDA']:
       logging.info("Device is set to CUDA")
       self._device = torch.device('cuda')
-    elif device == 'mps':
+    elif device in ['mps', 'MPS']:
       logging.info("Device is set to mps")
       self._device = torch.device('mps')
     else:
@@ -457,8 +464,9 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       model_params: A dictionary of arguments required to instantiate the model
         class.
       device: the device on which you wish to run the model. If
-        ``device = GPU`` then a GPU device will be used if it is available.
-        Otherwise, it will be CPU.
+        ``device = GPU`` then a cuda device will be used if it is available.
+        If ``device = MPS`` then a mps device will be used if it is available.
+        Otherwise, it will be cpu.
       inference_fn: the function to invoke on run_inference.
         default = default_keyed_tensor_inference_fn
       torch_script_model_path: Path to the torch script model.
@@ -484,10 +492,10 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     on torch>=1.9.0,<1.14.0.
     """
     self._state_dict_path = state_dict_path
-    if device == 'GPU':
+    if device in ['gpu', 'GPU', 'cuda', 'CUDA']:
       logging.info("Device is set to CUDA")
       self._device = torch.device('cuda')
-    elif device == 'mps':
+    elif device in ['mps', 'MPS']:
       logging.info("Device is set to mps")
       self._device = torch.device('mps')
     else:
