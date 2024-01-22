@@ -31,6 +31,9 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.LeaseWorkItemRequest;
 import com.google.api.services.dataflow.model.LeaseWorkItemResponse;
 import com.google.api.services.dataflow.model.MapTask;
+import com.google.api.services.dataflow.model.MetricValue;
+import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
+import com.google.api.services.dataflow.model.PerWorkerMetrics;
 import com.google.api.services.dataflow.model.SendWorkerMessagesRequest;
 import com.google.api.services.dataflow.model.SendWorkerMessagesResponse;
 import com.google.api.services.dataflow.model.SeqMapTask;
@@ -38,6 +41,7 @@ import com.google.api.services.dataflow.model.StreamingScalingReport;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkerMessage;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Optional;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
@@ -243,7 +247,35 @@ public class DataflowWorkUnitClientTest {
         new StreamingScalingReport().setActiveThreadCount(1);
     WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
     WorkerMessage msg = client.createWorkerMessageFromStreamingScalingReport(activeThreadsReport);
-    client.reportWorkerMessage(msg);
+    client.reportWorkerMessage(Collections.singletonList(msg));
+
+    SendWorkerMessagesRequest actualRequest =
+        Transport.getJsonFactory()
+            .fromString(request.getContentAsString(), SendWorkerMessagesRequest.class);
+    assertEquals(ImmutableList.of(msg), actualRequest.getWorkerMessages());
+  }
+
+  @Test
+  public void testReportWorkerMessage_perWorkerMetrics() throws Exception {
+    MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
+    response.setContentType(Json.MEDIA_TYPE);
+    SendWorkerMessagesResponse workerMessage = new SendWorkerMessagesResponse();
+    workerMessage.setFactory(Transport.getJsonFactory());
+    response.setContent(workerMessage.toPrettyString());
+    when(request.execute()).thenReturn(response);
+    PerStepNamespaceMetrics stepNamespaceMetrics =
+        new PerStepNamespaceMetrics()
+            .setOriginalStep("s1")
+            .setMetricsNamespace("ns")
+            .setMetricValues(
+                Collections.singletonList(new MetricValue().setMetric("metric").setValueInt64(3L)));
+    PerWorkerMetrics perWorkerMetrics =
+        new PerWorkerMetrics()
+            .setPerStepNamespaceMetrics(Collections.singletonList(stepNamespaceMetrics));
+
+    WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
+    WorkerMessage msg = client.createWorkerMessageFromPerWorkerMetrics(perWorkerMetrics);
+    client.reportWorkerMessage(Collections.singletonList(msg));
 
     SendWorkerMessagesRequest actualRequest =
         Transport.getJsonFactory()

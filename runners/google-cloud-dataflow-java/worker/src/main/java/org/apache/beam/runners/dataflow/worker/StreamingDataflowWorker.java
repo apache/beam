@@ -23,12 +23,15 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.MapTask;
+import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
+import com.google.api.services.dataflow.model.PerWorkerMetrics;
 import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.StreamingScalingReport;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
+import com.google.api.services.dataflow.model.WorkerMessage;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
@@ -116,6 +119,7 @@ import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.BackOff;
@@ -487,6 +491,7 @@ public class StreamingDataflowWorker {
     StreamingStepMetricsContainer.setEnablePerWorkerMetrics(
         options.isEnableStreamingEngine()
             && DataflowRunner.hasExperiment(options, "enable_per_worker_metrics"));
+    BigQuerySinkMetrics.setSupportMetricsDeletion(true);
 
     JvmInitializers.runBeforeProcessing(options);
     worker.startStatusPages();
@@ -1754,15 +1759,40 @@ public class StreamingDataflowWorker {
     maxOutstandingBundles.addValue((long) workUnitExecutor.maximumElementsOutstanding());
   }
 
-  private void sendWorkerMessage() throws IOException {
+  private WorkerMessage createWorkerMessageForStreamingScalingReport() {
     StreamingScalingReport activeThreadsReport =
         new StreamingScalingReport()
             .setActiveThreadCount(workUnitExecutor.activeCount())
             .setActiveBundleCount(workUnitExecutor.elementsOutstanding())
             .setMaximumThreadCount(chooseMaximumNumberOfThreads())
             .setMaximumBundleCount(workUnitExecutor.maximumElementsOutstanding());
-    workUnitClient.reportWorkerMessage(
-        workUnitClient.createWorkerMessageFromStreamingScalingReport(activeThreadsReport));
+    return workUnitClient.createWorkerMessageFromStreamingScalingReport(activeThreadsReport);
+  }
+
+  private @Nullable WorkerMessage createWorkerMessageForPerWorkerMetrics() {
+    List<PerStepNamespaceMetrics> metrics = new ArrayList<>();
+    stageInfoMap.values().forEach(s -> metrics.addAll(s.extractPerWorkerMetricValues()));
+
+    if (metrics.isEmpty()) {
+      return null;
+    }
+
+    PerWorkerMetrics perWorkerMetrics = new PerWorkerMetrics().setPerStepNamespaceMetrics(metrics);
+    return workUnitClient.createWorkerMessageFromPerWorkerMetrics(perWorkerMetrics);
+  }
+
+  private void sendWorkerMessage() throws IOException {
+    List<WorkerMessage> workerMessages = new ArrayList<WorkerMessage>(2);
+    workerMessages.add(createWorkerMessageForStreamingScalingReport());
+
+    if (StreamingStepMetricsContainer.getEnablePerWorkerMetrics()) {
+      @Nullable WorkerMessage metricsMsg = createWorkerMessageForPerWorkerMetrics();
+      if (metricsMsg != null) {
+        workerMessages.add(metricsMsg);
+      }
+    }
+
+    workUnitClient.reportWorkerMessage(workerMessages);
   }
 
   @VisibleForTesting
