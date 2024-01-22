@@ -496,7 +496,7 @@ specifying custom encodings as needed.
 
 #### 3.2.2. Element schema {#element-schema}
 
-In many cases, the element type in a `PCollection` has a structure that can introspected.
+In many cases, the element type in a `PCollection` has a structure that can be introspected.
 Examples are JSON, Protocol Buffer, Avro, and database records. Schemas provide a way to
 express types as a set of named fields, allowing for more-expressive aggregations.
 
