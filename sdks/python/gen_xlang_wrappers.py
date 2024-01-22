@@ -30,6 +30,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Union
+import subprocess
 
 import yaml
 from jinja2 import Environment
@@ -324,6 +325,20 @@ def write_wrappers_to_destinations(grouped_wrappers: Dict[str, List[str]]):
       for wrapper in wrappers:
         file.write(wrapper + "\n")
     written_files.append(dest)
+
+  # format files with yapf
+  try:
+    out = subprocess.run([
+        'yapf',
+        '--in-place',
+        *[os.path.join(PYTHON_SDK_ROOT, module) for module in written_files],
+    ], capture_output=True, check=True)
+    print(out.stdout)
+  except subprocess.CalledProcessError as err:
+    raise RuntimeError(
+        'Ran into an error while formatting generated external '
+        'transform modules',
+        err.stderr)
   logging.info("Created external transform wrapper modules: %s", written_files)
 
 

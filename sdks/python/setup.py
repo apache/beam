@@ -212,6 +212,9 @@ def generate_external_transform_wrappers():
         os.path.join(sdk_root, 'gen_xlang_wrappers.py'))
     config_exists = os.path.exists(
         os.path.join(sdk_root, 'standard_external_transforms.yaml'))
+    # we need both the script and the standard transforms config file.
+    # at build time, we don't have access to apache_beam to discover and
+    # retrieve external transforms, so the config file has to already exist
     if not script_exists or not config_exists:
       beam_root = os.path.join(sdk_root, 'apache_beam')
       wrappers = list(find_by_ext(beam_root, '_et.py'))
