@@ -40,9 +40,9 @@ with beam.Pipeline(options=options) as p:
         )
         | "Log Data" >> Map(logging.info))
 ```
-Required arguments for the `ReadFromKafka` transform are `consumer_config` and `topics`. You can use the `consumer_config` argument to specify the Kafka bootstrap servers, the `topics` argument to specify the Kafka topic to read data from, and the `with_metadata` argument to specify whether to include Kafka metadata in the output `PCollection`. The default value is `False`.
+The required arguments for the `ReadFromKafka` transform are `consumer_config` and `topics`. You can use the `consumer_config` argument to specify the Kafka bootstrap servers, the `topics` argument to specify the Kafka topic to read data from, and the `with_metadata` argument to specify whether to include Kafka metadata in the output `PCollection`. The default value for the `with_metadata` argument is `False`.
 
-The KafkaReadOptions class is used to parse pipeline options for Kafka read transform. The `bootstrap_servers` and `topic` arguments are provided as a command line arguments. This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse pipeline options.
+The `KafkaReadOptions` class is used to parse pipeline options for the Kafka read transform. The `bootstrap_servers` and `topic` arguments are provided as command-line arguments. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse pipeline options.
 
 ```python
 class KafkaOptions(PipelineOptions):
@@ -62,6 +62,6 @@ class KafkaOptions(PipelineOptions):
 options = KafkaOptions()
 ```
 
-For more information on how to use KafkaIO connector with Apache Beam Python SDK see [here](https://beam.apache.org/releases/pydoc/current/apache_beam.io.kafka.html).
+For more information about how to use the KafkaIO connector with the Python SDK for Apache Beam, see [KafkaIO module](https://beam.apache.org/releases/pydoc/current/apache_beam.io.kafka.html).
 
-For performance metrics of KafkaIO connector, see [KafkaIO Performance](https://beam.apache.org/performance/io/kafka/).
+For performance metrics of the KafkaIO connector, see [KafkaIO Performance](https://beam.apache.org/performance/io/kafka/).

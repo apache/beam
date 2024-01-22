@@ -16,24 +16,24 @@ with beam.Pipeline(options=options) as p:
   )
 ```
 Response:
-This code uses Apache Beam [BigQueryIO](https://beam.apache.org/documentation/io/built-in/google-bigquery/) connector to read data from a [BigQuery](https://cloud.google.com/bigquery/docs) table `table`.
+This code uses the [Google BigQuery I/O connector](https://beam.apache.org/documentation/io/built-in/google-bigquery/) to read data from a [BigQuery](https://cloud.google.com/bigquery/docs) table `table`.
 
-The BigQueryIO connector supports reading from BigQuery tables, executing queries, and reading from BigQuery Storage API (beta). The BigQueryIO connector supports writing to BigQuery tables in batch and streaming modes.
+The BigQueryIO connector supports reading from BigQuery tables, executing queries, and reading from the BigQuery Storage API (beta). The BigQueryIO connector supports writing to BigQuery tables in batch and streaming modes.
 
 ```python
 output = (p | "Read table" >> ReadFromBigQuery(table=options.table))
 ```
-The 'ReadFromBigQuery' transform uses a BigQuery export job to save table snapshot to Cloud Storage and then reads from each produced file. The default file format is AVRO.
+The `ReadFromBigQuery` transform uses a BigQuery export job to save a table snapshot to Google Cloud Storage and then reads from each produced file. The default file format is AVRO.
 
-Another option would be to use a query to read data from BigQuery using a SQL query.
+Another option is to use a SQL query to read data from BigQuery.
 
 ```python
 output = (p | "Read table" >> ReadFromBigQuery(query="SELECT * FROM table"))
 ```
-For more information on how to use BigQueryIO connector with Apache Beam Python SDK see [here](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigquery.html).
+For more information about how to use the BigQueryIO connector with the Python SDK for Apache Beam, see [BigQueryIO module](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigquery.html).
 
-This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) for a requred `table` argument. The `table` argument is used to specify the BigQuery table to read data from.
+This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) for the required `table` argument. The `table` argument is used to specify the BigQuery table to read data from.
 
-For performance metrics of BigQueryIO connector, see [BigQueryIO Performance](https://beam.apache.org/performance/bigquery/).
+For performance metrics of the BigQueryIO connector, see [BigQueryIO Performance](https://beam.apache.org/performance/bigquery/).
 
 

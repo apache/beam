@@ -16,7 +16,7 @@ with beam.Pipeline(options=options) as p:
        | Map(logging.info))
 ```
 Response:
-This code reads data from [Parquet](https://parquet.apache.org/) files using the `ReadFromParquet` transform from a [ParquetIO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.parquetio.html) built-in connector.
+This code reads data from [Apache Parquet](https://parquet.apache.org/) files using the `ReadFromParquet` transform from the built-in [ParquetIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.parquetio.html).
 
 ```python
 class ReadParquetOptions(PipelineOptions):
@@ -29,11 +29,11 @@ class ReadParquetOptions(PipelineOptions):
 
   options = ReadParquetOptions()
 ```
-`ReadParquetOptions` class is used to define a command line argument `--path` that specifies the path to the Parquet file. This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) for a requred `path` argument.
+The `ReadParquetOptions` class is used to define the command-line argument `--path`, which specifies the path to the Parquet file. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) for the required `path` argument.
 
 ```python
 with beam.Pipeline(options=options) as p:
     (p | "Read Parquet" >> ReadFromParquet(options.path)
        | Map(logging.info))
 ```
-Beam pipeline is created using the `ReadParquetOptions` class and the [ReadFromParquet](https://beam.apache.org/releases/pydoc/current/apache_beam.io.parquetio.html#apache_beam.io.parquetio.ReadFromParquet) transform is used to read data from the Parquet file.
+A Beam pipeline is created using the `ReadParquetOptions` class and the [ReadFromParquet transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.parquetio.html#apache_beam.io.parquetio.ReadFromParquet) is used to read data from the Parquet file.

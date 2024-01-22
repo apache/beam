@@ -1,7 +1,7 @@
 Prompt:
-Write the python code to read data from Apache Kafka using Apache Beam.
+Write the Python code to read data from Apache Kafka using Apache Beam.
 Response:
-You can read data from [Apache Kafka](https://kafka.apache.org/) using the `ReadFromKafka` transform. The following Python code reads a topic `topic` from a Kafka server `bootstrap_servers`. The `topic` and `bootstrap_servers` are provided as a command line arguments. The data is logged to the console:
+You can read data from [Apache Kafka](https://kafka.apache.org/) using the `ReadFromKafka` transform. The following Python code reads a topic `topic` from a Kafka server `bootstrap_servers`. The values for `topic` and `bootstrap_servers` are provided as command-line arguments. The data is logged to the console.
 
 ```python
 import logging
@@ -40,8 +40,8 @@ with beam.Pipeline(options=options) as p:
         )
         | "Log Data" >> Map(logging.info))
 ```
-For more information on how to use KafkaIO connector with Apache Beam Python SDK see [here](https://beam.apache.org/releases/pydoc/current/apache_beam.io.kafka.html).
+For more information about how to use the KafkaIO connector with the Python SDK for Apache Beam, see the [KafkaIO connector documentation](https://beam.apache.org/releases/pydoc/current/apache_beam.io.kafka.html).
 
-For performance metrics of KafkaIO connector, see [KafkaIO Performance](https://beam.apache.org/performance/io/kafka/).
+For performance metrics of the KafkaIO connector, see [KafkaIO Performance](https://beam.apache.org/performance/io/kafka/).
 
-See [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) for a commmon pattern for parsing pipeline options from command line arguments.
+For samples that show common pipeline configurations to parse pipeline options from command-line arguments, see [Pipeline option patterns](https://beam.apache.org/documentation/patterns/pipeline-options/).

@@ -1,7 +1,7 @@
 Prompt:
-Write the python code to read data from Cloud Spanner using Apache Beam.
+Write the Python code to read data from a TensorFlow TFRecord file using Apache Beam.
 Response:
-You can read data from [TFRecord](https://www.tensorflow.org/api_docs/python/tf/data/TFRecordDataset) file using the Apache Beam [TFRecordIO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.tfrecordio.html) connector which allows you to read and write data in `TFRecord` format:
+You can read data from a TensorFlow [TFRecord file](https://www.tensorflow.org/api_docs/python/tf/data/TFRecordDataset) using the Apache Beam [TFRecordIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.tfrecordio.html). The TFRecordIO connector lets you read and write data in `TFRecord` format.
 
 ```python
 import logging
@@ -52,8 +52,8 @@ if __name__ == "__main__":
 
 ```
 
-`TFRecordOptions` class defines three command line arguments `file_pattern` that is used to configure `ReadFromTFRecord` transform. Those arguments are parsed from a command line using [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/).
+The `TFRecordOptions` class defines the command-line argument `file_pattern`, which is used to configure the `ReadFromTFRecord` transform. This argument is parsed from the command line using [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/).
 
-`ReadFromTFRecord` is a built-in Apache Beam transform that reads data from a `TFRecord` file. By default `TFRecordIO` transforms use `coders.BytesCoder()`. See [ReadFromTFRecord](https://beam.apache.org/releases/pydoc/current/apache_beam.io.tfrecordio.html#apache_beam.io.tfrecordio.ReadFromTFRecord) transform documentation for more details.
+The `ReadFromTFRecord` transform is a built-in Apache Beam transform that reads data from a `TFRecord` file. By default, `TFRecordIO` transforms use `coders.BytesCoder()`. For more information, see [ReadFromTFRecord transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.tfrecordio.html#apache_beam.io.tfrecordio.ReadFromTFRecord).
 
 

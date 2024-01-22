@@ -1,14 +1,14 @@
 Prompt:
-Is JDBC supported in Apache Beam?
+Is Oracle Java Database Connectivity (JDBC) supported in Apache Beam?
 Response:
-[Java Database Connectivity (JDBC)](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) is a Java API for connecting to relational databases. Apache Beam supports reading and writing data from JDBC using the `ReadFromJdbc` and `WriteToJdbc` transforms from a `JdbcIO` module:
+The [Oracle Java Database Connectivity (JDBC) API](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) is a Java API for connecting to relational databases. Apache Beam supports reading and writing data with JDBC using the `ReadFromJdbc` and `WriteToJdbc` transforms in the `JdbcIO` module. For more information, see the JdbcIO connector documentation:
 * [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/jdbc/JdbcIO.html),
-* [Python via X-language](https://beam.apache.org/releases/pydoc/current/apache_beam.io.jdbc.html).
-* [Go via X-language](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/jdbcio)
+* [Python (using cross-language transforms)](https://beam.apache.org/releases/pydoc/current/apache_beam.io.jdbc.html).
+* [Go (using cross-language transforms)](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/jdbcio)
 
-[Dataflow-cookbook repository](https://github.com/GoogleCloudPlatform/dataflow-cookbook) will help you to get started with Avro and Apache Beam.
+The [Dataflow cookbook repository](https://github.com/GoogleCloudPlatform/dataflow-cookbook) can help you to get started with JDBC and Apache Beam.
 
-Apache Beam pipeline code for reading data from JDBC might look like the following example:
+Apache Beam pipeline code for reading data with JDBC might look like the following example:
 ```python
 class ExampleRow(NamedTuple):
     id: int

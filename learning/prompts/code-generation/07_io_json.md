@@ -1,7 +1,7 @@
 Prompt:
-Write the python code to read data from Json files using Apache Beam.
+Write the Python code to read data from JSON files using Apache Beam.
 Response:
-You can read data from [JSON](https://www.json.org/) files using the Apache Beam [TextIO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html) connector :
+You can read data from [JSON files](https://www.json.org/) using the Apache Beam [TextIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html).
 
 ```python
 import logging
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     run()
 ```
-`JsonOptions` is a custom class that extends `PipelineOptions`. It is used to parse pipeline options from command line arguments. This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command line arguments.
+The `JsonOptions` class is a custom class that extends the `PipelineOptions` object. It is used to parse pipeline options from command-line arguments. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command-line arguments.
 
-[ReadFromJson](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html#apache_beam.io.textio.ReadFromJson) is a built-in Apache Beam transform that reads data from a Json file.
+The [ReadFromJson](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html#apache_beam.io.textio.ReadFromJson) transform is a built-in Apache Beam transform that reads data from a JSON file.
 

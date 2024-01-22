@@ -1,7 +1,7 @@
 Prompt:
-Write the python code to read data from Avro files using Apache Beam.
+Write the Python code to read data from Apache Avro files using Apache Beam.
 Response:
-You can read data from [Avro](https://avro.apache.org/) files using the Apache Beam [AvroIO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.avroio.html) connector:
+You can read data from [Apache Avro](https://avro.apache.org/) files using the Apache Beam [AvroIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.avroio.html).
 
 ```python
 import logging
@@ -34,8 +34,8 @@ if __name__ == "__main__":
   logging.getLogger().setLevel(logging.INFO)
   run()
 ```
-`ReadAvroOptions` class is used to define a command line argument `--path` that specifies the path to the Avro file. This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) for a requred `path` argument.
+The `ReadAvroOptions` class is used to define the command-line argument `--path`, which specifies the path to the Avro file. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) for the required `path` argument.
 
-Beam pipeline is created using the `ReadAvroOptions` class and the [ReadFromAvro](https://beam.apache.org/releases/pydoc/current/apache_beam.io.avroio.html#apache_beam.io.avroio.ReadFromAvro) transform is used to read data from the Avro file.
+A Beam pipeline is created using the `ReadAvroOptions` class and the [ReadFromAvro transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.avroio.html#apache_beam.io.avroio.ReadFromAvro) is used to read data from the Avro file.
 
 

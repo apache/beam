@@ -3,14 +3,14 @@ Is Cloud Spanner supported in Apache Beam?
 Response:
 [Cloud Spanner](https://cloud.google.com/spanner) is a [Google Cloud](https://cloud.google.com/) service that provides a fully managed, mission-critical, relational database service that offers transactional consistency at global scale, schemas, SQL (ANSI 2011 with extensions), and automatic, synchronous replication for high availability.
 
-Apache Beam has a `SpannerIO` built-in connector for Cloud Spanner that allows you to read and write data from and to Spanner. Cloud Spanner is supported both in batch and streaming pipelines and as a source and a sink:
+Apache Beam has a built-in SpannerIO connector for Cloud Spanner that lets you read data from and write data to Cloud Spanner. Cloud Spanner is supported in both batch pipelines and streaming pipelines. and as a source and a sink. For more information, see the SpannerIO connector documentation:
 * [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/spanner/SpannerIO.html)
-* [Python via X lang](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.spanner.html)
+* [Python (using cross-language transforms)](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.spanner.html)
 * [Go](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/spannerio)
 
-[Dataflow-cookbook repository](https://github.com/GoogleCloudPlatform/dataflow-cookbook) will help you to get started with Cloud Spanner and Apache Beam.
+The [Dataflow cookbook repository](https://github.com/GoogleCloudPlatform/dataflow-cookbook) can help you to get started with Cloud Spanner and Apache Beam.
 
-Apache Beam pipeline code for reading data from Spanner table using a SQL query might look like the following example:
+Apache Beam pipeline code for reading data from a Cloud Spanner table using a SQL query might look like the following example:
 
 ```python
 class ExampleRow(NamedTuple):

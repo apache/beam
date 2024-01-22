@@ -1,7 +1,7 @@
 Prompt:
-Write the python code to read data from Csv files using Apache Beam.
+Write the Python code to read data from CSV files using Apache Beam.
 Response:
-You can read data from [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) files using the Apache Beam [TextIO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html) connector :
+You can read data from [CSV files](https://en.wikipedia.org/wiki/Comma-separated_values) using the Apache Beam [TextIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html).
 
 ```python
 import logging
@@ -41,6 +41,6 @@ if __name__ == "__main__":
     run()
 ```
 
-`CsvOptions` is a custom class that extends `PipelineOptions`. It is used to parse pipeline options from command line arguments. This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command line arguments.
+The `CsvOptions` class is a custom class that extends the `PipelineOptions` object. It is used to parse pipeline options from command-line arguments. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command-line arguments.
 
-[ReadFromCsv](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html#apache_beam.io.textio.ReadFromCsv) is a built-in Apache Beam transform that reads data from a Csv file.
+The [ReadFromCsv transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html#apache_beam.io.textio.ReadFromCsv) is a built-in Apache Beam transform that reads data from a CSV file.

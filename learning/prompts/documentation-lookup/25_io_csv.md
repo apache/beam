@@ -1,15 +1,15 @@
 Prompt:
 Is CSV format supported in Apache Beam?
 Response:
-[CSV](https://en.wikipedia.org/wiki/Comma-separated_values) is a popular data format for storing and exchanging data. Apache Beam supports reading and writing CSV files using the `ReadFromText` and `WriteToText` transforms from a `TextIO` module:
-* [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/TextIO.html),
-* [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html).
-* [Go](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio),
+[CSV](https://en.wikipedia.org/wiki/Comma-separated_values) is a data format for storing and exchanging data. Apache Beam supports reading data from and writing data to CSV files using the `ReadFromText` and `WriteToText` transforms in the `TextIO` module. For more information, see the TextIO connector documentation:
+* [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/TextIO.html)
+* [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html)
+* [Go](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio)
 * [Typescript](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/io/textio.ts)
 
-[Dataflow-cookbook repository](https://github.com/GoogleCloudPlatform/dataflow-cookbook) will help you to get started with CSV and Apache Beam.
+The [Dataflow cookbook repository](https://github.com/GoogleCloudPlatform/dataflow-cookbook) can help you to get started with CSV and Apache Beam.
 
-Apache Beam pipeline code for reading data from CSV file might look like the following example:
+Apache Beam pipeline code for reading data from a CSV file might look like the following example:
 ```python
 class CsvOptions(PipelineOptions):
     @classmethod

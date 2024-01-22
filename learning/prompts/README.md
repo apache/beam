@@ -30,35 +30,35 @@ Prompt:
 Response:
 <markdown for response>
 ```
-There are three types of golden prompts in this folder:
-- documentaion lookup prompts
-- code generation prompts
-- code explanation prompts
+This folder includes the following types of golden prompts:
+- Documentation lookup prompts
+- Code generation prompts
+- Code explanation prompts
 
 ## Documentation lookup prompts
 Features of a good response:
-- uses official product names in the response (“Speech to text” → “Speech-to-Text”)
-- answers the question (correctly) with hyperlinks to the documentation
-- includes a link to the corresponding source code.
-- includes a link to samples, if available
+- Uses official product names in the response (“Speech to text” → “Speech-to-Text”).
+- Answers the question (correctly) with hyperlinks to the documentation.
+- Includes a link to the corresponding source code.
+- Includes a link to samples, if available.
 
 
 ## Code generation prompts
 Features of a good response:
-- prelude explaining the code sample
-- include information about how to find the reference documentation
-- include a link to the list of code samples
-- well documented code. Consider returning an example of what the return result would look like.
-- follow up to the user to ensure they don’t perseverate on false responses.
+- Starts with a brief introduction that explains the code sample.
+- Includes information about how to find the reference documentation.
+- Includes a link to the list of code samples.
+- Provides well documented code. Consider including an example of what the return result looks like.
+- Follows up with the user to ensure they don’t continue needlessly with false responses.
 
 
 ## Code explanation prompts
 Features of a good response:
-- starts with a short overall description of tries to answer the question in the prompt.
-- grounds the algorithm in any well-known context (this is an implementation of X, a well-known algorithm to do Y) if appropriate.
-- discusses the variables in the snippet, and what their purpose is relative to the runtime.
-- discusses runtime and memory storage complexity.
-- make note of any interesting features of the code, or opportunities for improvement (optimizations, refactor, syntax best-practices, etc.)
+- Starts with a short overall description that tries to answer the question in the prompt.
+- Grounds the algorithm in any well-known context, if appropriate. For example, this is an implementation of X, a well-known algorithm to do Y.
+- Discusses the variables in the snippet, and what their purpose is relative to the runtime.
+- Discusses runtime and memory storage complexity.
+- Notes any interesting features of the code, or opportunities for improvement (optimizations, refactoring, syntax best practices, etc.)
 
 Folder structure:
 ```

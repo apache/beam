@@ -44,7 +44,7 @@ with beam.Pipeline(options=options) as p:
         | 'Log Data' >> Map(logging.info))
 ```
 Response:
-This code reads data from a [JDBC](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) database using the `ReadFromJdbc` transform from a [JdbcIO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.jdbc.html) built-in connector.
+This code reads data from an [Oracle Java Database Connectivity (JDBC) enabled database](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) using the `ReadFromJdbc` transform from the built-in [JdbcIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.jdbc.html).
 
 ```python
 class ExampleRow(NamedTuple):
@@ -81,13 +81,13 @@ class JdbcOptions(PipelineOptions):
 options = JdbcOptions()
 ```
 
-`JdbcOptions` class is used to define a command line arguments `--table_name`, `--jdbc_url`, `--driver_class_name`, `--username`, and `--password` that specify the JDBC connection parameters. This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) for a requred `path` argument.
+The `JdbcOptions` class is used to define the command-line arguments `--table_name`, `--jdbc_url`, `--driver_class_name`, `--username`, and `--password`, which specify the JDBC connection parameters. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command-line arguments.
 
 ```python
 coders.registry.register_coder(ExampleRow, coders.RowCoder)
 ```
 
-This code registers a coder for the `ExampleRow` class. This is required for the `ReadFromJdbc` transform to read data from table.
+This code registers a coder for the `ExampleRow` class. This is required for the `ReadFromJdbc` transform to read data from the table.
 
 ```python
 with beam.Pipeline(options=options) as p:
@@ -102,4 +102,4 @@ with beam.Pipeline(options=options) as p:
         | 'Log Data' >> Map(logging.info))
 ```
 
-Beam pipeline is created using the `JdbcOptions` class and the [ReadFromJdbc](https://beam.apache.org/releases/pydoc/current/apache_beam.io.jdbc.html#apache_beam.io.jdbc.ReadFromJdbc) transform is used to read data from the JDBC database.
+A Beam pipeline is created using the `JdbcOptions` class and the [ReadFromJdbc transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.jdbc.html#apache_beam.io.jdbc.ReadFromJdbc) is used to read data from the database via JDBC.

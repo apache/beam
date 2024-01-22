@@ -33,12 +33,12 @@ with beam.Pipeline(options=options) as p:
 ```
 
 Response:
-This code uses Apache Beam [BigtableIO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html) connector to read data from a [Bigtable](https://cloud.google.com/bigtable/docs) table `table_id` from a Bigtable instance `instance_id`. The `table_id` and `instance_id` are provided as a command line arguments.
+This code uses the Apache Beam [BigtableIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html) to read data from a [Bigtable](https://cloud.google.com/bigtable/docs) table `table_id` in a Bigtable instance `instance_id`. The `table_id` and `instance_id` are provided as command-line arguments.
 
-This code uses [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command line arguments.
+This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command-line arguments.
 
-`ReadFromBigtable` transform returns a `PCollection` of `PartialRowData` objects, each representing a `Bigtable` row. For more information about this row object, visit [here](https://cloud.google.com/python/docs/reference/bigtable/latest/row#class-googlecloudbigtablerowpartialrowdatarowkey).
+The `ReadFromBigtable` transform returns a `PCollection` of `PartialRowData` objects, each representing a Bigtable row. For more information about this row object, see [PartialRowData (row_key)](https://cloud.google.com/python/docs/reference/bigtable/latest/row#class-googlecloudbigtablerowpartialrowdatarowkey).
 
-The data from a `Bigtable` row is extracted and logged to the console.
+The data from a Bigtable row is extracted and logged to the console.
 
-For more information on how to use `BigtableIO` connector with Apache Beam Python SDK see [here](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html).
+For more information about how to use the BigtableIO connector with the Python SDK for Apache Beam, see [BigtableIO module](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html).
