@@ -61,7 +61,6 @@ public class DicomIOReadIT {
     client.deleteDicomStore(healthcareDataset + "/dicomStores/" + storeName);
   }
 
-  @Ignore("https://github.com/apache/beam/issues/28099")
   @Test
   public void testDicomMetadataRead() throws IOException {
     String webPath =
@@ -81,6 +80,31 @@ public class DicomIOReadIT {
               }
               return null;
             });
+
+    PipelineResult job = pipeline.run();
+
+    try {
+      job.cancel();
+    } catch (UnsupportedOperationException exc) {
+      // noop - if runner does not support job.cancel()
+    }
+  }
+
+  @Test
+  public void testDicomFailedMetadataRead() throws IOException {
+    String badWebPath = "foo";
+
+    DicomIO.ReadStudyMetadata.Result result =
+            pipeline.apply(Create.of(badWebPath)).apply(DicomIO.readStudyMetadata());
+
+    PAssert.that(result.getReadResponse()).empty();
+
+    PAssert.that(result.getFailedReads())
+            .satisfies(
+                    (errors) -> {
+                      Assert.assertTrue(errors.iterator().hasNext());
+                      return null;
+                    });
 
     PipelineResult job = pipeline.run();
 
