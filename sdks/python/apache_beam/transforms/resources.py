@@ -205,8 +205,7 @@ def parse_resource_hints(hints):  # type: (Dict[Any, Any]) -> Dict[str, bytes]
     except KeyError:
       raise ValueError(
           f'Unknown resource hint: {hint}. Known hints:'
-          f' {", ".join(list(ResourceHint._name_to_known_hints.keys()))}'
-      )
+          f' {", ".join(list(ResourceHint._name_to_known_hints.keys()))}')
 
   return parsed_hints
 
