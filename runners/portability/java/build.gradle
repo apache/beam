@@ -200,6 +200,9 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
       // https://github.com/apache/beam/issues/20374
       excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$BasicTests.testHotKeyCombiningWithAccumulationMode'
 
+      // TODO(https://github.com/apache/beam/issues/29973)
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata'
+
       for (String test : sickbayTests) {
         excludeTestsMatching test
       }

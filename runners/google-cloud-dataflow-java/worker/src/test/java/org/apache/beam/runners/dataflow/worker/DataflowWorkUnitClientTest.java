@@ -31,8 +31,12 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.LeaseWorkItemRequest;
 import com.google.api.services.dataflow.model.LeaseWorkItemResponse;
 import com.google.api.services.dataflow.model.MapTask;
+import com.google.api.services.dataflow.model.SendWorkerMessagesRequest;
+import com.google.api.services.dataflow.model.SendWorkerMessagesResponse;
 import com.google.api.services.dataflow.model.SeqMapTask;
+import com.google.api.services.dataflow.model.StreamingScalingReport;
 import com.google.api.services.dataflow.model.WorkItem;
+import com.google.api.services.dataflow.model.WorkerMessage;
 import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
@@ -225,6 +229,26 @@ public class DataflowWorkUnitClientTest {
     WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
 
     client.getWorkItem();
+  }
+
+  @Test
+  public void testReportWorkerMessage() throws Exception {
+    MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
+    response.setContentType(Json.MEDIA_TYPE);
+    SendWorkerMessagesResponse workerMessage = new SendWorkerMessagesResponse();
+    workerMessage.setFactory(Transport.getJsonFactory());
+    response.setContent(workerMessage.toPrettyString());
+    when(request.execute()).thenReturn(response);
+    StreamingScalingReport activeThreadsReport =
+        new StreamingScalingReport().setActiveThreadCount(1);
+    WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
+    WorkerMessage msg = client.createWorkerMessageFromStreamingScalingReport(activeThreadsReport);
+    client.reportWorkerMessage(msg);
+
+    SendWorkerMessagesRequest actualRequest =
+        Transport.getJsonFactory()
+            .fromString(request.getContentAsString(), SendWorkerMessagesRequest.class);
+    assertEquals(ImmutableList.of(msg), actualRequest.getWorkerMessages());
   }
 
   private LowLevelHttpResponse generateMockResponse(WorkItem... workItems) throws Exception {

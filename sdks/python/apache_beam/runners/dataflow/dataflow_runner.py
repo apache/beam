@@ -731,7 +731,8 @@ class DataflowPipelineResult(PipelineResult):
       A PipelineState object.
     """
     if not self.has_job:
-      return PipelineState.UNKNOWN
+      # https://github.com/apache/beam/blob/8f71dc41b30a978095ca0e0699009e4f4445a618/sdks/python/apache_beam/runners/dataflow/dataflow_runner.py#L867-L870
+      return PipelineState.DONE
 
     self._update_job()
 

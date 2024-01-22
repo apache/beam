@@ -26,6 +26,7 @@ import com.google.api.services.dataflow.model.MapTask;
 import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
+import com.google.api.services.dataflow.model.StreamingScalingReport;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -276,13 +277,12 @@ public class StreamingDataflowWorker {
   private final HotKeyLogger hotKeyLogger;
   // Periodic sender of debug information to the debug capture service.
   private final DebugCapture.@Nullable Manager debugCaptureManager;
-  private ScheduledExecutorService refreshWorkTimer;
-  private ScheduledExecutorService statusPageTimer;
-  private ScheduledExecutorService globalWorkerUpdatesTimer;
+  // Collection of ScheduledExecutorServices that are running periodic functions.
+  private ArrayList<ScheduledExecutorService> scheduledExecutors =
+      new ArrayList<ScheduledExecutorService>();
   private int retryLocallyDelayMs = 10000;
   // Periodically fires a global config request to dataflow service. Only used when windmill service
   // is enabled.
-  private ScheduledExecutorService globalConfigRefreshTimer;
   // Possibly overridden by streaming engine config.
   private int maxWorkItemCommitBytes = Integer.MAX_VALUE;
 
@@ -579,14 +579,25 @@ public class StreamingDataflowWorker {
     sampler.start();
 
     // Periodically report workers counters and other updates.
-    globalWorkerUpdatesTimer = executorSupplier.apply("GlobalWorkerUpdatesTimer");
-    globalWorkerUpdatesTimer.scheduleWithFixedDelay(
+    ScheduledExecutorService workerUpdateTimer = executorSupplier.apply("GlobalWorkerUpdates");
+    workerUpdateTimer.scheduleWithFixedDelay(
         this::reportPeriodicWorkerUpdates,
         0,
         options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
         TimeUnit.MILLISECONDS);
+    scheduledExecutors.add(workerUpdateTimer);
 
-    refreshWorkTimer = executorSupplier.apply("RefreshWork");
+    ScheduledExecutorService workerMessageTimer = executorSupplier.apply("ReportWorkerMessage");
+    if (options.getWindmillHarnessUpdateReportingPeriod().getMillis() > 0) {
+      workerMessageTimer.scheduleWithFixedDelay(
+          this::reportPeriodicWorkerMessage,
+          0,
+          options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
+          TimeUnit.MILLISECONDS);
+      scheduledExecutors.add(workerMessageTimer);
+    }
+
+    ScheduledExecutorService refreshWorkTimer = executorSupplier.apply("RefreshWork");
     if (options.getActiveWorkRefreshPeriodMillis() > 0) {
       refreshWorkTimer.scheduleWithFixedDelay(
           new Runnable() {
@@ -602,15 +613,17 @@ public class StreamingDataflowWorker {
           options.getActiveWorkRefreshPeriodMillis(),
           options.getActiveWorkRefreshPeriodMillis(),
           TimeUnit.MILLISECONDS);
+      scheduledExecutors.add(refreshWorkTimer);
     }
     if (windmillServiceEnabled && options.getStuckCommitDurationMillis() > 0) {
       int periodMillis = Math.max(options.getStuckCommitDurationMillis() / 10, 100);
       refreshWorkTimer.scheduleWithFixedDelay(
           this::invalidateStuckCommits, periodMillis, periodMillis, TimeUnit.MILLISECONDS);
+      scheduledExecutors.add(refreshWorkTimer);
     }
 
     if (options.getPeriodicStatusPageOutputDirectory() != null) {
-      statusPageTimer = executorSupplier.apply("DumpStatusPages");
+      ScheduledExecutorService statusPageTimer = executorSupplier.apply("DumpStatusPages");
       statusPageTimer.scheduleWithFixedDelay(
           () -> {
             Collection<Capturable> pages = statusPages.getDebugCapturePages();
@@ -645,6 +658,7 @@ public class StreamingDataflowWorker {
           60,
           60,
           TimeUnit.SECONDS);
+      scheduledExecutors.add(statusPageTimer);
     }
 
     reportHarnessStartup();
@@ -676,25 +690,15 @@ public class StreamingDataflowWorker {
 
   public void stop() {
     try {
-      if (globalConfigRefreshTimer != null) {
-        globalConfigRefreshTimer.shutdown();
+      for (ScheduledExecutorService timer : scheduledExecutors) {
+        if (timer != null) {
+          timer.shutdown();
+        }
       }
-      globalWorkerUpdatesTimer.shutdown();
-      if (refreshWorkTimer != null) {
-        refreshWorkTimer.shutdown();
-      }
-      if (statusPageTimer != null) {
-        statusPageTimer.shutdown();
-      }
-      if (globalConfigRefreshTimer != null) {
-        globalConfigRefreshTimer.awaitTermination(300, TimeUnit.SECONDS);
-      }
-      globalWorkerUpdatesTimer.awaitTermination(300, TimeUnit.SECONDS);
-      if (refreshWorkTimer != null) {
-        refreshWorkTimer.awaitTermination(300, TimeUnit.SECONDS);
-      }
-      if (statusPageTimer != null) {
-        statusPageTimer.awaitTermination(300, TimeUnit.SECONDS);
+      for (ScheduledExecutorService timer : scheduledExecutors) {
+        if (timer != null) {
+          timer.awaitTermination(300, TimeUnit.SECONDS);
+        }
       }
       statusPages.stop();
       if (debugCaptureManager != null) {
@@ -716,6 +720,7 @@ public class StreamingDataflowWorker {
 
       // one last send
       reportPeriodicWorkerUpdates();
+      reportPeriodicWorkerMessage();
     } catch (Exception e) {
       LOG.warn("Exception while shutting down: ", e);
     }
@@ -1584,12 +1589,14 @@ public class StreamingDataflowWorker {
     LOG.info("windmillServerStub is now ready");
 
     // Now start a thread that periodically refreshes the windmill service endpoint.
-    globalConfigRefreshTimer = executorSupplier.apply("GlobalConfigRefreshTimer");
-    globalConfigRefreshTimer.scheduleWithFixedDelay(
+    ScheduledExecutorService configRefreshTimer =
+        executorSupplier.apply("GlobalConfigRefreshTimer");
+    configRefreshTimer.scheduleWithFixedDelay(
         this::getGlobalConfig,
         0,
         options.getGlobalConfigRefreshPeriod().getMillis(),
         TimeUnit.MILLISECONDS);
+    scheduledExecutors.add(configRefreshTimer);
   }
 
   private void getGlobalConfig() {
@@ -1742,9 +1749,20 @@ public class StreamingDataflowWorker {
     maxOutstandingBytes.getAndReset();
     maxOutstandingBytes.addValue(workUnitExecutor.maximumBytesOutstanding());
     outstandingBundles.getAndReset();
-    outstandingBundles.addValue(workUnitExecutor.elementsOutstanding());
+    outstandingBundles.addValue((long) workUnitExecutor.elementsOutstanding());
     maxOutstandingBundles.getAndReset();
-    maxOutstandingBundles.addValue(workUnitExecutor.maximumElementsOutstanding());
+    maxOutstandingBundles.addValue((long) workUnitExecutor.maximumElementsOutstanding());
+  }
+
+  private void sendWorkerMessage() throws IOException {
+    StreamingScalingReport activeThreadsReport =
+        new StreamingScalingReport()
+            .setActiveThreadCount(workUnitExecutor.activeCount())
+            .setActiveBundleCount(workUnitExecutor.elementsOutstanding())
+            .setMaximumThreadCount(chooseMaximumNumberOfThreads())
+            .setMaximumBundleCount(workUnitExecutor.maximumElementsOutstanding());
+    workUnitClient.reportWorkerMessage(
+        workUnitClient.createWorkerMessageFromStreamingScalingReport(activeThreadsReport));
   }
 
   @VisibleForTesting
@@ -1757,6 +1775,17 @@ public class StreamingDataflowWorker {
       LOG.warn("Failed to send periodic counter updates", e);
     } catch (Exception e) {
       LOG.error("Unexpected exception while trying to send counter updates", e);
+    }
+  }
+
+  @VisibleForTesting
+  public void reportPeriodicWorkerMessage() {
+    try {
+      sendWorkerMessage();
+    } catch (IOException e) {
+      LOG.warn("Failed to send worker messages", e);
+    } catch (Exception e) {
+      LOG.error("Unexpected exception while trying to send worker messages", e);
     }
   }
 

@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
 import java.io.ByteArrayInputStream;
@@ -284,6 +285,9 @@ public class TransformUpgraderTest {
             .get("TransformUpgraderTest-TestTransform");
 
     validateTestParam(upgradedTransform, 4);
+
+    // Confirm that the upgraded transform includes the upgrade annotation.
+    assertTrue(upgradedTransform.getAnnotationsMap().containsKey(TransformUpgrader.UPGRADE_KEY));
   }
 
   @Test

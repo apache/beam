@@ -59,6 +59,28 @@ as an input, e.g.
         output_type: integer
 ```
 
+This can be used to call arbitrary transforms in the Beam SDK, e.g.
+
+```
+pipeline:
+  transforms:
+    - type: PyTransform
+      name: ReadFromTsv
+      input: {}
+      config:
+        constructor: apache_beam.io.ReadFromCsv
+        kwargs:
+           path: '/path/to/*.tsv'
+           sep: '\t'
+           skip_blank_lines: True
+           true_values: ['yes']
+           false_values: ['no']
+           comment: '#'
+           on_bad_lines: 'skip'
+           binary: False
+           splittable: False
+```
+
 
 ## Defining a transform inline using `__constructor__`
 

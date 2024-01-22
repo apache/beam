@@ -91,6 +91,11 @@ public class WriteFilesTranslation {
           }
 
           @Override
+          public boolean isAutoSharded() {
+            return transform.getWithAutoSharding();
+          }
+
+          @Override
           public boolean isRunnerDeterminedSharding() {
             return transform.getNumShardsProvider() == null
                 && transform.getComputeNumShards() == null;
@@ -173,6 +178,16 @@ public class WriteFilesTranslation {
           transform)
       throws IOException {
     return getWriteFilesPayload(transform).getWindowedWrites();
+  }
+
+  public static <T, DestinationT> boolean isAutoSharded(
+      AppliedPTransform<
+              PCollection<T>,
+              WriteFilesResult<DestinationT>,
+              ? extends PTransform<PCollection<T>, WriteFilesResult<DestinationT>>>
+          transform)
+      throws IOException {
+    return getWriteFilesPayload(transform).getAutoSharded();
   }
 
   public static <T, DestinationT> boolean isRunnerDeterminedSharding(
@@ -269,6 +284,11 @@ public class WriteFilesTranslation {
     }
 
     @Override
+    public boolean isAutoSharded() {
+      return payload.getAutoSharded();
+    }
+
+    @Override
     public boolean isRunnerDeterminedSharding() {
       return payload.getRunnerDeterminedSharding();
     }
@@ -309,6 +329,8 @@ public class WriteFilesTranslation {
 
     boolean isWindowedWrites();
 
+    boolean isAutoSharded();
+
     boolean isRunnerDeterminedSharding();
   }
 
@@ -319,6 +341,7 @@ public class WriteFilesTranslation {
         .setSink(writeFiles.translateSink(components))
         .putAllSideInputs(writeFiles.translateSideInputs(components))
         .setWindowedWrites(writeFiles.isWindowedWrites())
+        .setAutoSharded(writeFiles.isAutoSharded())
         .setRunnerDeterminedSharding(writeFiles.isRunnerDeterminedSharding())
         .build();
   }

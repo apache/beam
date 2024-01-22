@@ -22,9 +22,6 @@
 
 set -e
 
-# Make the packaging version available to the code.
-echo "export const version = \"$npm_package_version\";" > src/apache_beam/version.ts
-
 # Using npx to execute ttsc from the local node_modules environment.
 npx ttsc -p .
 
