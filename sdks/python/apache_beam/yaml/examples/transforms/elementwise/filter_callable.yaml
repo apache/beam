@@ -45,3 +45,8 @@ pipeline:
         keep:
           callable: "lambda plant: plant.duration == 'perennial'"
     - type: LogForTesting
+
+## Expected:
+#          "{'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}",
+#          "{'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}",
+#          "{'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}"
