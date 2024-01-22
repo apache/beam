@@ -652,7 +652,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             AppendRowsContext failedContext =
                 Preconditions.checkStateNotNull(Iterables.getFirst(failedContexts, null));
             BigQuerySinkMetrics.reportFailedRPCMetrics(
-                failedContext, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS);
+                failedContext, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, shortTableId);
             String errorCode =
                 BigQuerySinkMetrics.throwableToGRPCCodeString(failedContext.getError());
 
@@ -801,7 +801,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             BigQuerySinkMetrics.reportSuccessfulRpcMetrics(
                 context, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, shortTableId);
             BigQuerySinkMetrics.appendRowsRowStatusCounter(
-                BigQuerySinkMetrics.RowStatus.SUCCESSFUL, BigQuerySinkMetrics.OK, shortTableId);
+                    BigQuerySinkMetrics.RowStatus.SUCCESSFUL, BigQuerySinkMetrics.OK, shortTableId)
+                .inc(flushedRows);
 
             if (successfulRowsTag != null) {
               for (int i = 0; i < context.protoRows.getSerializedRowsCount(); ++i) {
@@ -966,3 +967,4 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     }
   }
 }
+
