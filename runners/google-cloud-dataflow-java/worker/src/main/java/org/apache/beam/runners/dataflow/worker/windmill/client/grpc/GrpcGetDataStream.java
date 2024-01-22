@@ -69,6 +69,9 @@ public final class GrpcGetDataStream
   private final ThrottleTimer getDataThrottleTimer;
   private final JobHeader jobHeader;
   private final int streamingRpcBatchLimit;
+  // If true, then active work refreshes will be sent as KeyedGetDataRequests. Otherwise, use the
+  // newer ComputationHeartbeatRequests.
+  private final boolean sendKeyedGetDataRequests;
   private Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
 
   private GrpcGetDataStream(
@@ -82,6 +85,7 @@ public final class GrpcGetDataStream
       JobHeader jobHeader,
       AtomicLong idGenerator,
       int streamingRpcBatchLimit,
+      boolean sendKeyedGetDataRequests,
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     super(
         startGetDataRpcFn, backoff, streamObserverFactory, streamRegistry, logEveryNStreamFailures);
@@ -91,6 +95,7 @@ public final class GrpcGetDataStream
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
     this.batches = new ConcurrentLinkedDeque<>();
     this.pending = new ConcurrentHashMap<>();
+    this.sendKeyedGetDataRequests = sendKeyedGetDataRequests;
     this.processHeartbeatResponses = processHeartbeatResponses;
   }
 
@@ -105,6 +110,7 @@ public final class GrpcGetDataStream
       JobHeader jobHeader,
       AtomicLong idGenerator,
       int streamingRpcBatchLimit,
+      boolean sendKeyedGetDataRequests,
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     GrpcGetDataStream getDataStream =
         new GrpcGetDataStream(
@@ -117,6 +123,7 @@ public final class GrpcGetDataStream
             jobHeader,
             idGenerator,
             streamingRpcBatchLimit,
+            sendKeyedGetDataRequests,
             processHeartbeatResponses);
     getDataStream.startStream();
     return getDataStream;
@@ -182,8 +189,7 @@ public final class GrpcGetDataStream
   }
 
   @Override
-  public void refreshActiveWork(
-      Map<String, List<HeartbeatRequest>> heartbeats, boolean sendKeyedGetDataRequests) {
+  public void refreshActiveWork(Map<String, List<HeartbeatRequest>> heartbeats) {
     StreamingGetDataRequest.Builder builder = StreamingGetDataRequest.newBuilder();
     if (sendKeyedGetDataRequests) {
       long builderBytes = 0;

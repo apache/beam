@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOptions;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
@@ -96,6 +97,9 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   private final StreamingEngineThrottleTimers throttleTimers;
   private Duration maxBackoff;
   private @Nullable WindmillApplianceGrpc.WindmillApplianceBlockingStub syncApplianceStub;
+  // If true, then active work refreshes will be sent as KeyedGetDataRequests. Otherwise, use the
+  // newer ComputationHeartbeatRequests.
+  private final boolean sendKeyedGetDataRequests;
   private Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
 
   private GrpcWindmillServer(
@@ -122,6 +126,10 @@ public final class GrpcWindmillServer extends WindmillServerStub {
 
     this.dispatcherClient = grpcDispatcherClient;
     this.syncApplianceStub = null;
+    this.sendKeyedGetDataRequests =
+        !options.isEnableStreamingEngine()
+            || !DataflowRunner.hasExperiment(
+                options, "streaming_engine_send_new_heartbeat_requests");
     this.processHeartbeatResponses = (responses) -> {};
   }
 
@@ -332,6 +340,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     return windmillStreamFactory.createGetDataStream(
         dispatcherClient.getDispatcherStub(),
         throttleTimers.getDataThrottleTimer(),
+        sendKeyedGetDataRequests,
         this.processHeartbeatResponses);
   }
 

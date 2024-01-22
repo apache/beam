@@ -60,8 +60,7 @@ public interface WindmillStream {
     Windmill.GlobalData requestGlobalData(Windmill.GlobalDataRequest request);
 
     /** Tells windmill processing is ongoing for the given keys. */
-    void refreshActiveWork(
-        Map<String, List<HeartbeatRequest>> heartbeats, boolean sendKeyedGetDataRequests);
+    void refreshActiveWork(Map<String, List<HeartbeatRequest>> heartbeats);
 
     void onHeartbeatResponse(List<Windmill.ComputationHeartbeatResponse> responses);
   }

@@ -319,31 +319,13 @@ class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void refreshActiveWork(
-          Map<String, List<HeartbeatRequest>> heartbeats, boolean sendKeyedGetDataRequests) {
+      public void refreshActiveWork(Map<String, List<HeartbeatRequest>> heartbeats) {
         Windmill.GetDataRequest.Builder builder = Windmill.GetDataRequest.newBuilder();
-        if (sendKeyedGetDataRequests) {
-          for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
-            Windmill.ComputationGetDataRequest.Builder perComputationBuilder =
-                Windmill.ComputationGetDataRequest.newBuilder().setComputationId(entry.getKey());
-            for (HeartbeatRequest request : entry.getValue()) {
-              perComputationBuilder.addRequests(
-                  Windmill.KeyedGetDataRequest.newBuilder()
-                      .setShardingKey(request.getShardingKey())
-                      .setWorkToken(request.getWorkToken())
-                      .setCacheToken(request.getCacheToken())
-                      .addAllLatencyAttribution(request.getLatencyAttributionList())
-                      .build());
-            }
-            builder.addRequests(perComputationBuilder.build());
-          }
-        } else {
-          for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
-            builder.addComputationHeartbeatRequest(
-                ComputationHeartbeatRequest.newBuilder()
-                    .setComputationId(entry.getKey())
-                    .addAllHeartbeatRequests(entry.getValue()));
-          }
+        for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+          builder.addComputationHeartbeatRequest(
+              ComputationHeartbeatRequest.newBuilder()
+                  .setComputationId(entry.getKey())
+                  .addAllHeartbeatRequests(entry.getValue()));
         }
 
         getData(builder.build());

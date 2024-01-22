@@ -1243,7 +1243,7 @@ public class StreamingDataflowWorker {
             "Execution of work for computation '{}' on key '{}' failed. "
                 + "Work will not be retried locally.",
             computationId,
-            key.toStringUtf8());
+            workItem.getShardingKey());
       } else {
         LastExceptionDataProvider.reportException(t);
         LOG.debug("Failed work: {}", work);
@@ -1891,12 +1891,11 @@ public class StreamingDataflowWorker {
       for (Windmill.HeartbeatResponse heartbeatResponse :
           computationHeartbeatResponse.getHeartbeatResponsesList()) {
         if (heartbeatResponse.getFailed()) {
-          List<FailedTokens> keyTokens =
-              failedWork.putIfAbsent(heartbeatResponse.getShardingKey(), new ArrayList<>());
-          if (keyTokens == null) keyTokens = failedWork.get(heartbeatResponse.getShardingKey());
-          keyTokens.add(
-              new FailedTokens(
-                  heartbeatResponse.getWorkToken(), heartbeatResponse.getCacheToken()));
+          failedWork
+              .computeIfAbsent(heartbeatResponse.getShardingKey(), key -> new ArrayList<>())
+              .add(
+                  new FailedTokens(
+                      heartbeatResponse.getWorkToken(), heartbeatResponse.getCacheToken()));
         }
       }
       ComputationState state = computationMap.get(computationHeartbeatResponse.getComputationId());
@@ -1916,15 +1915,11 @@ public class StreamingDataflowWorker {
     Instant refreshDeadline =
         clock.get().minus(Duration.millis(options.getActiveWorkRefreshPeriodMillis()));
 
-    boolean sendKeyedGetDataRequests =
-        !windmillServiceEnabled
-            || !DataflowRunner.hasExperiment(
-                options, "streaming_engine_send_new_heartbeat_requests");
     for (Map.Entry<String, ComputationState> entry : computationMap.entrySet()) {
       heartbeats.put(entry.getKey(), entry.getValue().getKeyHeartbeats(refreshDeadline, sampler));
     }
 
-    metricTrackingWindmillServer.refreshActiveWork(heartbeats, sendKeyedGetDataRequests);
+    metricTrackingWindmillServer.refreshActiveWork(heartbeats);
   }
 
   private void invalidateStuckCommits() {

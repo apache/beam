@@ -156,6 +156,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   public GetDataStream createGetDataStream(
       CloudWindmillServiceV1Alpha1Stub stub,
       ThrottleTimer getDataThrottleTimer,
+      boolean sendKeyedGetDataRequests,
       Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses) {
     return GrpcGetDataStream.create(
         responseObserver -> withDeadline(stub).getDataStream(responseObserver),
@@ -167,12 +168,13 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         jobHeader,
         streamIdGenerator,
         streamingRpcBatchLimit,
+        sendKeyedGetDataRequests,
         processHeartbeatResponses);
   }
 
   public GetDataStream createGetDataStream(
       CloudWindmillServiceV1Alpha1Stub stub, ThrottleTimer getDataThrottleTimer) {
-    return createGetDataStream(stub, getDataThrottleTimer, (response) -> {});
+    return createGetDataStream(stub, getDataThrottleTimer, false, (response) -> {});
   }
 
   public CommitWorkStream createCommitWorkStream(

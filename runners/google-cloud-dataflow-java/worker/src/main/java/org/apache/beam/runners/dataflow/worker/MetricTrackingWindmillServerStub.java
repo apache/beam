@@ -238,13 +238,8 @@ public class MetricTrackingWindmillServerStub {
     }
   }
 
-  /**
-   * Tells windmill processing is ongoing for the given keys. If sendKeyedGetDataRequests is true
-   * then these heartbeat messages are sent as KeyedGetDataRequests. Otherwise, they are sent as
-   * HeartbeatRequest protos.
-   */
-  public void refreshActiveWork(
-      Map<String, List<HeartbeatRequest>> heartbeats, boolean sendKeyedGetDataRequests) {
+  /** Tells windmill processing is ongoing for the given keys. */
+  public void refreshActiveWork(Map<String, List<HeartbeatRequest>> heartbeats) {
     activeHeartbeats.set(heartbeats.size());
     try {
       if (useStreamingRequests) {
@@ -252,7 +247,7 @@ public class MetricTrackingWindmillServerStub {
         // we trigger health checks for the stream even when it is idle.
         GetDataStream stream = streamPool.getStream();
         try {
-          stream.refreshActiveWork(heartbeats, sendKeyedGetDataRequests);
+          stream.refreshActiveWork(heartbeats);
         } finally {
           streamPool.releaseStream(stream);
         }
