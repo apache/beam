@@ -571,7 +571,19 @@ def create_builtin_provider():
              - {first: 1, second: {str: "bar", values: [4, 5, 6]}}
 
     will result in a schema of the form (int, Row(string, List[int])).
-
+    
+    This can also be expressed as YAML:
+        type: Create
+        config:
+          elements:
+            - first: 0
+              second:
+                str: "foo"
+                 values: [1, 2, 3]
+            - first: 1
+              second:
+                str: "bar"
+                 values: [4, 5, 6]
     Args:
         elements: The set of elements that should belong to the PCollection.
             YAML/JSON-style mappings will be interpreted as Beam rows.
