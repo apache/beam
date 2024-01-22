@@ -275,6 +275,7 @@ class WriteRename
                       BigQueryHelpers.fromJsonString(result.getTableName(), TableReference.class))
               .collect(Collectors.toList());
 
+      // We maintain string versions of the temp tables in order to make pendingJobData serializable
       List<String> tempTableStrings =
           StreamSupport.stream(tempTableNames.spliterator(), false)
               .map(Result::getTableName)
