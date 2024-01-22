@@ -111,8 +111,8 @@ class WriteRename
                         kmsKey,
                         loadJobProjectId))
                 .withSideInputs(copyJobIdPrefixView))
-        // We apply a fusion break here to ensure that on retries, the temp table renaming won't attempt to
-        // rename a temp table that was previously deleted in TempTableCleanupFn
+        // We apply a fusion break here to ensure that on retries, the temp table renaming won't
+        // attempt to rename a temp table that was previously deleted in TempTableCleanupFn
         .apply(Reshuffle.viaRandomKey())
         .apply("RemoveTempTables", ParDo.of(new TempTableCleanupFn(bqServices)))
         .setCoder(TableDestinationCoder.of());
