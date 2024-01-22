@@ -63,7 +63,7 @@ Features of a good response:
 Folder structure:
 ```
 learning/prompts/
-├── code-explaination
+├── code-explanation
 │   ├── 01_io_kafka.md
 │   └── ...
 ├── code-generation

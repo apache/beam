@@ -8,8 +8,6 @@ Apache Beam has a built-in KafkaIO connector for Apache Kafka that lets you read
 * [Go (using cross-language transforms)](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/kafkaio)
 * [Typescript (using cross-language transforms)](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/io/kafka.ts)
 
-For performance metrics of the KafkaIO connector, see [KafkaIO Performance](https://beam.apache.org/performance/io/kafka/).
-
 The [Dataflow cookbook repository](https://github.com/GoogleCloudPlatform/dataflow-cookbook) can help you to get started with Apache Kafka and Apache Beam.
 
 Apache Beam pipeline code for reading data from a Kafka topic might look like the following example:

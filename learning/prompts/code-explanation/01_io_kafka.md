@@ -63,5 +63,3 @@ options = KafkaOptions()
 ```
 
 For more information about how to use the KafkaIO connector with the Python SDK for Apache Beam, see [KafkaIO module](https://beam.apache.org/releases/pydoc/current/apache_beam.io.kafka.html).
-
-For performance metrics of the KafkaIO connector, see [KafkaIO Performance](https://beam.apache.org/performance/io/kafka/).
