@@ -36,6 +36,8 @@ import org.junit.Test;
 public class DicomIOReadIT {
   private static final String TEST_FILE_PATH = "src/test/resources/DICOM/testDicomFile.dcm";
   private static final String TEST_FILE_STUDY_ID = "study_000000000";
+  private static final String TEST_FILE_SERIES_ID = "series_000000000";
+  private static final String TEST_FILE_INSTANCE_ID = "instance_000000000";
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   private String healthcareDataset;
@@ -65,8 +67,8 @@ public class DicomIOReadIT {
   public void testDicomMetadataRead() throws IOException {
     String webPath =
         String.format(
-            "%s/dicomStores/%s/dicomWeb/studies/%s",
-            healthcareDataset, storeName, TEST_FILE_STUDY_ID);
+            "%s/dicomStores/%s/dicomWeb/studies/%s/series/%s/instances/%s",
+            healthcareDataset, storeName, TEST_FILE_STUDY_ID, TEST_FILE_SERIES_ID, TEST_FILE_INSTANCE_ID);
 
     DicomIO.ReadStudyMetadata.Result result =
         pipeline.apply(Create.of(webPath)).apply(DicomIO.readStudyMetadata());
