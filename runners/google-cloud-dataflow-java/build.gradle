@@ -284,7 +284,7 @@ def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaCont
   }
   dependsOn ":sdks:java:container:${javaVer}:docker"
   def defaultDockerImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}java${imageJavaVersion}_sdk",
+          name: "${project.docker_image_default_repo_prefix}java${javaVer}_sdk",
           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
                   project.rootProject["docker-repository-root"] :
                   project.docker_image_default_repo_root,
@@ -330,7 +330,7 @@ def buildAndPushDockerPythonContainer = tasks.create("buildAndPushDockerPythonCo
   def pythonVer = project.project(':sdks:python').pythonVersion
   dependsOn ":sdks:python:container:py"+pythonVer.replace('.', '')+":docker"
   def defaultDockerImageName = containerImageName(
-          name: project.docker_image_default_repo_prefix + "python${project.ext.pythonVersion}_sdk",
+          name: "${project.docker_image_default_repo_prefix}python${pythonVer}_sdk",
           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
                   project.rootProject["docker-repository-root"] :
                   project.docker_image_default_repo_root,
