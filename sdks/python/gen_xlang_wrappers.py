@@ -274,7 +274,6 @@ def get_wrappers_from_transform_configs(config_file) -> Dict[str, List[str]]:
             "name": pythonic_name,
             "type": info['type'],
             "description": info['description'],
-            "original_name": param
         }
         # for nullable fields, default to None
         if info['nullable']:
@@ -331,7 +330,7 @@ def write_wrappers_to_destinations(grouped_wrappers: Dict[str, List[str]]):
     out = subprocess.run([
         'yapf',
         '--in-place',
-        *[os.path.join(PYTHON_SDK_ROOT, module) for module in written_files],
+        *[os.path.join(PYTHON_SDK_ROOT, *module.split('/')) for module in written_files],
     ], capture_output=True, check=True)
     print(out.stdout)
   except subprocess.CalledProcessError as err:
