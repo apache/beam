@@ -918,8 +918,10 @@ public class GrpcWindmillServerTest {
             .executor(Executors.newFixedThreadPool(1))
             .build()
             .start();
-    this.client = GrpcWindmillServer.newTestInstance(
-        "TestServer", Collections.singletonList("streaming_engine_send_new_heartbeat_requests"));
+    this.client =
+        GrpcWindmillServer.newTestInstance(
+            "TestServer",
+            Collections.singletonList("streaming_engine_send_new_heartbeat_requests"));
     // This server records the heartbeats observed but doesn't respond.
     final List<ComputationHeartbeatRequest> receivedHeartbeats = new ArrayList<>();
 

@@ -194,7 +194,8 @@ public final class GrpcWindmillServer extends WindmillServerStub {
             WindmillStubFactory.inProcessStubFactory(name, unused -> inProcessChannel),
             dispatcherStubs,
             dispatcherEndpoints);
-    return new GrpcWindmillServer(testOptions(/* enableStreamingEngine= */ true, experiments), dispatcherClient);
+    return new GrpcWindmillServer(
+        testOptions(/* enableStreamingEngine= */ true, experiments), dispatcherClient);
   }
 
   @VisibleForTesting
