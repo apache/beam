@@ -495,7 +495,7 @@ public class BigQueryIOWriteTest implements Serializable {
     }
   }
 
-  void testTimePartitioningClustering(
+  void testTimePartitioningAndClustering(
       BigQueryIO.Write.Method insertMethod, boolean enablePartitioning, boolean enableClustering)
       throws Exception {
     TableRow row1 = new TableRow().set("date", "2018-01-01").set("number", "1");
@@ -540,77 +540,38 @@ public class BigQueryIOWriteTest implements Serializable {
     }
   }
 
-  void testTimePartitioningWithoutClustering(BigQueryIO.Write.Method insertMethod)
-      throws Exception {
-    testTimePartitioningClustering(insertMethod, true, false);
-  }
-
-  void testTimePartitioningWithClustering(BigQueryIO.Write.Method insertMethod) throws Exception {
-    testTimePartitioningClustering(insertMethod, true, true);
-  }
-
-  void testClusteringWithoutPartitioning(BigQueryIO.Write.Method insertMethod) throws Exception {
-    testTimePartitioningClustering(insertMethod, false, true);
-  }
-
-  void testNoClusteringAndNoPartitioning(BigQueryIO.Write.Method insertMethod) throws Exception {
-    testTimePartitioningClustering(insertMethod, false, false);
+  void testTimePartitioningAndClusteringWithAllMethods(
+      Boolean enablePartitioning, Boolean enableClustering) throws Exception {
+    BigQueryIO.Write.Method method;
+    if (useStorageApi) {
+      method =
+          useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
+    } else if (useStreaming) {
+      method = Method.STREAMING_INSERTS;
+    } else {
+      method = Method.FILE_LOADS;
+    }
+    testTimePartitioningAndClustering(method, enablePartitioning, enableClustering);
   }
 
   @Test
   public void testTimePartitioningWithoutClustering() throws Exception {
-    BigQueryIO.Write.Method method;
-    if (useStorageApi) {
-      method =
-          useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
-    } else if (useStreaming) {
-      method = Method.STREAMING_INSERTS;
-    } else {
-      method = Method.FILE_LOADS;
-    }
-    testTimePartitioningWithoutClustering(method);
+    testTimePartitioningAndClusteringWithAllMethods(true, false);
   }
 
   @Test
   public void testTimePartitioningWithClustering() throws Exception {
-    BigQueryIO.Write.Method method;
-    if (useStorageApi) {
-      method =
-          useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
-    } else if (useStreaming) {
-      method = Method.STREAMING_INSERTS;
-    } else {
-      method = Method.FILE_LOADS;
-    }
-    testTimePartitioningWithClustering(method);
+    testTimePartitioningAndClusteringWithAllMethods(true, true);
   }
 
   @Test
   public void testClusteringWithoutPartitioning() throws Exception {
-    BigQueryIO.Write.Method method;
-    if (useStorageApi) {
-      method =
-          useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
-    } else if (useStreaming) {
-      method = Method.STREAMING_INSERTS;
-    } else {
-      method = Method.FILE_LOADS;
-    }
-    testClusteringWithoutPartitioning(method);
+    testTimePartitioningAndClusteringWithAllMethods(false, true);
   }
 
   @Test
   public void testNoClusteringNoPartitioning() throws Exception {
-    BigQueryIO.Write.Method method;
-    if (useStorageApi) {
-      method =
-          useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
-    } else if (useStreaming) {
-      method = Method.STREAMING_INSERTS;
-    } else {
-      method = Method.FILE_LOADS;
-    }
-    testNoClusteringAndNoPartitioning(method);
+    testTimePartitioningAndClusteringWithAllMethods(false, false);
   }
 
   @Test

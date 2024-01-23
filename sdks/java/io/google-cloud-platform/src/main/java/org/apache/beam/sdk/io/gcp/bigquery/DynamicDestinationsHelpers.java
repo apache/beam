@@ -304,14 +304,9 @@ class DynamicDestinationsHelpers {
       String partitioning =
           Optional.ofNullable(jsonTimePartitioning).map(ValueProvider::get).orElse(null);
       String clustering = Optional.ofNullable(jsonClustering).map(ValueProvider::get).orElse(null);
-      checkArgument(
-          partitioning != null || clustering != null,
-          "at least one of jsonTimePartitioning or jsonClustering must be non-null");
+
       return new TableDestination(
-          destination.getTableSpec(),
-          destination.getTableDescription(),
-          partitioning,
-          clustering);
+          destination.getTableSpec(), destination.getTableDescription(), partitioning, clustering);
     }
 
     @Override
