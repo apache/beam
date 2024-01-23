@@ -63,7 +63,7 @@ public class DicomIOReadIT {
   }
 
   @Test
-  public void testDicomMetadataRead() throws IOException {
+  public void testDicomMetadataRead() {
     String webPath =
         String.format(
             "%s/dicomStores/%s/dicomWeb/studies/%s/series/%s/instances/%s",
@@ -86,17 +86,11 @@ public class DicomIOReadIT {
               return null;
             });
 
-    PipelineResult job = pipeline.run();
-
-    try {
-      job.cancel();
-    } catch (UnsupportedOperationException exc) {
-      // noop - if runner does not support job.cancel()
-    }
+    pipeline.run();
   }
 
   @Test
-  public void testDicomFailedMetadataRead() throws IOException {
+  public void testDicomFailedMetadataRead() {
     String badWebPath = "foo";
 
     DicomIO.ReadStudyMetadata.Result result =
@@ -111,12 +105,6 @@ public class DicomIOReadIT {
               return null;
             });
 
-    PipelineResult job = pipeline.run();
-
-    try {
-      job.cancel();
-    } catch (UnsupportedOperationException exc) {
-      // noop - if runner does not support job.cancel()
-    }
+    pipeline.run();
   }
 }
