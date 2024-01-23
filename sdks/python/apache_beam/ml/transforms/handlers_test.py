@@ -304,8 +304,11 @@ class TFTProcessHandlerTest(unittest.TestCase):
 
       self.assertTrue(
           FileSystems.exists(
+              # To check the gcs directory with FileSystems, the dir path must
+              # end with /
               os.path.join(
-                  self.artifact_location, handlers.RAW_DATA_METADATA_DIR)))
+                  self.artifact_location,
+                  handlers.RAW_DATA_METADATA_DIR + '/')))
       self.assertTrue(
           FileSystems.exists(
               os.path.join(
