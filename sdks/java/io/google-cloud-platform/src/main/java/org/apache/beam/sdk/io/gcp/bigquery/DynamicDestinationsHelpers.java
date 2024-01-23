@@ -310,8 +310,8 @@ class DynamicDestinationsHelpers {
       return new TableDestination(
           destination.getTableSpec(),
           destination.getTableDescription(),
-          Optional.ofNullable(jsonTimePartitioning).map(ValueProvider::get).orElse(null),
-          Optional.ofNullable(jsonClustering).map(ValueProvider::get).orElse(null));
+          partitioning,
+          clustering);
     }
 
     @Override
