@@ -31,6 +31,7 @@ import numpy as np
 from parameterized import parameterized
 
 import apache_beam as beam
+from apache_beam.io.filesystems import FileSystems
 
 # pylint: disable=wrong-import-position, ungrouped-imports
 try:
@@ -302,11 +303,11 @@ class TFTProcessHandlerTest(unittest.TestCase):
       _ = raw_data | process_handler
 
       self.assertTrue(
-          os.path.exists(
+          FileSystems.exists(
               os.path.join(
                   self.artifact_location, handlers.RAW_DATA_METADATA_DIR)))
       self.assertTrue(
-          os.path.exists(
+          FileSystems.exists(
               os.path.join(
                   self.artifact_location,
                   handlers.RAW_DATA_METADATA_DIR,
