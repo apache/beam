@@ -17,12 +17,18 @@
  */
 package org.apache.beam.io.requestresponse;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+
 import java.io.Serializable;
 import org.joda.time.Duration;
 
 /** Configures the number of elements at most emitted within a time interval. */
 public class Rate implements Serializable {
 
+  /**
+   * Instantiate a {@link Rate} with numElements and {@link Duration} interval. The arguments
+   * numElements and interval's {@link Duration#getMillis()} must be > 0.
+   */
   public static Rate of(int numElements, Duration interval) {
     return new Rate(numElements, interval);
   }
@@ -31,14 +37,18 @@ public class Rate implements Serializable {
   private final Duration interval;
 
   private Rate(int numElements, Duration interval) {
+    checkArgument(numElements > 0);
+    checkArgument(interval.getMillis() > 0);
     this.numElements = numElements;
     this.interval = interval;
   }
 
+  /** Gets the number of elements to emit within {@link #getInterval()}. */
   public int getNumElements() {
     return numElements;
   }
 
+  /** Gets the {@link Duration} to emit {@link #getNumElements()}. */
   public Duration getInterval() {
     return interval;
   }

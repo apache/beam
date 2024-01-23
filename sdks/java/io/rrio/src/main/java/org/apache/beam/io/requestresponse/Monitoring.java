@@ -189,7 +189,9 @@ public abstract class Monitoring implements Serializable {
   /** Count {@link Cache} write failures. */
   public abstract Boolean getCountCacheWriteFailures();
 
-  public abstract Boolean getMonitorThrottling();
+  public static Monitoring defaultInstance() {
+    return Monitoring.builder().build();
+  }
 
   /**
    * Turns on all monitoring. The purpose of this method is, when used with {@link #toBuilder} and
@@ -206,7 +208,6 @@ public abstract class Monitoring implements Serializable {
         .setCountBackoffs(true)
         .setCountSleeps(true)
         .setCountShouldBackoff(true)
-        .setMonitorThrottling(true)
         .build()
         .withCountCaching(true);
   }
@@ -237,6 +238,12 @@ public abstract class Monitoring implements Serializable {
   static void incIfPresent(@Nullable Counter counter) {
     if (counter != null) {
       counter.inc();
+    }
+  }
+
+  static void incIfPresent(@Nullable Counter counter, int by) {
+    if (counter != null) {
+      counter.inc(by);
     }
   }
 
@@ -275,8 +282,6 @@ public abstract class Monitoring implements Serializable {
 
     public abstract Builder setCountCacheWriteFailures(Boolean value);
 
-    public abstract Builder setMonitorThrottling(Boolean value);
-
     abstract Optional<Boolean> getCountRequests();
 
     abstract Optional<Boolean> getCountResponses();
@@ -309,11 +314,9 @@ public abstract class Monitoring implements Serializable {
 
     abstract Optional<Boolean> getCountCacheWriteFailures();
 
-    abstract Optional<Boolean> getMonitorThrottling();
-
     abstract Monitoring autoBuild();
 
-    final Monitoring build() {
+    public final Monitoring build() {
       if (!getCountRequests().isPresent()) {
         setCountRequests(false);
       }
@@ -361,9 +364,6 @@ public abstract class Monitoring implements Serializable {
       }
       if (!getCountCacheWriteFailures().isPresent()) {
         setCountCacheWriteFailures(false);
-      }
-      if (!getMonitorThrottling().isPresent()) {
-        setMonitorThrottling(false);
       }
 
       return autoBuild();

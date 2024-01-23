@@ -26,7 +26,8 @@ import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Triple;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.Keys;
@@ -43,7 +44,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -264,25 +264,36 @@ public class RequestResponseIO<RequestT, ResponseT>
   }
 
   /**
-   * Configures {@link RequestResponseIO} with a default internal {@link PTransform} implementation
-   * that throttles a {@link RequestT} {@link PCollection}, emitting elements at the maximumRate of
-   * {@link Rate#getNumElements()} per {@link Rate#getInterval()}. If monitorThrottling is true, it
-   * will count the number of input and emitted elements as well as the distribution of between
-   * timestamp duration intervals in milliseconds.
+   * Turned off by default, configures {@link RequestResponseIO} with a default internal {@link
+   * PTransform} implementation that preventively throttles, a {@link RequestT} {@link PCollection},
+   * emitting elements at the maximumRate of {@link Rate#getNumElements()} per {@link
+   * Rate#getInterval()}. This preventive throttling stands in contrast to the adaptive throttling
+   * implementation employed when processing {@link RequestT}s. Usage of this method is mutually
+   * exclusive with {@link #withPreventiveThrottle}. Additionally, collects the following metrics if
+   * collectMetrics is true.
+   *
+   * <ul>
+   *   <li>{@link Distribution} of the intervals between processing time measures of throttled
+   *       elements
+   *   <li>{@link Counter} of the number of elements encountered by the throttle
+   *   <li>{@link Counter} of the number of elements emitted by the throttle
+   * </ul>
    */
   public RequestResponseIO<RequestT, ResponseT> withDefaultPreventiveThrottling(
-      Rate maximumRate, boolean monitorThrottling) {
+      Rate maximumRate, boolean collectMetrics) {
     ThrottleWithoutExternalResource<RequestT> transform =
         ThrottleWithoutExternalResource.of(maximumRate);
-    if (monitorThrottling) {
+    if (collectMetrics) {
       transform = transform.withMetricsCollected();
     }
-    return withPreventiveThrottle(new WrappedThrottleWithoutExternalResource(transform));
+    return withPreventiveThrottle(transform);
   }
 
   /**
-   * Configures {@link RequestResponseIO} with a {@link PTransform} that holds back {@link
-   * RequestT}s to prevent quota errors such as HTTP 429 or gRPC RESOURCE_EXHAUSTION errors.
+   * Turned off by default, configures {@link RequestResponseIO} with a {@link PTransform} that
+   * holds back {@link RequestT}s to prevent quota errors such as HTTP 429 or gRPC
+   * RESOURCE_EXHAUSTION errors. Usage of this method is mutually exclusive with {@link
+   * #withDefaultPreventiveThrottling}.
    */
   public RequestResponseIO<RequestT, ResponseT> withPreventiveThrottle(
       PTransform<PCollection<RequestT>, Result<RequestT>> throttle) {
@@ -368,7 +379,7 @@ public class RequestResponseIO<RequestT, ResponseT>
 
     // Throttle the RequestT input PCollection.
     Pair<PCollection<RequestT>, PCollectionList<ApiIOError>> throttle =
-        expandThrottle(input, failureList);
+        expandPreventiveThrottle(input, failureList);
     input = throttle.getLeft();
     failureList = throttle.getRight();
 
@@ -451,7 +462,7 @@ public class RequestResponseIO<RequestT, ResponseT>
    *   <li>Returns appended {@link PCollection} of {@link ApiIOError}s to the failureList.</li>
    * </ol></pre>
    */
-  Pair<PCollection<RequestT>, PCollectionList<ApiIOError>> expandThrottle(
+  Pair<PCollection<RequestT>, PCollectionList<ApiIOError>> expandPreventiveThrottle(
       PCollection<RequestT> input, PCollectionList<ApiIOError> failureList) {
 
     if (rrioConfiguration.getThrottle() == null) {
@@ -614,38 +625,6 @@ public class RequestResponseIO<RequestT, ResponseT>
     @Override
     public boolean isTrue() {
       return basis.isTrue();
-    }
-  }
-
-  /**
-   * Wraps {@link ThrottleWithoutExternalResource} so that it could be applied to {@link
-   * Configuration#withPreventiveThrottle}.
-   */
-  private class WrappedThrottleWithoutExternalResource
-      extends PTransform<PCollection<RequestT>, Result<RequestT>> {
-
-    private final ThrottleWithoutExternalResource<RequestT> transform;
-
-    private WrappedThrottleWithoutExternalResource(
-        ThrottleWithoutExternalResource<RequestT> transform) {
-      this.transform = transform;
-    }
-
-    @Override
-    public Result<RequestT> expand(PCollection<RequestT> input) {
-      TupleTag<RequestT> outputTag = new TupleTag<RequestT>() {};
-      TupleTag<ApiIOError> errorTag = new TupleTag<ApiIOError>() {};
-
-      PCollection<RequestT> throttled =
-          input.apply(ThrottleWithoutExternalResource.class.getSimpleName(), transform);
-
-      PCollectionTuple pct =
-          PCollectionTuple.of(
-                  errorTag,
-                  input.getPipeline().apply(Create.empty(TypeDescriptor.of(ApiIOError.class))))
-              .and(outputTag, throttled);
-
-      return Result.of(input.getCoder(), outputTag, errorTag, pct);
     }
   }
 }

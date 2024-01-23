@@ -261,7 +261,7 @@ class ThrottleWithExternalResource<
             .output(
                 ApiIOError.builder()
                     // no request to emit as part of the error.
-                    .setRequestAsJsonString("")
+                    .setRequestAsString("")
                     .setMessage(Optional.ofNullable(e.getMessage()).orElse(""))
                     .setObservedTimestamp(Instant.now())
                     .setStackTrace(Throwables.getStackTraceAsString(e))

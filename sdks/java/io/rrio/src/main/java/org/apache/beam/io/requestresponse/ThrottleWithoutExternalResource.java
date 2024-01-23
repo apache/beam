@@ -55,11 +55,16 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.commons.math3.random.RandomDataGenerator;
@@ -73,17 +78,25 @@ import org.joda.time.Instant;
  * resource.
  */
 class ThrottleWithoutExternalResource<RequestT>
-    extends PTransform<PCollection<RequestT>, PCollection<RequestT>> {
+    extends PTransform<PCollection<RequestT>, Result<RequestT>> {
 
   static final String DISTRIBUTION_METRIC_NAME = "milliseconds_between_element_emissions";
   static final String INPUT_ELEMENTS_COUNTER_NAME = "input_elements_count";
   static final String OUTPUT_ELEMENTS_COUNTER_NAME = "output_elements_count";
 
+  private final TupleTag<RequestT> outputTag = new TupleTag<RequestT>() {};
+  private final TupleTag<ApiIOError> errorTag = new TupleTag<ApiIOError>() {};
+
+  /**
+   * Instantiates a {@link ThrottleWithoutExternalResource} with the maximumRate of {@link Rate} and
+   * without collecting metrics.
+   */
   static <RequestT> ThrottleWithoutExternalResource<RequestT> of(Rate maximumRate) {
     return new ThrottleWithoutExternalResource<>(
         Configuration.builder().setMaximumRate(maximumRate).build());
   }
 
+  /** Returns {@link ThrottleWithoutExternalResource} with metrics collection turned on. */
   ThrottleWithoutExternalResource<RequestT> withMetricsCollected() {
     return new ThrottleWithoutExternalResource<>(
         configuration.toBuilder().setCollectMetrics(true).build());
@@ -96,17 +109,21 @@ class ThrottleWithoutExternalResource<RequestT>
   }
 
   @Override
-  public PCollection<RequestT> expand(PCollection<RequestT> input) {
+  public Result<RequestT> expand(PCollection<RequestT> input) {
     ListCoder<RequestT> listCoder = ListCoder.of(input.getCoder());
     Coder<KV<Integer, List<RequestT>>> kvCoder = KvCoder.of(VarIntCoder.of(), listCoder);
 
-    PCollection<RequestT> result =
+    PCollectionTuple pct =
         input
-            // Apply GlobalWindows to prevent multiple window assignment.
-            .apply(GlobalWindows.class.getSimpleName(), Window.into(new GlobalWindows()))
             // Break up the PCollection into fixed channels assigned to an int key [0,
             // Rate::numElements).
             .apply(AssignChannelFn.class.getSimpleName(), assignChannels())
+            // Apply GlobalWindows to prevent multiple window assignment.
+            .apply(
+                GlobalWindows.class.getSimpleName(),
+                Window.<KV<Integer, RequestT>>into(new GlobalWindows())
+                    .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                    .discardingFiredPanes())
             // Apply GroupByKey to convert PCollection of KV<Integer, RequestT> to KV<Integer,
             // Iterable<RequestT>>.
             .apply(GroupByKey.class.getSimpleName(), GroupByKey.create())
@@ -117,14 +134,15 @@ class ThrottleWithoutExternalResource<RequestT>
             .setCoder(kvCoder)
             // Finally apply a splittable DoFn by splitting the Iterable<RequestT>, controlling the
             // output via the watermark estimator.
-            .apply(ThrottleFn.class.getSimpleName(), throttle())
-            .setCoder(input.getCoder());
+            .apply(ThrottleFn.class.getSimpleName(), throttle());
+
+    Result<RequestT> result = Result.of(input.getCoder(), outputTag, errorTag, pct);
 
     // If configured to collect metrics, assign a single key to the global window timestamp and
-    // apply
-    // ComputeMetricsFn.
+    // apply ComputeMetricsFn.
     if (configuration.getCollectMetrics()) {
       result
+          .getResponses()
           .apply(
               BoundedWindow.class.getSimpleName(),
               WithKeys.of(ignored -> BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()))
@@ -136,8 +154,9 @@ class ThrottleWithoutExternalResource<RequestT>
     return result;
   }
 
-  private ParDo.SingleOutput<KV<Integer, List<RequestT>>, RequestT> throttle() {
-    return ParDo.of(new ThrottleFn<>(configuration));
+  private ParDo.MultiOutput<KV<Integer, List<RequestT>>, RequestT> throttle() {
+    return ParDo.of(new ThrottleFn<RequestT>(configuration, outputTag))
+        .withOutputTags(outputTag, TupleTagList.of(errorTag));
   }
 
   /**
@@ -152,11 +171,13 @@ class ThrottleWithoutExternalResource<RequestT>
   static class ThrottleFn<RequestT> extends DoFn<KV<Integer, List<RequestT>>, RequestT> {
 
     private final Configuration configuration;
+    private final TupleTag<RequestT> outputTag;
     private @MonotonicNonNull Counter inputElementsCounter = null;
     private @MonotonicNonNull Counter outputElementsCounter = null;
 
-    ThrottleFn(Configuration configuration) {
+    ThrottleFn(Configuration configuration, TupleTag<RequestT> outputTag) {
       this.configuration = configuration;
+      this.outputTag = outputTag;
     }
 
     @Setup
@@ -227,9 +248,14 @@ class ThrottleWithoutExternalResource<RequestT>
         @Element KV<Integer, List<RequestT>> element,
         ManualWatermarkEstimator<Instant> estimator,
         RestrictionTracker<OffsetRange, Integer> tracker,
-        OutputReceiver<RequestT> receiver) {
+        MultiOutputReceiver receiver) {
 
-      incIfPresent(inputElementsCounter);
+      int size = 0;
+      if (element.getValue() != null) {
+        size = element.getValue().size();
+      }
+
+      incIfPresent(inputElementsCounter, size);
 
       if (element.getValue() == null || element.getValue().isEmpty()) {
         return;
@@ -252,13 +278,13 @@ class ThrottleWithoutExternalResource<RequestT>
         Instant nextEmittedTimestamp,
         RequestT requestT,
         ManualWatermarkEstimator<Instant> estimator,
-        OutputReceiver<RequestT> receiver) {
+        MultiOutputReceiver receiver) {
       Instant now = Instant.now();
       while (now.isBefore(nextEmittedTimestamp)) {
         now = Instant.now();
       }
       estimator.setWatermark(nextEmittedTimestamp);
-      receiver.outputWithTimestamp(requestT, nextEmittedTimestamp);
+      receiver.get(outputTag).outputWithTimestamp(requestT, nextEmittedTimestamp);
       incIfPresent(outputElementsCounter);
     }
   }

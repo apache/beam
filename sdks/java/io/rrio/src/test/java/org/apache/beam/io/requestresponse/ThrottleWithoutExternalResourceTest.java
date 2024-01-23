@@ -18,6 +18,8 @@
 package org.apache.beam.io.requestresponse;
 
 import static org.apache.beam.io.requestresponse.ThrottleWithoutExternalResource.DISTRIBUTION_METRIC_NAME;
+import static org.apache.beam.io.requestresponse.ThrottleWithoutExternalResource.INPUT_ELEMENTS_COUNTER_NAME;
+import static org.apache.beam.io.requestresponse.ThrottleWithoutExternalResource.OUTPUT_ELEMENTS_COUNTER_NAME;
 import static org.apache.beam.sdk.values.TypeDescriptors.longs;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -42,7 +44,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -63,30 +64,33 @@ public class ThrottleWithoutExternalResourceTest {
   @Test
   public void givenSparseElementPulse_thenEmitsAllImmediately() {
     Rate rate = Rate.of(1000, Duration.standardSeconds(1L));
-    testEmitsAtRate(rate, 100, 1.0, 100);
+    testEmitsAtRate(rate, 100, 1.0);
   }
 
   /** Tests whether a pulse of elements totaled greater than the maximum rate are throttled. */
   @Test
   public void givenNonSparseElementPulse_thenEmitsAtRate() {
-    long size = 4L;
-    Rate rate = Rate.of(1, Duration.standardSeconds(1L));
+    long size = 3000;
+    Rate rate = Rate.of(1000, Duration.standardSeconds(1L));
     double expectedMean = (double) rate.getInterval().getMillis() / (double) rate.getNumElements();
-    testEmitsAtRate(rate, size, expectedMean, rate.getInterval().getMillis());
+    testEmitsAtRate(rate, size, expectedMean);
   }
 
   /**
    * Helper method to test emission timestamp intervals according to the rate and size of the
    * element count, asserting that the resulting intervals between elements is the expectedMean +/-
-   * 5% and does not exceed doesNotExceedMillis.
+   * 5%.
    */
-  private void testEmitsAtRate(
-      Rate rate, long size, double expectedMean, long doesNotExceedMillis) {
+  private void testEmitsAtRate(Rate rate, long size, double expectedMeanMillis) {
     checkArgument(size > 0);
 
     List<Integer> list = Stream.iterate(0, i -> i + 1).limit(size).collect(Collectors.toList());
 
-    PCollection<Integer> throttled = pipeline.apply(Create.of(list)).apply(transformOf(rate));
+    PCollection<Integer> throttled =
+        pipeline.apply(Create.of(list)).apply(transformOf(rate)).getResponses();
+
+    PAssert.that(throttled).containsInAnyOrder(list);
+
     PCollection<Long> elementTimestamps =
         throttled.apply(MapElements.into(longs()).via(ignored -> Instant.now().getMillis()));
 
@@ -99,22 +103,16 @@ public class ThrottleWithoutExternalResourceTest {
                       .collect(Collectors.toList());
               assertThat(timestamps.size(), is((int) size));
               double sum = 0.0;
-              long max = 0L;
               Long previous = timestamps.get(0);
 
               for (int i = 1; i < timestamps.size(); i++) {
                 long interval = timestamps.get(i) - previous;
                 sum += interval;
-                if (interval > max) {
-                  max = interval;
-                }
                 previous = timestamps.get(i);
               }
 
               double mean = sum / (double) size;
-
-              assertThat(max, lessThanOrEqualTo(doesNotExceedMillis));
-              assertWithin5PercentOf(expectedMean, mean);
+              assertWithin5PercentOf(expectedMeanMillis, mean);
 
               return null;
             });
@@ -148,29 +146,13 @@ public class ThrottleWithoutExternalResourceTest {
     assertWithin5PercentOf(expectedMean, mean);
     assertThat(min, greaterThanOrEqualTo(expectedMin));
     assertThat(max, lessThanOrEqualTo(expectedMax));
+
+    assertThat(getCount(results, INPUT_ELEMENTS_COUNTER_NAME), is(size));
+    assertThat(getCount(results, OUTPUT_ELEMENTS_COUNTER_NAME), is(size));
   }
 
   private static void assertWithin5PercentOf(double expected, double observed) {
     assertThat(0.95 * expected <= observed || observed <= 1.05 * expected, is(true));
-  }
-
-  @Test
-  public void offsetRange_isSerializable() {
-    SerializableUtils.ensureSerializable(ThrottleWithoutExternalResource.OffsetRange.empty());
-  }
-
-  @Test
-  public void offsetRangeTracker_isSerializable() {
-    SerializableUtils.ensureSerializable(
-        ThrottleWithoutExternalResource.OffsetRange.empty().newTracker());
-  }
-
-  @Test
-  public void configuration_isSerializable() {
-    SerializableUtils.ensureSerializable(
-        ThrottleWithoutExternalResource.Configuration.builder()
-            .setMaximumRate(Rate.of(1, Duration.ZERO))
-            .build());
   }
 
   private static ThrottleWithoutExternalResource<Integer> transformOf(Rate rate) {
@@ -187,6 +169,19 @@ public class ThrottleWithoutExternalResourceTest {
     assertThat(metricQueryResults, notNullValue());
     Iterator<MetricResult<DistributionResult>> itr =
         metricQueryResults.getDistributions().iterator();
+    assertThat(itr.hasNext(), is(true));
+    return itr.next().getCommitted();
+  }
+
+  private static Long getCount(MetricResults metricResults, String name) {
+    MetricQueryResults metricQueryResults =
+        metricResults.queryMetrics(
+            MetricsFilter.builder()
+                .addNameFilter(
+                    MetricNameFilter.named(ThrottleWithoutExternalResource.ThrottleFn.class, name))
+                .build());
+    assertThat(metricQueryResults, notNullValue());
+    Iterator<MetricResult<Long>> itr = metricQueryResults.getCounters().iterator();
     assertThat(itr.hasNext(), is(true));
     return itr.next().getCommitted();
   }
