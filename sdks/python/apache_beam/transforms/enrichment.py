@@ -131,7 +131,7 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
         timeout=self._timeout,
         repeater=self._repeater,
         throttler=self._throttler)
-
+    input_row.element_type
     # EnrichmentSourceHandler returns a tuple of (request,response).
     return fetched_data | beam.Map(
         lambda x: self._join_fn(x[0]._asdict(), x[1]._asdict()))
