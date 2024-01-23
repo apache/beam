@@ -74,6 +74,10 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
       ``apache_beam.transforms.enrichment_handlers.bigtable.ExceptionLevel``
       to set the level when an empty row is returned from the BigTable query.
       Defaults to ``ExceptionLevel.WARN``.
+
+  Returns:
+    A tuple of input row and output row, with output row values consisting
+    of a tuple of value and timestamp.
   """
   def __init__(
       self,
@@ -122,9 +126,10 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
       if row:
         for cf_id, cf_v in row.cells.items():
           response_dict[cf_id] = {}
-          for k, v in cf_v.items():
-            response_dict[cf_id][k.decode(self._encoding)] = \
-              v[0].value.decode(self._encoding)
+          for col_id, col_v in cf_v.items():
+            response_dict[cf_id][col_id.decode(self._encoding)] = [
+                (v.value.decode(self._encoding), v.timestamp) for v in col_v
+            ]
       elif self._exception_level == ExceptionLevel.WARN:
         _LOGGER.warning(
             'no matching row found for row_key: %s '
