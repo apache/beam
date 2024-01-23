@@ -18,6 +18,9 @@
 
 # pytype: skip-file
 
+# This pipline creates a series of {plant: description} key pairs, matches all
+# elements to a valid regex, filters out non-matching entries, then logs the
+# output.
 pipeline:
   type: chain
   transforms:
@@ -25,13 +28,13 @@ pipeline:
       name: Garden plants
       config:
         elements:
-          - '🍓, Strawberry, perennial'
-          - '🥕, Carrot, biennial ignoring trailing words'
-          - '🍆, Eggplant, perennial'
-          - '🍅, Tomato, annual'
-          - '🥔, Potato, perennial'
-          - '# 🍌, invalid, format'
-          - 'invalid, 🍉, format'
+          - plant: '🍓, Strawberry, perennial'
+          - plant:  '🥕, Carrot, biennial ignoring trailing words'
+          - plant:  '🍆, Eggplant, perennial'
+          - plant:  '🍅, Tomato, annual'
+          - plant:  '🥔, Potato, perennial'
+          - plant:  '# 🍌, invalid, format'
+          - plant:  'invalid, 🍉, format'
     - type: MapToFields
       name: Parse plants
       config:
@@ -41,7 +44,7 @@ pipeline:
             callable: |
               import re
               def regex_filter(row):
-                match = re.match("(?P<icon>[^\s,]+), *(\w+), *(\w+)", row.element)
+                match = re.match("(?P<icon>[^\s,]+), *(\w+), *(\w+)", row.plant)
                 return match.group(0) if match else match
                 
     # Filters out None values produced by values that don't match regex
@@ -50,3 +53,10 @@ pipeline:
         language: python
         keep: plant
     - type: LogForTesting
+      
+# Expected:
+#  Row(plant='🍓, Strawberry, perennial')
+#  Row(plant='🥕, Carrot, biennial')
+#  Row(plant='🍆, Eggplant, perennial')
+#  Row(plant='🍅, Tomato, annual')
+#  Row(plant='🥔, Potato, perennial')

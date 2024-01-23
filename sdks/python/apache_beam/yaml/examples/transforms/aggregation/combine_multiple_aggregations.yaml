@@ -78,3 +78,6 @@ pipeline:
 
 options:
   yaml_experimental_features: Combine
+
+# Expected:
+#  Row(min_price=1.0, mean_price=2.5, max_price=4.0)

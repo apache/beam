@@ -38,7 +38,7 @@ pipeline:
           - recipe: 'muffin'
             fruit: 'blueberry'
             quantity: 2
-            unit_price: 2.00
+            unit_price: 3.00
           - recipe: 'muffin'
             fruit: 'banana'
             quantity: 3
@@ -52,7 +52,16 @@ pipeline:
           total_quantity: 
             value: quantity
             fn: sum
+          mean_price:
+            value: unit_price
+            fn: mean
     - type: LogForTesting
 
 options:
   yaml_experimental_features: Combine
+
+# Expected:
+#  Row(fruit='raspberry', total_quantity=1, mean_price=3.5)
+#  Row(fruit='blackberry', total_quantity=1, mean_price=4.0)
+#  Row(fruit='blueberry', total_quantity=3, mean_price=2.5)
+#  Row(fruit='banana', total_quantity=3, mean_price=1.0)

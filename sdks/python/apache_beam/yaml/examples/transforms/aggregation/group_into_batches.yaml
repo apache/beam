@@ -59,3 +59,9 @@ pipeline:
 
 options:
   yaml_experimental_features: Combine
+
+# Expected:
+#  Row(season='spring', produce=['🥕', '🍓', '🍆'])
+#  Row(season='summer', produce=['🥕', '🍅', '🌽'])
+#  Row(season='fall', produce=['🥕', '🍅'])
+#  Row(season='winter', produce=['🍆'])

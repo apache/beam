@@ -50,3 +50,8 @@ pipeline:
 
 options:
   yaml_experimental_features: Combine
+
+# Expected:
+#  Row(produce='🥕', biggest=[3, 2])
+#  Row(produce='🍆', biggest=[1])
+#  Row(produce='🍅', biggest=[5, 4])

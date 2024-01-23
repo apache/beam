@@ -1,4 +1,3 @@
-# coding=utf-8
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -15,25 +14,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# pytype: skip-file
-
-import unittest
-
-from apache_beam.yaml.examples.test.test_yaml_example import test_yaml_example
-
-YAML_FILE = '../transforms/elementwise/filter_callable.yaml'
-
-EXPECTED = [
-    "{'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}",
-    "{'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}",
-    "{'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}"
-]
-
-
-class FilterYamlTest(unittest.TestCase):
-  def test_filter_callable_yaml(self):
-    test_yaml_example(YAML_FILE, EXPECTED)
-
-
-if __name__ == '__main__':
-  unittest.main()
