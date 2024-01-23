@@ -629,6 +629,12 @@ class _TextEmbeddingHandler(ModelHandler):
       model: ModelT,
       inference_args: Optional[Dict[str, Any]]) -> Dict[str, List[Any]]:
     result: Dict[str, List[Any]] = collections.defaultdict(list)
+    input_keys = dict_batch.keys()
+    missing_columns_in_data = set(self.columns) - set(input_keys)
+    if missing_columns_in_data:
+      raise RuntimeError(
+          f'Data does not contain the following columns '
+          f': {missing_columns_in_data}.')
     for key, batch in dict_batch.items():
       if key in self.columns:
         self._validate_column_data(batch)

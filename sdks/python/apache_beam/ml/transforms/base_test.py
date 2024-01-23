@@ -416,7 +416,6 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
       )
 
   def test_handler_on_multiple_columns(self):
-    self.embedding_conig.columns = ['x', 'y']
     data = [
         {
             'x': "Hello world", 'y': "Apache Beam", 'z': 'unchanged'
@@ -442,6 +441,26 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
           result,
           equal_to(expected_data),
       )
+
+  def test_handler_on_columns_not_exist_in_input_data(self):
+    data = [
+        {
+            'x': "Hello world", 'y': "Apache Beam"
+        },
+        {
+            'x': "Apache Beam", 'y': "Hello world"
+        },
+    ]
+    self.embedding_conig.columns = ['x', 'y', 'a']
+
+    with self.assertRaises(RuntimeError):
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create(data)
+            | base.MLTransform(
+                write_artifact_location=self.artifact_location).with_transform(
+                    self.embedding_conig))
 
   def test_handler_with_list_data(self):
     data = [{
