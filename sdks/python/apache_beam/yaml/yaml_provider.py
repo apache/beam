@@ -46,6 +46,7 @@ import apache_beam.dataframe.io
 import apache_beam.io
 import apache_beam.transforms.util
 from apache_beam.portability.api import schema_pb2
+from apache_beam.runners import pipeline_context
 from apache_beam.transforms import external
 from apache_beam.transforms import window
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
@@ -755,6 +756,81 @@ class YamlProviders:
                           no_input_transforms=('Create', ))
 
 
+class TranslatingProvider(Provider):
+  def __init__(
+      self,
+      transforms: Mapping[str, Callable[..., beam.PTransform]],
+      underlying_provider: Provider):
+    self._transforms = transforms
+    self._underlying_provider = underlying_provider
+
+  def provided_transforms(self):
+    return self._transforms.keys()
+
+  def available(self):
+    return self._underlying_provider.available()
+
+  def cache_artifacts(self):
+    return self._underlying_provider.cache_artifacts()
+
+  def underlying_provider(self):
+    return self._underlying_provider
+
+  def to_json(self):
+    return {'type': "TranslatingProvider"}
+
+  def create_transform(
+      self, typ: str, config: Mapping[str, Any],
+      yaml_create_transform: Any) -> beam.PTransform:
+    return self._transforms[typ](self._underlying_provider, **config)
+
+
+def create_java_builtin_provider():
+  """Exposes built-in transforms from Java as well as Python to maximize
+  opportunities for fusion.
+
+  This class holds those transforms that require pre-processing of the configs.
+  For those Java transforms that can consume the user-provided configs directly
+  (or only need a simple renaming of parameters) a direct or renaming provider
+  is the simpler choice.
+  """
+
+  # An alternative could be examining the capabilities of various environments
+  # during (or as a pre-processing phase before) fusion to align environments
+  # where possible.  This would also require extra care in skipping these
+  # common transforms when doing the provider affinity analysis.
+
+  def java_window_into(java_provider, **config):
+    """Parses the config into a WindowingStrategy and invokes the Java class.
+
+    Though it would not be that difficult to implement this in Java as well,
+    we prefer to implement it exactly once for consistency (especially as
+    it evolves).
+    """
+    windowing_strategy = YamlProviders.WindowInto._parse_window_spec(
+        config).get_windowing(None)
+    # No context needs to be preserved for the basic WindowFns.
+    empty_context = pipeline_context.PipelineContext()
+    return java_provider.create_transform(
+        'WindowIntoStrategy',
+        {
+            'serializedWindowingStrategy': windowing_strategy.to_runner_api(
+                empty_context).SerializeToString()
+        },
+        None)
+
+  return TranslatingProvider(
+      transforms={'WindowInto': java_window_into},
+      underlying_provider=beam_jar(
+          urns={
+              'WindowIntoStrategy': (
+                  'beam:schematransform:'
+                  'org.apache.beam:yaml:window_into_strategy:v1')
+          },
+          gradle_target=
+          'sdks:java:extensions:schemaio-expansion-service:shadowJar'))
+
+
 class PypiExpansionService:
   """Expands transforms by fully qualified name in a virtual environment
   with the given dependencies.
@@ -993,6 +1069,7 @@ def standard_providers():
 
   return merge_providers(
       YamlProviders.create_builtin_provider(),
+      create_java_builtin_provider(),
       create_mapping_providers(),
       create_combine_providers(),
       io_providers(),
