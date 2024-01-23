@@ -35,6 +35,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.Schema;
@@ -93,7 +94,7 @@ public class TransformUpgraderTest {
     }
 
     @Override
-    public TestTransform fromConfigRow(Row configRow) {
+    public TestTransform fromConfigRow(Row configRow, PipelineOptions options) {
       return new TestTransform(configRow.getInt32("multiplier"));
     }
 

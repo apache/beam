@@ -42,6 +42,7 @@ import org.apache.beam.sdk.io.kafka.KafkaIO.Write;
 import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecords;
 import org.apache.beam.sdk.io.kafka.KafkaIOUtils;
 import org.apache.beam.sdk.io.kafka.TimestampPolicyFactory;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -215,7 +216,7 @@ public class KafkaIOTranslation {
     }
 
     @Override
-    public Read<?, ?> fromConfigRow(Row configRow) {
+    public Read<?, ?> fromConfigRow(Row configRow, PipelineOptions options) {
       try {
         Read<?, ?> transform = KafkaIO.read();
 
@@ -511,7 +512,7 @@ public class KafkaIOTranslation {
     }
 
     @Override
-    public Write<?, ?> fromConfigRow(Row configRow) {
+    public Write<?, ?> fromConfigRow(Row configRow, PipelineOptions options) {
       try {
         Write<?, ?> transform = KafkaIO.write();
 

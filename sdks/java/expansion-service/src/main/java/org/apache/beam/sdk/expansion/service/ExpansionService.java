@@ -152,7 +152,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           TransformProvider transformProvider =
               new TransformProvider() {
                 @Override
-                public PTransform getTransform(RunnerApi.FunctionSpec spec) {
+                public PTransform getTransform(
+                    RunnerApi.FunctionSpec spec, PipelineOptions options) {
                   try {
                     Class configClass = getConfigClass(builderInstance);
                     return builderInstance.buildExternal(
@@ -222,14 +223,14 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           }
           final String finalUrn = urn;
           TransformProvider transformProvider =
-              spec -> {
+              (spec, options) -> {
                 try {
                   ExternalConfigurationPayload payload =
                       ExternalConfigurationPayload.parseFrom(spec.getPayload());
                   Row configRow =
                       RowCoder.of(SchemaTranslation.schemaFromProto(payload.getSchema()))
                           .decode(new ByteArrayInputStream(payload.getPayload().toByteArray()));
-                  PTransform transformFromRow = translator.fromConfigRow(configRow);
+                  PTransform transformFromRow = translator.fromConfigRow(configRow, options);
                   if (transformFromRow != null) {
                     return transformFromRow;
                   } else {
@@ -441,7 +442,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       }
     }
 
-    PTransform<InputT, OutputT> getTransform(RunnerApi.FunctionSpec spec);
+    PTransform<InputT, OutputT> getTransform(RunnerApi.FunctionSpec spec, PipelineOptions options);
 
     default Map<String, PCollection<?>> extractOutputs(OutputT output) {
       if (output instanceof PDone) {
@@ -485,7 +486,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     default Map<String, PCollection<?>> apply(
         Pipeline p, String name, RunnerApi.FunctionSpec spec, Map<String, PCollection<?>> inputs) {
       return extractOutputs(
-          Pipeline.applyTransform(name, createInput(p, inputs), getTransform(spec)));
+          Pipeline.applyTransform(
+              name, createInput(p, inputs), getTransform(spec, p.getOptions())));
     }
 
     default String getTransformUniqueID(RunnerApi.FunctionSpec spec) {

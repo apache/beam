@@ -40,6 +40,7 @@ import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoTranslato
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -609,7 +610,7 @@ public class PTransformTranslation {
      *     {@link #toConfigRow(PTransform)} method.
      * @return a transform represented by the current {@code TransformPayloadTranslator}.
      */
-    default T fromConfigRow(Row configRow) {
+    default T fromConfigRow(Row configRow, PipelineOptions options) {
       throw new UnsupportedOperationException("Not implemented");
     }
 
