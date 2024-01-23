@@ -28,7 +28,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -68,7 +67,11 @@ public class DicomIOReadIT {
     String webPath =
         String.format(
             "%s/dicomStores/%s/dicomWeb/studies/%s/series/%s/instances/%s",
-            healthcareDataset, storeName, TEST_FILE_STUDY_ID, TEST_FILE_SERIES_ID, TEST_FILE_INSTANCE_ID);
+            healthcareDataset,
+            storeName,
+            TEST_FILE_STUDY_ID,
+            TEST_FILE_SERIES_ID,
+            TEST_FILE_INSTANCE_ID);
 
     DicomIO.ReadStudyMetadata.Result result =
         pipeline.apply(Create.of(webPath)).apply(DicomIO.readStudyMetadata());
@@ -97,16 +100,16 @@ public class DicomIOReadIT {
     String badWebPath = "foo";
 
     DicomIO.ReadStudyMetadata.Result result =
-            pipeline.apply(Create.of(badWebPath)).apply(DicomIO.readStudyMetadata());
+        pipeline.apply(Create.of(badWebPath)).apply(DicomIO.readStudyMetadata());
 
     PAssert.that(result.getReadResponse()).empty();
 
     PAssert.that(result.getFailedReads())
-            .satisfies(
-                    (errors) -> {
-                      Assert.assertTrue(errors.iterator().hasNext());
-                      return null;
-                    });
+        .satisfies(
+            (errors) -> {
+              Assert.assertTrue(errors.iterator().hasNext());
+              return null;
+            });
 
     PipelineResult job = pipeline.run();
 
