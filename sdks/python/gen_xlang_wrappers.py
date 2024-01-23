@@ -325,19 +325,13 @@ def write_wrappers_to_destinations(grouped_wrappers: Dict[str, List[str]]):
         file.write(wrapper + "\n")
     written_files.append(dest)
 
-  # format files with yapf
-  try:
-    out = subprocess.run([
-        'yapf',
-        '--in-place',
-        *[os.path.join(PYTHON_SDK_ROOT, *module.split('/')) for module in written_files],
-    ], capture_output=True, check=True)
-    print(out.stdout)
-  except subprocess.CalledProcessError as err:
-    raise RuntimeError(
-        'Ran into an error while formatting generated external '
-        'transform modules',
-        err.stderr)
+  # attempt to format files with yapf
+  out = subprocess.run([
+      'yapf',
+      '--in-place',
+      *[os.path.join(PYTHON_SDK_ROOT, *module.split('/')) for module in written_files],
+  ], capture_output=True, check=False)
+  print(out.stdout)
   logging.info("Created external transform wrapper modules: %s", written_files)
 
 
