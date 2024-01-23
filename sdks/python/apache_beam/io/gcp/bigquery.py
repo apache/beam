@@ -2451,6 +2451,7 @@ class WriteResult:
 
 class StorageWriteToBigQuery(PTransform):
   """Writes data to BigQuery using Storage API.
+  Supports dynamic destinations. Dynamic schemas are not supported yet.
 
   Experimental; no backwards compatibility guarantees.
   """
