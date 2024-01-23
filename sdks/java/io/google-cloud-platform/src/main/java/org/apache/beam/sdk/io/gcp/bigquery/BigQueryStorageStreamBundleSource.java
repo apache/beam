@@ -334,10 +334,6 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
         reader.processReadRowsResponse(response);
       }
 
-      SchemaAndRecord schemaAndRecord = new SchemaAndRecord(reader.readSingleRecord(), tableSchema);
-
-      current = parseFn.apply(schemaAndRecord);
-
       // Calculates the fraction of the current stream that has been consumed. This value is
       // calculated by interpolating between the fraction consumed value from the previous server
       // response (or zero if we're consuming the first response) and the fractional value in the
@@ -355,6 +351,11 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
       // progress made in the current Stream gives us the overall StreamBundle progress.
       fractionOfStreamBundleConsumed =
           (currentStreamBundleIndex + fractionOfCurrentStreamConsumed) / source.streamBundle.size();
+
+      SchemaAndRecord schemaAndRecord = new SchemaAndRecord(reader.readSingleRecord(), tableSchema);
+
+      current = parseFn.apply(schemaAndRecord);
+
       return true;
     }
 

@@ -1900,9 +1900,12 @@ public class BigQueryIO {
       // the same order.
       BoundedSource.BoundedReader<T> reader = streamSource.createReader(options);
 
-      boolean more = false;
       try {
-        more = reader.start();
+        if (reader.start()) {
+          outputReceiver.get(rowTag).output(reader.getCurrent());
+        } else {
+          return;
+        }
       } catch (ParseException e) {
         GenericRecord record = errorHandlingParseFn.getSchemaAndRecord().getRecord();
         getBadRecordRouter()
@@ -1914,10 +1917,13 @@ public class BigQueryIO {
                 "Unable to parse record reading from BigQuery");
       }
 
-      while (more) {
-        outputReceiver.get(rowTag).output(reader.getCurrent());
+      while (true) {
         try {
-          more = reader.advance();
+          if (reader.advance()) {
+            outputReceiver.get(rowTag).output(reader.getCurrent());
+          } else {
+            return;
+          }
         } catch (ParseException e) {
           GenericRecord record = errorHandlingParseFn.getSchemaAndRecord().getRecord();
           getBadRecordRouter()
