@@ -621,7 +621,7 @@ class TFTProcessHandlerTest(unittest.TestCase):
 class TFTProcessHandlerTestWithGCSLocation(TFTProcessHandlerTest):
   def setUp(self) -> None:
     self.artifact_location = self.gcs_artifact_location = os.path.join(
-        'gs://temp-storage-for-perf-tests/vertex_ai', uuid.uuid4().hex)
+        'gs://temp-storage-for-perf-tests/tft_handler', uuid.uuid4().hex)
 
   def tearDown(self):
     pass
