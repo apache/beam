@@ -109,9 +109,12 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataResponse;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkResponse;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.InputMessageBundle;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
@@ -577,8 +580,9 @@ public class StreamingDataflowWorkerTest {
   }
 
   /**
-   * Returns a {@link org.apache.beam.runners.dataflow.windmill.Windmill.WorkItemCommitRequest}
-   * builder parsed from the provided text format proto.
+   * Returns a {@link
+   * org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest} builder parsed
+   * from the provided text format proto.
    */
   private WorkItemCommitRequest.Builder parseCommitRequest(String output) throws Exception {
     WorkItemCommitRequest.Builder builder = Windmill.WorkItemCommitRequest.newBuilder();
@@ -3259,6 +3263,49 @@ public class StreamingDataflowWorkerTest {
   }
 
   @Test
+  public void testActiveWorkFailure() throws Exception {
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(StringUtf8Coder.of()),
+            makeDoFnInstruction(blockingFn, 0, StringUtf8Coder.of()),
+            makeSinkInstruction(StringUtf8Coder.of(), 0));
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    options.setActiveWorkRefreshPeriodMillis(100);
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
+    worker.start();
+
+    // Queue up two work items for the same key.
+    server
+        .whenGetWorkCalled()
+        .thenReturn(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0), "key", DEFAULT_SHARDING_KEY))
+        .thenReturn(makeInput(1, TimeUnit.MILLISECONDS.toMicros(0), "key", DEFAULT_SHARDING_KEY));
+    server.waitForEmptyWorkQueue();
+
+    // Mock Windmill sending a heartbeat response failing the second work item while the first
+    // is still processing.
+    ComputationHeartbeatResponse.Builder failedHeartbeat =
+        ComputationHeartbeatResponse.newBuilder();
+    failedHeartbeat
+        .setComputationId(DEFAULT_COMPUTATION_ID)
+        .addHeartbeatResponsesBuilder()
+        .setCacheToken(3)
+        .setWorkToken(1)
+        .setShardingKey(DEFAULT_SHARDING_KEY)
+        .setFailed(true);
+    server.sendFailedHeartbeats(Collections.singletonList(failedHeartbeat.build()));
+
+    // Release the blocked calls.
+    BlockingFn.blocker.countDown();
+    Map<Long, Windmill.WorkItemCommitRequest> commits =
+        server.waitForAndGetCommitsWithTimeout(2, Duration.standardSeconds((5)));
+    assertEquals(1, commits.size());
+
+    worker.stop();
+  }
+
+  @Test
   public void testLatencyAttributionProtobufsPopulated() {
     FakeClock clock = new FakeClock();
     Work work = Work.create(null, clock, Collections.emptyList(), unused -> {});
@@ -3573,7 +3620,10 @@ public class StreamingDataflowWorkerTest {
     Windmill.GetDataRequest heartbeat = server.getGetDataRequests().get(2);
 
     for (LatencyAttribution la :
-        heartbeat.getRequests(0).getRequests(0).getLatencyAttributionList()) {
+        heartbeat
+            .getComputationHeartbeatRequest(0)
+            .getHeartbeatRequests(0)
+            .getLatencyAttributionList()) {
       if (la.getState() == State.ACTIVE) {
         assertTrue(la.getActiveLatencyBreakdownCount() > 0);
         assertTrue(la.getActiveLatencyBreakdown(0).hasActiveMessageMetadata());
@@ -3768,7 +3818,7 @@ public class StreamingDataflowWorkerTest {
     server
         .whenGetWorkCalled()
         .thenReturn(makeInput(1, TimeUnit.MILLISECONDS.toMicros(1), DEFAULT_KEY_STRING, 1));
-    // Ensure that the this work item processes.
+    // Ensure that this work item processes.
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
     // Now ensure that nothing happens if a dropped commit actually completes.
     droppedCommits.values().iterator().next().accept(CommitStatus.OK);
@@ -4129,7 +4179,7 @@ public class StreamingDataflowWorkerTest {
                 FakeClock.this.schedule(Duration.millis(unit.toMillis(delay)), this);
               }
             });
-        FakeClock.this.sleep(Duration.ZERO); // Execute work that has an intial delay of zero.
+        FakeClock.this.sleep(Duration.ZERO); // Execute work that has an initial delay of zero.
         return null;
       }
     }
@@ -4167,6 +4217,7 @@ public class StreamingDataflowWorkerTest {
     }
 
     boolean isActiveWorkRefresh(GetDataRequest request) {
+      if (request.getComputationHeartbeatRequestCount() > 0) return true;
       for (ComputationGetDataRequest computationRequest : request.getRequestsList()) {
         if (!computationRequest.getComputationId().equals(DEFAULT_COMPUTATION_ID)) {
           return false;
@@ -4195,6 +4246,21 @@ public class StreamingDataflowWorkerTest {
             EnumMap<LatencyAttribution.State, Duration> durations =
                 totalDurations.computeIfAbsent(
                     keyedRequest.getWorkToken(),
+                    (Long workToken) ->
+                        new EnumMap<LatencyAttribution.State, Duration>(
+                            LatencyAttribution.State.class));
+            Duration cur = Duration.millis(la.getTotalDurationMillis());
+            durations.compute(la.getState(), (s, d) -> d == null || d.isShorterThan(cur) ? cur : d);
+          }
+        }
+      }
+      for (ComputationHeartbeatRequest heartbeatRequest :
+          request.getComputationHeartbeatRequestList()) {
+        for (HeartbeatRequest heartbeat : heartbeatRequest.getHeartbeatRequestsList()) {
+          for (LatencyAttribution la : heartbeat.getLatencyAttributionList()) {
+            EnumMap<LatencyAttribution.State, Duration> durations =
+                totalDurations.computeIfAbsent(
+                    heartbeat.getWorkToken(),
                     (Long workToken) ->
                         new EnumMap<LatencyAttribution.State, Duration>(
                             LatencyAttribution.State.class));

@@ -296,6 +296,11 @@ public class WindmillStateCache implements StatusDataProvider {
       this.computation = computation;
     }
 
+    /** Returns the computation associated to this class. */
+    public String getComputation() {
+      return this.computation;
+    }
+
     /** Invalidate all cache entries for this computation and {@code processingKey}. */
     public void invalidate(ByteString processingKey, long shardingKey) {
       WindmillComputationKey key =
