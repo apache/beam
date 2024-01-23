@@ -21,7 +21,6 @@ class {{ class_name }}(ExternalSchemaTransform):
   {{ description | wordwrap(78) | replace('\n', '\n  ') }}
   """{% endif %}
   identifier = "{{ identifier }}"
-  default_expansion_service = {{ default_expansion_service }}
 
   def __init__(
       self,{% if parameters %}{% for param in parameters%}
@@ -31,6 +30,7 @@ class {{ class_name }}(ExternalSchemaTransform):
     :param {{ param.name }} ({{ param.type | wordwrap(67 - param.name | length) | replace('\n', '\n        ') }}):{% if param.description %}
       {{ param.description | wordwrap(72) | replace('\n', '\n      ') }} {% endif %}{% endfor %}
     """{% endif %}
+    self.default_expansion_service = {{ default_expansion_service }}
     super().__init__(
         {% for param in parameters %}{{ param.name }}={{ param.name }},
         {% endfor %}expansion_service=expansion_service)

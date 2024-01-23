@@ -39,7 +39,7 @@
       description: Specifies the rate to generate a given number of elements per a
         given number of seconds. Applicable only to unbounded sequences.
       nullable: true
-      type: Row(seconds=typing.Optional[numpy.int64], elements=<class 'numpy.int64'>)
+      type: Row(seconds=typing.Union[numpy.int64, NoneType], elements=<class 'numpy.int64'>)
     start:
       description: The minimum number to generate (inclusive).
       nullable: false
