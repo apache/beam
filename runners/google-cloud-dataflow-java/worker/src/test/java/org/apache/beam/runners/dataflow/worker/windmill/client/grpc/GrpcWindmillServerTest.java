@@ -926,7 +926,8 @@ public class GrpcWindmillServerTest {
     this.client =
         GrpcWindmillServer.newTestInstance(
             "TestServer",
-            Collections.singletonList("streaming_engine_send_new_heartbeat_requests"));
+            Collections.singletonList("streaming_engine_send_new_heartbeat_requests"),
+            clientId);
     // This server records the heartbeats observed but doesn't respond.
     final List<ComputationHeartbeatRequest> receivedHeartbeats = new ArrayList<>();
 
@@ -950,6 +951,7 @@ public class GrpcWindmillServerTest {
                                 .setJobId("job")
                                 .setProjectId("project")
                                 .setWorkerId("worker")
+                                .setClientId(clientId)
                                 .build()));
                     sawHeader = true;
                   } else {

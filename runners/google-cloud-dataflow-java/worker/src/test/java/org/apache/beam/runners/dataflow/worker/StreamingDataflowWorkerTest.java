@@ -771,6 +771,8 @@ public class StreamingDataflowWorkerTest {
             .as(StreamingDataflowWorkerOptions.class);
     options.setAppName("StreamingWorkerHarnessTest");
     options.setJobId("test_job_id");
+    options.setProject("test_project");
+    options.setWorkerId("test_worker");
     options.setStreaming(true);
     options.setWindmillServerStub(server);
     options.setActiveWorkRefreshPeriodMillis(0);
