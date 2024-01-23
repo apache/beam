@@ -108,7 +108,7 @@ var directFilters = []string{
 
 var portableFilters = []string{
 	// The portable runner does not support the TestStream primitive
-	"TestTestStream.*",
+	// "TestTestStream.*",
 	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
 	"TestPanes",

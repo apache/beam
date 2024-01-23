@@ -61,3 +61,8 @@ func TestTestStreamTwoBoolSequences(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.BuildAndRun(t, TestStreamTwoBoolSequences)
 }
+
+func TestTestStreamTwoUserTypeSequences(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, TestStreamTwoUserTypeSequences)
+}
