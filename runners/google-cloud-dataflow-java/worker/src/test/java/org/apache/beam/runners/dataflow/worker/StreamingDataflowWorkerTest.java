@@ -3620,7 +3620,10 @@ public class StreamingDataflowWorkerTest {
     Windmill.GetDataRequest heartbeat = server.getGetDataRequests().get(2);
 
     for (LatencyAttribution la :
-        heartbeat.getRequests(0).getRequests(0).getLatencyAttributionList()) {
+        heartbeat
+            .getComputationHeartbeatRequest(0)
+            .getHeartbeatRequests(0)
+            .getLatencyAttributionList()) {
       if (la.getState() == State.ACTIVE) {
         assertTrue(la.getActiveLatencyBreakdownCount() > 0);
         assertTrue(la.getActiveLatencyBreakdown(0).hasActiveMessageMetadata());
