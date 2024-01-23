@@ -540,16 +540,25 @@ public class BigQueryIOWriteTest implements Serializable {
     }
   }
 
-  void testTimePartitioning(BigQueryIO.Write.Method insertMethod) throws Exception {
+  void testTimePartitioningWithoutClustering(BigQueryIO.Write.Method insertMethod)
+      throws Exception {
     testTimePartitioningClustering(insertMethod, true, false);
   }
 
-  void testClustering(BigQueryIO.Write.Method insertMethod) throws Exception {
+  void testTimePartitioningWithClustering(BigQueryIO.Write.Method insertMethod) throws Exception {
     testTimePartitioningClustering(insertMethod, true, true);
   }
 
+  void testClusteringWithoutPartitioning(BigQueryIO.Write.Method insertMethod) throws Exception {
+    testTimePartitioningClustering(insertMethod, false, true);
+  }
+
+  void testNoClusteringAndNoPartitioning(BigQueryIO.Write.Method insertMethod) throws Exception {
+    testTimePartitioningClustering(insertMethod, false, false);
+  }
+
   @Test
-  public void testTimePartitioning() throws Exception {
+  public void testTimePartitioningWithoutClustering() throws Exception {
     BigQueryIO.Write.Method method;
     if (useStorageApi) {
       method =
@@ -559,15 +568,49 @@ public class BigQueryIOWriteTest implements Serializable {
     } else {
       method = Method.FILE_LOADS;
     }
-    testTimePartitioning(method);
+    testTimePartitioningWithoutClustering(method);
   }
 
   @Test
-  public void testClusteringStorageApi() throws Exception {
+  public void testTimePartitioningWithClustering() throws Exception {
+    BigQueryIO.Write.Method method;
     if (useStorageApi) {
-      testClustering(
-          useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API);
+      method =
+          useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
+    } else if (useStreaming) {
+      method = Method.STREAMING_INSERTS;
+    } else {
+      method = Method.FILE_LOADS;
     }
+    testTimePartitioningWithClustering(method);
+  }
+
+  @Test
+  public void testClusteringWithoutPartitioning() throws Exception {
+    BigQueryIO.Write.Method method;
+    if (useStorageApi) {
+      method =
+          useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
+    } else if (useStreaming) {
+      method = Method.STREAMING_INSERTS;
+    } else {
+      method = Method.FILE_LOADS;
+    }
+    testClusteringWithoutPartitioning(method);
+  }
+
+  @Test
+  public void testNoClusteringNoPartitioning() throws Exception {
+    BigQueryIO.Write.Method method;
+    if (useStorageApi) {
+      method =
+          useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
+    } else if (useStreaming) {
+      method = Method.STREAMING_INSERTS;
+    } else {
+      method = Method.FILE_LOADS;
+    }
+    testNoClusteringAndNoPartitioning(method);
   }
 
   @Test
