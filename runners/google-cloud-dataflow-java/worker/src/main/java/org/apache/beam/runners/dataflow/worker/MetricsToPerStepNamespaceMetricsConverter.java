@@ -30,7 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import javax.annotation.Nullable;
+import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
@@ -44,26 +44,25 @@ public class MetricsToPerStepNamespaceMetricsConverter {
    * @param metricName The {@link MetricName} that represents this counter.
    * @param value The counter value.
    * @return If the conversion succeeds, {@code MetricValue} that represents this counter. Otherwise
-   *     returns null.
+   *     returns an empty optional
    */
-  private static @Nullable MetricValue convertCounterToMetricValue(
+  private static Optional<MetricValue> convertCounterToMetricValue(
       MetricName metricName, Long value) {
     if (value == 0 || !metricName.getNamespace().equals(BigQuerySinkMetrics.METRICS_NAMESPACE)) {
-      return null;
+      return Optional.empty();
     }
 
     BigQuerySinkMetrics.ParsedMetricName labeledName =
         BigQuerySinkMetrics.parseMetricName(metricName.getName());
     if (labeledName == null || labeledName.getBaseName().isEmpty()) {
-      return null;
+      return Optional.empty();
     }
 
-    MetricValue val =
+    return Optional.of(
         new MetricValue()
             .setMetric(labeledName.getBaseName())
             .setMetricLabels(labeledName.getMetricLabels())
-            .setValueInt64(value);
-    return val;
+            .setValueInt64(value));
   }
 
   /**
@@ -71,18 +70,18 @@ public class MetricsToPerStepNamespaceMetricsConverter {
    * @param value The histogram value. Currently we only support converting histograms that use
    *     {@code linear} or {@code exponential} buckets.
    * @return If this conversion succeeds, a {@code MetricValue} that represents this histogram.
-   *     Otherwise returns null.
+   *     Otherwise returns an empty optional.
    */
-  private static @Nullable MetricValue convertHistogramToMetricValue(
+  private static Optional<MetricValue> convertHistogramToMetricValue(
       MetricName metricName, HistogramData value) {
     if (value.getTotalCount() == 0L) {
-      return null;
+      return Optional.empty();
     }
 
     BigQuerySinkMetrics.ParsedMetricName labeledName =
         BigQuerySinkMetrics.parseMetricName(metricName.getName());
     if (labeledName == null || labeledName.getBaseName().isEmpty()) {
-      return null;
+      return Optional.empty();
     }
 
     DataflowHistogramValue histogramValue = new DataflowHistogramValue();
@@ -103,7 +102,7 @@ public class MetricsToPerStepNamespaceMetricsConverter {
           new Base2Exponent().setNumberOfBuckets(numberOfBuckets).setScale(buckets.getScale());
       histogramValue.setBucketOptions(new BucketOptions().setExponential(expoenntialOptions));
     } else {
-      return null;
+      return Optional.empty();
     }
 
     histogramValue.setCount(value.getTotalCount());
@@ -132,10 +131,11 @@ public class MetricsToPerStepNamespaceMetricsConverter {
 
     histogramValue.setOutlierStats(outlierStats);
 
-    return new MetricValue()
-        .setMetric(labeledName.getBaseName())
-        .setMetricLabels(labeledName.getMetricLabels())
-        .setValueHistogram(histogramValue);
+    return Optional.of(
+        new MetricValue()
+            .setMetric(labeledName.getBaseName())
+            .setMetricLabels(labeledName.getMetricLabels())
+            .setValueHistogram(histogramValue));
   }
 
   /**
@@ -153,8 +153,8 @@ public class MetricsToPerStepNamespaceMetricsConverter {
 
     for (Entry<MetricName, Long> entry : counters.entrySet()) {
       MetricName metricName = entry.getKey();
-      MetricValue metricValue = convertCounterToMetricValue(metricName, entry.getValue());
-      if (metricValue == null) {
+      Optional<MetricValue> metricValue = convertCounterToMetricValue(metricName, entry.getValue());
+      if (!metricValue.isPresent()) {
         continue;
       }
 
@@ -169,13 +169,14 @@ public class MetricsToPerStepNamespaceMetricsConverter {
         metricsByNamespace.put(metricName.getNamespace(), stepNamespaceMetrics);
       }
 
-      stepNamespaceMetrics.getMetricValues().add(metricValue);
+      stepNamespaceMetrics.getMetricValues().add(metricValue.get());
     }
 
     for (Entry<MetricName, HistogramData> entry : histograms.entrySet()) {
       MetricName metricName = entry.getKey();
-      MetricValue metricValue = convertHistogramToMetricValue(metricName, entry.getValue());
-      if (metricValue == null) {
+      Optional<MetricValue> metricValue =
+          convertHistogramToMetricValue(metricName, entry.getValue());
+      if (!metricValue.isPresent()) {
         continue;
       }
 
@@ -190,7 +191,7 @@ public class MetricsToPerStepNamespaceMetricsConverter {
         metricsByNamespace.put(metricName.getNamespace(), stepNamespaceMetrics);
       }
 
-      stepNamespaceMetrics.getMetricValues().add(metricValue);
+      stepNamespaceMetrics.getMetricValues().add(metricValue.get());
     }
 
     return metricsByNamespace.values();
