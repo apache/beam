@@ -754,7 +754,7 @@ class YamlProviders:
     }
     if level not in log_levels:
       raise ValueError(
-          f'Unknown long level {level} not in {list(log_levels.keys())}')
+          f'Unknown log level {level} not in {list(log_levels.keys())}')
     logger = log_levels[level]
 
     def to_loggable_json_recursive(o):
