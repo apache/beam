@@ -29,6 +29,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Mo
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.LeaseWorkItemRequest;
 import com.google.api.services.dataflow.model.LeaseWorkItemResponse;
+import com.google.api.services.dataflow.model.PerWorkerMetrics;
 import com.google.api.services.dataflow.model.ReportWorkItemStatusRequest;
 import com.google.api.services.dataflow.model.ReportWorkItemStatusResponse;
 import com.google.api.services.dataflow.model.SendWorkerMessagesRequest;
@@ -292,13 +293,30 @@ class DataflowWorkUnitClient implements WorkUnitClient {
     return msg;
   }
 
-  /** Reports the autoscaling signals to dataflow */
   @Override
-  public void reportWorkerMessage(WorkerMessage msg) throws IOException {
+  public WorkerMessage createWorkerMessageFromPerWorkerMetrics(PerWorkerMetrics report) {
+    DateTime endTime = DateTime.now();
+    logger.debug("Reporting WorkMessageResponse");
+    Map<String, String> labels =
+        ImmutableMap.of("JOB_ID", options.getJobId(), "WORKER_ID", options.getWorkerId());
+    WorkerMessage msg =
+        new WorkerMessage()
+            .setTime(toCloudTime(endTime))
+            .setPerWorkerMetrics(report)
+            .setLabels(labels);
+    return msg;
+  }
+
+  /**
+   * Reports the worker messages to dataflow. We currently report autoscaling signals and
+   * perworkermetrics with this path.
+   */
+  @Override
+  public void reportWorkerMessage(List<WorkerMessage> messages) throws IOException {
     SendWorkerMessagesRequest request =
         new SendWorkerMessagesRequest()
             .setLocation(options.getRegion())
-            .setWorkerMessages(Collections.singletonList(msg));
+            .setWorkerMessages(messages);
     SendWorkerMessagesResponse result =
         dataflow
             .projects()
