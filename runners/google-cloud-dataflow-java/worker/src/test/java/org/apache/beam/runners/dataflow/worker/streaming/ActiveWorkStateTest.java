@@ -36,7 +36,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.ActivateWorkResult;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -239,7 +239,7 @@ public class ActiveWorkStateTest {
   }
 
   @Test
-  public void testGetKeysToRefresh() {
+  public void testGetKeyHeartbeats() {
     Instant refreshDeadline = Instant.now();
 
     Work freshWork = createWork(createWorkItem(3L));
@@ -254,47 +254,51 @@ public class ActiveWorkStateTest {
     activeWorkState.activateWorkForKey(shardedKey1, freshWork);
     activeWorkState.activateWorkForKey(shardedKey2, refreshableWork2);
 
-    ImmutableList<KeyedGetDataRequest> requests =
-        activeWorkState.getKeysToRefresh(refreshDeadline, DataflowExecutionStateSampler.instance());
+    ImmutableList<HeartbeatRequest> requests =
+        activeWorkState.getKeyHeartbeats(refreshDeadline, DataflowExecutionStateSampler.instance());
 
-    ImmutableList<GetDataRequestKeyShardingKeyAndWorkToken> expected =
+    ImmutableList<HeartbeatRequestShardingKeyWorkTokenAndCacheToken> expected =
         ImmutableList.of(
-            GetDataRequestKeyShardingKeyAndWorkToken.from(shardedKey1, refreshableWork1),
-            GetDataRequestKeyShardingKeyAndWorkToken.from(shardedKey2, refreshableWork2));
+            HeartbeatRequestShardingKeyWorkTokenAndCacheToken.from(shardedKey1, refreshableWork1),
+            HeartbeatRequestShardingKeyWorkTokenAndCacheToken.from(shardedKey2, refreshableWork2));
 
-    ImmutableList<GetDataRequestKeyShardingKeyAndWorkToken> actual =
+    ImmutableList<HeartbeatRequestShardingKeyWorkTokenAndCacheToken> actual =
         requests.stream()
-            .map(GetDataRequestKeyShardingKeyAndWorkToken::from)
+            .map(HeartbeatRequestShardingKeyWorkTokenAndCacheToken::from)
             .collect(toImmutableList());
 
     assertThat(actual).containsExactlyElementsIn(expected);
   }
 
   @AutoValue
-  abstract static class GetDataRequestKeyShardingKeyAndWorkToken {
+  abstract static class HeartbeatRequestShardingKeyWorkTokenAndCacheToken {
 
-    private static GetDataRequestKeyShardingKeyAndWorkToken create(
-        ByteString key, long shardingKey, long workToken) {
-      return new AutoValue_ActiveWorkStateTest_GetDataRequestKeyShardingKeyAndWorkToken(
-          key, shardingKey, workToken);
+    private static HeartbeatRequestShardingKeyWorkTokenAndCacheToken create(
+        long shardingKey, long workToken, long cacheToken) {
+      return new AutoValue_ActiveWorkStateTest_HeartbeatRequestShardingKeyWorkTokenAndCacheToken(
+          shardingKey, workToken, cacheToken);
     }
 
-    private static GetDataRequestKeyShardingKeyAndWorkToken from(
-        KeyedGetDataRequest keyedGetDataRequest) {
+    private static HeartbeatRequestShardingKeyWorkTokenAndCacheToken from(
+        HeartbeatRequest heartbeatRequest) {
       return create(
-          keyedGetDataRequest.getKey(),
-          keyedGetDataRequest.getShardingKey(),
-          keyedGetDataRequest.getWorkToken());
+          heartbeatRequest.getShardingKey(),
+          heartbeatRequest.getWorkToken(),
+          heartbeatRequest.getCacheToken());
     }
 
-    private static GetDataRequestKeyShardingKeyAndWorkToken from(ShardedKey shardedKey, Work work) {
-      return create(shardedKey.key(), shardedKey.shardingKey(), work.getWorkItem().getWorkToken());
+    private static HeartbeatRequestShardingKeyWorkTokenAndCacheToken from(
+        ShardedKey shardedKey, Work work) {
+      return create(
+          shardedKey.shardingKey(),
+          work.getWorkItem().getWorkToken(),
+          work.getWorkItem().getCacheToken());
     }
-
-    abstract ByteString key();
 
     abstract long shardingKey();
 
     abstract long workToken();
+
+    abstract long cacheToken();
   }
 }
