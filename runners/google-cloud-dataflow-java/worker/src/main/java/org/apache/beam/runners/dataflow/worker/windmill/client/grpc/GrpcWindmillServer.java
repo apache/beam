@@ -139,7 +139,8 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     this.processHeartbeatResponses = processHeartbeatResponses;
   };
 
-  private static StreamingDataflowWorkerOptions testOptions(boolean enableStreamingEngine) {
+  private static StreamingDataflowWorkerOptions testOptions(
+      boolean enableStreamingEngine, List<String> additionalExperiments) {
     StreamingDataflowWorkerOptions options =
         PipelineOptionsFactory.create().as(StreamingDataflowWorkerOptions.class);
     options.setProject("project");
@@ -150,6 +151,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     if (enableStreamingEngine) {
       experiments.add(GcpOptions.STREAMING_ENGINE_EXPERIMENT);
     }
+    experiments.addAll(additionalExperiments);
     options.setExperiments(experiments);
 
     options.setWindmillServiceStreamingRpcBatchLimit(Integer.MAX_VALUE);
@@ -181,7 +183,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   }
 
   @VisibleForTesting
-  static GrpcWindmillServer newTestInstance(String name) {
+  static GrpcWindmillServer newTestInstance(String name, List<String> experiments) {
     ManagedChannel inProcessChannel = inProcessChannel(name);
     CloudWindmillServiceV1Alpha1Stub stub =
         CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel);
@@ -192,14 +194,14 @@ public final class GrpcWindmillServer extends WindmillServerStub {
             WindmillStubFactory.inProcessStubFactory(name, unused -> inProcessChannel),
             dispatcherStubs,
             dispatcherEndpoints);
-    return new GrpcWindmillServer(testOptions(/* enableStreamingEngine= */ true), dispatcherClient);
+    return new GrpcWindmillServer(testOptions(/* enableStreamingEngine= */ true, experiments), dispatcherClient);
   }
 
   @VisibleForTesting
   static GrpcWindmillServer newApplianceTestInstance(Channel channel) {
     GrpcWindmillServer testServer =
         new GrpcWindmillServer(
-            testOptions(/* enableStreamingEngine= */ false),
+            testOptions(/* enableStreamingEngine= */ false, new ArrayList<>()),
             // No-op, Appliance does not use Dispatcher to call Streaming Engine.
             GrpcDispatcherClient.create(WindmillStubFactory.inProcessStubFactory("test")));
     testServer.syncApplianceStub = createWindmillApplianceStubWithDeadlineInterceptor(channel);

@@ -128,7 +128,7 @@ public class GrpcWindmillServerTest {
             .build()
             .start();
 
-    this.client = GrpcWindmillServer.newTestInstance(name);
+    this.client = GrpcWindmillServer.newTestInstance(name, new ArrayList<>());
   }
 
   @After
@@ -788,6 +788,19 @@ public class GrpcWindmillServerTest {
     assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
   }
 
+  private List<KeyedGetDataRequest> makeGetDataHeartbeatRequest(List<String> keys) {
+    List<KeyedGetDataRequest> result = new ArrayList<>();
+    for (String key : keys) {
+      result.add(
+          Windmill.KeyedGetDataRequest.newBuilder()
+              .setShardingKey(key.hashCode())
+              .setWorkToken(0)
+              .setCacheToken(0)
+              .build());
+    }
+    return result;
+  }
+
   private List<HeartbeatRequest> makeHeartbeatRequest(List<String> keys) {
     List<HeartbeatRequest> result = new ArrayList<>();
     for (String key : keys) {
@@ -802,7 +815,111 @@ public class GrpcWindmillServerTest {
   }
 
   @Test
-  public void testStreamingGetDataHeartbeats() throws Exception {
+  public void testStreamingGetDataHeartbeatsAsKeyedGetDataRequests() throws Exception {
+    // This server records the heartbeats observed but doesn't respond.
+    final Map<String, List<KeyedGetDataRequest>> getDataHeartbeats = new HashMap<>();
+
+    serviceRegistry.addService(
+        new CloudWindmillServiceV1Alpha1ImplBase() {
+          @Override
+          public StreamObserver<StreamingGetDataRequest> getDataStream(
+              StreamObserver<StreamingGetDataResponse> responseObserver) {
+            return new StreamObserver<StreamingGetDataRequest>() {
+              boolean sawHeader = false;
+
+              @Override
+              public void onNext(StreamingGetDataRequest chunk) {
+                try {
+                  if (!sawHeader) {
+                    LOG.info("Received header");
+                    errorCollector.checkThat(
+                        chunk.getHeader(),
+                        Matchers.equalTo(
+                            JobHeader.newBuilder()
+                                .setJobId("job")
+                                .setProjectId("project")
+                                .setWorkerId("worker")
+                                .build()));
+                    sawHeader = true;
+                  } else {
+                    LOG.info("Received {} getDataHeartbeats", chunk.getStateRequestCount());
+                    errorCollector.checkThat(
+                        chunk.getSerializedSize(), Matchers.lessThanOrEqualTo(STREAM_CHUNK_SIZE));
+                    errorCollector.checkThat(chunk.getRequestIdCount(), Matchers.is(0));
+
+                    synchronized (getDataHeartbeats) {
+                      for (ComputationGetDataRequest request : chunk.getStateRequestList()) {
+                        errorCollector.checkThat(request.getRequestsCount(), Matchers.is(1));
+                        getDataHeartbeats.putIfAbsent(
+                            request.getComputationId(), new ArrayList<>());
+                        getDataHeartbeats
+                            .get(request.getComputationId())
+                            .add(request.getRequestsList().get(0));
+                      }
+                    }
+                  }
+                } catch (Exception e) {
+                  errorCollector.addError(e);
+                }
+              }
+
+              @Override
+              public void onError(Throwable throwable) {}
+
+              @Override
+              public void onCompleted() {
+                responseObserver.onCompleted();
+              }
+            };
+          }
+        });
+
+    List<String> computation1Keys = new ArrayList<>();
+    List<String> computation2Keys = new ArrayList<>();
+
+    for (int i = 0; i < 100; ++i) {
+      computation1Keys.add("Computation1Key" + i);
+      computation2Keys.add("Computation2Key" + largeString(i * 20));
+    }
+    // We're adding HeartbeatRequests to refreshActiveWork, but expecting to get back
+    // KeyedGetDataRequests, so make a Map of both types.
+    Map<String, List<KeyedGetDataRequest>> expectedKeyedGetDataRequests = new HashMap<>();
+    expectedKeyedGetDataRequests.put("Computation1", makeGetDataHeartbeatRequest(computation1Keys));
+    expectedKeyedGetDataRequests.put("Computation2", makeGetDataHeartbeatRequest(computation2Keys));
+    Map<String, List<HeartbeatRequest>> heartbeatsToRefresh = new HashMap<>();
+    heartbeatsToRefresh.put("Computation1", makeHeartbeatRequest(computation1Keys));
+    heartbeatsToRefresh.put("Computation2", makeHeartbeatRequest(computation2Keys));
+
+    GetDataStream stream = client.getDataStream();
+    stream.refreshActiveWork(heartbeatsToRefresh);
+    stream.close();
+    assertTrue(stream.awaitTermination(60, TimeUnit.SECONDS));
+
+    boolean receivedAllGetDataHeartbeats = false;
+    while (!receivedAllGetDataHeartbeats) {
+      Thread.sleep(100);
+      synchronized (getDataHeartbeats) {
+        if (getDataHeartbeats.size() != expectedKeyedGetDataRequests.size()) {
+          continue;
+        }
+        assertEquals(expectedKeyedGetDataRequests, getDataHeartbeats);
+        receivedAllGetDataHeartbeats = true;
+      }
+    }
+  }
+
+  @Test
+  public void testStreamingGetDataHeartbeatsAsHeartbeatRequests() throws Exception {
+    // Create a client and server different from the one in SetUp so we can add an experiment to the
+    // options passed in.
+    this.server =
+        InProcessServerBuilder.forName("TestServer")
+            .fallbackHandlerRegistry(serviceRegistry)
+            .executor(Executors.newFixedThreadPool(1))
+            .build()
+            .start();
+    this.client = GrpcWindmillServer.newTestInstance(
+        "TestServer", Collections.singletonList("streaming_engine_send_new_heartbeat_requests"));
     // This server records the heartbeats observed but doesn't respond.
     final List<ComputationHeartbeatRequest> receivedHeartbeats = new ArrayList<>();
 
