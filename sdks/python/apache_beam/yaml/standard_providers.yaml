@@ -30,28 +30,25 @@
     'MapToFields-java': 'MapToFields-java'
     'MapToFields-generic': 'MapToFields-java'
     'Filter-java': 'Filter-java'
+    'Filter-generic': 'Filter-java'
     'Explode': 'Explode'
   config:
     mappings:
       'Sql':
         query: 'query'
         # Unfortunately dialect is a java logical type.
-      'MapToFields-generic':
-        language: 'language'
-        append: 'append'
-        drop: 'drop'
-        fields: 'fields'
-        error_handling: 'errorHandling'
       'MapToFields-java':
         language: 'language'
         append: 'append'
         drop: 'drop'
         fields: 'fields'
         error_handling: 'errorHandling'
+      'MapToFields-generic': 'MapToFields-java'
       'Filter-java':
         language: 'language'
         keep: 'keep'
         error_handling: 'errorHandling'
+      'Filter-generic': 'Filter-java'
       'Explode':
         fields: 'fields'
         cross_product: 'crossProduct'
