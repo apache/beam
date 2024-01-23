@@ -22,6 +22,7 @@ import sys
 import tempfile
 import typing
 import unittest
+import uuid
 from typing import List
 from typing import NamedTuple
 from typing import Union
@@ -614,6 +615,15 @@ class TFTProcessHandlerTest(unittest.TestCase):
           actual_data_x,
           equal_to(expected_data_x, equals_fn=np.array_equal),
           label='transformed data')
+
+
+class TFTProcessHandlerTestWithGCSLocation(TFTProcessHandlerTest):
+  def setUp(self) -> None:
+    self.artifact_location = self.gcs_artifact_location = os.path.join(
+        'gs://temp-storage-for-perf-tests/vertex_ai', uuid.uuid4().hex)
+
+  def tearDown(self):
+    pass
 
 
 if __name__ == '__main__':
