@@ -1000,8 +1000,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                   if 'foundation' in d])
     ]
 
-    args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=all_of(*pipeline_verifiers))
+    args = self.test_pipeline.get_full_options_as_args()
 
     with beam.Pipeline(argv=args) as p:
       input = p | beam.Create(_ELEMENTS, reshuffle=False)
@@ -1042,7 +1041,8 @@ class BigQueryFileLoadsIT(unittest.TestCase):
               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
               max_file_size=20,
-              max_files_per_bundle=-1))
+              max_files_per_bundle=1))
+    hamcrest_assert(p, all_of(*pipeline_verifiers))
 
   @pytest.mark.it_postcommit
   def test_bqfl_streaming(self):
