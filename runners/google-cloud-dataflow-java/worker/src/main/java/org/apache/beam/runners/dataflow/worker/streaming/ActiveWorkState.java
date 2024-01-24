@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 
+import com.google.auto.value.AutoValue;
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -100,26 +101,6 @@ public final class ActiveWorkState {
     return new ActiveWorkState(activeWork, computationStateCache);
   }
 
-  private static Stream<KeyedGetDataRequest> toKeyedGetDataRequestStream(
-      Entry<ShardedKey, Deque<Work>> shardedKeyAndWorkQueue,
-      Instant refreshDeadline,
-      DataflowExecutionStateSampler sampler) {
-    ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
-    Deque<Work> workQueue = shardedKeyAndWorkQueue.getValue();
-
-    return workQueue.stream()
-        .filter(work -> work.getStartTime().isBefore(refreshDeadline))
-        .map(
-            work ->
-                Windmill.KeyedGetDataRequest.newBuilder()
-                    .setKey(shardedKey.key())
-                    .setShardingKey(shardedKey.shardingKey())
-                    .setWorkToken(work.getWorkItem().getWorkToken())
-                    .addAllLatencyAttribution(
-                        work.getLatencyAttributions(true, work.getLatencyTrackingId(), sampler))
-                    .build());
-  }
-
   private static String elapsedString(Instant start, Instant end) {
     Duration activeFor = new Duration(start, end);
     // Duration's toString always starts with "PT"; remove that here.
@@ -163,13 +144,23 @@ public final class ActiveWorkState {
     return ActivateWorkResult.QUEUED;
   }
 
-  public static final class FailedTokens {
-    public long workToken;
-    public long cacheToken;
+  @AutoValue
+  public abstract static class FailedTokens {
+    public abstract long workToken();
 
-    public FailedTokens(long workToken, long cacheToken) {
-      this.workToken = workToken;
-      this.cacheToken = cacheToken;
+    public abstract long cacheToken();
+
+    public static Builder newBuilder() {
+      return new AutoValue_ActiveWorkState_FailedTokens.Builder();
+    }
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setWorkToken(long value);
+
+      public abstract Builder setCacheToken(long value);
+
+      public abstract FailedTokens build();
     }
   }
 
@@ -187,17 +178,17 @@ public final class ActiveWorkState {
       for (FailedTokens failedToken : failedTokens) {
         for (Work queuedWork : entry.getValue()) {
           WorkItem workItem = queuedWork.getWorkItem();
-          if (workItem.getWorkToken() == failedToken.workToken
-              && workItem.getCacheToken() == failedToken.cacheToken) {
+          if (workItem.getWorkToken() == failedToken.workToken()
+              && workItem.getCacheToken() == failedToken.cacheToken()) {
             LOG.debug(
                 "Failing work "
                     + computationStateCache.getComputation()
                     + " "
                     + entry.getKey().shardingKey()
                     + " "
-                    + failedToken.workToken
+                    + failedToken.workToken()
                     + " "
-                    + failedToken.cacheToken
+                    + failedToken.cacheToken()
                     + ". The work will be retried and is not lost.");
             queuedWork.setFailed();
             break;
