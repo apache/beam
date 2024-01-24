@@ -20,7 +20,7 @@
 plugins {
   `java-gradle-plugin`
   groovy
-  id("com.diffplug.spotless") version "5.6.1"
+  id("com.diffplug.spotless") version "6.25.0"
 }
 
 // Define the set of repositories required to fetch and enable plugins.
