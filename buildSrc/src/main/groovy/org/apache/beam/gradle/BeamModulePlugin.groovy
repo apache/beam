@@ -321,11 +321,11 @@ class BeamModulePlugin implements Plugin<Project> {
 
   // A class defining the common properties in a given suite of cross-language tests
   // Properties are shared across runners and are used when creating a CrossLanguageUsingJavaExpansionConfiguration object
-  static class CrossLanguageTaskCommon {
+  static class CrossLanguageTask {
     // Used as the task name for cross-language
     String name
-    // The expansion service's project path (required)
-    String expansionProjectPath
+    // List of project paths for required expansion services
+    List<String> expansionProjectPaths
     // Collect Python pipeline tests with this marker
     String collectMarker
     // Job server startup task.
@@ -355,8 +355,8 @@ class BeamModulePlugin implements Plugin<Project> {
     TaskProvider cleanupJobServer
     // Number of parallel test runs.
     Integer numParallelTests = 1
-    // Project path for the expansion service to start up
-    String expansionProjectPath
+    // List of project paths for required expansion services
+    List<String> expansionProjectPaths
     // Collect Python pipeline tests with this marker
     String collectMarker
     // any additional environment variables to be exported
@@ -2576,7 +2576,7 @@ class BeamModulePlugin implements Plugin<Project> {
     /** ***********************************************************************************************/
     // Method to create the createCrossLanguageUsingJavaExpansionTask.
     // The method takes CrossLanguageUsingJavaExpansionConfiguration as parameter.
-    // This method creates a task that runs Python SDK pipeline tests that use Java transforms via an input expansion service
+    // This method creates a task that runs Python SDK test-suites that use external Java transforms
     project.ext.createCrossLanguageUsingJavaExpansionTask = {
       // This task won't work if the python build file doesn't exist.
       if (!project.project(":sdks:python").buildFile.exists()) {
@@ -2586,40 +2586,49 @@ class BeamModulePlugin implements Plugin<Project> {
       def config = it ? it as CrossLanguageUsingJavaExpansionConfiguration : new CrossLanguageUsingJavaExpansionConfiguration()
 
       project.evaluationDependsOn(":sdks:python")
-      project.evaluationDependsOn(config.expansionProjectPath)
+      for (path in config.expansionProjectPaths) {
+        project.evaluationDependsOn(path)
+      }
       project.evaluationDependsOn(":runners:core-construction-java")
       project.evaluationDependsOn(":sdks:java:extensions:python")
 
       // Setting up args to launch the expansion service
       def pythonDir = project.project(":sdks:python").projectDir
-      def javaExpansionPort = -1 // will be populated in setupTask
-      def expansionJar = project.project(config.expansionProjectPath).shadowJar.archivePath
-      def javaClassLookupAllowlistFile = project.project(config.expansionProjectPath).projectDir.getPath()
-      def expansionServiceOpts = [
-        "group_id": project.name,
-        "java_expansion_service_jar": expansionJar,
-        "java_expansion_service_allowlist_file": javaClassLookupAllowlistFile,
-      ]
+      // initialize all expansion ports to -1. Will be populated in setupTask
+      def javaExpansionPorts = config.expansionProjectPaths.inject([:]) { map, k -> map[k] = -1; map }
+
       def usesDataflowRunner = config.pythonPipelineOptions.contains("--runner=TestDataflowRunner") || config.pythonPipelineOptions.contains("--runner=DataflowRunner")
       def javaContainerSuffix = getSupportedJavaVersion()
 
       // 1. Builds the chosen expansion service jar and launches it
       def setupTask = project.tasks.register(config.name+"Setup") {
         dependsOn ':sdks:java:container:' + javaContainerSuffix + ':docker'
-        dependsOn project.project(config.expansionProjectPath).shadowJar.getPath()
+        for (path in config.expansionProjectPaths) {
+          dependsOn project.project(path).shadowJar.getPath()
+        }
         dependsOn 'installGcpTest'
         if (usesDataflowRunner) {
           dependsOn ":sdks:python:test-suites:dataflow:py${project.ext.pythonVersion.replace('.', '')}:initializeForDataflowJob"
         }
         doLast {
-          project.exec {
-            // Prepare a port to use for the expansion service
-            javaExpansionPort = getRandomPort()
-            expansionServiceOpts.put("java_port", javaExpansionPort)
-            // setup test env
-            def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
-            executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && $pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name} && $pythonDir/scripts/run_expansion_services.sh start $serviceArgs"
+          // iterate through list of expansion service paths and build each jar
+          for (path in config.expansionProjectPaths) {
+            project.exec {
+              def expansionJar = project.project(path).shadowJar.archivePath
+              def javaClassLookupAllowlistFile = project.project(path).projectDir.getPath()
+              def expansionServiceOpts = [
+                      "group_id": project.name,
+                      "java_expansion_service_jar": expansionJar,
+                      "java_expansion_service_allowlist_file": javaClassLookupAllowlistFile,
+              ]
+              // Prepare a port to use for the expansion service
+              javaExpansionPorts[path] = getRandomPort()
+              expansionServiceOpts.put("java_port", javaExpansionPorts[path])
+              // setup test env
+              def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
+              executable 'sh'
+              args '-c', ". ${project.ext.envdir}/bin/activate && $pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name} && $pythonDir/scripts/run_expansion_services.sh start $serviceArgs"
+            }
           }
         }
       }
@@ -2642,8 +2651,16 @@ class BeamModulePlugin implements Plugin<Project> {
           def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
 
           project.exec {
-            environment "EXPANSION_JAR", expansionJar
-            environment "EXPANSION_PORT", javaExpansionPort
+            // environment variable name depends on number of running expansion services
+            if (config.expansionProjectPaths.size() == 1) {
+              def expansionPath = config.expansionProjectPaths.get(0)
+              environment "EXPANSION_JAR", project.project(expansionPath).shadowJar.archivePath
+              environment "EXPANSION_PORT", javaExpansionPorts[expansionPath]
+            } else {
+              def expansionJars = config.expansionProjectPaths.collect {expansionPath -> project.project(expansionPath).shadowJar.archivePath}
+              environment "EXPANSION_JARS", expansionJars
+              environment "EXPANSION_PORTS", javaExpansionPorts
+            }
             for (envs in config.additionalEnvs){
               environment envs.getKey(), envs.getValue()
             }

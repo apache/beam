@@ -153,7 +153,7 @@ class ExternalSchemaTransformProviderTest(unittest.TestCase):
       assert_that(numbers, equal_to([i for i in range(10)]))
 
 
-@pytest.mark.uses_io_java_expansion_service
+@pytest.mark.uses_multiple_java_expansion_services
 @unittest.skipIf(
     run_script is None,
     "Need access to gen_xlang_wrappers.py to run these tests")
@@ -186,7 +186,8 @@ class AutoGenerationScriptTest(unittest.TestCase):
     os.mkdir(self.test_dir)
 
     self.assertTrue(
-        os.environ.get('EXPANSION_PORT'), "Expansion service port not found!")
+        os.environ.get('EXPANSION_PORTS'), "Expansion service port not found!")
+    logging.info("EXPANSION_PORTS: %s", os.environ.get('EXPANSION_PORTS'))
 
   def tearDown(self):
     shutil.rmtree(self.test_dir, ignore_errors=False)
@@ -426,7 +427,12 @@ class AutoGenerationScriptTest(unittest.TestCase):
     with open(self.service_config_path, 'w') as f:
       yaml.dump([expansion_service_config], f)
 
-    run_script(False, self.service_config_path, self.transform_config_path)
+    generate_transforms_config(
+        input_services=self.service_config_path,
+        output_file=self.transform_config_path)
+    wrappers_grouped_by_destination = get_wrappers_from_transform_configs(
+        self.transform_config_path)
+    write_wrappers_to_destinations(wrappers_grouped_by_destination)
 
     gen_seq_et = import_module(
         modified_dest.replace('/', '.') + PYTHON_SUFFIX.rstrip('.py'))
@@ -444,7 +450,8 @@ class AutoGenerationScriptTest(unittest.TestCase):
     in the SDK root `standard_external_transforms.yaml`. Fails if the
     test is out of sync.
 
-    Fix by running `python gen_xlang_wrappers.py` and committing the changes.
+    Fix by running `./gradlew generateExternalTransformWrappers` and
+    committing the changes.
     """
     generate_transforms_config(
         os.path.join(PYTHON_SDK_ROOT, 'standard_expansion_services.yaml'),
@@ -452,16 +459,17 @@ class AutoGenerationScriptTest(unittest.TestCase):
     with open(self.transform_config_path) as f:
       test_config = yaml.safe_load(f)
     with open(os.path.join(PYTHON_SDK_ROOT,
-                           'standard_external_transforms.yaml')) as f:
+                           'standard_external_transforms.yaml'),
+              'r') as f:
       standard_config = yaml.safe_load(f)
 
     self.assertEqual(
         test_config,
         standard_config,
         "The standard xlang transforms config file "
-        "\"standard_external_transforms.yaml\" is out of sync! "
-        "Please update by running script "
-        "`python gen_xlang_wrappers.py` and commit the changes.")
+        "\"standard_external_transforms.yaml\" is out of sync! Please update"
+        "by running './gradlew generateExternalTransformWrappers'"
+        "and committing the changes.")
 
 
 if __name__ == '__main__':

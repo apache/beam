@@ -116,7 +116,6 @@ def generate_transforms_config(input_services, output_file):
   for service in services:
     target = service['gradle_target']
 
-    # validate expansion service destinations
     if "destinations" not in service:
       raise ValueError(
           f"Expansion service with target [{target}] does not "
@@ -167,29 +166,10 @@ def generate_transforms_config(input_services, output_file):
                 f"are {SUPPORTED_SDK_DESTINATIONS}")
           destinations[sdk] = destination  # override the destination
 
-      # prepare information about parameters
       fields = {}
       for param in wrapper.configuration_schema.values():
-        tp = param.type
-        nullable = False
-        # if type is typing.Optional[...]
-        if (typing.get_origin(tp) is Union and
-            type(None) in typing.get_args(tp)):
-          nullable = True
-          # unwrap and set type to the original
-          args = typing.get_args(tp)
-          if len(args) == 2:
-            tp = args[0]
+        (tp, nullable) = prepare_type(param.type)
 
-        # some logic for properly setting the type name
-        # TODO(ahmedabu98): Find a way to make this logic more generic when
-        # supporting other remote SDKs. Potentially use Runner API types
-        if tp.__module__ == 'builtins':
-          tp = tp.__name__
-        elif tp.__module__ == 'typing':
-          tp = str(tp).replace("typing.", "")
-        elif tp.__module__ == 'numpy':
-          tp = "%s.%s" % (tp.__module__, tp.__name__)
         field_info = {
             'type': str(tp),
             'description': param.description,
@@ -215,7 +195,33 @@ def generate_transforms_config(input_services, output_file):
     dt = datetime.datetime.now().date()
     f.write(f"# Last updated on: {dt}\n\n")
     yaml.dump(transform_list, f)
+  logging.info("Successfully wrote transform configs to file: %s", output_file)
 
+
+def prepare_type(tp):
+  nullable = False
+  # if it's typing.Optional[...], unwrap to avoid redundancy. Nullability is
+  # communicated in the wrapper's constructor
+  if (typing.get_origin(tp) is Union and
+          type(None) in typing.get_args(tp)):
+    nullable = True
+    # only unwrap if it's a single nullable type. if the type is truly a union
+    # of multiple types, leave it alone.
+    args = typing.get_args(tp)
+    if len(args) == 2:
+      tp = list(filter(lambda t: t is not type(None), args))[0]
+
+  # some logic for setting the type's name to look pretty
+  # TODO(ahmedabu98): Make this more generic to support other remote SDKs
+  # Potentially use Runner API types
+  if tp.__module__ == 'builtins':
+    tp = tp.__name__
+  elif tp.__module__ == 'typing':
+    tp = str(tp).replace("typing.", "")
+  elif tp.__module__ == 'numpy':
+    tp = "%s.%s" % (tp.__module__, tp.__name__)
+
+  return (tp, nullable)
 
 def camel_case_to_snake_case(string):
   """Convert camelCase to snake_case"""
@@ -249,7 +255,6 @@ def get_wrappers_from_transform_configs(config_file) -> Dict[str, List[str]]:
 
   Returns the generated classes, grouped by destination.
   """
-  # fetch wrapper template
   env = Environment(loader=FileSystemLoader(PYTHON_SDK_ROOT))
   python_wrapper_template = env.get_template("python_xlang_wrapper.template")
 
@@ -275,7 +280,7 @@ def get_wrappers_from_transform_configs(config_file) -> Dict[str, List[str]]:
             "type": info['type'],
             "description": info['description'],
         }
-        # for nullable fields, default to None
+
         if info['nullable']:
           param_details["default"] = None
         parameters.append(param_details)
@@ -285,7 +290,6 @@ def get_wrappers_from_transform_configs(config_file) -> Dict[str, List[str]]:
       parameters = sorted(parameters, key=lambda p: 'default' in p)
       default_service = f"BeamJarExpansionService(\"{default_service}\")"
 
-      # use jinja to generate the code
       python_wrapper_class = python_wrapper_template.render(
           class_name=name,
           identifier=identifier,
@@ -310,7 +314,8 @@ def write_wrappers_to_destinations(grouped_wrappers: Dict[str, List[str]]):
   written_files = []
   for dest, wrappers in grouped_wrappers.items():
     dest += PYTHON_SUFFIX
-    with open(dest, "w") as file:
+    absolute_dest = os.path.join(PYTHON_SDK_ROOT, *dest.split('/'))
+    with open(absolute_dest, "w") as file:
       file.write(LICENSE_HEADER.lstrip())
       file.write(
           MARKER + "# and should not be edited by hand.\n"
@@ -323,15 +328,16 @@ def write_wrappers_to_destinations(grouped_wrappers: Dict[str, List[str]]):
           "import ExternalSchemaTransform\n")
       for wrapper in wrappers:
         file.write(wrapper + "\n")
-    written_files.append(dest)
+    written_files.append(absolute_dest)
 
-  # attempt to format files with yapf
-  out = subprocess.run([
-      'yapf',
-      '--in-place',
-      *[os.path.join(PYTHON_SDK_ROOT, *module.split('/')) for module in written_files],
-  ], capture_output=True, check=False)
-  print(out.stdout)
+  # We only make a best effort attempt to format with yapf because not all
+  # test environments will have this package.
+  cmd = ['yapf', '--in-place', *written_files]
+  try:
+    out = subprocess.run(cmd, capture_output=True, check=False)
+    print(out.stdout)
+  except Exception as err:
+    logging.warning('Could not format with command %s due to error: %s', cmd, err)
   logging.info("Created external transform wrapper modules: %s", written_files)
 
 
@@ -341,8 +347,8 @@ def delete_generated_files(root_dir):
   deleted_files = []
   ignored = []
   for path in find_by_ext(root_dir, PYTHON_SUFFIX):
-    # only delete if file includes a string that marks it as a wrapper
-    # to be safe, close file before deleting
+    # to not risk deleting an irrelevant file that happens to end in '_et.py',
+    # we first check if it contains a known string.
     with open(path, 'r') as f:
       should_delete = MARKER in f.readlines()
     if should_delete:
@@ -360,20 +366,13 @@ def run_script(cleanup, input_expansion_services, transforms_config_source):
   if cleanup:
     delete_generated_files(os.path.join(PYTHON_SDK_ROOT, 'apache_beam'))
 
-  # Find paths for expansion service YAML source and
-  # transform config YAML output
-  expansion_services_source = os.path.join(
-      os.path.dirname(__file__), input_expansion_services)
-
   # This step requires the expansion service.
   # Only generate a transforms config file if none are provided
   if not transforms_config_source:
-    output_transforms_config = 'standard_external_transforms.yaml'
     output_transforms_config = os.path.join(
-        os.path.dirname(__file__), output_transforms_config)
-    # Generate transform configs and output to the specified path
+        os.path.dirname(__file__), 'standard_external_transforms.yaml')
     generate_transforms_config(
-        input_services=expansion_services_source,
+        input_services=input_expansion_services,
         output_file=output_transforms_config)
 
     transforms_config_source = output_transforms_config
@@ -385,12 +384,10 @@ def run_script(cleanup, input_expansion_services, transforms_config_source):
           "Could not find the provided transforms config "
           f"source: {transforms_config_source}")
 
-  # Build and get the generated wrapper code
-  grouped_wrappers = get_wrappers_from_transform_configs(
+  wrappers_grouped_by_destination = get_wrappers_from_transform_configs(
       transforms_config_source)
 
-  # Write generated code to the appropriate destinations
-  write_wrappers_to_destinations(grouped_wrappers)
+  write_wrappers_to_destinations(wrappers_grouped_by_destination)
 
 
 if __name__ == '__main__':
@@ -403,7 +400,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--input-expansion-services',
       dest='input_expansion_services',
-      default='standard_expansion_services.yaml',
+      default=os.path.join(PYTHON_SDK_ROOT, 'standard_expansion_services.yaml'),
       help=(
           "Relative path to the input YAML file that contains "
           "expansion service configs. Ignored if a transforms config"

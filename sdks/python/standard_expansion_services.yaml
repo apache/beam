@@ -25,6 +25,10 @@
 # generated wrapper class name.
 #
 # Transform identifiers listed in the `ignore` field will be skipped.
+#
+# Any new gradle targets added here should also be added to:
+# - sdks/python/test-suites/xlang/build.gradle (look for 'servicesToGenerateFrom')
+# - build.gradle.kts (as a dependency in the 'generateExternalTransformWrappers' task)
 
 - gradle_target: 'sdks:java:io:expansion-service:shadowJar'
   destinations:

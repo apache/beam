@@ -506,7 +506,7 @@ def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
 project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
     createCrossLanguageUsingJavaExpansionTask(
       name: taskMetadata.name,
-      expansionProjectPath: taskMetadata.expansionProjectPath,
+      expansionProjectPaths: taskMetadata.expansionProjectPaths,
       collectMarker: taskMetadata.collectMarker,
       startJobServer: taskMetadata.startJobServer,
       cleanupJobServer: taskMetadata.cleanupJobServer,
