@@ -23,6 +23,7 @@ import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -34,8 +35,10 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -50,7 +53,8 @@ import org.slf4j.LoggerFactory;
  * activate, queue, and complete {@link Work} (including invalidating stuck {@link Work}).
  */
 @ThreadSafe
-final class ActiveWorkState {
+@Internal
+public final class ActiveWorkState {
   private static final Logger LOG = LoggerFactory.getLogger(ActiveWorkState.class);
 
   /* The max number of keys in COMMITTING or COMMIT_QUEUED status to be shown.*/
@@ -118,6 +122,50 @@ final class ActiveWorkState {
     // Queue the work for later processing.
     workQueue.addLast(work);
     return ActivateWorkResult.QUEUED;
+  }
+
+  public static final class FailedTokens {
+    public long workToken;
+    public long cacheToken;
+
+    public FailedTokens(long workToken, long cacheToken) {
+      this.workToken = workToken;
+      this.cacheToken = cacheToken;
+    }
+  }
+
+  /**
+   * Fails any active work matching an element of the input Map.
+   *
+   * @param failedWork a map from sharding_key to tokens for the corresponding work.
+   */
+  synchronized void failWorkForKey(Map<Long, List<FailedTokens>> failedWork) {
+    // Note we can't construct a ShardedKey and look it up in activeWork directly since
+    // HeartbeatResponse doesn't include the user key.
+    for (Entry<ShardedKey, Deque<Work>> entry : activeWork.entrySet()) {
+      List<FailedTokens> failedTokens = failedWork.get(entry.getKey().shardingKey());
+      if (failedTokens == null) continue;
+      for (FailedTokens failedToken : failedTokens) {
+        for (Work queuedWork : entry.getValue()) {
+          WorkItem workItem = queuedWork.getWorkItem();
+          if (workItem.getWorkToken() == failedToken.workToken
+              && workItem.getCacheToken() == failedToken.cacheToken) {
+            LOG.debug(
+                "Failing work "
+                    + computationStateCache.getComputation()
+                    + " "
+                    + entry.getKey().shardingKey()
+                    + " "
+                    + failedToken.workToken
+                    + " "
+                    + failedToken.cacheToken
+                    + ". The work will be retried and is not lost.");
+            queuedWork.setFailed();
+            break;
+          }
+        }
+      }
+    }
   }
 
   /**
@@ -211,14 +259,14 @@ final class ActiveWorkState {
     return stuckCommits.build();
   }
 
-  synchronized ImmutableList<KeyedGetDataRequest> getKeysToRefresh(
+  synchronized ImmutableList<HeartbeatRequest> getKeyHeartbeats(
       Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
     return activeWork.entrySet().stream()
-        .flatMap(entry -> toKeyedGetDataRequestStream(entry, refreshDeadline, sampler))
+        .flatMap(entry -> toHeartbeatRequestStream(entry, refreshDeadline, sampler))
         .collect(toImmutableList());
   }
 
-  private static Stream<KeyedGetDataRequest> toKeyedGetDataRequestStream(
+  private static Stream<HeartbeatRequest> toHeartbeatRequestStream(
       Entry<ShardedKey, Deque<Work>> shardedKeyAndWorkQueue,
       Instant refreshDeadline,
       DataflowExecutionStateSampler sampler) {
@@ -227,12 +275,14 @@ final class ActiveWorkState {
 
     return workQueue.stream()
         .filter(work -> work.getStartTime().isBefore(refreshDeadline))
+        // Don't send heartbeats for queued work we already know is failed.
+        .filter(work -> !work.isFailed())
         .map(
             work ->
-                Windmill.KeyedGetDataRequest.newBuilder()
-                    .setKey(shardedKey.key())
+                Windmill.HeartbeatRequest.newBuilder()
                     .setShardingKey(shardedKey.shardingKey())
                     .setWorkToken(work.getWorkItem().getWorkToken())
+                    .setCacheToken(work.getWorkItem().getCacheToken())
                     .addAllLatencyAttribution(
                         work.getLatencyAttributions(true, work.getLatencyTrackingId(), sampler))
                     .build());
@@ -250,7 +300,7 @@ final class ActiveWorkState {
     for (Map.Entry<ShardedKey, Deque<Work>> entry : activeWork.entrySet()) {
       Queue<Work> workQueue = Preconditions.checkNotNull(entry.getValue());
       Work activeWork = Preconditions.checkNotNull(workQueue.peek());
-      Windmill.WorkItem workItem = activeWork.getWorkItem();
+      WorkItem workItem = activeWork.getWorkItem();
       if (activeWork.isCommitPending()) {
         if (++commitsPendingCount >= MAX_PRINTABLE_COMMIT_PENDING_KEYS) {
           continue;

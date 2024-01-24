@@ -169,6 +169,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .setComputeNumShards(null)
         .setNumShardsProvider(null)
         .setWindowedWrites(false)
+        .setWithAutoSharding(false)
         .setMaxNumWritersPerBundle(DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE)
         .setSideInputs(sink.getDynamicDestinations().getSideInputs())
         .setSkipIfEmpty(false)
@@ -188,6 +189,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public abstract @Nullable ValueProvider<Integer> getNumShardsProvider();
 
   public abstract boolean getWindowedWrites();
+
+  public abstract boolean getWithAutoSharding();
 
   abstract int getMaxNumWritersPerBundle();
 
@@ -215,6 +218,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         @Nullable ValueProvider<Integer> numShardsProvider);
 
     abstract Builder<UserT, DestinationT, OutputT> setWindowedWrites(boolean windowedWrites);
+
+    abstract Builder<UserT, DestinationT, OutputT> setWithAutoSharding(boolean withAutoSharding);
 
     abstract Builder<UserT, DestinationT, OutputT> setMaxNumWritersPerBundle(
         int maxNumWritersPerBundle);
@@ -306,6 +311,13 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
    */
   public WriteFiles<UserT, DestinationT, OutputT> withRunnerDeterminedSharding() {
     return toBuilder().setComputeNumShards(null).setNumShardsProvider(null).build();
+  }
+
+  public WriteFiles<UserT, DestinationT, OutputT> withAutoSharding() {
+    checkArgument(
+        getComputeNumShards() == null && getNumShardsProvider() == null,
+        " sharding should be null if autosharding is specified.");
+    return toBuilder().setWithAutoSharding(true).build();
   }
 
   /**

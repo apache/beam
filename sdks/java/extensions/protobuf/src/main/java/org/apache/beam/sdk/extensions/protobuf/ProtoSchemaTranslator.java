@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.protobuf.Descriptors;
@@ -385,10 +386,10 @@ class ProtoSchemaTranslator {
         case ITERABLE:
           Field field = Field.of("OPTION", fieldType);
           ProtoDynamicMessageSchema schema = ProtoDynamicMessageSchema.forSchema(Schema.of(field));
-          optionsBuilder.setOption(
-              prefix + fieldDescriptor.getFullName(),
-              fieldType,
-              schema.createConverter(field).convertFromProtoValue(entry.getValue()));
+          @SuppressWarnings("rawtypes")
+          ProtoDynamicMessageSchema.Convert convert = schema.createConverter(field);
+          Object value = checkArgumentNotNull(convert.convertFromProtoValue(entry.getValue()));
+          optionsBuilder.setOption(prefix + fieldDescriptor.getFullName(), fieldType, value);
           break;
         case MAP:
         case DATETIME:

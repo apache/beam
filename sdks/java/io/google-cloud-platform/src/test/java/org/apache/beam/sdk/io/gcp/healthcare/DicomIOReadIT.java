@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_D
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -36,6 +35,8 @@ import org.junit.Test;
 public class DicomIOReadIT {
   private static final String TEST_FILE_PATH = "src/test/resources/DICOM/testDicomFile.dcm";
   private static final String TEST_FILE_STUDY_ID = "study_000000000";
+  private static final String TEST_FILE_SERIES_ID = "series_000000000";
+  private static final String TEST_FILE_INSTANCE_ID = "instance_000000000";
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   private String healthcareDataset;
@@ -63,11 +64,15 @@ public class DicomIOReadIT {
 
   @Ignore("https://github.com/apache/beam/issues/28099")
   @Test
-  public void testDicomMetadataRead() throws IOException {
+  public void testDicomMetadataRead() {
     String webPath =
         String.format(
-            "%s/dicomStores/%s/dicomWeb/studies/%s",
-            healthcareDataset, storeName, TEST_FILE_STUDY_ID);
+            "%s/dicomStores/%s/dicomWeb/studies/%s/series/%s/instances/%s",
+            healthcareDataset,
+            storeName,
+            TEST_FILE_STUDY_ID,
+            TEST_FILE_SERIES_ID,
+            TEST_FILE_INSTANCE_ID);
 
     DicomIO.ReadStudyMetadata.Result result =
         pipeline.apply(Create.of(webPath)).apply(DicomIO.readStudyMetadata());
@@ -82,12 +87,26 @@ public class DicomIOReadIT {
               return null;
             });
 
-    PipelineResult job = pipeline.run();
+    pipeline.run();
+  }
 
-    try {
-      job.cancel();
-    } catch (UnsupportedOperationException exc) {
-      // noop - if runner does not support job.cancel()
-    }
+  @Ignore("https://github.com/apache/beam/issues/28099")
+  @Test
+  public void testDicomFailedMetadataRead() {
+    String badWebPath = "foo";
+
+    DicomIO.ReadStudyMetadata.Result result =
+        pipeline.apply(Create.of(badWebPath)).apply(DicomIO.readStudyMetadata());
+
+    PAssert.that(result.getReadResponse()).empty();
+
+    PAssert.that(result.getFailedReads())
+        .satisfies(
+            (errors) -> {
+              Assert.assertTrue(errors.iterator().hasNext());
+              return null;
+            });
+
+    pipeline.run();
   }
 }

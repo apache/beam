@@ -36,8 +36,8 @@ For example, when we upgrade the version of gRPC to 1.54.0 and the version of th
 we could run the linkage tool as following:
 
 ```
-$ ./gradlew -p vendor/grpc-1_54_0 publishMavenJavaPublicationToMavenLocal -Ppublishing -PvendoredDependenciesOnly
-$ ./gradlew -PvendoredDependenciesOnly -Ppublishing -PjavaLinkageArtifactIds=beam-vendor-grpc-1_54_0:0.1-SNAPSHOT :checkJavaLinkage
+$ ./gradlew -p vendor/grpc-1_60_1 publishMavenJavaPublicationToMavenLocal -Ppublishing -PvendoredDependenciesOnly
+$ ./gradlew -PvendoredDependenciesOnly -Ppublishing -PjavaLinkageArtifactIds=beam-vendor-grpc-1_60_1:0.1-SNAPSHOT :checkJavaLinkage
 ```
 
 ### Known Linkage Errors in the Vendored gRPC Dependencies
@@ -86,13 +86,13 @@ Steps:
    copy to the `tempLib` folder in Beam:
 
 ```
-./gradlew -p vendor/grpc-1_54_0 publishMavenJavaPublicationToMavenLocal -Ppublishing -PvendoredDependenciesOnly
+./gradlew -p vendor/grpc-1_60_1 publishMavenJavaPublicationToMavenLocal -Ppublishing -PvendoredDependenciesOnly
 
 mkdir -p tempLib/org/apache/beam
 
 # Copy files (jar/poms/metadata) to your beam repository
-cp -R ~/.m2/repository/org/apache/beam/beam-vendor-grpc-1_54_0/ \
-      tempLib/org/apache/beam
+cp -R ~/.m2/repository/org/apache/beam/beam-vendor-grpc-1_60_1` \
+      tempLib/org/apache/beam/
 ```
 
 2. Add the folder to the expected project repositories:

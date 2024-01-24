@@ -154,6 +154,9 @@ class TestEnvironment:
   def input_csv(self):
     return self.input_file('input.csv', 'col1,col2,col3\nabc,1,2.5\n')
 
+  def input_tsv(self):
+    return self.input_file('input.tsv', 'col1\tcol2\tcol3\nabc\t1\t2.5\n')
+
   def input_json(self):
     return self.input_file(
         'input.json', '{"col1": "abc", "col2": 1, "col3": 2.5"}\n')
@@ -185,10 +188,15 @@ def replace_recursive(spec, transform_type, arg_name, arg_value):
 
 
 def create_test_method(test_type, test_name, test_yaml):
-  test_yaml = test_yaml.replace('pkg.module.fn', 'str')
+  test_yaml = test_yaml.replace(
+      'pkg.module.', 'apache_beam.yaml.readme_test._Fakes.')
+  test_yaml = test_yaml.replace(
+      'apache_beam.pkg.module.', 'apache_beam.yaml.readme_test._Fakes.')
 
   def test(self):
     with TestEnvironment() as env:
+      nonlocal test_yaml
+      test_yaml = test_yaml.replace('/path/to/*.tsv', env.input_tsv())
       spec = yaml.load(test_yaml, Loader=SafeLoader)
       if test_type == 'PARSE':
         return
@@ -265,6 +273,17 @@ def createTestSuite(name, path):
     return type(name, (unittest.TestCase, ), dict(parse_test_methods(readme)))
 
 
+class _Fakes:
+  fn = str
+
+  class SomeTransform(beam.PTransform):
+    def __init__(*args, **kwargs):
+      pass
+
+    def expand(self, pcoll):
+      return pcoll
+
+
 ReadMeTest = createTestSuite(
     'ReadMeTest', os.path.join(os.path.dirname(__file__), 'README.md'))
 
@@ -274,6 +293,10 @@ ErrorHandlingTest = createTestSuite(
 
 CombineTest = createTestSuite(
     'CombineTest', os.path.join(os.path.dirname(__file__), 'yaml_combine.md'))
+
+InlinePythonTest = createTestSuite(
+    'InlinePythonTest',
+    os.path.join(os.path.dirname(__file__), 'inline_python.md'))
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()

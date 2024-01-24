@@ -41,7 +41,7 @@ dependencies {
   permitUnusedDeclared library.java.hamcrest
   implementation library.java.joda_time
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_54_0
+  implementation library.java.vendored_grpc_1_60_1
   implementation library.java.vendored_guava_32_1_2_jre
 
   testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
@@ -199,6 +199,9 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
 
       // https://github.com/apache/beam/issues/20374
       excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$BasicTests.testHotKeyCombiningWithAccumulationMode'
+
+      // TODO(https://github.com/apache/beam/issues/29973)
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata'
 
       for (String test : sickbayTests) {
         excludeTestsMatching test
