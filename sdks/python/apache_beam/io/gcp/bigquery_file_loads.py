@@ -749,17 +749,20 @@ class TriggerLoadJobs(beam.DoFn):
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
 
     logging.critical("SOURCE URIS: %s", files)
-    job_reference = self.bq_wrapper.perform_load_job(
-        destination=table_reference,
-        source_uris=files,
-        job_id=job_name,
-        schema=schema,
-        write_disposition=self.write_disposition,
-        create_disposition=create_disposition,
-        additional_load_parameters=additional_parameters,
-        source_format=self.source_format,
-        job_labels=self.bq_io_metadata.add_additional_bq_job_labels(),
-        load_job_project_id=self.load_job_project_id)
+    try:
+      job_reference = self.bq_wrapper.perform_load_job(
+          destination=table_reference,
+          source_uris=files,
+          job_id=job_name,
+          schema=schema,
+          write_disposition=self.write_disposition,
+          create_disposition=create_disposition,
+          additional_load_parameters=additional_parameters,
+          source_format=self.source_format,
+          job_labels=self.bq_io_metadata.add_additional_bq_job_labels(),
+          load_job_project_id=self.load_job_project_id)
+    except Exception as e:
+      raise RuntimeError("SOURCE URIs: %s. GOT ERROR: %s", files, e)
     yield pvalue.TaggedOutput(
         TriggerLoadJobs.ONGOING_JOBS, (destination, job_reference))
     self.pending_jobs.append(
