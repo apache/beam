@@ -110,6 +110,10 @@ class MainTest(unittest.TestCase):
     if inputs is None:
       inputs = {}
     spec = yaml.load(spec, Loader=SafeLineLoader)
+    if 'transforms' in spec:
+      spec['transforms'] = [
+          normalize_inputs_outputs(t) for t in spec['transforms']
+      ]
 
     scope = Scope(
         beam.pvalue.PBegin(p),

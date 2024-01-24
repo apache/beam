@@ -24,6 +24,7 @@
     version: BEAM_VERSION
   transforms:
      Sql: 'beam:external:java:sql:v1'
+     LogForTesting: 'beam:schematransform:org.apache.beam:yaml:log_for_testing:v1'
 
 - type: renaming
   transforms:
