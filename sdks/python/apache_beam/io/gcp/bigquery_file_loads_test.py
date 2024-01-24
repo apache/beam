@@ -903,7 +903,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     _LOGGER.info(
         "Created dataset %s in project %s", self.dataset_id, self.project)
 
-  @pytest.mark.it_postcommit_temp
+  @pytest.mark.it_postcommit
   def test_batch_copy_jobs_with_no_input_schema(self):
     schema_1 = "col_1:INTEGER"
     schema_2 = "col_2:INTEGER"
@@ -964,7 +964,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
 
     hamcrest_assert(p, all_of(*verifiers))
 
-  @pytest.mark.it_postcommit_temp
+  @pytest.mark.it_postcommit
   def test_multiple_destinations_transform(self):
     output_table_1 = '%s%s' % (self.output_table, 1)
     output_table_2 = '%s%s' % (self.output_table, 2)
@@ -1041,7 +1041,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
               max_file_size=20,
-              max_files_per_bundle=1))
+              max_files_per_bundle=-1))
     hamcrest_assert(p, all_of(*pipeline_verifiers))
 
   @pytest.mark.it_postcommit
