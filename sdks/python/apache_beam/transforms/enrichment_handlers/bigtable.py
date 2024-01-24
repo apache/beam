@@ -30,7 +30,7 @@ import apache_beam as beam
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 __all__ = [
-    'EnrichWithBigTable',
+    'BigTableEnrichmentHandler',
     'ExceptionLevel',
 ]
 
@@ -52,8 +52,8 @@ class ExceptionLevel(Enum):
   QUIET = 2
 
 
-class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
-  """EnrichWithBigTable is a handler for
+class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
+  """BigTableEnrichmentHandler is a handler for
   :class:`apache_beam.transforms.enrichment.Enrichment` transform to interact
   with GCP BigTable.
 
@@ -74,10 +74,10 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
       ``apache_beam.transforms.enrichment_handlers.bigtable.ExceptionLevel``
       to set the level when an empty row is returned from the BigTable query.
       Defaults to ``ExceptionLevel.WARN``.
-
-  Returns:
-    A tuple of input row and output row, with output row values consisting
-    of a tuple of value and timestamp.
+    include_timestamp (bool): If enabled, the timestamp associated with the
+      value is returned as `(value, timestamp)` for each `row_key`.
+      Defaults to `False` - only the latest value without
+      the timestamp is returned.
   """
   def __init__(
       self,
@@ -86,9 +86,11 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
       table_id: str,
       row_key: str,
       row_filter: Optional[RowFilter] = CellsColumnLimitFilter(1),
+      *,
       app_profile_id: str = None,  # type: ignore[assignment]
       encoding: str = 'utf-8',
       exception_level: ExceptionLevel = ExceptionLevel.WARN,
+      include_timestamp: bool = False,
   ):
     self._project_id = project_id
     self._instance_id = instance_id
@@ -98,6 +100,7 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
     self._app_profile_id = app_profile_id
     self._encoding = encoding
     self._exception_level = exception_level
+    self._include_timestamp = include_timestamp
 
   def __enter__(self):
     """connect to the Google BigTable cluster."""
@@ -127,9 +130,13 @@ class EnrichWithBigTable(EnrichmentSourceHandler[beam.Row, beam.Row]):
         for cf_id, cf_v in row.cells.items():
           response_dict[cf_id] = {}
           for col_id, col_v in cf_v.items():
-            response_dict[cf_id][col_id.decode(self._encoding)] = [
-                (v.value.decode(self._encoding), v.timestamp) for v in col_v
-            ]
+            if self._include_timestamp:
+              response_dict[cf_id][col_id.decode(self._encoding)] = [
+                  (v.value.decode(self._encoding), v.timestamp) for v in col_v
+              ]
+            else:
+              response_dict[cf_id][col_id.decode(
+                  self._encoding)] = col_v[0].value.decode(self._encoding)
       elif self._exception_level == ExceptionLevel.WARN:
         _LOGGER.warning(
             'no matching row found for row_key: %s '

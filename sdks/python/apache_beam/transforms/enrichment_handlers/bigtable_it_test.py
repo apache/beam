@@ -19,6 +19,7 @@ import datetime
 import unittest
 from typing import Dict
 from typing import List
+from typing import Tuple
 from typing import NamedTuple
 
 import pytest
@@ -33,7 +34,7 @@ try:
   from google.cloud.bigtable import Client
   from google.cloud.bigtable.row_filters import ColumnRangeFilter
   from apache_beam.transforms.enrichment import Enrichment
-  from apache_beam.transforms.enrichment_handlers.bigtable import EnrichWithBigTable
+  from apache_beam.transforms.enrichment_handlers.bigtable import BigTableEnrichmentHandler
   from apache_beam.transforms.enrichment_handlers.bigtable import ExceptionLevel
 except ImportError:
   raise unittest.SkipTest('GCP BigTable dependencies are not installed.')
@@ -46,10 +47,13 @@ class ValidateResponse(beam.DoFn):
       self,
       n_fields: int,
       fields: List[str],
-      enriched_fields: Dict[str, List[str]]):
+      enriched_fields: Dict[str, List[str]],
+      include_timestamp: bool = False,
+  ):
     self.n_fields = n_fields
     self._fields = fields
     self._enriched_fields = enriched_fields
+    self._include_timestamp = include_timestamp
 
   def process(self, element: beam.Row, *args, **kwargs):
     element_dict = element.as_dict()
@@ -62,11 +66,21 @@ class ValidateResponse(beam.DoFn):
         raise BeamAssertException(f"Expected a not None field: {field}")
 
     for column_family, columns in self._enriched_fields.items():
-      if (len(element_dict[column_family]) != len(columns) or
-          not all(key in element_dict[column_family] for key in columns)):
+      if len(element_dict[column_family]) != len(columns):
         raise BeamAssertException(
             "Response from bigtable should contain a %s column_family with "
             "%s keys." % (column_family, columns))
+
+      for key in columns:
+        if key not in element_dict[column_family]:
+          raise BeamAssertException(
+              "Response from bigtable should contain a %s column_family with "
+              "%s columns." % (column_family, columns))
+        if (self._include_timestamp and
+            not isinstance(element_dict[column_family][key][0], Tuple)):
+          raise BeamAssertException(
+              "Response from bigtable should contain timestamp associated with "
+              "its value.")
 
 
 class _Currency(NamedTuple):
@@ -157,7 +171,7 @@ class TestBigTableEnrichment(unittest.TestCase):
     expected_enriched_fields = {
         'product': ['product_id', 'product_name', 'product_stock'],
     }
-    bigtable = EnrichWithBigTable(
+    bigtable = BigTableEnrichmentHandler(
         project_id=self.project_id,
         instance_id=self.instance_id,
         table_id=self.table_id,
@@ -182,7 +196,7 @@ class TestBigTableEnrichment(unittest.TestCase):
     }
     start_column = 'product_name'.encode()
     column_filter = ColumnRangeFilter(self.column_family_id, start_column)
-    bigtable = EnrichWithBigTable(
+    bigtable = BigTableEnrichmentHandler(
         project_id=self.project_id,
         instance_id=self.instance_id,
         table_id=self.table_id,
@@ -204,7 +218,7 @@ class TestBigTableEnrichment(unittest.TestCase):
     # won't be added. Hence, the response is same as the request.
     expected_fields = ['sale_id', 'customer_id', 'product_id', 'quantity']
     expected_enriched_fields = {}
-    bigtable = EnrichWithBigTable(
+    bigtable = BigTableEnrichmentHandler(
         project_id=self.project_id,
         instance_id=self.instance_id,
         table_id=self.table_id,
@@ -227,7 +241,7 @@ class TestBigTableEnrichment(unittest.TestCase):
     # column names then all columns in that column_family are returned.
     start_column = 'car_name'.encode()
     column_filter = ColumnRangeFilter('car_name', start_column)
-    bigtable = EnrichWithBigTable(
+    bigtable = BigTableEnrichmentHandler(
         project_id=self.project_id,
         instance_id=self.instance_id,
         table_id=self.table_id,
@@ -245,7 +259,7 @@ class TestBigTableEnrichment(unittest.TestCase):
   def test_enrichment_with_bigtable_raises_key_error(self):
     """raises a `KeyError` when the row_key doesn't exist in
     the input PCollection."""
-    bigtable = EnrichWithBigTable(
+    bigtable = BigTableEnrichmentHandler(
         project_id=self.project_id,
         instance_id=self.instance_id,
         table_id=self.table_id,
@@ -262,7 +276,7 @@ class TestBigTableEnrichment(unittest.TestCase):
   def test_enrichment_with_bigtable_raises_not_found(self):
     """raises a `NotFound` exception when the GCP BigTable Cluster
     doesn't exist."""
-    bigtable = EnrichWithBigTable(
+    bigtable = BigTableEnrichmentHandler(
         project_id=self.project_id,
         instance_id=self.instance_id,
         table_id='invalid_table',
@@ -279,7 +293,7 @@ class TestBigTableEnrichment(unittest.TestCase):
   def test_enrichment_with_bigtable_exception_level(self):
     """raises a `ValueError` exception when the GCP BigTable query returns
     an empty row."""
-    bigtable = EnrichWithBigTable(
+    bigtable = BigTableEnrichmentHandler(
         project_id=self.project_id,
         instance_id=self.instance_id,
         table_id=self.table_id,
@@ -294,6 +308,33 @@ class TestBigTableEnrichment(unittest.TestCase):
           | "Enrich W/ BigTable" >> Enrichment(bigtable))
       res = test_pipeline.run()
       res.wait_until_finish()
+
+  def test_enrichment_with_bigtable_with_timestamp(self):
+    """test whether the `(value,timestamp)` is returned when the
+    `include_timestamp` is enabled."""
+    expected_fields = [
+        'sale_id', 'customer_id', 'product_id', 'quantity', 'product'
+    ]
+    expected_enriched_fields = {
+        'product': ['product_id', 'product_name', 'product_stock'],
+    }
+    bigtable = BigTableEnrichmentHandler(
+        project_id=self.project_id,
+        instance_id=self.instance_id,
+        table_id=self.table_id,
+        row_key=self.row_key,
+        include_timestamp=True)
+    with TestPipeline(is_integration_test=True) as test_pipeline:
+      _ = (
+          test_pipeline
+          | "Create" >> beam.Create(self.req)
+          | "Enrich W/ BigTable" >> Enrichment(bigtable)
+          | "Validate Response" >> beam.ParDo(
+              ValidateResponse(
+                  len(expected_fields),
+                  expected_fields,
+                  expected_enriched_fields,
+                  include_timestamp=True)))
 
 
 if __name__ == '__main__':
