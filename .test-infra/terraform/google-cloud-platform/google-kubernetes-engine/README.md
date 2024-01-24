@@ -27,13 +27,13 @@ Google Cloud Platform (GCP).
 See [Google Cloud Platform requirements](../../google-cloud-platform/README.md)
 for details on requirements and usage.
 
-# Prerequisites
+# IMPORTANT Prerequisites
 
 This module assumes the following pre-existing resources:
 
 - [Cloud Resource Manager API Enabled](https://console.cloud.google.com/apis/library/cloudresourcemanager.googleapis.com)
 - [Virtual Private Cloud (VPC) network and subnetwork](https://cloud.google.com/vpc/docs/create-modify-vpc-networks)
-- [GCP Service Account](https://cloud.google.com/iam/docs/service-accounts-create)
+- [GCP Service Account](https://cloud.google.com/iam/docs/service-accounts-create) with [minimally permissive IAM roles](https://cloud.google.com/kubernetes-engine/docs/how-to/hardening-your-cluster#use_least_privilege_sa)
 
 # Step 1. Create vars.tfvars
 
@@ -53,9 +53,15 @@ variable names.
 
 ## If you are provisioning in `apache-beam-testing`:
 
+Set the region:
+```
+REGION=us-central1
+```
+
+Apply the module:
 ```
 terraform init
-terraform apply -var-file=apache-beam-testing.tfvars
+terraform apply -var-file=$REGION.apache-beam-testing.tfvars
 ```
 
 You will be prompted for any remaining variables.

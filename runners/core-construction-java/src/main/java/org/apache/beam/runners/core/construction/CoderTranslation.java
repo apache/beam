@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +26,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableBiMap;
@@ -99,7 +97,21 @@ public class CoderTranslation {
     if (KNOWN_CODER_URNS.containsKey(coder.getClass())) {
       return toKnownCoder(coder, components);
     }
+
+    if (coder instanceof UnknownCoderWrapper) {
+      return toUnknownCoderWrapper((UnknownCoderWrapper) coder);
+    }
+
     return toCustomCoder(coder);
+  }
+
+  private static RunnerApi.Coder toUnknownCoderWrapper(UnknownCoderWrapper coder) {
+    return RunnerApi.Coder.newBuilder()
+        .setSpec(
+            FunctionSpec.newBuilder()
+                .setUrn(coder.getUrn())
+                .setPayload(ByteString.copyFrom(coder.getPayload())))
+        .build();
   }
 
   private static RunnerApi.Coder toKnownCoder(Coder<?> coder, SdkComponents components)
@@ -149,6 +161,7 @@ public class CoderTranslation {
       RunnerApi.Coder coder, RehydratedComponents components, TranslationContext context)
       throws IOException {
     String coderUrn = coder.getSpec().getUrn();
+
     List<Coder<?>> coderComponents = new ArrayList<>();
     for (String componentId : coder.getComponentCoderIdsList()) {
       // Only store coders in RehydratedComponents as long as we are not using a custom
@@ -162,13 +175,12 @@ public class CoderTranslation {
     }
     Class<? extends Coder> coderType = KNOWN_CODER_URNS.inverse().get(coderUrn);
     CoderTranslator<?> translator = KNOWN_TRANSLATORS.get(coderType);
-    checkArgument(
-        translator != null,
-        "Unknown Coder URN %s. Known URNs: %s",
-        coderUrn,
-        KNOWN_CODER_URNS.values());
-    return translator.fromComponents(
-        coderComponents, coder.getSpec().getPayload().toByteArray(), context);
+    if (translator != null) {
+      return translator.fromComponents(
+          coderComponents, coder.getSpec().getPayload().toByteArray(), context);
+    } else {
+      return UnknownCoderWrapper.of(coderUrn, coder.getSpec().getPayload().toByteArray());
+    }
   }
 
   private static Coder<?> fromCustomCoder(RunnerApi.Coder protoCoder) throws IOException {

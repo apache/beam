@@ -34,6 +34,7 @@ import org.apache.beam.sdk.io.kafka.KafkaIO.Write;
 import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecords;
 import org.apache.beam.sdk.io.kafka.upgrade.KafkaIOTranslation.KafkaIOReadWithMetadataTranslator;
 import org.apache.beam.sdk.io.kafka.upgrade.KafkaIOTranslation.KafkaIOWriteTranslator;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -111,7 +112,7 @@ public class KafkaIOTranslationTest {
     Row row = translator.toConfigRow(readTransform);
 
     Read<String, Integer> readTransformFromRow =
-        (Read<String, Integer>) translator.fromConfigRow(row);
+        (Read<String, Integer>) translator.fromConfigRow(row, PipelineOptionsFactory.create());
     assertNotNull(
         readTransformFromRow.getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
     assertEquals(
@@ -178,7 +179,7 @@ public class KafkaIOTranslationTest {
     Row row = translator.toConfigRow(writeTransform);
 
     Write<String, Integer> writeTransformFromRow =
-        (Write<String, Integer>) translator.fromConfigRow(row);
+        (Write<String, Integer>) translator.fromConfigRow(row, PipelineOptionsFactory.create());
     WriteRecords<String, Integer> writeRecordsTransform =
         writeTransformFromRow.getWriteRecordsTransform();
     assertNotNull(

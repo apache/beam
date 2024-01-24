@@ -97,6 +97,12 @@ class _SentenceTransformerModelHandler(ModelHandler):
       batch_sizes["max_batch_size"] = self._max_batch_size
     return batch_sizes
 
+  def __repr__(self) -> str:
+    # ModelHandler is internal to the user and is not exposed.
+    # Hence we need to override the __repr__ method to expose
+    # the name of the class.
+    return 'SentenceTransformerEmbeddings'
+
 
 class SentenceTransformerEmbeddings(EmbeddingsManager):
   def __init__(

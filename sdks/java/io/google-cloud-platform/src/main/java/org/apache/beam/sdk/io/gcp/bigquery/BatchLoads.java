@@ -419,16 +419,15 @@ class BatchLoads<DestinationT, ElementT>
                     .withSideInputs(sideInputsForUpdateSchema))
             .apply(
                 "WriteRenameTriggered",
-                ParDo.of(
-                        new WriteRename(
-                            bigQueryServices,
-                            copyJobIdPrefixView,
-                            writeDisposition,
-                            createDisposition,
-                            maxRetryJobs,
-                            kmsKey,
-                            loadJobProjectId))
-                    .withSideInputs(copyJobIdPrefixView));
+                new WriteRename(
+                    bigQueryServices,
+                    copyJobIdPrefixView,
+                    writeDisposition,
+                    createDisposition,
+                    maxRetryJobs,
+                    kmsKey,
+                    loadJobProjectId,
+                    copyJobIdPrefixView));
 
     PCollection<TableDestination> successfulSinglePartitionWrites =
         writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView)
@@ -517,16 +516,15 @@ class BatchLoads<DestinationT, ElementT>
                     .withSideInputs(sideInputsForUpdateSchema))
             .apply(
                 "WriteRenameUntriggered",
-                ParDo.of(
-                        new WriteRename(
-                            bigQueryServices,
-                            copyJobIdPrefixView,
-                            writeDisposition,
-                            createDisposition,
-                            maxRetryJobs,
-                            kmsKey,
-                            loadJobProjectId))
-                    .withSideInputs(copyJobIdPrefixView))
+                new WriteRename(
+                    bigQueryServices,
+                    copyJobIdPrefixView,
+                    writeDisposition,
+                    createDisposition,
+                    maxRetryJobs,
+                    kmsKey,
+                    loadJobProjectId,
+                    copyJobIdPrefixView))
             .setCoder(tableDestinationCoder);
 
     PCollectionList<TableDestination> allSuccessfulWrites =
