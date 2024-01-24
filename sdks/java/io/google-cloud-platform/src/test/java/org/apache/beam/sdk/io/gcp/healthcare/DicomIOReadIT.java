@@ -44,7 +44,7 @@ public class DicomIOReadIT {
   private String storeName = "foo";
 
   @Before
-  public void setup() throws IOException, URISyntaxException {
+  public void setup() throws IOException, URISyntaxException, InterruptedException {
     project =
         TestPipeline.testingPipelineOptions()
             .as(HealthcareStoreTestPipelineOptions.class)
@@ -53,6 +53,7 @@ public class DicomIOReadIT {
     client = new HttpHealthcareApiClient();
 
     client.createDicomStore(healthcareDataset, storeName);
+    Thread.sleep(100000);
     client.uploadToDicomStore(healthcareDataset + "/dicomStores/" + storeName, TEST_FILE_PATH);
   }
 
