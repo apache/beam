@@ -903,7 +903,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     _LOGGER.info(
         "Created dataset %s in project %s", self.dataset_id, self.project)
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.it_postcommit_temp
   def test_batch_copy_jobs_with_no_input_schema(self):
     schema_1 = "col_1:INTEGER"
     schema_2 = "col_2:INTEGER"
@@ -949,8 +949,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
         dest += "_2"
       return dest
 
-    args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=all_of(verifiers))
+    args = self.test_pipeline.get_full_options_as_args()
 
     with beam.Pipeline(argv=args) as p:
       # 0...4 going to table 1
@@ -965,7 +964,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
 
     hamcrest_assert(p, all_of(*verifiers))
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.it_postcommit_temp
   def test_multiple_destinations_transform(self):
     output_table_1 = '%s%s' % (self.output_table, 1)
     output_table_2 = '%s%s' % (self.output_table, 2)
