@@ -70,6 +70,7 @@
 ## New Features / Improvements
 
 * [Enrichment Transform](https://s.apache.org/enrichment-transform) along with GCP BigTable handler added to Python SDK ([#30001](https://github.com/apache/beam/pull/30001)).
+* Allow writing clustered and not time partitioned BigQuery tables (Java) ([#20673](https://github.com/apache/beam/issues/20673)).
 
 ## Breaking Changes
 
