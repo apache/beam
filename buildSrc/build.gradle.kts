@@ -46,7 +46,7 @@ dependencies {
 
   runtimeOnly("com.google.protobuf:protobuf-gradle-plugin:0.8.13")                                         // Enable proto code generation
   runtimeOnly("com.github.davidmc24.gradle-avro-plugin:gradle-avro-plugin:0.16.0")                         // Enable Avro code generation
-  runtimeOnly("com.diffplug.spotless:spotless-plugin-gradle:5.6.1")                                        // Enable a code formatting plugin
+  runtimeOnly("com.diffplug.spotless:spotless-plugin-gradle:6.25.0")                                        // Enable a code formatting plugin
   runtimeOnly("gradle.plugin.com.dorongold.plugins:task-tree:1.5")                                         // Adds a 'taskTree' task to print task dependency tree
   runtimeOnly("gradle.plugin.com.github.johnrengelman:shadow:7.1.1")                                       // Enable shading Java dependencies
   runtimeOnly("net.linguica.gradle:maven-settings-plugin:0.5")
