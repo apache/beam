@@ -22,8 +22,11 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLException;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress.AuthenticatedGcpServiceAddress;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ForwardingChannelBuilder2;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.alts.AltsChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.netty.GrpcSslContexts;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.netty.NegotiationType;
@@ -57,10 +60,26 @@ public final class WindmillChannelFactory {
         return remoteChannel(
             windmillServiceAddress.gcpServiceAddress(), windmillServiceRpcChannelTimeoutSec);
         // switch is exhaustive will never happen.
+      case AUTHENTICATED_GCP_SERVICE_ADDRESS:
+        return remoteDirectChannel(
+            windmillServiceAddress.authenticatedGcpServiceAddress(),
+            windmillServiceRpcChannelTimeoutSec);
       default:
         throw new UnsupportedOperationException(
-            "Only IPV6 and GCP_SERVICE_ADDRESS are supported WindmillServiceAddresses.");
+            "Only IPV6, GCP_SERVICE_ADDRESS, AUTHENTICATED_GCP_SERVICE_ADDRESS are supported WindmillServiceAddresses.");
     }
+  }
+
+  static ManagedChannel remoteDirectChannel(
+      AuthenticatedGcpServiceAddress authenticatedGcpServiceAddress,
+      int windmillServiceRpcChannelTimeoutSec) {
+    return withDefaultChannelOptions(
+            AltsChannelBuilder.forAddress(
+                    authenticatedGcpServiceAddress.gcpServiceAddress().getHost(),
+                    authenticatedGcpServiceAddress.gcpServiceAddress().getPort())
+                .addTargetServiceAccount(authenticatedGcpServiceAddress.authenticatingService()),
+            windmillServiceRpcChannelTimeoutSec)
+        .build();
   }
 
   public static ManagedChannel remoteChannel(
@@ -100,6 +119,17 @@ public final class WindmillChannelFactory {
   private static ManagedChannel createRemoteChannel(
       NettyChannelBuilder channelBuilder, int windmillServiceRpcChannelTimeoutSec)
       throws SSLException {
+    return withDefaultChannelOptions(channelBuilder, windmillServiceRpcChannelTimeoutSec)
+        .flowControlWindow(10 * 1024 * 1024)
+        .negotiationType(NegotiationType.TLS)
+        // Set ciphers(null) to not use GCM, which is disabled for Dataflow
+        // due to it being horribly slow.
+        .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
+        .build();
+  }
+
+  private static <T extends ForwardingChannelBuilder2<T>> T withDefaultChannelOptions(
+      T channelBuilder, int windmillServiceRpcChannelTimeoutSec) {
     if (windmillServiceRpcChannelTimeoutSec > 0) {
       channelBuilder
           .keepAliveTime(windmillServiceRpcChannelTimeoutSec, TimeUnit.SECONDS)
@@ -108,14 +138,8 @@ public final class WindmillChannelFactory {
     }
 
     return channelBuilder
-        .flowControlWindow(10 * 1024 * 1024)
         .maxInboundMessageSize(Integer.MAX_VALUE)
-        .maxInboundMetadataSize(1024 * 1024)
-        .negotiationType(NegotiationType.TLS)
-        // Set ciphers(null) to not use GCM, which is disabled for Dataflow
-        // due to it being horribly slow.
-        .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
-        .build();
+        .maxInboundMetadataSize(1024 * 1024);
   }
 
   public static class WindmillChannelCreationException extends IllegalStateException {

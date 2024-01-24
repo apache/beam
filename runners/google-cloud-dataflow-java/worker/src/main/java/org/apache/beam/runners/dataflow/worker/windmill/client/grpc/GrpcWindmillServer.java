@@ -196,7 +196,8 @@ public final class GrpcWindmillServer extends WindmillServerStub {
             windmillMetadataServiceStubs,
             dispatcherEndpoints);
 
-    StreamingDataflowWorkerOptions testOptions = testOptions(/* enableStreamingEngine= */ true, experiments);
+    StreamingDataflowWorkerOptions testOptions =
+        testOptions(/* enableStreamingEngine= */ true, experiments);
     GrpcWindmillServer grpcWindmillServer = new GrpcWindmillServer(testOptions, dispatcherClient);
 
     grpcWindmillServer.start(

@@ -26,6 +26,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress.AuthenticatedGcpServiceAddress;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
@@ -70,9 +71,11 @@ public abstract class WindmillEndpoints {
   }
 
   private static Optional<WindmillServiceAddress> parseDirectEndpoint(
-      Windmill.WorkerMetadataResponse.Endpoint endpointProto) {
+      Windmill.WorkerMetadataResponse.Endpoint endpointProto, String authenticatingService) {
     Optional<WindmillServiceAddress> directEndpointIpV6Address =
-        tryParseDirectEndpointIntoIpV6Address(endpointProto).map(WindmillServiceAddress::create);
+        tryParseDirectEndpointIntoIpV6Address(endpointProto)
+            .map(address -> AuthenticatedGcpServiceAddress.create(authenticatingService, address))
+            .map(WindmillServiceAddress::create);
 
     return directEndpointIpV6Address.isPresent()
         ? directEndpointIpV6Address
@@ -154,7 +157,8 @@ public abstract class WindmillEndpoints {
       Endpoint.Builder endpointBuilder = Endpoint.builder();
 
       if (!endpointProto.getDirectEndpoint().isEmpty()) {
-        parseDirectEndpoint(endpointProto).ifPresent(endpointBuilder::setDirectEndpoint);
+        parseDirectEndpoint(endpointProto, authenticatingService)
+            .ifPresent(endpointBuilder::setDirectEndpoint);
       }
 
       if (!endpointProto.getBackendWorkerToken().isEmpty()) {

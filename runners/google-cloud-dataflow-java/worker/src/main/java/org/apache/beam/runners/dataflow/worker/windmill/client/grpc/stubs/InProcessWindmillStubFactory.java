@@ -21,7 +21,7 @@ import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 
 /**
  * Creates in process stubs to talk to Streaming Engine. Only recommended to be used for testing.
