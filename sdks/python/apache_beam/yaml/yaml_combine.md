@@ -147,6 +147,27 @@ parameter.
             n: 10
 ```
 
+For custom aggregation functions that use python callables as parameters, 
+nesting the function parameter values under a `callable` tag will tell the 
+transform to treat the value as a callable.
+
+```
+- type: Combine
+  config:
+    language: python
+    group_by: col1
+    combine:
+      biggest:
+        value: col2
+        fn:
+          type: 'apache_beam.transforms.combiners.TopCombineFn'
+          config:
+            n: 2
+            key:
+              callable: len
+            reverse: true
+```
+
 ## SQL-style aggregations
 
 By setting the language to SQL, one can provide full SQL snippets as the

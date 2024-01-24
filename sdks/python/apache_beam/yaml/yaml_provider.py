@@ -139,6 +139,21 @@ def as_provider_list(name, lst):
   return [as_provider(name, x) for x in lst]
 
 
+def parse_callable_kwargs(spec: Optional[Mapping[str, Any]]):
+  def _parse_callable_kwargs_rec(args, top_level=False):
+    parsed_args = {}
+    for arg, val in args.items():
+      parsed_args[arg] = val
+      if isinstance(val, dict):
+        parsed_args[arg] = _parse_callable_kwargs_rec(val)
+      elif arg == 'callable' and len(args) == 1 and not top_level:
+        load = python_callable.PythonCallableWithSource.load_from_source
+        return load(val)
+    return parsed_args
+
+  return _parse_callable_kwargs_rec(spec, True)
+
+
 class ExternalProvider(Provider):
   """A Provider implemented via the cross language transform service."""
   _provider_types: Dict[str, Callable[..., Provider]] = {}
@@ -333,7 +348,8 @@ def python(urns, packages=()):
         name:
         python_callable.PythonCallableWithSource.load_from_source(constructor)
         for (name, constructor) in urns.items()
-    })
+    },
+                          custom_provider=True)
 
 
 @ExternalProvider.register_provider_type('pythonPackage')
@@ -346,6 +362,10 @@ class ExternalPythonProvider(ExternalProvider):
 
   def cache_artifacts(self):
     return [self._service._venv()]
+
+  def create_transform(self, type, args, yaml_create_transform):
+    super().create_transform(
+        type, parse_callable_kwargs(args), yaml_create_transform)
 
   def create_external_transform(self, urn, args):
     # Python transforms are "registered" by fully qualified name.
@@ -407,9 +427,11 @@ def fix_pycallable():
 
 
 class InlineProvider(Provider):
-  def __init__(self, transform_factories, no_input_transforms=()):
+  def __init__(
+      self, transform_factories, no_input_transforms=(), custom_provider=False):
     self._transform_factories = transform_factories
     self._no_input_transforms = set(no_input_transforms)
+    self._custom_provider = custom_provider
 
   def available(self):
     return True
@@ -471,6 +493,8 @@ class InlineProvider(Provider):
         docstring, docstring_parser.DocstringStyle.GOOGLE)
 
   def create_transform(self, type, args, yaml_create_transform):
+    if self._custom_provider:
+      args = parse_callable_kwargs(args)
     return self._transform_factories[type](**args)
 
   def to_json(self):
@@ -601,6 +625,19 @@ class YamlProviders:
     can be used to access the transform
     `apache_beam.pkg.mod.SomeClass(1, 'foo', baz=3)`.
 
+    For transforms that accept python callable objects as parameters, the
+    kwargs values can be tagged as callable.
+
+    For example::
+
+        type: PyTransform
+        config:
+           constructor: apache_beam.pkg.mod.SomeClass
+           args: ['foo', 'bar']
+           kwargs:
+             fn:
+               callable: str.upper
+
     Args:
         constructor: Fully qualified name of a callable used to construct the
             transform.  Often this is a class such as
@@ -613,7 +650,7 @@ class YamlProviders:
     """
     with FullyQualifiedNamedTransform.with_filter('*'):
       return constructor >> FullyQualifiedNamedTransform(
-          constructor, args, kwargs)
+          constructor, args, parse_callable_kwargs(kwargs))
 
   # This intermediate is needed because there is no way to specify a tuple of
   # exactly zero or one PCollection in yaml (as they would be interpreted as

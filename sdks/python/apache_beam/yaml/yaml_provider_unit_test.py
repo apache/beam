@@ -19,6 +19,7 @@ import logging
 import unittest
 
 from apache_beam.yaml.yaml_provider import YamlProviders
+from apache_beam.yaml.yaml_provider import parse_callable_kwargs
 
 
 class WindowIntoTest(unittest.TestCase):
@@ -61,6 +62,77 @@ class WindowIntoTest(unittest.TestCase):
   def test_parse_duration_with_missing_value(self):
     with self.assertRaises(ValueError):
       self.parse_duration('s', 'size')
+
+
+class CallableKwargsTest(unittest.TestCase):
+  def __init__(self, methodName="runCallableKwargsTest"):
+    unittest.TestCase.__init__(self, methodName)
+
+  def test_parse_callable_kwargs_without_callable(self):
+    kwargs = {'n': 2, 'key': 'a', 'reverse': True}
+    expected = {'n': 2, 'key': 'a', 'reverse': True}
+    actual = parse_callable_kwargs(kwargs)
+    self.assertEqual(expected, actual)
+
+  def test_parse_callable_kwargs_with_callable(self):
+    kwargs = {'n': 2, 'key': {'callable': 'len'}, 'reverse': True}
+    expected = {'n': 2, 'key': len, 'reverse': True}
+    actual = parse_callable_kwargs(kwargs)
+    self.assertEqual(expected, actual)
+
+  def test_parse_callable_kwargs_with_nested_value(self):
+    kwargs = {'n': {'m': 2}, 'key': 'a', 'reverse': True}
+    expected = {'n': {'m': 2}, 'key': 'a', 'reverse': True}
+    actual = parse_callable_kwargs(kwargs)
+    self.assertEqual(expected, actual)
+
+  def test_parse_callable_kwargs_with_nested_callable(self):
+    kwargs = {'n': {'m': {'callable': 'len'}}, 'key': 'a', 'reverse': True}
+    expected = {'n': {'m': len}, 'key': 'a', 'reverse': True}
+    actual = parse_callable_kwargs(kwargs)
+    self.assertEqual(expected, actual)
+
+  def test_parse_callable_kwargs_with_top_level_callable(self):
+    kwargs = {'n': 2, 'callable': 'len', 'reverse': True}
+    expected = {'n': 2, 'callable': 'len', 'reverse': True}
+    actual = parse_callable_kwargs(kwargs)
+    self.assertEqual(expected, actual)
+
+  def test_parse_callable_kwargs_with_double_nested_callable(self):
+    kwargs = {'n': 2, 'callable': {'callable': 'len'}, 'reverse': True}
+    expected = {'n': 2, 'callable': len, 'reverse': True}
+    actual = parse_callable_kwargs(kwargs)
+    self.assertEqual(expected, actual)
+
+  def test_parse_callable_kwargs_with_double_nested_callable_under_value(self):
+    kwargs = {'n': 2, 'key': {'callable': {'callable': 'len'}}, 'reverse': True}
+    expected = {'n': 2, 'key': {'callable': len}, 'reverse': True}
+    actual = parse_callable_kwargs(kwargs)
+    self.assertEqual(expected, actual)
+
+  def test_parse_callable_kwargs_with_multiple_values(self):
+    kwargs = {'n': 2, 'key': {'inner': 2, 'val': 'foo'}, 'reverse': True}
+    expected = {'n': 2, 'key': {'inner': 2, 'val': 'foo'}, 'reverse': True}
+    actual = parse_callable_kwargs(kwargs)
+    self.assertEqual(expected, actual)
+
+  def test_parse_callable_kwargs_with_multiple_values_callable(self):
+    kwargs = {'n': 2, 'key': {'val': 2, 'callable': 'len'}, 'reverse': True}
+    expected = {'n': 2, 'key': {'val': 2, 'callable': 'len'}, 'reverse': True}
+    actual = parse_callable_kwargs(kwargs)
+    self.assertEqual(expected, actual)
+
+  def test_parse_callable_kwargs_with_multiple_values_nested_callable(self):
+    kwargs = {'n': 2, 'key': {'inner': 2, 'callable': {'callable': 'len'}}}
+    expected = {'n': 2, 'key': {'inner': 2, 'callable': len}}
+    actual = parse_callable_kwargs(kwargs)
+    self.assertEqual(expected, actual)
+
+  def test_parse_callable_kwargs_with_only_callable(self):
+    kwargs = {'callable': 'len'}
+    expected = {'callable': 'len'}
+    actual = parse_callable_kwargs(kwargs)
+    self.assertEqual(expected, actual)
 
 
 if __name__ == '__main__':
