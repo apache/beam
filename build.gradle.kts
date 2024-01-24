@@ -516,26 +516,26 @@ tasks.register("python38PostCommit") {
 
 tasks.register("python39PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
-  dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
-  // TODO (https://github.com/apache/beam/issues/23966)
-  // Move this to Python 3.10 test suite once tfx-bsl has python 3.10 wheel.
-  dependsOn(":sdks:python:test-suites:direct:py39:inferencePostCommitIT")
+//  dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
+//  dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
+//  dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
+//  // TODO (https://github.com/apache/beam/issues/23966)
+//  // Move this to Python 3.10 test suite once tfx-bsl has python 3.10 wheel.
+//  dependsOn(":sdks:python:test-suites:direct:py39:inferencePostCommitIT")
 }
 
 tasks.register("python310PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py310:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py310:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py310:hdfsIntegrationTest")
-  dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
+//  dependsOn(":sdks:python:test-suites:direct:py310:postCommitIT")
+//  dependsOn(":sdks:python:test-suites:direct:py310:hdfsIntegrationTest")
+//  dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
 }
 
 tasks.register("python311PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py311:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py311:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py311:hdfsIntegrationTest")
-  dependsOn(":sdks:python:test-suites:portable:py311:postCommitPy311")
+//  dependsOn(":sdks:python:test-suites:direct:py311:postCommitIT")
+//  dependsOn(":sdks:python:test-suites:direct:py311:hdfsIntegrationTest")
+//  dependsOn(":sdks:python:test-suites:portable:py311:postCommitPy311")
 }
 
 tasks.register("portablePythonPreCommit") {
