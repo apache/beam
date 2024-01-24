@@ -133,7 +133,7 @@ task postCommitIT {
         "test_opts": testOpts,
         "sdk_location": project.ext.sdkLocation,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
-        "collect": "it_postcommit_temp",
+        "collect": "it_postcommit",
     ]
     def cmdArgs = mapToArgString(argMap)
     exec {
