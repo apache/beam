@@ -59,12 +59,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class StreamingStepMetricsContainer implements MetricsContainer {
   private final String stepName;
 
-  private static Boolean enablePerWorkerMetrics = false;
+  private static boolean enablePerWorkerMetrics = false;
 
   private MetricsMap<MetricName, DeltaCounterCell> counters =
       new MetricsMap<>(DeltaCounterCell::new);
 
-  private ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters;
 
   private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
 
@@ -74,16 +74,19 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   private MetricsMap<KV<MetricName, HistogramData.BucketType>, HistogramCell> perWorkerHistograms =
       new MetricsMap<>(HistogramCell::new);
 
-  private Map<MetricName, Instant> perWorkerCountersByFirstStaleTime = new ConcurrentHashMap<>();
+  private final Map<MetricName, Instant> perWorkerCountersByFirstStaleTime;
 
   // PerWorkerCounters that have been longer than this value will be removed from the underlying
   // metrics map.
-  private Duration maximumPerWorkerCounterStaleness = Duration.ofMinutes(5);
+  private final Duration maximumPerWorkerCounterStaleness = Duration.ofMinutes(5);
 
-  private Clock clock = Clock.systemUTC();
+  private final Clock clock;
 
   private StreamingStepMetricsContainer(String stepName) {
     this.stepName = stepName;
+    this.perWorkerCountersByFirstStaleTime = new ConcurrentHashMap<>();
+    this.clock = Clock.systemUTC();
+    perWorkerCounters = new ConcurrentHashMap<>();
   }
 
   public static MetricsContainerRegistry<StreamingStepMetricsContainer> createRegistry() {
@@ -93,6 +96,28 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
         return new StreamingStepMetricsContainer(stepName);
       }
     };
+  }
+
+  // Testing constructor.
+  private StreamingStepMetricsContainer(
+      String stepName,
+      Map<MetricName, Instant> perWorkerCountersByFirstStaleTime,
+      ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters,
+      Clock clock) {
+    this.stepName = stepName;
+    this.perWorkerCountersByFirstStaleTime = perWorkerCountersByFirstStaleTime;
+    this.perWorkerCounters = perWorkerCounters;
+    this.clock = clock;
+  }
+
+  @VisibleForTesting
+  static StreamingStepMetricsContainer forTesting(
+      String stepName,
+      Map<MetricName, Instant> perWorkerCountersByFirstStaleTime,
+      ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters,
+      Clock clock) {
+    return new StreamingStepMetricsContainer(
+        stepName, perWorkerCountersByFirstStaleTime, perWorkerCounters, clock);
   }
 
   @Override
@@ -233,7 +258,8 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
    * last time this function was called. Additionally, deletes any PerWorker counters that have been
    * zero valued for more than {@code maximumPerWorkerCounterStaleness}.
    */
-  private Iterable<PerStepNamespaceMetrics> extractPerWorkerMetricUpdates() {
+  @VisibleForTesting
+  Iterable<PerStepNamespaceMetrics> extractPerWorkerMetricUpdates() {
     ConcurrentHashMap<MetricName, Long> counters = new ConcurrentHashMap<MetricName, Long>();
     ConcurrentHashMap<MetricName, HistogramData> histograms =
         new ConcurrentHashMap<MetricName, HistogramData>();
@@ -273,28 +299,5 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
     return metricsContainerRegistry
         .getContainers()
         .transformAndConcat(StreamingStepMetricsContainer::extractPerWorkerMetricUpdates);
-  }
-
-  // The following methods are used to test that zero-valued perWorkerMetrics metrics are properly
-  // deleted.
-  @VisibleForTesting
-  Map<MetricName, AtomicLong> getPerWorkerCounters() {
-    return perWorkerCounters;
-  }
-
-  @VisibleForTesting
-  Map<MetricName, Instant> getPerWorkerCountersByFirstStaleTime() {
-    return perWorkerCountersByFirstStaleTime;
-  }
-
-  /**
-   * Set the internal clock used to determine how long PerWorker metrics have been zero-valued for.
-   * Should only be used for testing.
-   *
-   * @param clock
-   */
-  @VisibleForTesting
-  void setClock(Clock clock) {
-    this.clock = clock;
   }
 }

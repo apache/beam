@@ -38,11 +38,16 @@ import com.google.api.services.dataflow.model.MetricValue;
 import com.google.api.services.dataflow.model.OutlierStats;
 import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Origin;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -275,66 +280,85 @@ public class StreamingStepMetricsContainerTest {
     assertThat(updates, containsInAnyOrder(histograms, counters));
   }
 
+  public class TestClock extends Clock {
+    private Instant currentTime;
+
+    public void advance(Duration amount) {
+      currentTime = currentTime.plus(amount);
+    }
+
+    TestClock(Instant startTime) {
+      currentTime = startTime;
+    }
+
+    @Override
+    public Instant instant() {
+      return currentTime;
+    }
+
+    @Override
+    public ZoneId getZone() {
+      return ZoneOffset.UTC;
+    }
+
+    // Currently not supported.
+    @Override
+    public Clock withZone(ZoneId zone) {
+      return new TestClock(currentTime);
+    }
+  }
+
   @Test
   public void testDeleteStaleCounters() {
-    StreamingStepMetricsContainer metricsContainer = (StreamingStepMetricsContainer) c1;
-    Instant t1 = Instant.now();
-    metricsContainer.setClock(Clock.fixed(t1, ZoneOffset.UTC));
+    TestClock clock = new TestClock(Instant.now());
+    Map<MetricName, Instant> countersByFirstStaleTime = new HashMap<>();
+    ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters = new ConcurrentHashMap<>();
+
+    StreamingStepMetricsContainer metricsContainer =
+        StreamingStepMetricsContainer.forTesting(
+            "s1", countersByFirstStaleTime, perWorkerCounters, clock);
 
     MetricName counterMetricName1 = MetricName.named("BigQuerySink", "counter1-");
     MetricName counterMetricName2 = MetricName.named("BigQuerySink", "counter2-");
-    c1.getPerWorkerCounter(counterMetricName1).inc(3);
-    c1.getPerWorkerCounter(counterMetricName2).inc(3);
+    metricsContainer.getPerWorkerCounter(counterMetricName1).inc(3);
+    metricsContainer.getPerWorkerCounter(counterMetricName2).inc(3);
 
-    Iterable<PerStepNamespaceMetrics> updates =
-        StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(registry);
-    List<PerStepNamespaceMetrics> updatesList = Lists.newArrayList(updates);
+    List<PerStepNamespaceMetrics> updatesList =
+        Lists.newArrayList(metricsContainer.extractPerWorkerMetricUpdates());
     assertThat(updatesList.size(), equalTo(1));
 
-    assertThat(metricsContainer.getPerWorkerCounters().get(counterMetricName1).get(), equalTo(0L));
-    assertThat(metricsContainer.getPerWorkerCountersByFirstStaleTime().size(), equalTo(0));
+    assertThat(perWorkerCounters.get(counterMetricName1).get(), equalTo(0L));
+    assertThat(countersByFirstStaleTime.size(), equalTo(0));
 
     // At minute 1 both metrics are discovered to be zero-valued.
-    Instant t2 = t1.plusSeconds(60);
-    metricsContainer.setClock(Clock.fixed(t2, ZoneOffset.UTC));
-
-    updates = StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(registry);
-    updatesList = Lists.newArrayList(updates);
+    updatesList = Lists.newArrayList(metricsContainer.extractPerWorkerMetricUpdates());
     assertThat(updatesList.size(), equalTo(0));
 
     assertThat(
-        metricsContainer.getPerWorkerCountersByFirstStaleTime().keySet(),
+        countersByFirstStaleTime.keySet(),
         containsInAnyOrder(counterMetricName1, counterMetricName2));
     assertThat(
-        metricsContainer.getPerWorkerCounters().keySet(),
-        containsInAnyOrder(counterMetricName1, counterMetricName2));
+        perWorkerCounters.keySet(), containsInAnyOrder(counterMetricName1, counterMetricName2));
 
     // At minute 2 metric1 is zero-valued, metric2 has been updated.
-    c1.getPerWorkerCounter(counterMetricName2).inc(3);
-    Instant t3 = t1.plusSeconds(60 * 2);
-    metricsContainer.setClock(Clock.fixed(t3, ZoneOffset.UTC));
+    metricsContainer.getPerWorkerCounter(counterMetricName2).inc(3);
+    clock.advance(Duration.ofSeconds(60));
 
-    updates = StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(registry);
-    updatesList = Lists.newArrayList(updates);
+    updatesList = Lists.newArrayList(metricsContainer.extractPerWorkerMetricUpdates());
     assertThat(updatesList.size(), equalTo(1));
 
+    assertThat(countersByFirstStaleTime.keySet(), contains(counterMetricName1));
     assertThat(
-        metricsContainer.getPerWorkerCountersByFirstStaleTime().keySet(),
-        contains(counterMetricName1));
-    assertThat(
-        metricsContainer.getPerWorkerCounters().keySet(),
-        containsInAnyOrder(counterMetricName1, counterMetricName2));
+        perWorkerCounters.keySet(), containsInAnyOrder(counterMetricName1, counterMetricName2));
 
-    // After minute 6, is still zero valued and should be cleaned up.
-    c1.getPerWorkerCounter(counterMetricName2).inc(3);
-    Instant t4 = t1.plusSeconds(60 * 6 + 1);
-    metricsContainer.setClock(Clock.fixed(t4, ZoneOffset.UTC));
+    // After minute 6 metric1 is still zero valued and should be cleaned up.
+    metricsContainer.getPerWorkerCounter(counterMetricName2).inc(3);
+    clock.advance(Duration.ofSeconds(4 * 60 + 1));
 
-    updates = StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(registry);
-    updatesList = Lists.newArrayList(updates);
+    updatesList = Lists.newArrayList(metricsContainer.extractPerWorkerMetricUpdates());
     assertThat(updatesList.size(), equalTo(1));
 
-    assertThat(metricsContainer.getPerWorkerCountersByFirstStaleTime().size(), equalTo(0));
-    assertThat(metricsContainer.getPerWorkerCounters().keySet(), contains(counterMetricName2));
+    assertThat(countersByFirstStaleTime.size(), equalTo(0));
+    assertThat(perWorkerCounters.keySet(), contains(counterMetricName2));
   }
 }
