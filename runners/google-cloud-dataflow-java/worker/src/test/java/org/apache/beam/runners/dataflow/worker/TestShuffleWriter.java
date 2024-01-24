@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntry;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 
 /** A fake implementation of a ShuffleEntryWriter, for testing. */
 public class TestShuffleWriter implements ShuffleWriter {

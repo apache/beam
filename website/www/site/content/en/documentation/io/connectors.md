@@ -802,11 +802,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/FhirIO.html">native</a>
     </td>
+    <td>Not available</td>
     <td class="present">
       ✔
       <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/fhirio">native</a>
     </td>
-    <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>

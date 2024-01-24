@@ -558,7 +558,7 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.containerArchitectures = {
       if (isRelease(project)) {
         // Ensure we always publish the expected containers.
-        return ["amd64", "arm64"];
+        return ["amd64", "arm64"]
       } else if (project.rootProject.findProperty("container-architecture-list") != null) {
         def containerArchitectures = project.rootProject.findProperty("container-architecture-list").split(',')
         if (containerArchitectures.size() > 1 && !project.rootProject.hasProperty("push-containers")) {
@@ -572,6 +572,10 @@ class BeamModulePlugin implements Plugin<Project> {
 
     project.ext.containerPlatforms = {
       return project.containerArchitectures().collect { arch -> "linux/" + arch }
+    }
+
+    project.ext.useBuildx = {
+      return project.containerArchitectures() != [project.nativeArchitecture()]
     }
 
     /** ***********************************************************************************************/
@@ -730,7 +734,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20230812-$google_clients_version",
         // Keep version consistent with the version in google_cloud_resourcemanager, managed by google_cloud_platform_libraries_bom
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20230806-$google_clients_version",
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20231203-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20240113-$google_clients_version",
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20240110-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         // Keep version consistent with the version in google_cloud_nio, managed by google_cloud_platform_libraries_bom
@@ -813,10 +817,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jackson_datatype_jsr310                     : "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jackson_version",
         jackson_module_scala_2_11                   : "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
         jackson_module_scala_2_12                   : "com.fasterxml.jackson.module:jackson-module-scala_2.12:$jackson_version",
-        // Swap to use the officially published version of 0.4.x once available
-        // instead of relying on a community published copy. See
-        // https://github.com/jbellis/jamm/issues/44 for additional details.
-        jamm                                        : 'io.github.stephankoelle:jamm:0.4.1',
+        jamm                                        : 'com.github.jbellis:jamm:0.4.0',
         jaxb_api                                    : "jakarta.xml.bind:jakarta.xml.bind-api:$jaxb_api_version",
         jaxb_impl                                   : "com.sun.xml.bind:jaxb-impl:$jaxb_api_version",
         jcl_over_slf4j                              : "org.slf4j:jcl-over-slf4j:$slf4j_version",
@@ -902,7 +903,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_rabbitmq                     : "org.testcontainers:rabbitmq:$testcontainers_version",
         truth                                       : "com.google.truth:truth:1.1.5",
         threetenbp                                  : "org.threeten:threetenbp:1.6.8",
-        vendored_grpc_1_54_0                        : "org.apache.beam:beam-vendor-grpc-1_54_0:0.1",
+        vendored_grpc_1_60_1                        : "org.apache.beam:beam-vendor-grpc-1_60_1:0.1",
         vendored_guava_32_1_2_jre                   : "org.apache.beam:beam-vendor-guava-32_1_2-jre:0.1",
         vendored_calcite_1_28_0                     : "org.apache.beam:beam-vendor-calcite-1_28_0:0.2",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
@@ -2401,10 +2402,10 @@ class BeamModulePlugin implements Plugin<Project> {
           archivesBaseName: configuration.archivesBaseName,
           automaticModuleName: configuration.automaticModuleName,
           shadowJarValidationExcludes: it.shadowJarValidationExcludes,
-          shadowClosure: GrpcVendoring_1_54_0.shadowClosure() << {
+          shadowClosure: GrpcVendoring_1_60_1.shadowClosure() << {
             // We perform all the code relocations but don't include
             // any of the actual dependencies since they will be supplied
-            // by org.apache.beam:beam-vendor-grpc-v1p54p0
+            // by org.apache.beam:beam-vendor-grpc-v1p60p1
             dependencies {
               include(dependency { return false })
             }
@@ -2421,14 +2422,14 @@ class BeamModulePlugin implements Plugin<Project> {
       project.protobuf {
         protoc {
           // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_54_0.protobuf_version}" }
+          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_60_1.protobuf_version}" }
 
         // Configure the codegen plugins
         plugins {
           // An artifact spec for a protoc plugin, with "grpc" as
           // the identifier, which can be referred to in the "plugins"
           // container of the "generateProtoTasks" closure.
-          grpc { artifact = "io.grpc:protoc-gen-grpc-java:${GrpcVendoring_1_54_0.grpc_version}" }
+          grpc { artifact = "io.grpc:protoc-gen-grpc-java:${GrpcVendoring_1_60_1.grpc_version}" }
         }
 
         generateProtoTasks {
@@ -2442,7 +2443,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      project.dependencies GrpcVendoring_1_54_0.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_54_0 }
+      project.dependencies GrpcVendoring_1_60_1.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_60_1 }
     }
 
     /** ***********************************************************************************************/

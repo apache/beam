@@ -36,6 +36,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -131,13 +132,21 @@ public class FlinkUnboundedSourceReader<T>
     if (reader != null) {
       emitRecord(reader, output);
       return InputStatus.MORE_AVAILABLE;
-    } else if (noMoreSplits()) {
-      LOG.trace("No more splits.");
+    } else if (noMoreSplits() && isEndOfAllReaders()) {
+      LOG.info("No more splits and no reader available. Terminating consumption.");
       return InputStatus.END_OF_INPUT;
     } else {
       LOG.trace("No data available for now.");
       return InputStatus.NOTHING_AVAILABLE;
     }
+  }
+
+  private boolean isEndOfAllReaders() {
+    return allReaders().values().stream()
+            .mapToLong(r -> asUnbounded(r.reader).getWatermark().getMillis())
+            .min()
+            .orElse(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis())
+        >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
   }
 
   /**
