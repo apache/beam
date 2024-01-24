@@ -925,9 +925,6 @@ class BigQueryFileLoadsIT(unittest.TestCase):
         create_disposition='CREATE_IF_NEEDED',
         write_disposition='WRITE_APPEND')
 
-    # reduce load job size to induce copy jobs
-    bqfl._DEFAULT_MAX_FILE_SIZE = 10
-    bqfl._MAXIMUM_LOAD_SIZE = 20
     verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
@@ -960,7 +957,10 @@ class BigQueryFileLoadsIT(unittest.TestCase):
           p | beam.Create(items) | bigquery.WriteToBigQuery(
               table=callable_table,
               create_disposition="CREATE_NEVER",
-              write_disposition="WRITE_APPEND"))
+              write_disposition="WRITE_APPEND",
+              # reduce load job size to induce copy jobs
+              max_file_size=10,
+              max_partition_size=20))
 
     hamcrest_assert(p, all_of(*verifiers))
 
