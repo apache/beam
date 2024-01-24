@@ -19,8 +19,8 @@ import datetime
 import unittest
 from typing import Dict
 from typing import List
-from typing import Tuple
 from typing import NamedTuple
+from typing import Tuple
 
 import pytest
 
