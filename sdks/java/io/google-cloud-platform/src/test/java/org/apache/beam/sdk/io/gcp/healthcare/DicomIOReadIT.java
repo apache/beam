@@ -62,7 +62,6 @@ public class DicomIOReadIT {
     client.deleteDicomStore(healthcareDataset + "/dicomStores/" + storeName);
   }
 
-  @Ignore("https://github.com/apache/beam/issues/28099")
   @Test
   public void testDicomMetadataRead() {
     String webPath =
@@ -90,7 +89,6 @@ public class DicomIOReadIT {
     pipeline.run();
   }
 
-  @Ignore("https://github.com/apache/beam/issues/28099")
   @Test
   public void testDicomFailedMetadataRead() {
     String badWebPath = "foo";
