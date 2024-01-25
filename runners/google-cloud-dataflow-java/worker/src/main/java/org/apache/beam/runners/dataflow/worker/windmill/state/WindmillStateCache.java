@@ -36,7 +36,7 @@ import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.util.Weighted;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Equivalence;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
@@ -294,6 +294,11 @@ public class WindmillStateCache implements StatusDataProvider {
 
     private ForComputation(String computation) {
       this.computation = computation;
+    }
+
+    /** Returns the computation associated to this class. */
+    public String getComputation() {
+      return this.computation;
     }
 
     /** Invalidate all cache entries for this computation and {@code processingKey}. */

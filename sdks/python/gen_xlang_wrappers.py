@@ -100,14 +100,14 @@ def generate_transforms_config(input_services, output_file):
         - 'beam:schematransform:org.apache.beam:skip_me:v1':
 
 
-  We use :class:`ExternalSchemaTransformProvider` to discover external
+  We use :class:`ExternalTransformProvider` to discover external
   transforms. Then, we extract the necessary details of each transform and
   compile them into a new YAML file, which is later used to generate wrappers.
   """
   from apache_beam.transforms.external import BeamJarExpansionService
-  from apache_beam.transforms.external_schematransform_provider import STANDARD_URN_PATTERN
-  from apache_beam.transforms.external_schematransform_provider import ExternalSchemaTransform
-  from apache_beam.transforms.external_schematransform_provider import ExternalSchemaTransformProvider
+  from apache_beam.transforms.external_transform_provider import STANDARD_URN_PATTERN
+  from apache_beam.transforms.external_transform_provider import ExternalTransform
+  from apache_beam.transforms.external_transform_provider import ExternalTransformProvider
 
   transform_list: List[Dict[str, Any]] = []
 
@@ -132,8 +132,8 @@ def generate_transforms_config(input_services, output_file):
     ignore = service.get('ignore', [])
 
     # use dynamic provider to discover and populate wrapper details
-    provider = ExternalSchemaTransformProvider(BeamJarExpansionService(target))
-    discovered: Dict[str, ExternalSchemaTransform] = provider.get_all()
+    provider = ExternalTransformProvider(BeamJarExpansionService(target))
+    discovered: Dict[str, ExternalTransform] = provider.get_all()
     for identifier, wrapper in discovered.items():
       if identifier in ignore:
         continue
@@ -244,7 +244,7 @@ def camel_case_to_snake_case(string):
 def get_wrappers_from_transform_configs(config_file) -> Dict[str, List[str]]:
   """
   Generates code for external transform wrapper classes (subclasses of
-  :class:`ExternalSchemaTransform`).
+  :class:`ExternalTransform`).
 
   Takes a YAML file containing a list of SchemaTransform configurations. For
   each configuration, the code for a wrapper class is generated, along with any
@@ -324,8 +324,8 @@ def write_wrappers_to_destinations(grouped_wrappers: Dict[str, List[str]]):
       file.write(
           "from apache_beam.transforms.external import "
           "BeamJarExpansionService\n"
-          "from apache_beam.transforms.external_schematransform_provider "
-          "import ExternalSchemaTransform\n")
+          "from apache_beam.transforms.external_transform_provider "
+          "import ExternalTransform\n")
       for wrapper in wrappers:
         file.write(wrapper + "\n")
     written_files.append(absolute_dest)

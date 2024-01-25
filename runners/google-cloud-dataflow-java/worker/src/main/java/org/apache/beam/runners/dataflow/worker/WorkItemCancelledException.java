@@ -15,24 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.runners.dataflow.worker;
 
-import CommonJobProperties as commonJobProperties
-import PostcommitJobBuilder
+/** Indicates that the work item was cancelled and should not be retried. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
+public class WorkItemCancelledException extends RuntimeException {
+  public WorkItemCancelledException(long sharding_key) {
+    super("Work item cancelled for key " + sharding_key);
+  }
 
-// This job runs the suite of Python ValidatesRunner tests against the Flink runner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_VR_Flink',
-    'Run Python Flink ValidatesRunner', 'Run Python Flink ValidatesRunner', this) {
-      description('Runs the Python ValidatesRunner suite on the Flink runner.')
-
-      // Set common parameters.
-      commonJobProperties.setTopLevelMainJobProperties(delegate)
-
-      // Gradle goals for this job.
-      steps {
-        gradle {
-          rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':sdks:python:test-suites:portable:flinkValidatesRunner')
-          commonJobProperties.setGradleSwitches(delegate)
-        }
+  /** Returns whether an exception was caused by a {@link WorkItemCancelledException}. */
+  public static boolean isWorkItemCancelledException(Throwable t) {
+    while (t != null) {
+      if (t instanceof WorkItemCancelledException) {
+        return true;
       }
+      t = t.getCause();
     }
+    return false;
+  }
+}

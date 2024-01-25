@@ -16,7 +16,7 @@
    limitations under the License.
 #}
 
-class {{ class_name }}(ExternalSchemaTransform):
+class {{ class_name }}(ExternalTransform):
 {% if description %}  """
   {{ description | wordwrap(78) | replace('\n', '\n  ') }}
   """{% endif %}

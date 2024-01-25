@@ -40,6 +40,7 @@ import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoTranslato
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -51,7 +52,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -609,7 +610,7 @@ public class PTransformTranslation {
      *     {@link #toConfigRow(PTransform)} method.
      * @return a transform represented by the current {@code TransformPayloadTranslator}.
      */
-    default T fromConfigRow(Row configRow) {
+    default T fromConfigRow(Row configRow, PipelineOptions options) {
       throw new UnsupportedOperationException("Not implemented");
     }
 
