@@ -333,6 +333,18 @@ public class WriteFilesTest {
   }
 
   @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class})
+  public void testWithShardingUnbounded() throws IOException {
+    runShardedWrite(
+        Arrays.asList("one", "two", "three", "four", "five", "six"),
+        Window.into(FixedWindows.of(Duration.standardSeconds(10))),
+        getBaseOutputFilename(),
+        WriteFiles.to(makeSimpleSink()).withWindowedWrites().withAutoSharding(),
+        null,
+        true);
+  }
+
+  @Test
   @Category({
     NeedsRunner.class,
     UsesUnboundedPCollections.class,

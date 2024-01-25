@@ -24,6 +24,7 @@ import com.google.api.gax.batching.Batcher;
 import com.google.api.gax.batching.BatchingException;
 import com.google.api.gax.grpc.GrpcCallContext;
 import com.google.api.gax.retrying.RetrySettings;
+import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.ResponseObserver;
 import com.google.api.gax.rpc.StreamController;
 import com.google.bigtable.v2.Cell;
@@ -44,6 +45,7 @@ import com.google.cloud.bigtable.data.v2.models.Filters;
 import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.RowAdapter;
+import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.cloud.bigtable.data.v2.models.RowMutationEntry;
 import com.google.protobuf.ByteString;
 import io.grpc.CallOptions;
@@ -478,6 +480,8 @@ class BigtableServiceImpl implements BigtableService {
   @VisibleForTesting
   static class BigtableWriterImpl implements Writer {
     private Batcher<RowMutationEntry, Void> bulkMutation;
+
+    private BigtableDataClient client;
     private Integer outstandingMutations = 0;
     private Stopwatch stopwatch = Stopwatch.createUnstarted();
     private String projectId;
@@ -499,6 +503,7 @@ class BigtableServiceImpl implements BigtableService {
       this.tableId = tableId;
       this.closeWaitTimeout = closeWaitTimeout;
       this.bulkMutation = client.newBulkMutationBatcher(tableId);
+      this.client = client;
     }
 
     @Override
@@ -547,6 +552,42 @@ class BigtableServiceImpl implements BigtableService {
 
       RowMutationEntry entry = RowMutationEntry.createFromMutationUnsafe(record.getKey(), mutation);
 
+      ServiceCallMetric serviceCallMetric = createServiceCallMetric();
+
+      CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
+
+      outstandingMutations += 1;
+      Futures.addCallback(
+          new VendoredListenableFutureAdapter<>(bulkMutation.add(entry)),
+          new WriteMutationCallback(result, serviceCallMetric),
+          directExecutor());
+      return result;
+    }
+
+    @Override
+    public void writeSingleRecord(KV<ByteString, Iterable<Mutation>> record) throws ApiException {
+      com.google.cloud.bigtable.data.v2.models.Mutation mutation =
+          com.google.cloud.bigtable.data.v2.models.Mutation.fromProtoUnsafe(record.getValue());
+
+      RowMutation rowMutation = RowMutation.create(tableId, record.getKey(), mutation);
+
+      ServiceCallMetric serviceCallMetric = createServiceCallMetric();
+
+      try {
+        client.mutateRow(rowMutation);
+        serviceCallMetric.call("ok");
+      } catch (ApiException e) {
+        if (e.getCause() instanceof StatusRuntimeException) {
+          serviceCallMetric.call(
+              ((StatusRuntimeException) e.getCause()).getStatus().getCode().value());
+        } else {
+          serviceCallMetric.call("unknown");
+        }
+        throw e;
+      }
+    }
+
+    private ServiceCallMetric createServiceCallMetric() {
       // Populate metrics
       HashMap<String, String> baseLabels = new HashMap<>();
       baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
@@ -560,34 +601,36 @@ class BigtableServiceImpl implements BigtableService {
       baseLabels.put(
           MonitoringInfoConstants.Labels.TABLE_ID,
           GcpResourceIdentifiers.bigtableTableID(projectId, instanceId, tableId));
-      ServiceCallMetric serviceCallMetric =
-          new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+      return new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+    }
 
-      CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
+    private static class WriteMutationCallback implements FutureCallback<MutateRowResponse> {
+      private final CompletableFuture<MutateRowResponse> result;
 
-      outstandingMutations += 1;
-      Futures.addCallback(
-          new VendoredListenableFutureAdapter<>(bulkMutation.add(entry)),
-          new FutureCallback<MutateRowResponse>() {
-            @Override
-            public void onSuccess(MutateRowResponse mutateRowResponse) {
-              result.complete(mutateRowResponse);
-              serviceCallMetric.call("ok");
-            }
+      private final ServiceCallMetric serviceCallMetric;
 
-            @Override
-            public void onFailure(Throwable throwable) {
-              if (throwable instanceof StatusRuntimeException) {
-                serviceCallMetric.call(
-                    ((StatusRuntimeException) throwable).getStatus().getCode().value());
-              } else {
-                serviceCallMetric.call("unknown");
-              }
-              result.completeExceptionally(throwable);
-            }
-          },
-          directExecutor());
-      return result;
+      public WriteMutationCallback(
+          CompletableFuture<MutateRowResponse> result, ServiceCallMetric serviceCallMetric) {
+        this.result = result;
+        this.serviceCallMetric = serviceCallMetric;
+      }
+
+      @Override
+      public void onSuccess(MutateRowResponse mutateRowResponse) {
+        result.complete(mutateRowResponse);
+        serviceCallMetric.call("ok");
+      }
+
+      @Override
+      public void onFailure(Throwable throwable) {
+        if (throwable instanceof StatusRuntimeException) {
+          serviceCallMetric.call(
+              ((StatusRuntimeException) throwable).getStatus().getCode().value());
+        } else {
+          serviceCallMetric.call("unknown");
+        }
+        result.completeExceptionally(throwable);
+      }
     }
   }
 

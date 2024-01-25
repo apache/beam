@@ -31,6 +31,7 @@ import numpy as np
 import apache_beam as beam
 import tensorflow as tf
 import tensorflow_transform.beam as tft_beam
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.transforms.base import ArtifactMode
 from apache_beam.ml.transforms.base import ProcessHandler
 from apache_beam.ml.transforms.tft import _EXPECTED_TYPES
@@ -435,7 +436,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
           path=os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
     else:
       # Read the metadata from the artifact_location.
-      if not os.path.exists(os.path.join(
+      if not FileSystems.exists(os.path.join(
           self.artifact_location, RAW_DATA_METADATA_DIR, SCHEMA_FILE)):
         raise FileNotFoundError(
             "Artifacts not found at location: %s when using "
@@ -517,3 +518,9 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
           | "ConvertToRowType" >>
           beam.Map(lambda x: beam.Row(**x)).with_output_types(row_type))
       return transformed_dataset
+
+  def with_exception_handling(self):
+    raise NotImplementedError(
+        "with_exception_handling with TensorFlow Transform-based MLTransform "
+        "operations is not supported. To enable exception handling for those "
+        "operations, please create a separate MLTransform instance")

@@ -18,9 +18,15 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
+import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
@@ -37,6 +43,7 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
@@ -50,15 +57,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class StreamingStepMetricsContainer implements MetricsContainer {
-
   private final String stepName;
 
-  private static Boolean enablePerWorkerMetrics;
+  private static boolean enablePerWorkerMetrics = false;
 
   private MetricsMap<MetricName, DeltaCounterCell> counters =
       new MetricsMap<>(DeltaCounterCell::new);
 
-  private ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters;
 
   private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
 
@@ -68,8 +74,19 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   private MetricsMap<KV<MetricName, HistogramData.BucketType>, HistogramCell> perWorkerHistograms =
       new MetricsMap<>(HistogramCell::new);
 
+  private final Map<MetricName, Instant> perWorkerCountersByFirstStaleTime;
+
+  // PerWorkerCounters that have been longer than this value will be removed from the underlying
+  // metrics map.
+  private final Duration maximumPerWorkerCounterStaleness = Duration.ofMinutes(5);
+
+  private final Clock clock;
+
   private StreamingStepMetricsContainer(String stepName) {
     this.stepName = stepName;
+    this.perWorkerCountersByFirstStaleTime = new ConcurrentHashMap<>();
+    this.clock = Clock.systemUTC();
+    perWorkerCounters = new ConcurrentHashMap<>();
   }
 
   public static MetricsContainerRegistry<StreamingStepMetricsContainer> createRegistry() {
@@ -79,6 +96,28 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
         return new StreamingStepMetricsContainer(stepName);
       }
     };
+  }
+
+  // Testing constructor.
+  private StreamingStepMetricsContainer(
+      String stepName,
+      Map<MetricName, Instant> perWorkerCountersByFirstStaleTime,
+      ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters,
+      Clock clock) {
+    this.stepName = stepName;
+    this.perWorkerCountersByFirstStaleTime = perWorkerCountersByFirstStaleTime;
+    this.perWorkerCounters = perWorkerCounters;
+    this.clock = clock;
+  }
+
+  @VisibleForTesting
+  static StreamingStepMetricsContainer forTesting(
+      String stepName,
+      Map<MetricName, Instant> perWorkerCountersByFirstStaleTime,
+      ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters,
+      Clock clock) {
+    return new StreamingStepMetricsContainer(
+        stepName, perWorkerCountersByFirstStaleTime, perWorkerCounters, clock);
   }
 
   @Override
@@ -177,5 +216,88 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
 
   public static void setEnablePerWorkerMetrics(Boolean enablePerWorkerMetrics) {
     StreamingStepMetricsContainer.enablePerWorkerMetrics = enablePerWorkerMetrics;
+  }
+
+  /**
+   * Updates {@code perWorkerCountersByFirstStaleTime} with the current zero-valued metrics and
+   * removes metrics that have been stale for longer than {@code maximumPerWorkerCounterStaleness}
+   * from {@code perWorkerCounters}.
+   *
+   * @param currentZeroValuedCounters Current zero-valued perworker counters.
+   * @param extractionTime Time {@code currentZeroValuedCounters} were discovered to be zero-valued.
+   */
+  private void deleteStaleCounters(
+      Set<MetricName> currentZeroValuedCounters, Instant extractionTime) {
+    // perWorkerCountersByFirstStaleTime should only contain metrics that are currently zero-valued.
+    perWorkerCountersByFirstStaleTime.keySet().retainAll(currentZeroValuedCounters);
+
+    // Delete metrics that have been longer than 'maximumPerWorkerCounterStaleness'.
+    Set<MetricName> deletedMetricNames = new HashSet<MetricName>();
+    for (Entry<MetricName, Instant> entry : perWorkerCountersByFirstStaleTime.entrySet()) {
+      if (Duration.between(entry.getValue(), extractionTime)
+              .compareTo(maximumPerWorkerCounterStaleness)
+          > 0) {
+        RemoveSafeDeltaCounterCell cell =
+            new RemoveSafeDeltaCounterCell(entry.getKey(), perWorkerCounters);
+        cell.deleteIfZero();
+        deletedMetricNames.add(entry.getKey());
+      }
+    }
+
+    // Insert new zero-valued metrics into `perWorkerCountersByFirstStaleTime`.
+    currentZeroValuedCounters.forEach(
+        name -> perWorkerCountersByFirstStaleTime.putIfAbsent(name, extractionTime));
+
+    // Metrics in 'deletedMetricNames' have either been removed from 'perWorkerCounters' or are no
+    // longer zero-valued.
+    perWorkerCountersByFirstStaleTime.keySet().removeAll(deletedMetricNames);
+  }
+
+  /**
+   * Extracts metric updates for all PerWorker metrics that have changed in this Container since the
+   * last time this function was called. Additionally, deletes any PerWorker counters that have been
+   * zero valued for more than {@code maximumPerWorkerCounterStaleness}.
+   */
+  @VisibleForTesting
+  Iterable<PerStepNamespaceMetrics> extractPerWorkerMetricUpdates() {
+    ConcurrentHashMap<MetricName, Long> counters = new ConcurrentHashMap<MetricName, Long>();
+    ConcurrentHashMap<MetricName, HistogramData> histograms =
+        new ConcurrentHashMap<MetricName, HistogramData>();
+    HashSet<MetricName> currentZeroValuedCounters = new HashSet<MetricName>();
+
+    // Extract metrics updates.
+    perWorkerCounters.forEach(
+        (k, v) -> {
+          Long val = v.getAndSet(0);
+          if (val == 0) {
+            currentZeroValuedCounters.add(k);
+            return;
+          }
+          counters.put(k, val);
+        });
+    perWorkerHistograms.forEach(
+        (k, v) -> {
+          HistogramData val = v.getCumulative().getAndReset();
+          if (val.getTotalCount() == 0) {
+            return;
+          }
+          histograms.put(k.getKey(), val);
+        });
+
+    deleteStaleCounters(currentZeroValuedCounters, Instant.now(clock));
+
+    return MetricsToPerStepNamespaceMetricsConverter.convert(stepName, counters, histograms);
+  }
+
+  /**
+   * @param metricsContainerRegistry Metrics will be extracted for all containers in this registry.
+   * @return An iterable of {@link PerStepNamespaceMetrics} representing the changes to all
+   *     PerWorkerMetrics that have changed since the last time this function was invoked.
+   */
+  public static Iterable<PerStepNamespaceMetrics> extractPerWorkerMetricUpdates(
+      MetricsContainerRegistry<StreamingStepMetricsContainer> metricsContainerRegistry) {
+    return metricsContainerRegistry
+        .getContainers()
+        .transformAndConcat(StreamingStepMetricsContainer::extractPerWorkerMetricUpdates);
   }
 }

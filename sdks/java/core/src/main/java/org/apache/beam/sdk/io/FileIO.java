@@ -393,6 +393,7 @@ public class FileIO {
         .setDynamic(false)
         .setCompression(Compression.UNCOMPRESSED)
         .setIgnoreWindowing(false)
+        .setAutoSharding(false)
         .setNoSpilling(false)
         .build();
   }
@@ -406,6 +407,7 @@ public class FileIO {
         .setDynamic(true)
         .setCompression(Compression.UNCOMPRESSED)
         .setIgnoreWindowing(false)
+        .setAutoSharding(false)
         .setNoSpilling(false)
         .build();
   }
@@ -1037,6 +1039,8 @@ public class FileIO {
 
     abstract boolean getIgnoreWindowing();
 
+    abstract boolean getAutoSharding();
+
     abstract boolean getNoSpilling();
 
     abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
@@ -1084,6 +1088,8 @@ public class FileIO {
           PTransform<PCollection<UserT>, PCollectionView<Integer>> sharding);
 
       abstract Builder<DestinationT, UserT> setIgnoreWindowing(boolean ignoreWindowing);
+
+      abstract Builder<DestinationT, UserT> setAutoSharding(boolean autosharding);
 
       abstract Builder<DestinationT, UserT> setNoSpilling(boolean noSpilling);
 
@@ -1311,6 +1317,10 @@ public class FileIO {
       return toBuilder().setIgnoreWindowing(true).build();
     }
 
+    public Write<DestinationT, UserT> withAutoSharding() {
+      return toBuilder().setAutoSharding(true).build();
+    }
+
     /** See {@link WriteFiles#withNoSpilling()}. */
     public Write<DestinationT, UserT> withNoSpilling() {
       return toBuilder().setNoSpilling(true).build();
@@ -1412,6 +1422,7 @@ public class FileIO {
       resolvedSpec.setNumShards(getNumShards());
       resolvedSpec.setSharding(getSharding());
       resolvedSpec.setIgnoreWindowing(getIgnoreWindowing());
+      resolvedSpec.setAutoSharding(getAutoSharding());
       resolvedSpec.setNoSpilling(getNoSpilling());
 
       Write<DestinationT, UserT> resolved = resolvedSpec.build();
@@ -1427,6 +1438,9 @@ public class FileIO {
       }
       if (!getIgnoreWindowing()) {
         writeFiles = writeFiles.withWindowedWrites();
+      }
+      if (getAutoSharding()) {
+        writeFiles = writeFiles.withAutoSharding();
       }
       if (getNoSpilling()) {
         writeFiles = writeFiles.withNoSpilling();

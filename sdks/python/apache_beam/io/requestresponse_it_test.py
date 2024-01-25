@@ -16,6 +16,7 @@
 #
 import base64
 import sys
+import typing
 import unittest
 from dataclasses import dataclass
 from typing import Tuple
@@ -24,12 +25,17 @@ from typing import Union
 import urllib3
 
 import apache_beam as beam
-from apache_beam.io.requestresponseio import Caller
-from apache_beam.io.requestresponseio import RequestResponseIO
-from apache_beam.io.requestresponseio import UserCodeExecutionException
-from apache_beam.io.requestresponseio import UserCodeQuotaException
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+
+# pylint: disable=ungrouped-imports
+try:
+  from apache_beam.io.requestresponse import Caller
+  from apache_beam.io.requestresponse import RequestResponseIO
+  from apache_beam.io.requestresponse import UserCodeExecutionException
+  from apache_beam.io.requestresponse import UserCodeQuotaException
+except ImportError:
+  raise unittest.SkipTest('RequestResponseIO dependencies are not installed.')
 
 _HTTP_PATH = '/v1/echo'
 _PAYLOAD = base64.b64encode(bytes('payload', 'utf-8'))
@@ -61,28 +67,27 @@ class EchoITOptions(PipelineOptions):
         help='The ID for an allocated quota that should exceed.')
 
 
-# TODO(riteshghorse,damondouglas) replace Echo(Request|Response) with proto
-#   generated classes from .test-infra/mock-apis:
-@dataclass
-class EchoRequest:
-  id: str
-  payload: bytes
-
-
 @dataclass
 class EchoResponse:
   id: str
   payload: bytes
 
 
-class EchoHTTPCaller(Caller):
+# TODO(riteshghorse,damondouglas) replace Echo(Request|Response) with proto
+#   generated classes from .test-infra/mock-apis:
+class Request(typing.NamedTuple):
+  id: str
+  payload: bytes
+
+
+class EchoHTTPCaller(Caller[Request, EchoResponse]):
   """Implements ``Caller`` to call the ``EchoServiceGrpc``'s HTTP handler.
     The purpose of ``EchoHTTPCaller`` is to support integration tests.
     """
   def __init__(self, url: str):
     self.url = url + _HTTP_PATH
 
-  def __call__(self, request: EchoRequest, *args, **kwargs) -> EchoResponse:
+  def __call__(self, request: Request, *args, **kwargs) -> EchoResponse:
     """Overrides ``Caller``'s call method invoking the
         ``EchoServiceGrpc``'s HTTP handler with an ``EchoRequest``, returning
         either a successful ``EchoResponse`` or throwing either a
@@ -129,7 +134,7 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
   def setUp(self) -> None:
     client, options = EchoHTTPCallerTestIT._get_client_and_options()
 
-    req = EchoRequest(id=options.should_exceed_quota_id, payload=_PAYLOAD)
+    req = Request(id=options.should_exceed_quota_id, payload=_PAYLOAD)
     try:
       # The following is needed to exceed the API
       client(req)
@@ -148,7 +153,7 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
   def test_given_valid_request_receives_response(self):
     client, options = EchoHTTPCallerTestIT._get_client_and_options()
 
-    req = EchoRequest(id=options.never_exceed_quota_id, payload=_PAYLOAD)
+    req = Request(id=options.never_exceed_quota_id, payload=_PAYLOAD)
 
     response: EchoResponse = client(req)
 
@@ -158,20 +163,20 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
   def test_given_exceeded_quota_should_raise(self):
     client, options = EchoHTTPCallerTestIT._get_client_and_options()
 
-    req = EchoRequest(id=options.should_exceed_quota_id, payload=_PAYLOAD)
+    req = Request(id=options.should_exceed_quota_id, payload=_PAYLOAD)
 
     self.assertRaises(UserCodeQuotaException, lambda: client(req))
 
   def test_not_found_should_raise(self):
     client, _ = EchoHTTPCallerTestIT._get_client_and_options()
 
-    req = EchoRequest(id='i-dont-exist-quota-id', payload=_PAYLOAD)
+    req = Request(id='i-dont-exist-quota-id', payload=_PAYLOAD)
     self.assertRaisesRegex(
         UserCodeExecutionException, "Not Found", lambda: client(req))
 
   def test_request_response_io(self):
     client, options = EchoHTTPCallerTestIT._get_client_and_options()
-    req = EchoRequest(id=options.never_exceed_quota_id, payload=_PAYLOAD)
+    req = Request(id=options.never_exceed_quota_id, payload=_PAYLOAD)
     with TestPipeline(is_integration_test=True) as test_pipeline:
       output = (
           test_pipeline

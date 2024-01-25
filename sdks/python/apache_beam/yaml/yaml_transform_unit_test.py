@@ -110,6 +110,10 @@ class MainTest(unittest.TestCase):
     if inputs is None:
       inputs = {}
     spec = yaml.load(spec, Loader=SafeLineLoader)
+    if 'transforms' in spec:
+      spec['transforms'] = [
+          normalize_inputs_outputs(t) for t in spec['transforms']
+      ]
 
     scope = Scope(
         beam.pvalue.PBegin(p),
@@ -209,7 +213,7 @@ class MainTest(unittest.TestCase):
                                            inputs={'elements': elements})
       self.assertRegex(
           str(expand_composite_transform(spec, scope)['output']),
-          r"PCollection.*Composite/Map.*")
+          r"PCollection.*Composite/LogForTesting.*")
 
   def test_expand_composite_transform_root(self):
     with new_pipeline() as p:
@@ -653,7 +657,7 @@ class MainTest(unittest.TestCase):
           windowing:
             type: fixed
             size: 4
-          input: input
+          input: {{input: input}}
       output: {result['transforms'][0]['__uuid__']}
     '''
     self.assertYaml(expected, result)

@@ -64,10 +64,10 @@ async function main() {
     },
     options,
   );
-  if (pushLogs) {
-    await pushLogs();
-  }
   console.info("Worker started.");
+  if (pushLogs) {
+    pushLogs().catch();
+  }
   await worker.wait();
   console.info("Worker stoped.");
 }

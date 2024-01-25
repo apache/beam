@@ -22,9 +22,9 @@ import static org.hamcrest.Matchers.equalTo;
 
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ConnectivityState;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ConnectivityState;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannelBuilder;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;

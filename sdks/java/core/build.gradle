@@ -21,6 +21,7 @@ applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk',
   classesTriggerCheckerBugs: [
     'DoFnTester': 'https://github.com/typetools/checker-framework/issues/3776',
+    'FileIO': 'https://github.com/typetools/checker-framework/issues/6388',
     'MergingActiveWindowSetTest': 'https://github.com/typetools/checker-framework/issues/3776',
     'WindowFnTestUtils': 'https://github.com/typetools/checker-framework/issues/3776',
   ],
@@ -75,7 +76,7 @@ dependencies {
   // Required to load constants from the model, e.g. max timestamp for global window
   shadow project(path: ":model:pipeline", configuration: "shadow")
   shadow project(path: ":model:job-management", configuration: "shadow")
-  shadow library.java.vendored_grpc_1_54_0
+  shadow library.java.vendored_grpc_1_60_1
   shadow library.java.vendored_guava_32_1_2_jre
   shadow library.java.byte_buddy
   implementation library.java.antlr_runtime

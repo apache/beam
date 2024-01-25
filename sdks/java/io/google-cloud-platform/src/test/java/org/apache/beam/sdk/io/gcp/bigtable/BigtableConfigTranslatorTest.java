@@ -92,14 +92,14 @@ public class BigtableConfigTranslatorTest {
         BigtableReadOptions.builder()
             .setTableId(ValueProvider.StaticValueProvider.of("table"))
             .build();
+    BigtableReadOptions fromBigtableOptions =
+        BigtableConfigTranslator.translateToBigtableReadOptions(readOptions, options);
 
-    readOptions = BigtableConfigTranslator.translateToBigtableReadOptions(readOptions, options);
+    assertNotNull(fromBigtableOptions.getAttemptTimeout());
+    assertNotNull(fromBigtableOptions.getOperationTimeout());
 
-    assertNotNull(readOptions.getAttemptTimeout());
-    assertNotNull(readOptions.getOperationTimeout());
-
-    assertEquals(org.joda.time.Duration.millis(100), readOptions.getAttemptTimeout());
-    assertEquals(org.joda.time.Duration.millis(1000), readOptions.getOperationTimeout());
+    assertEquals(org.joda.time.Duration.millis(100), fromBigtableOptions.getAttemptTimeout());
+    assertEquals(org.joda.time.Duration.millis(1000), fromBigtableOptions.getOperationTimeout());
   }
 
   @Test
@@ -129,21 +129,22 @@ public class BigtableConfigTranslatorTest {
             .setTableId(ValueProvider.StaticValueProvider.of("table"))
             .build();
 
-    writeOptions = BigtableConfigTranslator.translateToBigtableWriteOptions(writeOptions, options);
+    BigtableWriteOptions fromBigtableOptions =
+        BigtableConfigTranslator.translateToBigtableWriteOptions(writeOptions, options);
 
-    assertNotNull(writeOptions.getAttemptTimeout());
-    assertNotNull(writeOptions.getOperationTimeout());
-    assertNotNull(writeOptions.getMaxBytesPerBatch());
-    assertNotNull(writeOptions.getMaxElementsPerBatch());
-    assertNotNull(writeOptions.getMaxOutstandingElements());
-    assertNotNull(writeOptions.getMaxOutstandingBytes());
+    assertNotNull(fromBigtableOptions.getAttemptTimeout());
+    assertNotNull(fromBigtableOptions.getOperationTimeout());
+    assertNotNull(fromBigtableOptions.getMaxBytesPerBatch());
+    assertNotNull(fromBigtableOptions.getMaxElementsPerBatch());
+    assertNotNull(fromBigtableOptions.getMaxOutstandingElements());
+    assertNotNull(fromBigtableOptions.getMaxOutstandingBytes());
 
-    assertEquals(org.joda.time.Duration.millis(200), writeOptions.getAttemptTimeout());
-    assertEquals(org.joda.time.Duration.millis(2000), writeOptions.getOperationTimeout());
-    assertEquals(20, (long) writeOptions.getMaxBytesPerBatch());
-    assertEquals(100, (long) writeOptions.getMaxElementsPerBatch());
-    assertEquals(5 * 100, (long) writeOptions.getMaxOutstandingElements());
-    assertEquals(5 * 20, (long) writeOptions.getMaxOutstandingBytes());
+    assertEquals(org.joda.time.Duration.millis(200), fromBigtableOptions.getAttemptTimeout());
+    assertEquals(org.joda.time.Duration.millis(2000), fromBigtableOptions.getOperationTimeout());
+    assertEquals(20, (long) fromBigtableOptions.getMaxBytesPerBatch());
+    assertEquals(100, (long) fromBigtableOptions.getMaxElementsPerBatch());
+    assertEquals(5 * 100, (long) fromBigtableOptions.getMaxOutstandingElements());
+    assertEquals(5 * 20, (long) fromBigtableOptions.getMaxOutstandingBytes());
   }
 
   @Test
@@ -166,7 +167,7 @@ public class BigtableConfigTranslatorTest {
 
     BigtableDataSettings settings =
         BigtableConfigTranslator.translateReadToVeneerSettings(
-            config, readOptions, pipelineOptions);
+            config, readOptions, null, pipelineOptions);
 
     EnhancedBigtableStubSettings stubSettings = settings.getStubSettings();
 
@@ -179,6 +180,49 @@ public class BigtableConfigTranslatorTest {
     assertEquals(
         Duration.ofMillis(1001),
         stubSettings.readRowsSettings().getRetrySettings().getTotalTimeout());
+  }
+
+  @Test
+  public void testReadOptionsOverride() throws Exception {
+    BigtableConfig config =
+        BigtableConfig.builder()
+            .setProjectId(ValueProvider.StaticValueProvider.of("project"))
+            .setInstanceId(ValueProvider.StaticValueProvider.of("instance"))
+            .setAppProfileId(ValueProvider.StaticValueProvider.of("app"))
+            .setValidate(true)
+            .build();
+
+    BigtableReadOptions readOptions =
+        BigtableReadOptions.builder()
+            .setTableId(ValueProvider.StaticValueProvider.of("table"))
+            .setAttemptTimeout(org.joda.time.Duration.millis(101))
+            .setOperationTimeout(org.joda.time.Duration.millis(1001))
+            .build();
+
+    BigtableOptions options =
+        BigtableOptions.builder()
+            .setCallOptionsConfig(
+                CallOptionsConfig.builder()
+                    .setReadRowsRpcAttemptTimeoutMs(200)
+                    .setReadRowsRpcTimeoutMs(2001)
+                    .build())
+            .build();
+
+    BigtableReadOptions fromBigtableOptions =
+        BigtableConfigTranslator.translateToBigtableReadOptions(readOptions, options);
+
+    PipelineOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
+
+    BigtableDataSettings settings =
+        BigtableConfigTranslator.translateReadToVeneerSettings(
+            config, readOptions, fromBigtableOptions, pipelineOptions);
+
+    assertEquals(
+        Duration.ofMillis(101),
+        settings.getStubSettings().readRowsSettings().getRetrySettings().getInitialRpcTimeout());
+    assertEquals(
+        Duration.ofMillis(1001),
+        settings.getStubSettings().readRowsSettings().getRetrySettings().getTotalTimeout());
   }
 
   @Test
@@ -205,13 +249,92 @@ public class BigtableConfigTranslatorTest {
 
     BigtableDataSettings settings =
         BigtableConfigTranslator.translateWriteToVeneerSettings(
-            config, writeOptions, pipelineOptions);
+            config, writeOptions, null, pipelineOptions);
 
     EnhancedBigtableStubSettings stubSettings = settings.getStubSettings();
 
     assertEquals(config.getProjectId().get(), stubSettings.getProjectId());
     assertEquals(config.getInstanceId().get(), stubSettings.getInstanceId());
     assertEquals(config.getAppProfileId().get(), stubSettings.getAppProfileId());
+    assertEquals(
+        Duration.ofMillis(101),
+        stubSettings.bulkMutateRowsSettings().getRetrySettings().getInitialRpcTimeout());
+    assertEquals(
+        Duration.ofMillis(1001),
+        stubSettings.bulkMutateRowsSettings().getRetrySettings().getTotalTimeout());
+    assertEquals(
+        105,
+        (long)
+            stubSettings.bulkMutateRowsSettings().getBatchingSettings().getElementCountThreshold());
+    assertEquals(
+        102,
+        (long)
+            stubSettings.bulkMutateRowsSettings().getBatchingSettings().getRequestByteThreshold());
+    assertEquals(
+        10001,
+        (long)
+            stubSettings
+                .bulkMutateRowsSettings()
+                .getBatchingSettings()
+                .getFlowControlSettings()
+                .getMaxOutstandingElementCount());
+
+    assertEquals(
+        100001,
+        (long)
+            stubSettings
+                .bulkMutateRowsSettings()
+                .getBatchingSettings()
+                .getFlowControlSettings()
+                .getMaxOutstandingRequestBytes());
+  }
+
+  @Test
+  public void testWriteOptionsOverride() throws Exception {
+    BigtableConfig config =
+        BigtableConfig.builder()
+            .setProjectId(ValueProvider.StaticValueProvider.of("project"))
+            .setInstanceId(ValueProvider.StaticValueProvider.of("instance"))
+            .setAppProfileId(ValueProvider.StaticValueProvider.of("app"))
+            .setValidate(true)
+            .build();
+    BigtableWriteOptions writeOptions =
+        BigtableWriteOptions.builder()
+            .setTableId(ValueProvider.StaticValueProvider.of("table"))
+            .setAttemptTimeout(org.joda.time.Duration.millis(101))
+            .setOperationTimeout(org.joda.time.Duration.millis(1001))
+            .setMaxElementsPerBatch(105)
+            .setMaxBytesPerBatch(102)
+            .setMaxOutstandingElements(10001)
+            .setMaxOutstandingBytes(100001)
+            .build();
+
+    BigtableOptions options =
+        BigtableOptions.builder()
+            .setCallOptionsConfig(
+                CallOptionsConfig.builder()
+                    .setMutateRpcAttemptTimeoutMs(456)
+                    .setMutateRpcTimeoutMs(678)
+                    .build())
+            .setBulkOptions(
+                BulkOptions.builder()
+                    .setMaxInflightRpcs(15)
+                    .setBulkMaxRowKeyCount(100)
+                    .setBulkMaxRequestSize(200)
+                    .build())
+            .build();
+
+    PipelineOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
+
+    BigtableDataSettings settings =
+        BigtableConfigTranslator.translateWriteToVeneerSettings(
+            config,
+            writeOptions,
+            BigtableConfigTranslator.translateToBigtableWriteOptions(writeOptions, options),
+            pipelineOptions);
+
+    EnhancedBigtableStubSettings stubSettings = settings.getStubSettings();
+
     assertEquals(
         Duration.ofMillis(101),
         stubSettings.bulkMutateRowsSettings().getRetrySettings().getInitialRpcTimeout());

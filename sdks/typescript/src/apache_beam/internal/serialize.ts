@@ -20,12 +20,13 @@ import * as serialize_closures from "serialize-closures";
 import Long from "long";
 
 import { requireForSerialization, registeredObjects } from "../serialization";
+import { packageName } from "../utils/packageJson";
 
 const BIGINT_PREFIX = ":bigint:";
 
 const generator = function* () {};
 
-requireForSerialization("apache-beam", {
+requireForSerialization(packageName, {
   generator: generator,
   generator_prototype: generator.prototype,
   TextEncoder: TextEncoder,

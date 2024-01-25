@@ -100,7 +100,7 @@ func (j *Job) PipelineOptions() *structpb.Struct {
 }
 
 // ContributeTentativeMetrics returns the datachannel read index, and any unknown monitoring short ids.
-func (j *Job) ContributeTentativeMetrics(payloads *fnpb.ProcessBundleProgressResponse) (int64, []string) {
+func (j *Job) ContributeTentativeMetrics(payloads *fnpb.ProcessBundleProgressResponse) (map[string]int64, []string) {
 	return j.metrics.ContributeTentativeMetrics(payloads)
 }
 
