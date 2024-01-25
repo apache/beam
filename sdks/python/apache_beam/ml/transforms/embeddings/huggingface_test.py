@@ -314,7 +314,12 @@ class HuggingfaceInferenceAPITest(unittest.TestCase):
 
 
 class HuggingfaceInferenceAPIGCSLocationTest(HuggingfaceInferenceAPITest):
-  pass
+  def setUp(self):
+    self.artifact_location = self.gcs_artifact_location = os.path.join(
+        'gs://temp-storage-for-perf-tests/tft_handler', uuid.uuid4().hex)
+
+  def tearDown(self):
+    pass
 
 
 if __name__ == '__main__':
