@@ -1,5 +1,6 @@
 Prompt:
 Write the Python code to read data from a TensorFlow TFRecord file using Apache Beam.
+
 Response:
 You can read data from a TensorFlow [TFRecord file](https://www.tensorflow.org/api_docs/python/tf/data/TFRecordDataset) using the Apache Beam [TFRecordIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.tfrecordio.html). The TFRecordIO connector lets you read and write data in `TFRecord` format.
 

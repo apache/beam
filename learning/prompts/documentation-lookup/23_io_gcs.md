@@ -1,5 +1,6 @@
 Prompt:
 Is Google Cloud Storage file system supported in Apache Beam?
+
 Response:
 [Google Cloud Storage](https://cloud.google.com/storage) is an object storage service for storing and accessing data on Google Cloud. Apache Beam supports both working with the Google Cloud Storage file system and reading data from and writing data to Google Cloud Storage buckets.
 

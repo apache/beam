@@ -1,9 +1,10 @@
 Prompt:
 Is Cloud Spanner supported in Apache Beam?
+
 Response:
 [Cloud Spanner](https://cloud.google.com/spanner) is a [Google Cloud](https://cloud.google.com/) service that provides a fully managed, mission-critical, relational database service that offers transactional consistency at global scale, schemas, SQL (ANSI 2011 with extensions), and automatic, synchronous replication for high availability.
 
-Apache Beam has a built-in SpannerIO connector for Cloud Spanner that lets you read data from and write data to Cloud Spanner. Cloud Spanner is supported in both batch pipelines and streaming pipelines. and as a source and a sink. For more information, see the SpannerIO connector documentation:
+Apache Beam has a built-in SpannerIO connector for Cloud Spanner that lets you read data from and write data to Cloud Spanner. Cloud Spanner is supported in both batch pipelines and streaming pipelines, and as a source and a sink. For more information, see the SpannerIO connector documentation:
 * [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/spanner/SpannerIO.html)
 * [Python (using cross-language transforms)](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.spanner.html)
 * [Go](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/spannerio)

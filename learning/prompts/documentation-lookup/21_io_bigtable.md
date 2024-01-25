@@ -1,5 +1,6 @@
 Prompt:
 Is Cloud BigTable supported in Apache Beam?
+
 Response:
 [Cloud Bigtable](https://cloud.google.com/bigtable) is a [Google Cloud](https://cloud.google.com/) service that provides enterprise-grade NoSQL database service with single-digit millisecond latency, limitless scale, and 99.999% availability for large analytical and operational workloads.
 

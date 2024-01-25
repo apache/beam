@@ -1,5 +1,6 @@
 Prompt:
 Is Apache Kafka supported in Apache Beam?
+
 Response:
 [Apache Kafka](https://kafka.apache.org/) is a distributed streaming platform that is used for building real-time data pipelines and streaming applications. It is horizontally scalable, fault-tolerant, and fast.
 Apache Beam has a built-in KafkaIO connector for Apache Kafka that lets you read data from and write data to Kafka. Apache Kafka is supported in both batch pipelines and streaming pipelines, and as a source and a sink. For more information, see the KafkaIO connector documentation:

@@ -1,5 +1,6 @@
 Prompt:
 Write the Python code to read data from BigQuery using Apache Beam.
+
 Response:
 You can read data from BigQuery using the `ReadFromBigQuery` transform. The following Python code reads data from a BigQuery table. The table name is provided as the command-line argument `table`. The data is logged to the console.
 

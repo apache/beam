@@ -1,5 +1,6 @@
 Prompt:
 Write the Python code to read data from Oracle JDBC using Apache Beam.
+
 Response:
 You can read data from an Oracle Java Database Connectivity (JDBC) enabled database using the Apache Beam [JdbcIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.jdbc.html).
 ```python

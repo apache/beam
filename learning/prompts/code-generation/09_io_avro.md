@@ -1,5 +1,6 @@
 Prompt:
 Write the Python code to read data from Apache Avro files using Apache Beam.
+
 Response:
 You can read data from [Apache Avro](https://avro.apache.org/) files using the Apache Beam [AvroIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.avroio.html).
 

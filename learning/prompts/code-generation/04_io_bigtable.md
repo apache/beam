@@ -1,7 +1,7 @@
 Prompt:
 Write the Python code to read data from Bigtable using Apache Beam.
-Response:
 
+Response:
 You can read data from [Cloud Bigtable](https://cloud.google.com/bigtable) using the `ReadFromBigtable` transform. The following Python code reads a table `table_id` from a Bigtable instance `instance_id`. The `table_id` and `instance_id` are provided as command-line arguments. The data is logged to the console.
 
 ```python

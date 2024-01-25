@@ -1,5 +1,6 @@
 Prompt:
 Is Apache Parquet format supported in Apache Beam?
+
 Response:
 [Apache Parquet](https://parquet.apache.org/) is a data format for storing and exchanging data. Apache Beam supports reading from and writing to Parquet files using the `ReadFromParquet` and `WriteToParquet` transforms in the `ParquetIO` module. For more information, see the ParquetIO connector documentation:
 * [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/parquet/ParquetIO.html)

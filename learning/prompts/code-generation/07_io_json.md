@@ -1,5 +1,6 @@
 Prompt:
 Write the Python code to read data from JSON files using Apache Beam.
+
 Response:
 You can read data from [JSON files](https://www.json.org/) using the Apache Beam [TextIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html).
 

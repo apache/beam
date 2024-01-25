@@ -1,5 +1,6 @@
 Prompt:
 Is Apache Avro format supported in Apache Beam?
+
 Response:
 [Apache Avro](https://avro.apache.org/) is a data format for storing and exchanging data. Apache Beam supports reading from and writing to Avro files using the `ReadFromAvro` and `WriteToAvro` transforms in the `AvroIO` module. For more information, see the AvroIO connector documentation:
 * [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/avro/io/AvroIO.html)

@@ -1,5 +1,6 @@
 Prompt:
 Write the Python code to read data from Cloud Spanner using Apache Beam.
+
 Response:
 You can read data from [Cloud Spanner](https://cloud.google.com/spanner) using the Apache Beam [SpannerIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.spanner.html). The SpannerIO connector lets you read data from and write data to Cloud Spanner. Cloud Spanner is supported in both batch pipelines and streaming pipelines.
 
