@@ -221,7 +221,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
   }
 
   /**
-   * Set display data for your PTransform
+   * Set display data for your PTransform.
    *
    * @param displayData a list of {@link ItemSpec} instances.
    * @return a reference to the same transfrom instance.
