@@ -204,7 +204,7 @@ class InferenceAPIEmbeddings(EmbeddingsManager):
       if not self._model_name:
         raise ValueError("Either api_url or model_name must be provided.")
       self._api_url = (
-          "https://api-inference.huggingface.co/pipeline/feature-extraction/{self._model_name}"  # pylint: disable=line-too-long
+          f"https://api-inference.huggingface.co/pipeline/feature-extraction/{self._model_name}"  # pylint: disable=line-too-long
       )
     return self._api_url
 
