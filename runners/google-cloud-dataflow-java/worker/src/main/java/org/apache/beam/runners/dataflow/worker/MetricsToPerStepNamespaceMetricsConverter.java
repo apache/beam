@@ -52,16 +52,16 @@ public class MetricsToPerStepNamespaceMetricsConverter {
       return Optional.empty();
     }
 
-    BigQuerySinkMetrics.ParsedMetricName labeledName =
+    Optional<BigQuerySinkMetrics.ParsedMetricName> labeledName =
         BigQuerySinkMetrics.parseMetricName(metricName.getName());
-    if (labeledName == null || labeledName.getBaseName().isEmpty()) {
+    if (!labeledName.isPresent() || labeledName.get().getBaseName().isEmpty()) {
       return Optional.empty();
     }
 
     return Optional.of(
         new MetricValue()
-            .setMetric(labeledName.getBaseName())
-            .setMetricLabels(labeledName.getMetricLabels())
+            .setMetric(labeledName.get().getBaseName())
+            .setMetricLabels(labeledName.get().getMetricLabels())
             .setValueInt64(value));
   }
 
@@ -78,9 +78,9 @@ public class MetricsToPerStepNamespaceMetricsConverter {
       return Optional.empty();
     }
 
-    BigQuerySinkMetrics.ParsedMetricName labeledName =
+    Optional<BigQuerySinkMetrics.ParsedMetricName> labeledName =
         BigQuerySinkMetrics.parseMetricName(metricName.getName());
-    if (labeledName == null || labeledName.getBaseName().isEmpty()) {
+    if (!labeledName.isPresent() || labeledName.get().getBaseName().isEmpty()) {
       return Optional.empty();
     }
 
@@ -133,8 +133,8 @@ public class MetricsToPerStepNamespaceMetricsConverter {
 
     return Optional.of(
         new MetricValue()
-            .setMetric(labeledName.getBaseName())
-            .setMetricLabels(labeledName.getMetricLabels())
+            .setMetric(labeledName.get().getBaseName())
+            .setMetricLabels(labeledName.get().getMetricLabels())
             .setValueHistogram(histogramValue));
   }
 
