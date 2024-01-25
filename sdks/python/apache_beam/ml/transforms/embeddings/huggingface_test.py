@@ -33,6 +33,7 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=ungrouped-imports
 try:
   from apache_beam.ml.transforms.embeddings.huggingface import SentenceTransformerEmbeddings
+  from apache_beam.ml.transforms.embeddings.huggingface import InferenceAPIEmbeddings
   import torch
 except ImportError:
   SentenceTransformerEmbeddings = None  # type: ignore
@@ -272,6 +273,48 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
           ptransform_list[i]._model_handler.columns, expected_columns[i])
       self.assertEqual(
           ptransform_list[i]._model_handler._underlying.model_name, model_name)
+
+
+class HuggingfaceInferenceAPITest(unittest.TestCase):
+  def setUp(self):
+    self.artifact_location = tempfile.mkdtemp()
+    self.hf_token = os.environ['HF_TOKEN']
+    self.inputs = [{test_query_column: test_query}]
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
+  def test_get_api_url_and_when_model_name_not_provided(self):
+    with self.assertRaises(ValueError):
+      inference_embeddings = InferenceAPIEmbeddings(
+          hf_token=self.hf_token,
+          columns=[test_query_column],
+      )
+      _ = inference_embeddings.api_url
+
+  def test_embeddings_with_inference_api(self):
+    embedding_config = InferenceAPIEmbeddings(
+        hf_token=self.hf_token,
+        model_name=DEFAULT_MODEL_NAME,
+        columns=[test_query_column],
+    )
+    expected_output = [0.13]
+    with beam.Pipeline() as p:
+      result_pcoll = (
+          p
+          | "CreateData" >> beam.Create(self.inputs)
+          | "MLTransform" >> MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  embedding_config))
+      max_ele_pcoll = (
+          result_pcoll
+          | beam.Map(lambda x: round(np.max(x[test_query_column]), 2)))
+
+      assert_that(max_ele_pcoll, equal_to(expected_output))
+
+
+class HuggingfaceInferenceAPIGCSLocationTest(HuggingfaceInferenceAPITest):
+  pass
 
 
 if __name__ == '__main__':
