@@ -205,9 +205,9 @@ class AutoGenerationScriptTest(unittest.TestCase):
         self.test_dir, "test_transform_config.yaml")
     os.mkdir(self.test_dir)
 
-    # self.assertTrue(
-    #     os.environ.get('EXPANSION_PORTS'), "Expansion service port not found!")
-    # logging.info("EXPANSION_PORTS: %s", os.environ.get('EXPANSION_PORTS'))
+    self.assertTrue(
+        os.environ.get('EXPANSION_PORTS'), "Expansion service port not found!")
+    logging.info("EXPANSION_PORTS: %s", os.environ.get('EXPANSION_PORTS'))
 
   def tearDown(self):
     shutil.rmtree(self.test_dir, ignore_errors=False)

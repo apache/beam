@@ -2618,9 +2618,9 @@ class BeamModulePlugin implements Plugin<Project> {
               def expansionJar = project.project(path).shadowJar.archivePath
               def javaClassLookupAllowlistFile = project.project(path).projectDir.getPath()
               def expansionServiceOpts = [
-                      "group_id": project.name,
-                      "java_expansion_service_jar": expansionJar,
-                      "java_expansion_service_allowlist_file": javaClassLookupAllowlistFile,
+                "group_id": project.name,
+                "java_expansion_service_jar": expansionJar,
+                "java_expansion_service_allowlist_file": javaClassLookupAllowlistFile,
               ]
               // Prepare a port to use for the expansion service
               javaExpansionPorts[path] = getRandomPort()
