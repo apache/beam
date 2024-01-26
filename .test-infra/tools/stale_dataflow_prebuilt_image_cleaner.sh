@@ -86,15 +86,12 @@ for image_name in ${IMAGE_NAMES[@]}; do
           MANIFEST=$(docker manifest inspect ${image_name}@"${current}")
           SHOULD_DELETE=0
           DIGEST=$(echo $MANIFEST |  jq -r '.manifests[0].digest')
-          if [ "$DIGEST" != "null" ]
-          then
+          if [ "$DIGEST" != "null" ]; then
             SHOULD_DELETE=1
-            for i in ${STALE_IMAGES_CURRENT[@]}
-            do
-              echo "$i"
-              if [ "$i" = "$DIGEST" ]
-              then
+            for i in ${STALE_IMAGES_CURRENT[@]}; do
+              if [ "$i" = "$DIGEST" ]; then
                 SHOULD_DELETE=0
+                break
               fi
             done
           fi
@@ -110,12 +107,14 @@ for image_name in ${IMAGE_NAMES[@]}; do
   fi
 
   # Some images may not be successfully deleted the first time due to flakiness or having a dependency that hasn't been deleted yet.
-  RETRY_DELETE=("${FAILED_TO_DELETE[@]}")
-  echo "Failed to delete the following images: ${FAILED_TO_DELETE}. Retrying each of them."
-  for current in $RETRY_DELETE; do
-    echo "Trying again to delete image ${image_name}@"${current}". Command: gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q"
-    gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q
-  done
+  if [ -n $FAILED_TO_DELETE]; then
+    RETRY_DELETE=("${FAILED_TO_DELETE[@]}")
+    echo "Failed to delete the following images: ${FAILED_TO_DELETE}. Retrying each of them."
+    for current in $RETRY_DELETE; do
+      echo "Trying again to delete image ${image_name}@"${current}". Command: gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q"
+      gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q
+    done
+  fi
 done
 
 if [[ ${STALE_IMAGES} ]]; then
