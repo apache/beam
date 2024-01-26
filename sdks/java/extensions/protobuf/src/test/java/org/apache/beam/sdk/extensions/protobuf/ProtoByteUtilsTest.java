@@ -48,6 +48,26 @@ public class ProtoByteUtilsTest {
           + "  Address address = 4;\n"
           + "}";
 
+  private static final String PROTO_STRING_PACKAGE_SCHEMA =
+      "syntax = \"proto3\";\n"
+          + "package com.test.proto;"
+          + "\n"
+          + "message MyMessage {\n"
+          + "  int32 id = 1;\n"
+          + "  string name = 2;\n"
+          + "  bool active = 3;\n"
+          + "\n"
+          + "  // Nested field\n"
+          + "  message Address {\n"
+          + "    string street = 1;\n"
+          + "    string city = 2;\n"
+          + "    string state = 3;\n"
+          + "    string zip_code = 4;\n"
+          + "  }\n"
+          + "\n"
+          + "  Address address = 4;\n"
+          + "}";
+
   private static final String DESCRIPTOR_PATH =
       Objects.requireNonNull(
               ProtoByteUtilsTest.class.getResource(
@@ -81,6 +101,14 @@ public class ProtoByteUtilsTest {
   @Test
   public void testProtoSchemaStringToBeamSchema() {
     Schema schema = ProtoByteUtils.getBeamSchemaFromProtoSchema(PROTO_STRING_SCHEMA, "MyMessage");
+    Assert.assertEquals(schema.getFieldNames(), SCHEMA.getFieldNames());
+  }
+
+  @Test
+  public void testProtoSchemaWitPackageStringToBeamSchema() {
+    Schema schema =
+        ProtoByteUtils.getBeamSchemaFromProtoSchema(
+            PROTO_STRING_PACKAGE_SCHEMA, "com.test.proto.MyMessage");
     Assert.assertEquals(schema.getFieldNames(), SCHEMA.getFieldNames());
   }
 
@@ -143,5 +171,24 @@ public class ProtoByteUtilsTest {
 
     Assert.assertNotNull(
         ProtoByteUtils.getRowToProtoBytesFromSchema(PROTO_STRING_SCHEMA, "MyMessage").apply(row));
+  }
+
+  @Test
+  public void testRowToProtoSchemaWithPackageFunction() {
+    Row row =
+        Row.withSchema(SCHEMA)
+            .withFieldValue("id", 1234)
+            .withFieldValue("name", "Doe")
+            .withFieldValue("active", false)
+            .withFieldValue("address.city", "seattle")
+            .withFieldValue("address.street", "fake street")
+            .withFieldValue("address.zip_code", "TO-1234")
+            .withFieldValue("address.state", "wa")
+            .build();
+
+    Assert.assertNotNull(
+        ProtoByteUtils.getRowToProtoBytesFromSchema(
+                PROTO_STRING_PACKAGE_SCHEMA, "com.test.proto.MyMessage")
+            .apply(row));
   }
 }

@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.io.gcp.pubsublite.internal.Uuid;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -77,7 +78,7 @@ public class PubsubLiteReadSchemaTransformProvider
   private static final Logger LOG =
       LoggerFactory.getLogger(PubsubLiteReadSchemaTransformProvider.class);
 
-  public static final String VALID_FORMATS_STR = "RAW,AVRO,JSON";
+  public static final String VALID_FORMATS_STR = "RAW,AVRO,JSON,PROTO";
   public static final Set<String> VALID_DATA_FORMATS =
       Sets.newHashSet(VALID_FORMATS_STR.split(","));
 
@@ -213,6 +214,26 @@ public class PubsubLiteReadSchemaTransformProvider
       }
       beamSchema = Schema.builder().addField("payload", Schema.FieldType.BYTES).build();
       valueMapper = getRawBytesToRowFunction(beamSchema);
+
+    } else if (format != null && format.equals("PROTO")) {
+      String fileDescriptorPath = configuration.getFileDescriptorPath();
+      String messageName = configuration.getMessageName();
+
+      if (messageName == null) {
+        throw new IllegalArgumentException(
+            "To read from PubSubLite in PROTO format, messageName must be provided.");
+      }
+
+      if (fileDescriptorPath != null) {
+        beamSchema = ProtoByteUtils.getBeamSchemaFromProto(fileDescriptorPath, messageName);
+        valueMapper = ProtoByteUtils.getProtoBytesToRowFunction(fileDescriptorPath, messageName);
+      } else if (inputSchema != null) {
+        beamSchema = ProtoByteUtils.getBeamSchemaFromProtoSchema(inputSchema, messageName);
+        valueMapper = ProtoByteUtils.getProtoBytesToRowFromSchemaFunction(inputSchema, messageName);
+      } else {
+        throw new IllegalArgumentException(
+            "To read from PubSubLite in PROTO format, either descriptorPath or schema must be provided.");
+      }
 
     } else {
       if (inputSchema == null) {
@@ -459,6 +480,18 @@ public class PubsubLiteReadSchemaTransformProvider
             + "case, deduplication of the stream will be strictly best effort.")
     public abstract @Nullable String getAttributeId();
 
+    @SchemaFieldDescription(
+        "The path to the Protocol Buffer File Descriptor Set file. This file is used for schema"
+            + " definition and message serialization.")
+    @Nullable
+    public abstract String getFileDescriptorPath();
+
+    @SchemaFieldDescription(
+        "The name of the Protocol Buffer message to be used for schema"
+            + " extraction and data conversion.")
+    @Nullable
+    public abstract String getMessageName();
+
     public static Builder builder() {
       return new AutoValue_PubsubLiteReadSchemaTransformProvider_PubsubLiteReadSchemaTransformConfiguration
           .Builder();
@@ -485,6 +518,12 @@ public class PubsubLiteReadSchemaTransformProvider
 
       @SuppressWarnings("unused")
       public abstract Builder setAttributeId(String attributeId);
+
+      @SuppressWarnings("unused")
+      public abstract Builder setFileDescriptorPath(String fileDescriptorPath);
+
+      @SuppressWarnings("unused")
+      public abstract Builder setMessageName(String messageName);
 
       public abstract PubsubLiteReadSchemaTransformConfiguration build();
     }
