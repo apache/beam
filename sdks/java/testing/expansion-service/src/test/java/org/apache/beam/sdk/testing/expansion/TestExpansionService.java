@@ -32,6 +32,7 @@ import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
@@ -137,7 +138,7 @@ public class TestExpansionService {
 
       @Override
       public PTransform<KeyedPCollectionTuple<Long>, PCollection<KV<Long, Iterable<String>>>>
-          getTransform(RunnerApi.FunctionSpec spec) {
+          getTransform(RunnerApi.FunctionSpec spec, PipelineOptions options) {
         return new TestCoGroupByKeyTransform();
       }
     }
@@ -155,7 +156,7 @@ public class TestExpansionService {
 
       @Override
       public PTransform<PCollectionList<Long>, PCollection<Long>> getTransform(
-          RunnerApi.FunctionSpec spec) {
+          RunnerApi.FunctionSpec spec, PipelineOptions options) {
         return Flatten.pCollections();
       }
     }

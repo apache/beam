@@ -38,6 +38,8 @@
         create_disposition: 'createDisposition'
         write_disposition: 'writeDisposition'
         error_handling: 'errorHandling'
+        # TODO(https://github.com/apache/beam/issues/30058): Required until autosharding support is fixed
+        num_streams: 'numStreams'
     underlying_provider:
       type: beamJar
       transforms:

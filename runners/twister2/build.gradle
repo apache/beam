@@ -41,7 +41,7 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.jackson_annotations
     implementation library.java.joda_time
-    implementation library.java.vendored_grpc_1_54_0
+    implementation library.java.vendored_grpc_1_60_1
     implementation library.java.slf4j_api
     implementation "org.mortbay.jetty:jetty-util:6.1.26"
     implementation "org.twister2:comms-api-java:$twister2_version"

@@ -42,6 +42,7 @@ import org.apache.beam.sdk.io.kafka.KafkaIO.Write;
 import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecords;
 import org.apache.beam.sdk.io.kafka.KafkaIOUtils;
 import org.apache.beam.sdk.io.kafka.TimestampPolicyFactory;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -51,7 +52,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -215,7 +216,7 @@ public class KafkaIOTranslation {
     }
 
     @Override
-    public Read<?, ?> fromConfigRow(Row configRow) {
+    public Read<?, ?> fromConfigRow(Row configRow, PipelineOptions options) {
       try {
         Read<?, ?> transform = KafkaIO.read();
 
@@ -511,7 +512,7 @@ public class KafkaIOTranslation {
     }
 
     @Override
-    public Write<?, ?> fromConfigRow(Row configRow) {
+    public Write<?, ?> fromConfigRow(Row configRow, PipelineOptions options) {
       try {
         Write<?, ?> transform = KafkaIO.write();
 

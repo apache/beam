@@ -237,8 +237,9 @@ class Scope(LightweightScope):
       for transform in self._transforms:
         if transform['type'] != 'composite':
           for input in empty_if_explicitly_empty(transform['input']).values():
-            transform_id, _ = self.get_transform_id_and_output_name(input)
-            self._all_followers[transform_id].append(transform['__uuid__'])
+            if input not in self._inputs:
+              transform_id, _ = self.get_transform_id_and_output_name(input)
+              self._all_followers[transform_id].append(transform['__uuid__'])
     return self._all_followers[self.get_transform_id(transform_name)]
 
   def compute_all(self):
@@ -738,7 +739,9 @@ def preprocess_windowing(spec):
         'type': 'WindowInto',
         'name': f'WindowInto[{key}]',
         'windowing': windowing,
-        'input': key,
+        'input': {
+            'input': key
+        },
         '__line__': spec['__line__'],
         '__uuid__': SafeLineLoader.create_uuid(),
     } for key in original_inputs.keys()]

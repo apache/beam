@@ -925,9 +925,6 @@ class BigQueryFileLoadsIT(unittest.TestCase):
         create_disposition='CREATE_IF_NEEDED',
         write_disposition='WRITE_APPEND')
 
-    # reduce load job size to induce copy jobs
-    bqfl._DEFAULT_MAX_FILE_SIZE = 10
-    bqfl._MAXIMUM_LOAD_SIZE = 20
     verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
@@ -949,8 +946,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
         dest += "_2"
       return dest
 
-    args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=all_of(verifiers))
+    args = self.test_pipeline.get_full_options_as_args()
 
     with beam.Pipeline(argv=args) as p:
       # 0...4 going to table 1
@@ -961,7 +957,10 @@ class BigQueryFileLoadsIT(unittest.TestCase):
           p | beam.Create(items) | bigquery.WriteToBigQuery(
               table=callable_table,
               create_disposition="CREATE_NEVER",
-              write_disposition="WRITE_APPEND"))
+              write_disposition="WRITE_APPEND",
+              # reduce load job size to induce copy jobs
+              max_file_size=10,
+              max_partition_size=20))
 
     hamcrest_assert(p, all_of(*verifiers))
 
@@ -1001,8 +1000,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                   if 'foundation' in d])
     ]
 
-    args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=all_of(*pipeline_verifiers))
+    args = self.test_pipeline.get_full_options_as_args()
 
     with beam.Pipeline(argv=args) as p:
       input = p | beam.Create(_ELEMENTS, reshuffle=False)
@@ -1044,6 +1042,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
               max_file_size=20,
               max_files_per_bundle=-1))
+    hamcrest_assert(p, all_of(*pipeline_verifiers))
 
   @pytest.mark.it_postcommit
   def test_bqfl_streaming(self):

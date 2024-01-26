@@ -566,6 +566,8 @@ public class PubsubIO {
   public static Read<PubsubMessage> readMessagesWithAttributesAndMessageIdAndOrderingKey() {
     return Read.newBuilder()
         .setCoder(PubsubMessageWithAttributesAndMessageIdAndOrderingKeyCoder.of())
+        .setNeedsAttributes(true)
+        .setNeedsMessageId(true)
         .setNeedsOrderingKey(true)
         .build();
   }
