@@ -36,6 +36,7 @@ from typing import Dict
 from typing import Iterable
 from typing import Mapping
 from typing import Optional
+from typing import Union
 
 import docstring_parser
 import yaml
@@ -48,7 +49,8 @@ import apache_beam.transforms.util
 from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms import external
 from apache_beam.transforms import window
-from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
+from apache_beam.transforms.fully_qualified_named_transform import \
+  FullyQualifiedNamedTransform
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.schemas import named_tuple_to_schema
@@ -139,19 +141,23 @@ def as_provider_list(name, lst):
   return [as_provider(name, x) for x in lst]
 
 
-def parse_callable_kwargs(spec: Optional[Mapping[str, Any]]):
-  def _parse_callable_kwargs_rec(args, top_level=False):
-    parsed_args = {}
-    for arg, val in args.items():
-      parsed_args[arg] = val
-      if isinstance(val, dict):
-        parsed_args[arg] = _parse_callable_kwargs_rec(val)
-      elif arg == 'callable' and len(args) == 1 and not top_level:
+def parse_callable_args(spec: Optional[Union[Mapping[str, Any], Iterable]]):
+  def _parse_callable_args_rec(args, top_level=False):
+    if isinstance(args, dict):
+      if len(args) == 1 and next(iter(
+          args.keys())) == '__callable__' and not top_level:
         load = python_callable.PythonCallableWithSource.load_from_source
-        return load(val)
-    return parsed_args
+        return load(next(iter(args.values())))
+      elif '__callable__' not in args.keys():
+        return {k: _parse_callable_args_rec(v) for (k, v) in args.items()}
+      else:
+        raise ValueError('__callable__ cannot be specified as top-level kwarg.')
+    elif isinstance(args, list):
+      return [_parse_callable_args_rec(e) for e in args]
+    else:
+      return args
 
-  return _parse_callable_kwargs_rec(spec, True)
+  return _parse_callable_args_rec(spec, True)
 
 
 class ExternalProvider(Provider):
@@ -365,7 +371,7 @@ class ExternalPythonProvider(ExternalProvider):
 
   def create_transform(self, type, args, yaml_create_transform):
     super().create_transform(
-        type, parse_callable_kwargs(args), yaml_create_transform)
+        type, parse_callable_args(args), yaml_create_transform)
 
   def create_external_transform(self, urn, args):
     # Python transforms are "registered" by fully qualified name.
@@ -494,7 +500,7 @@ class InlineProvider(Provider):
 
   def create_transform(self, type, args, yaml_create_transform):
     if self._custom_provider:
-      args = parse_callable_kwargs(args)
+      args = parse_callable_args(args)
     return self._transform_factories[type](**args)
 
   def to_json(self):
@@ -626,7 +632,7 @@ class YamlProviders:
     `apache_beam.pkg.mod.SomeClass(1, 'foo', baz=3)`.
 
     For transforms that accept python callable objects as parameters, the
-    kwargs values can be tagged as callable.
+    kwargs values can be tagged as `__callable__`.
 
     For example::
 
@@ -636,7 +642,7 @@ class YamlProviders:
            args: ['foo', 'bar']
            kwargs:
              fn:
-               callable: str.upper
+               __callable__: str.upper
 
     Args:
         constructor: Fully qualified name of a callable used to construct the
@@ -650,7 +656,7 @@ class YamlProviders:
     """
     with FullyQualifiedNamedTransform.with_filter('*'):
       return constructor >> FullyQualifiedNamedTransform(
-          constructor, args, parse_callable_kwargs(kwargs))
+          constructor, parse_callable_args(args), parse_callable_args(kwargs))
 
   # This intermediate is needed because there is no way to specify a tuple of
   # exactly zero or one PCollection in yaml (as they would be interpreted as

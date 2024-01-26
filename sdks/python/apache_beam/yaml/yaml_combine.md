@@ -148,8 +148,8 @@ parameter.
 ```
 
 For custom aggregation functions that use python callables as parameters, 
-nesting the function parameter values under a `callable` tag will tell the 
-transform to treat the value as a callable.
+nesting the function parameter values under a `__callable__` tag will tell the 
+transform to evaluate the value as a callable rather than a literal string.
 
 ```
 - type: Combine
@@ -164,7 +164,7 @@ transform to treat the value as a callable.
           config:
             n: 2
             key:
-              callable: len
+              __callable__: len
             reverse: true
 ```
 

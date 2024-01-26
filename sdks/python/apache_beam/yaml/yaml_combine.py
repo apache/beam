@@ -32,7 +32,7 @@ from apache_beam.utils import python_callable
 from apache_beam.yaml import options
 from apache_beam.yaml import yaml_mapping
 from apache_beam.yaml import yaml_provider
-from apache_beam.yaml.yaml_provider import parse_callable_kwargs
+from apache_beam.yaml.yaml_provider import parse_callable_args
 
 BUILTIN_COMBINE_FNS = {
     'sum': sum,
@@ -114,7 +114,7 @@ class PyJsYamlCombine(beam.PTransform):
         fn = python_callable.PythonCallableWithSource.load_from_source(
             fn_spec['type'])
         if 'config' in fn_spec:
-          fn = fn(**parse_callable_kwargs(fn_spec['config']))
+          fn = fn(**parse_callable_args(fn_spec['config']))
         return fn
       else:
         raise TypeError('Unknown CombineFn: {fn_spec}')
