@@ -403,7 +403,8 @@ if __name__ == '__main__':
               'testcontainers[mysql]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<=7.0.0',
-              'jinja2>=2.7.1,<4.0.0'
+              'jinja2>=2.7.1,<4.0.0',
+              'yapf>=0.29.0,<1.0.0'
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',

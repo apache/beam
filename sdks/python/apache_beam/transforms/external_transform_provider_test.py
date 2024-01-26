@@ -24,6 +24,7 @@ import typing
 import unittest
 from importlib import import_module
 
+import numpy
 import pytest
 import yaml
 
@@ -41,19 +42,21 @@ from apache_beam.transforms.external_transform_provider import infer_name_from_i
 from apache_beam.transforms.external_transform_provider import snake_case_to_lower_camel_case
 from apache_beam.transforms.external_transform_provider import snake_case_to_upper_camel_case
 
-try:
-  from gen_xlang_wrappers import PYTHON_SUFFIX
-  from gen_xlang_wrappers import delete_generated_files
-  from gen_xlang_wrappers import generate_transforms_config
-  from gen_xlang_wrappers import get_wrappers_from_transform_configs
-  from gen_xlang_wrappers import run_script
-  from gen_xlang_wrappers import write_wrappers_to_destinations
-  from gen_protos import PYTHON_SDK_ROOT
-except ImportError:
-  run_script = None  # type: ignore[assignment]
+# try:
+from gen_xlang_wrappers import PYTHON_SUFFIX
+from gen_xlang_wrappers import delete_generated_files
+from gen_xlang_wrappers import generate_transforms_config
+from gen_xlang_wrappers import get_wrappers_from_transform_configs
+from gen_xlang_wrappers import pretty_type
+from gen_xlang_wrappers import run_script
+from gen_xlang_wrappers import write_wrappers_to_destinations
+from gen_protos import PYTHON_SDK_ROOT
+from gen_protos import PROJECT_ROOT
+# except ImportError:
+#   run_script = None  # type: ignore[assignment]
 
 
-class NameUtilsTest(unittest.TestCase):
+class NameAndTypeUtilsTest(unittest.TestCase):
   def test_snake_case_to_upper_camel_case(self):
     test_cases = [("", ""), ("test", "Test"), ("test_name", "TestName"),
                   ("test_double_underscore", "TestDoubleUnderscore"),
@@ -116,6 +119,24 @@ class NameUtilsTest(unittest.TestCase):
     for case in custom_pattern_cases:
       self.assertEqual(case[2], infer_name_from_identifier(case[1], case[0]))
 
+  def test_pretty_types(self):
+    types = [
+        typing.Optional[typing.List[str]],
+        numpy.int16,
+        str,
+        typing.Dict[str, numpy.float64],
+        typing.Optional[typing.Dict[str, typing.List[numpy.int64]]],
+        typing.Dict[int, typing.Optional[str]]
+    ]
+
+    expected_type_names = [('List[str]', True), ('numpy.int16', False),
+                           ('str', False), ('Dict[str, numpy.float64]', False),
+                           ('Dict[str, List[numpy.int64]]', True),
+                           ('Dict[int, Union[str, NoneType]]', False)]
+
+    for i in range(len(types)):
+      self.assertEqual(pretty_type(types[i]), expected_type_names[i])
+
 
 @pytest.mark.uses_io_java_expansion_service
 class ExternalTransformProviderTest(unittest.TestCase):
@@ -154,9 +175,9 @@ class ExternalTransformProviderTest(unittest.TestCase):
 
 
 @pytest.mark.uses_multiple_java_expansion_services
-@unittest.skipIf(
-    run_script is None,
-    "Need access to gen_xlang_wrappers.py to run these tests")
+# @unittest.skipIf(
+#     run_script is None,
+#     "Need access to gen_xlang_wrappers.py to run these tests")
 class AutoGenerationScriptTest(unittest.TestCase):
   """
   This class tests the generation and regeneration operations in
@@ -196,15 +217,14 @@ class AutoGenerationScriptTest(unittest.TestCase):
     with open(self.service_config_path, 'w') as f:
       yaml.dump([expansion_service_config], f)
 
-    # test that transform config YAML file is created
     generate_transforms_config(
-      self.service_config_path, self.transform_config_path)
+        self.service_config_path, self.transform_config_path)
     self.assertTrue(os.path.exists(self.transform_config_path))
 
-  def create_and_validate_transforms_config(self, expansion_service_config, expected_name, expected_destination):
+  def create_and_validate_transforms_config(
+      self, expansion_service_config, expected_name, expected_destination):
     self.create_and_check_transforms_config_exists(expansion_service_config)
 
-    # test that transform config is populated correctly
     with open(self.transform_config_path) as f:
       configs = yaml.safe_load(f)
       gen_seq_config = None
@@ -213,11 +233,11 @@ class AutoGenerationScriptTest(unittest.TestCase):
           gen_seq_config = config
       self.assertIsNotNone(gen_seq_config)
       self.assertEqual(
-        gen_seq_config['default_service'],
-        expansion_service_config['gradle_target'])
+          gen_seq_config['default_service'],
+          expansion_service_config['gradle_target'])
       self.assertEqual(gen_seq_config['name'], expected_name)
       self.assertEqual(
-        gen_seq_config['destinations']['python'], expected_destination)
+          gen_seq_config['destinations']['python'], expected_destination)
       self.assertIn("end", gen_seq_config['fields'])
       self.assertIn("start", gen_seq_config['fields'])
       self.assertIn("rate", gen_seq_config['fields'])
@@ -225,7 +245,8 @@ class AutoGenerationScriptTest(unittest.TestCase):
   def get_module(self, path):
     return import_module(path.replace('/', '.') + PYTHON_SUFFIX.rstrip('.py'))
 
-  def write_wrappers_to_destinations_and_validate(self, destinations: typing.List[str]):
+  def write_wrappers_to_destinations_and_validate(
+      self, destinations: typing.List[str]):
     """
     Generate wrappers from the config path and validate all destinations are
     included.
@@ -234,23 +255,25 @@ class AutoGenerationScriptTest(unittest.TestCase):
 
     :return: Generated wrappers grouped by destination
     """
-    # test the GenerateSequence wrapper is set to the right destination
     grouped_wrappers = get_wrappers_from_transform_configs(
-      self.transform_config_path)
+        self.transform_config_path)
     for dest in destinations:
       self.assertIn(dest, grouped_wrappers)
 
     write_wrappers_to_destinations(grouped_wrappers)
     for dest in destinations:
       self.assertTrue(
-        os.path.exists(os.path.join(PYTHON_SDK_ROOT, *(dest + PYTHON_SUFFIX).split('/'))))
+          os.path.exists(
+              os.path.join(PYTHON_SDK_ROOT,
+                           *(dest + PYTHON_SUFFIX).split('/'))))
     return grouped_wrappers
 
   def delete_and_validate(self, destination):
     delete_generated_files(self.test_dir)
     self.assertFalse(
-      os.path.exists(
-        os.path.join(PYTHON_SDK_ROOT, *(destination + PYTHON_SUFFIX).split('/'))))
+        os.path.exists(
+            os.path.join(
+                PYTHON_SDK_ROOT, *(destination + PYTHON_SUFFIX).split('/'))))
 
   def test_script_workflow(self):
     expansion_service_config = {
@@ -262,8 +285,10 @@ class AutoGenerationScriptTest(unittest.TestCase):
     expected_destination = \
       f'apache_beam/transforms/{self.test_dir_name}/generate_sequence'
 
-    self.create_and_validate_transforms_config(expansion_service_config, 'GenerateSequence', expected_destination)
-    grouped_wrappers = self.write_wrappers_to_destinations_and_validate([expected_destination])
+    self.create_and_validate_transforms_config(
+        expansion_service_config, 'GenerateSequence', expected_destination)
+    grouped_wrappers = self.write_wrappers_to_destinations_and_validate(
+        [expected_destination])
     # only the GenerateSequence wrapper is set to this destination
     self.assertEqual(len(grouped_wrappers[expected_destination]), 1)
 
@@ -272,13 +297,11 @@ class AutoGenerationScriptTest(unittest.TestCase):
     self.assertTrue(hasattr(generate_sequence_et, 'GenerateSequence'))
     self.assertTrue(
         isinstance(
-            generate_sequence_et.GenerateSequence(start=0),
-            ExternalTransform))
+            generate_sequence_et.GenerateSequence(start=0), ExternalTransform))
     self.assertEqual(
         generate_sequence_et.GenerateSequence.identifier,
         self.GEN_SEQ_IDENTIFIER)
 
-    # test that we successfully delete the destination
     self.delete_and_validate(expected_destination)
 
   def test_script_workflow_with_modified_transforms(self):
@@ -301,10 +324,11 @@ class AutoGenerationScriptTest(unittest.TestCase):
     }
     os.mkdir(os.path.join(self.test_dir, 'new_dir'))
 
-    self.create_and_validate_transforms_config(expansion_service_config, modified_name, modified_dest)
+    self.create_and_validate_transforms_config(
+        expansion_service_config, modified_name, modified_dest)
 
-    # test that the code for 'ModifiedSequence' is set to the right destination
-    grouped_wrappers = self.write_wrappers_to_destinations_and_validate([modified_dest])
+    grouped_wrappers = self.write_wrappers_to_destinations_and_validate(
+        [modified_dest])
     self.assertIn(modified_name, grouped_wrappers[modified_dest][0])
     self.assertEqual(len(grouped_wrappers[modified_dest]), 1)
 
@@ -313,13 +337,11 @@ class AutoGenerationScriptTest(unittest.TestCase):
     modified_gen_seq_et = self.get_module(modified_dest)
     self.assertTrue(
         isinstance(
-            modified_gen_seq_et.ModifiedSequence(start=0),
-            ExternalTransform))
+            modified_gen_seq_et.ModifiedSequence(start=0), ExternalTransform))
     self.assertEqual(
         modified_gen_seq_et.ModifiedSequence.identifier,
         self.GEN_SEQ_IDENTIFIER)
 
-    # test that we successfully delete the destination
     self.delete_and_validate(modified_dest)
 
   def test_script_workflow_with_multiple_wrappers_same_destination(self):
@@ -357,7 +379,8 @@ class AutoGenerationScriptTest(unittest.TestCase):
           self.assertEqual(transform['destinations']['python'], modified_dest)
 
     # write wrappers to destination then check that all 3 exist there
-    grouped_wrappers = self.write_wrappers_to_destinations_and_validate([modified_dest])
+    grouped_wrappers = self.write_wrappers_to_destinations_and_validate(
+        [modified_dest])
     self.assertEqual(len(grouped_wrappers[modified_dest]), 3)
     my_wrappers_et = self.get_module(modified_dest)
     self.assertTrue(hasattr(my_wrappers_et, 'GenerateSequence'))
@@ -365,13 +388,15 @@ class AutoGenerationScriptTest(unittest.TestCase):
     self.assertTrue(hasattr(my_wrappers_et, 'KafkaRead'))
     self.delete_and_validate(modified_dest)
 
-  def test_script_workflow_with_ignored_transform(self):
+  def test_script_workflow_with_skipped_transform(self):
     expansion_service_config = {
         "gradle_target": 'sdks:java:io:expansion-service:shadowJar',
         'destinations': {
             'python': f'apache_beam/transforms/{self.test_dir_name}'
         },
-        'ignore': ['beam:schematransform:org.apache.beam:generate_sequence:v1']
+        'skip_transforms': [
+            'beam:schematransform:org.apache.beam:generate_sequence:v1'
+        ]
     }
 
     with open(self.service_config_path, 'w') as f:
@@ -407,7 +432,8 @@ class AutoGenerationScriptTest(unittest.TestCase):
 
     with open(self.service_config_path, 'w') as f:
       yaml.dump([expansion_service_config], f)
-    generate_transforms_config(self.service_config_path, self.transform_config_path)
+    generate_transforms_config(
+        self.service_config_path, self.transform_config_path)
     wrappers_grouped_by_destination = get_wrappers_from_transform_configs(
         self.transform_config_path)
     write_wrappers_to_destinations(wrappers_grouped_by_destination)
@@ -422,19 +448,19 @@ class AutoGenerationScriptTest(unittest.TestCase):
 
   def test_check_standard_external_transforms_config_in_sync(self):
     """
-    This test creates a transforms config file and checks it against the file
-    in the SDK root `standard_external_transforms.yaml`. Fails if the
-    test is out of sync.
+    This test creates a transforms config file and checks it against
+    `sdks/standard_external_transforms.yaml`. Fails if the test is out of sync.
 
     Fix by running `./gradlew generateExternalTransformWrappers` and
     committing the changes.
     """
     generate_transforms_config(
-        os.path.join(PYTHON_SDK_ROOT, 'standard_expansion_services.yaml'),
+        os.path.join(PROJECT_ROOT, 'sdks', 'standard_expansion_services.yaml'),
         self.transform_config_path)
     with open(self.transform_config_path) as f:
       test_config = yaml.safe_load(f)
-    with open(os.path.join(PYTHON_SDK_ROOT,
+    with open(os.path.join(PROJECT_ROOT,
+                           'sdks',
                            'standard_external_transforms.yaml'),
               'r') as f:
       standard_config = yaml.safe_load(f)
