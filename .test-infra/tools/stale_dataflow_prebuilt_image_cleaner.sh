@@ -54,6 +54,9 @@ while [ -n "$REPOSITORIES" ]; do
   REPOSITORIES=("${PENDING_REPOSITORIES[@]}")
 done
 
+STALE_IMAGES=""
+FAILED_INSPECT=""
+
 for image_name in ${IMAGE_NAMES[@]}; do
   echo IMAGES FOR image ${image_name}
   FAILED_TO_DELETE=""
@@ -83,7 +86,12 @@ for image_name in ${IMAGE_NAMES[@]}; do
           # they will have a virtual size of 0 and a created date at the start of the epoch, but their manifests will
           # point to active images. These images should only be deleted when all of their dependencies can be safely
           # deleted.
-          MANIFEST=$(docker manifest inspect ${image_name}@"${current}")
+          MANIFEST=$(docker manifest inspect ${image_name}@"${current}" || echo "")
+          if [ -z "$MANIFEST" ]; then
+            # Sometimes "no such manifest" seen. Skip current if command hit error
+            FAILED_INSPECT+=" $current"
+            continue
+          fi
           SHOULD_DELETE=0
           DIGEST=$(echo $MANIFEST |  jq -r '.manifests[0].digest')
           if [ "$DIGEST" != "null" ]; then
@@ -121,4 +129,9 @@ if [[ ${STALE_IMAGES} ]]; then
   echo "Deleted multiple images"
 else
   echo "No stale prebuilt container images found."
+fi
+
+if [ -n "$FAILED_INSPECT" ]; then
+  echo "Failed delete images $FAILED_INSPECT"
+  exit 1
 fi
