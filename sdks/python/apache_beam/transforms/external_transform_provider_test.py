@@ -42,18 +42,17 @@ from apache_beam.transforms.external_transform_provider import infer_name_from_i
 from apache_beam.transforms.external_transform_provider import snake_case_to_lower_camel_case
 from apache_beam.transforms.external_transform_provider import snake_case_to_upper_camel_case
 
-# try:
-from gen_xlang_wrappers import PYTHON_SUFFIX
-from gen_xlang_wrappers import delete_generated_files
-from gen_xlang_wrappers import generate_transforms_config
-from gen_xlang_wrappers import get_wrappers_from_transform_configs
-from gen_xlang_wrappers import pretty_type
-from gen_xlang_wrappers import run_script
-from gen_xlang_wrappers import write_wrappers_to_destinations
-from gen_protos import PYTHON_SDK_ROOT
-from gen_protos import PROJECT_ROOT
-# except ImportError:
-#   run_script = None  # type: ignore[assignment]
+try:
+  from gen_xlang_wrappers import PYTHON_SUFFIX
+  from gen_xlang_wrappers import delete_generated_files
+  from gen_xlang_wrappers import generate_transforms_config
+  from gen_xlang_wrappers import get_wrappers_from_transform_configs
+  from gen_xlang_wrappers import pretty_type
+  from gen_xlang_wrappers import write_wrappers_to_destinations
+  from gen_protos import PYTHON_SDK_ROOT
+  from gen_protos import PROJECT_ROOT
+except ImportError:
+  PYTHON_SUFFIX = None  # type: ignore[assignment]
 
 
 class NameAndTypeUtilsTest(unittest.TestCase):
@@ -175,9 +174,9 @@ class ExternalTransformProviderTest(unittest.TestCase):
 
 
 @pytest.mark.uses_multiple_java_expansion_services
-# @unittest.skipIf(
-#     run_script is None,
-#     "Need access to gen_xlang_wrappers.py to run these tests")
+@unittest.skipIf(
+    PYTHON_SUFFIX is None,
+    "Need access to gen_xlang_wrappers.py to run these tests")
 class AutoGenerationScriptTest(unittest.TestCase):
   """
   This class tests the generation and regeneration operations in
