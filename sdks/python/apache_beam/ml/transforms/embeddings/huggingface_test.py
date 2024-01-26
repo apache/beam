@@ -278,7 +278,7 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
 class HuggingfaceInferenceAPITest(unittest.TestCase):
   def setUp(self):
     self.artifact_location = tempfile.mkdtemp()
-    self.hf_token = os.environ['HF_TOKEN']
+    self.hf_token = os.environ['HF_INFERENCE_TOKEN']
     self.inputs = [{test_query_column: test_query}]
 
   def tearDown(self):
