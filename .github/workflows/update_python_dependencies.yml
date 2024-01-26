@@ -55,6 +55,8 @@ jobs:
           python-version: |
             3.8
             3.9
+            3.10
+            3.11
           java-version: 8
           go-version: 1.21
       - name: Update Python Dependencies
