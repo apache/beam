@@ -107,7 +107,7 @@ for image_name in ${IMAGE_NAMES[@]}; do
   fi
 
   # Some images may not be successfully deleted the first time due to flakiness or having a dependency that hasn't been deleted yet.
-  if [ -n $FAILED_TO_DELETE]; then
+  if [ -n "$FAILED_TO_DELETE" ]; then
     RETRY_DELETE=("${FAILED_TO_DELETE[@]}")
     echo "Failed to delete the following images: ${FAILED_TO_DELETE}. Retrying each of them."
     for current in $RETRY_DELETE; do
