@@ -26,10 +26,9 @@ PUBLIC_REPOSITORIES=(beam-sdk beam_portability beamgrafana beammetricssyncjenkin
 PRIVATE_REPOSITORIES=(java-postcommit-it python-postcommit-it jenkins github-actions)
 # set as the same as 6-week release period
 if [[ $OSTYPE == "linux-gnu"* ]]; then
-  # skip if not a valid date
+  # date command usage depending on OS
   DELETE_BEFORE_DAY=$(date --iso-8601=s -d '6 weeks ago')
 elif [[ $OSTYPE == "darwin"* ]]; then
-  # date command usage depending on OS
   DELETE_BEFORE_DAY=$(date -j -v-6w '+%Y-%m-%dT%H:%M:%S')
 fi
 
