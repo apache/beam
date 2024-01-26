@@ -77,6 +77,8 @@ jobs:
           git config user.name $GITHUB_ACTOR
           git config user.email actions@"$RUNNER_NAME".local
       - name: Commit Changes and create new PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }
         run: |
           branchName=weekly_update_python_dependencies_$(date +%s)
           git checkout -b $branchName
