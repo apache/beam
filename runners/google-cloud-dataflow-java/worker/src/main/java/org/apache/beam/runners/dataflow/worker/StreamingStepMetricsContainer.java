@@ -98,7 +98,10 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
     };
   }
 
-  // Testing constructor.
+  /**
+   * Construct a {@code StreamingStepMetricsContainer} that supports mock clock, perWorkerCounters,
+   * and perWorkerCountersByFirstStaleTime. For testing purposes only.
+   */
   private StreamingStepMetricsContainer(
       String stepName,
       Map<MetricName, Instant> perWorkerCountersByFirstStaleTime,
@@ -218,6 +221,9 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
     StreamingStepMetricsContainer.enablePerWorkerMetrics = enablePerWorkerMetrics;
   }
 
+  public static boolean getEnablePerWorkerMetrics() {
+    return StreamingStepMetricsContainer.enablePerWorkerMetrics;
+  }
   /**
    * Updates {@code perWorkerCountersByFirstStaleTime} with the current zero-valued metrics and
    * removes metrics that have been stale for longer than {@code maximumPerWorkerCounterStaleness}

@@ -23,12 +23,15 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.MapTask;
+import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
+import com.google.api.services.dataflow.model.PerWorkerMetrics;
 import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.StreamingScalingReport;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
+import com.google.api.services.dataflow.model.WorkerMessage;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
@@ -117,6 +120,7 @@ import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.BackOff;
@@ -486,10 +490,13 @@ public class StreamingDataflowWorker {
     // metrics.
     MetricsEnvironment.setProcessWideContainer(new MetricsLogger(null));
 
-    // When enabled, the Pipeline will record Per-Worker metrics that will be piped to WMW.
+    // When enabled, the Pipeline will record Per-Worker metrics that will be piped to DFE.
     StreamingStepMetricsContainer.setEnablePerWorkerMetrics(
         options.isEnableStreamingEngine()
             && DataflowRunner.hasExperiment(options, "enable_per_worker_metrics"));
+    // StreamingStepMetricsContainer automatically deletes perWorkerCounters if they are zero-valued
+    // for longer than 5 minutes.
+    BigQuerySinkMetrics.setSupportMetricsDeletion(true);
 
     JvmInitializers.runBeforeProcessing(options);
     worker.startStatusPages();
@@ -1777,7 +1784,7 @@ public class StreamingDataflowWorker {
     maxOutstandingBundles.addValue((long) workUnitExecutor.maximumElementsOutstanding());
   }
 
-  private void sendWorkerMessage() throws IOException {
+  private WorkerMessage createWorkerMessageForStreamingScalingReport() {
     StreamingScalingReport activeThreadsReport =
         new StreamingScalingReport()
             .setActiveThreadCount(workUnitExecutor.activeCount())
@@ -1786,8 +1793,33 @@ public class StreamingDataflowWorker {
             .setMaximumThreadCount(chooseMaximumNumberOfThreads())
             .setMaximumBundleCount(workUnitExecutor.maximumElementsOutstanding())
             .setMaximumBytes(workUnitExecutor.maximumBytesOutstanding());
-    workUnitClient.reportWorkerMessage(
-        workUnitClient.createWorkerMessageFromStreamingScalingReport(activeThreadsReport));
+    return workUnitClient.createWorkerMessageFromStreamingScalingReport(activeThreadsReport);
+  }
+
+  private Optional<WorkerMessage> createWorkerMessageForPerWorkerMetrics() {
+    List<PerStepNamespaceMetrics> metrics = new ArrayList<>();
+    stageInfoMap.values().forEach(s -> metrics.addAll(s.extractPerWorkerMetricValues()));
+
+    if (metrics.isEmpty()) {
+      return Optional.empty();
+    }
+
+    PerWorkerMetrics perWorkerMetrics = new PerWorkerMetrics().setPerStepNamespaceMetrics(metrics);
+    return Optional.of(workUnitClient.createWorkerMessageFromPerWorkerMetrics(perWorkerMetrics));
+  }
+
+  private void sendWorkerMessage() throws IOException {
+    List<WorkerMessage> workerMessages = new ArrayList<WorkerMessage>(2);
+    workerMessages.add(createWorkerMessageForStreamingScalingReport());
+
+    if (StreamingStepMetricsContainer.getEnablePerWorkerMetrics()) {
+      Optional<WorkerMessage> metricsMsg = createWorkerMessageForPerWorkerMetrics();
+      if (metricsMsg.isPresent()) {
+        workerMessages.add(metricsMsg.get());
+      }
+    }
+
+    workUnitClient.reportWorkerMessage(workerMessages);
   }
 
   @VisibleForTesting
