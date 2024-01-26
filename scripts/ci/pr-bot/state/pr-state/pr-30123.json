@@ -1,0 +1,11 @@
+{
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "java": "Abacn",
+    "io": "ahmedabu98"
+  },
+  "nextAction": "Reviewers",
+  "stopReviewerNotifications": false,
+  "remindAfterTestsPass": [],
+  "committerAssigned": false
+}
