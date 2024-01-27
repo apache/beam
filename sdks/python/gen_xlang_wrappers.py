@@ -336,16 +336,10 @@ def write_wrappers_to_destinations(grouped_wrappers: Dict[str, List[str]]):
         file.write(wrapper + "\n")
     written_files.append(absolute_dest)
 
-  # We only make a best effort attempt to format with yapf because not all
-  # test environments will have this package.
-  cmd = ['yapf', '--in-place', *written_files]
-  # try:
-  out = subprocess.run(cmd, capture_output=True, check=False)
-  print(out.stdout)
-  # except Exception as err:
-  #   logging.warning('Could not format with command
-  #           %s due to error: %s', cmd, err)
   logging.info("Created external transform wrapper modules: %s", written_files)
+
+  formatting_cmd = ['yapf', '--in-place', *written_files]
+  subprocess.run(formatting_cmd, capture_output=True, check=True)
 
 
 def delete_generated_files(root_dir):

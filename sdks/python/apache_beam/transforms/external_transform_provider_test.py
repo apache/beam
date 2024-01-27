@@ -118,6 +118,9 @@ class NameAndTypeUtilsTest(unittest.TestCase):
     for case in custom_pattern_cases:
       self.assertEqual(case[2], infer_name_from_identifier(case[1], case[0]))
 
+  @unittest.skipIf(
+      PYTHON_SUFFIX is None,
+      "Need access to gen_xlang_wrappers.py to run these tests")
   def test_pretty_types(self):
     types = [
         typing.Optional[typing.List[str]],
@@ -138,6 +141,9 @@ class NameAndTypeUtilsTest(unittest.TestCase):
 
 
 @pytest.mark.uses_io_java_expansion_service
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_PORT'),
+    "EXPANSION_PORT environment var is not provided.")
 class ExternalTransformProviderTest(unittest.TestCase):
   def setUp(self):
     self.assertTrue(
@@ -177,6 +183,9 @@ class ExternalTransformProviderTest(unittest.TestCase):
 @unittest.skipIf(
     PYTHON_SUFFIX is None,
     "Need access to gen_xlang_wrappers.py to run these tests")
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_PORTS'),
+    "EXPANSION_PORTS environment var is not provided.")
 class AutoGenerationScriptTest(unittest.TestCase):
   """
   This class tests the generation and regeneration operations in
