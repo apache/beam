@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__all__ = ["SentenceTransformerEmbeddings"]
+__all__ = ["SentenceTransformerEmbeddings", "InferenceAPIEmbeddings"]
 
 from typing import Any
 from typing import Callable
@@ -24,12 +24,18 @@ from typing import Mapping
 from typing import Optional
 from typing import Sequence
 
+import requests
+
 import apache_beam as beam
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
-from sentence_transformers import SentenceTransformer
+
+try:
+  from sentence_transformers import SentenceTransformer
+except ImportError:
+  SentenceTransformer = None
 
 
 # TODO: https://github.com/apache/beam/issues/29621
@@ -58,6 +64,12 @@ class _SentenceTransformerModelHandler(ModelHandler):
     self._max_batch_size = max_batch_size
     self._large_model = large_model
     self._kwargs = kwargs
+
+    if not SentenceTransformer:
+      raise ImportError(
+          "sentence-transformers is required to use "
+          "SentenceTransformerEmbeddings."
+          "Please install it with using `pip install sentence-transformers`.")
 
   def run_inference(
       self,
@@ -130,6 +142,88 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     # wrap the model handler in a _TextEmbeddingHandler since
     # the SentenceTransformerEmbeddings works on text input data.
-    return RunInference(
-        model_handler=_TextEmbeddingHandler(self),
-        inference_args=self.inference_args)
+    return (
+        RunInference(
+            model_handler=_TextEmbeddingHandler(self),
+            inference_args=self.inference_args,
+        ))
+
+
+class _InferenceAPIHandler(ModelHandler):
+  def __init__(self, config: 'InferenceAPIEmbeddings'):
+    super().__init__()
+    self._config = config
+
+  def load_model(self):
+    session = requests.Session()
+    session.headers.update(self._config.authorization_token)
+    return session
+
+  def run_inference(
+      self, batch, session: requests.Session, inference_args=None):
+    response = session.post(
+        self._config.api_url,
+        headers=self._config.authorization_token,
+        json={
+            "inputs": batch, "options": inference_args
+        })
+    return response.json()
+
+
+class InferenceAPIEmbeddings(EmbeddingsManager):
+  def __init__(
+      self,
+      hf_token: str,
+      columns: List[str],
+      model_name: Optional[str] = None, # example: "sentence-transformers/all-MiniLM-l6-v2" # pylint: disable=line-too-long
+      api_url: Optional[str] = None,
+      **kwargs,
+      ):
+    """
+    Feature extraction using HuggingFace's Inference API.
+    Intended to be used for feature-extraction. For other tasks, please
+    refer to https://huggingface.co/inference-api.
+    Args:
+      hf_token: HuggingFace token.
+      columns: List of columns to be embedded.
+      model_name: Model name used for feature extraction.
+      api_url: API url for feature extraction. If specified, model_name will be
+        ignored. If none, the default url
+        https://api-inference.huggingface.co/pipeline/feature-extraction/{model_name} # pylint: disable=line-too-long
+        will be used.
+
+    """
+    super().__init__(columns, **kwargs)
+    self._api_url = api_url
+    self._authorization_token = {"Authorization": f"Bearer {hf_token}"}
+    self._model_name = model_name
+
+  @property
+  def api_url(self):
+    if not self._api_url:
+      if not self._model_name:
+        raise ValueError("Either api_url or model_name must be provided.")
+      self._api_url = (
+          f"https://api-inference.huggingface.co/pipeline/feature-extraction/{self._model_name}"  # pylint: disable=line-too-long
+      )
+    return self._api_url
+
+  @property
+  def authorization_token(self):
+    return self._authorization_token
+
+  def get_model_handler(self):
+    return _InferenceAPIHandler(self)
+
+  def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
+    options = {
+        # sometimes the model is not ready and returns an error response
+        # instead of waiting. So we wait for the model to be ready.
+        'wait_for_model': True,
+        'use_cache': True,
+    }
+    self.inference_args.update(options)
+    return (
+        RunInference(
+            model_handler=_TextEmbeddingHandler(self),
+            inference_args=self.inference_args))
