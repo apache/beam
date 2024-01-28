@@ -45,7 +45,7 @@ try:
 except ImportError:
   tft = None
 
-_HF_TOKEN = os.environ['HF_INFERENCE_TOKEN']
+_HF_TOKEN = os.environ.get('HF_INFERENCE_TOKEN')
 test_query = "This is a test"
 test_query_column = "feature_1"
 DEFAULT_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
