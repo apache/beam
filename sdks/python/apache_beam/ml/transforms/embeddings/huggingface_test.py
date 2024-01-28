@@ -45,6 +45,7 @@ try:
 except ImportError:
   tft = None
 
+_HF_TOKEN = os.environ['HF_INFERENCE_TOKEN']
 test_query = "This is a test"
 test_query_column = "feature_1"
 DEFAULT_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
@@ -275,10 +276,10 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
           ptransform_list[i]._model_handler._underlying.model_name, model_name)
 
 
+@unittest.skipIf(_HF_TOKEN is None, 'HF_TOKEN environment variable not set.')
 class HuggingfaceInferenceAPITest(unittest.TestCase):
   def setUp(self):
     self.artifact_location = tempfile.mkdtemp()
-    self.hf_token = os.environ['HF_INFERENCE_TOKEN']
     self.inputs = [{test_query_column: test_query}]
 
   def tearDown(self):
@@ -287,14 +288,14 @@ class HuggingfaceInferenceAPITest(unittest.TestCase):
   def test_get_api_url_and_when_model_name_not_provided(self):
     with self.assertRaises(ValueError):
       inference_embeddings = InferenceAPIEmbeddings(
-          hf_token=self.hf_token,
+          hf_token=_HF_TOKEN,
           columns=[test_query_column],
       )
       _ = inference_embeddings.api_url
 
   def test_embeddings_with_inference_api(self):
     embedding_config = InferenceAPIEmbeddings(
-        hf_token=self.hf_token,
+        hf_token=_HF_TOKEN,
         model_name=DEFAULT_MODEL_NAME,
         columns=[test_query_column],
     )
@@ -313,6 +314,7 @@ class HuggingfaceInferenceAPITest(unittest.TestCase):
       assert_that(max_ele_pcoll, equal_to(expected_output))
 
 
+@unittest.skipIf(_HF_TOKEN is None, 'HF_TOKEN environment variable not set.')
 class HuggingfaceInferenceAPIGCSLocationTest(HuggingfaceInferenceAPITest):
   def setUp(self):
     self.artifact_location = self.gcs_artifact_location = os.path.join(
