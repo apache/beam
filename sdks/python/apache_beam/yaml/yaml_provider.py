@@ -588,6 +588,7 @@ class YamlProviders:
               second:
                 str: "bar"
                  values: [4, 5, 6]
+
     Args:
         elements: The set of elements that should belong to the PCollection.
             YAML/JSON-style mappings will be interpreted as Beam rows.
