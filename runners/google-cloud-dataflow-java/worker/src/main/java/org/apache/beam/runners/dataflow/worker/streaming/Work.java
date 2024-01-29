@@ -50,6 +50,8 @@ public class Work implements Runnable {
   private final Consumer<Work> processWorkFn;
   private TimedState currentState;
 
+  private volatile boolean isFailed;
+
   private Work(Windmill.WorkItem workItem, Supplier<Instant> clock, Consumer<Work> processWorkFn) {
     this.workItem = workItem;
     this.clock = clock;
