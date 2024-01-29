@@ -29,6 +29,8 @@
 # Any new gradle targets added here should also be added to:
 # - sdks/python/test-suites/xlang/build.gradle (look for 'servicesToGenerateFrom')
 # - build.gradle.kts (as a dependency in the 'generateExternalTransformWrappers' task)
+#
+# Refer to sdks/python/gen_xlang_wrappers.py for more info.
 
 - gradle_target: 'sdks:java:io:expansion-service:shadowJar'
   destinations:
@@ -36,12 +38,8 @@
   transforms:
     'beam:schematransform:org.apache.beam:kafka_write:v1':
       name: 'WriteToKafka'
-      destinations:
-        python: 'apache_beam/io/kafka'
     'beam:schematransform:org.apache.beam:kafka_read:v1':
       name: 'ReadFromKafka'
-      destinations:
-        python: 'apache_beam/io/kafka'
   skip_transforms:
     # Handwritten Kafka wrappers already exist in apache_beam/io/kafka.py
     - 'beam:schematransform:org.apache.beam:kafka_write:v1'
@@ -54,60 +52,36 @@
 #  transforms:
 #    'beam:schematransform:org.apache.beam:bigquery_storage_write:v2':
 #      name: 'StorageWriteToBigQuery'
-#      destinations:
-#        python: 'apache_beam/io/gcp/bigquery'
 #    'beam:schematransform:org.apache.beam:bigquery_storage_read:v1':
 #      name: 'StorageReadFromBigQuery'
-#      destinations:
-#        python: 'apache_beam/io/gcp/bigquery'
 #    'beam:schematransform:org.apache.beam:bigquery_fileloads_write:v1':
 #      name: 'FileLoadsToBigQuery'
-#      destinations:
-#        python: 'apache_beam/io/gcp/bigquery'
 #    'beam:schematransform:org.apache.beam:bigquery_export_read:v1':
 #      name: 'ExportReadFromBigQuery'
-#      destinations:
-#        python: 'apache_beam/io/gcp/bigquery'
 #    'beam:schematransform:org.apache.beam:bigtable_write:v1':
 #      name: 'WriteToBigtable'
-#      destinations:
-#        python: 'apache_beam/io/gcp/bigtable'
 #    'beam:schematransform:org.apache.beam:bigtable_read:v1':
 #      name: 'ReadFromBigtable'
-#      destinations:
-#        python: 'apache_beam/io/gcp/bigtable'
 #    'beam:schematransform:org.apache.beam:pubsub_read:v1':
 #      name: 'ReadFromPubSub'
-#      destinations:
-#        python: 'apache_beam/io/gcp/pubsub'
 #    'beam:schematransform:org.apache.beam:pubsub_write:v1':
 #      name: 'WriteToPubSub'
-#      destinations:
-#        python: 'apache_beam/io/gcp/pubsub'
 #    'beam:schematransform:org.apache.beam:pubsublite_read:v1':
 #      name: 'ReadFromPubSubLite'
-#      destinations:
-#        python: 'apache_beam/io/gcp/pubsublite'
 #    'beam:schematransform:org.apache.beam:pubsublite_write:v1':
 #      name: 'WriteToPubSubLite'
-#      destinations:
-#        python: 'apache_beam/io/gcp/pubsublite'
 #    'beam:schematransform:org.apache.beam:spanner_cdc_read:v1':
 #      name: 'ReadFromSpannerChangeStreams'
-#      destinations:
-#        python: 'apache_beam/io/gcp/spanner'
 #    'beam:schematransform:org.apache.beam:spanner_write:v1':
 #      name: 'WriteToSpanner'
-#      destinations:
-#        python: 'apache_beam/io/gcp/spanner'
 #    'beam:schematransform:org.apache.beam:jdbc_write:v1':
 #      name: 'WriteToJdbc'
 #      destinations:
-#        python: 'apache_beam/io/jdbc'
+#        python: 'apache_beam/io'
 #    'beam:schematransform:org.apache.beam:jdbc_read:v1':
 #      name: 'ReadFromJdbc'
 #      destinations:
-#        python: 'apache_beam/io/jdbc'
+#        python: 'apache_beam/io'
 #  skip_transforms:
 #    # generate_sequence is already included in the Java IO expansion service
 #    - 'beam:schematransform:org.apache.beam:generate_sequence:v1'

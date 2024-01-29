@@ -49,7 +49,6 @@ try:
   from gen_xlang_wrappers import get_wrappers_from_transform_configs
   from gen_xlang_wrappers import pretty_type
   from gen_xlang_wrappers import write_wrappers_to_destinations
-  from gen_protos import PYTHON_SDK_ROOT
   from gen_protos import PROJECT_ROOT
 except ImportError:
   PYTHON_SUFFIX = None  # type: ignore[assignment]
@@ -117,27 +116,6 @@ class NameAndTypeUtilsTest(unittest.TestCase):
     ]
     for case in custom_pattern_cases:
       self.assertEqual(case[2], infer_name_from_identifier(case[1], case[0]))
-
-  @unittest.skipIf(
-      PYTHON_SUFFIX is None,
-      "Need access to gen_xlang_wrappers.py to run these tests")
-  def test_pretty_types(self):
-    types = [
-        typing.Optional[typing.List[str]],
-        numpy.int16,
-        str,
-        typing.Dict[str, numpy.float64],
-        typing.Optional[typing.Dict[str, typing.List[numpy.int64]]],
-        typing.Dict[int, typing.Optional[str]]
-    ]
-
-    expected_type_names = [('List[str]', True), ('numpy.int16', False),
-                           ('str', False), ('Dict[str, numpy.float64]', False),
-                           ('Dict[str, List[numpy.int64]]', True),
-                           ('Dict[int, Union[str, NoneType]]', False)]
-
-    for i in range(len(types)):
-      self.assertEqual(pretty_type(types[i]), expected_type_names[i])
 
 
 @pytest.mark.uses_io_java_expansion_service
@@ -221,6 +199,38 @@ class AutoGenerationScriptTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.test_dir, ignore_errors=False)
 
+  def delete_and_validate(self):
+    delete_generated_files(self.test_dir)
+    self.assertEqual(len(os.listdir(self.test_dir)), 0)
+
+  def test_script_fails_with_invalid_destinations(self):
+    expansion_service_config = {
+        "gradle_target": 'sdks:java:io:expansion-service:shadowJar',
+        'destinations': {
+            'python': 'apache_beam/some_nonexistent_dir'
+        }
+    }
+    with self.assertRaises(ValueError):
+      self.create_and_check_transforms_config_exists(expansion_service_config)
+
+  def test_pretty_types(self):
+    types = [
+        typing.Optional[typing.List[str]],
+        numpy.int16,
+        str,
+        typing.Dict[str, numpy.float64],
+        typing.Optional[typing.Dict[str, typing.List[numpy.int64]]],
+        typing.Dict[int, typing.Optional[str]]
+    ]
+
+    expected_type_names = [('List[str]', True), ('numpy.int16', False),
+                           ('str', False), ('Dict[str, numpy.float64]', False),
+                           ('Dict[str, List[numpy.int64]]', True),
+                           ('Dict[int, Union[str, NoneType]]', False)]
+
+    for i in range(len(types)):
+      self.assertEqual(pretty_type(types[i]), expected_type_names[i])
+
   def create_and_check_transforms_config_exists(self, expansion_service_config):
     with open(self.service_config_path, 'w') as f:
       yaml.dump([expansion_service_config], f)
@@ -250,8 +260,10 @@ class AutoGenerationScriptTest(unittest.TestCase):
       self.assertIn("start", gen_seq_config['fields'])
       self.assertIn("rate", gen_seq_config['fields'])
 
-  def get_module(self, path):
-    return import_module(path.replace('/', '.') + PYTHON_SUFFIX.rstrip('.py'))
+  def get_module(self, dest):
+    module_name = dest.replace('apache_beam/', '').replace('/', '_')
+    module = 'apache_beam.transforms.%s.%s' % (self.test_dir_name, module_name)
+    return import_module(module)
 
   def write_wrappers_to_destinations_and_validate(
       self, destinations: typing.List[str]):
@@ -268,58 +280,52 @@ class AutoGenerationScriptTest(unittest.TestCase):
     for dest in destinations:
       self.assertIn(dest, grouped_wrappers)
 
-    write_wrappers_to_destinations(grouped_wrappers)
+    # write to our test directory to avoid messing with other files
+    write_wrappers_to_destinations(grouped_wrappers, self.test_dir)
+
     for dest in destinations:
       self.assertTrue(
           os.path.exists(
-              os.path.join(PYTHON_SDK_ROOT,
-                           *(dest + PYTHON_SUFFIX).split('/'))))
+              os.path.join(
+                  self.test_dir,
+                  dest.replace('apache_beam/', '').replace('/', '_') + ".py")))
     return grouped_wrappers
 
-  def delete_and_validate(self, destination):
-    delete_generated_files(self.test_dir)
-    self.assertFalse(
-        os.path.exists(
-            os.path.join(
-                PYTHON_SDK_ROOT, *(destination + PYTHON_SUFFIX).split('/'))))
-
   def test_script_workflow(self):
+    expected_destination = 'apache_beam/transforms'
     expansion_service_config = {
         "gradle_target": 'sdks:java:io:expansion-service:shadowJar',
         'destinations': {
-            'python': f'apache_beam/transforms/{self.test_dir_name}'
+            'python': expected_destination
         }
     }
-    expected_destination = \
-      f'apache_beam/transforms/{self.test_dir_name}/generate_sequence'
 
     self.create_and_validate_transforms_config(
         expansion_service_config, 'GenerateSequence', expected_destination)
     grouped_wrappers = self.write_wrappers_to_destinations_and_validate(
         [expected_destination])
-    # only the GenerateSequence wrapper is set to this destination
-    self.assertEqual(len(grouped_wrappers[expected_destination]), 1)
+    # at least the GenerateSequence wrapper is set to this destination
+    self.assertGreaterEqual(len(grouped_wrappers[expected_destination]), 1)
 
     # check the wrapper exists in this destination and has correct properties
-    generate_sequence_et = self.get_module(expected_destination)
-    self.assertTrue(hasattr(generate_sequence_et, 'GenerateSequence'))
+    output_module = self.get_module(expected_destination)
+    self.assertTrue(hasattr(output_module, 'GenerateSequence'))
+    self.assertTrue(hasattr(output_module, 'KafkaWrite'))  # also check that
+    self.assertTrue(hasattr(output_module, 'KafkaRead'))  # these are here
     self.assertTrue(
-        isinstance(
-            generate_sequence_et.GenerateSequence(start=0), ExternalTransform))
+        isinstance(output_module.GenerateSequence(start=0), ExternalTransform))
     self.assertEqual(
-        generate_sequence_et.GenerateSequence.identifier,
-        self.GEN_SEQ_IDENTIFIER)
+        output_module.GenerateSequence.identifier, self.GEN_SEQ_IDENTIFIER)
 
-    self.delete_and_validate(expected_destination)
+    self.delete_and_validate()
 
   def test_script_workflow_with_modified_transforms(self):
     modified_name = 'ModifiedSequence'
-    modified_dest = \
-      f'apache_beam/transforms/{self.test_dir_name}/new_dir/modified_gen_seq'
+    modified_dest = 'apache_beam/io/gcp'
     expansion_service_config = {
         "gradle_target": 'sdks:java:io:expansion-service:shadowJar',
         'destinations': {
-            'python': f'apache_beam/transforms/{self.test_dir_name}'
+            'python': 'apache_beam/transforms'
         },
         'transforms': {
             'beam:schematransform:org.apache.beam:generate_sequence:v1': {
@@ -330,7 +336,6 @@ class AutoGenerationScriptTest(unittest.TestCase):
             }
         }
     }
-    os.mkdir(os.path.join(self.test_dir, 'new_dir'))
 
     self.create_and_validate_transforms_config(
         expansion_service_config, modified_name, modified_dest)
@@ -342,59 +347,13 @@ class AutoGenerationScriptTest(unittest.TestCase):
 
     # check the modified wrapper exists in the modified destination
     # and check it has the correct properties
-    modified_gen_seq_et = self.get_module(modified_dest)
+    output_module = self.get_module(modified_dest)
     self.assertTrue(
-        isinstance(
-            modified_gen_seq_et.ModifiedSequence(start=0), ExternalTransform))
+        isinstance(output_module.ModifiedSequence(start=0), ExternalTransform))
     self.assertEqual(
-        modified_gen_seq_et.ModifiedSequence.identifier,
-        self.GEN_SEQ_IDENTIFIER)
+        output_module.ModifiedSequence.identifier, self.GEN_SEQ_IDENTIFIER)
 
-    self.delete_and_validate(modified_dest)
-
-  def test_script_workflow_with_multiple_wrappers_same_destination(self):
-    modified_dest = f'apache_beam/transforms/{self.test_dir_name}/my_wrappers'
-    expansion_service_config = {
-        "gradle_target": 'sdks:java:io:expansion-service:shadowJar',
-        'destinations': {
-            'python': f'apache_beam/transforms/{self.test_dir_name}'
-        },
-        'transforms': {
-            'beam:schematransform:org.apache.beam:generate_sequence:v1': {
-                'destinations': {
-                    'python': modified_dest
-                }
-            },
-            'beam:schematransform:org.apache.beam:kafka_read:v1': {
-                'destinations': {
-                    'python': modified_dest
-                }
-            },
-            'beam:schematransform:org.apache.beam:kafka_write:v1': {
-                'destinations': {
-                    'python': modified_dest
-                }
-            }
-        }
-    }
-    self.create_and_check_transforms_config_exists(expansion_service_config)
-
-    # test that our transform configs have the same destination
-    with open(self.transform_config_path) as f:
-      transforms = yaml.safe_load(f)
-      for transform in transforms:
-        if transform['identifier'] in expansion_service_config['transforms']:
-          self.assertEqual(transform['destinations']['python'], modified_dest)
-
-    # write wrappers to destination then check that all 3 exist there
-    grouped_wrappers = self.write_wrappers_to_destinations_and_validate(
-        [modified_dest])
-    self.assertEqual(len(grouped_wrappers[modified_dest]), 3)
-    my_wrappers_et = self.get_module(modified_dest)
-    self.assertTrue(hasattr(my_wrappers_et, 'GenerateSequence'))
-    self.assertTrue(hasattr(my_wrappers_et, 'KafkaWrite'))
-    self.assertTrue(hasattr(my_wrappers_et, 'KafkaRead'))
-    self.delete_and_validate(modified_dest)
+    self.delete_and_validate()
 
   def test_script_workflow_with_skipped_transform(self):
     expansion_service_config = {
@@ -423,11 +382,11 @@ class AutoGenerationScriptTest(unittest.TestCase):
       self.assertIsNone(gen_seq_config)
 
   def test_run_pipeline_with_script_generated_transform(self):
-    modified_dest = f'apache_beam/transforms/{self.test_dir_name}/gen_seq'
+    modified_dest = 'apache_beam/io/gcp'
     expansion_service_config = {
         "gradle_target": 'sdks:java:io:expansion-service:shadowJar',
         'destinations': {
-            'python': f'apache_beam/transforms/{self.test_dir_name}'
+            'python': 'apache_beam/io'
         },
         'transforms': {
             'beam:schematransform:org.apache.beam:generate_sequence:v1': {
@@ -444,7 +403,8 @@ class AutoGenerationScriptTest(unittest.TestCase):
         self.service_config_path, self.transform_config_path)
     wrappers_grouped_by_destination = get_wrappers_from_transform_configs(
         self.transform_config_path)
-    write_wrappers_to_destinations(wrappers_grouped_by_destination)
+    write_wrappers_to_destinations(
+        wrappers_grouped_by_destination, self.test_dir)
 
     gen_seq_et = self.get_module(modified_dest)
 

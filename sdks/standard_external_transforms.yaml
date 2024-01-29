@@ -19,7 +19,7 @@
 # configuration in /sdks/standard_expansion_services.yaml.
 # Refer to sdks/python/gen_xlang_wrappers.py for more info.
 #
-# Last updated on: 2024-01-26
+# Last updated on: 2024-01-29
 
 - default_service: sdks:java:io:expansion-service:shadowJar
   description: 'Outputs a PCollection of Beam Rows, each containing a single INT64
@@ -32,7 +32,7 @@
     In all cases, the sequence of numbers is generated in parallel, so there is no
     inherent ordering between the generated values'
   destinations:
-    python: apache_beam/io/generate_sequence
+    python: apache_beam/io
   fields:
     end:
       description: The maximum number to generate (exclusive). Will be an unbounded

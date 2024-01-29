@@ -52,7 +52,7 @@ sdks/python/**/*.egg
 sdks/python/LICENSE
 sdks/python/NOTICE
 sdks/python/README.md
-sdks/python/apache_beam/**/*_et.py
+sdks/python/apache_beam/transforms/_external_transforms/*
 sdks/python/apache_beam/portability/api/*
 sdks/python/nosetests*.xml
 sdks/python/pytest*.xml

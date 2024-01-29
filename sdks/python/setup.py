@@ -16,7 +16,7 @@
 #
 
 """Apache Beam SDK for Python setup file."""
-
+import logging
 import os
 import subprocess
 import sys
@@ -207,25 +207,27 @@ def generate_protos_first():
 
 def generate_external_transform_wrappers():
   try:
-    sdk_root = os.path.dirname(os.path.realpath(__file__))
+    sdks_dir = os.path.realpath(
+        os.path.join(os.path.realpath(__file__), '..', '..'))
     script_exists = os.path.exists(
-        os.path.join(sdk_root, 'gen_xlang_wrappers.py'))
+        os.path.join(sdks_dir, 'python', 'gen_xlang_wrappers.py'))
     config_exists = os.path.exists(
-        os.path.join(sdk_root, 'standard_external_transforms.yaml'))
+        os.path.join(sdks_dir, 'standard_external_transforms.yaml'))
     # we need both the script and the standard transforms config file.
     # at build time, we don't have access to apache_beam to discover and
     # retrieve external transforms, so the config file has to already exist
     if not script_exists or not config_exists:
-      beam_root = os.path.join(sdk_root, 'apache_beam')
-      wrappers = list(find_by_ext(beam_root, '_et.py'))
+      generated_transforms = os.listdir(os.path.join(
+        sdks_dir, 'python', 'apache_beam',
+        'transforms', '_external_transforms'))
 
-      if not wrappers:
+      if not generated_transforms:
         message = 'External transform wrappers have not been generated '
         if not script_exists:
           message += 'and the generation script `gen_xlang_wrappers.py`'
         if not config_exists:
           message += 'and the standard external transforms config'
-        message += 'could not be found'
+        message += ' could not be found'
         warnings.warn(message)
       else:
         warnings.warn(
@@ -234,10 +236,10 @@ def generate_external_transform_wrappers():
       return
     out = subprocess.run([
         sys.executable,
-        os.path.join(sdk_root, 'gen_xlang_wrappers.py'),
+        os.path.join(sdks_dir, 'python', 'gen_xlang_wrappers.py'),
         '--cleanup',
         '--transforms-config-source',
-        'standard_external_transforms.yaml'
+        os.path.join(sdks_dir, 'standard_external_transforms.yaml')
     ], capture_output=True, check=True)
     print(out.stdout)
   except subprocess.CalledProcessError as err:
