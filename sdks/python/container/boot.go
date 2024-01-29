@@ -264,6 +264,7 @@ func launchSDKProcess() error {
 
 	args := []string{
 		"run",
+		// "--native" Add to track native (C/C++) stack frames as well.
 		"-m",
 		sdkHarnessEntrypoint,
 	}
