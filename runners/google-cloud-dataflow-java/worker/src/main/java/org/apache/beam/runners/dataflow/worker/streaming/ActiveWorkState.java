@@ -77,8 +77,6 @@ public final class ActiveWorkState {
    * Current budget that is being processed or queued on the user worker. Incremented when work is
    * activated in {@link #activateWorkForKey(ShardedKey, Work)}, and decremented when work is
    * completed in {@link #completeWorkAndGetNextWorkForKey(ShardedKey, long)}.
-   *
-   * @implNote Reads are lock free using {@link AtomicReference#get()}, writes are synchronized.
    */
   private final AtomicReference<GetWorkBudget> activeGetWorkBudget;
 
@@ -146,13 +144,13 @@ public final class ActiveWorkState {
 
   @AutoValue
   public abstract static class FailedTokens {
-    public abstract long workToken();
-
-    public abstract long cacheToken();
-
     public static Builder newBuilder() {
       return new AutoValue_ActiveWorkState_FailedTokens.Builder();
     }
+
+    public abstract long workToken();
+
+    public abstract long cacheToken();
 
     @AutoValue.Builder
     public abstract static class Builder {
@@ -198,16 +196,14 @@ public final class ActiveWorkState {
     }
   }
 
-  private synchronized void incrementActiveWorkBudget(Work work) {
-    GetWorkBudget currentActiveWorkBudget = activeGetWorkBudget.get();
-    activeGetWorkBudget.set(
-        currentActiveWorkBudget.apply(1, work.getWorkItem().getSerializedSize()));
+  private void incrementActiveWorkBudget(Work work) {
+    activeGetWorkBudget.updateAndGet(
+        getWorkBudget -> getWorkBudget.apply(1, work.getWorkItem().getSerializedSize()));
   }
 
-  private synchronized void decrementActiveWorkBudget(Work work) {
-    GetWorkBudget currentActiveWorkBudget = activeGetWorkBudget.get();
-    activeGetWorkBudget.set(
-        currentActiveWorkBudget.subtract(1, work.getWorkItem().getSerializedSize()));
+  private void decrementActiveWorkBudget(Work work) {
+    activeGetWorkBudget.updateAndGet(
+        getWorkBudget -> getWorkBudget.subtract(1, work.getWorkItem().getSerializedSize()));
   }
 
   /**
@@ -380,6 +376,11 @@ public final class ActiveWorkState {
       writer.println(commitsPendingCount - MAX_PRINTABLE_COMMIT_PENDING_KEYS);
       writer.println("<br>");
     }
+
+    writer.println("<br>");
+    writer.println("Current Active Work Budget: ");
+    writer.println(currentActiveWorkBudget());
+    writer.println("<br>");
   }
 
   enum ActivateWorkResult {
