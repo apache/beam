@@ -263,6 +263,7 @@ func launchSDKProcess() error {
 	}()
 
 	args := []string{
+		"run",
 		"-m",
 		sdkHarnessEntrypoint,
 	}
@@ -282,7 +283,7 @@ func launchSDKProcess() error {
 					return
 				}
 				logger.Printf(ctx, "Executing Python (worker %v): python %v", workerId, strings.Join(args, " "))
-				cmd := StartCommandEnv(map[string]string{"WORKER_ID": workerId}, os.Stdin, bufLogger, bufLogger, "python", args...)
+				cmd := StartCommandEnv(map[string]string{"WORKER_ID": workerId}, os.Stdin, bufLogger, bufLogger, "memray", args...)
 				childPids.v = append(childPids.v, cmd.Process.Pid)
 				childPids.mu.Unlock()
 
