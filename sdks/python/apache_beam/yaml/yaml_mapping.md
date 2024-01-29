@@ -117,7 +117,8 @@ this up as a dependency and simply refer to it by fully qualified name, e.g.
         callable: pkg.module.fn
 ```
 
-Currently, in addition to Python, Java and SQL expressions are supported as well
+Currently, in addition to Python, Java, SQL, and JavaScript (experimental)
+expressions are supported as well
 
 ```
 - type: MapToFields

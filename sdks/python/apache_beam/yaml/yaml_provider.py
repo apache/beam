@@ -575,7 +575,8 @@ class YamlProviders:
 
     will result in a schema of the form (int, Row(string, List[int])).
 
-    This can also be expressed as YAML:
+    This can also be expressed as YAML::
+
         type: Create
         config:
           elements:
