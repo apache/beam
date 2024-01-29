@@ -83,12 +83,45 @@ tft_process_handler_input_type = typing.Union[typing.NamedTuple,
 tft_process_handler_output_type = typing.Union[beam.Row, Dict[str, np.ndarray]]
 
 
+# alternatie: Use a single class for both encoding and decoding and
+# use beam.Map() instead of DoFns?
+class _EncodeDict(beam.DoFn):
+  """
+  Encode a dictionary into bytes and pass it along with the original element
+  using a temporary key.
+
+  Internal use only. No backward compatibility guarantees.
+  """
+  def __init__(self, exclude_columns=None):
+    self._exclude_columns = exclude_columns
+
+  def process(self, element: Dict[str, Any]):
+    data_to_encode = element.copy()
+    for key in self._exclude_columns:
+      if key in data_to_encode:
+        del data_to_encode[key]
+
+    bytes = pickler.dumps(data_to_encode)
+    element[_TEMP_KEY] = bytes
+    yield element
+
+
+class _DecodeDict(beam.DoFn):
+  """
+  Used to decode the dictionary from bytes(encoded using _EncodeDict)
+  Internal use only. No backward compatibility guarantees.
+  """
+  def process(self, element):
+    element.update(pickler.loads(element[_TEMP_KEY].item()))
+    del element[_TEMP_KEY]
+    yield element
+
+
 class _ConvertScalarValuesToListValues(beam.DoFn):
   def process(
       self,
       element,
   ):
-    id, element = element
     new_dict = {}
     for key, value in element.items():
       if isinstance(value,
