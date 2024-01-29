@@ -210,9 +210,6 @@ public class Pipeline {
    *
    * <p>Replaces all nodes that match a {@link PTransformOverride} in this pipeline. Overrides are
    * applied in the order they are present within the list.
-   *
-   * <p>After all nodes are replaced, ensures that no nodes in the updated graph match any of the
-   * overrides.
    */
   @Internal
   public void replaceAll(List<PTransformOverride> overrides) {
@@ -241,9 +238,10 @@ public class Pipeline {
 
           @Override
           public void leaveCompositeTransform(Node node) {
-            if (node.isRootNode()) {
-              checkState(
-                  matched.isEmpty(), "Found nodes that matched overrides. Matches: %s", matched);
+            if (node.isRootNode() && !matched.isEmpty()) {
+              LOG.info(
+                  "Found nodes that matched overrides. Matches: {}. The match usually should be empty unless there are runner specific replacement transforms.",
+                  matched);
             }
           }
 

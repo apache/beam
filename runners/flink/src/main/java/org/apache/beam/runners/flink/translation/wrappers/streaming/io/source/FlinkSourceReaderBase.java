@@ -172,6 +172,7 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
           .thenAccept(ignored -> {});
     } else if (noMoreSplits) {
       // All the splits have been read, wait for idle timeout.
+      LOG.debug("All splits have been read, waiting for shutdown timeout {}", idleTimeoutMs);
       checkIdleTimeoutAndMaybeStartCountdown();
       return idleTimeoutFuture;
     } else {

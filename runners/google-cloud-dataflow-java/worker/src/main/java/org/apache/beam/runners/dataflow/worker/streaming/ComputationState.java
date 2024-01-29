@@ -19,12 +19,14 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 
 import com.google.api.services.dataflow.model.MapTask;
 import java.io.PrintWriter;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
+import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.FailedTokens;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -98,6 +100,10 @@ public class ComputationState implements AutoCloseable {
     }
   }
 
+  public void failWork(Map<Long, List<FailedTokens>> failedWork) {
+    activeWorkState.failWorkForKey(failedWork);
+  }
+
   /**
    * Marks the work for the given shardedKey as complete. Schedules queued work for the key if any.
    */
@@ -120,10 +126,10 @@ public class ComputationState implements AutoCloseable {
     executor.forceExecute(work, work.getWorkItem().getSerializedSize());
   }
 
-  /** Adds any work started before the refreshDeadline to the GetDataRequest builder. */
-  public ImmutableList<KeyedGetDataRequest> getKeysToRefresh(
+  /** Gets HeartbeatRequests for any work started before refreshDeadline. */
+  public ImmutableList<HeartbeatRequest> getKeyHeartbeats(
       Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
-    return activeWorkState.getKeysToRefresh(refreshDeadline, sampler);
+    return activeWorkState.getKeyHeartbeats(refreshDeadline, sampler);
   }
 
   public void printActiveWork(PrintWriter writer) {

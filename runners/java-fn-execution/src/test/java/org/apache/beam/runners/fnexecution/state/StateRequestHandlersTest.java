@@ -37,9 +37,11 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
@@ -50,6 +52,8 @@ import org.mockito.Mockito;
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class StateRequestHandlersTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
   @Test
   public void testDelegatingStateHandlerDelegates() throws Exception {
     StateRequestHandler mockHandler = Mockito.mock(StateRequestHandler.class);

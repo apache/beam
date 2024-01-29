@@ -88,11 +88,11 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerBuilder;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Converter;
@@ -152,7 +152,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           TransformProvider transformProvider =
               new TransformProvider() {
                 @Override
-                public PTransform getTransform(RunnerApi.FunctionSpec spec) {
+                public PTransform getTransform(
+                    RunnerApi.FunctionSpec spec, PipelineOptions options) {
                   try {
                     Class configClass = getConfigClass(builderInstance);
                     return builderInstance.buildExternal(
@@ -222,14 +223,14 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           }
           final String finalUrn = urn;
           TransformProvider transformProvider =
-              spec -> {
+              (spec, options) -> {
                 try {
                   ExternalConfigurationPayload payload =
                       ExternalConfigurationPayload.parseFrom(spec.getPayload());
                   Row configRow =
                       RowCoder.of(SchemaTranslation.schemaFromProto(payload.getSchema()))
                           .decode(new ByteArrayInputStream(payload.getPayload().toByteArray()));
-                  PTransform transformFromRow = translator.fromConfigRow(configRow);
+                  PTransform transformFromRow = translator.fromConfigRow(configRow, options);
                   if (transformFromRow != null) {
                     return transformFromRow;
                   } else {
@@ -441,7 +442,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       }
     }
 
-    PTransform<InputT, OutputT> getTransform(RunnerApi.FunctionSpec spec);
+    PTransform<InputT, OutputT> getTransform(RunnerApi.FunctionSpec spec, PipelineOptions options);
 
     default Map<String, PCollection<?>> extractOutputs(OutputT output) {
       if (output instanceof PDone) {
@@ -485,7 +486,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     default Map<String, PCollection<?>> apply(
         Pipeline p, String name, RunnerApi.FunctionSpec spec, Map<String, PCollection<?>> inputs) {
       return extractOutputs(
-          Pipeline.applyTransform(name, createInput(p, inputs), getTransform(spec)));
+          Pipeline.applyTransform(
+              name, createInput(p, inputs), getTransform(spec, p.getOptions())));
     }
 
     default String getTransformUniqueID(RunnerApi.FunctionSpec spec) {

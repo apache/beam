@@ -22,8 +22,9 @@ package contextreg
 
 import (
 	"context"
-	"maps"
 	"sync"
+
+	"golang.org/x/exp/maps"
 )
 
 var defaultReg = &Registry{}

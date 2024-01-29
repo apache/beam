@@ -527,7 +527,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					u = &TruncateSizedRestriction{UID: b.idgen.New(), Fn: dofn, Out: out[0]}
 				default:
 					n := &ParDo{UID: b.idgen.New(), Fn: dofn, Inbound: in, Out: out}
-					n.PID = transform.GetUniqueName()
+					n.PID = id.to
 
 					input := unmarshalKeyedValues(transform.GetInputs())
 
@@ -660,7 +660,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				}
 				cn.UsesKey = typex.IsKV(in[0].Type)
 
-				cn.PID = transform.GetUniqueName()
+				cn.PID = id.to
 
 				switch urn {
 				case urnPerKeyCombinePre:
@@ -798,7 +798,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		u = &MapWindows{UID: b.idgen.New(), Fn: mapper, Out: out[0]}
+		u = &MapWindows{UID: b.idgen.New(), Fn: mapper, Out: out[0], FnUrn: fn.GetUrn()}
 
 	case graphx.URNFlatten:
 		u = &Flatten{UID: b.idgen.New(), N: len(transform.Inputs), Out: out[0]}

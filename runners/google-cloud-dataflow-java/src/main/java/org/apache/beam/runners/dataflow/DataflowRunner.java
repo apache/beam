@@ -64,6 +64,7 @@ import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.External;
+import org.apache.beam.runners.core.construction.ExternalTranslationOptions;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
@@ -164,8 +165,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -1101,14 +1102,25 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return visitor.isMultiLanguage;
   }
 
+  private static boolean includesTransformUpgrades(Pipeline pipeline) {
+    return (pipeline
+            .getOptions()
+            .as(ExternalTranslationOptions.class)
+            .getTransformsToOverride()
+            .size()
+        > 0);
+  }
+
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
-    if (DataflowRunner.isMultiLanguagePipeline(pipeline)) {
+    // Multi-language pipelines and pipelines that include upgrades should automatically be upgraded
+    // to Runner v2.
+    if (DataflowRunner.isMultiLanguagePipeline(pipeline) || includesTransformUpgrades(pipeline)) {
       List<String> experiments = firstNonNull(options.getExperiments(), Collections.emptyList());
       if (!experiments.contains("use_runner_v2")) {
         LOG.info(
             "Automatically enabling Dataflow Runner v2 since the pipeline used cross-language"
-                + " transforms");
+                + " transforms or pipeline needed a transform upgrade.");
         options.setExperiments(
             ImmutableList.<String>builder().addAll(experiments).add("use_runner_v2").build());
       }
@@ -1217,8 +1229,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             .addAllDependencies(getDefaultArtifacts())
             .addAllCapabilities(Environments.getJavaCapabilities())
             .build());
+    // No need to perform transform upgrading for the Runner v1 proto.
     RunnerApi.Pipeline dataflowV1PipelineProto =
-        PipelineTranslation.toProto(pipeline, dataflowV1Components, true);
+        PipelineTranslation.toProto(pipeline, dataflowV1Components, true, false);
 
     if (LOG.isDebugEnabled()) {
       LOG.debug(
@@ -2446,6 +2459,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         if (WriteFilesTranslation.isWindowedWrites(transform)) {
           replacement = replacement.withWindowedWrites();
         }
+
+        if (WriteFilesTranslation.isAutoSharded(transform)) {
+          replacement = replacement.withAutoSharding();
+          return PTransformReplacement.of(
+              PTransformReplacements.getSingletonMainInput(transform), replacement);
+        }
+
         return PTransformReplacement.of(
             PTransformReplacements.getSingletonMainInput(transform),
             replacement.withNumShards(numShards));

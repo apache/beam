@@ -39,4 +39,10 @@ public class UserCodeQuotaException extends UserCodeExecutionException {
       String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
     super(message, cause, enableSuppression, writableStackTrace);
   }
+
+  /** Reports that quota errors should be repeated. */
+  @Override
+  public boolean shouldRepeat() {
+    return true;
+  }
 }
