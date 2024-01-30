@@ -48,6 +48,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.threeten.bp.Duration;
 
 /**
@@ -67,21 +68,23 @@ class BigtableConfigTranslator {
   static BigtableDataSettings translateReadToVeneerSettings(
       @NonNull BigtableConfig config,
       @NonNull BigtableReadOptions options,
+      @Nullable BigtableReadOptions optionsFromBigtableOptions,
       @NonNull PipelineOptions pipelineOptions)
       throws IOException {
     BigtableDataSettings.Builder settings = buildBigtableDataSettings(config, pipelineOptions);
-    return configureReadSettings(settings, options);
+    return configureReadSettings(settings, options, optionsFromBigtableOptions);
   }
 
   /** Translate BigtableConfig and BigtableWriteOptions to Veneer settings. */
   static BigtableDataSettings translateWriteToVeneerSettings(
       @NonNull BigtableConfig config,
       @NonNull BigtableWriteOptions options,
+      @Nullable BigtableWriteOptions optionsFromBigtableOptions,
       @NonNull PipelineOptions pipelineOptions)
       throws IOException {
 
     BigtableDataSettings.Builder settings = buildBigtableDataSettings(config, pipelineOptions);
-    return configureWriteSettings(settings, options);
+    return configureWriteSettings(settings, options, optionsFromBigtableOptions);
   }
 
   /** Translate BigtableConfig and BigtableWriteOptions to Veneer settings. */
@@ -175,47 +178,92 @@ class BigtableConfigTranslator {
   }
 
   private static BigtableDataSettings configureWriteSettings(
-      BigtableDataSettings.Builder settings, BigtableWriteOptions writeOptions) {
+      BigtableDataSettings.Builder settings,
+      BigtableWriteOptions writeOptions,
+      BigtableWriteOptions fromBigtableOptions) {
     BigtableBatchingCallSettings.Builder callSettings =
         settings.stubSettings().bulkMutateRowsSettings();
     RetrySettings.Builder retrySettings = callSettings.getRetrySettings().toBuilder();
     BatchingSettings.Builder batchingSettings = callSettings.getBatchingSettings().toBuilder();
-
-    // The default attempt timeout for version <= 2.46.0 is 6 minutes. Reset the timeout to align
-    // with the old behavior.
-    Duration attemptTimeout = Duration.ofMinutes(6);
-
-    if (writeOptions.getAttemptTimeout() != null) {
-      attemptTimeout = Duration.ofMillis(writeOptions.getAttemptTimeout().getMillis());
-    }
-    retrySettings.setInitialRpcTimeout(attemptTimeout).setMaxRpcTimeout(attemptTimeout);
-    // Expand the operation timeout if it's shorter
-    retrySettings.setTotalTimeout(
-        Duration.ofMillis(
-            Math.max(retrySettings.getTotalTimeout().toMillis(), attemptTimeout.toMillis())));
-
-    if (writeOptions.getOperationTimeout() != null) {
-      retrySettings.setTotalTimeout(
-          Duration.ofMillis(writeOptions.getOperationTimeout().getMillis()));
-    }
-
-    if (writeOptions.getMaxElementsPerBatch() != null) {
-      batchingSettings.setElementCountThreshold(writeOptions.getMaxElementsPerBatch());
-    }
-
-    if (writeOptions.getMaxBytesPerBatch() != null) {
-      batchingSettings.setRequestByteThreshold(writeOptions.getMaxBytesPerBatch());
-    }
-
     FlowControlSettings.Builder flowControlSettings =
         callSettings.getBatchingSettings().getFlowControlSettings().toBuilder();
-    if (writeOptions.getMaxOutstandingElements() != null) {
-      flowControlSettings.setMaxOutstandingElementCount(writeOptions.getMaxOutstandingElements());
+
+    // Settings set directly on WriteOptions overrides settings in BigtableOptions
+    // The default attempt timeout for version <= 2.46.0 is 6 minutes. Reset the timeout to align
+    // with the old behavior.
+    long initialRpcTimeout =
+        writeOptions.getAttemptTimeout() != null
+            ? writeOptions.getAttemptTimeout().getMillis()
+            : (fromBigtableOptions != null && fromBigtableOptions.getAttemptTimeout() != null
+                ? fromBigtableOptions.getAttemptTimeout().getMillis()
+                : Duration.ofMinutes(6).toMillis());
+
+    long totalTimeout =
+        writeOptions.getOperationTimeout() != null
+            ? writeOptions.getOperationTimeout().getMillis()
+            : (fromBigtableOptions != null && fromBigtableOptions.getOperationTimeout() != null
+                ? fromBigtableOptions.getOperationTimeout().getMillis()
+                : retrySettings.getTotalTimeout().toMillis());
+
+    retrySettings
+        .setInitialRpcTimeout(Duration.ofMillis(initialRpcTimeout))
+        .setMaxRpcTimeout(Duration.ofMillis(initialRpcTimeout))
+        .setRpcTimeoutMultiplier(1)
+        .setTotalTimeout(Duration.ofMillis(Math.max(initialRpcTimeout, totalTimeout)));
+
+    long maxElement =
+        writeOptions.getMaxElementsPerBatch() != null
+            ? writeOptions.getMaxElementsPerBatch()
+            : (fromBigtableOptions != null && fromBigtableOptions.getMaxElementsPerBatch() != null
+                ? fromBigtableOptions.getMaxElementsPerBatch()
+                : callSettings.getBatchingSettings().getElementCountThreshold());
+
+    long maxBytes =
+        writeOptions.getMaxBytesPerBatch() != null
+            ? writeOptions.getMaxBytesPerBatch()
+            : (fromBigtableOptions != null && fromBigtableOptions.getMaxBytesPerBatch() != null
+                ? fromBigtableOptions.getMaxBytesPerBatch()
+                : callSettings.getBatchingSettings().getRequestByteThreshold());
+
+    long outstandingElements =
+        writeOptions.getMaxOutstandingElements() != null
+            ? writeOptions.getMaxOutstandingElements()
+            : (fromBigtableOptions != null
+                    && fromBigtableOptions.getMaxOutstandingElements() != null
+                ? fromBigtableOptions.getMaxOutstandingElements()
+                : callSettings
+                    .getBatchingSettings()
+                    .getFlowControlSettings()
+                    .getMaxOutstandingElementCount());
+
+    long outstandingBytes =
+        writeOptions.getMaxOutstandingBytes() != null
+            ? writeOptions.getMaxOutstandingBytes()
+            : (fromBigtableOptions != null && fromBigtableOptions.getMaxOutstandingBytes() != null
+                ? fromBigtableOptions.getMaxOutstandingBytes()
+                : callSettings
+                    .getBatchingSettings()
+                    .getFlowControlSettings()
+                    .getMaxOutstandingRequestBytes());
+
+    retrySettings
+        .setInitialRpcTimeout(Duration.ofMillis(initialRpcTimeout))
+        .setMaxRpcTimeout(Duration.ofMillis(initialRpcTimeout))
+        .setRpcTimeoutMultiplier(1)
+        .setTotalTimeout(Duration.ofMillis(Math.max(initialRpcTimeout, totalTimeout)));
+    batchingSettings
+        .setFlowControlSettings(
+            flowControlSettings
+                .setMaxOutstandingElementCount(outstandingElements)
+                .setMaxOutstandingRequestBytes(outstandingBytes)
+                .build())
+        .setElementCountThreshold(maxElement)
+        .setRequestByteThreshold(maxBytes);
+
+    if (fromBigtableOptions != null && fromBigtableOptions.getThrottlingTargetMs() != null) {
+      settings.enableBatchMutationLatencyBasedThrottling(
+          fromBigtableOptions.getThrottlingTargetMs());
     }
-    if (writeOptions.getMaxOutstandingBytes() != null) {
-      flowControlSettings.setMaxOutstandingRequestBytes(writeOptions.getMaxOutstandingBytes());
-    }
-    batchingSettings = batchingSettings.setFlowControlSettings(flowControlSettings.build());
 
     if (writeOptions.getThrottlingTargetMs() != null) {
       settings.enableBatchMutationLatencyBasedThrottling(writeOptions.getThrottlingTargetMs());
@@ -235,33 +283,45 @@ class BigtableConfigTranslator {
   }
 
   private static BigtableDataSettings configureReadSettings(
-      BigtableDataSettings.Builder settings, BigtableReadOptions readOptions) {
+      BigtableDataSettings.Builder settings,
+      BigtableReadOptions readOptions,
+      BigtableReadOptions optionsFromBigtableOptions) {
 
     RetrySettings.Builder retrySettings =
         settings.stubSettings().readRowsSettings().getRetrySettings().toBuilder();
 
-    if (readOptions.getAttemptTimeout() != null) {
-      // Set the user specified attempt timeout and expand the operation timeout if it's shorter
-      retrySettings.setInitialRpcTimeout(
-          Duration.ofMillis(readOptions.getAttemptTimeout().getMillis()));
-      retrySettings.setTotalTimeout(
-          Duration.ofMillis(
-              Math.max(
-                  retrySettings.getTotalTimeout().toMillis(),
-                  readOptions.getAttemptTimeout().getMillis())));
-    }
+    // Options set directly on readOptions overrides Options set in BigtableOptions
+    long initialRpcTimeout =
+        readOptions.getAttemptTimeout() != null
+            ? readOptions.getAttemptTimeout().getMillis()
+            : (optionsFromBigtableOptions != null
+                    && optionsFromBigtableOptions.getAttemptTimeout() != null
+                ? optionsFromBigtableOptions.getAttemptTimeout().getMillis()
+                : retrySettings.getInitialRpcTimeout().toMillis());
 
-    if (readOptions.getOperationTimeout() != null) {
-      retrySettings.setTotalTimeout(
-          Duration.ofMillis(readOptions.getOperationTimeout().getMillis()));
-    }
+    long totalTimeout =
+        readOptions.getOperationTimeout() != null
+            ? readOptions.getOperationTimeout().getMillis()
+            : (optionsFromBigtableOptions != null
+                    && optionsFromBigtableOptions.getOperationTimeout() != null
+                ? optionsFromBigtableOptions.getOperationTimeout().getMillis()
+                : retrySettings.getTotalTimeout().toMillis());
 
-    if (readOptions.getWaitTimeout() != null) {
-      settings
-          .stubSettings()
-          .readRowsSettings()
-          .setWaitTimeout(Duration.ofMillis(readOptions.getWaitTimeout().getMillis()));
-    }
+    long waitTimeout =
+        readOptions.getWaitTimeout() != null
+            ? readOptions.getWaitTimeout().getMillis()
+            : (optionsFromBigtableOptions != null
+                    && optionsFromBigtableOptions.getWaitTimeout() != null
+                ? optionsFromBigtableOptions.getWaitTimeout().getMillis()
+                : settings.stubSettings().readRowsSettings().getWaitTimeout().toMillis());
+
+    retrySettings
+        .setInitialRpcTimeout(Duration.ofMillis(initialRpcTimeout))
+        .setMaxRpcTimeout(Duration.ofMillis(initialRpcTimeout))
+        .setRpcTimeoutMultiplier(1)
+        .setTotalTimeout(Duration.ofMillis(Math.max(initialRpcTimeout, totalTimeout)));
+
+    settings.stubSettings().readRowsSettings().setWaitTimeout(Duration.ofMillis(waitTimeout));
 
     settings.stubSettings().readRowsSettings().setRetrySettings(retrySettings.build());
 
@@ -372,7 +432,6 @@ class BigtableConfigTranslator {
   /** Translate BigtableOptions to BigtableWriteOptions. */
   static BigtableWriteOptions translateToBigtableWriteOptions(
       BigtableWriteOptions writeOptions, BigtableOptions options) {
-
     BigtableWriteOptions.Builder builder = writeOptions.toBuilder();
     // configure timeouts
     if (options.getCallOptionsConfig().getMutateRpcAttemptTimeoutMs().isPresent()) {

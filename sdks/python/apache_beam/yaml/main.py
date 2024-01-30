@@ -65,7 +65,6 @@ def _pipeline_spec_from_args(known_args):
 
 
 def run(argv=None):
-  yaml_transform._LOGGER.setLevel('INFO')
   known_args, pipeline_args = _configure_parser(argv)
   pipeline_yaml = _pipeline_spec_from_args(known_args)
   pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)

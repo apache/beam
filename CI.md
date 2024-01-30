@@ -23,18 +23,29 @@
 
 Continuous Integration is important component of making Apache Beam robust and stable.
 
-Our execution environment for CI is mainly the Jenkins which is available at
-[https://ci-beam.apache.org/](https://ci-beam.apache.org/). See
-[.test-infra/jenkins/README](.test-infra/jenkins/README.md)
-for trigger phrase, status and link of all Jenkins jobs. See Apache Beam Developer Guide for
-[Jenkins Tips](https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips).
+Our execution environment for CI is the [GitHub Actions](https://github.com/features/actions).
+See [.github/workflow/README](.github/workflow/README.md) for trigger phrase,
+status and link of all GHA jobs.
 
-An additional execution environment for CI is [GitHub Actions](https://github.com/features/actions). GitHub Actions
-(GA) are very well integrated with GitHub code and Workflow and it has evolved fast in 2019/2020 to become
-a fully-fledged CI environment, easy to use and develop for, so we decided to use it for building python source
-distribution and wheels.
+GitHub Actions (GHA) are very well integrated with GitHub code and Workflow and
+it has evolved fast in 2019/2020 to become a fully-fledged CI environment, easy
+to use and develop for, so we decided to use it firstly for a few workflows then
+migrated all workflows previously run on Jenkins.
+
+For this reason there are mainly two types of GHA workflows running
+- Self-hosted runner GHAs. These were mifrated from Jenkins with workflow name
+  prefix (beam_*.yml) as well as new workflows added following the same naming
+  convention, including PreCommit, PostCommit, LoadTest, PerformanceTest, and
+  several infrastructure jobs. See [.github/workflow/README](.github/workflow/README.md)
+  for the complete list.
+- GitHub-hosted runner GHAs. Most of these jobs exercises the workflow in different
+  OS (linux, macOS, Windows). They were added prior to Jenkins migration.
+  Some Linux jobs later migrated to use self-hosted runner.
 
 ## GitHub Actions
+
+This section applies to GitHub-hosted runner GHAs. New workflows unless intended
+to run on a matrix of OS should refer to Self-hosted runner GHAs [.github/workflow/README](.github/workflow/README.md).
 
 ### GitHub actions run types
 
@@ -43,7 +54,7 @@ purpose and context.
 
 #### Pull request run
 
-Those runs are results of PR from the forks made by contributors. Most builds for Apache Beam fall
+Those runs are results of PR from the forks made by contributors. Most builds for Apache Beam fall
 into this category. They are executed in the context of the "Fork", not main
 Beam Code Repository which means that they have only "read" permission to all the GitHub resources
 (container registry, code repository). This is necessary as the code in those PRs (including CI job
@@ -57,7 +68,7 @@ the PR is ready to review and merge.
 Those runs are results of direct pushes done by the committers or as result of merge of a Pull Request
 by the committers. Those runs execute in the context of the Apache Beam Code Repository and have also
 write permission for GitHub resources (container registry, code repository).
-The main purpose for the run is to check if the code after merge still holds all the assertions - like
+The main purpose for the run is to check if the code after merge still holds all the assertions - like
 whether it still builds, all tests are green.
 
 This is needed because some of the conflicting changes from multiple PRs might cause build and test failures
@@ -65,7 +76,7 @@ after merge even if they do not fail in isolation.
 
 #### Scheduled runs
 
-Those runs are results of (nightly) triggered job - only for `master` branch. The
+Those runs are results of (nightly) triggered job - only for `master` branch. The
 main purpose of the job is to check if there was no impact of external dependency changes on the Apache
 Beam code (for example transitive dependencies released that fail the build). Another reason for the nightly
 build is that the builds tags most recent master with `nightly-master`.

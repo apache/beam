@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
@@ -239,25 +239,37 @@ public class MetricTrackingWindmillServerStub {
   }
 
   /** Tells windmill processing is ongoing for the given keys. */
-  public void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active) {
-    activeHeartbeats.set(active.size());
+  public void refreshActiveWork(Map<String, List<HeartbeatRequest>> heartbeats) {
+    activeHeartbeats.set(heartbeats.size());
     try {
       if (useStreamingRequests) {
         // With streaming requests, always send the request even when it is empty, to ensure that
         // we trigger health checks for the stream even when it is idle.
         GetDataStream stream = streamPool.getStream();
         try {
-          stream.refreshActiveWork(active);
+          stream.refreshActiveWork(heartbeats);
         } finally {
           streamPool.releaseStream(stream);
         }
-      } else if (!active.isEmpty()) {
+      } else if (!heartbeats.isEmpty()) {
+        // This code path is only used by appliance which sends heartbeats (used to refresh active
+        // work) as KeyedGetDataRequests. So we must translate the HeartbeatRequest to a
+        // KeyedGetDataRequest here regardless of the value of sendKeyedGetDataRequests.
         Windmill.GetDataRequest.Builder builder = Windmill.GetDataRequest.newBuilder();
-        for (Map.Entry<String, List<KeyedGetDataRequest>> entry : active.entrySet()) {
-          builder.addRequests(
-              Windmill.ComputationGetDataRequest.newBuilder()
-                  .setComputationId(entry.getKey())
-                  .addAllRequests(entry.getValue()));
+        for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+          Windmill.ComputationGetDataRequest.Builder perComputationBuilder =
+              Windmill.ComputationGetDataRequest.newBuilder();
+          perComputationBuilder.setComputationId(entry.getKey());
+          for (HeartbeatRequest request : entry.getValue()) {
+            perComputationBuilder.addRequests(
+                Windmill.KeyedGetDataRequest.newBuilder()
+                    .setShardingKey(request.getShardingKey())
+                    .setWorkToken(request.getWorkToken())
+                    .setCacheToken(request.getCacheToken())
+                    .addAllLatencyAttribution(request.getLatencyAttributionList())
+                    .build());
+          }
+          builder.addRequests(perComputationBuilder.build());
         }
         server.getData(builder.build());
       }

@@ -34,6 +34,7 @@ import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -54,8 +55,8 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.junit.Test;
@@ -441,10 +442,13 @@ public class ExpansionServiceSchemaTransformProviderTest {
     assertNotEquals(spec.getPayload(), equivalentSpec.getPayload());
 
     TestSchemaTransform transform =
-        (TestSchemaTransform) ExpansionServiceSchemaTransformProvider.of().getTransform(spec);
+        (TestSchemaTransform)
+            ExpansionServiceSchemaTransformProvider.of()
+                .getTransform(spec, PipelineOptionsFactory.create());
     TestSchemaTransform equivalentTransform =
         (TestSchemaTransform)
-            ExpansionServiceSchemaTransformProvider.of().getTransform(equivalentSpec);
+            ExpansionServiceSchemaTransformProvider.of()
+                .getTransform(equivalentSpec, PipelineOptionsFactory.create());
 
     assertEquals(transform.int1, equivalentTransform.int1);
     assertEquals(transform.int2, equivalentTransform.int2);

@@ -127,6 +127,7 @@ public class ExecutionStateSampler {
   }
 
   public synchronized void stop() {
+    final Future<Void> executionSamplerFuture = this.executionSamplerFuture;
     if (executionSamplerFuture == null) {
       return;
     }
@@ -142,7 +143,7 @@ public class ExecutionStateSampler {
     } catch (ExecutionException e) {
       throw new RuntimeException("Exception in state sampler", e);
     } finally {
-      executionSamplerFuture = null;
+      this.executionSamplerFuture = null;
     }
   }
 
