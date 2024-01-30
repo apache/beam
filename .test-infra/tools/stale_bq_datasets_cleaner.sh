@@ -18,7 +18,7 @@
 #    Deletes stale and old BQ datasets that are left after tests.
 #
 
-set -euo pipefail
+set -xuo pipefail
 
 PROJECT=apache-beam-testing
 MAX_RESULT=1500
