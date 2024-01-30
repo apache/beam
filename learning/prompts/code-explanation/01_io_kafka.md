@@ -29,7 +29,7 @@ with beam.Pipeline(options=options) as p:
 Response:
 This code uses the Apache Beam [KafkaIO Pythn connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.kafka.html) Python connector to read data from an [Apache Kafka](https://kafka.apache.org/) topic `topic` on Kafka bootstrap servers `bootstrap_servers`.
 
-The `ReadFromKafka` transform reads from a Kafka topic `topic` on `bootstrap_servers`. This is a cross-language transform that is implemented in Java and is available in Python, Go, and Typescript via X-language.The Python SDK connects to a Java expansion service to expand these transforms during pipeline execution. For more information about cross-language transforms, see Apache Beam [Multi-language pipelines](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines). 
+The `ReadFromKafka` transform reads from a Kafka topic `topic` on `bootstrap_servers`. This is a cross-language transform that is implemented in Java and is available in Python, Go, and Typescript via X-language.The Python SDK connects to a Java expansion service to expand these transforms during pipeline execution. For more information about cross-language transforms, see Apache Beam [Multi-language pipelines](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines).
 
 ```python
 with beam.Pipeline(options=options) as p:
