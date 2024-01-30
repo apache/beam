@@ -356,6 +356,8 @@ def delete_generated_files(root_dir):
   logging.info("Deleting external transform wrappers from dir %s", root_dir)
   deleted_files = os.listdir(root_dir)
   for file in deleted_files:
+    if file == '__init__.py':
+      continue
     path = os.path.join(root_dir, file)
     if os.path.isfile(path) or os.path.islink(path):
       os.unlink(os.path.join(root_dir, file))
