@@ -16,7 +16,6 @@
 #
 
 """Apache Beam SDK for Python setup file."""
-import logging
 import os
 import subprocess
 import sys
@@ -217,11 +216,13 @@ def generate_external_transform_wrappers():
     # at build time, we don't have access to apache_beam to discover and
     # retrieve external transforms, so the config file has to already exist
     if not script_exists or not config_exists:
-      generated_transforms = os.listdir(os.path.join(
+      generated_transforms_dir = os.path.join(
         sdks_dir, 'python', 'apache_beam',
-        'transforms', '_external_transforms'))
+        'transforms', '_external_transforms')
 
-      if not generated_transforms:
+      # if exists, this directory will have at least its __init__.py file
+      if (not os.path.exists(generated_transforms_dir) or
+              len(os.listdir(generated_transforms_dir)) <= 1):
         message = 'External transform wrappers have not been generated '
         if not script_exists:
           message += 'and the generation script `gen_xlang_wrappers.py`'
