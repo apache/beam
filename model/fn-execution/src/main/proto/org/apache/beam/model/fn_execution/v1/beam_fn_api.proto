@@ -808,6 +808,12 @@ message StateRequest {
 
     // A request to clear state.
     StateClearRequest clear = 1002;
+
+    // A request to get entries from an ordered list state.
+    OrderedListStateGetRequest ordered_list_get = 2000;
+
+    // A request to insert entries to an ordered list state.
+    OrderedListStateUpdateRequest ordered_list_update = 2001;
   }
 }
 
@@ -832,6 +838,12 @@ message StateResponse {
 
     // A response to clearing state.
     StateClearResponse clear = 1002;
+
+    // A response to getting entries from an ordered list state.
+    OrderedListStateGetResponse ordered_list_get = 2000;
+
+    // A response to inserting entries to an ordered list state.
+    OrderedListStateUpdateResponse ordered_list_update = 2001;
   }
 }
 
@@ -1021,6 +1033,29 @@ message StateKey {
     bytes map_key = 5;
   }
 
+  // Represents a request for an ordered list of values associated with a
+  // specified user key and window for a PTransform. See
+  // https://s.apache.org/beam-fn-state-api-and-bundle-processing for further
+  // details.
+  //
+  // The response data stream will be a concatenation of all entries of sort key
+  // and V's associated with the specified user key and window.
+  // See https://s.apache.org/beam-fn-api-send-and-receive-data for further
+  // details.
+  message OrderedListUserState {
+    // (Required) The id of the PTransform containing user state.
+    string transform_id = 1;
+    // (Required) The id of the user state.
+    string user_state_id = 2;
+    // (Required) The window encoded in a nested context.
+    bytes window = 3;
+    // (Required) The key of the currently executing element encoded in a
+    // nested context.
+    bytes key = 4;
+    // (optional) The sort key encoded in a nested context.
+    int64 sort_key = 5;
+  }
+
   // (Required) One of the following state keys must be set.
   oneof type {
     Runner runner = 1;
@@ -1031,6 +1066,7 @@ message StateKey {
     MultimapKeysValuesSideInput multimap_keys_values_side_input = 8;
     MultimapKeysUserState multimap_keys_user_state = 6;
     MultimapUserState multimap_user_state = 7;
+    OrderedListUserState ordered_list_user_state = 9;
   }
 }
 
@@ -1074,6 +1110,42 @@ message StateClearRequest {}
 
 // A response to clear state.
 message StateClearResponse {}
+
+// A message describes a sort key range [start, end).
+message OrderedListRange {
+  int64 start = 1;
+  int64 end = 2;
+}
+
+// A data entry which is tagged with a sort key.
+message OrderedListEntry {
+  int64 sort_key = 1;
+  bytes data = 2;
+}
+
+// This request will fetch an ordered list with a sort key range. If the
+// timestamp range is not specified, the runner should use [MIN_INT64,
+// MAX_INT64) by default.
+message OrderedListStateGetRequest {
+  bytes continuation_token = 1;
+  OrderedListRange range = 2;
+}
+
+// A response to the get state request for an ordered list.
+message OrderedListStateGetResponse {
+  bytes continuation_token = 1;
+  bytes data = 2;
+}
+
+// A request to update an ordered list
+message OrderedListStateUpdateRequest {
+  // when the request is processed, deletes should always happen before inserts.
+  repeated OrderedListRange deletes = 1;
+  repeated OrderedListEntry inserts = 2;
+}
+
+// A response to the update state request for an ordered list.
+message OrderedListStateUpdateResponse {}
 
 /*
  * Logging API
