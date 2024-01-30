@@ -43,7 +43,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -134,7 +133,8 @@ public class FhirIOSearchIT {
     // Search using the resource type of each written resource and empty search parameters.
     PCollection<FhirSearchParameter<String>> searchConfigs =
         pipeline.apply(
-            Create.of(input.subList(0,20)).withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())));
+            Create.of(input.subList(0, 20))
+                .withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())));
     FhirIO.Search.Result result =
         searchConfigs.apply(
             FhirIO.searchResources(healthcareDataset + "/fhirStores/" + fhirStoreId));
@@ -163,7 +163,7 @@ public class FhirIOSearchIT {
     // Search using the resource type of each written resource and empty search parameters.
     PCollection<FhirSearchParameter<List<Integer>>> searchConfigs =
         pipeline.apply(
-            Create.of(genericParametersInput.subList(0,20))
+            Create.of(genericParametersInput.subList(0, 20))
                 .withCoder(FhirSearchParameterCoder.of(ListCoder.of(VarIntCoder.of()))));
     FhirIO.Search.Result result =
         searchConfigs.apply(
