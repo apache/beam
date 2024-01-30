@@ -60,12 +60,14 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Queue;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
@@ -395,7 +397,8 @@ class BigtableServiceImpl implements BigtableService {
 
                 @Override
                 public void onError(Throwable t) {
-                  if (byteLimitReached) {
+                  Throwable rootCause = ExceptionUtils.getRootCause(t);
+                  if (byteLimitReached && rootCause instanceof CancellationException) {
                     // When the byte limit is reached we cancel the stream in onResponse.
                     // In this case we don't want to fail the request with cancellation
                     // exception. Instead, we construct the next request.
