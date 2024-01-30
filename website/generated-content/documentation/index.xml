@@ -17468,7 +17468,7 @@ Other runners, such as Dataflow, support specifying containers with different fl
 &lt;/a>
 &lt;pre tabindex="0">&lt;code class="language-direct" data-lang="direct">export IMAGE=&amp;#34;my-repo/beam_python_sdk_custom&amp;#34;
 export TAG=&amp;#34;X.Y.Z&amp;#34;
-export IMAGE_URL = &amp;#34;${IMAGE}:${TAG}&amp;#34;
+export IMAGE_URL=&amp;#34;${IMAGE}:${TAG}&amp;#34;
 python -m apache_beam.examples.wordcount \
 --input=/path/to/inputfile \
 --output /path/to/write/counts \
