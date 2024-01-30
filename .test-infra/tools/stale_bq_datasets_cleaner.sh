@@ -18,7 +18,7 @@
 #    Deletes stale and old BQ datasets that are left after tests.
 #
 
-set -xuo pipefail
+set -uo pipefail
 
 PROJECT=apache-beam-testing
 MAX_RESULT=1500
@@ -48,6 +48,7 @@ for dataset in ${BQ_DATASETS[@]}; do
             echo "Deleted $dataset (modified `date -r @$LAST_MODIFIED`)"
           fi
         else
+          echo "Tried and failed to delete $dataset"
           failed_calls+=1
         fi
       fi
