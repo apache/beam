@@ -109,7 +109,7 @@ class GrpcDispatcherClient {
   }
 
   private synchronized <T> T randomlySelectNextStub(List<T> stubs) {
-    return stubs.get(rand.nextInt(dispatcherStubs.get().size()));
+    return stubs.get(rand.nextInt(stubs.size()));
   }
 
   boolean isReady() {
@@ -146,14 +146,17 @@ class GrpcDispatcherClient {
   abstract static class DispatcherStubs {
 
     private static DispatcherStubs empty() {
-      return new AutoValue_GrpcDispatcherClient_DispatcherStubs(
-          ImmutableSet.of(), ImmutableList.of(), ImmutableList.of());
+      return create(ImmutableSet.of(), ImmutableList.of(), ImmutableList.of());
     }
 
     private static DispatcherStubs create(
         Set<HostAndPort> endpoints,
         List<CloudWindmillServiceV1Alpha1Stub> windmillServiceStubs,
         List<CloudWindmillMetadataServiceV1Alpha1Stub> windmillMetadataServiceStubs) {
+      Preconditions.checkState(
+          endpoints.size() == windmillServiceStubs.size()
+              && windmillServiceStubs.size() == windmillMetadataServiceStubs.size(),
+          "Dispatcher should have the same number of endpoints and stubs");
       return new AutoValue_GrpcDispatcherClient_DispatcherStubs(
           ImmutableSet.copyOf(endpoints),
           ImmutableList.copyOf(windmillServiceStubs),
@@ -204,9 +207,7 @@ class GrpcDispatcherClient {
     }
 
     private boolean isReady() {
-      return !windmillServiceStubs().isEmpty()
-          && !windmillMetadataServiceStubs().isEmpty()
-          && !dispatcherEndpoints().isEmpty();
+      return size() > 0;
     }
 
     abstract ImmutableSet<HostAndPort> dispatcherEndpoints();

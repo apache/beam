@@ -171,8 +171,16 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   }
 
   @Override
-  public void start(GrpcWindmillStreamFactory grpcWindmillStreamFactory) {
-    this.windmillStreamFactory = grpcWindmillStreamFactory;
+  public void start(JobHeader jobHeader) {
+    this.windmillStreamFactory =
+        GrpcWindmillStreamFactory.of(jobHeader)
+            .setWindmillMessagesBetweenIsReadyChecks(
+                options.getWindmillMessagesBetweenIsReadyChecks())
+            .setMaxBackOffSupplier(() -> maxBackoff)
+            .setLogEveryNStreamFailures(
+                options.getWindmillServiceStreamingLogEveryNStreamFailures())
+            .setStreamingRpcBatchLimit(options.getWindmillServiceStreamingRpcBatchLimit())
+            .build();
     windmillStreamFactory.scheduleHealthChecks(
         options.getWindmillServiceStreamingRpcHealthCheckPeriodMs());
   }
@@ -201,13 +209,11 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     GrpcWindmillServer grpcWindmillServer = new GrpcWindmillServer(testOptions, dispatcherClient);
 
     grpcWindmillServer.start(
-        GrpcWindmillStreamFactory.of(
-                JobHeader.newBuilder()
-                    .setClientId(clientId)
-                    .setProjectId(testOptions.getProject())
-                    .setJobId(testOptions.getJobId())
-                    .setWorkerId(testOptions.getWorkerId())
-                    .build())
+        JobHeader.newBuilder()
+            .setClientId(clientId)
+            .setProjectId(testOptions.getProject())
+            .setJobId(testOptions.getJobId())
+            .setWorkerId(testOptions.getWorkerId())
             .build());
 
     return grpcWindmillServer;
