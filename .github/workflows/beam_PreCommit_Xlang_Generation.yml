@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PreCommit Portable Python
+name: PreCommit Xlang Wrapper Generation
 
 on:
   push:
