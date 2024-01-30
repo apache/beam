@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness.state;
 
+import static org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase.ORDERED_LIST_USER_STATE;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
@@ -36,6 +37,7 @@ import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.CachingStateIterable.Blocks;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.WeightedList;
@@ -572,10 +574,20 @@ public class StateFetchingIterators {
     }
 
     public CompletableFuture<StateResponse> loadPrefetchedResponse(ByteString continuationToken) {
-      return beamFnStateClient.handle(
-          stateRequestForFirstChunk
-              .toBuilder()
-              .setGet(StateGetRequest.newBuilder().setContinuationToken(continuationToken)));
+      if (stateRequestForFirstChunk.getStateKey().getTypeCase() == ORDERED_LIST_USER_STATE) {
+        return beamFnStateClient.handle(
+            stateRequestForFirstChunk
+                .toBuilder()
+                .setOrderedListGet(
+                    stateRequestForFirstChunk.getOrderedListGet()
+                        .toBuilder()
+                        .setContinuationToken(continuationToken)));
+      } else {
+        return beamFnStateClient.handle(
+            stateRequestForFirstChunk
+                .toBuilder()
+                .setGet(StateGetRequest.newBuilder().setContinuationToken(continuationToken)));
+      }
     }
 
     @Override
@@ -605,14 +617,26 @@ public class StateFetchingIterators {
       }
       prefetchedResponse = null;
 
+      ByteString tokenFromResponse;
+      if (stateRequestForFirstChunk.getStateKey().getTypeCase() == ORDERED_LIST_USER_STATE)
+        tokenFromResponse = stateResponse.getOrderedListGet().getContinuationToken();
+      else
+        tokenFromResponse = stateResponse.getGet().getContinuationToken();
+
       // If the continuation token is empty, that means we have reached EOF.
-      if (ByteString.EMPTY.equals(stateResponse.getGet().getContinuationToken())) {
+      if (ByteString.EMPTY.equals(tokenFromResponse)) {
         continuationToken = null;
       } else {
-        continuationToken = stateResponse.getGet().getContinuationToken();
+        continuationToken = tokenFromResponse;
         prefetch();
       }
-      return stateResponse.getGet().getData();
+
+      ByteString ret;
+      if (stateRequestForFirstChunk.getStateKey().getTypeCase() == ORDERED_LIST_USER_STATE)
+        ret = stateResponse.getOrderedListGet().getData();
+      else
+        ret = stateResponse.getGet().getData();
+      return ret;
     }
   }
 }

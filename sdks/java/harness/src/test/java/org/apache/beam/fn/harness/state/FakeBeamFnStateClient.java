@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness.state;
 
+import static org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase.GET;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
@@ -26,8 +27,15 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListEntry;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListRange;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListStateGetResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListStateUpdateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
@@ -39,14 +47,21 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.TreeRangeSet;
+import org.joda.time.Instant;
 
 /** A fake implementation of a {@link BeamFnStateClient} to aid with testing. */
 public class FakeBeamFnStateClient implements BeamFnStateClient {
   private static final int DEFAULT_CHUNK_SIZE = 6;
   private final Map<StateKey, List<ByteString>> data;
   private int currentId;
+  private final Map<StateKey, NavigableSet<Long>> orderedListKeys;
+  private final Map<StateKey, Coder<Object>> orderedListValueCoders;
 
   public <V> FakeBeamFnStateClient(Coder<V> valueCoder, Map<StateKey, List<V>> initialData) {
     this(valueCoder, initialData, DEFAULT_CHUNK_SIZE);
@@ -97,6 +112,29 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
                   }
                   return chunks;
                 }));
+
+    Map<StateKey, Coder<Object>> orderedListInitialData = new HashMap<>(Maps.transformValues(
+            Maps.filterKeys(initialData,
+                (k) -> k.getTypeCase() == TypeCase.ORDERED_LIST_USER_STATE),
+            (v) -> {
+              // make sure the provided coder is a TimestampedValueCoder.
+              assert v.getKey() instanceof TimestampedValueCoder;
+              return ((TimestampedValueCoder<Object>) v.getKey()).getValueCoder();
+            }));
+
+    this.orderedListValueCoders = new HashMap<>();
+    this.orderedListKeys = new HashMap<>();
+    for (Map.Entry<StateKey, Coder<Object>> entry : orderedListInitialData.entrySet()) {
+      long sortKey = entry.getKey().getOrderedListUserState().getSortKey();
+
+      StateKey.Builder keyBuilder = entry.getKey().toBuilder();
+      keyBuilder.getOrderedListUserStateBuilder().clearSortKey();
+
+      this.orderedListValueCoders.put(keyBuilder.build(), entry.getValue());
+
+      this.orderedListKeys.computeIfAbsent(keyBuilder.build(), (unused) -> new TreeSet<>()).add(sortKey);
+    }
+
     this.data =
         new ConcurrentHashMap<>(
             Maps.filterValues(encodedData, byteStrings -> !byteStrings.isEmpty()));
@@ -134,7 +172,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
     assertNotEquals(TypeCase.TYPE_NOT_SET, key.getTypeCase());
     // multimap side input and runner based state keys only support get requests
     if (key.getTypeCase() == TypeCase.MULTIMAP_SIDE_INPUT || key.getTypeCase() == TypeCase.RUNNER) {
-      assertEquals(RequestCase.GET, request.getRequestCase());
+      assertEquals(GET, request.getRequestCase());
     }
     if (key.getTypeCase() == TypeCase.MULTIMAP_KEYS_VALUES_SIDE_INPUT && !data.containsKey(key)) {
       // Allow testing this not being supported rather than blindly returning the empty list.
@@ -142,7 +180,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
     }
 
     switch (request.getRequestCase()) {
-      case GET:
+      case GET: {
         List<ByteString> byteStrings =
             data.getOrDefault(request.getStateKey(), Collections.singletonList(ByteString.EMPTY));
         int block = 0;
@@ -160,6 +198,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
                     StateGetResponse.newBuilder()
                         .setData(returnBlock)
                         .setContinuationToken(continuationToken));
+      }
         break;
 
       case CLEAR:
@@ -172,6 +211,80 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
             data.computeIfAbsent(request.getStateKey(), (unused) -> new ArrayList<>());
         previousValue.add(request.getAppend().getData());
         response = StateResponse.newBuilder().setAppend(StateAppendResponse.getDefaultInstance());
+        break;
+
+      case ORDERED_LIST_GET: {
+        ByteString returnBlock = ByteString.EMPTY;
+        long start = request.getOrderedListGet().getRange().getStart();
+        long end = request.getOrderedListGet().getRange().getEnd();
+
+        // TODO: use continuationToken to split the returned results
+        for (long i : orderedListKeys.getOrDefault(request.getStateKey(), new TreeSet<>())
+            .subSet(start, true, end, false)) {
+          StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
+          keyBuilder.getOrderedListUserStateBuilder().setSortKey(i);
+          List<ByteString> byteStrings =
+              data.getOrDefault(keyBuilder.build(), Collections.singletonList(ByteString.EMPTY));
+          for (ByteString b : byteStrings) {
+            returnBlock = returnBlock.concat(b);
+          }
+        }
+        ByteString continuationToken = ByteString.EMPTY;
+        response =
+            StateResponse.newBuilder()
+                .setOrderedListGet(
+                    OrderedListStateGetResponse.newBuilder()
+                        .setData(returnBlock)
+                        .setContinuationToken(continuationToken));
+      }
+      break;
+
+      case ORDERED_LIST_UPDATE:
+        for (OrderedListRange r : request.getOrderedListUpdate().getDeletesList()) {
+          List<Long> keysToRemove = new ArrayList<>(
+              orderedListKeys.getOrDefault(request.getStateKey(), new TreeSet<>())
+                  .subSet(r.getStart(), true, r.getEnd(), false));
+
+          for (Long l : keysToRemove) {
+            StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
+            keyBuilder.getOrderedListUserStateBuilder().setSortKey(l);
+            data.remove(keyBuilder.build());
+            orderedListKeys.get(request.getStateKey()).remove(l);
+          }
+        }
+
+        for (OrderedListEntry e : request.getOrderedListUpdate().getInsertsList()) {
+          StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
+          keyBuilder.getOrderedListUserStateBuilder().setSortKey(e.getSortKey());
+
+          Coder<Object> valueCoder = orderedListValueCoders.get(key);
+          TimestampedValueCoder<Object> coder = TimestampedValueCoder.of(valueCoder);
+
+          TimestampedValue<Object> tv;
+          try {
+            tv = TimestampedValue.of(
+                valueCoder.decode(e.getData().newInput()),
+                Instant.ofEpochMilli(e.getSortKey()));
+          } catch (Exception ex) {
+            throw new RuntimeException(ex);
+          }
+
+          ByteStringOutputStream output = new ByteStringOutputStream();
+          try {
+            coder.encode(tv, output);
+          } catch (IOException ex) {
+            throw new RuntimeException(ex);
+          }
+
+          List<ByteString> previousValues =
+              data.computeIfAbsent(keyBuilder.build(), (unused) -> new ArrayList<>());
+          previousValues.add(output.toByteStringAndReset());
+
+          orderedListKeys.computeIfAbsent(request.getStateKey(), (unused) -> new TreeSet<>())
+              .add(e.getSortKey());
+        }
+        response = StateResponse.newBuilder()
+            .setOrderedListUpdate(OrderedListStateUpdateResponse.getDefaultInstance());
         break;
 
       default:
