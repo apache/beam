@@ -65,7 +65,7 @@ public class FhirIOSearchIT {
   private static final String BASE_STORE_ID =
       "FHIR_store_search_it_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
   private String fhirStoreId;
-  private static final int MAX_NUM_OF_SEARCHES = 50;
+  private static final int MAX_NUM_OF_SEARCHES = 20;
   private List<FhirSearchParameter<String>> input = new ArrayList<>();
   private List<FhirSearchParameter<List<Integer>>> genericParametersInput = new ArrayList<>();
   private static final String KEY = "key";
@@ -95,9 +95,9 @@ public class FhirIOSearchIT {
 
     JsonArray fhirResources =
         JsonParser.parseString(bundles.get(0)).getAsJsonObject().getAsJsonArray("entry");
-    Map<String, String> searchParameters = ImmutableMap.of("_count", "50");
+    Map<String, String> searchParameters = ImmutableMap.of("_count", "20");
     Map<String, List<Integer>> genericSearchParameters =
-        ImmutableMap.of("_count", Arrays.asList(50));
+        ImmutableMap.of("_count", Arrays.asList(20));
 
     // Include a non-resource type search.
     input.add(FhirSearchParameter.of("", KEY, searchParameters));
@@ -133,8 +133,7 @@ public class FhirIOSearchIT {
     // Search using the resource type of each written resource and empty search parameters.
     PCollection<FhirSearchParameter<String>> searchConfigs =
         pipeline.apply(
-            Create.of(input.subList(0, 20))
-                .withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())));
+            Create.of(input).withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())));
     FhirIO.Search.Result result =
         searchConfigs.apply(
             FhirIO.searchResources(healthcareDataset + "/fhirStores/" + fhirStoreId));
@@ -163,8 +162,9 @@ public class FhirIOSearchIT {
     // Search using the resource type of each written resource and empty search parameters.
     PCollection<FhirSearchParameter<List<Integer>>> searchConfigs =
         pipeline.apply(
-            Create.of(genericParametersInput.subList(0, 20))
+            Create.of(genericParametersInput)
                 .withCoder(FhirSearchParameterCoder.of(ListCoder.of(VarIntCoder.of()))));
+    genericParametersInput.clear();
     FhirIO.Search.Result result =
         searchConfigs.apply(
             (FhirIO.Search<List<Integer>>)
