@@ -397,8 +397,7 @@ class BigtableServiceImpl implements BigtableService {
 
                 @Override
                 public void onError(Throwable t) {
-                  Throwable rootCause = ExceptionUtils.getRootCause(t);
-                  if (byteLimitReached && rootCause instanceof CancellationException) {
+                  if (byteLimitReached) {
                     // When the byte limit is reached we cancel the stream in onResponse.
                     // In this case we don't want to fail the request with cancellation
                     // exception. Instead, we construct the next request.
