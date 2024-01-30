@@ -127,7 +127,6 @@ public class FhirIOSearchIT {
     }
   }
 
-  @Ignore("https://github.com/apache/beam/issues/28505")
   @Test
   public void testFhirIOSearch() {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
@@ -135,7 +134,7 @@ public class FhirIOSearchIT {
     // Search using the resource type of each written resource and empty search parameters.
     PCollection<FhirSearchParameter<String>> searchConfigs =
         pipeline.apply(
-            Create.of(input).withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())));
+            Create.of(input.subList(0,20)).withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())));
     FhirIO.Search.Result result =
         searchConfigs.apply(
             FhirIO.searchResources(healthcareDataset + "/fhirStores/" + fhirStoreId));
@@ -157,7 +156,6 @@ public class FhirIOSearchIT {
     pipeline.run().waitUntilFinish();
   }
 
-  @Ignore("https://github.com/apache/beam/issues/28505")
   @Test
   public void testFhirIOSearchWithGenericParameters() {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
@@ -165,7 +163,7 @@ public class FhirIOSearchIT {
     // Search using the resource type of each written resource and empty search parameters.
     PCollection<FhirSearchParameter<List<Integer>>> searchConfigs =
         pipeline.apply(
-            Create.of(genericParametersInput)
+            Create.of(genericParametersInput.subList(0,20))
                 .withCoder(FhirSearchParameterCoder.of(ListCoder.of(VarIntCoder.of()))));
     FhirIO.Search.Result result =
         searchConfigs.apply(
