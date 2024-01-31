@@ -387,11 +387,6 @@ class BigtableServiceImpl implements BigtableService {
                   currentByteSize += response.getSerializedSize();
                   rows.add(response);
                   if (currentByteSize > maxSegmentByteSize) {
-                    LOG.info(
-                        "Reached maxSegmentByteSize, cancelling the stream. currentByteSize is {}, maxSegmentByteSize is {}, read rows {}",
-                        currentByteSize,
-                        maxSegmentByteSize,
-                        rows.size());
                     byteLimitReached = true;
                     controller.cancel();
                     return;
