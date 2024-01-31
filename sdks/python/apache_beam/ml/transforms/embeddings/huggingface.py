@@ -16,6 +16,7 @@
 
 __all__ = ["SentenceTransformerEmbeddings", "InferenceAPIEmbeddings"]
 
+import os
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -173,7 +174,7 @@ class _InferenceAPIHandler(ModelHandler):
 class InferenceAPIEmbeddings(EmbeddingsManager):
   def __init__(
       self,
-      hf_token: str,
+      hf_token: Optional[str],
       columns: List[str],
       model_name: Optional[str] = None, # example: "sentence-transformers/all-MiniLM-l6-v2" # pylint: disable=line-too-long
       api_url: Optional[str] = None,
@@ -194,18 +195,28 @@ class InferenceAPIEmbeddings(EmbeddingsManager):
 
     """
     super().__init__(columns, **kwargs)
-    self._api_url = api_url
     self._authorization_token = {"Authorization": f"Bearer {hf_token}"}
     self._model_name = model_name
-
-  @property
-  def api_url(self):
-    if not self._api_url:
+    self.hf_token = self.get_token() if not hf_token else hf_token
+    if not self.hf_token:
+      raise ValueError(
+          'HF_TOKEN environment variable not set. '
+          'Please set the environment variable or pass the token as an '
+          'argument.')
+    if not api_url:
       if not self._model_name:
         raise ValueError("Either api_url or model_name must be provided.")
       self._api_url = (
           f"https://api-inference.huggingface.co/pipeline/feature-extraction/{self._model_name}"  # pylint: disable=line-too-long
       )
+    else:
+      self._api_url = api_url
+
+  def get_token(self):
+    return os.environ.get('HF_TOKEN')
+
+  @property
+  def api_url(self):
     return self._api_url
 
   @property
