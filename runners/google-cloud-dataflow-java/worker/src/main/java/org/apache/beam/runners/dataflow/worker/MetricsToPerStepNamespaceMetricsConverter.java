@@ -52,17 +52,14 @@ public class MetricsToPerStepNamespaceMetricsConverter {
       return Optional.empty();
     }
 
-    Optional<BigQuerySinkMetrics.ParsedMetricName> labeledName =
-        BigQuerySinkMetrics.parseMetricName(metricName.getName());
-    if (!labeledName.isPresent() || labeledName.get().getBaseName().isEmpty()) {
-      return Optional.empty();
-    }
-
-    return Optional.of(
-        new MetricValue()
-            .setMetric(labeledName.get().getBaseName())
-            .setMetricLabels(labeledName.get().getMetricLabels())
-            .setValueInt64(value));
+    return BigQuerySinkMetrics.parseMetricName(metricName.getName())
+        .filter(labeledName -> !labeledName.getBaseName().isEmpty())
+        .map(
+            labeledName ->
+                new MetricValue()
+                    .setMetric(labeledName.getBaseName())
+                    .setMetricLabels(labeledName.getMetricLabels())
+                    .setValueInt64(value));
   }
 
   /**
