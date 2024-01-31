@@ -2926,7 +2926,8 @@ class ReadFromBigQueryRequest:
     self.table = table
     self.validate()
 
-    # We use this internal object ID to generate BigQuery export directories.
+    # We use this internal object ID to generate BigQuery export directories
+    # and to create BigQuery job names
     self.obj_id = '%d_%s' % (int(time.time()), secrets.token_hex(3))
 
   def validate(self):
