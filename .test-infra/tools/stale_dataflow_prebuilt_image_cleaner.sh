@@ -25,7 +25,12 @@ set -euo pipefail
 PUBLIC_REPOSITORIES=(beam-sdk beam_portability beamgrafana beammetricssyncjenkins beammetricssyncgithub)
 PRIVATE_REPOSITORIES=(java-postcommit-it python-postcommit-it jenkins github-actions)
 # set as the same as 6-week release period
-DELETE_BEFORE_DAY=$(date --iso-8601=s -d '6 weeks ago')
+if [[ $OSTYPE == "linux-gnu"* ]]; then
+  # date command usage depending on OS
+  DELETE_BEFORE_DAY=$(date --iso-8601=s -d '6 weeks ago')
+elif [[ $OSTYPE == "darwin"* ]]; then
+  DELETE_BEFORE_DAY=$(date -j -v-6w '+%Y-%m-%dT%H:%M:%S')
+fi
 
 REPOSITORIES=("${PUBLIC_REPOSITORIES[@]/#/gcr.io/apache-beam-testing/}" "${PRIVATE_REPOSITORIES[@]/#/us.gcr.io/apache-beam-testing/}")
 
@@ -49,6 +54,9 @@ while [ -n "$REPOSITORIES" ]; do
   REPOSITORIES=("${PENDING_REPOSITORIES[@]}")
 done
 
+STALE_IMAGES=""
+FAILED_INSPECT=""
+
 for image_name in ${IMAGE_NAMES[@]}; do
   echo IMAGES FOR image ${image_name}
   FAILED_TO_DELETE=""
@@ -70,24 +78,31 @@ for image_name in ${IMAGE_NAMES[@]}; do
       # do not delete the one with latest label and the newest image without latest label
       # this make sure we leave at least one container under each image name, either labelled "latest" or not
       if [ "$LATEST_IN_TIME" != "$current" ]; then
-        # Check to see if this image is built on top of earlier images. This is the case for multiarch images,
-        # they will have a virtual size of 0 and a created date at the start of the epoch, but their manifests will
-        # point to active images. These images should only be deleted when all of their dependencies can be safely
-        # deleted.
-        MANIFEST=$(docker manifest inspect ${image_name}@"${current}")
-        SHOULD_DELETE=0
-        DIGEST=$(echo $MANIFEST |  jq -r '.manifests[0].digest')
-        if [ "$DIGEST" != "null" ]
-        then
-          SHOULD_DELETE=1
-          for i in ${STALE_IMAGES_CURRENT[@]}
-          do
-            echo "$i"
-            if [ "$i" = "$DIGEST" ]
-            then
-              SHOULD_DELETE=0
-            fi
-          done
+        if [[ $image_name =~ 'beamgrafana' || $image_name =~ 'beammetricssyncjenkins' || $image_name =~ 'beammetricssyncgithub' ]]; then
+          # Skip docker manifest inspect for known single arch images, workaround permission issue & saving API call
+          SHOULD_DELETE=0
+        else
+          # Check to see if this image is built on top of earlier images. This is the case for multiarch images,
+          # they will have a virtual size of 0 and a created date at the start of the epoch, but their manifests will
+          # point to active images. These images should only be deleted when all of their dependencies can be safely
+          # deleted.
+          MANIFEST=$(docker manifest inspect ${image_name}@"${current}" || echo "")
+          if [ -z "$MANIFEST" ]; then
+            # Sometimes "no such manifest" seen. Skip current if command hit error
+            FAILED_INSPECT+=" $current"
+            continue
+          fi
+          SHOULD_DELETE=0
+          DIGEST=$(echo $MANIFEST |  jq -r '.manifests[0].digest')
+          if [ "$DIGEST" != "null" ]; then
+            SHOULD_DELETE=1
+            for i in ${STALE_IMAGES_CURRENT[@]}; do
+              if [ "$i" = "$DIGEST" ]; then
+                SHOULD_DELETE=0
+                break
+              fi
+            done
+          fi
         fi
 
         if [ $SHOULD_DELETE = 0 ]
@@ -100,16 +115,23 @@ for image_name in ${IMAGE_NAMES[@]}; do
   fi
 
   # Some images may not be successfully deleted the first time due to flakiness or having a dependency that hasn't been deleted yet.
-  RETRY_DELETE=("${FAILED_TO_DELETE[@]}")
-  echo "Failed to delete the following images: ${FAILED_TO_DELETE}. Retrying each of them."
-  for current in $RETRY_DELETE; do
-    echo "Trying again to delete image ${image_name}@"${current}". Command: gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q"
-    gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q
-  done
+  if [ -n "$FAILED_TO_DELETE" ]; then
+    RETRY_DELETE=("${FAILED_TO_DELETE[@]}")
+    echo "Failed to delete the following images: ${FAILED_TO_DELETE}. Retrying each of them."
+    for current in $RETRY_DELETE; do
+      echo "Trying again to delete image ${image_name}@"${current}". Command: gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q"
+      gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q
+    done
+  fi
 done
 
 if [[ ${STALE_IMAGES} ]]; then
   echo "Deleted multiple images"
 else
   echo "No stale prebuilt container images found."
+fi
+
+if [ -n "$FAILED_INSPECT" ]; then
+  echo "Failed delete images $FAILED_INSPECT"
+  exit 1
 fi
