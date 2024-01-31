@@ -27,6 +27,7 @@ from apache_beam.ml.transforms.base import MLTransform
 
 try:
   from apache_beam.ml.transforms.embeddings.vertex_ai import VertexAITextEmbeddings
+  from apache_beam.ml.transforms.embeddings.vertex_ai import retry_on_vertex_ai_errors
 except ImportError:
   VertexAITextEmbeddings = None  # type: ignore
 
@@ -243,6 +244,11 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
           expected_task_type[i])
       self.assertEqual(
           ptransform_list[i]._model_handler._underlying.model_name, model_name)
+
+  def test_retry_error(self):
+    from google.api_core.exceptions import Aborted
+    self.assertTrue(retry_on_vertex_ai_errors(Aborted("Fake Message")))
+    self.assertFalse(retry_on_vertex_ai_errors(ValueError("Fake Message")))
 
 
 if __name__ == '__main__':
