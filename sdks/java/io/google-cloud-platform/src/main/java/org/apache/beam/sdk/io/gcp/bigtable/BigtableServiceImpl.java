@@ -387,6 +387,11 @@ class BigtableServiceImpl implements BigtableService {
                   currentByteSize += response.getSerializedSize();
                   rows.add(response);
                   if (currentByteSize > maxSegmentByteSize) {
+                    LOG.debug(
+                        "Reached maxSegmentByteSize, cancelling the stream. currentByteSize is {}, maxSegmentByteSize is {}, read rows {}",
+                        currentByteSize,
+                        maxSegmentByteSize,
+                        rows.size());
                     byteLimitReached = true;
                     controller.cancel();
                     return;
@@ -409,7 +414,11 @@ class BigtableServiceImpl implements BigtableService {
                 public void onComplete() {
                   ReadRowsRequest nextNextRequest = null;
 
-                  // When requested rows < limit, the current request will be the last
+                  // Only schedule the next segment fetch when there's a possibility of more
+                  // data to read. We know there might be more data when the current segment
+                  // ended with the artificial byte limit or the row limit.
+                  // If the RPC ended without hitting the byte limit or row limit, we know
+                  // there's no more data to read and nextNextRequest would be null.
                   if (byteLimitReached || rows.size() == nextRequest.getRowsLimit()) {
                     nextNextRequest =
                         truncateRequest(nextRequest, rows.get(rows.size() - 1).getKey());
