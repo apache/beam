@@ -164,7 +164,6 @@ public class FhirIOSearchIT {
         pipeline.apply(
             Create.of(genericParametersInput)
                 .withCoder(FhirSearchParameterCoder.of(ListCoder.of(VarIntCoder.of()))));
-    genericParametersInput.clear();
     FhirIO.Search.Result result =
         searchConfigs.apply(
             (FhirIO.Search<List<Integer>>)
