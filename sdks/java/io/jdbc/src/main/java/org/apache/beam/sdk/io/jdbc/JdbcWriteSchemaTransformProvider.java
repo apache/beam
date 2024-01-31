@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static org.apache.beam.sdk.io.jdbc.JdbcUtil.JDBC_DRIVER_MAP;
+
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
@@ -35,7 +37,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -52,9 +53,6 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 public class JdbcWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration> {
-
-  private static final List<String> JDBCTypes =
-      ImmutableList.of("mysql", "postgres", "oracle", "mssql");
 
   @Override
   protected @UnknownKeyFor @NonNull @Initialized Class<JdbcWriteSchemaTransformConfiguration>
@@ -81,22 +79,8 @@ public class JdbcWriteSchemaTransformProvider
       String driverClassName = config.getDriverClassName();
 
       if (Strings.isNullOrEmpty(driverClassName)) {
-        switch (Objects.requireNonNull(config.getJdbcType()).toLowerCase()) {
-          case "mysql":
-            driverClassName = "com.mysql.cj.jdbc.Driver";
-            break;
-          case "postgres":
-            driverClassName = "org.postgresql.Driver";
-            break;
-          case "oracle":
-            driverClassName = "oracle.jdbc.driver.OracleDriver";
-            break;
-          case "mssql":
-            driverClassName = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
-            break;
-          default:
-            throw new IllegalArgumentException("JDBC type must be one of " + JDBCTypes);
-        }
+        driverClassName =
+            JDBC_DRIVER_MAP.get(Objects.requireNonNull(config.getJdbcType()).toLowerCase());
       }
 
       JdbcIO.DataSourceConfiguration dsConfig =
@@ -222,15 +206,23 @@ public class JdbcWriteSchemaTransformProvider
     public abstract String getDriverJars();
 
     public void validate() throws IllegalArgumentException {
-      if (Strings.isNullOrEmpty(getDriverClassName()) && Strings.isNullOrEmpty(getJdbcType())) {
-        throw new IllegalArgumentException("JDBC Driver class name cannot be blank.");
-      }
       if (Strings.isNullOrEmpty(getJdbcUrl())) {
         throw new IllegalArgumentException("JDBC URL cannot be blank");
       }
-      if (!Strings.isNullOrEmpty(getJdbcType())
-          && !JDBCTypes.contains(getJdbcType().toLowerCase())) {
-        throw new IllegalArgumentException("JDBC type must be one of " + JDBCTypes);
+
+      boolean driverClassNamePresent = !Strings.isNullOrEmpty(getDriverClassName());
+      boolean jdbcTypePresent = !Strings.isNullOrEmpty(getJdbcType());
+      if (driverClassNamePresent && jdbcTypePresent) {
+        throw new IllegalArgumentException(
+            "JDBC Driver class name and JDBC type are mutually exclusive configurations.");
+      }
+      if (!driverClassNamePresent && !jdbcTypePresent) {
+        throw new IllegalArgumentException(
+            "One of JDBC Driver class name or JDBC type must be specified.");
+      }
+      if (jdbcTypePresent
+          && !JDBC_DRIVER_MAP.containsKey(Objects.requireNonNull(getJdbcType()).toLowerCase())) {
+        throw new IllegalArgumentException("JDBC type must be one of " + JDBC_DRIVER_MAP.keySet());
       }
 
       boolean writeStatementPresent =
