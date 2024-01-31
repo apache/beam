@@ -23,7 +23,6 @@ import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Map;
 import java.util.function.Supplier;
-import org.apache.beam.fn.harness.PTransformRunnerFactory.Context;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.StateBackedIterable.StateBackedIterableTranslationContext;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
