@@ -45,6 +45,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -61,7 +62,6 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
   private final Map<StateKey, List<ByteString>> data;
   private int currentId;
   private final Map<StateKey, NavigableSet<Long>> orderedListKeys;
-  private final Map<StateKey, Coder<Object>> orderedListValueCoders;
 
   public <V> FakeBeamFnStateClient(Coder<V> valueCoder, Map<StateKey, List<V>> initialData) {
     this(valueCoder, initialData, DEFAULT_CHUNK_SIZE);
@@ -122,15 +122,12 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
               return ((TimestampedValueCoder<Object>) v.getKey()).getValueCoder();
             }));
 
-    this.orderedListValueCoders = new HashMap<>();
     this.orderedListKeys = new HashMap<>();
     for (Map.Entry<StateKey, Coder<Object>> entry : orderedListInitialData.entrySet()) {
       long sortKey = entry.getKey().getOrderedListUserState().getSortKey();
 
       StateKey.Builder keyBuilder = entry.getKey().toBuilder();
       keyBuilder.getOrderedListUserStateBuilder().clearSortKey();
-
-      this.orderedListValueCoders.put(keyBuilder.build(), entry.getValue());
 
       this.orderedListKeys.computeIfAbsent(keyBuilder.build(), (unused) -> new TreeSet<>()).add(sortKey);
     }
@@ -257,28 +254,20 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
           StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
           keyBuilder.getOrderedListUserStateBuilder().setSortKey(e.getSortKey());
 
-          Coder<Object> valueCoder = orderedListValueCoders.get(key);
-          TimestampedValueCoder<Object> coder = TimestampedValueCoder.of(valueCoder);
+          ByteStringOutputStream outStream = new ByteStringOutputStream();
 
-          TimestampedValue<Object> tv;
           try {
-            tv = TimestampedValue.of(
-                valueCoder.decode(e.getData().newInput()),
-                Instant.ofEpochMilli(e.getSortKey()));
-          } catch (Exception ex) {
-            throw new RuntimeException(ex);
-          }
-
-          ByteStringOutputStream output = new ByteStringOutputStream();
-          try {
-            coder.encode(tv, output);
+            InstantCoder.of().encode(Instant.ofEpochMilli(e.getSortKey()), outStream);
           } catch (IOException ex) {
             throw new RuntimeException(ex);
           }
+          // In the response, the value encoded bytes are placed before the timestamp encoded bytes.
+          // This is also consistent with TimestampedValueCoder
+          ByteString output = e.getData().concat(outStream.toByteString());
 
           List<ByteString> previousValues =
               data.computeIfAbsent(keyBuilder.build(), (unused) -> new ArrayList<>());
-          previousValues.add(output.toByteStringAndReset());
+          previousValues.add(output);
 
           orderedListKeys.computeIfAbsent(request.getStateKey(), (unused) -> new TreeSet<>())
               .add(e.getSortKey());
