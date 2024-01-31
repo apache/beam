@@ -226,10 +226,10 @@ public class StreamingStepMetricsContainerTest {
   @Test
   public void testExtractPerWorkerMetricUpdates() {
     StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
-    MetricName counterMetricName = MetricName.named("BigQuerySink", "counter-");
+    MetricName counterMetricName = MetricName.named("BigQuerySink", "counter");
     c1.getPerWorkerCounter(counterMetricName).inc(3);
 
-    MetricName histogramMetricName = MetricName.named("BigQuerySink", "histogram-");
+    MetricName histogramMetricName = MetricName.named("BigQuerySink", "histogram");
     HistogramData.LinearBuckets linearBuckets = HistogramData.LinearBuckets.of(0, 10, 10);
     c2.getPerWorkerHistogram(histogramMetricName, linearBuckets).update(5.0);
 
