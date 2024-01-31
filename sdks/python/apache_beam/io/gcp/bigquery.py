@@ -361,6 +361,7 @@ import itertools
 import json
 import logging
 import random
+import secrets
 import time
 import uuid
 import warnings
@@ -2925,8 +2926,9 @@ class ReadFromBigQueryRequest:
     self.table = table
     self.validate()
 
-    # We use this internal object ID to generate BigQuery export directories.
-    self.obj_id = random.randint(0, 100000)
+    # We use this internal object ID to generate BigQuery export directories
+    # and to create BigQuery job names
+    self.obj_id = '%d_%s' % (int(time.time()), secrets.token_hex(3))
 
   def validate(self):
     if self.table is not None and self.query is not None:
