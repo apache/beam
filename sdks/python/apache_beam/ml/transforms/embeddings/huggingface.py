@@ -157,6 +157,18 @@ class _InferenceAPIHandler(ModelHandler):
 
   def load_model(self):
     session = requests.Session()
+    # if the token is not provided during construction time, it might have
+    # been provided with custom container, which we can get it during runtume.
+    if not self._config.hf_token:
+      hf_token = os.environ.get("HF_TOKEN")
+      if not hf_token:
+        raise ValueError(
+            'HF_TOKEN environment variable not set. '
+            'Please set the environment variable or pass the token as an '
+            'argument.')
+      session.headers.update({"Authorization": f"Bearer {hf_token}"})
+      return session
+
     session.headers.update(self._config.authorization_token)
     return session
 
@@ -197,12 +209,7 @@ class InferenceAPIEmbeddings(EmbeddingsManager):
     super().__init__(columns, **kwargs)
     self._authorization_token = {"Authorization": f"Bearer {hf_token}"}
     self._model_name = model_name
-    self.hf_token = self.get_token() if not hf_token else hf_token
-    if not self.hf_token:
-      raise ValueError(
-          'HF_TOKEN environment variable not set. '
-          'Please set the environment variable or pass the token as an '
-          'argument.')
+    self.hf_token = hf_token
     if not api_url:
       if not self._model_name:
         raise ValueError("Either api_url or model_name must be provided.")
