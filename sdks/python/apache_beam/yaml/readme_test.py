@@ -205,6 +205,8 @@ def create_test_method(test_type, test_name, test_yaml):
         return
       if 'ReadFromCsv' in test_yaml:
         spec = replace_recursive(spec, 'ReadFromCsv', 'path', env.input_csv())
+      if 'ReadFromText' in test_yaml:
+        spec = replace_recursive(spec, 'ReadFromText', 'path', env.input_csv())
       if 'ReadFromJson' in test_yaml:
         spec = replace_recursive(spec, 'ReadFromJson', 'path', env.input_json())
       for write in ['WriteToText', 'WriteToCsv', 'WriteToJson']:

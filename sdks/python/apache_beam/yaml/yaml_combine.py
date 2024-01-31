@@ -41,6 +41,8 @@ BUILTIN_COMBINE_FNS = {
     'any': any,
     'mean': beam.transforms.combiners.MeanCombineFn(),
     'count': beam.transforms.combiners.CountCombineFn(),
+    'group': beam.transforms.combiners.ToListCombineFn(),
+    'concat': beam.transforms.combiners.ConcatListCombineFn(),
 }
 
 
