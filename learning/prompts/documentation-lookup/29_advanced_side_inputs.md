@@ -1,10 +1,11 @@
 Prompt:
-What are Side inputs in Apache Beam?
-Response:
-[Side input](https://beam.apache.org/documentation/programming-guide/#side-inputs) is an additional input to a [ParDo transform](https://beam.apache.org/documentation/programming-guide/#pardo) that is not part of the main input `PCollection`. ParDo can access side inputs each time that your `DoFn` processes an element in the input `PCollection`.
-Side inputs are useful in scenarios where you need to include additional non hard-coded data at runtime. For example, you might want to include a configuration data or a lookup table in your pipeline. Such data can also depend on a different branch of your pipeline.
+What are side inputs in Apache Beam?
 
-In Python SDK side inputs are available as extra arguments to the `DoFn`'s `process` method or `Map`/`FlatMap` callable.
+Response:
+In Apache Beam, side inputs are additional inputs that can be provided to a [‘ParDo’ transform](https://beam.apache.org/documentation/programming-guide/#pardo), in addition to the main input  [`PCollection`](https://beam.apache.org/documentation/basics/#pcollection). These side inputs can be used by the ParDo transform's DoFn to access and read additional data during the processing of each element in the main input ‘PCollection’.
+Side inputs are particularly useful when a Beam pipeline needs to ingest additional data dynamically at runtime when processing each element, rather than relying on preset or hard-coded values. By leveraging side inputs, Apache Beam can determine additional data based on the main 'PCollection' data or even from a different branch of your pipeline. For example, you can leverage side inputs for your streaming analytics use cases, enriching streaming events with additional data retrieved from a lookup table.
+
+In the Apache Beam Python SDK, you can provide side inputs as extra arguments in the `DoFn`'s `process` method or the `Map`/`FlatMap` transforms. The Python SDK supports optional, positional, and keyword arguments.
 
 ```python
 class MyDoFn(beam.DoFn):
@@ -12,7 +13,7 @@ class MyDoFn(beam.DoFn):
     ...
 ```
 
-In Java SDK side inputs are passed to your `ParDo` transform by invoking `.withSideInputs`. Inside your `DoFn`, access the side input by using the method `DoFn.ProcessContext.sideInput`.
+In the Apache Beam Java SDK, side inputs are provided to the `ParDo` transform by using the `.withSideInputs` method. To access a side input from within a ‘DoFn’, the `DoFn.ProcessContext.sideInput` method is invoked.
 
 ```java
 PCollection<Integer> input = ...;
@@ -27,8 +28,7 @@ PCollection<Integer> output =
     }).withSideInputs(sideInput));
 ```
 
-Side inputs can also be used for [processing windowed data](https://beam.apache.org/documentation/programming-guide/#side-inputs-windowing). Apache Beam uses the windows for the main input `PCollection` to lookup appropriate window for the side input element. Apache Beam projects the main input window to the side input's window set. Main and side inputs might have identical or different windowing strategies.
+Side inputs can also be used to process windowed data. Apache Beam uses the windows for the main input elements to look up the appropriate windows for the side input elements. Apache Beam projects the main input’s window to the side input's window set and uses the side input from the resulting window. Main and side inputs might have identical or different windowing strategies.
+For example, if the main input `PCollection` is windowed into ten-minute windows, and the side input is windowed into one-hour windows, Apache Beam projects the main input window set and selects the value from the corresponding one-hour side input window. For more information, refer to [side inputs and windowing](https://beam.apache.org/documentation/programming-guide/#side-inputs-windowing).
 
-For example, if the main input `PCollection` is windowed into 10-minute windows, and the side input `PCollection` is windowed into 1-hour fixed windows, Apache Beam will project the main input window  and select side inputfrom the corresponding 1-hour window.
-
-See [side input pattern](https://beam.apache.org/documentation/patterns/side-inputs/) for more information.
+For common patterns and code samples in Apache Beam pipelines to implement side inputs, refer to [side input patterns](https://beam.apache.org/documentation/patterns/side-inputs/).
