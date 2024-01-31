@@ -356,13 +356,12 @@ https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 # pytype: skip-file
 
 import collections
-import secrets
-
 import io
 import itertools
 import json
 import logging
 import random
+import secrets
 import time
 import uuid
 import warnings
