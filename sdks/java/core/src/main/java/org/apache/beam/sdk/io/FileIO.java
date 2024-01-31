@@ -1045,6 +1045,12 @@ public class FileIO {
 
     abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
+    public abstract int getFileTriggeringRecordCount();
+
+    public abstract int getFileTriggeringByteCount();
+
+    public abstract Duration getFileTriggeringRecordBufferingDuration();
+
     abstract Builder<DestinationT, UserT> toBuilder();
 
     @AutoValue.Builder
@@ -1095,6 +1101,14 @@ public class FileIO {
 
       abstract Builder<DestinationT, UserT> setBadRecordErrorHandler(
           @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
+
+      abstract Builder<DestinationT, UserT> setFileTriggeringRecordCount(
+          int fileTriggeringRecordCount);
+
+      abstract Builder<DestinationT, UserT> setFileTriggeringByteCount(int fileTriggeringByteCount);
+
+      abstract Builder<DestinationT, UserT> setFileTriggeringRecordBufferingDuration(
+          Duration fileTriggeringRecordBufferingDuration);
 
       abstract Write<DestinationT, UserT> build();
     }
@@ -1338,6 +1352,21 @@ public class FileIO {
       return toBuilder().setBadRecordErrorHandler(errorHandler).build();
     }
 
+    public Write<DestinationT, UserT> withFileTriggeringRecordCount(int fileTriggeringRecordCount) {
+      return toBuilder().setFileTriggeringRecordCount(fileTriggeringRecordCount).build();
+    }
+
+    public Write<DestinationT, UserT> withFileTriggeringByteCount(int fileTriggeringByteCount) {
+      return toBuilder().setFileTriggeringByteCount(fileTriggeringByteCount).build();
+    }
+
+    public Write<DestinationT, UserT> withFileTriggeringRecordBufferingDuration(
+        Duration fileTriggeringRecordBufferingDuration) {
+      return toBuilder()
+          .setFileTriggeringRecordBufferingDuration(fileTriggeringRecordBufferingDuration)
+          .build();
+    }
+
     @VisibleForTesting
     Contextful<Fn<DestinationT, FileNaming>> resolveFileNamingFn() {
       if (getDynamic()) {
@@ -1441,7 +1470,15 @@ public class FileIO {
       }
       if (getAutoSharding()) {
         writeFiles = writeFiles.withAutoSharding();
+        // Update autosharding related parameters
+        writeFiles =
+            writeFiles
+                .withFileTriggeringByteCount(getFileTriggeringByteCount())
+                .withFileTriggeringRecordCount(getFileTriggeringRecordCount())
+                .withFileTriggeringRecordBufferingDuration(
+                    getFileTriggeringRecordBufferingDuration());
       }
+
       if (getNoSpilling()) {
         writeFiles = writeFiles.withNoSpilling();
       }
