@@ -1,3 +1,7 @@
+---
+type: languages
+title: "Apache Beam YAML Inline Python"
+---
 <!--
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
