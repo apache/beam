@@ -37,7 +37,7 @@ for dataset in ${BQ_DATASETS[@]}; do
       # The BQ API reports LAST MODIFIED TIME in miliseconds, while unix works in seconds since epoch
       # thus why we need to convert to seconds.
 
-      failed = 0
+      failed=0
       ds=`bq --format=json --project_id=$PROJECT show $dataset` || failed=1
       if [[ $failed -eq 1 ]]; then
         echo "Could not find dataset $dataset - it may have already been deleted, skipping"
