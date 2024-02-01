@@ -1668,7 +1668,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               String rootBigQueryTransform = "";
               if (transform.getClass().equals(StorageApiLoads.class)) {
                 StorageApiLoads<?, ?> storageLoads = (StorageApiLoads<?, ?>) transform;
-                failedTag = storageLoads.getFailedRowsTag();
+                //If the storage load is directing exceptions to an error handler, we don't need to
+                //warn for unconsumed rows
+                if (!storageLoads.usesErrorHandler()) {
+                  failedTag = storageLoads.getFailedRowsTag();
+                }
                 // For storage API the transform that outputs failed rows is nested one layer below
                 // BigQueryIO.
                 rootBigQueryTransform = node.getEnclosingNode().getFullName();

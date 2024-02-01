@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
+import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.RECORDING_ROUTER;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -113,7 +114,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
-import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -2278,6 +2278,8 @@ public class BigQueryIO {
         .setDirectWriteProtos(true)
         .setDefaultMissingValueInterpretation(
             AppendRowsRequest.MissingValueInterpretation.DEFAULT_VALUE)
+        .setBadRecordErrorHandler(new DefaultErrorHandler<>())
+        .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
         .build();
   }
 
@@ -2486,6 +2488,10 @@ public class BigQueryIO {
     abstract @Nullable SerializableFunction<T, RowMutationInformation>
         getRowMutationInformationFn();
 
+    abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
+
+    abstract BadRecordRouter getBadRecordRouter();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -2593,6 +2599,11 @@ public class BigQueryIO {
 
       abstract Builder<T> setRowMutationInformationFn(
           SerializableFunction<T, RowMutationInformation> rowMutationFn);
+
+      abstract Builder<T> setBadRecordErrorHandler(
+          ErrorHandler<BadRecord, ?> badRecordErrorHandler);
+
+      abstract Builder<T> setBadRecordRouter(BadRecordRouter badRecordRouter);
 
       abstract Write<T> build();
     }
@@ -3261,6 +3272,13 @@ public class BigQueryIO {
       return toBuilder().setWriteTempDataset(writeTempDataset).build();
     }
 
+    public Write<T> withErrorHandler(ErrorHandler<BadRecord, ?> errorHandler) {
+      return toBuilder()
+          .setBadRecordErrorHandler(errorHandler)
+          .setBadRecordRouter(RECORDING_ROUTER)
+          .build();
+    }
+
     @Override
     public void validate(PipelineOptions pipelineOptions) {
       BigQueryOptions options = pipelineOptions.as(BigQueryOptions.class);
@@ -3667,6 +3685,9 @@ public class BigQueryIO {
         checkArgument(
             !getPropagateSuccessfulStorageApiWrites(),
             "withPropagateSuccessfulStorageApiWrites only supported when using storage api writes.");
+        checkArgument(
+            !(getBadRecordRouter() instanceof ThrowingBadRecordRouter),
+            "Error Handling is not supported with STREAMING_INSERTS");
 
         RowWriterFactory.TableRowWriterFactory<T, DestinationT> tableRowWriterFactory =
             (RowWriterFactory.TableRowWriterFactory<T, DestinationT>) rowWriterFactory;
@@ -3701,6 +3722,10 @@ public class BigQueryIO {
         checkArgument(
             !getPropagateSuccessfulStorageApiWrites(),
             "withPropagateSuccessfulStorageApiWrites only supported when using storage api writes.");
+        if (!(getBadRecordRouter() instanceof ThrowingBadRecordRouter)) {
+          LOG.warn(
+              "Error Handling is partially supported when using FILE_LOADS. Consider using STORAGE_WRITE_API or STORAGE_API_AT_LEAST_ONCE");
+        }
 
         // Batch load jobs currently support JSON data insertion only with CSV files
         if (getJsonSchema() != null && getJsonSchema().isAccessible()) {
@@ -3845,7 +3870,9 @@ public class BigQueryIO {
                 getIgnoreUnknownValues(),
                 getPropagateSuccessfulStorageApiWrites(),
                 getRowMutationInformationFn() != null,
-                getDefaultMissingValueInterpretation());
+                getDefaultMissingValueInterpretation(),
+                getBadRecordRouter(),
+                getBadRecordErrorHandler());
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);

@@ -130,6 +130,7 @@ public class BigQueryIOStorageReadIT {
     public static final FailingTableRowParser INSTANCE = new FailingTableRowParser();
 
     private int parseCount = 0;
+
     @Override
     public TableRow apply(SchemaAndRecord schemaAndRecord) {
       parseCount++;
@@ -142,18 +143,20 @@ public class BigQueryIOStorageReadIT {
 
   private void runBigQueryIOStorageReadPipelineErrorHandling() throws Exception {
     Pipeline p = Pipeline.create(options);
-    ErrorHandler<BadRecord, PCollection<Long>> errorHandler = p.registerBadRecordErrorHandler(new ErrorSinkTransform());
-      PCollection<Long> count = p.apply(
-              "Read",
-              BigQueryIO.read(FailingTableRowParser.INSTANCE)
-                  .from(options.getInputTable())
-                  .withMethod(Method.DIRECT_READ)
-                  .withFormat(options.getDataFormat())
-                  .withErrorHandler(errorHandler))
-          .apply("Count", Count.globally());
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        p.registerBadRecordErrorHandler(new ErrorSinkTransform());
+    PCollection<Long> count =
+        p.apply(
+                "Read",
+                BigQueryIO.read(FailingTableRowParser.INSTANCE)
+                    .from(options.getInputTable())
+                    .withMethod(Method.DIRECT_READ)
+                    .withFormat(options.getDataFormat())
+                    .withErrorHandler(errorHandler))
+            .apply("Count", Count.globally());
 
-    PAssert.thatSingleton(count).isEqualTo(options.getNumRecords()* 49/50);
-    PAssert.thatSingleton(errorHandler.getOutput()).isEqualTo(options.getNumRecords()/50);
+    PAssert.thatSingleton(count).isEqualTo(options.getNumRecords() * 49 / 50);
+    PAssert.thatSingleton(errorHandler.getOutput()).isEqualTo(options.getNumRecords() / 50);
     p.run().waitUntilFinish();
   }
 
