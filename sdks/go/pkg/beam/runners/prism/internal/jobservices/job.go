@@ -177,6 +177,11 @@ func (j *Job) Done() {
 	j.sendState(jobpb.JobState_DONE)
 }
 
+// Cancel indicates that the job is canceling.
+func (j *Job) Cancel() {
+	j.sendState(jobpb.JobState_CANCELLING)
+}
+
 // Failed indicates that the job completed unsuccessfully.
 func (j *Job) Failed(err error) {
 	slog.Error("job failed", slog.Any("job", j), slog.Any("error", err))

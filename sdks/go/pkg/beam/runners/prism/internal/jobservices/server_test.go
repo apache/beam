@@ -77,3 +77,53 @@ func TestServer_JobLifecycle(t *testing.T) {
 	t.Log("success!")
 	// Nothing to cleanup because we didn't start the server.
 }
+
+// Validates that a invoking Cancel cancels a running job.
+func TestServer_RunThenCancel(t *testing.T) {
+	var called sync.WaitGroup
+	called.Add(1)
+	undertest := NewServer(0, func(j *Job) {
+		select {
+		case <-j.RootCtx.Done():
+			called.Done()
+		}
+	})
+	ctx := context.Background()
+
+	wantPipeline := &pipepb.Pipeline{
+		Requirements: []string{urns.RequirementSplittableDoFn},
+	}
+	wantName := "testJob"
+
+	resp, err := undertest.Prepare(ctx, &jobpb.PrepareJobRequest{
+		Pipeline: wantPipeline,
+		JobName:  wantName,
+	})
+	if err != nil {
+		t.Fatalf("server.Prepare() = %v, want nil", err)
+	}
+
+	if got := resp.GetPreparationId(); got == "" {
+		t.Fatalf("server.Prepare() = returned empty preparation ID, want non-empty: %v", prototext.Format(resp))
+	}
+
+	runResp, err := undertest.Run(ctx, &jobpb.RunJobRequest{
+		PreparationId: resp.GetPreparationId(),
+	})
+	if err != nil {
+		t.Fatalf("server.Run() = %v, want nil", err)
+	}
+	if got := runResp.GetJobId(); got == "" {
+		t.Fatalf("server.Run() = returned empty preparation ID, want non-empty")
+	}
+	cancelResp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{
+		JobId: runResp.GetJobId(),
+	})
+	if err != nil {
+		t.Fatalf("server.Cancel() = %v, want nil", err)
+	}
+	if cancelResp.State != jobpb.JobState_CANCELLING {
+		t.Fatalf("server.Cancel() = %v, want %v", cancelResp.State, jobpb.JobState_CANCELLING)
+	}
+	called.Wait()
+}
