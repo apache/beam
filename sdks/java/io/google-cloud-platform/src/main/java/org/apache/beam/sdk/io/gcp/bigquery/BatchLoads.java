@@ -57,6 +57,9 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.transforms.windowing.AfterFirst;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
@@ -161,6 +164,8 @@ class BatchLoads<DestinationT, ElementT>
   private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
   private final @Nullable String kmsKey;
   private final String tempDataset;
+  private final BadRecordRouter badRecordRouter;
+  private final ErrorHandler<BadRecord, ?> badRecordErrorHandler;
   private Coder<TableDestination> tableDestinationCoder;
 
   // The maximum number of times to retry failed load or copy jobs.
@@ -180,7 +185,9 @@ class BatchLoads<DestinationT, ElementT>
       @Nullable String kmsKey,
       boolean clusteringEnabled,
       boolean useAvroLogicalTypes,
-      String tempDataset) {
+      String tempDataset,
+      BadRecordRouter badRecordRouter,
+      ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
@@ -207,6 +214,8 @@ class BatchLoads<DestinationT, ElementT>
     this.tempDataset = tempDataset;
     this.tableDestinationCoder =
         clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
+    this.badRecordRouter = badRecordRouter;
+    this.badRecordErrorHandler = badRecordErrorHandler;
   }
 
   void setSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {

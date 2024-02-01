@@ -3750,7 +3750,9 @@ public class BigQueryIO {
                 getKmsKey(),
                 getClustering() != null,
                 getUseAvroLogicalTypes(),
-                getWriteTempDataset());
+                getWriteTempDataset(),
+                getBadRecordRouter(),
+                getBadRecordErrorHandler());
         batchLoads.setTestServices(getBigQueryServices());
         if (getSchemaUpdateOptions() != null) {
           batchLoads.setSchemaUpdateOptions(getSchemaUpdateOptions());
