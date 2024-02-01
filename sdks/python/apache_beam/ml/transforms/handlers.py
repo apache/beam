@@ -419,7 +419,6 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     # numpy array all the time.
     raw_data_list = (
         keyed_raw_data
-        # | beam.ParDo(_EncodeDict(exclude_columns=feature_set)))
         | beam.Map(lambda elem: self.data_coder.encode(elem)))
 
     keyed_raw_data = keyed_raw_data | beam.ParDo(
@@ -460,7 +459,6 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
 
       transformed_dataset = (
           transformed_dataset
-          # | "DecodeDict" >> beam.ParDo(_DecodeDict()))
           | "DecodeDict" >> beam.Map(lambda x: self.data_coder.decode(x)))
       # The schema only contains the columns that are transformed.
       transformed_dataset = (
