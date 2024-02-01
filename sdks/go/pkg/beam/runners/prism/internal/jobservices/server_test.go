@@ -78,7 +78,7 @@ func TestServer_JobLifecycle(t *testing.T) {
 	// Nothing to cleanup because we didn't start the server.
 }
 
-// Validates that a invoking Cancel cancels a running job.
+// Validates that invoking Cancel cancels a running job.
 func TestServer_RunThenCancel(t *testing.T) {
 	var called sync.WaitGroup
 	called.Add(1)
@@ -116,6 +116,7 @@ func TestServer_RunThenCancel(t *testing.T) {
 	if got := runResp.GetJobId(); got == "" {
 		t.Fatalf("server.Run() = returned empty preparation ID, want non-empty")
 	}
+
 	cancelResp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{
 		JobId: runResp.GetJobId(),
 	})
@@ -125,5 +126,6 @@ func TestServer_RunThenCancel(t *testing.T) {
 	if cancelResp.State != jobpb.JobState_CANCELLING {
 		t.Fatalf("server.Cancel() = %v, want %v", cancelResp.State, jobpb.JobState_CANCELLING)
 	}
+
 	called.Wait()
 }
