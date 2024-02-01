@@ -167,7 +167,7 @@ class MutationSizeEstimator {
           totalLength += bytes.length();
         }
         return totalLength;
-       case DATE:
+      case DATE:
         return 12L * v.getDateArray().size();
       case TIMESTAMP:
         return 12L * v.getTimestampArray().size();

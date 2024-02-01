@@ -46,8 +46,10 @@ public class SpannerSchemaTest {
     assertEquals(6, schema.getColumns("test").size());
     assertEquals(1, schema.getKeyParts("test").size());
     assertEquals(Type.json(), schema.getColumns("test").get(3).getType());
-    assertEquals(Type.proto("customer.app.TestMessage"), schema.getColumns("test").get(4).getType());
-    assertEquals(Type.protoEnum("customer.app.TestEnum"), schema.getColumns("test").get(5).getType());
+    assertEquals(
+        Type.proto("customer.app.TestMessage"), schema.getColumns("test").get(4).getType());
+    assertEquals(
+        Type.protoEnum("customer.app.TestEnum"), schema.getColumns("test").get(5).getType());
   }
 
   @Test

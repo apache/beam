@@ -148,7 +148,7 @@ public class MutationSizeEstimatorTest {
     Mutation protoEnum =
         Mutation.newInsertOrUpdateBuilder("test")
             .set("one")
-            .toProtoEnumArray(ImmutableList.of(1L, 2L, 3L),"customer.app.TestEnum")
+            .toProtoEnumArray(ImmutableList.of(1L, 2L, 3L), "customer.app.TestEnum")
             .build();
     Mutation protos =
         Mutation.newInsertOrUpdateBuilder("test")
@@ -156,7 +156,8 @@ public class MutationSizeEstimatorTest {
             .toProtoMessageArray(
                 ImmutableList.of(
                     ByteArray.copyFrom("some_bytes".getBytes(UTF_8)),
-                    ByteArray.copyFrom("some_bytes".getBytes(UTF_8))),"customer.app.TestMessage")
+                    ByteArray.copyFrom("some_bytes".getBytes(UTF_8))),
+                "customer.app.TestMessage")
             .build();
     assertThat(MutationSizeEstimator.sizeOf(int64), is(24L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(16L));
@@ -166,8 +167,8 @@ public class MutationSizeEstimatorTest {
     assertThat(MutationSizeEstimator.sizeOf(json), is(62L));
     assertThat(MutationSizeEstimator.sizeOf(bytes), is(20L));
     assertThat(MutationSizeEstimator.sizeOf(jsonb), is(77L));
-    assertThat(MutationSizeEstimator.sizeOf(protoEnum),is(24L));
-    assertThat(MutationSizeEstimator.sizeOf(protos),is(20L));
+    assertThat(MutationSizeEstimator.sizeOf(protoEnum), is(24L));
+    assertThat(MutationSizeEstimator.sizeOf(protos), is(20L));
   }
 
   @Test
@@ -175,7 +176,10 @@ public class MutationSizeEstimatorTest {
     Mutation int64 =
         Mutation.newInsertOrUpdateBuilder("test").set("one").toInt64Array((long[]) null).build();
     Mutation protoEnum =
-        Mutation.newInsertOrUpdateBuilder("test").set("one").toProtoEnumArray(null,"customer.app.TestEnum").build();
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .toProtoEnumArray(null, "customer.app.TestEnum")
+            .build();
     Mutation float64 =
         Mutation.newInsertOrUpdateBuilder("test")
             .set("one")
@@ -204,7 +208,7 @@ public class MutationSizeEstimatorTest {
     assertThat(MutationSizeEstimator.sizeOf(pgNumeric), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(json), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(jsonb), is(0L));
-    assertThat(MutationSizeEstimator.sizeOf(protoEnum),is(0L));
+    assertThat(MutationSizeEstimator.sizeOf(protoEnum), is(0L));
   }
 
   @Test
@@ -256,16 +260,25 @@ public class MutationSizeEstimatorTest {
   @Test
   public void protos() throws Exception {
     Mutation empty =
-        Mutation.newInsertOrUpdateBuilder("test").set("one").to(ByteArray.fromBase64(""),"customer.app.TestMessage").build();
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .to(ByteArray.fromBase64(""), "customer.app.TestMessage")
+            .build();
     Mutation nullValue =
-        Mutation.newInsertOrUpdateBuilder("test").set("one").to((ByteArray) null,"customer.app.TestMessage").build();
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .to((ByteArray) null, "customer.app.TestMessage")
+            .build();
     Mutation sample =
         Mutation.newInsertOrUpdateBuilder("test")
             .set("one")
-            .to(ByteArray.fromBase64("abcdabcd"),"customer.app.TestMessage")
+            .to(ByteArray.fromBase64("abcdabcd"), "customer.app.TestMessage")
             .build();
     Mutation nullArray =
-        Mutation.newInsertOrUpdateBuilder("test").set("one").toProtoMessageArray(null,"customer.app.TestMessage").build();
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .toProtoMessageArray(null, "customer.app.TestMessage")
+            .build();
     Mutation deleteBytes =
         Mutation.delete("test", Key.of(ByteArray.copyFrom("some_bytes".getBytes(UTF_8))));
 

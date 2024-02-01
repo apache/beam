@@ -200,12 +200,14 @@ public abstract class SpannerSchema implements Serializable {
           }
           if (spannerType.startsWith("PROTO")) {
             // Substring "PROTO<xxx>"
-            String spannerProtoType = originalSpannerType.substring(6,originalSpannerType.length() - 1);
+            String spannerProtoType =
+                originalSpannerType.substring(6, originalSpannerType.length() - 1);
             return Type.proto(spannerProtoType);
           }
           if (spannerType.startsWith("ENUM")) {
             // Substring "ENUM<xxx>"
-            String spannerEnumType = originalSpannerType.substring(5,originalSpannerType.length() - 1);
+            String spannerEnumType =
+                originalSpannerType.substring(5, originalSpannerType.length() - 1);
             return Type.protoEnum(spannerEnumType);
           }
           throw new IllegalArgumentException("Unknown spanner type " + spannerType);
