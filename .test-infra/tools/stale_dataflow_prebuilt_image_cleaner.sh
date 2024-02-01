@@ -55,7 +55,7 @@ while [ -n "$REPOSITORIES" ]; do
 done
 
 HAS_STALE_IMAGES=""
-FAILED_INSPECT=""
+FAILED_IMAGES=""
 
 for image_name in ${IMAGE_NAMES[@]}; do
   echo IMAGES FOR image ${image_name}
@@ -98,7 +98,7 @@ for image_name in ${IMAGE_NAMES[@]}; do
           MANIFEST=$(docker manifest inspect ${image_name}@"${current}" || echo "")
           if [ -z "$MANIFEST" ]; then
             # Sometimes "no such manifest" seen. Skip current if command hit error
-            FAILED_INSPECT+=" $current"
+            FAILED_IMAGES+=" $current"
             continue
           fi
           SHOULD_DELETE=0
@@ -129,7 +129,7 @@ for image_name in ${IMAGE_NAMES[@]}; do
     echo "Failed to delete the following images: ${FAILED_TO_DELETE}. Retrying each of them."
     for current in $RETRY_DELETE; do
       echo "Trying again to delete image ${image_name}@"${current}". Command: gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q"
-      gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q
+      gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q || FAILED_IMAGES+=" ${image_name}@${current}"
     done
   fi
 done
@@ -140,7 +140,7 @@ else
   echo "No stale prebuilt container images found."
 fi
 
-if [ -n "$FAILED_INSPECT" ]; then
-  echo "Failed delete images $FAILED_INSPECT"
+if [ -n "$FAILED_IMAGES" ]; then
+  echo "Failed delete images $FAILED_IMAGES"
   exit 1
 fi
