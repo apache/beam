@@ -20,14 +20,13 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
 
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
 import io.grpc.Status;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
@@ -112,7 +111,7 @@ public class BigQuerySinkMetricsTest {
     deletesDisabledCounter.inc();
     MetricName deletesDisabledCounterName =
         MetricName.named(
-            "BigQuerySink", "RowsAppendedCount-row_status:SUCCESSFUL;rpc_status:rpcStatus;");
+            "BigQuerySink", "RowsAppendedCount*row_status:SUCCESSFUL;rpc_status:rpcStatus;");
     assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(deletesDisabledCounterName));
     assertThat(
         testContainer.perWorkerCounters.get(deletesDisabledCounterName).getCumulative(),
@@ -127,7 +126,7 @@ public class BigQuerySinkMetricsTest {
     MetricName deletesEnabledCounterName =
         MetricName.named(
             "BigQuerySink",
-            "RowsAppendedCount-row_status:SUCCESSFUL;rpc_status:rpcStatus;table_id:tableId;");
+            "RowsAppendedCount*row_status:SUCCESSFUL;rpc_status:rpcStatus;table_id:tableId;");
     assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(deletesEnabledCounterName));
     assertThat(
         testContainer.perWorkerCounters.get(deletesEnabledCounterName).getCumulative(),
@@ -160,9 +159,10 @@ public class BigQuerySinkMetricsTest {
     appendRowsThrottleCounter.inc(1);
     assertThat(
         appendRowsThrottleCounter.getName().getName(),
-        equalTo("ThrottledTime-rpc_method:APPEND_ROWS;"));
+        equalTo("ThrottledTime*rpc_method:APPEND_ROWS;"));
+
     MetricName counterName =
-        MetricName.named("BigQuerySink", "ThrottledTime-rpc_method:APPEND_ROWS;");
+        MetricName.named("BigQuerySink", "ThrottledTime*rpc_method:APPEND_ROWS;");
     assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterName));
     assertThat(testContainer.perWorkerCounters.get(counterName).getCumulative(), equalTo(1L));
   }
@@ -182,9 +182,9 @@ public class BigQuerySinkMetricsTest {
     BigQuerySinkMetrics.reportSuccessfulRpcMetrics(
         c, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, "tableId");
     MetricName counterNameDisabledDeletes =
-        MetricName.named("BigQuerySink", "RpcRequestsCount-rpc_method:APPEND_ROWS;rpc_status:OK;");
+        MetricName.named("BigQuerySink", "RpcRequestsCount*rpc_method:APPEND_ROWS;rpc_status:OK;");
     MetricName histogramName =
-        MetricName.named("BigQuerySink", "RpcLatency-rpc_method:APPEND_ROWS;");
+        MetricName.named("BigQuerySink", "RpcLatency*rpc_method:APPEND_ROWS;");
     HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 34);
     assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameDisabledDeletes));
     assertThat(
@@ -202,7 +202,7 @@ public class BigQuerySinkMetricsTest {
     MetricName counterNameEnabledDeletes =
         MetricName.named(
             "BigQuerySink",
-            "RpcRequestsCount-rpc_method:APPEND_ROWS;rpc_status:OK;table_id:tableId;");
+            "RpcRequestsCount*rpc_method:APPEND_ROWS;rpc_status:OK;table_id:tableId;");
     assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameEnabledDeletes));
     assertThat(
         testContainer.perWorkerCounters.get(counterNameEnabledDeletes).getCumulative(),
@@ -232,9 +232,9 @@ public class BigQuerySinkMetricsTest {
         c, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, "tableId");
     MetricName counterNameDisabledDeletes =
         MetricName.named(
-            "BigQuerySink", "RpcRequestsCount-rpc_method:APPEND_ROWS;rpc_status:NOT_FOUND;");
+            "BigQuerySink", "RpcRequestsCount*rpc_method:APPEND_ROWS;rpc_status:NOT_FOUND;");
     MetricName histogramName =
-        MetricName.named("BigQuerySink", "RpcLatency-rpc_method:APPEND_ROWS;");
+        MetricName.named("BigQuerySink", "RpcLatency*rpc_method:APPEND_ROWS;");
     HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 34);
     assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameDisabledDeletes));
     assertThat(
@@ -255,7 +255,7 @@ public class BigQuerySinkMetricsTest {
     MetricName counterNameEnabledDeletes =
         MetricName.named(
             "BigQuerySink",
-            "RpcRequestsCount-rpc_method:APPEND_ROWS;rpc_status:NOT_FOUND;table_id:tableId;");
+            "RpcRequestsCount*rpc_method:APPEND_ROWS;rpc_status:NOT_FOUND;table_id:tableId;");
     assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameEnabledDeletes));
     assertThat(
         testContainer.perWorkerCounters.get(counterNameEnabledDeletes).getCumulative(),
@@ -284,9 +284,9 @@ public class BigQuerySinkMetricsTest {
         c, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, "tableId");
     MetricName counterNameDisabledDeletes =
         MetricName.named(
-            "BigQuerySink", "RpcRequestsCount-rpc_method:APPEND_ROWS;rpc_status:UNKNOWN;");
+            "BigQuerySink", "RpcRequestsCount*rpc_method:APPEND_ROWS;rpc_status:UNKNOWN;");
     MetricName histogramName =
-        MetricName.named("BigQuerySink", "RpcLatency-rpc_method:APPEND_ROWS;");
+        MetricName.named("BigQuerySink", "RpcLatency*rpc_method:APPEND_ROWS;");
     HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 34);
     assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameDisabledDeletes));
     assertThat(
@@ -304,7 +304,7 @@ public class BigQuerySinkMetricsTest {
     MetricName counterNameEnabledDeletes =
         MetricName.named(
             "BigQuerySink",
-            "RpcRequestsCount-rpc_method:APPEND_ROWS;rpc_status:UNKNOWN;table_id:tableId;");
+            "RpcRequestsCount*rpc_method:APPEND_ROWS;rpc_status:UNKNOWN;table_id:tableId;");
     assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameEnabledDeletes));
     assertThat(
         testContainer.perWorkerCounters.get(counterNameEnabledDeletes).getCumulative(),
@@ -317,41 +317,46 @@ public class BigQuerySinkMetricsTest {
   @Test
   public void testParseMetricName_noLabels() {
     String baseMetricName = "baseMetricName";
-    BigQuerySinkMetrics.ParsedMetricName metricName =
+    BigQuerySinkMetrics.ParsedMetricName expectedName =
         BigQuerySinkMetrics.ParsedMetricName.create(baseMetricName);
 
-    assertThat(BigQuerySinkMetrics.parseMetricName(baseMetricName), equalTo(metricName));
+    Optional<BigQuerySinkMetrics.ParsedMetricName> parsedMetricName =
+        BigQuerySinkMetrics.parseMetricName(baseMetricName);
+    assertThat(parsedMetricName.isPresent(), equalTo(true));
+    assertThat(parsedMetricName.get(), equalTo(expectedName));
   }
 
   @Test
   public void testParseMetricName_successfulLabels() {
-    String metricName = "baseLabel-key1:val1;key2:val2;key3:val3;";
+    String metricName = "baseLabel*key1:val1;key2:val2;key3:val3;";
     ImmutableMap<String, String> metricLabels =
         ImmutableMap.of("key1", "val1", "key2", "val2", "key3", "val3");
     BigQuerySinkMetrics.ParsedMetricName expectedName =
         BigQuerySinkMetrics.ParsedMetricName.create("baseLabel", metricLabels);
 
-    assertThat(BigQuerySinkMetrics.parseMetricName(metricName), equalTo(expectedName));
-  }
+    Optional<BigQuerySinkMetrics.ParsedMetricName> parsedMetricName =
+        BigQuerySinkMetrics.parseMetricName(metricName);
 
-  @Test
-  public void testParseMetricName_malformedMetricName() {
-    String malformedMetricName = "baseLabel-key1:val1-key2:val2";
-    assertThat(BigQuerySinkMetrics.parseMetricName(malformedMetricName), is(nullValue()));
+    assertThat(parsedMetricName.isPresent(), equalTo(true));
+    assertThat(parsedMetricName.get(), equalTo(expectedName));
   }
 
   @Test
   public void testParseMetricName_malformedMetricLabels() {
-    String metricName = "baseLabel-key1:val1:malformedField;key2:val2;";
+    String metricName = "baseLabel*malformed_kv_pair;key2:val2;";
     ImmutableMap<String, String> metricLabels = ImmutableMap.of("key2", "val2");
     BigQuerySinkMetrics.ParsedMetricName expectedName =
         BigQuerySinkMetrics.ParsedMetricName.create("baseLabel", metricLabels);
 
-    assertThat(BigQuerySinkMetrics.parseMetricName(metricName), equalTo(expectedName));
+    Optional<BigQuerySinkMetrics.ParsedMetricName> parsedMetricName =
+        BigQuerySinkMetrics.parseMetricName(metricName);
+
+    assertThat(parsedMetricName.isPresent(), equalTo(true));
+    assertThat(parsedMetricName.get(), equalTo(expectedName));
   }
 
   @Test
   public void testParseMetricName_emptyString() {
-    assertThat(BigQuerySinkMetrics.parseMetricName(""), is(nullValue()));
+    assertThat(BigQuerySinkMetrics.parseMetricName("").isPresent(), equalTo(false));
   }
 }

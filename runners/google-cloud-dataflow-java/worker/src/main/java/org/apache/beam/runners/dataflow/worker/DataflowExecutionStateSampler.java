@@ -118,13 +118,10 @@ public final class DataflowExecutionStateSampler extends ExecutionStateSampler {
   }
 
   public Map<String, IntSummaryStatistics> getProcessingDistributionsForWorkId(String workId) {
-    if (!activeTrackersByWorkId.containsKey(workId)) {
-      if (completedProcessingMetrics.containsKey(workId)) {
-        return completedProcessingMetrics.get(workId);
-      }
-      return new HashMap<>();
-    }
     DataflowExecutionStateTracker tracker = activeTrackersByWorkId.get(workId);
+    if (tracker == null) {
+      return completedProcessingMetrics.getOrDefault(workId, new HashMap<>());
+    }
     return mergeStepStatsMaps(
         completedProcessingMetrics.getOrDefault(workId, new HashMap<>()),
         tracker.getProcessingTimesByStepCopy());

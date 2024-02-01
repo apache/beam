@@ -74,3 +74,5 @@ RUN HUGOHOME="$(mktemp -d)" \
     && chmod +x /usr/local/bin/hugo \
     && rm -r "${HUGOHOME}"
 
+# Prevent git errors of the form "fatal: detected dubious ownership in repository"
+RUN git config --file=/.gitconfig --add safe.directory /opt && chmod a+r /.gitconfig

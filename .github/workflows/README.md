@@ -79,6 +79,7 @@ jobs:
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
+      github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.comment.body, 'Run Job With Matrix')
     steps:
       - uses: actions/checkout@v3

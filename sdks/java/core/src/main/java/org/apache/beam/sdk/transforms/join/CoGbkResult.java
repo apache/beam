@@ -95,8 +95,9 @@ public class CoGbkResult {
     // according to their tag.
     final Iterator<RawUnionValue> taggedIter = taggedValues.iterator();
     int elementCount = 0;
+    boolean isReiterator = taggedIter instanceof Reiterator;
     while (taggedIter.hasNext()) {
-      if (elementCount++ >= inMemoryElementCount && taggedIter instanceof Reiterator) {
+      if (isReiterator && elementCount++ >= inMemoryElementCount) {
         // Let the tails be lazy.
         break;
       }
