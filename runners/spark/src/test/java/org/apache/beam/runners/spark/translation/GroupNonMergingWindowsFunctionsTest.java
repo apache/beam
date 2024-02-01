@@ -49,8 +49,31 @@ import scala.Tuple2;
 public class GroupNonMergingWindowsFunctionsTest {
 
   @Test
-  public void testGroupByKeyIterator() throws Coder.NonDeterministicException {
-    GroupByKeyIterator<String, Integer, GlobalWindow> iteratorUnderTest = createGbkIterator();
+  public void testWindowedGroupByKeyIterator() throws Coder.NonDeterministicException {
+    GroupByKeyIterator<String, Integer> iteratorUnderTest = createGbkIterator();
+
+    Assert.assertTrue(iteratorUnderTest.hasNext());
+    WindowedValue<KV<String, Iterable<Integer>>> k1Win = iteratorUnderTest.next();
+    // testing that calling 2x hasNext doesn't move to next key iterator
+    Assert.assertTrue(iteratorUnderTest.hasNext());
+    Assert.assertTrue(iteratorUnderTest.hasNext());
+
+    Iterator<Integer> valuesIteratorForK1 = k1Win.getValue().getValue().iterator();
+
+    Assert.assertTrue("Now we expect first value for K1 to pop up.", valuesIteratorForK1.hasNext());
+    assertEquals(1L, valuesIteratorForK1.next().longValue());
+    Assert.assertTrue(valuesIteratorForK1.hasNext());
+    Assert.assertTrue(valuesIteratorForK1.hasNext());
+    assertEquals(2L, valuesIteratorForK1.next().longValue());
+
+    WindowedValue<KV<String, Iterable<Integer>>> k2Win = iteratorUnderTest.next();
+    Iterator<Integer> valuesIteratorForK2 = k2Win.getValue().getValue().iterator();
+    assertEquals(3L, valuesIteratorForK2.next().longValue());
+  }
+
+  @Test
+  public void testGlobalGroupByKeyIterator() {
+    GroupByKeyIterator<String, Integer> iteratorUnderTest = createGlobalWindowGbkIterator();
 
     Assert.assertTrue(iteratorUnderTest.hasNext());
     WindowedValue<KV<String, Iterable<Integer>>> k1Win = iteratorUnderTest.next();
@@ -74,7 +97,7 @@ public class GroupNonMergingWindowsFunctionsTest {
   @Test
   public void testGroupByKeyIteratorOnNonGlobalWindows() throws Coder.NonDeterministicException {
     Instant now = Instant.now();
-    GroupByKeyIterator<String, Integer, IntervalWindow> iteratorUnderTest =
+    GroupByKeyIterator<String, Integer> iteratorUnderTest =
         createGbkIterator(
             new IntervalWindow(now, now.plus(Duration.millis(1))),
             IntervalWindow.getCoder(),
@@ -101,7 +124,7 @@ public class GroupNonMergingWindowsFunctionsTest {
 
   @Test(expected = IllegalStateException.class)
   public void testGbkIteratorValuesCannotBeReiterated() throws Coder.NonDeterministicException {
-    GroupByKeyIterator<String, Integer, GlobalWindow> iteratorUnderTest = createGbkIterator();
+    GroupByKeyIterator<String, Integer> iteratorUnderTest = createGbkIterator();
     WindowedValue<KV<String, Iterable<Integer>>> firstEl = iteratorUnderTest.next();
     Iterable<Integer> value = firstEl.getValue().getValue();
     for (Integer ignored : value) {
@@ -112,13 +135,13 @@ public class GroupNonMergingWindowsFunctionsTest {
     }
   }
 
-  private GroupByKeyIterator<String, Integer, GlobalWindow> createGbkIterator()
+  private GroupByKeyIterator<String, Integer> createGbkIterator()
       throws Coder.NonDeterministicException {
     return createGbkIterator(
         GlobalWindow.INSTANCE, GlobalWindow.Coder.INSTANCE, WindowingStrategy.globalDefault());
   }
 
-  private <W extends BoundedWindow> GroupByKeyIterator<String, Integer, W> createGbkIterator(
+  private <W extends BoundedWindow> GroupByKeyIterator<String, Integer> createGbkIterator(
       W window, Coder<W> winCoder, WindowingStrategy<Object, W> winStrategy)
       throws Coder.NonDeterministicException {
 
@@ -137,7 +160,26 @@ public class GroupNonMergingWindowsFunctionsTest {
             factory.create("k2", 3),
             factory.create("k2", 4),
             factory.create("k2", 5));
-    return new GroupByKeyIterator<>(items.iterator(), keyCoder, winStrategy, winValCoder);
+    return new GroupNonMergingWindowsFunctions.WindowedGroupByKeyIterator<>(
+        items.iterator(), keyCoder, winStrategy, winValCoder);
+  }
+
+  private GroupByKeyIterator<String, Integer> createGlobalWindowGbkIterator() {
+    List<Tuple2<ByteArray, byte[]>> items =
+        Arrays.asList(
+            createTuple2("k1", 1),
+            createTuple2("k1", 2),
+            createTuple2("k2", 3),
+            createTuple2("k2", 4),
+            createTuple2("k2", 5));
+    return new GroupNonMergingWindowsFunctions.GlobalWindowGroupByKeyIterator<>(
+        items.iterator(), StringUtf8Coder.of(), VarIntCoder.of());
+  }
+
+  static Tuple2<ByteArray, byte[]> createTuple2(String key, int value) {
+    return new Tuple2<>(
+        new ByteArray(CoderHelpers.toByteArray(key, StringUtf8Coder.of())),
+        CoderHelpers.toByteArray(value, VarIntCoder.of()));
   }
 
   private static class ItemFactory<K, V, W extends BoundedWindow> {
