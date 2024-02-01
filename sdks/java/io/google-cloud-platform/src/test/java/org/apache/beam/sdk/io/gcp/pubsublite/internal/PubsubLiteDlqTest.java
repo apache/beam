@@ -299,7 +299,6 @@ public class PubsubLiteDlqTest {
           .withFieldValue("address.zip_code", "TO-1234")
           .withFieldValue("address.state", "wa")
           .build();
-
   private static final SerializableFunction<Row, byte[]> INPUT_MAPPER =
       ProtoByteUtils.getRowToProtoBytesFromSchema(PROTO_STRING_SCHEMA, "com.test.proto.MyMessage");
 
@@ -545,14 +544,14 @@ public class PubsubLiteDlqTest {
         PubsubLiteReadSchemaTransformProvider.buildSchemaWithAttributes(
             BEAM_PROTO_SCHEMA, attributes, attributesMap);
 
-    SerializableFunction<byte[], Row> rawValueMapper =
+    SerializableFunction<byte[], Row> protoValueMapper =
         ProtoByteUtils.getProtoBytesToRowFromSchemaFunction(
             PROTO_STRING_SCHEMA, "com.test.proto.MyMessage");
 
     PCollection<SequencedMessage> input = p.apply(Create.of(INPUT_MESSAGES));
     PCollectionTuple output =
         input.apply(
-            ParDo.of(new ErrorFn("Read-Error-Counter", rawValueMapper, errorSchema, Boolean.TRUE))
+            ParDo.of(new ErrorFn("Read-Error-Counter", protoValueMapper, errorSchema, Boolean.TRUE))
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
     output.get(OUTPUT_TAG).setRowSchema(beamAttributeSchema);

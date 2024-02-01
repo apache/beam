@@ -140,6 +140,22 @@ public class ProtoByteUtilsTest {
   }
 
   @Test
+  public void testProtoBytesToRowFunctionReturnsRowSuccess() {
+    // Create a proto bytes to row function
+    SerializableFunction<byte[], Row> protoBytesToRowFunction =
+        ProtoByteUtils.getProtoBytesToRowFunction(DESCRIPTOR_PATH, MESSAGE_NAME);
+
+    byte[] byteArray = {
+      8, -46, 9, 18, 3, 68, 111, 101, 34, 35, 10, 7, 115, 101, 97, 116, 116, 108, 101, 18, 11, 102,
+      97, 107, 101, 32, 115, 116, 114, 101, 101, 116, 26, 2, 119, 97, 34, 7, 84, 79, 45, 49, 50, 51,
+      52
+    };
+
+    Row row = protoBytesToRowFunction.apply(byteArray);
+    Assert.assertEquals("Doe", row.getValue("name"));
+  }
+
+  @Test
   public void testRowToProtoFunction() {
     Row row =
         Row.withSchema(SCHEMA)
@@ -186,9 +202,18 @@ public class ProtoByteUtilsTest {
             .withFieldValue("address.state", "wa")
             .build();
 
-    Assert.assertNotNull(
+    byte[] byteArray = {
+      8, -46, 9, 18, 3, 68, 111, 101, 34, 35, 10, 7, 115, 101, 97, 116, 116, 108, 101, 18, 11, 102,
+      97, 107, 101, 32, 115, 116, 114, 101, 101, 116, 26, 2, 119, 97, 34, 7, 84, 79, 45, 49, 50, 51,
+      52
+    };
+
+    byte[] resultBytes =
         ProtoByteUtils.getRowToProtoBytesFromSchema(
                 PROTO_STRING_PACKAGE_SCHEMA, "com.test.proto.MyMessage")
-            .apply(row));
+            .apply(row);
+
+    Assert.assertNotNull(resultBytes);
+    Assert.assertArrayEquals(byteArray, resultBytes);
   }
 }

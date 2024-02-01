@@ -216,15 +216,10 @@ public class PubsubLiteWriteSchemaTransformProvider
           String descriptorPath = configuration.getFileDescriptorPath();
           String schema = configuration.getSchema();
           String messageName = configuration.getMessageName();
-          if (messageName == null) {
-            throw new IllegalArgumentException("Expecting messageName to be non-null.");
-          }
-          if (descriptorPath != null && schema != null) {
-            throw new IllegalArgumentException(
-                "You must include a descriptorPath or a PROTO schema but not both.");
-          } else if (descriptorPath != null) {
+
+          if (descriptorPath != null && messageName != null) {
             toBytesFn = ProtoByteUtils.getRowToProtoBytes(descriptorPath, messageName);
-          } else if (schema != null) {
+          } else if (schema != null && messageName != null) {
             toBytesFn = ProtoByteUtils.getRowToProtoBytesFromSchema(schema, messageName);
           } else {
             throw new IllegalArgumentException(
@@ -341,6 +336,20 @@ public class PubsubLiteWriteSchemaTransformProvider
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class PubsubLiteWriteSchemaTransformConfiguration {
+
+    public void validate() {
+      final String dataFormat = this.getFormat();
+      final String inputSchema = this.getSchema();
+      final String messageName = this.getMessageName();
+      final String descriptorPath = this.getFileDescriptorPath();
+
+      if (dataFormat != null && dataFormat.equals("PROTO")) {
+        assert messageName != null : "Expecting messageName to be non-null.";
+        assert descriptorPath != null && inputSchema != null
+            : "You must include a descriptorPath or a PROTO schema but not both.";
+      }
+    }
+
     @SchemaFieldDescription(
         "The GCP project where the Pubsub Lite reservation resides. This can be a "
             + "project number of a project ID.")
