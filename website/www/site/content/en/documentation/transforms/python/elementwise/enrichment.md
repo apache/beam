@@ -40,7 +40,7 @@ The following examples show how to create pipelines that use the Enrichment tran
 {{< table >}}
 | Service | Example |
 | ----- | ----- |
-| Bigtable | [BigtableEnrichmentHandler](/documentation/transforms/python/elementwise/enrichment-bigtable/#example-enrich-data-with-bigtable) |:
+| Bigtable | [BigTableEnrichmentHandler](/documentation/transforms/python/elementwise/enrichment-bigtable/#example-enrich-data-with-bigtable) |:
 {{< /table >}}
 
 ## Related transforms

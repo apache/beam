@@ -23,7 +23,12 @@ from io import StringIO
 
 import mock
 
-from apache_beam.examples.snippets.transforms.elementwise.enrichment import enrichment_with_bigtable
+# pylint: disable=unused-import
+try:
+  from apache_beam.examples.snippets.transforms.elementwise.enrichment import enrichment_with_bigtable
+  from apache_beam.io.requestresponse import RequestResponseIO
+except ImportError:
+  raise unittest.SkipTest('RequestResponseIO dependencies are not installed')
 
 
 def validate_enrichment_with_bigtable():
