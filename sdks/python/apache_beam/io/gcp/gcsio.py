@@ -208,7 +208,8 @@ class GcsIO(object):
     """Deletes the objects at the given GCS paths.
 
     Args:
-      paths: List of GCS file path patterns in the form gs://<bucket>/<name>,
+      paths: List of GCS file path patterns or Dict with GCS file path patterns
+             as keys. The patterns are in the form gs://<bucket>/<name>, but
              not to exceed MAX_BATCH_OPERATION_SIZE in length.
 
     Returns: List of tuples of (path, exception) in the same order as the
@@ -217,6 +218,7 @@ class GcsIO(object):
     """
     final_results = []
     s = 0
+    if not isinstance(paths, list): paths = list(iter(paths))
     while s < len(paths):
       if (s + MAX_BATCH_OPERATION_SIZE) < len(paths):
         current_paths = paths[s:s + MAX_BATCH_OPERATION_SIZE]
