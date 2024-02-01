@@ -33,6 +33,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms._external_transforms.io import GenerateSequence
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external_transform_provider import STANDARD_URN_PATTERN
 from apache_beam.transforms.external_transform_provider import ExternalTransform
@@ -310,8 +311,10 @@ class AutoGenerationScriptTest(unittest.TestCase):
     # check the wrapper exists in this destination and has correct properties
     output_module = self.get_module(expected_destination)
     self.assertTrue(hasattr(output_module, 'GenerateSequence'))
-    self.assertTrue(hasattr(output_module, 'KafkaWrite'))  # also check that
-    self.assertTrue(hasattr(output_module, 'KafkaRead'))  # these are here
+    # Since our config isn't skipping any transforms,
+    # it should include these two Kafka IOs as well
+    self.assertTrue(hasattr(output_module, 'KafkaWrite'))
+    self.assertTrue(hasattr(output_module, 'KafkaRead'))
     self.assertTrue(
         isinstance(output_module.GenerateSequence(start=0), ExternalTransform))
     self.assertEqual(
@@ -381,43 +384,18 @@ class AutoGenerationScriptTest(unittest.TestCase):
           gen_seq_config = transform
       self.assertIsNone(gen_seq_config)
 
-  def test_run_pipeline_with_script_generated_transform(self):
-    modified_dest = 'apache_beam/io/gcp'
-    expansion_service_config = {
-        "gradle_target": 'sdks:java:io:expansion-service:shadowJar',
-        'destinations': {
-            'python': 'apache_beam/io'
-        },
-        'transforms': {
-            'beam:schematransform:org.apache.beam:generate_sequence:v1': {
-                'name': 'MyGenSeq', 'destinations': {
-                    'python': modified_dest
-                }
-            }
-        }
-    }
-
-    with open(self.service_config_path, 'w') as f:
-      yaml.dump([expansion_service_config], f)
-    generate_transforms_config(
-        self.service_config_path, self.transform_config_path)
-    wrappers_grouped_by_destination = get_wrappers_from_transform_configs(
-        self.transform_config_path)
-    write_wrappers_to_destinations(
-        wrappers_grouped_by_destination, self.test_dir)
-
-    gen_seq_et = self.get_module(modified_dest)
-
+  def test_run_pipeline_with_generated_transform(self):
     with beam.Pipeline() as p:
       numbers = (
-          p | gen_seq_et.MyGenSeq(start=0, end=10)
+          p | GenerateSequence(start=0, end=10)
           | beam.Map(lambda row: row.value))
       assert_that(numbers, equal_to([i for i in range(10)]))
 
   def test_check_standard_external_transforms_config_in_sync(self):
     """
     This test creates a transforms config file and checks it against
-    `sdks/standard_external_transforms.yaml`. Fails if the test is out of sync.
+    `sdks/standard_external_transforms.yaml`. Fails if the two configs don't
+     match.
 
     Fix by running `./gradlew generateExternalTransformWrappers` and
     committing the changes.

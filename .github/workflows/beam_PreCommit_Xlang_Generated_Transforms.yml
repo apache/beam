@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PreCommit Xlang Wrapper Generation
+name: PreCommit Xlang Generated Transforms
 
 on:
   push:
@@ -58,7 +58,7 @@ on:
       - '!sdks/java/io/thrift/**'
       - '!sdks/java/io/tika/**'
       - 'release/**'
-      - '.github/workflows/beam_PreCommit_Xlang_Generation.yml'
+      - '.github/workflows/beam_PreCommit_Xlang_Generated_Transforms.yml'
   pull_request_target:
     branches: ['master', 'release-*']
     paths:
@@ -101,7 +101,7 @@ on:
       - '!sdks/java/io/tika/**'
       - 'release/**'
       - 'release/trigger_all_tests.json'
-      - '.github/workflows/beam_PreCommit_Xlang_Generation.yml'
+      - '.github/workflows/beam_PreCommit_Xlang_Generated_Transforms.yml'
   issue_comment:
     types: [created]
   schedule:
@@ -135,22 +135,22 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_PreCommit_Xlang_Generation:
+  beam_PreCommit_Xlang_Generated_Transforms:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
     timeout-minutes: 120
     runs-on: ['self-hosted', ubuntu-20.04, main]
     strategy:
       fail-fast: false
       matrix:
-        job_name: ['beam_PreCommit_Xlang_Generation']
-        job_phrase: ['Run Xlang Generation PreCommit']
+        job_name: ['beam_PreCommit_Xlang_Generated_Transforms']
+        job_phrase: ['Run Xlang_Generated_Transforms PreCommit']
         python_version: ['3.8']
     if: |
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      startsWith(github.event.comment.body, 'Run Xlang Generation PreCommit')
+      startsWith(github.event.comment.body, 'Run Xlang_Generated_Transforms PreCommit')
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
