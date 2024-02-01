@@ -17,6 +17,7 @@ package jobservices
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 
@@ -83,8 +84,8 @@ func TestServer_RunThenCancel(t *testing.T) {
 	var called sync.WaitGroup
 	called.Add(1)
 	undertest := NewServer(0, func(j *Job) {
-		select {
-		case <-j.RootCtx.Done():
+		if errors.Is(context.Cause(j.RootCtx), ErrCancel) {
+			j.state.Store(jobpb.JobState_CANCELLED)
 			called.Done()
 		}
 	})
@@ -121,11 +122,19 @@ func TestServer_RunThenCancel(t *testing.T) {
 		JobId: runResp.GetJobId(),
 	})
 	if err != nil {
-		t.Fatalf("server.Cancel() = %v, want nil", err)
+		t.Fatalf("server.Canceling() = %v, want nil", err)
 	}
 	if cancelResp.State != jobpb.JobState_CANCELLING {
-		t.Fatalf("server.Cancel() = %v, want %v", cancelResp.State, jobpb.JobState_CANCELLING)
+		t.Fatalf("server.Canceling() = %v, want %v", cancelResp.State, jobpb.JobState_CANCELLING)
 	}
 
 	called.Wait()
+
+	stateResp, err := undertest.GetState(ctx, &jobpb.GetJobStateRequest{JobId: runResp.GetJobId()})
+	if err != nil {
+		t.Fatalf("server.GetState() = %v, want nil", err)
+	}
+	if stateResp.State != jobpb.JobState_CANCELLED {
+		t.Fatalf("server.GetState() = %v, want %v", stateResp.State, jobpb.JobState_CANCELLED)
+	}
 }

@@ -17,6 +17,7 @@ package jobservices
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -28,6 +29,10 @@ import (
 	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+var (
+	ErrCancel = errors.New("pipeline canceled")
 )
 
 func (s *Server) nextId() string {
@@ -233,8 +238,8 @@ func (s *Server) Cancel(_ context.Context, req *jobpb.CancelJobRequest) (*jobpb.
 		}, nil
 	}
 	job.SendMsg("canceling " + job.String())
-	job.Cancel()
-	job.CancelFn(fmt.Errorf("pipeline cancelled"))
+	job.Canceling()
+	job.CancelFn(ErrCancel)
 	return &jobpb.CancelJobResponse{
 		State: jobpb.JobState_CANCELLING,
 	}, nil

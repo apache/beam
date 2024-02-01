@@ -177,9 +177,14 @@ func (j *Job) Done() {
 	j.sendState(jobpb.JobState_DONE)
 }
 
-// Cancel indicates that the job is canceling.
-func (j *Job) Cancel() {
+// Canceling indicates that the job is canceling.
+func (j *Job) Canceling() {
 	j.sendState(jobpb.JobState_CANCELLING)
+}
+
+// Canceled indicates that the job is canceled.
+func (j *Job) Canceled() {
+	j.sendState(jobpb.JobState_CANCELLED)
 }
 
 // Failed indicates that the job completed unsuccessfully.
