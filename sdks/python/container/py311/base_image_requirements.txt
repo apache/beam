@@ -78,7 +78,7 @@ grpcio-status==1.60.0
 guppy3==3.1.4.post1
 hdfs==2.7.3
 httplib2==0.22.0
-hypothesis==6.97.1
+hypothesis==6.97.4
 idna==3.6
 importlib-metadata==7.0.1
 iniconfig==2.0.0
