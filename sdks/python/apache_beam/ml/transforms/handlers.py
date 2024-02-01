@@ -17,9 +17,9 @@
 # pytype: skip-file
 
 import collections
+import copy
 import os
 import typing
-from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -31,7 +31,7 @@ import numpy as np
 import apache_beam as beam
 import tensorflow as tf
 import tensorflow_transform.beam as tft_beam
-from apache_beam.internal import pickler
+from apache_beam.coders.coders import PickleCoder
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.transforms.base import ArtifactMode
 from apache_beam.ml.transforms.base import ProcessHandler
@@ -84,38 +84,37 @@ tft_process_handler_input_type = typing.Union[typing.NamedTuple,
 tft_process_handler_output_type = typing.Union[beam.Row, Dict[str, np.ndarray]]
 
 
-# alternatie: Use a single class for both encoding and decoding and
-# use beam.Map() instead of DoFns?
-class _EncodeDict(beam.DoFn):
-  """
-  Encode a dictionary into bytes and pass it along with the original element
-  using a temporary key.
-
-  Internal use only. No backward compatibility guarantees.
-  """
+class DataCoder:
   def __init__(self, exclude_columns=None):
-    self._exclude_columns = exclude_columns
+    """
+    Uses PickleCoder to encode/decode the dictonaries.
+    Args:
+      exclude_columns: list of columns to exclude from the encoding.
+    """
+    self.coder = PickleCoder()
+    self.exclude_columns = exclude_columns
 
-  def process(self, element: Dict[str, Any]):
+  def set_unused_columns(self, exclude_columns):
+    self.exclude_columns = exclude_columns
+
+  def encode(self, element):
+    if not self.exclude_columns:
+      return element
     data_to_encode = element.copy()
-    for key in self._exclude_columns:
+    for key in self.exclude_columns:
       if key in data_to_encode:
         del data_to_encode[key]
 
-    bytes = pickler.dumps(data_to_encode)
-    element[_TEMP_KEY] = bytes
-    yield element
+    element[_TEMP_KEY] = self.coder.encode(data_to_encode)
+    return element
 
-
-class _DecodeDict(beam.DoFn):
-  """
-  Used to decode the dictionary from bytes(encoded using _EncodeDict)
-  Internal use only. No backward compatibility guarantees.
-  """
-  def process(self, element):
-    element.update(pickler.loads(element[_TEMP_KEY].item()))
-    del element[_TEMP_KEY]
-    yield element
+  def decode(self, element):
+    if not self.exclude_columns:
+      return element
+    clone = copy.copy(element)
+    clone.update(self.coder.decode(clone[_TEMP_KEY].item()))
+    del clone[_TEMP_KEY]
+    return clone
 
 
 class _ConvertScalarValuesToListValues(beam.DoFn):
@@ -176,6 +175,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     self.artifact_mode = artifact_mode
     if artifact_mode not in ['produce', 'consume']:
       raise ValueError('artifact_mode must be either `produce` or `consume`.')
+    self.data_coder = DataCoder()
 
   def append_transform(self, transform):
     self.transforms.append(transform)
@@ -411,6 +411,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     keyed_raw_data = (raw_data)  #  | beam.ParDo(_ComputeAndAttachUniqueID()))
 
     feature_set = [feature.name for feature in raw_data_metadata.schema.feature]
+    self.data_coder.set_unused_columns(exclude_columns=feature_set)
 
     # To maintain consistency by outputting numpy array all the time,
     # whether a scalar value or list or np array is passed as input,
@@ -418,7 +419,8 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     # numpy array all the time.
     raw_data_list = (
         keyed_raw_data
-        | beam.ParDo(_EncodeDict(exclude_columns=feature_set)))
+        # | beam.ParDo(_EncodeDict(exclude_columns=feature_set)))
+        | beam.Map(lambda elem: self.data_coder.encode(elem)))
 
     keyed_raw_data = keyed_raw_data | beam.ParDo(
         _ConvertScalarValuesToListValues())
@@ -458,7 +460,8 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
 
       transformed_dataset = (
           transformed_dataset
-          | "DecodeDict" >> beam.ParDo(_DecodeDict()))
+          # | "DecodeDict" >> beam.ParDo(_DecodeDict()))
+          | "DecodeDict" >> beam.Map(lambda x: self.data_coder.decode(x)))
       # The schema only contains the columns that are transformed.
       transformed_dataset = (
           transformed_dataset
