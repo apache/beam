@@ -77,7 +77,7 @@ public final class WindmillChannelFactory {
             AltsChannelBuilder.forAddress(
                     authenticatedGcpServiceAddress.gcpServiceAddress().getHost(),
                     authenticatedGcpServiceAddress.gcpServiceAddress().getPort())
-                .addTargetServiceAccount(authenticatedGcpServiceAddress.authenticatingService()),
+                .overrideAuthority(authenticatedGcpServiceAddress.authenticatingService()),
             windmillServiceRpcChannelTimeoutSec)
         .build();
   }
