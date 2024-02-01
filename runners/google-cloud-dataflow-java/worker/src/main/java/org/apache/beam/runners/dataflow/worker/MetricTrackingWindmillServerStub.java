@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import com.google.auto.value.AutoBuilder;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,6 +32,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatReques
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.SettableFuture;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -50,7 +52,6 @@ public class MetricTrackingWindmillServerStub {
 
   private static final int MAX_READS_PER_BATCH = 60;
   private static final int MAX_ACTIVE_READS = 10;
-  private static final int NUM_STREAMS = 1;
   private static final Duration STREAM_TIMEOUT = Duration.standardSeconds(30);
   private final AtomicInteger activeSideInputs = new AtomicInteger();
   private final AtomicInteger activeStateReads = new AtomicInteger();
@@ -59,28 +60,66 @@ public class MetricTrackingWindmillServerStub {
   private final MemoryMonitor gcThrashingMonitor;
   private final boolean useStreamingRequests;
 
+  private final WindmillStreamPool<GetDataStream> getDataStreamPool;
+
+  // May be the same instance as getDataStreamPool based upon options.
+  private final WindmillStreamPool<GetDataStream> heartbeatStreamPool;
+
   @GuardedBy("this")
   private final List<ReadBatch> pendingReadBatches;
 
   @GuardedBy("this")
   private int activeReadThreads = 0;
 
-  private WindmillStreamPool<GetDataStream> streamPool;
+  @Internal
+  @AutoBuilder(ofClass = MetricTrackingWindmillServerStub.class)
+  public abstract static class Builder {
 
-  public MetricTrackingWindmillServerStub(
-      WindmillServerStub server, MemoryMonitor gcThrashingMonitor, boolean useStreamingRequests) {
-    this.server = server;
-    this.gcThrashingMonitor = gcThrashingMonitor;
-    // This is used as a queue but is expected to be less than 10 batches.
-    this.pendingReadBatches = new ArrayList<>();
-    this.useStreamingRequests = useStreamingRequests;
+    abstract Builder setServer(WindmillServerStub server);
+
+    abstract Builder setGcThrashingMonitor(MemoryMonitor gcThrashingMonitor);
+
+    abstract Builder setUseStreamingRequests(boolean useStreamingRequests);
+
+    abstract Builder setUseSeparateHeartbeatStreams(boolean useSeparateHeartbeatStreams);
+
+    abstract Builder setNumGetDataStreams(int numGetDataStreams);
+
+    abstract MetricTrackingWindmillServerStub build();
   }
 
-  public void start() {
+  public static Builder builder(WindmillServerStub server, MemoryMonitor gcThrashingMonitor) {
+    return new AutoBuilder_MetricTrackingWindmillServerStub_Builder()
+        .setServer(server)
+        .setGcThrashingMonitor(gcThrashingMonitor)
+        .setUseStreamingRequests(false)
+        .setUseSeparateHeartbeatStreams(false)
+        .setNumGetDataStreams(1);
+  }
+
+  MetricTrackingWindmillServerStub(
+      WindmillServerStub server,
+      MemoryMonitor gcThrashingMonitor,
+      boolean useStreamingRequests,
+      boolean useSeparateHeartbeatStreams,
+      int numGetDataStreams) {
+    this.server = server;
+    this.gcThrashingMonitor = gcThrashingMonitor;
+    this.useStreamingRequests = useStreamingRequests;
     if (useStreamingRequests) {
-      streamPool =
-          WindmillStreamPool.create(NUM_STREAMS, STREAM_TIMEOUT, this.server::getDataStream);
+      getDataStreamPool =
+          WindmillStreamPool.create(numGetDataStreams, STREAM_TIMEOUT, this.server::getDataStream);
+      if (useSeparateHeartbeatStreams) {
+        heartbeatStreamPool =
+            WindmillStreamPool.create(1, STREAM_TIMEOUT, this.server::getDataStream);
+      } else {
+        heartbeatStreamPool = getDataStreamPool;
+      }
+    } else {
+      getDataStreamPool = heartbeatStreamPool = null;
     }
+    // This is used as a queue but is expected to be less than 10 batches.
+    this.pendingReadBatches = new ArrayList<>();
   }
 
   // Adds the entry to a read batch for sending to the windmill server. If a non-null batch is
@@ -193,11 +232,11 @@ public class MetricTrackingWindmillServerStub {
 
     try {
       if (useStreamingRequests) {
-        GetDataStream stream = streamPool.getStream();
+        GetDataStream stream = getDataStreamPool.getStream();
         try {
           return stream.requestKeyedData(computation, request);
         } finally {
-          streamPool.releaseStream(stream);
+          getDataStreamPool.releaseStream(stream);
         }
       } else {
         SettableFuture<Windmill.KeyedGetDataResponse> response = SettableFuture.create();
@@ -219,11 +258,11 @@ public class MetricTrackingWindmillServerStub {
     activeSideInputs.getAndIncrement();
     try {
       if (useStreamingRequests) {
-        GetDataStream stream = streamPool.getStream();
+        GetDataStream stream = getDataStreamPool.getStream();
         try {
           return stream.requestGlobalData(request);
         } finally {
-          streamPool.releaseStream(stream);
+          getDataStreamPool.releaseStream(stream);
         }
       } else {
         return server
@@ -245,11 +284,11 @@ public class MetricTrackingWindmillServerStub {
       if (useStreamingRequests) {
         // With streaming requests, always send the request even when it is empty, to ensure that
         // we trigger health checks for the stream even when it is idle.
-        GetDataStream stream = streamPool.getStream();
+        GetDataStream stream = heartbeatStreamPool.getStream();
         try {
           stream.refreshActiveWork(heartbeats);
         } finally {
-          streamPool.releaseStream(stream);
+          heartbeatStreamPool.releaseStream(stream);
         }
       } else if (!heartbeats.isEmpty()) {
         // This code path is only used by appliance which sends heartbeats (used to refresh active

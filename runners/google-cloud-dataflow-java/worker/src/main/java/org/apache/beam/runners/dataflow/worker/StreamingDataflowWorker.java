@@ -431,8 +431,11 @@ public class StreamingDataflowWorker {
     this.windmillServer = options.getWindmillServerStub();
     this.windmillServer.setProcessHeartbeatResponses(this::handleHeartbeatResponses);
     this.metricTrackingWindmillServer =
-        new MetricTrackingWindmillServerStub(windmillServer, memoryMonitor, windmillServiceEnabled);
-    this.metricTrackingWindmillServer.start();
+        MetricTrackingWindmillServerStub.builder(windmillServer, memoryMonitor)
+            .setUseStreamingRequests(windmillServiceEnabled)
+            .setUseSeparateHeartbeatStreams(options.getUseSeparateHeartbeatStreams())
+            .setNumGetDataStreams(options.getGetDataStreamCount())
+            .build();
     this.sideInputStateFetcher = new SideInputStateFetcher(metricTrackingWindmillServer, options);
     this.clientId = clientIdGenerator.nextLong();
 
