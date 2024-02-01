@@ -32,5 +32,4 @@ Apache Beam assumes that the `process_batch` method will  produce batched output
 
 Please see [here](https://beam.apache.org/documentation/programming-guide/#batched-dofn-types) for a list of supported element and batch typehints.
 
-Batches must have a single set of timing properties(event time, window) for every logical element in the batch and it's not possible to create batches that span multiple timestamps.  
-
+Batches must have a single set of timing properties(event time, window) for every logical element in the batch and it's not possible to create batches that span multiple timestamps.
