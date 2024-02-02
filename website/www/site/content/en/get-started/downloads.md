@@ -96,6 +96,14 @@ versions denoted `0.x.y`.
 
 ## Releases
 
+### 2.54.0 (2024-02-DD)
+Official [source code download](https://downloads.apache.org/beam/2.54.0/apache-beam-2.54.0-source-release.zip).
+[SHA-512](https://downloads.apache.org/beam/2.54.0/apache-beam-2.54.0-source-release.zip.sha512).
+[signature](https://downloads.apache.org/beam/2.54.0/apache-beam-2.54.0-source-release.zip.asc).
+
+[Release notes](https://github.com/apache/beam/releases/tag/v2.54.0)
+[Blog post](/blog/beam-2.54.0).
+
 ### 2.53.0 (2024-01-04)
 Official [source code download](https://downloads.apache.org/beam/2.53.0/apache-beam-2.53.0-source-release.zip).
 [SHA-512](https://downloads.apache.org/beam/2.53.0/apache-beam-2.53.0-source-release.zip.sha512).

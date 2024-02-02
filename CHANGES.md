@@ -87,12 +87,11 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.54.0] - Cut,Unreleased
+# [2.54.0] - 2024-02-DD
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* [Enrichment Transform](https://s.apache.org/enrichment-transform) along with GCP BigTable handler added to Python SDK ([#30001](https://github.com/apache/beam/pull/30001)).
 
 ## I/Os
 
@@ -115,14 +114,15 @@
 
 ## Bugfixes
 
-* N/A
+* Fixed a memory leak affecting some Go SDK since 2.46.0. ([#28142](https://github.com/apache/beam/pull/28142))
 
 ## Security Fixes
+
 * N/A
 
 ## Known Issues
 
-* ([#X](https://github.com/apache/beam/issues/X)).
+* N/A
 
 # [2.53.0] - 2024-01-04
 
