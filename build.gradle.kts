@@ -293,7 +293,6 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:extensions:sorter:build")
   dependsOn(":sdks:java:extensions:timeseries:build")
   dependsOn(":sdks:java:extensions:zetasketch:build")
-  dependsOn(":sdks:java:fn-execution:build")
   dependsOn(":sdks:java:harness:build")
   dependsOn(":sdks:java:harness:jmh:build")
   dependsOn(":sdks:java:io:bigquery-io-perf-tests:build")
