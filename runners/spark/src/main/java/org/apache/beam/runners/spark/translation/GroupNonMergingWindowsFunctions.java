@@ -18,6 +18,7 @@
 package org.apache.beam.runners.spark.translation;
 
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
@@ -90,8 +91,7 @@ public class GroupNonMergingWindowsFunctions {
         .repartitionAndSortWithinPartitions(getPartitioner(partitioner, rdd))
         .mapPartitions(
             it ->
-                new WindowedGroupByKeyIterator<>(it, keyCoder, windowingStrategy, windowedKvCoder))
-        .filter(Objects::nonNull); // filter last null element from GroupByKeyIterator
+                new WindowedGroupByKeyIterator<>(it, keyCoder, windowingStrategy, windowedKvCoder));
   }
 
   static <K, V, W extends BoundedWindow>
@@ -161,12 +161,10 @@ public class GroupNonMergingWindowsFunctions {
    * @param <V> type of value iterator emits
    */
   abstract static class GroupByKeyIterator<K, V>
-      implements Iterator<WindowedValue<KV<K, Iterable<V>>>> {
+      extends AbstractIterator<WindowedValue<KV<K, Iterable<V>>>> {
 
     private final PeekingIterator<Tuple2<ByteArray, byte[]>> inner;
     final Coder<K> keyCoder;
-
-    private boolean hasNext = true;
     private ByteArray currentKey = null;
 
     GroupByKeyIterator(Iterator<Tuple2<ByteArray, byte[]>> inner, Coder<K> keyCoder) {
@@ -176,57 +174,44 @@ public class GroupNonMergingWindowsFunctions {
     }
 
     @Override
-    public boolean hasNext() {
-      return hasNext;
-    }
-
-    @Override
-    public WindowedValue<KV<K, Iterable<V>>> next() {
-      while (inner.hasNext()) {
-        final ByteArray nextKey = inner.peek()._1;
-        if (nextKey.equals(currentKey)) {
-          // we still did not see all values for a given key
-          inner.next();
-          continue;
-        }
-        currentKey = nextKey;
-        final WindowedValue<KV<K, V>> decodedItem = decodeItem(inner.peek());
-        return decodedItem.withValue(
-            KV.of(decodedItem.getValue().getKey(), new ValueIterator(inner, currentKey)));
-      }
-      hasNext = false;
-      return null;
-    }
-
-    class ValueIterator implements Iterable<V> {
-
-      boolean consumed = false;
-      private final PeekingIterator<Tuple2<ByteArray, byte[]>> inner;
-      private final ByteArray currentKey;
-
-      ValueIterator(PeekingIterator<Tuple2<ByteArray, byte[]>> inner, ByteArray currentKey) {
-        this.inner = inner;
-        this.currentKey = currentKey;
+    protected WindowedValue<KV<K, Iterable<V>>> computeNext() {
+      if (!inner.hasNext()) {
+        return endOfData();
       }
 
-      @Override
-      public Iterator<V> iterator() {
-        if (consumed) {
-          throw new IllegalStateException(
-              "ValueIterator can't be iterated more than once,"
-                  + "otherwise there could be data lost");
-        }
-        consumed = true;
-        return new AbstractIterator<V>() {
-          @Override
-          protected V computeNext() {
-            if (inner.hasNext() && currentKey.equals(inner.peek()._1)) {
-              return decodeValue(inner.next()._2);
-            }
-            return endOfData();
-          }
-        };
-      }
+      currentKey = inner.peek()._1;
+      final WindowedValue<KV<K, V>> decodedItem = decodeItem(inner.peek());
+      return decodedItem.withValue(
+          KV.of(
+              decodedItem.getValue().getKey(),
+              new Iterable<V>() {
+                boolean consumed = false;
+
+                @Override
+                public Iterator<V> iterator() {
+                  if (consumed) {
+                    throw new IllegalStateException(
+                        "ValueIterator can't be iterated more than once otherwise there could be data lost");
+                  }
+                  consumed = true;
+                  return new Iterator<V>() {
+
+                    @Override
+                    public boolean hasNext() {
+                      return inner.hasNext() && inner.peek()._1.equals(currentKey);
+                    }
+
+                    @Override
+                    public V next() {
+                      if (!hasNext()) {
+                        throw new NoSuchElementException();
+                      }
+
+                      return decodeValue(inner.next()._2);
+                    }
+                  };
+                }
+              }));
     }
 
     abstract V decodeValue(byte[] windowedValueBytes);
@@ -235,7 +220,7 @@ public class GroupNonMergingWindowsFunctions {
   }
 
   /**
-   * From Iterator<K, V> transform to <K, Iterator<V>> where V (value) contains W (bounded window)
+   * From Iterator<K, V> transform to <K, Iterator<V>> where V (value) contains W (bounded window).
    */
   static class WindowedGroupByKeyIterator<K, V, W extends BoundedWindow>
       extends GroupByKeyIterator<K, V> {
@@ -310,12 +295,11 @@ public class GroupNonMergingWindowsFunctions {
    * repartitionAndSortWithinPartitions dropping the Window (which must be GlobalWindow) and
    * returning the grouped result in the appropriate global window.
    */
-  static <K, V>
-      JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupByKeyInGlobalWindow(
-          JavaRDD<WindowedValue<KV<K, V>>> rdd,
-          Coder<K> keyCoder,
-          Coder<V> valueCoder,
-          Partitioner partitioner) {
+  static <K, V> JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupByKeyInGlobalWindow(
+      JavaRDD<WindowedValue<KV<K, V>>> rdd,
+      Coder<K> keyCoder,
+      Coder<V> valueCoder,
+      Partitioner partitioner) {
     JavaPairRDD<ByteArray, byte[]> rawKeyValues =
         rdd.mapToPair(
             wv ->
@@ -324,7 +308,6 @@ public class GroupNonMergingWindowsFunctions {
                     CoderHelpers.toByteArray(wv.getValue().getValue(), valueCoder)));
     return rawKeyValues
         .repartitionAndSortWithinPartitions(getPartitioner(partitioner, rdd))
-        .mapPartitions(it -> new GlobalWindowGroupByKeyIterator<>(it, keyCoder, valueCoder))
-        .filter(Objects::nonNull); // filter last
+        .mapPartitions(it -> new GlobalWindowGroupByKeyIterator<>(it, keyCoder, valueCoder));
   }
 }
