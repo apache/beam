@@ -135,11 +135,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.EvictingQueue;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ListMultimap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.MultimapBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.*;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.MutableNetwork;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -231,7 +227,7 @@ public class StreamingDataflowWorker {
   private final BoundedQueueExecutor workUnitExecutor;
   private final WindmillServerStub windmillServer;
   private final Thread dispatchThread;
-  @VisibleForTesting final List<Thread> commitThreads;
+  @VisibleForTesting final ImmutableList<Thread> commitThreads;
   private final AtomicLong activeCommitBytes = new AtomicLong();
   private final AtomicLong previousTimeAtMaxThreads = new AtomicLong();
   private final AtomicBoolean running = new AtomicBoolean();
@@ -414,7 +410,7 @@ public class StreamingDataflowWorker {
       numCommitThreads = options.getWindmillServiceCommitThreads();
     }
 
-    commitThreads = new ArrayList<>();
+    ImmutableList.Builder<Thread> commitThreadsBuilder = ImmutableList.builder();
     for (int i = 0; i < numCommitThreads; ++i) {
       Thread commitThread =
           new Thread(
@@ -428,9 +424,9 @@ public class StreamingDataflowWorker {
       commitThread.setDaemon(true);
       commitThread.setPriority(Thread.MAX_PRIORITY);
       commitThread.setName("CommitThread " + i);
-
-      commitThreads.add(commitThread);
+      commitThreadsBuilder.add(commitThread);
     }
+    commitThreads = commitThreadsBuilder.build();
 
     this.publishCounters = publishCounters;
     this.windmillServer = options.getWindmillServerStub();
