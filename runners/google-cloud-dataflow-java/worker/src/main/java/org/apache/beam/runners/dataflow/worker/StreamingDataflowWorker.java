@@ -135,11 +135,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.EvictingQueue;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ListMultimap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.MultimapBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.*;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.MutableNetwork;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -231,7 +227,7 @@ public class StreamingDataflowWorker {
   private final BoundedQueueExecutor workUnitExecutor;
   private final WindmillServerStub windmillServer;
   private final Thread dispatchThread;
-  private final Thread commitThread;
+  @VisibleForTesting final ImmutableList<Thread> commitThreads;
   private final AtomicLong activeCommitBytes = new AtomicLong();
   private final AtomicLong previousTimeAtMaxThreads = new AtomicLong();
   private final AtomicBoolean running = new AtomicBoolean();
@@ -409,21 +405,28 @@ public class StreamingDataflowWorker {
     dispatchThread.setPriority(Thread.MIN_PRIORITY);
     dispatchThread.setName("DispatchThread");
 
-    commitThread =
-        new Thread(
-            new Runnable() {
-              @Override
-              public void run() {
+    int numCommitThreads = 1;
+    if (windmillServiceEnabled && options.getWindmillServiceCommitThreads() > 0) {
+      numCommitThreads = options.getWindmillServiceCommitThreads();
+    }
+
+    ImmutableList.Builder<Thread> commitThreadsBuilder = ImmutableList.builder();
+    for (int i = 0; i < numCommitThreads; ++i) {
+      Thread commitThread =
+          new Thread(
+              () -> {
                 if (windmillServiceEnabled) {
                   streamingCommitLoop();
                 } else {
                   commitLoop();
                 }
-              }
-            });
-    commitThread.setDaemon(true);
-    commitThread.setPriority(Thread.MAX_PRIORITY);
-    commitThread.setName("CommitThread");
+              });
+      commitThread.setDaemon(true);
+      commitThread.setPriority(Thread.MAX_PRIORITY);
+      commitThread.setName("CommitThread " + i);
+      commitThreadsBuilder.add(commitThread);
+    }
+    commitThreads = commitThreadsBuilder.build();
 
     this.publishCounters = publishCounters;
     this.windmillServer = options.getWindmillServerStub();
@@ -585,7 +588,7 @@ public class StreamingDataflowWorker {
 
     memoryMonitorThread.start();
     dispatchThread.start();
-    commitThread.start();
+    commitThreads.forEach(Thread::start);
     sampler.start();
 
     // Periodically report workers counters and other updates.
@@ -717,10 +720,12 @@ public class StreamingDataflowWorker {
       running.set(false);
       dispatchThread.interrupt();
       dispatchThread.join();
-      // We need to interrupt the commitThread in case it is blocking on pulling
+      // We need to interrupt the commitThreads in case they are blocking on pulling
       // from the commitQueue.
-      commitThread.interrupt();
-      commitThread.join();
+      commitThreads.forEach(Thread::interrupt);
+      for (Thread commitThread : commitThreads) {
+        commitThread.join();
+      }
       memoryMonitor.stop();
       memoryMonitorThread.join();
       workUnitExecutor.shutdown();
@@ -1374,9 +1379,9 @@ public class StreamingDataflowWorker {
       }
       Windmill.CommitWorkRequest commitRequest = commitRequestBuilder.build();
       LOG.trace("Commit: {}", commitRequest);
-      activeCommitBytes.set(commitBytes);
+      activeCommitBytes.addAndGet(commitBytes);
       windmillServer.commitWork(commitRequest);
-      activeCommitBytes.set(0);
+      activeCommitBytes.addAndGet(-commitBytes);
       for (Map.Entry<ComputationState, Windmill.ComputationCommitWorkRequest.Builder> entry :
           computationRequestMap.entrySet()) {
         ComputationState computationState = entry.getKey();

@@ -798,8 +798,7 @@ public class StreamingDataflowWorkerTest {
     verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());
   }
 
-  @Test
-  public void testBasic() throws Exception {
+  private void runTestBasic(int numCommitThreads) throws Exception {
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),
@@ -817,6 +816,7 @@ public class StreamingDataflowWorkerTest {
     when(mockWorkUnitClient.getGlobalStreamingConfigWorkItem()).thenReturn(Optional.of(workItem));
 
     StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    options.setWindmillServiceCommitThreads(numCommitThreads);
     StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
 
@@ -836,6 +836,16 @@ public class StreamingDataflowWorkerTest {
     }
 
     verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());
+  }
+
+  @Test
+  public void testBasic() throws Exception {
+    runTestBasic(1);
+  }
+
+  @Test
+  public void testBasicWithMultipleCommitThreads() throws Exception {
+    runTestBasic(2);
   }
 
   @Test
@@ -3830,6 +3840,38 @@ public class StreamingDataflowWorkerTest {
                 1, TimeUnit.MILLISECONDS.toMicros(1), DEFAULT_KEY_STRING, 1, DEFAULT_KEY_STRING)
             .build(),
         removeDynamicFields(result.get(1L)));
+  }
+
+  private void runNumCommitThreadsTest(int configNumCommitThreads, int expectedNumCommitThreads)
+      throws Exception {
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(StringUtf8Coder.of()),
+            makeSinkInstruction(StringUtf8Coder.of(), 0));
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    options.setWindmillServiceCommitThreads(configNumCommitThreads);
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
+    worker.start();
+    assertEquals(expectedNumCommitThreads, worker.commitThreads.size());
+    worker.stop();
+  }
+
+  @Test
+  public void testDefaultNumCommitThreads() throws Exception {
+    if (streamingEngine) {
+      runNumCommitThreadsTest(1, 1);
+      runNumCommitThreadsTest(2, 2);
+      runNumCommitThreadsTest(3, 3);
+      runNumCommitThreadsTest(0, 1);
+      runNumCommitThreadsTest(-1, 1);
+    } else {
+      runNumCommitThreadsTest(1, 1);
+      runNumCommitThreadsTest(2, 1);
+      runNumCommitThreadsTest(3, 1);
+      runNumCommitThreadsTest(0, 1);
+      runNumCommitThreadsTest(-1, 1);
+    }
   }
 
   static class BlockingFn extends DoFn<String, String> implements TestRule {
