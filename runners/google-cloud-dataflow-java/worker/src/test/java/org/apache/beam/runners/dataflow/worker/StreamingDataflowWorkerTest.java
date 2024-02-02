@@ -3832,6 +3832,38 @@ public class StreamingDataflowWorkerTest {
         removeDynamicFields(result.get(1L)));
   }
 
+  private void runNumCommitThreadsTest(int configNumCommitThreads, int expectedNumCommitThreads)
+      throws Exception {
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(StringUtf8Coder.of()),
+            makeSinkInstruction(StringUtf8Coder.of(), 0));
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    options.setWindmillServiceCommitThreads(configNumCommitThreads);
+    StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
+    worker.start();
+    assertEquals(expectedNumCommitThreads, worker.commitThreads.size());
+    worker.stop();
+  }
+
+  @Test
+  public void testDefaultNumCommitThreads() throws Exception {
+    if (streamingEngine) {
+      runNumCommitThreadsTest(1, 1);
+      runNumCommitThreadsTest(2, 2);
+      runNumCommitThreadsTest(3, 3);
+      runNumCommitThreadsTest(0, 1);
+      runNumCommitThreadsTest(-1, 1);
+    } else {
+      runNumCommitThreadsTest(1, 1);
+      runNumCommitThreadsTest(2, 1);
+      runNumCommitThreadsTest(3, 1);
+      runNumCommitThreadsTest(0, 1);
+      runNumCommitThreadsTest(-1, 1);
+    }
+  }
+
   static class BlockingFn extends DoFn<String, String> implements TestRule {
 
     public static CountDownLatch blocker = new CountDownLatch(1);

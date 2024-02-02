@@ -231,7 +231,7 @@ public class StreamingDataflowWorker {
   private final BoundedQueueExecutor workUnitExecutor;
   private final WindmillServerStub windmillServer;
   private final Thread dispatchThread;
-  private final Thread commitThread;
+  @VisibleForTesting final List<Thread> commitThreads;
   private final AtomicLong activeCommitBytes = new AtomicLong();
   private final AtomicLong previousTimeAtMaxThreads = new AtomicLong();
   private final AtomicBoolean running = new AtomicBoolean();
@@ -409,21 +409,28 @@ public class StreamingDataflowWorker {
     dispatchThread.setPriority(Thread.MIN_PRIORITY);
     dispatchThread.setName("DispatchThread");
 
-    commitThread =
-        new Thread(
-            new Runnable() {
-              @Override
-              public void run() {
+    int numCommitThreads = 1;
+    if (windmillServiceEnabled && options.getWindmillServiceCommitThreads() > 0) {
+      numCommitThreads = options.getWindmillServiceCommitThreads();
+    }
+
+    commitThreads = new ArrayList<>();
+    for (int i = 0; i < numCommitThreads; ++i) {
+      Thread commitThread =
+          new Thread(
+              () -> {
                 if (windmillServiceEnabled) {
                   streamingCommitLoop();
                 } else {
                   commitLoop();
                 }
-              }
-            });
-    commitThread.setDaemon(true);
-    commitThread.setPriority(Thread.MAX_PRIORITY);
-    commitThread.setName("CommitThread");
+              });
+      commitThread.setDaemon(true);
+      commitThread.setPriority(Thread.MAX_PRIORITY);
+      commitThread.setName("CommitThread " + i);
+
+      commitThreads.add(commitThread);
+    }
 
     this.publishCounters = publishCounters;
     this.windmillServer = options.getWindmillServerStub();
@@ -585,7 +592,7 @@ public class StreamingDataflowWorker {
 
     memoryMonitorThread.start();
     dispatchThread.start();
-    commitThread.start();
+    commitThreads.forEach(Thread::start);
     sampler.start();
 
     // Periodically report workers counters and other updates.
@@ -719,8 +726,10 @@ public class StreamingDataflowWorker {
       dispatchThread.join();
       // We need to interrupt the commitThread in case it is blocking on pulling
       // from the commitQueue.
-      commitThread.interrupt();
-      commitThread.join();
+      commitThreads.forEach(Thread::interrupt);
+      for (Thread commitThread : commitThreads) {
+        commitThread.join();
+      }
       memoryMonitor.stop();
       memoryMonitorThread.join();
       workUnitExecutor.shutdown();
@@ -1374,9 +1383,9 @@ public class StreamingDataflowWorker {
       }
       Windmill.CommitWorkRequest commitRequest = commitRequestBuilder.build();
       LOG.trace("Commit: {}", commitRequest);
-      activeCommitBytes.set(commitBytes);
+      activeCommitBytes.addAndGet(commitBytes);
       windmillServer.commitWork(commitRequest);
-      activeCommitBytes.set(0);
+      activeCommitBytes.addAndGet(-commitBytes);
       for (Map.Entry<ComputationState, Windmill.ComputationCommitWorkRequest.Builder> entry :
           computationRequestMap.entrySet()) {
         ComputationState computationState = entry.getKey();
