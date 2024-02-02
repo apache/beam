@@ -81,11 +81,14 @@ public class ComputationState implements AutoCloseable {
 
   /**
    * Mark the given {@link ShardedKey} and {@link Work} as active, and schedules execution of {@link
-   * Work} if there is no active {@link Work} for the {@link ShardedKey} already processing.
+   * Work} if there is no active {@link Work} for the {@link ShardedKey} already processing. Returns
+   * whether the {@link Work} will be activated, either immediately or sometime in the future.
    */
   public boolean activateWork(ShardedKey shardedKey, Work work) {
     switch (activeWorkState.activateWorkForKey(shardedKey, work)) {
       case DUPLICATE:
+        // Fall through intentionally. Work was not and will not be activated in these cases.
+      case STALE:
         return false;
       case QUEUED:
         return true;
@@ -107,9 +110,9 @@ public class ComputationState implements AutoCloseable {
   /**
    * Marks the work for the given shardedKey as complete. Schedules queued work for the key if any.
    */
-  public void completeWorkAndScheduleNextWorkForKey(ShardedKey shardedKey, long workToken) {
+  public void completeWorkAndScheduleNextWorkForKey(ShardedKey shardedKey, WorkId workId) {
     activeWorkState
-        .completeWorkAndGetNextWorkForKey(shardedKey, workToken)
+        .completeWorkAndGetNextWorkForKey(shardedKey, workId)
         .ifPresent(this::forceExecute);
   }
 

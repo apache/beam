@@ -2677,7 +2677,7 @@ public class StreamingDataflowWorkerTest {
     Work m1 = createMockWork(1);
     assertTrue(computationState.activateWork(key1, m1));
     Mockito.verify(mockExecutor).execute(m1, m1.getWorkItem().getSerializedSize());
-    computationState.completeWorkAndScheduleNextWorkForKey(key1, 1);
+    computationState.completeWorkAndScheduleNextWorkForKey(key1, m1.id());
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify work queues.
@@ -2692,12 +2692,12 @@ public class StreamingDataflowWorkerTest {
     Work m4 = createMockWork(4);
     assertTrue(computationState.activateWork(key2, m4));
     Mockito.verify(mockExecutor).execute(m4, m4.getWorkItem().getSerializedSize());
-    computationState.completeWorkAndScheduleNextWorkForKey(key2, 4);
+    computationState.completeWorkAndScheduleNextWorkForKey(key2, m4.id());
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
-    computationState.completeWorkAndScheduleNextWorkForKey(key1, 2);
+    computationState.completeWorkAndScheduleNextWorkForKey(key1, m2.id());
     Mockito.verify(mockExecutor).forceExecute(m3, m3.getWorkItem().getSerializedSize());
-    computationState.completeWorkAndScheduleNextWorkForKey(key1, 3);
+    computationState.completeWorkAndScheduleNextWorkForKey(key1, m3.id());
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify duplicate work dropped.
@@ -2706,7 +2706,7 @@ public class StreamingDataflowWorkerTest {
     Mockito.verify(mockExecutor).execute(m5, m5.getWorkItem().getSerializedSize());
     assertFalse(computationState.activateWork(key1, m5));
     Mockito.verifyNoMoreInteractions(mockExecutor);
-    computationState.completeWorkAndScheduleNextWorkForKey(key1, 5);
+    computationState.completeWorkAndScheduleNextWorkForKey(key1, m5.id());
     Mockito.verifyNoMoreInteractions(mockExecutor);
   }
 
@@ -2727,7 +2727,7 @@ public class StreamingDataflowWorkerTest {
     Work m1 = createMockWork(1);
     assertTrue(computationState.activateWork(key1Shard1, m1));
     Mockito.verify(mockExecutor).execute(m1, m1.getWorkItem().getSerializedSize());
-    computationState.completeWorkAndScheduleNextWorkForKey(key1Shard1, 1);
+    computationState.completeWorkAndScheduleNextWorkForKey(key1Shard1, m1.id());
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify work queues.
@@ -2747,7 +2747,7 @@ public class StreamingDataflowWorkerTest {
 
     // Verify duplicate work dropped
     assertFalse(computationState.activateWork(key1Shard2, m4));
-    computationState.completeWorkAndScheduleNextWorkForKey(key1Shard2, 3);
+    computationState.completeWorkAndScheduleNextWorkForKey(key1Shard2, m4.id());
     Mockito.verifyNoMoreInteractions(mockExecutor);
   }
 

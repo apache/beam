@@ -24,6 +24,7 @@ import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -60,7 +61,7 @@ import org.slf4j.LoggerFactory;
 public final class ActiveWorkState {
   private static final Logger LOG = LoggerFactory.getLogger(ActiveWorkState.class);
 
-  /* The max number of keys in COMMITTING or COMMIT_QUEUED status to be shown.*/
+  /* The max number of keys in COMMITTING or COMMIT_QUEUED status to be shown for observability.*/
   private static final int MAX_PRINTABLE_COMMIT_PENDING_KEYS = 50;
 
   /**
@@ -106,7 +107,7 @@ public final class ActiveWorkState {
   }
 
   /**
-   * Activates {@link Work} for the {@link ShardedKey}. Outcome can be 1 of 3 {@link
+   * Activates {@link Work} for the {@link ShardedKey}. Outcome can be 1 of 4 {@link
    * ActivateWorkResult}
    *
    * <p>1. EXECUTE: The {@link ShardedKey} has not been seen before, create a {@link Queue<Work>}
@@ -116,7 +117,11 @@ public final class ActiveWorkState {
    * the {@link ShardedKey}'s work queue, mark the {@link Work} as a duplicate.
    *
    * <p>3. QUEUED: A work queue for the {@link ShardedKey} exists, and the work is not in the key's
-   * work queue, queue the work for later processing.
+   * work queue, OR the work in the work queue is stale, OR the work in the queue has a matching
+   * work token but different cache token, queue the work for later processing.
+   *
+   * <p>4. STALE: A work queue for the {@link ShardedKey} exists, and there is a queued {@link Work}
+   * with a greater workToken than the passed in {@link Work}.
    */
   synchronized ActivateWorkResult activateWorkForKey(ShardedKey shardedKey, Work work) {
     Deque<Work> workQueue = activeWork.getOrDefault(shardedKey, new ArrayDeque<>());
@@ -129,10 +134,21 @@ public final class ActiveWorkState {
       return ActivateWorkResult.EXECUTE;
     }
 
-    // Ensure we don't already have this work token queued.
-    for (Work queuedWork : workQueue) {
-      if (queuedWork.getWorkItem().getWorkToken() == work.getWorkItem().getWorkToken()) {
+    // Check to see if we have this work token queued.
+    Iterator<Work> workIterator = workQueue.iterator();
+    while (workIterator.hasNext()) {
+      Work queuedWork = workIterator.next();
+      if (queuedWork.id().equals(work.id())) {
         return ActivateWorkResult.DUPLICATE;
+      }
+      if (queuedWork.id().cacheToken() == work.id().cacheToken()) {
+        if (work.id().workToken() > queuedWork.id().workToken()) {
+          removeIfNotActive(queuedWork, workIterator, workQueue);
+          workQueue.addLast(work);
+          // Continue here to possibly remove more non-active stale work that is queued.
+        } else {
+          return ActivateWorkResult.STALE;
+        }
       }
     }
 
@@ -213,34 +229,38 @@ public final class ActiveWorkState {
    * #activeWork}.
    */
   synchronized Optional<Work> completeWorkAndGetNextWorkForKey(
-      ShardedKey shardedKey, long workToken) {
+      ShardedKey shardedKey, WorkId workId) {
     @Nullable Queue<Work> workQueue = activeWork.get(shardedKey);
     if (workQueue == null) {
       // Work may have been completed due to clearing of stuck commits.
-      LOG.warn("Unable to complete inactive work for key {} and token {}.", shardedKey, workToken);
+      LOG.warn("Unable to complete inactive work for key {} and token {}.", shardedKey, workId);
       return Optional.empty();
     }
-    removeCompletedWorkFromQueue(workQueue, shardedKey, workToken);
+    removeCompletedWorkFromQueue(workQueue, shardedKey, workId);
     return getNextWork(workQueue, shardedKey);
   }
 
   private synchronized void removeCompletedWorkFromQueue(
-      Queue<Work> workQueue, ShardedKey shardedKey, long workToken) {
+      Queue<Work> workQueue, ShardedKey shardedKey, WorkId workId) {
+    // avoid Preconditions.checkState here to prevent eagerly evaluating the
+    // format string parameters for the error message.
     Work completedWork = workQueue.peek();
     if (completedWork == null) {
       // Work may have been completed due to clearing of stuck commits.
-      LOG.warn(
-          String.format("Active key %s without work, expected token %d", shardedKey, workToken));
+      LOG.warn("Active key {} without work, expected token {}", shardedKey, workId);
       return;
     }
 
-    if (completedWork.getWorkItem().getWorkToken() != workToken) {
+    if (!completedWork.id().equals(workId)) {
       // Work may have been completed due to clearing of stuck commits.
       LOG.warn(
-          "Unable to complete due to token mismatch for key {} and token {}, actual token was {}.",
+          "Unable to complete due to token mismatch for "
+              + "key {},"
+              + "expected work_id {}, "
+              + "actual work_id was {}",
           shardedKey,
-          workToken,
-          completedWork.getWorkItem().getWorkToken());
+          workId,
+          completedWork.id());
       return;
     }
 
@@ -263,21 +283,21 @@ public final class ActiveWorkState {
    * before the stuckCommitDeadline.
    */
   synchronized void invalidateStuckCommits(
-      Instant stuckCommitDeadline, BiConsumer<ShardedKey, Long> shardedKeyAndWorkTokenConsumer) {
-    for (Entry<ShardedKey, Long> shardedKeyAndWorkToken :
+      Instant stuckCommitDeadline, BiConsumer<ShardedKey, WorkId> shardedKeyAndWorkTokenConsumer) {
+    for (Entry<ShardedKey, WorkId> shardedKeyAndWorkId :
         getStuckCommitsAt(stuckCommitDeadline).entrySet()) {
-      ShardedKey shardedKey = shardedKeyAndWorkToken.getKey();
-      long workToken = shardedKeyAndWorkToken.getValue();
+      ShardedKey shardedKey = shardedKeyAndWorkId.getKey();
+      WorkId workId = shardedKeyAndWorkId.getValue();
       computationStateCache.invalidate(shardedKey.key(), shardedKey.shardingKey());
-      shardedKeyAndWorkTokenConsumer.accept(shardedKey, workToken);
+      shardedKeyAndWorkTokenConsumer.accept(shardedKey, workId);
     }
   }
 
-  private synchronized ImmutableMap<ShardedKey, Long> getStuckCommitsAt(
+  private synchronized ImmutableMap<ShardedKey, WorkId> getStuckCommitsAt(
       Instant stuckCommitDeadline) {
     // Determine the stuck commit keys but complete them outside the loop iterating over
     // activeWork as completeWork may delete the entry from activeWork.
-    ImmutableMap.Builder<ShardedKey, Long> stuckCommits = ImmutableMap.builder();
+    ImmutableMap.Builder<ShardedKey, WorkId> stuckCommits = ImmutableMap.builder();
     for (Entry<ShardedKey, Deque<Work>> entry : activeWork.entrySet()) {
       ShardedKey shardedKey = entry.getKey();
       @Nullable Work work = entry.getValue().peek();
@@ -287,7 +307,7 @@ public final class ActiveWorkState {
               "Detected key {} stuck in COMMITTING state since {}, completing it with error.",
               shardedKey,
               work.getStateStartTime());
-          stuckCommits.put(shardedKey, work.getWorkItem().getWorkToken());
+          stuckCommits.put(shardedKey, work.id());
         }
       }
     }
@@ -320,7 +340,8 @@ public final class ActiveWorkState {
                     .setWorkToken(work.getWorkItem().getWorkToken())
                     .setCacheToken(work.getWorkItem().getCacheToken())
                     .addAllLatencyAttribution(
-                        work.getLatencyAttributions(true, work.getLatencyTrackingId(), sampler))
+                        work.getLatencyAttributions(
+                            /* isHeartbeat= */ true, work.getLatencyTrackingId(), sampler))
                     .build());
   }
 
@@ -383,9 +404,17 @@ public final class ActiveWorkState {
     writer.println("<br>");
   }
 
+  private static void removeIfNotActive(
+      Work queuedWork, Iterator<Work> workIterator, Deque<Work> workQueue) {
+    // Check to see if the queuedWork is active. We only want to remove it if it is NOT currently
+    // active.
+    if (!queuedWork.equals(workQueue.peek())) workIterator.remove();
+  }
+
   enum ActivateWorkResult {
     QUEUED,
     EXECUTE,
-    DUPLICATE
+    DUPLICATE,
+    STALE
   }
 }
