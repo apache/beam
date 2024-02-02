@@ -724,7 +724,7 @@ public class StreamingDataflowWorker {
       running.set(false);
       dispatchThread.interrupt();
       dispatchThread.join();
-      // We need to interrupt the commitThread in case it is blocking on pulling
+      // We need to interrupt the commitThreads in case they are blocking on pulling
       // from the commitQueue.
       commitThreads.forEach(Thread::interrupt);
       for (Thread commitThread : commitThreads) {
