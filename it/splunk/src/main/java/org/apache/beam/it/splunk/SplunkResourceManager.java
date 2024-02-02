@@ -22,6 +22,7 @@ import static org.apache.beam.it.splunk.SplunkResourceManagerUtils.generateSplun
 import static org.apache.beam.it.splunk.SplunkResourceManagerUtils.splunkEventToMap;
 
 import com.splunk.Job;
+import com.splunk.JobEventsArgs;
 import com.splunk.ResultsReader;
 import com.splunk.ResultsReaderXml;
 import com.splunk.ServiceArgs;
@@ -51,7 +52,7 @@ import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * Client for managing Kafka resources.
+ * Client for managing Splunk resources.
  *
  * <p>The class supports one Splunk server instance.
  *
@@ -314,7 +315,9 @@ public class SplunkResourceManager extends TestContainerResourceManager<SplunkCo
     // Read results
     List<SplunkEvent> results = new ArrayList<>();
     try {
-      ResultsReader reader = new ResultsReaderXml(job.getEvents());
+      JobEventsArgs jobEventsArgs = new JobEventsArgs();
+      jobEventsArgs.setCount(0);
+      ResultsReader reader = new ResultsReaderXml(job.getEvents(jobEventsArgs));
       reader.forEach(
           event ->
               results.add(
