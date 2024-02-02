@@ -34,24 +34,24 @@ class ArtifactsFetcher:
   This is intended to be used for testing purposes only.
   """
   def __init__(self, artifact_location):
-    tempdir = tempfile.mkdtemp()
-    self._artifact_location = tempdir
-    # TODO: Can we use FileSystems.match() here with a * glob pattern?
-    # using match, does it output files and directories path?
-    FileSystems.copy(artifact_location, tempdir)
-    assert os.listdir(tempdir), f"No files found in {artifact_location}"
-    files = os.listdir(artifact_location)
-    files.remove(base._ATTRIBUTE_FILE_NAME)
-    # TODO: https://github.com/apache/beam/issues/29356
-    #  Integrate ArtifactFetcher into MLTransform.
-    if len(files) > 1:
-      raise NotImplementedError(
-          "MLTransform may have been utilized alongside transforms written "
-          "in TensorFlow Transform, in conjunction with those from different "
-          "frameworks. Currently, retrieving artifacts from this "
-          "multi-framework setup is not supported.")
-    self._artifact_location = os.path.join(artifact_location, files[0])
-    self.transform_output = tft.TFTransformOutput(self._artifact_location)
+    with tempfile.TemporaryDirectory() as tempdir:
+      # TODO: Can we use FileSystems.match() here with a * glob pattern?
+      # using match, does it output files and directories path?
+      FileSystems.copy(artifact_location, tempdir)
+      assert os.listdir(tempdir), f"No files found in {artifact_location}"
+      artifact_location = tempdir
+      files = os.listdir(artifact_location)
+      files.remove(base._ATTRIBUTE_FILE_NAME)
+      # TODO: https://github.com/apache/beam/issues/29356
+      #  Integrate ArtifactFetcher into MLTransform.
+      if len(files) > 1:
+        raise NotImplementedError(
+            "MLTransform may have been utilized alongside transforms written "
+            "in TensorFlow Transform, in conjunction with those from different "
+            "frameworks. Currently, retrieving artifacts from this "
+            "multi-framework setup is not supported.")
+      self._artifact_location = os.path.join(artifact_location, files[0])
+      self.transform_output = tft.TFTransformOutput(self._artifact_location)
 
   def get_vocab_list(self, vocab_filename: str) -> typing.List[bytes]:
     """
