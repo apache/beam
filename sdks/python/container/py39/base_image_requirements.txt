@@ -26,7 +26,7 @@ beautifulsoup4==4.12.3
 bs4==0.0.2
 build==1.0.3
 cachetools==5.3.2
-certifi==2023.11.17
+certifi==2024.2.2
 cffi==1.16.0
 charset-normalizer==3.3.2
 click==8.1.7
@@ -72,10 +72,11 @@ google-cloud-vision==3.6.0
 google-crc32c==1.5.0
 google-resumable-media==2.7.0
 googleapis-common-protos==1.62.0
+greenlet==3.0.3
 grpc-google-iam-v1==0.13.0
 grpc-interceptor==0.15.4
-grpcio==1.60.0
-grpcio-status==1.60.0
+grpcio==1.60.1
+grpcio-status==1.60.1
 guppy3==3.1.4.post1
 hdfs==2.7.3
 httplib2==0.22.0
@@ -124,7 +125,7 @@ pytest-timeout==2.2.0
 pytest-xdist==3.5.0
 python-dateutil==2.8.2
 python-snappy==0.6.1
-pytz==2023.4
+pytz==2024.1
 PyYAML==6.0.1
 referencing==0.33.0
 regex==2023.12.25
