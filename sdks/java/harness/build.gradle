@@ -90,8 +90,7 @@ dependencies {
   permitUnusedDeclared project(path: ":sdks:java:transform-service:launcher")
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
-  shadowTestRuntimeClasspath project(path: ":sdks:java:core", configuration: "shadowTest")
-  testImplementation project(path: ":sdks:java:fn-execution", configuration: "testRuntimeMigration")
+  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
   permitUnusedDeclared library.java.avro
 }
