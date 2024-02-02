@@ -800,16 +800,16 @@ public class StreamingDataflowWorkerTest {
 
   private void runTestBasic(int numCommitThreads) throws Exception {
     List<ParallelInstruction> instructions =
-            Arrays.asList(
-                    makeSourceInstruction(StringUtf8Coder.of()),
-                    makeSinkInstruction(StringUtf8Coder.of(), 0));
+        Arrays.asList(
+            makeSourceInstruction(StringUtf8Coder.of()),
+            makeSinkInstruction(StringUtf8Coder.of(), 0));
 
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
     server.setIsReady(false);
 
     StreamingConfigTask streamingConfig = new StreamingConfigTask();
     streamingConfig.setStreamingComputationConfigs(
-            ImmutableList.of(makeDefaultStreamingComputationConfig(instructions)));
+        ImmutableList.of(makeDefaultStreamingComputationConfig(instructions)));
     streamingConfig.setWindmillServiceEndpoint("foo");
     WorkItem workItem = new WorkItem();
     workItem.setStreamingConfigTask(streamingConfig);
@@ -831,8 +831,8 @@ public class StreamingDataflowWorkerTest {
     for (int i = 0; i < numIters; ++i) {
       assertTrue(result.containsKey((long) i));
       assertEquals(
-              makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(),
-              removeDynamicFields(result.get((long) i)));
+          makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(),
+          removeDynamicFields(result.get((long) i)));
     }
 
     verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());
