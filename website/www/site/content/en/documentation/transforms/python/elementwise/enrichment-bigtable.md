@@ -33,6 +33,16 @@ The following examples demonstrate how to create pipelines that use the Enrichme
 
 In this example, we create a pipeline that uses a BigTableEnrichmentHandler with Enrichment transform.
 
+The data stored in the Bigtable cluster is of the following format:
+
+|  Row key  |  product:product_id  |  product:product_name  |  product:product_stock  |
+|:---------:|:--------------------:|:----------------------:|:-----------------------:|
+|     1     |          1           |        pixel 5         |            2            |
+|     2     |          2           |        pixel 6         |            4            |
+|     3     |          3           |        pixel 7         |           20            |
+|     4     |          4           |        pixel 8         |           10            |
+
+
 {{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/enrichment.py" enrichment_with_bigtable >}}
 {{</ highlight >}}
