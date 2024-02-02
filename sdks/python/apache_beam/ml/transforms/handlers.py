@@ -20,6 +20,7 @@ import collections
 import copy
 import os
 import typing
+from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -31,7 +32,7 @@ import numpy as np
 import apache_beam as beam
 import tensorflow as tf
 import tensorflow_transform.beam as tft_beam
-from apache_beam.coders.coders import PickleCoder
+from apache_beam import coders
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.transforms.base import ArtifactMode
 from apache_beam.ml.transforms.base import ProcessHandler
@@ -91,7 +92,7 @@ class DataCoder:
     Args:
       exclude_columns: list of columns to exclude from the encoding.
     """
-    self.coder = PickleCoder()
+    self.coder = coders.registry.get_coder(Any)
     self.exclude_columns = exclude_columns
 
   def set_unused_columns(self, exclude_columns):
