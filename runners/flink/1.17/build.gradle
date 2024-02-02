@@ -17,7 +17,7 @@
  */
 
 def basePath = '..'
-def addedVersions = ["1.12", "1.13", "1.14"]
+def addedVersions = ["1.12", "1.13", "1.14", "1.15", "1.16"]
 
 def overrides(versions, type, basePath) {
   versions.collect { "${basePath}/${it}/src/${type}/java" }
@@ -26,13 +26,13 @@ def overrides(versions, type, basePath) {
 /* All properties required for loading the Flink build script */
 project.ext {
   // Set the version of all Flink-related dependencies here.
-  flink_version = '1.15.0'
+  flink_version = '1.17.0'
   // Version specific code overrides.
   main_source_overrides = overrides(addedVersions, "main", basePath) + ["./src/main/java"]
   test_source_overrides = overrides(addedVersions, "test", basePath) + ["./src/test/java"]
   main_resources_overrides = []
   test_resources_overrides = []
-  archives_base_name = 'beam-runners-flink-1.15'
+  archives_base_name = 'beam-runners-flink-1.17'
 }
 
 // Load the main build script which contains all build logic.

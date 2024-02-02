@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.translation.types.compat.UnversionedTypeSerializerSnapshot;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -71,7 +72,7 @@ public class CoderTypeSerializerTest implements Serializable {
     ComparatorTestBase.TestOutputView outView = new ComparatorTestBase.TestOutputView();
     writtenSnapshot.writeSnapshot(outView);
 
-    TypeSerializerSnapshot readSnapshot = new CoderTypeSerializer.LegacySnapshot();
+    TypeSerializerSnapshot readSnapshot = new UnversionedTypeSerializerSnapshot();
     readSnapshot.readSnapshot(
         writtenSnapshot.getCurrentVersion(), outView.getInputView(), getClass().getClassLoader());
 
