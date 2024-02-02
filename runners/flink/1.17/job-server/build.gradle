@@ -16,10 +16,16 @@
  * limitations under the License.
  */
 
+def basePath = '../../job-server'
+
 project.ext {
-  flink_major = '1.13'
-  flink_version = '1.13.5'
+  // Look for the source code in the parent module
+  main_source_dirs = ["$basePath/src/main/java"]
+  test_source_dirs = ["$basePath/src/test/java"]
+  main_resources_dirs = ["$basePath/src/main/resources"]
+  test_resources_dirs = ["$basePath/src/test/resources"]
+  archives_base_name = 'beam-runners-flink-1.17-job-server'
 }
 
 // Load the main build script which contains all build logic.
-apply from: "../flink_runner.gradle"
+apply from: "$basePath/flink_job_server.gradle"
