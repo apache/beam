@@ -258,7 +258,7 @@ public interface DataflowPipelineDebugOptions
   @Default.Integer(60 * 1000) // 1 minute
   Integer getStreamingSideInputCacheExpirationMillis();
 
-  void setstreamingSideInputCacheExpirationMillis(Integer value);
+  void setStreamingSideInputCacheExpirationMillis(Integer value);
 
   /**
    * The amount of time before UnboundedReaders are considered idle and closed during streaming
