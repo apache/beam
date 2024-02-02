@@ -161,11 +161,11 @@ public class GroupNonMergingWindowsFunctions {
    * @param <V> type of value iterator emits
    */
   abstract static class GroupByKeyIterator<K, V>
-      extends AbstractIterator<WindowedValue<KV<K, Iterable<V>>>> {
+      implements Iterator<WindowedValue<KV<K, Iterable<V>>>> {
 
     private final PeekingIterator<Tuple2<ByteArray, byte[]>> inner;
     final Coder<K> keyCoder;
-    private ByteArray currentKey = null;
+    private ByteArray previousKey = null;
 
     GroupByKeyIterator(Iterator<Tuple2<ByteArray, byte[]>> inner, Coder<K> keyCoder) {
 
@@ -174,44 +174,52 @@ public class GroupNonMergingWindowsFunctions {
     }
 
     @Override
-    protected WindowedValue<KV<K, Iterable<V>>> computeNext() {
-      if (!inner.hasNext()) {
-        return endOfData();
-      }
+    public boolean hasNext() {
+      return inner.hasNext();
+    }
 
-      currentKey = inner.peek()._1;
-      final WindowedValue<KV<K, V>> decodedItem = decodeItem(inner.peek());
-      return decodedItem.withValue(
-          KV.of(
-              decodedItem.getValue().getKey(),
-              new Iterable<V>() {
-                boolean consumed = false;
+    @Override
+    public WindowedValue<KV<K, Iterable<V>>> next() {
+      while (hasNext()) {
 
-                @Override
-                public Iterator<V> iterator() {
-                  if (consumed) {
-                    throw new IllegalStateException(
-                        "ValueIterator can't be iterated more than once otherwise there could be data lost");
-                  }
-                  consumed = true;
-                  return new Iterator<V>() {
+        final ByteArray currentKey = inner.peek()._1;
 
-                    @Override
-                    public boolean hasNext() {
-                      return inner.hasNext() && inner.peek()._1.equals(currentKey);
+        if (currentKey.equals(previousKey)) {
+          // inner iterator did not consume all values for a given key, we need to skip ahead until
+          // we find value for the next key
+          inner.next();
+          continue;
+        }
+        previousKey = currentKey;
+
+        final WindowedValue<KV<K, V>> decodedItem = decodeItem(inner.peek());
+        return decodedItem.withValue(
+            KV.of(
+                decodedItem.getValue().getKey(),
+                new Iterable<V>() {
+                  boolean consumed = false;
+
+                  @Override
+                  public Iterator<V> iterator() {
+                    if (consumed) {
+                      throw new IllegalStateException(
+                          "ValueIterator can't be iterated more than once otherwise there could be data lost");
                     }
+                    consumed = true;
+                    return new AbstractIterator<V>() {
 
-                    @Override
-                    public V next() {
-                      if (!hasNext()) {
-                        throw new NoSuchElementException();
+                      @Override
+                      public V computeNext() {
+                        if (inner.hasNext() && inner.peek()._1.equals(currentKey)) {
+                          return decodeValue(inner.next()._2);
+                        }
+                        return endOfData();
                       }
-
-                      return decodeValue(inner.next()._2);
-                    }
-                  };
-                }
-              }));
+                    };
+                  }
+                }));
+      }
+      throw new NoSuchElementException();
     }
 
     abstract V decodeValue(byte[] windowedValueBytes);

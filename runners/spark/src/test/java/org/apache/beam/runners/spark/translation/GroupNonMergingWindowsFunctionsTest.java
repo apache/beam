@@ -65,10 +65,11 @@ public class GroupNonMergingWindowsFunctionsTest {
     Assert.assertTrue(valuesIteratorForK1.hasNext());
     Assert.assertTrue(valuesIteratorForK1.hasNext());
     assertEquals(2L, valuesIteratorForK1.next().longValue());
+    Assert.assertTrue(valuesIteratorForK1.hasNext());
 
     WindowedValue<KV<String, Iterable<Integer>>> k2Win = iteratorUnderTest.next();
     Iterator<Integer> valuesIteratorForK2 = k2Win.getValue().getValue().iterator();
-    assertEquals(3L, valuesIteratorForK2.next().longValue());
+    assertEquals(4L, valuesIteratorForK2.next().longValue());
   }
 
   @Test
@@ -85,13 +86,15 @@ public class GroupNonMergingWindowsFunctionsTest {
 
     Assert.assertTrue("Now we expect first value for K1 to pop up.", valuesIteratorForK1.hasNext());
     assertEquals(1L, valuesIteratorForK1.next().longValue());
+    assertEquals("k1", k1Win.getValue().getKey());
     Assert.assertTrue(valuesIteratorForK1.hasNext());
     Assert.assertTrue(valuesIteratorForK1.hasNext());
     assertEquals(2L, valuesIteratorForK1.next().longValue());
 
     WindowedValue<KV<String, Iterable<Integer>>> k2Win = iteratorUnderTest.next();
     Iterator<Integer> valuesIteratorForK2 = k2Win.getValue().getValue().iterator();
-    assertEquals(3L, valuesIteratorForK2.next().longValue());
+    assertEquals("k2", k2Win.getValue().getKey());
+    assertEquals(4L, valuesIteratorForK2.next().longValue());
   }
 
   @Test
@@ -119,7 +122,8 @@ public class GroupNonMergingWindowsFunctionsTest {
 
     WindowedValue<KV<String, Iterable<Integer>>> k2Win = iteratorUnderTest.next();
     Iterator<Integer> valuesIteratorForK2 = k2Win.getValue().getValue().iterator();
-    assertEquals(3L, valuesIteratorForK2.next().longValue());
+    assertEquals(4L, valuesIteratorForK2.next().longValue());
+    Assert.assertTrue(valuesIteratorForK2.hasNext());
   }
 
   @Test(expected = IllegalStateException.class)
@@ -157,7 +161,7 @@ public class GroupNonMergingWindowsFunctionsTest {
         Arrays.asList(
             factory.create("k1", 1),
             factory.create("k1", 2),
-            factory.create("k2", 3),
+            factory.create("k1", 3),
             factory.create("k2", 4),
             factory.create("k2", 5));
     return new GroupNonMergingWindowsFunctions.WindowedGroupByKeyIterator<>(
@@ -169,7 +173,7 @@ public class GroupNonMergingWindowsFunctionsTest {
         Arrays.asList(
             createTuple2("k1", 1),
             createTuple2("k1", 2),
-            createTuple2("k2", 3),
+            createTuple2("k1", 3),
             createTuple2("k2", 4),
             createTuple2("k2", 5));
     return new GroupNonMergingWindowsFunctions.GlobalWindowGroupByKeyIterator<>(
