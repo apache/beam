@@ -181,6 +181,7 @@ class FakeBlob(object):
   def __eq__(self, other):
     return self.bucket.get_blob(self.name) is other.bucket.get_blob(other.name)
 
+
 @unittest.skipIf(NotFound is None, 'GCP dependencies are not installed')
 class TestGCSPathParser(unittest.TestCase):
 
@@ -518,6 +519,7 @@ class TestGCSIO(unittest.TestCase):
 
     blob.delete()
     self.assertFalse(blob_name in bucket.blobs)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
