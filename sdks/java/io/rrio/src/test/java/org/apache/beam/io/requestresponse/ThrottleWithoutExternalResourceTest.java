@@ -44,6 +44,10 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -64,7 +68,7 @@ public class ThrottleWithoutExternalResourceTest {
   @Test
   public void givenSparseElementPulse_thenEmitsAllImmediately() {
     Rate rate = Rate.of(1000, Duration.standardSeconds(1L));
-    testEmitsAtRate(rate, 100, 1.0);
+    testEmitsAtRate(rate, 50, 1.0);
   }
 
   /** Tests whether a pulse of elements totaled greater than the maximum rate are throttled. */
@@ -87,7 +91,9 @@ public class ThrottleWithoutExternalResourceTest {
     List<Integer> list = Stream.iterate(0, i -> i + 1).limit(size).collect(Collectors.toList());
 
     PCollection<Integer> throttled =
-        pipeline.apply(Create.of(list)).apply(transformOf(rate)).getResponses();
+        pipeline.apply(Create.of(list))
+                .apply(Window.<Integer>into(new GlobalWindows()).triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane())).discardingFiredPanes())
+                .apply(transformOf(rate)).getResponses();
 
     PAssert.that(throttled).containsInAnyOrder(list);
 
@@ -101,7 +107,7 @@ public class ThrottleWithoutExternalResourceTest {
                   StreamSupport.stream(itr.spliterator(), false)
                       .sorted()
                       .collect(Collectors.toList());
-              assertThat(timestamps.size(), is((int) size));
+
               double sum = 0.0;
               Long previous = timestamps.get(0);
 

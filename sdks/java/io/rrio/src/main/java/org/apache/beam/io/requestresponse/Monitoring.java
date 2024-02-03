@@ -241,6 +241,10 @@ public abstract class Monitoring implements Serializable {
     }
   }
 
+  /**
+   * Like {@link #incIfPresent(Counter)} but allows for incrementing by a value specified as an
+   * argument.
+   */
   static void incIfPresent(@Nullable Counter counter, int by) {
     if (counter != null) {
       counter.inc(by);

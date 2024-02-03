@@ -30,13 +30,11 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Partition;
 import org.apache.beam.sdk.transforms.Partition.PartitionFn;
 import org.apache.beam.sdk.transforms.Values;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -268,11 +266,14 @@ public class RequestResponseIO<RequestT, ResponseT>
 
   /**
    * Turned off by default, configures {@link RequestResponseIO} with an internal {@link PTransform}
-   * implementation that throttles the incoming {@link RequestT} {@link PCollection}, before these
-   * {@link RequestT}s are processed by the {@link Caller}. This preventive throttling stands in
-   * contrast to the adaptive throttling implementation employed when processing {@link RequestT}s.
-   * Usage of this method is mutually exclusive with {@link #withPreventiveThrottle}. Additionally,
-   * collects the following metrics if collectMetrics is true.
+   * implementation that makes a best effort to throttle the incoming {@link RequestT} {@link
+   * PCollection}, before these Users of this transform are responsible for applying their own
+   * windowing strategy to the {@link PCollection} of {@link RequestT} elements and elements in
+   * different windows will be throttled independently of each other.{@link RequestT}s are processed
+   * by the {@link Caller}. This preventive throttling stands in contrast to the adaptive throttling
+   * implementation employed when processing {@link RequestT}s. Usage of this method is mutually
+   * exclusive with {@link #withPreventiveThrottle}. Additionally, collects the following metrics if
+   * collectMetrics is true.
    *
    * <ul>
    *   <li>{@link Distribution} of the intervals between processing time measures of throttled
@@ -287,8 +288,6 @@ public class RequestResponseIO<RequestT, ResponseT>
    *   <li>First, the transform converts the initial {@code PCollection<RequestT>} into a {@code
    *       PCollection<KV<Integer, RequestT>>}, randomly allocating the Integer key; uses {@link
    *       org.apache.commons.math3.random.RandomDataGenerator}.
-   *   <li>Next, the transform applies a {@link GroupByKey} and {@link GlobalWindows} to the {@code
-   *       PCollection<KV<Integer, RequestT>>}.
    *   <li>Finally, the {@code PCollection<KV<Integer, Iterable<RequestT>>>}, first converted to a
    *       {@code PCollection<KV<Integer, List<RequestT>>>} is processed using a <a
    *       href="https://beam.apache.org/documentation/programming-guide/#splittable-dofns">Splittable
