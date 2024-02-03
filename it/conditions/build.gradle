@@ -19,6 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
     automaticModuleName: 'org.apache.beam.it.conditions',
+    exportJavadoc: false,
     validateShadowJar: false,
     shadowClosure: {},
 )
