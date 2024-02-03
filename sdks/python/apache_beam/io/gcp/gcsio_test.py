@@ -43,9 +43,15 @@ class FakeGcsClient(object):
   def __init__(self):
     self.buckets = {}
 
+  def _add_bucket(self, bucket):
+    self.buckets[bucket.name] = bucket
+    return self.buckets[bucket.name]
+
+  def bucket(self, name):
+    return FakeBucket(self, name)
+
   def create_bucket(self, name):
-    self.buckets[name] = FakeBucket(self, name)
-    return self.buckets[name]
+    return self._add_bucket(self.bucket(name))
 
   def get_bucket(self, name):
     if name in self.buckets:
@@ -92,40 +98,51 @@ class FakeBucket(object):
     self.name = name
     self.blobs = {}
     self.default_kms_key_name = None
-    self.client.buckets[name] = self
 
-  def add_blob(self, blob):
-    self.blobs[blob.name] = blob
+  def _get_canonical_bucket(self):
+    return self.client.get_bucket(self.name)
 
-  def create_blob(self, name):
+  def _create_blob(self, name):
     return FakeBlob(name, self)
 
+  def add_blob(self, blob):
+    bucket = self._get_canonical_bucket()
+    bucket.blobs[blob.name] = blob
+    return bucket.blobs[blob.name]
+
+  def blob(self, name):
+    return self._create_blob(name)
+
   def copy_blob(self, blob, dest, new_name=None):
+    if self.get_blob(blob.name) is None:
+      raise NotFound("source blob not found")
     if not new_name:
       new_name = blob.name
-    dest.blobs[new_name] = blob
-    dest.blobs[new_name].name = new_name
-    dest.blobs[new_name].bucket = dest
-    return dest.blobs[new_name]
+    new_blob = FakeBlob(new_name, dest)
+    dest.add_blob(new_blob)
+    return new_blob
 
   def get_blob(self, blob_name):
-    if blob_name in self.blobs:
-      return self.blobs[blob_name]
+    bucket = self._get_canonical_bucket()
+    if blob_name in bucket.blobs:
+      return bucket.blobs[blob_name]
     else:
       return None
 
   def lookup_blob(self, name):
-    if name in self.blobs:
-      return self.blobs[name]
+    bucket = self._get_canonical_bucket()
+    if name in bucket.blobs:
+      return bucket.blobs[name]
     else:
-      return self.create_blob(name)
+      return bucket.create_blob(name)
 
   def set_default_kms_key_name(self, name):
     self.default_kms_key_name = name
 
   def delete_blob(self, name):
-    if name in self.blobs:
-      del self.blobs[name]
+    bucket = self._get_canonical_bucket()
+    if name in bucket.blobs:
+      del bucket.blobs[name]
 
 
 class FakeBlob(object):
@@ -151,12 +168,18 @@ class FakeBlob(object):
     self.updated = updated
     self._fail_when_getting_metadata = fail_when_getting_metadata
     self._fail_when_reading = fail_when_reading
-    self.bucket.add_blob(self)
 
   def delete(self):
-    if self.name in self.bucket.blobs:
-      del self.bucket.blobs[self.name]
+    self.bucket.delete_blob(self.name)
 
+  def download_as_bytes(self, **kwargs):
+    blob = self.bucket.get_blob(self.name)
+    if blob is None:
+      raise NotFound("blob not found")
+    return blob.contents
+
+  def __eq__(self, other):
+    return self.bucket.get_blob(self.name) is other.bucket.get_blob(other.name)
 
 @unittest.skipIf(NotFound is None, 'GCP dependencies are not installed')
 class TestGCSPathParser(unittest.TestCase):
@@ -224,6 +247,7 @@ class TestGCSIO(unittest.TestCase):
         updated=updated,
         fail_when_getting_metadata=fail_when_getting_metadata,
         fail_when_reading=fail_when_reading)
+    bucket.add_blob(blob)
     return blob
 
   def setUp(self):
@@ -475,8 +499,25 @@ class TestGCSIO(unittest.TestCase):
   def test_downloader_fail_non_existent_object(self):
     file_name = 'gs://gcsio-metrics-test/dummy_mode_file'
     with self.assertRaises(NotFound):
-      self.gcs.open(file_name, 'r')
+      with self.gcs.open(file_name, 'r') as f:
+        f.read(1)
 
+  def test_blob_delete(self):
+    file_name = 'gs://gcsio-test/delete_me'
+    file_size = 1024
+    bucket_name, blob_name = gcsio.parse_gcs_path(file_name)
+    # Test deletion of non-existent file.
+    bucket = self.client.get_bucket(bucket_name)
+    self.gcs.delete(file_name)
+
+    self._insert_random_file(self.client, file_name, file_size)
+    self.assertTrue(blob_name in bucket.blobs)
+
+    blob = bucket.get_blob(blob_name)
+    self.assertIsNotNone(blob)
+
+    blob.delete()
+    self.assertFalse(blob_name in bucket.blobs)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
