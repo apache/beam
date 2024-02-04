@@ -123,7 +123,6 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
 
     return throttled
         .apply(Values.class.getSimpleName(), Values.create())
-        .setWindowingStrategyInternal(input.getWindowingStrategy())
         .setWindowingStrategyInternal(updateWindowingStrategy(input.getWindowingStrategy()));
   }
 
