@@ -26,8 +26,6 @@ import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Triple;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.Keys;
@@ -79,6 +77,39 @@ import org.joda.time.Duration;
  * Result result = requests.apply(RequestResponseIO.of(new MyCaller(), responseCoder));
  * result.getResponses().apply( ... );
  * result.getFailures().apply( ... );
+ * }</pre>
+ *
+ * <h2>API quota usage strategies</h2>
+ *
+ * Many Web APIs limit usage to prevent abuse rendering consumption via parallelized workloads such
+ * as Beam problematic. This package provides several strategies to manage API quota usage. By
+ * default, {@link RequestResponseIO} employs adaptive throttling and request repeating. Additional
+ * options are discussed below.
+ *
+ * <h3>Throttling</h3>
+ *
+ * Users may wish to throttle the {@link RequestT} {@link PCollection} before applying {@link
+ * RequestResponseIO} as shown by example below. See {@link Throttle} for more details.
+ *
+ * <pre>{@code
+ * Rate rate = Rate.of(10, Duration.standardSeconds(1L));
+ * PCollection<RequestT> original ...
+ * PCollection<RequestT> throttled = original.apply(Throttle.of(rate));
+ * Result result = requests.apply(RequestResponseIO.of(new MyCaller(), responseCoder));
+ * }</pre>
+ *
+ * <h3>Caching</h3>
+ *
+ * Users may optionally enable caching or associated {@link RequestT}s and {@link ResponseT}s to
+ * reduce the burden of API usage as shown below. For cache support, see {@link Cache#usingRedis}
+ * and {@link RequestResponseIO#withCache} for more details.
+ *
+ * <pre>{@code
+ * requests.apply(
+ *    RequestResponseIO
+ *       .of(new MyCaller(), responseCoder)
+ *       .withCache(Cache.usingRedis(uri, requestCoder, responseCoder, expiry))
+ * )
  * }</pre>
  */
 public class RequestResponseIO<RequestT, ResponseT>
@@ -262,58 +293,6 @@ public class RequestResponseIO<RequestT, ResponseT>
   public RequestResponseIO<RequestT, ResponseT> withMonitoringConfiguration(Monitoring value) {
     return new RequestResponseIO<>(
         rrioConfiguration, callConfiguration.toBuilder().setMonitoringConfiguration(value).build());
-  }
-
-  /**
-   * Turned off by default, configures {@link RequestResponseIO} with an internal {@link PTransform}
-   * implementation that makes a best effort to throttle the incoming {@link RequestT} {@link
-   * PCollection}, before these Users of this transform are responsible for applying their own
-   * windowing strategy to the {@link PCollection} of {@link RequestT} elements and elements in
-   * different windows will be throttled independently of each other.{@link RequestT}s are processed
-   * by the {@link Caller}. This preventive throttling stands in contrast to the adaptive throttling
-   * implementation employed when processing {@link RequestT}s. Usage of this method is mutually
-   * exclusive with {@link #withPreventiveThrottle}. Additionally, collects the following metrics if
-   * collectMetrics is true.
-   *
-   * <ul>
-   *   <li>{@link Distribution} of the intervals between processing time measures of throttled
-   *       elements
-   *   <li>{@link Counter} of the number of elements encountered by the throttle
-   *   <li>{@link Counter} of the number of elements emitted by the throttle
-   * </ul>
-   *
-   * The algorithm to achieve this preventive throttling is as follows.
-   *
-   * <ol>
-   *   <li>First, the transform converts the initial {@code PCollection<RequestT>} into a {@code
-   *       PCollection<KV<Integer, RequestT>>}, randomly allocating the Integer key; uses {@link
-   *       org.apache.commons.math3.random.RandomDataGenerator}.
-   *   <li>Finally, the {@code PCollection<KV<Integer, Iterable<RequestT>>>}, first converted to a
-   *       {@code PCollection<KV<Integer, List<RequestT>>>} is processed using a <a
-   *       href="https://beam.apache.org/documentation/programming-guide/#splittable-dofns">Splittable
-   *       DoFn</a>, that controls the interval of emitted elements by holding the watermark.
-   * </ol>
-   */
-  public RequestResponseIO<RequestT, ResponseT> withDefaultPreventiveThrottling(
-      Rate maximumRate, boolean collectMetrics) {
-    ThrottleWithoutExternalResource<RequestT> transform =
-        ThrottleWithoutExternalResource.of(maximumRate);
-    if (collectMetrics) {
-      transform = transform.withMetricsCollected();
-    }
-    return withPreventiveThrottle(transform);
-  }
-
-  /**
-   * Turned off by default, configures {@link RequestResponseIO} with a {@link PTransform} that
-   * holds back {@link RequestT}s to prevent quota errors such as HTTP 429 or gRPC
-   * RESOURCE_EXHAUSTION errors. Usage of this method is mutually exclusive with {@link
-   * #withDefaultPreventiveThrottling}.
-   */
-  public RequestResponseIO<RequestT, ResponseT> withPreventiveThrottle(
-      PTransform<PCollection<RequestT>, Result<RequestT>> throttle) {
-    return new RequestResponseIO<>(
-        rrioConfiguration.toBuilder().setThrottle(throttle).build(), callConfiguration);
   }
 
   /** Exposes the transform's {@link Call.Configuration} for testing. */

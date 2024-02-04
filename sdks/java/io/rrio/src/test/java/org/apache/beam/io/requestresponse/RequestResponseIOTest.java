@@ -47,7 +47,6 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.joda.time.Duration;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -339,32 +338,6 @@ public class RequestResponseIOTest {
   @Ignore
   @Test
   public void givenWithCache_thenRequestsResponsesCachedUsingCustom() {}
-
-  @Test
-  public void givenDefaultPreventiveThrottling_thenRequestsThrottledUsingDefault() {
-    Caller<Request, Response> caller = new CallerImpl();
-
-    RequestResponseIO<Request, Response> transform =
-        RequestResponseIO.of(caller, RESPONSE_CODER)
-            .withDefaultPreventiveThrottling(Rate.of(1, Duration.standardSeconds(1L)), true);
-
-    requests().apply(transform);
-
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
-    Long throttledInput =
-        getCounterResult(
-            result.metrics(),
-            ThrottleWithoutExternalResource.ThrottleFn.class,
-            ThrottleWithoutExternalResource.INPUT_ELEMENTS_COUNTER_NAME);
-    Long throttledOutput =
-        getCounterResult(
-            result.metrics(),
-            ThrottleWithoutExternalResource.ThrottleFn.class,
-            ThrottleWithoutExternalResource.OUTPUT_ELEMENTS_COUNTER_NAME);
-    assertThat(throttledInput, greaterThan(0L));
-    assertThat(throttledOutput, greaterThan(0L));
-  }
 
   private PCollection<Request> requests() {
     return pipeline.apply(
