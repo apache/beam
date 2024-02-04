@@ -1,7 +1,6 @@
 ---
 title:  "Behind the Scenes: Crafting an Autoscaler for Apache Beam in a High-Volume Streaming Environment"
 date:   2023-12-21 09:00:00 -0400
-math: true
 categories:
   - blog
 authors:
@@ -62,15 +61,16 @@ alt="Apache Beam Pipeline Optimization by Apache Flink">
 ##### *Backlog Growth*
 Let’s take a practical example. Consider a pipeline reading from Kafka, where different operators handle data parsing, formatting, and accumulation. The key metric here is throughput — how much data each operstor processes over time. But throughput alone isn't enough. We need to examine the queue size or backlog at each operator. A growing backlog indicates we're falling behind. We measure this as backlog growth — the first derivative of backlog size over time, highlighting our processing deficit.
 
-```math
-Backlog Growth = \frac{d(Backlog)}{dt}
-```
+<img class="center-block"
+src="/images/blog/apache-beam-flink-and-kubernetes-part3/backlog_growth.png"
+alt="Backlog Growth Calculation">
+
 ##### *Backlog Time*
 This leads us to backlog time, a derived metric that compares backlog size with throughput. It’s a measure of how long it would take to clear the current backlog, assuming no new data arrives. This helps us identify if a backlog of a certain size is acceptable or problematic, based on our specific processing needs and thresholds.
 
-```math
-Backlog Time = \frac{Backlog}{throughput}
-```
+<img class="center-block"
+src="/images/blog/apache-beam-flink-and-kubernetes-part3/backlog_time.png"
+alt="Backlog Time Calculation">
 
 <img class="center-block"
 src="/images/blog/apache-beam-flink-and-kubernetes-part3/operator-backlog.png"
@@ -125,29 +125,29 @@ In summary, our scaling policy is for scale up, we first ensure that the time to
 
 Increasing Backlog aka Backlog Growth > 0 :
 
-```math
-Worker_{require} = Worker_{current} \frac{Backlog Growth + Throughput}{Throughput}
-```
+<img class="center-block"
+src="/images/blog/apache-beam-flink-and-kubernetes-part3/worker_require.png"
+alt="Required Worker Calculation">
 
 Consistent Backlog aka Backlog Growth = 0:
 
-```math
-Worker_{extra} = Worker_{current} \frac{Backlog Time}{Time to Reduce Backlog}
-```
+<img class="center-block"
+src="/images/blog/apache-beam-flink-and-kubernetes-part3/worker_extra.png"
+alt="Extra Worker Calculation">
 
 To Sum up:
 
-```math
-Worker_{scaleup} = min(Worker_{require} + Worker_{extra}, Worker_{max})
-```
+<img class="center-block"
+src="/images/blog/apache-beam-flink-and-kubernetes-part3/worker_scaleup.png"
+alt="Scale up Worker Calculation">
 
 To scale down, we need to ensure the machine utilization is low (< 70%) and there is no backlog growth and current time to drain backlog is less than the limit (10s)
 
 So the only driving factor to calculate the required resources after a scale down is CPU
 
-```math
-CPURate_{desired} = \frac{Worker_{current}}{Worker_{new}} CpuRate_{current}
-```
+<img class="center-block"
+src="/images/blog/apache-beam-flink-and-kubernetes-part3/cpurate_desired.png"
+alt="Desired Cpu Rate Calculation">
 
 ## Executing Autoscaling Decision
 
