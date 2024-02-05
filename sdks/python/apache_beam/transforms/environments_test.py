@@ -30,12 +30,13 @@ from apache_beam.portability import common_urns
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import stager
 from apache_beam.transforms import environments
-from apache_beam.transforms.environments import DockerEnvironment, PyPIArtifactRegistry
+from apache_beam.transforms.environments import DockerEnvironment
 from apache_beam.transforms.environments import EmbeddedPythonEnvironment
 from apache_beam.transforms.environments import EmbeddedPythonGrpcEnvironment
 from apache_beam.transforms.environments import Environment
 from apache_beam.transforms.environments import ExternalEnvironment
 from apache_beam.transforms.environments import ProcessEnvironment
+from apache_beam.transforms.environments import PyPIArtifactRegistry
 from apache_beam.transforms.environments import SubprocessSDKEnvironment
 
 # create a temp directory so that all artifacts are put in the same directory.
