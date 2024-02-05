@@ -19,30 +19,53 @@ package org.apache.beam.io.requestresponse;
 
 import static org.apache.beam.io.requestresponse.Monitoring.incIfPresent;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.sdk.values.TypeDescriptors.integers;
+import static org.apache.beam.sdk.values.TypeDescriptors.kvs;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.List;
 import java.util.Optional;
+import java.util.Spliterator;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metric;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.GetInitialRestriction;
+import org.apache.beam.sdk.transforms.DoFn.GetInitialWatermarkEstimatorState;
+import org.apache.beam.sdk.transforms.DoFn.NewTracker;
+import org.apache.beam.sdk.transforms.DoFn.NewWatermarkEstimator;
+import org.apache.beam.sdk.transforms.DoFn.Restriction;
+import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
+import org.apache.beam.sdk.transforms.DoFn.WatermarkEstimatorState;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.transforms.windowing.PartitioningWindowFn;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.commons.math3.random.RandomDataGenerator;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -50,13 +73,10 @@ import org.joda.time.Instant;
  * Throttle a {@link PCollection} of {@link RequestT} elements.
  *
  * <pre>
- * Results with the same {@link PCollection} of elements but emitted at a slower rate. Throttling is a best effort, on
- * a per Window basis to decrease a {@link PCollection} throughput to a maximum of a configured {@link Rate} parameter
- * via reassignment of elements to {@link IntervalWindow}s spaced by {@link Rate#getInterval()}. Prior to this window
- * reassignment, the original {@link PCollection} is transformed into a {@code PCollection<KV<Integer, RequestT>>} by
- * random allocation of integer keys using {@link RandomDataGenerator} within a [0, {@link Rate#getNumElements}) range.
- * Therefore, the {@link IntervalWindow}s are assigned along the new key space. The final {@link PCollection} is
- * reassigned its original {@link WindowingStrategy}.
+ * {@link Throttle} returns the same {@link RequestT}
+ * {@link PCollection}, but with elements emitted at a
+ * slower rate. Throttling is a best effort to decrease a {@link PCollection} throughput to a
+ * maximum of a configured {@link Rate} parameter.
  * </pre>
  *
  * <h2>Basic Usage</h2>
@@ -89,11 +109,16 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
   static final String INPUT_ELEMENTS_COUNTER_NAME = "input_elements_count";
   static final String OUTPUT_ELEMENTS_COUNTER_NAME = "output_elements_count";
 
-  public static <RequestT> Throttle<RequestT> of(Rate maximumRate) {
-    return new Throttle<>(builder().setMaximumRate(maximumRate).build());
+  /**
+   * Instantiates a {@link Throttle} with the maximumRate of {@link Rate} and without collecting
+   * metrics.
+   */
+  static <RequestT> Throttle<RequestT> of(Rate maximumRate) {
+    return new Throttle<>(Configuration.builder().setMaximumRate(maximumRate).build());
   }
 
-  public Throttle<RequestT> withMetricsCollected() {
+  /** Returns {@link Throttle} with metrics collection turned on. */
+  Throttle<RequestT> withMetricsCollected() {
     return new Throttle<>(configuration.toBuilder().setCollectMetrics(true).build());
   }
 
@@ -105,44 +130,143 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
 
   @Override
   public PCollection<RequestT> expand(PCollection<RequestT> input) {
-
+    ListCoder<RequestT> listCoder = ListCoder.of(input.getCoder());
+    Coder<KV<Integer, List<RequestT>>> kvCoder = KvCoder.of(VarIntCoder.of(), listCoder);
     WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
-    DurationWindows throttleWindow =
-        new DurationWindows(configuration.getMaximumRate().getInterval());
-    if (input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)
-        && windowingStrategy.getWindowFn() instanceof GlobalWindows) {
-      throw new IllegalArgumentException(
-          "Unbounded PCollection uses "
-              + GlobalWindows.class.getName()
-              + " WindowFn which is incompatible with the use of "
-              + Throttle.class.getName()
-              + "; consider an alternative "
-              + WindowFn.class.getName()
-              + " before applying.");
-    }
 
-    PCollection<KV<Integer, RequestT>> throttled =
-        input
-            .apply(AssignChannelFn.class.getSimpleName(), assignChannels())
-            .apply(DurationWindows.class.getSimpleName(), Window.into(throttleWindow));
-
-    if (configuration.getCollectMetrics()) {
-      throttled
-          .apply(
-              EmitAndMeasureOutputFn.class.getSimpleName(), ParDo.of(new EmitAndMeasureOutputFn()))
-          .setWindowingStrategyInternal(windowingStrategy);
-    }
-
-    return throttled
-        .apply(Values.class.getSimpleName(), Values.create())
+    return input
+        // Break up the PCollection into fixed channels assigned to an int key [0,
+        // Rate::numElements).
+        .apply(AssignChannelFn.class.getSimpleName(), assignChannels())
+        // Apply GroupByKey to convert PCollection of KV<Integer, RequestT> to KV<Integer,
+        // Iterable<RequestT>>.
+        .apply(GroupByKey.class.getSimpleName(), GroupByKey.create())
+        // Convert KV<Integer, Iterable<RequestT>> to KV<Integer, List<RequestT>> for cleaner
+        // processing by ThrottleFn; IterableCoder uses a List for IterableLikeCoder's
+        // structuralValue.
+        .apply("ConvertToList", toList())
+        .setCoder(kvCoder)
+        .apply(
+            GlobalWindows.class.getSimpleName(),
+            Window.<KV<Integer, List<RequestT>>>into(new GlobalWindows())
+                .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                .withAllowedLateness(Duration.ZERO)
+                .discardingFiredPanes())
+        .apply(ThrottleFn.class.getSimpleName(), throttle())
         .setWindowingStrategyInternal(windowingStrategy);
+  }
+
+  private ParDo.SingleOutput<KV<Integer, List<RequestT>>, RequestT> throttle() {
+    return ParDo.of(new ThrottleFn());
+  }
+
+  private class ThrottleFn extends DoFn<KV<Integer, List<RequestT>>, RequestT> {
+    private @MonotonicNonNull Counter inputElementsCounter = null;
+    private @MonotonicNonNull Counter outputElementsCounter = null;
+
+    @Setup
+    public void setup() {
+      if (configuration.getCollectMetrics()) {
+        inputElementsCounter = Metrics.counter(Throttle.class, INPUT_ELEMENTS_COUNTER_NAME);
+        outputElementsCounter = Metrics.counter(Throttle.class, OUTPUT_ELEMENTS_COUNTER_NAME);
+      }
+    }
+
+    /**
+     * Instantiates an initial {@link RestrictionTracker.IsBounded#BOUNDED} {@link OffsetRange}
+     * restriction from [-1, {@link List#size()}). Defaults to [-1, 0) for null {@link
+     * KV#getValue()} elements.
+     */
+    @GetInitialRestriction
+    public OffsetRange getInitialRange(@Element KV<Integer, List<RequestT>> element) {
+      int size = 0;
+      if (element.getValue() != null) {
+        size = element.getValue().size();
+      }
+      incIfPresent(inputElementsCounter, size);
+      return new OffsetRange(-1, size);
+    }
+
+    /**
+     * The {@link GetInitialWatermarkEstimatorState} initializes to this DoFn's output watermark to
+     * a negative infinity timestamp via {@link BoundedWindow#TIMESTAMP_MIN_VALUE}. The {@link
+     * Instant} returned by this method provides the runner the value is passes as an argument to
+     * this DoFn's {@link #newWatermarkEstimator}.
+     */
+    @GetInitialWatermarkEstimatorState
+    public Instant getInitialWatermarkState() {
+      return BoundedWindow.TIMESTAMP_MIN_VALUE;
+    }
+
+    /**
+     * This DoFn uses a {@link WatermarkEstimators.Manual} as its {@link NewWatermarkEstimator},
+     * instantiated from an {@link Instant}. The state argument in this method comes from the return
+     * of the {@link #getInitialWatermarkState}.
+     */
+    @NewWatermarkEstimator
+    public WatermarkEstimator<Instant> newWatermarkEstimator(
+        @WatermarkEstimatorState Instant state) {
+      return new WatermarkEstimators.Manual(state);
+    }
+
+    /** Instantiates an {@link OffsetRangeTracker} from an {@link OffsetRange} instance. */
+    @NewTracker
+    public RestrictionTracker<OffsetRange, Long> newTracker(@Restriction OffsetRange restriction) {
+      return new OffsetRangeTracker(restriction);
+    }
+
+    /** Simply returns the {@link OffsetRange} restriction. */
+    @TruncateRestriction
+    public RestrictionTracker.TruncateResult<OffsetRange> truncate(
+        @Restriction OffsetRange restriction) {
+      return new RestrictionTracker.TruncateResult<OffsetRange>() {
+        @Override
+        public OffsetRange getTruncatedRestriction() {
+          return restriction;
+        }
+      };
+    }
+
+    @ProcessElement
+    public ProcessContinuation process(
+        @Element KV<Integer, List<RequestT>> element,
+        ManualWatermarkEstimator<Instant> estimator,
+        RestrictionTracker<OffsetRange, Long> tracker,
+        OutputReceiver<RequestT> receiver) {
+
+      if (element.getValue() == null || element.getValue().isEmpty()) {
+        return ProcessContinuation.stop();
+      }
+
+      long position = tracker.currentRestriction().getFrom();
+      if (position < 0) {
+        position = 0;
+      }
+
+      if (!tracker.tryClaim(position)) {
+        return ProcessContinuation.stop();
+      }
+
+      Instant timestamp = estimator.getState();
+      estimator.setWatermark(timestamp);
+      receiver.outputWithTimestamp(element.getValue().get((int) position), timestamp);
+      incIfPresent(outputElementsCounter);
+
+      // If we know that the next position is at the end, then we don't bother resuming.
+      if (position + 1 >= tracker.currentRestriction().getTo()) {
+        return ProcessContinuation.stop();
+      }
+
+      return ProcessContinuation.resume()
+          .withResumeDelay(configuration.getMaximumRate().getInterval());
+    }
   }
 
   /**
    * Returns a {@link ParDo.SingleOutput} that assigns each {@link RequestT} a key using {@link
    * AssignChannelFn}.
    */
-  ParDo.SingleOutput<RequestT, KV<Integer, RequestT>> assignChannels() {
+  private ParDo.SingleOutput<RequestT, KV<Integer, RequestT>> assignChannels() {
     return ParDo.of(new AssignChannelFn());
   }
 
@@ -150,115 +274,83 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
    * Assigns each {@link RequestT} an {@link KV} key using {@link RandomDataGenerator#nextInt} from
    * [0, {@link Rate#getNumElements}). The design goals of this {@link DoFn} are to distribute
    * elements among fixed parallel channels that are each throttled such that the sum total maximum
-   * rate of emission is up to {@link Rate}.
+   * rate of emission is up to {@link Configuration#getMaximumRate()}.
    */
   private class AssignChannelFn extends DoFn<RequestT, KV<Integer, RequestT>> {
     private transient @MonotonicNonNull RandomDataGenerator random;
-    private @MonotonicNonNull Counter inputElementsCounter = null;
 
     @Setup
     public void setup() {
       random = new RandomDataGenerator();
-      if (configuration.getCollectMetrics()) {
-        inputElementsCounter = Metrics.counter(Throttle.class, INPUT_ELEMENTS_COUNTER_NAME);
-      }
     }
 
     @ProcessElement
     public void process(@Element RequestT request, OutputReceiver<KV<Integer, RequestT>> receiver) {
-      incIfPresent(inputElementsCounter);
       Integer key =
           checkStateNotNull(random).nextInt(0, configuration.getMaximumRate().getNumElements() - 1);
       receiver.output(KV.of(key, request));
     }
   }
 
-  private static class DurationWindows extends PartitioningWindowFn<Object, IntervalWindow> {
-
-    private Instant lastTimestamp = Instant.EPOCH;
-    private final Duration interval;
-
-    private DurationWindows(Duration interval) {
-      this.interval = interval;
-    }
-
-    @Override
-    public IntervalWindow assignWindow(Instant timestamp) {
-      if (!lastTimestamp.isAfter(Instant.EPOCH)) {
-        this.lastTimestamp = Instant.now();
-      }
-      IntervalWindow result = new IntervalWindow(lastTimestamp, lastTimestamp.plus(interval));
-      this.lastTimestamp = result.end();
-      return result;
-    }
-
-    @Override
-    public Coder<IntervalWindow> windowCoder() {
-      return IntervalWindow.getCoder();
-    }
-
-    @Override
-    public boolean equals(@Nullable Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      DurationWindows that = (DurationWindows) o;
-      return Objects.equal(lastTimestamp, that.lastTimestamp)
-          && Objects.equal(interval, that.interval);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hashCode(lastTimestamp, interval);
-    }
-
-    @Override
-    public boolean isCompatible(WindowFn<?, ?> other) {
-      return equals(other);
-    }
-
-    @Override
-    public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
-      if (!this.equals(other)) {
-        throw new IncompatibleWindowException(
-            other,
-            String.format(
-                "Only %s objects with the same interval ", DurationWindows.class.getSimpleName()));
-      }
-    }
-  }
-
-  private class EmitAndMeasureOutputFn extends DoFn<KV<Integer, RequestT>, RequestT> {
-
-    private final Counter outputElementsCounter =
-        Metrics.counter(Throttle.class, OUTPUT_ELEMENTS_COUNTER_NAME);;
-
-    @ProcessElement
-    public void process(@Element KV<Integer, RequestT> element, OutputReceiver<RequestT> receiver) {
-      outputElementsCounter.inc();
-      receiver.output(element.getValue());
-    }
-  }
-
-  static Configuration.Builder builder() {
-    return new AutoValue_Throttle_Configuration.Builder();
+  /**
+   * The result of {@link GroupByKey} is a {@link PCollection} of {@link KV} with an {@link
+   * Iterable} of {@link RequestT}s value. This method converts to a {@link List} for cleaner
+   * processing via {@link ThrottleFn} within a Splittable DoFn context.
+   */
+  private MapElements<KV<Integer, Iterable<RequestT>>, KV<Integer, List<RequestT>>> toList() {
+    return MapElements.into(kvs(integers(), new TypeDescriptor<List<RequestT>>() {}))
+        .via(
+            kv -> {
+              if (kv.getValue() == null) {
+                return KV.of(kv.getKey(), ImmutableList.of());
+              }
+              try {
+                List<RequestT> list =
+                    StreamSupport.stream(kv.getValue().spliterator(), true)
+                        .collect(Collectors.toList());
+                return KV.of(kv.getKey(), list);
+              } catch (OutOfMemoryError e) {
+                Spliterator<RequestT> spliterator = kv.getValue().spliterator();
+                long count = spliterator.estimateSize();
+                if (count == -1) {
+                  count = StreamSupport.stream(kv.getValue().spliterator(), true).count();
+                }
+                String message =
+                    String.format(
+                        "an %s exception thrown when attempting to process a %s result with a count of: %d; "
+                            + "consider modifying the %s parameters of %s to process smaller bundle sizes",
+                        OutOfMemoryError.class,
+                        GroupByKey.class,
+                        count,
+                        Rate.class,
+                        RequestResponseIO.class);
+                throw new IllegalStateException(message);
+              }
+            });
   }
 
   @AutoValue
   abstract static class Configuration implements Serializable {
+
+    static Builder builder() {
+      return new AutoValue_Throttle_Configuration.Builder();
+    }
+
+    /** The maximum {@link Rate} of throughput. */
     abstract Rate getMaximumRate();
 
+    /** Configures whether to collect {@link Metric}s. Defaults to false. */
     abstract Boolean getCollectMetrics();
 
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setMaximumRate(Rate maximumRate);
 
+      /** See {@link #getMaximumRate()}. */
+      abstract Builder setMaximumRate(Rate value);
+
+      /** See {@link Configuration#getCollectMetrics()}. */
       abstract Builder setCollectMetrics(Boolean value);
 
       abstract Optional<Boolean> getCollectMetrics();

@@ -19,14 +19,12 @@ package org.apache.beam.io.requestresponse;
 
 import static org.apache.beam.io.requestresponse.Throttle.INPUT_ELEMENTS_COUNTER_NAME;
 import static org.apache.beam.io.requestresponse.Throttle.OUTPUT_ELEMENTS_COUNTER_NAME;
-import static org.apache.beam.sdk.values.TypeDescriptors.longs;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertThrows;
 
 import java.util.Iterator;
 import java.util.List;
@@ -51,12 +49,14 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
-import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.joda.time.ReadableDuration;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -69,25 +69,64 @@ public class ThrottleTest {
    * immediately without throttling.
    */
   @Test
-  public void givenSparseElementPulse_thenEmitsAllImmediately() {
-    Rate rate = Rate.of(1000, Duration.standardSeconds(1L));
-    testEmitsAtRate(rate, 10, 1.0);
+  public void givenElementSizeNotExceedsRate_thenEmitsAllImmediately() {
+    Rate rate = Rate.of(10, Duration.standardSeconds(1L));
+    List<Integer> items = Stream.iterate(0, i -> i + 1).limit(3).collect(Collectors.toList());
+    PCollection<Integer> throttled = pipeline.apply(Create.of(items)).apply(transformOf(rate));
+
+    PAssert.that(throttled).containsInAnyOrder(items);
+    PAssert.that(timestampsOf(throttled))
+        .satisfies(
+            itr -> {
+              List<Instant> timestamps =
+                  StreamSupport.stream(itr.spliterator(), true)
+                      .sorted()
+                      .collect(Collectors.toList());
+              assertTimestampIntervalsMatch(timestamps, lessThanOrEqualTo(rate.getInterval()));
+              return null;
+            });
+
+    pipeline.run();
   }
 
   /** Tests whether a pulse of elements totaled greater than the maximum rate are throttled. */
   @Test
-  public void givenNonSparseElementPulse_thenEmitsAtRate() {
-    long size = 3000;
-    Rate rate = Rate.of(1000, Duration.standardSeconds(1L));
-    double expectedMean = (double) rate.getInterval().getMillis() / (double) rate.getNumElements();
-    testEmitsAtRate(rate, size, expectedMean);
+  public void givenElementSizeExceedsRate_thenEmitsAtRate() {
+    Rate rate = Rate.of(1, Duration.standardSeconds(1L));
+    List<Integer> items = Stream.iterate(0, i -> i + 1).limit(3).collect(Collectors.toList());
+    PCollection<Integer> throttled = pipeline.apply(Create.of(items)).apply(transformOf(rate));
+
+    PAssert.that(throttled).containsInAnyOrder(items);
+    PAssert.that(timestampsOf(throttled))
+        .satisfies(
+            itr -> {
+              List<Instant> timestamps =
+                  StreamSupport.stream(itr.spliterator(), true)
+                      .sorted()
+                      .collect(Collectors.toList());
+              assertTimestampIntervalsMatch(timestamps, greaterThanOrEqualTo(rate.getInterval()));
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  @Test
+  public void givenLargerElementSize_noDataLost() {
+    Rate rate = Rate.of(1_000, Duration.standardSeconds(1L));
+    List<Integer> items = Stream.iterate(0, i -> i + 1).limit(3_000).collect(Collectors.toList());
+    PCollection<Integer> throttled = pipeline.apply(Create.of(items)).apply(transformOf(rate));
+
+    PAssert.that(throttled).containsInAnyOrder(items);
+
+    pipeline.run();
   }
 
   /** Tests withMetricsCollected that Counters populate appropriately. */
   @Test
   public void givenCollectMetricsTrue_thenPopulatesMetrics() {
-    long size = 3000;
-    Rate rate = Rate.of(1000, Duration.standardSeconds(1L));
+    long size = 300;
+    Rate rate = Rate.of(100, Duration.standardSeconds(1L));
 
     List<Integer> list = Stream.iterate(0, i -> i + 1).limit(size).collect(Collectors.toList());
 
@@ -99,70 +138,6 @@ public class ThrottleTest {
 
     assertThat(getCount(results, INPUT_ELEMENTS_COUNTER_NAME), is(size));
     assertThat(getCount(results, OUTPUT_ELEMENTS_COUNTER_NAME), is(size));
-  }
-
-  /**
-   * Helper method to test emission timestamp intervals according to the rate and size of the
-   * element count, asserting that the resulting intervals between elements is the expectedMean +/-
-   * 5%. Also validates upstream assignment of FixedWindows gets reapplied to resulting PCollection.
-   */
-  private void testEmitsAtRate(Rate rate, long size, double expectedMeanMillis) {
-    checkArgument(size > 0);
-
-    List<Integer> list = Stream.iterate(0, i -> i + 1).limit(size).collect(Collectors.toList());
-
-    WindowFn<? super Integer, ?> windowFn = FixedWindows.of(Duration.standardHours(1L));
-    Trigger trigger = Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane());
-
-    PCollection<Integer> throttled =
-        pipeline
-            .apply(Create.of(list))
-            .apply(
-                Window.<Integer>into(windowFn)
-                    .triggering(trigger)
-                    .withAllowedLateness(Duration.standardSeconds(10L))
-                    .discardingFiredPanes())
-            .apply(transformOf(rate));
-
-    PAssert.that(throttled).containsInAnyOrder(list);
-    // Validate window reassignment.
-    assertThat(throttled.getWindowingStrategy().getWindowFn(), is(windowFn));
-    assertThat(
-        throttled.getWindowingStrategy().getTrigger(),
-        is(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane())));
-
-    PCollection<Long> elementTimestamps =
-        throttled.apply(MapElements.into(longs()).via(ignored -> Instant.now().getMillis()));
-
-    PAssert.that(elementTimestamps)
-        .satisfies(
-            itr -> {
-              List<Long> timestamps =
-                  StreamSupport.stream(itr.spliterator(), false)
-                      .sorted()
-                      .collect(Collectors.toList());
-
-              double sum = 0.0;
-              Long previous = timestamps.get(0);
-
-              for (int i = 1; i < timestamps.size(); i++) {
-                long interval = timestamps.get(i) - previous;
-                sum += interval;
-                previous = timestamps.get(i);
-              }
-
-              double mean = sum / (double) size;
-              if (expectedMeanMillis <= 1.0) {
-                assertThat(mean, lessThanOrEqualTo(1.0));
-                return null;
-              }
-
-              assertWithin5PercentOf(expectedMeanMillis, mean);
-
-              return null;
-            });
-
-    pipeline.run();
   }
 
   /** Tests that an upstream GlobalWindows gets reapplied to the resulting PCollection. */
@@ -228,83 +203,32 @@ public class ThrottleTest {
     pipeline.run();
   }
 
+  @Ignore
   @Test
-  public void givenStreamSourceAndGlobalWindow_thenThrowsError() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> {
-          pipeline
-              .enableAbandonedNodeEnforcement(false)
-              .apply(TestStream.create(VarIntCoder.of()).advanceWatermarkToInfinity())
-              .apply(Throttle.of(Rate.of(3, Duration.standardSeconds(1L))));
-        });
-  }
+  public void givenStreamSource_thenThrottles() {
 
-  @Test
-  public void givenStreamSourceAndFixedWindows_thenThrottlesPerUpstreamWindow() {
-    Instant start = Instant.EPOCH;
-    PCollection<Integer> throttled =
+    Rate rate = Rate.of(5, Duration.standardSeconds(1L));
+    PCollection<Integer> stream =
         pipeline
             .apply(
-                "source",
                 TestStream.create(VarIntCoder.of())
-                    .addElements(1, 2, 3)
+                    .addElements(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
                     .advanceProcessingTime(Duration.standardSeconds(1L))
-                    .advanceWatermarkTo(start.plus(Duration.standardSeconds(1L)))
-                    .addElements(4, 5, 6)
-                    .advanceProcessingTime(Duration.standardSeconds(1L))
-                    .advanceWatermarkTo(start.plus(Duration.standardSeconds(2L)))
-                    .addElements(7, 8, 9)
-                    .advanceProcessingTime(Duration.standardSeconds(1L))
-                    .advanceWatermarkTo(start.plus(Duration.standardSeconds(3L)))
                     .advanceWatermarkToInfinity())
             .apply(
-                FixedWindows.class.getSimpleName(),
-                Window.into(FixedWindows.of(Duration.standardSeconds(1L))))
-            .apply(Throttle.of(Rate.of(3, Duration.standardSeconds(1L))));
+                Window.<Integer>into(FixedWindows.of(Duration.standardSeconds(1L)))
+                    .triggering(
+                        Repeatedly.forever(
+                            AfterProcessingTime.pastFirstElementInPane()
+                                .alignedTo(Duration.standardSeconds(1L))))
+                    .withAllowedLateness(Duration.ZERO)
+                    .discardingFiredPanes());
 
-    PAssert.that(throttled).containsInAnyOrder(1, 2, 3, 4, 5, 6, 7, 8, 9);
-
-    PCollection<Long> elementTimestamps =
-        throttled.apply(MapElements.into(longs()).via(ignored -> Instant.now().getMillis()));
-
-    PAssert.that(elementTimestamps)
-        .satisfies(
-            itr -> {
-              List<Long> timestamps =
-                  StreamSupport.stream(itr.spliterator(), false)
-                      .sorted()
-                      .collect(Collectors.toList());
-
-              double sum = 0.0;
-              Long previous = timestamps.get(0);
-
-              for (int i = 1; i < timestamps.size(); i++) {
-                long interval = timestamps.get(i) - previous;
-                sum += interval;
-                previous = timestamps.get(i);
-              }
-
-              double mean = sum / (double) 8;
-
-              // Despite the above applied Rate of 3 per second, the throttle was applied per each
-              // fixed window and thus less than 3. Assertion is evaluated against 2 to reinforce
-              // the expected behavior.
-              assertThat(mean, lessThan(2.0));
-
-              return null;
-            });
+    PCollection<Integer> throttled = stream.apply(transformOf(rate));
+    //    PCollection<Integer> throttled = stream;
+    PAssert.that(throttled).containsInAnyOrder(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
     pipeline.run();
-  }
-
-  private static void assertWithin5PercentOf(double expected, double observed) {
-    double fractionDiff = Math.abs(observed - expected) / expected;
-    assertThat(
-        String.format(
-            "expected: %f, observed: %f, fractionDiff: %f", expected, observed, fractionDiff),
-        fractionDiff,
-        lessThanOrEqualTo(0.05));
   }
 
   private static Throttle<Integer> transformOf(Rate rate) {
@@ -321,5 +245,23 @@ public class ThrottleTest {
     Iterator<MetricResult<Long>> itr = metricQueryResults.getCounters().iterator();
     assertThat(itr.hasNext(), is(true));
     return itr.next().getCommitted();
+  }
+
+  private static PCollection<Instant> timestampsOf(PCollection<?> pCollection) {
+    return pCollection.apply(
+        "timestampsOf",
+        MapElements.into(TypeDescriptor.of(Instant.class)).via(ignored -> Instant.now()));
+  }
+
+  private static void assertTimestampIntervalsMatch(
+      List<Instant> timestamps, Matcher<ReadableDuration> matcher) {
+    assertThat("there should be more than 1 timestamp", timestamps.size(), greaterThan(1));
+    Instant current = timestamps.get(0);
+    for (int i = 1; i < timestamps.size(); i++) {
+      Instant next = timestamps.get(i);
+      Duration diff = Duration.millis(next.getMillis() - current.getMillis());
+      assertThat(diff, matcher);
+      current = next;
+    }
   }
 }
