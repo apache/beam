@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.fn.data;
 
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertSame;
@@ -94,8 +93,13 @@ public class BeamFnDataInboundObserverTest {
     assertThat(
         values,
         contains(
-            valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF"), valueInGlobalWindow("GHI")));
-    assertThat(timers, contains(valueInGlobalWindow("UVW"), valueInGlobalWindow("XYZ")));
+            WindowedValue.valueInGlobalWindow("ABC"),
+            WindowedValue.valueInGlobalWindow("DEF"),
+            WindowedValue.valueInGlobalWindow("GHI")));
+    assertThat(
+        timers,
+        contains(
+            WindowedValue.valueInGlobalWindow("UVW"), WindowedValue.valueInGlobalWindow("XYZ")));
     future.get();
   }
 
@@ -205,7 +209,7 @@ public class BeamFnDataInboundObserverTest {
   private BeamFnApi.Elements dataWith(String... values) throws Exception {
     ByteStringOutputStream output = new ByteStringOutputStream();
     for (String value : values) {
-      CODER.encode(valueInGlobalWindow(value), output);
+      CODER.encode(WindowedValue.valueInGlobalWindow(value), output);
     }
     return BeamFnApi.Elements.newBuilder()
         .addData(
@@ -224,7 +228,7 @@ public class BeamFnDataInboundObserverTest {
   private BeamFnApi.Elements timerWith(String... values) throws Exception {
     ByteStringOutputStream output = new ByteStringOutputStream();
     for (String value : values) {
-      CODER.encode(valueInGlobalWindow(value), output);
+      CODER.encode(WindowedValue.valueInGlobalWindow(value), output);
     }
     return BeamFnApi.Elements.newBuilder()
         .addTimers(

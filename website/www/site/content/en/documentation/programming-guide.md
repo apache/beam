@@ -8165,7 +8165,7 @@ Beam users also have the option to [manually start](/documentation/programming-g
 A Beam Transform service instance can be manually started by using utilities provided with Apache Beam SDKs.
 
 {{< highlight java >}}
-java -jar beam-sdks-java-transform-service-launcher-<Beam version for the jar>.jar --port <port> --beam_version <Beam version for the transform service> --project_name <a unique ID for the transform service> --command up
+java -jar beam-sdks-java-transform-service-app-<Beam version for the jar>.jar --port <port> --beam_version <Beam version for the transform service> --project_name <a unique ID for the transform service> --command up
 {{< /highlight >}}
 
 {{< highlight py >}}
@@ -8179,7 +8179,7 @@ This feature is currently in development.
 To stop the transform service, use the following commands.
 
 {{< highlight java >}}
-java -jar beam-sdks-java-transform-service-launcher-<Beam version for the jar>.jar --port <port> --beam_version <Beam version for the transform service> --project_name <a unique ID for the transform service> --command down
+java -jar beam-sdks-java-transform-service-app-<Beam version for the jar>.jar --port <port> --beam_version <Beam version for the transform service> --project_name <a unique ID for the transform service> --command down
 {{< /highlight >}}
 
 {{< highlight py >}}
