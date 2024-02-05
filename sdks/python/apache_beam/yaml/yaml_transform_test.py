@@ -505,7 +505,7 @@ class YamlWindowingTest(unittest.TestCase):
             - type: WindowInto
               windowing:
                 type: fixed
-                size: 4
+                size: 4s
             - type: SumGlobally
           ''',
           providers=TEST_PROVIDERS)
@@ -524,7 +524,7 @@ class YamlWindowingTest(unittest.TestCase):
             - type: SumGlobally
               windowing:
                 type: fixed
-                size: 4
+                size: 4s
           ''',
           providers=TEST_PROVIDERS)
       assert_that(result, equal_to([6, 9]))
@@ -548,7 +548,7 @@ class YamlWindowingTest(unittest.TestCase):
               input: [Create1, Create2]
               windowing:
                 type: fixed
-                size: 4
+                size: 4s
           output: SumGlobally
           ''',
           providers=TEST_PROVIDERS)
@@ -566,7 +566,7 @@ class YamlWindowingTest(unittest.TestCase):
                   elements: [0, 1, 2, 3, 4, 5]
               windowing:
                 type: fixed
-                size: 4
+                size: 4s
             - type: SumGlobally
           ''',
           providers=TEST_PROVIDERS)
@@ -585,7 +585,7 @@ class YamlWindowingTest(unittest.TestCase):
             - type: SumGlobally
           windowing:
             type: fixed
-            size: 4
+            size: 4s
           ''',
           providers=TEST_PROVIDERS)
       assert_that(result, equal_to([6, 9]))
@@ -614,7 +614,7 @@ class YamlWindowingTest(unittest.TestCase):
                   v: sum
               windowing:
                 type: fixed
-                size: 10
+                size: 10s
           ''',
           providers=TEST_PROVIDERS)
       assert_that(

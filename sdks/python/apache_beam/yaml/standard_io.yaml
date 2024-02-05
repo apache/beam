@@ -38,6 +38,8 @@
         create_disposition: 'createDisposition'
         write_disposition: 'writeDisposition'
         error_handling: 'errorHandling'
+        # TODO(https://github.com/apache/beam/issues/30058): Required until autosharding support is fixed
+        num_streams: 'numStreams'
     underlying_provider:
       type: beamJar
       transforms:
@@ -69,6 +71,7 @@
         'topic': 'topic'
         'bootstrap_servers': 'bootstrapServers'
         'producer_config_updates': 'producerConfigUpdates'
+        'error_handling': 'errorHandling'
         'file_descriptor_path': 'fileDescriptorPath'
         'message_name': 'messageName'
         'schema': 'schema'
@@ -95,6 +98,9 @@
         'attributes': 'attributes'
         'attribute_map': 'attributeMap'
         'attribute_id': 'attributeId'
+        'error_handling': 'errorHandling'
+        'file_descriptor_path': 'fileDescriptorPath'
+        'message_name': 'messageName'
       'WriteToPubSubLite':
         'project': 'project'
         'format': 'format'
@@ -102,6 +108,10 @@
         'location': 'location'
         'attributes': 'attributes'
         'attribute_id': 'attributeId'
+        'error_handling': 'errorHandling'
+        'file_descriptor_path': 'fileDescriptorPath'
+        'message_name': 'messageName'
+        'schema': 'schema'
     underlying_provider:
       type: beamJar
       transforms:

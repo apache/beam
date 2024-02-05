@@ -28,7 +28,7 @@ import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encod
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Gauge;
 import static org.junit.Assert.assertEquals;
 
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;

@@ -30,9 +30,6 @@
 [![Build python source distribution and wheels](https://github.com/apache/beam/workflows/Build%20python%20source%20distribution%20and%20wheels/badge.svg?branch=master&event=schedule)](https://github.com/apache/beam/actions?query=workflow%3A%22Build+python+source+distribution+and+wheels%22+branch%3Amaster+event%3Aschedule)
 [![Python tests](https://github.com/apache/beam/workflows/Python%20tests/badge.svg?branch=master&event=schedule)](https://github.com/apache/beam/actions?query=workflow%3A%22Python+Tests%22+branch%3Amaster+event%3Aschedule)
 [![Java tests](https://github.com/apache/beam/workflows/Java%20Tests/badge.svg?branch=master&event=schedule)](https://github.com/apache/beam/actions?query=workflow%3A%22Java+Tests%22+branch%3Amaster+event%3Aschedule)
-[![Go tests (Jenkins)](https://ci-beam.apache.org/job/beam_PreCommit_Go_Cron/lastCompletedBuild/badge/icon?subject=Go%20Tests%28Jenkins%29)](https://ci-beam.apache.org/job/beam_PreCommit_Go_Cron/lastCompletedBuild/)
-[![Java tests (Jenkins)](https://ci-beam.apache.org/job/beam_PreCommit_Java_Cron/lastCompletedBuild/badge/icon?subject=Java%20Tests%28Jenkins%29)](https://ci-beam.apache.org/job/beam_PreCommit_Java_Cron/lastCompletedBuild/)
-[![Python tests (Jenkins)](https://ci-beam.apache.org/job/beam_PreCommit_Python_Cron/lastCompletedBuild/badge/icon?subject=Python%20Tests%28Jenkins%29)](https://ci-beam.apache.org/job/beam_PreCommit_Python_Cron/lastCompletedBuild/)
 
 ## Overview
 

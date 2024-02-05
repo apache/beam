@@ -69,7 +69,14 @@ OperationOutputT = TypeVar('OperationOutputT')
 def _convert_list_of_dicts_to_dict_of_lists(
     list_of_dicts: Sequence[Dict[str, Any]]) -> Dict[str, List[Any]]:
   keys_to_element_list = collections.defaultdict(list)
+  input_keys = list_of_dicts[0].keys()
   for d in list_of_dicts:
+    if set(d.keys()) != set(input_keys):
+      extra_keys = set(d.keys()) - set(input_keys) if len(
+          d.keys()) > len(input_keys) else set(input_keys) - set(d.keys())
+      raise RuntimeError(
+          f'All the dicts in the input data should have the same keys. '
+          f'Got: {extra_keys} instead.')
     for key, value in d.items():
       keys_to_element_list[key].append(value)
   return keys_to_element_list
@@ -629,6 +636,12 @@ class _TextEmbeddingHandler(ModelHandler):
       model: ModelT,
       inference_args: Optional[Dict[str, Any]]) -> Dict[str, List[Any]]:
     result: Dict[str, List[Any]] = collections.defaultdict(list)
+    input_keys = dict_batch.keys()
+    missing_columns_in_data = set(self.columns) - set(input_keys)
+    if missing_columns_in_data:
+      raise RuntimeError(
+          f'Data does not contain the following columns '
+          f': {missing_columns_in_data}.')
     for key, batch in dict_batch.items():
       if key in self.columns:
         self._validate_column_data(batch)

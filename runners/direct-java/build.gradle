@@ -26,7 +26,6 @@ def dependOnProjects = [":runners:core-construction-java",
                         ":runners:core-java",
                         ":runners:local-java",
                         ":runners:java-fn-execution",
-                        ":sdks:java:fn-execution",
                         ":sdks:java:extensions:avro"
                         ]
 
@@ -43,7 +42,6 @@ applyJavaNature(
           }
           relocate "org.apache.beam.runners.core", getJavaRelocatedPath("runners.core")
           relocate "org.apache.beam.runners.fnexecution", getJavaRelocatedPath("runners.fnexecution")
-          relocate "org.apache.beam.sdk.fn", getJavaRelocatedPath("sdk.fn")
           relocate "org.apache.beam.runners.local", getJavaRelocatedPath("runners.local")
         },
 )
@@ -73,7 +71,7 @@ dependencies {
     implementation project(it)
   }
   shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.vendored_grpc_1_54_0
+  shadow library.java.vendored_grpc_1_60_1
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.jackson_databind
@@ -94,9 +92,8 @@ dependencies {
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
   validatesRunner project(path: project.path, configuration: "shadowTest")
-  permitUnusedDeclared library.java.vendored_grpc_1_54_0
+  permitUnusedDeclared library.java.vendored_grpc_1_60_1
   permitUnusedDeclared project(":runners:java-fn-execution")
-  permitUnusedDeclared project(":sdks:java:fn-execution")
   permitUnusedDeclared project(":sdks:java:extensions:avro")
   examplesJavaIntegrationTest project(project.path)
   examplesJavaIntegrationTest project(":examples:java")

@@ -66,11 +66,10 @@ dependencies {
   implementation "org.apache.samza:samza-yarn_2.11:$samza_version"
   compileOnly library.java.error_prone_annotations
   runtimeOnly "org.apache.kafka:kafka-clients:2.0.1"
-  implementation library.java.vendored_grpc_1_54_0
+  implementation library.java.vendored_grpc_1_60_1
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(path: ":model:pipeline", configuration: "shadow")
-  implementation project(":sdks:java:fn-execution")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   testImplementation library.java.hamcrest

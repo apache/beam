@@ -362,7 +362,7 @@ class Stage(object):
       return beam_runner_api_pb2.PTransform(
           unique_name=unique_name(None, self.name),
           spec=beam_runner_api_pb2.FunctionSpec(
-              urn='beam:runner:executable_stage:v1',
+              urn=common_urns.executable_stage,
               payload=exec_payload.SerializeToString()),
           inputs=named_inputs,
           outputs={
