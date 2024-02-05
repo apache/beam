@@ -415,7 +415,7 @@ class GcsIO(object):
     Returns: GCS object.
     """
     bucket_name, blob_name = parse_gcs_path(path)
-    bucket = self.client.get_bucket(bucket_name)
+    bucket = self.client.bucket(bucket_name)
     blob = bucket.get_blob(blob_name)
     if blob:
       return blob
