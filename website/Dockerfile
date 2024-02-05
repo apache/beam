@@ -52,6 +52,8 @@ RUN curl -sL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* 
+
+RUN npm update -g npm
     
 RUN npm install postcss postcss-cli autoprefixer 
 
