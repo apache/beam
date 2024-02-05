@@ -20,11 +20,7 @@ package org.apache.beam.io.requestresponse;
 import static org.apache.beam.io.requestresponse.Throttle.INPUT_ELEMENTS_COUNTER_NAME;
 import static org.apache.beam.io.requestresponse.Throttle.OUTPUT_ELEMENTS_COUNTER_NAME;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.*;
 
 import java.util.Iterator;
 import java.util.List;
@@ -71,6 +67,10 @@ public class ThrottleTest {
   @Test
   public void givenElementSizeNotExceedsRate_thenEmitsAllImmediately() {
     Rate rate = Rate.of(10, Duration.standardSeconds(1L));
+    long expectedMillis = rate.getInterval().getMillis();
+    long toleratedError = (long) (0.05 * (double) expectedMillis);
+    // tolerate 5% error.
+    Duration expectedInterval = Duration.millis(expectedMillis + toleratedError);
     List<Integer> items = Stream.iterate(0, i -> i + 1).limit(3).collect(Collectors.toList());
     PCollection<Integer> throttled = pipeline.apply(Create.of(items)).apply(transformOf(rate));
 
@@ -82,7 +82,7 @@ public class ThrottleTest {
                   StreamSupport.stream(itr.spliterator(), true)
                       .sorted()
                       .collect(Collectors.toList());
-              assertTimestampIntervalsMatch(timestamps, lessThanOrEqualTo(rate.getInterval()));
+              assertTimestampIntervalsMatch(timestamps, lessThan(expectedInterval));
               return null;
             });
 
@@ -93,6 +93,10 @@ public class ThrottleTest {
   @Test
   public void givenElementSizeExceedsRate_thenEmitsAtRate() {
     Rate rate = Rate.of(1, Duration.standardSeconds(1L));
+    long expectedMillis = rate.getInterval().getMillis();
+    // tolerate 5% error.
+    long toleratedError = (long) (0.05 * (double) expectedMillis);
+    Duration expectedInterval = Duration.millis(expectedMillis - toleratedError);
     List<Integer> items = Stream.iterate(0, i -> i + 1).limit(3).collect(Collectors.toList());
     PCollection<Integer> throttled = pipeline.apply(Create.of(items)).apply(transformOf(rate));
 
@@ -104,7 +108,7 @@ public class ThrottleTest {
                   StreamSupport.stream(itr.spliterator(), true)
                       .sorted()
                       .collect(Collectors.toList());
-              assertTimestampIntervalsMatch(timestamps, greaterThanOrEqualTo(rate.getInterval()));
+              assertTimestampIntervalsMatch(timestamps, greaterThan(expectedInterval));
               return null;
             });
 
