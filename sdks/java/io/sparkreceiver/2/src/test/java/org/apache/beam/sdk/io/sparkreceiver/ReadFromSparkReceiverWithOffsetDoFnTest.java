@@ -22,15 +22,12 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
@@ -65,16 +62,6 @@ public class ReadFromSparkReceiverWithOffsetDoFnTest {
     public void outputWithTimestamp(
         String output, @UnknownKeyFor @NonNull @Initialized Instant timestamp) {
       records.add(output);
-    }
-
-    @Override
-    public void outputWindowedValue(
-        String output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo) {
-      throw new UnsupportedOperationException(
-          "Not expecting to receive call to outputWindowedValue");
     }
 
     public List<String> getOutputs() {
