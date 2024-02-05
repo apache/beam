@@ -100,8 +100,6 @@ class DataCoder:
     self.exclude_columns = exclude_columns
 
   def encode(self, element):
-    # if not set(element.keys()) - set(self.exclude_columns):
-    #   return element
     data_to_encode = element.copy()
     for key in self.exclude_columns:
       if key in data_to_encode:
