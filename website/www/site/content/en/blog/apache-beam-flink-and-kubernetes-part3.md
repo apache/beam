@@ -1,6 +1,6 @@
 ---
 title:  "Behind the Scenes: Crafting an Autoscaler for Apache Beam in a High-Volume Streaming Environment"
-date:   2023-12-21 09:00:00 -0400
+date:   2024-02-07 09:00:00 -0400
 categories:
   - blog
 authors:
@@ -173,6 +173,18 @@ In the kubernetes world, the call will look like this for a scale up:
 
 Apache Flink will handle the rest of the work needed to scale up.
 
+## Maintaining State for Stateful Streaming Application with Autoscaling
+
+Adapting Apache Flink's state recovery mechanisms for autoscaling involves leveraging its robust features like max parallelism, checkpointing, and the Adaptive Scheduler to ensure efficient and resilient stream processing, even as the system dynamically adjusts to varying loads. Here's how these components work together in an autoscaling context:
+
+1. **Max Parallelism** sets an upper limit on how much a job can scale out, ensuring that state can be redistributed across a larger or smaller number of nodes without exceeding predefined boundaries. This is crucial for autoscaling because it allows Flink to manage state effectively, even as the number of task slots changes to accommodate varying workloads.
+2. **Checkpointing** is at the heart of Flink's fault tolerance mechanism, periodically saving the state of each job to a durable storage(In our case it is GCS bucket). In an autoscaling scenario, checkpointing enables Flink to recover to a consistent state after scaling operations. When the system scales out (adds more resources) or scales in (removes resources), Flink can restore the state from these checkpoints, ensuring data integrity and processing continuity without losing critical information. In scale down or up situations there could be a moment to reprocess data from last checkpoint. To reduce that amount we reduce checkpointing interval to 10 seconds. 
+3. **Reactive Mode** is a special mode for Adaptive Scheduler, that assumes a single job per-cluster (enforced by the Application Mode). Reactive Mode configures a job so that it always uses all resources available in the cluster. Adding a TaskManager will scale up your job, removing resources will scale it down. Flink will manage the parallelism of the job, always setting it to the highest possible values. When a job undergoes resizing, Reactive Mode triggers a restart using the most recent successful checkpoint.
+
+## Conclusion
+
+In this blog series, we've taken a deep dive into the creation of an autoscaler for Apache Beam in a high-volume streaming environment, highlighting the journey from conceptualization to implementation. This endeavor not only tackled the complexities of dynamic resource allocation but also set a new standard for efficiency and adaptability in streaming infrastructure. By marrying intelligent scaling policies with the robust capabilities of Apache Beam and Flink, we've showcased a scalable solution that optimizes resource use and maintains performance under varying loads. This project stands as a testament to the power of teamwork, innovation, and a forward-thinking approach to streaming data processing. As we wrap up this series, we express our gratitude to all contributors and look forward to the continuous evolution of this technology, inviting the community to join us in further discussions and developments.
+
 # References
 
 [1] Streaming Auto-scaling in Google Cloud Dataflow [https://www.infoq.com/presentations/google-cloud-dataflow/](https://www.infoq.com/presentations/google-cloud-dataflow/)
@@ -183,4 +195,15 @@ Apache Flink will handle the rest of the work needed to scale up.
 
 # Acknowledgements
 
-This is a large effort to build the new infrastructure and to migrate the large customer based applications from cloud provider managed streaming infrastructure to self-managed Flink based infrastructure at scale. Thanks the Palo Alto Networks CDL streaming team who helped to make this happen: Kishore Pola, Andrew Park, Hemant Kumar, Manan Mangal, Helen Jiang, Mandy Wang, Praveen Kumar Pasupuleti, JM Teo, Rishabh Kedia, Talat Uyarer, Naitk Dani, and David He.
+This is a large effort to build the new infrastructure and to migrate the large customer based applications from cloud provider managed streaming infrastructure to self-managed Flink based infrastructure at scale. Thanks the Palo Alto Networks CDL streaming team who helped to make this happen: Kishore Pola, Andrew Park, Hemant Kumar, Manan Mangal, Helen Jiang, Mandy Wang, Praveen Kumar Pasupuleti, JM Teo, Rishabh Kedia, Talat Uyarer, Naitik Dani, and David He.
+
+---
+
+**Explore More:**
+
+- [Part 1: Introduction to Building and Managing Apache Beam Flink Services on Kubernetes](https://beam.apache.org/blog/apache-beam-flink-and-kubernetes/)
+- [Part 2: Build a scalable, self-managed streaming infrastructure with Flink: Tackling Autoscaling Challenges - Part 2](https://beam.apache.org/blog/apache-beam-flink-and-kubernetes-part2/)
+
+*Join the conversation and share your experiences on our [Community](https://beam.apache.org/community/) or contribute to our ongoing projects on [GitHub](https://github.com/apache/beam). Your feedback is invaluable. If you have any comments or questions about this series, please feel free to reach out to us via [User Mailist](https://beam.apache.org/community/contact-us/)*
+
+*Stay connected with us for more updates and insights into Apache Beam, Flink, and Kubernetes.*
