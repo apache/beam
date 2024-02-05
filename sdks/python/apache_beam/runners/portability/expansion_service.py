@@ -20,7 +20,6 @@
 # pytype: skip-file
 
 import copy
-import io
 import traceback
 
 from apache_beam import pipeline as beam_pipeline
@@ -31,6 +30,7 @@ from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import artifact_service
+from apache_beam.runners.portability.artifact_service import BeamFilesystemHandler
 from apache_beam.transforms import environments
 from apache_beam.transforms import external
 from apache_beam.transforms import ptransform
@@ -132,11 +132,6 @@ class ExpansionServiceServicer(
           error=traceback.format_exc())
 
   def artifact_service(self):
-    return artifact_service.ArtifactRetrievalService(file_reader)
-
-
-def file_reader(filepath: str) -> io.BytesIO:
-  """Reads a file at given path and returns io.BytesIO object"""
-  with open(filepath, 'rb') as f:
-    data = f.read()
-  return io.BytesIO(data)
+    """Returns a service to retrieve artifacts for use in a job."""
+    return artifact_service.ArtifactRetrievalService(
+        BeamFilesystemHandler(None).file_reader)

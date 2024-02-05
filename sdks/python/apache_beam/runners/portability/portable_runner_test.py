@@ -44,6 +44,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
+from apache_beam.transforms.environments_test import mock_python_sdk_dependencies
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -308,6 +309,13 @@ class PortableRunnerTestWithSubprocessesAndMultiWorkers(
 
 
 class PortableRunnerInternalTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.actual_python_sdk_dependencies = environments.python_sdk_dependencies
+    environments.python_sdk_dependencies = mock_python_sdk_dependencies
+
+  def tearDown(self) -> None:
+    environments.python_sdk_dependencies = self.actual_python_sdk_dependencies
+
   def test__create_default_environment(self):
     docker_image = environments.DockerEnvironment.default_docker_image()
     self.assertEqual(
@@ -354,7 +362,9 @@ class PortableRunnerInternalTest(unittest.TestCase):
                 'environment_config': '{"command": "run.sh"}',
                 'sdk_location': 'container',
             })),
-        environments.ProcessEnvironment('run.sh'))
+        environments.ProcessEnvironment(
+            'run.sh',
+            artifacts=environments.python_sdk_dependencies(PipelineOptions())))
 
   def test__create_external_environment(self):
     self.assertEqual(
@@ -377,7 +387,10 @@ class PortableRunnerInternalTest(unittest.TestCase):
                   'sdk_location': 'container',
               })),
           environments.ExternalEnvironment(
-              'localhost:50000', params={"k1": "v1"}))
+              'localhost:50000',
+              params={"k1": "v1"},
+              artifacts=environments.python_sdk_dependencies(
+                  PipelineOptions())))
     with self.assertRaises(ValueError):
       PortableRunner._create_environment(
           PipelineOptions.from_dictionary({

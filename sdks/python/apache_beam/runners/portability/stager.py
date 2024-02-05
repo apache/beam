@@ -867,7 +867,7 @@ class Stager(object):
     """Create and stage a file with list of dependencies installed in the
     submission environment.
 
-    This staged file is used at runtime to compare the dependencies in the
+    This list can be used at runtime to compare against the dependencies in the
     runtime environment. This allows runners to warn users about any potential
     dependency mismatches and help debug issues related to
     environment mismatches.
