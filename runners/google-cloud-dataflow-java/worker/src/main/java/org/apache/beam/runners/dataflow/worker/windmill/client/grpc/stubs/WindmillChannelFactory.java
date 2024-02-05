@@ -34,6 +34,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPor
 public final class WindmillChannelFactory {
   public static final String LOCALHOST = "localhost";
   private static final int DEFAULT_GRPC_PORT = 443;
+  private static final int MAX_REMOTE_TRACE_EVENTS = 100;
 
   private WindmillChannelFactory() {}
 
@@ -111,6 +112,7 @@ public final class WindmillChannelFactory {
         .flowControlWindow(10 * 1024 * 1024)
         .maxInboundMessageSize(Integer.MAX_VALUE)
         .maxInboundMetadataSize(1024 * 1024)
+        .maxTraceEvents(MAX_REMOTE_TRACE_EVENTS)
         .negotiationType(NegotiationType.TLS)
         // Set ciphers(null) to not use GCM, which is disabled for Dataflow
         // due to it being horribly slow.

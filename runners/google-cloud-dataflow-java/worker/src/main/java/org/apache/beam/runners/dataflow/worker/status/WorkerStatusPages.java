@@ -47,7 +47,9 @@ public class WorkerStatusPages {
   private final List<Capturable> capturePages;
   private final StatuszServlet statuszServlet = new StatuszServlet();
   private final ThreadzServlet threadzServlet = new ThreadzServlet();
+  private final ChannelzServlet channelzServlet = new ChannelzServlet();
   private final ServletHandler servletHandler = new ServletHandler();
+
 
   @VisibleForTesting
   WorkerStatusPages(Server server, MemoryMonitor memoryMonitor, BooleanSupplier healthyIndicator) {
@@ -57,6 +59,7 @@ public class WorkerStatusPages {
 
     // Install the default servlets (threadz, healthz, heapz, jfrz, statusz)
     addServlet(threadzServlet);
+    addServlet(channelzServlet);
     addServlet(new HealthzServlet(healthyIndicator));
     addServlet(new HeapzServlet(memoryMonitor));
     if (Environments.getJavaVersion() != Environments.JavaVersion.java8) {
@@ -67,6 +70,7 @@ public class WorkerStatusPages {
     // Add default capture pages (threadz, statusz)
     this.capturePages.add(threadzServlet);
     this.capturePages.add(statuszServlet);
+    this.capturePages.add(channelzServlet);
     // Add some status pages
     addStatusDataProvider("resources", "Resources", memoryMonitor);
   }
