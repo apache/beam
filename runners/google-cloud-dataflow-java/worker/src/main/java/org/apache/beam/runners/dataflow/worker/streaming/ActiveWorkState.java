@@ -24,13 +24,14 @@ import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -77,7 +78,7 @@ public final class ActiveWorkState {
   /**
    * Current budget that is being processed or queued on the user worker. Incremented when work is
    * activated in {@link #activateWorkForKey(ShardedKey, Work)}, and decremented when work is
-   * completed in {@link #completeWorkAndGetNextWorkForKey(ShardedKey, long)}.
+   * completed in {@link #completeWorkAndGetNextWorkForKey(ShardedKey, WorkId)}.
    */
   private final AtomicReference<GetWorkBudget> activeGetWorkBudget;
 
@@ -135,22 +136,27 @@ public final class ActiveWorkState {
     }
 
     // Check to see if we have this work token queued.
-    Iterator<Work> workIterator = workQueue.iterator();
-    while (workIterator.hasNext()) {
-      Work queuedWork = workIterator.next();
+    // This set is for adding remove-able WorkItems if they exist in the workQueue. We add them to
+    // this set since a ConcurrentModificationException will be thrown if we modify the workQueue
+    // and then resume iteration.
+    Set<WorkId> queuedWorkToRemove = new HashSet<>();
+    for (Work queuedWork : workQueue) {
       if (queuedWork.id().equals(work.id())) {
         return ActivateWorkResult.DUPLICATE;
       }
       if (queuedWork.id().cacheToken() == work.id().cacheToken()) {
         if (work.id().workToken() > queuedWork.id().workToken()) {
-          removeIfNotActive(queuedWork, workIterator, workQueue);
-          workQueue.addLast(work);
+          queuedWorkToRemove.add(queuedWork.id());
           // Continue here to possibly remove more non-active stale work that is queued.
         } else {
           return ActivateWorkResult.STALE;
         }
       }
     }
+
+    workQueue.removeIf(
+        queuedWork ->
+            queuedWorkToRemove.contains(queuedWork.id()) && !queuedWork.equals(workQueue.peek()));
 
     // Queue the work for later processing.
     workQueue.addLast(work);
@@ -402,13 +408,6 @@ public final class ActiveWorkState {
     writer.println("Current Active Work Budget: ");
     writer.println(currentActiveWorkBudget());
     writer.println("<br>");
-  }
-
-  private static void removeIfNotActive(
-      Work queuedWork, Iterator<Work> workIterator, Deque<Work> workQueue) {
-    // Check to see if the queuedWork is active. We only want to remove it if it is NOT currently
-    // active.
-    if (!queuedWork.equals(workQueue.peek())) workIterator.remove();
   }
 
   enum ActivateWorkResult {
