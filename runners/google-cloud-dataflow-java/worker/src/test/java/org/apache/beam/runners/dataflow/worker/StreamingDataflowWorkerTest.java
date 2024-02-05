@@ -556,7 +556,8 @@ public class StreamingDataflowWorkerTest {
             + shardingKey
             + "    work_token: "
             + index
-            + "    cache_token: 3"
+            + "    cache_token: "
+            + (index + 1)
             + "    hot_key_info {"
             + "      hot_key_age_usec: 1000000"
             + "    }"
@@ -569,6 +570,47 @@ public class StreamingDataflowWorkerTest {
             + timestamp
             + "        data: \"data"
             + index
+            + "\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}",
+        CoderUtils.encodeToByteArray(
+            CollectionCoder.of(IntervalWindow.getCoder()),
+            Collections.singletonList(DEFAULT_WINDOW)));
+  }
+
+  private Windmill.GetWorkResponse makeInput(
+      int workToken, int cacheToken, long timestamp, String key, long shardingKey)
+      throws Exception {
+    return buildInput(
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \""
+            + key
+            + "\""
+            + "    sharding_key: "
+            + shardingKey
+            + "    work_token: "
+            + workToken
+            + "    cache_token: "
+            + cacheToken
+            + "    hot_key_info {"
+            + "      hot_key_age_usec: 1000000"
+            + "    }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: "
+            + timestamp
+            + "        data: \"data"
+            + workToken
             + "\""
             + "      }"
             + "    }"
@@ -655,7 +697,9 @@ public class StreamingDataflowWorkerTest {
     requestBuilder.append("work_token: ");
     requestBuilder.append(index);
     requestBuilder.append(" ");
-    requestBuilder.append("cache_token: 3 ");
+    requestBuilder.append("cache_token: ");
+    requestBuilder.append(index + 1);
+    requestBuilder.append(" ");
     if (hasSourceBytesProcessed) requestBuilder.append("source_bytes_processed: 0 ");
 
     return requestBuilder;
@@ -3287,11 +3331,20 @@ public class StreamingDataflowWorkerTest {
     StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
 
+    GetWorkResponse workItem =
+        makeInput(0, TimeUnit.MILLISECONDS.toMicros(0), "key", DEFAULT_SHARDING_KEY);
+    int failedWorkToken = 1;
+    int failedCacheToken = 5;
+    GetWorkResponse workItemToFail =
+        makeInput(
+            failedWorkToken,
+            failedCacheToken,
+            TimeUnit.MILLISECONDS.toMicros(0),
+            "key",
+            DEFAULT_SHARDING_KEY);
+
     // Queue up two work items for the same key.
-    server
-        .whenGetWorkCalled()
-        .thenReturn(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0), "key", DEFAULT_SHARDING_KEY))
-        .thenReturn(makeInput(1, TimeUnit.MILLISECONDS.toMicros(0), "key", DEFAULT_SHARDING_KEY));
+    server.whenGetWorkCalled().thenReturn(workItem).thenReturn(workItemToFail);
     server.waitForEmptyWorkQueue();
 
     // Mock Windmill sending a heartbeat response failing the second work item while the first
@@ -3301,8 +3354,8 @@ public class StreamingDataflowWorkerTest {
     failedHeartbeat
         .setComputationId(DEFAULT_COMPUTATION_ID)
         .addHeartbeatResponsesBuilder()
-        .setCacheToken(3)
-        .setWorkToken(1)
+        .setCacheToken(failedCacheToken)
+        .setWorkToken(failedWorkToken)
         .setShardingKey(DEFAULT_SHARDING_KEY)
         .setFailed(true);
     server.sendFailedHeartbeats(Collections.singletonList(failedHeartbeat.build()));
@@ -3321,7 +3374,11 @@ public class StreamingDataflowWorkerTest {
     FakeClock clock = new FakeClock();
     Work work =
         Work.create(
-            Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(1L).build(),
+            Windmill.WorkItem.newBuilder()
+                .setKey(ByteString.EMPTY)
+                .setWorkToken(1L)
+                .setCacheToken(1L)
+                .build(),
             clock,
             Collections.emptyList(),
             unused -> {});
