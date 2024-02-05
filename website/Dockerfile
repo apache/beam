@@ -44,8 +44,8 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install node environment
-RUN curl -sL https://deb.nodesource.com/setup_14.x | bash - \
+# Install node LTS environment
+RUN curl -sL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         nodejs \
