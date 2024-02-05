@@ -30,6 +30,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PartitioningWindowFn;
@@ -49,15 +50,13 @@ import org.joda.time.Instant;
  * Throttle a {@link PCollection} of {@link RequestT} elements.
  *
  * <pre>
- * {@link Throttle} simply processes a {@link RequestT}
- * {@link PCollection}, resulting in the same {@link PCollection} of elements but emitted at a
- * slower rate. Throttling is a best effort to decrease a {@link PCollection} throughput to a
- * maximum of a configured {@link Rate} parameter via reassignment of elements to {@link
- * IntervalWindow}s spaced by {@link Rate#getInterval()}. Prior to this window reassignment, the
- * original {@link PCollection} is transformed into a {@code PCollection<KV<Integer, RequestT>>} by
- * random allocation of integer keys using {@link RandomDataGenerator} within a [0, {@link
- * Rate#getNumElements}) range. Therefore, the {@link IntervalWindow}s are assigned along the new
- * key space. The final {@link PCollection} is reassigned its original {@link WindowingStrategy}.
+ * Results with the same {@link PCollection} of elements but emitted at a slower rate. Throttling is a best effort, on
+ * a per Window basis to decrease a {@link PCollection} throughput to a maximum of a configured {@link Rate} parameter
+ * via reassignment of elements to {@link IntervalWindow}s spaced by {@link Rate#getInterval()}. Prior to this window
+ * reassignment, the original {@link PCollection} is transformed into a {@code PCollection<KV<Integer, RequestT>>} by
+ * random allocation of integer keys using {@link RandomDataGenerator} within a [0, {@link Rate#getNumElements}) range.
+ * Therefore, the {@link IntervalWindow}s are assigned along the new key space. The final {@link PCollection} is
+ * reassigned its original {@link WindowingStrategy}.
  * </pre>
  *
  * <h2>Basic Usage</h2>
@@ -107,29 +106,36 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
   @Override
   public PCollection<RequestT> expand(PCollection<RequestT> input) {
 
+    WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
+    DurationWindows throttleWindow =
+        new DurationWindows(configuration.getMaximumRate().getInterval());
+    if (input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)
+        && windowingStrategy.getWindowFn() instanceof GlobalWindows) {
+      throw new IllegalArgumentException(
+          "Unbounded PCollection uses "
+              + GlobalWindows.class.getName()
+              + " WindowFn which is incompatible with the use of "
+              + Throttle.class.getName()
+              + "; consider an alternative "
+              + WindowFn.class.getName()
+              + " before applying.");
+    }
+
     PCollection<KV<Integer, RequestT>> throttled =
         input
             .apply(AssignChannelFn.class.getSimpleName(), assignChannels())
-            .apply(
-                DurationWindows.class.getSimpleName(),
-                Window.into(new DurationWindows(configuration.getMaximumRate().getInterval())));
+            .apply(DurationWindows.class.getSimpleName(), Window.into(throttleWindow));
 
     if (configuration.getCollectMetrics()) {
-      return throttled
+      throttled
           .apply(
               EmitAndMeasureOutputFn.class.getSimpleName(), ParDo.of(new EmitAndMeasureOutputFn()))
-          .setWindowingStrategyInternal(updateWindowingStrategy(input.getWindowingStrategy()));
+          .setWindowingStrategyInternal(windowingStrategy);
     }
 
     return throttled
         .apply(Values.class.getSimpleName(), Values.create())
-        .setWindowingStrategyInternal(updateWindowingStrategy(input.getWindowingStrategy()));
-  }
-
-  private WindowingStrategy<?, ?> updateWindowingStrategy(WindowingStrategy<?, ?> inputStrategy) {
-    return inputStrategy
-        .withAlreadyMerged(!inputStrategy.getWindowFn().isNonMerging())
-        .withTrigger(inputStrategy.getTrigger().getContinuationTrigger());
+        .setWindowingStrategyInternal(windowingStrategy);
   }
 
   /**
@@ -220,9 +226,7 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
         throw new IncompatibleWindowException(
             other,
             String.format(
-                "Only %s objects with the same number of days, start date "
-                    + "and time zone are compatible.",
-                DurationWindows.class.getSimpleName()));
+                "Only %s objects with the same interval ", DurationWindows.class.getSimpleName()));
       }
     }
   }

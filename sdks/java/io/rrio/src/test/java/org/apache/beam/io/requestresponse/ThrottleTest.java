@@ -23,7 +23,10 @@ import static org.apache.beam.sdk.values.TypeDescriptors.longs;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertThrows;
 
 import java.util.Iterator;
 import java.util.List;
@@ -31,6 +34,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
@@ -38,10 +42,10 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
-import org.apache.beam.sdk.transforms.windowing.AfterSynchronizedProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -125,7 +129,7 @@ public class ThrottleTest {
     assertThat(throttled.getWindowingStrategy().getWindowFn(), is(windowFn));
     assertThat(
         throttled.getWindowingStrategy().getTrigger(),
-        is(Repeatedly.forever(AfterSynchronizedProcessingTime.ofFirstElement())));
+        is(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane())));
 
     PCollection<Long> elementTimestamps =
         throttled.apply(MapElements.into(longs()).via(ignored -> Instant.now().getMillis()));
@@ -148,6 +152,11 @@ public class ThrottleTest {
               }
 
               double mean = sum / (double) size;
+              if (expectedMeanMillis <= 1.0) {
+                assertThat(mean, lessThanOrEqualTo(1.0));
+                return null;
+              }
+
               assertWithin5PercentOf(expectedMeanMillis, mean);
 
               return null;
@@ -219,8 +228,83 @@ public class ThrottleTest {
     pipeline.run();
   }
 
+  @Test
+  public void givenStreamSourceAndGlobalWindow_thenThrowsError() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          pipeline
+              .enableAbandonedNodeEnforcement(false)
+              .apply(TestStream.create(VarIntCoder.of()).advanceWatermarkToInfinity())
+              .apply(Throttle.of(Rate.of(3, Duration.standardSeconds(1L))));
+        });
+  }
+
+  @Test
+  public void givenStreamSourceAndFixedWindows_thenThrottlesPerUpstreamWindow() {
+    Instant start = Instant.EPOCH;
+    PCollection<Integer> throttled =
+        pipeline
+            .apply(
+                "source",
+                TestStream.create(VarIntCoder.of())
+                    .addElements(1, 2, 3)
+                    .advanceProcessingTime(Duration.standardSeconds(1L))
+                    .advanceWatermarkTo(start.plus(Duration.standardSeconds(1L)))
+                    .addElements(4, 5, 6)
+                    .advanceProcessingTime(Duration.standardSeconds(1L))
+                    .advanceWatermarkTo(start.plus(Duration.standardSeconds(2L)))
+                    .addElements(7, 8, 9)
+                    .advanceProcessingTime(Duration.standardSeconds(1L))
+                    .advanceWatermarkTo(start.plus(Duration.standardSeconds(3L)))
+                    .advanceWatermarkToInfinity())
+            .apply(
+                FixedWindows.class.getSimpleName(),
+                Window.into(FixedWindows.of(Duration.standardSeconds(1L))))
+            .apply(Throttle.of(Rate.of(3, Duration.standardSeconds(1L))));
+
+    PAssert.that(throttled).containsInAnyOrder(1, 2, 3, 4, 5, 6, 7, 8, 9);
+
+    PCollection<Long> elementTimestamps =
+        throttled.apply(MapElements.into(longs()).via(ignored -> Instant.now().getMillis()));
+
+    PAssert.that(elementTimestamps)
+        .satisfies(
+            itr -> {
+              List<Long> timestamps =
+                  StreamSupport.stream(itr.spliterator(), false)
+                      .sorted()
+                      .collect(Collectors.toList());
+
+              double sum = 0.0;
+              Long previous = timestamps.get(0);
+
+              for (int i = 1; i < timestamps.size(); i++) {
+                long interval = timestamps.get(i) - previous;
+                sum += interval;
+                previous = timestamps.get(i);
+              }
+
+              double mean = sum / (double) 8;
+
+              // Despite the above applied Rate of 3 per second, the throttle was applied per each
+              // fixed window and thus less than 3. Assertion is evaluated against 2 to reinforce
+              // the expected behavior.
+              assertThat(mean, lessThan(2.0));
+
+              return null;
+            });
+
+    pipeline.run();
+  }
+
   private static void assertWithin5PercentOf(double expected, double observed) {
-    assertThat(0.95 * expected <= observed || observed <= 1.05 * expected, is(true));
+    double fractionDiff = Math.abs(observed - expected) / expected;
+    assertThat(
+        String.format(
+            "expected: %f, observed: %f, fractionDiff: %f", expected, observed, fractionDiff),
+        fractionDiff,
+        lessThanOrEqualTo(0.05));
   }
 
   private static Throttle<Integer> transformOf(Rate rate) {
