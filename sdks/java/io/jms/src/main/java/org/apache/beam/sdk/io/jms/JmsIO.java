@@ -515,6 +515,15 @@ public class JmsIO {
     /** recreate session and consumer. */
     private synchronized void recreateSession() throws IOException {
       try {
+        if (consumer != null) {
+          consumer.close();
+          consumer = null;
+        }
+      } catch (JMSException e) {
+        LOG.error("Error closing JMS consumer. It may have already been closed.", e);
+      }
+
+      try {
         this.session = this.connection.createSession(false, Session.CLIENT_ACKNOWLEDGE);
       } catch (Exception e) {
         throw new IOException("Error creating JMS session", e);
@@ -524,9 +533,9 @@ public class JmsIO {
 
       try {
         if (source.spec.getTopic() != null) {
-          this.consumer = this.session.createConsumer(this.session.createTopic(spec.getTopic()));
+          consumer = session.createConsumer(session.createTopic(spec.getTopic()));
         } else {
-          this.consumer = this.session.createConsumer(this.session.createQueue(spec.getQueue()));
+          consumer = session.createConsumer(session.createQueue(spec.getQueue()));
         }
       } catch (Exception e) {
         throw new IOException("Error creating JMS consumer", e);

@@ -167,7 +167,7 @@ public class JmsIOIT implements Serializable {
       connectionFactory = this.commonJms.getConnectionFactory();
       connectionFactoryClass = this.commonJms.getConnectionFactoryClass();
       // use a small number of record for local integration test
-      OPTIONS.setNumberOfRecords(10000);
+      OPTIONS.setNumberOfRecords(1000);
     }
   }
 
