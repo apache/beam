@@ -583,7 +583,7 @@ public class JmsIOTest {
   /** Test the checkpoint mark default coder, which is actually AvroCoder. */
   @Test
   public void testCheckpointMarkDefaultCoder() throws Exception {
-    JmsCheckpointMark jmsCheckpointMark = new JmsCheckpointMark();
+    JmsCheckpointMark jmsCheckpointMark = JmsCheckpointMark.newPreparer().newCheckpoint(null);
     Coder coder = new JmsIO.UnboundedJmsSource(null).getCheckpointMarkCoder();
     CoderProperties.coderSerializable(coder);
     CoderProperties.coderDecodeEncodeEqual(coder, jmsCheckpointMark);
@@ -668,12 +668,12 @@ public class JmsIOTest {
   }
 
   private boolean getDiscardedValue(JmsIO.UnboundedJmsReader reader) {
-    JmsCheckpointMark checkpoint = (JmsCheckpointMark) reader.getCheckpointMark();
-    checkpoint.lock.readLock().lock();
+    JmsCheckpointMark.Preparer preparer = reader.checkpointMarkPreparer;
+    preparer.lock.readLock().lock();
     try {
-      return checkpoint.discarded;
+      return preparer.discarded;
     } finally {
-      checkpoint.lock.readLock().unlock();
+      preparer.lock.readLock().unlock();
     }
   }
 
@@ -725,8 +725,8 @@ public class JmsIOTest {
     // still 6 pending messages as we didn't finalize the checkpoint
     assertEquals(6, count(QUEUE));
 
-    // But here we discard the checkpoint
-    ((JmsCheckpointMark) reader.getCheckpointMark()).discard();
+    // But here we discard the pending checkpoint
+    reader.checkpointMarkPreparer.discard();
     // we finalize the checkpoint: no messages should be acked
     reader.getCheckpointMark().finalizeCheckpoint();
 

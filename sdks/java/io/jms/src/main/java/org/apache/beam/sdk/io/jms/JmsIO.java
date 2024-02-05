@@ -66,6 +66,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -494,7 +495,7 @@ public class JmsIO {
   static class UnboundedJmsReader<T> extends UnboundedReader<T> {
 
     private UnboundedJmsSource<T> source;
-    private JmsCheckpointMark checkpointMark;
+    @VisibleForTesting JmsCheckpointMark.Preparer checkpointMarkPreparer;
     private Connection connection;
     private Session session;
     private MessageConsumer consumer;
@@ -506,9 +507,30 @@ public class JmsIO {
 
     public UnboundedJmsReader(UnboundedJmsSource<T> source, PipelineOptions options) {
       this.source = source;
-      this.checkpointMark = new JmsCheckpointMark();
+      this.checkpointMarkPreparer = JmsCheckpointMark.newPreparer();
       this.currentMessage = null;
       this.options = options;
+    }
+
+    /** recreate session and consumer. */
+    private synchronized void recreateSession() throws IOException {
+      try {
+        this.session = this.connection.createSession(false, Session.CLIENT_ACKNOWLEDGE);
+      } catch (Exception e) {
+        throw new IOException("Error creating JMS session", e);
+      }
+
+      Read<T> spec = source.spec;
+
+      try {
+        if (source.spec.getTopic() != null) {
+          this.consumer = this.session.createConsumer(this.session.createTopic(spec.getTopic()));
+        } else {
+          this.consumer = this.session.createConsumer(this.session.createQueue(spec.getQueue()));
+        }
+      } catch (Exception e) {
+        throw new IOException("Error creating JMS consumer", e);
+      }
     }
 
     @Override
@@ -534,21 +556,7 @@ public class JmsIO {
         throw new IOException("Error connecting to JMS", e);
       }
 
-      try {
-        this.session = this.connection.createSession(false, Session.CLIENT_ACKNOWLEDGE);
-      } catch (Exception e) {
-        throw new IOException("Error creating JMS session", e);
-      }
-
-      try {
-        if (spec.getTopic() != null) {
-          this.consumer = this.session.createConsumer(this.session.createTopic(spec.getTopic()));
-        } else {
-          this.consumer = this.session.createConsumer(this.session.createQueue(spec.getQueue()));
-        }
-      } catch (Exception e) {
-        throw new IOException("Error creating JMS consumer", e);
-      }
+      recreateSession();
 
       return advance();
     }
@@ -563,7 +571,7 @@ public class JmsIO {
           return false;
         }
 
-        checkpointMark.add(message);
+        checkpointMarkPreparer.add(message);
 
         currentMessage = this.source.spec.getMessageMapper().mapMessage(message);
         currentTimestamp = new Instant(message.getJMSTimestamp());
@@ -584,7 +592,7 @@ public class JmsIO {
 
     @Override
     public Instant getWatermark() {
-      return checkpointMark.getOldestMessageTimestamp();
+      return checkpointMarkPreparer.getOldestMessageTimestamp();
     }
 
     @Override
@@ -597,7 +605,16 @@ public class JmsIO {
 
     @Override
     public CheckpointMark getCheckpointMark() {
-      return checkpointMark;
+      Session sessionTofinalize;
+      synchronized (this) {
+        sessionTofinalize = session;
+      }
+      try {
+        recreateSession();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      return checkpointMarkPreparer.newCheckpoint(sessionTofinalize);
     }
 
     @Override
@@ -628,7 +645,7 @@ public class JmsIO {
               LOG.debug(
                   "Closing session and connection after delay {}", source.spec.getCloseTimeout());
               // Discard the checkpoints and set the reader as inactive
-              checkpointMark.discard();
+              checkpointMarkPreparer.discard();
               closeSession();
               closeConnection();
             },
@@ -652,7 +669,7 @@ public class JmsIO {
       }
     }
 
-    private void closeSession() {
+    private synchronized void closeSession() {
       try {
         if (session != null) {
           session.close();
