@@ -33,7 +33,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.transforms._external_transforms.io import GenerateSequence
+from apache_beam.transforms.xlang.io import GenerateSequence
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external_transform_provider import STANDARD_URN_PATTERN
 from apache_beam.transforms.external_transform_provider import ExternalTransform
@@ -124,10 +124,6 @@ class NameAndTypeUtilsTest(unittest.TestCase):
     os.environ.get('EXPANSION_PORT'),
     "EXPANSION_PORT environment var is not provided.")
 class ExternalTransformProviderTest(unittest.TestCase):
-  def setUp(self):
-    self.assertTrue(
-        os.environ.get('EXPANSION_PORT'), "Expansion service port not found!")
-
   def test_generate_sequence_config_schema_and_description(self):
     provider = ExternalTransformProvider(
         BeamJarExpansionService(":sdks:java:io:expansion-service:shadowJar"))
@@ -168,7 +164,7 @@ class ExternalTransformProviderTest(unittest.TestCase):
 class AutoGenerationScriptTest(unittest.TestCase):
   """
   This class tests the generation and regeneration operations in
-  `sdks/python/gen_xlang_wrappers.py`.
+  `gen_xlang_wrappers.py`.
   """
 
   # tests cases will use GenerateSequence
@@ -192,10 +188,6 @@ class AutoGenerationScriptTest(unittest.TestCase):
     self.transform_config_path = os.path.join(
         self.test_dir, "test_transform_config.yaml")
     os.mkdir(self.test_dir)
-
-    self.assertTrue(
-        os.environ.get('EXPANSION_PORTS'), "Expansion service port not found!")
-    logging.info("EXPANSION_PORTS: %s", os.environ.get('EXPANSION_PORTS'))
 
   def tearDown(self):
     shutil.rmtree(self.test_dir, ignore_errors=False)
@@ -282,7 +274,8 @@ class AutoGenerationScriptTest(unittest.TestCase):
       self.assertIn(dest, grouped_wrappers)
 
     # write to our test directory to avoid messing with other files
-    write_wrappers_to_destinations(grouped_wrappers, self.test_dir)
+    write_wrappers_to_destinations(
+        grouped_wrappers, self.test_dir, format_code=False)
 
     for dest in destinations:
       self.assertTrue(

@@ -170,7 +170,7 @@ jobs:
           PY_VER=${{ matrix.python_version }}
           PY_VER_CLEAN=${PY_VER//.}
           echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
-      - name: run Portable Python script
+      - name: run Cross-Language Wrapper Validation script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:direct:crossLanguageWrapperValidationPreCommit

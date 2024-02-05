@@ -16,6 +16,7 @@
 #
 
 """Apache Beam SDK for Python setup file."""
+import logging
 import os
 import subprocess
 import sys
@@ -217,8 +218,7 @@ def generate_external_transform_wrappers():
     # retrieve external transforms, so the config file has to already exist
     if not script_exists or not config_exists:
       generated_transforms_dir = os.path.join(
-        sdks_dir, 'python', 'apache_beam',
-        'transforms', '_external_transforms')
+        sdks_dir, 'python', 'apache_beam', 'transforms', 'xlang')
 
       # if exists, this directory will have at least its __init__.py file
       if (not os.path.exists(generated_transforms_dir) or
@@ -229,20 +229,19 @@ def generate_external_transform_wrappers():
         if not config_exists:
           message += 'and the standard external transforms config'
         message += ' could not be found'
-        warnings.warn(message)
+        raise RuntimeError(message)
       else:
-        warnings.warn(
+        logging.info(
             'Skipping external transform wrapper generation as they '
             'are already generated.')
       return
-    out = subprocess.run([
+    subprocess.run([
         sys.executable,
         os.path.join(sdks_dir, 'python', 'gen_xlang_wrappers.py'),
         '--cleanup',
         '--transforms-config-source',
         os.path.join(sdks_dir, 'standard_external_transforms.yaml')
     ], capture_output=True, check=True)
-    print(out.stdout)
   except subprocess.CalledProcessError as err:
     raise RuntimeError(
         'Could not generate external transform wrappers due to '
@@ -275,8 +274,8 @@ if __name__ == '__main__':
   # executes below.
   generate_protos_first()
 
-  # Generate wrappers
-  generate_external_transform_wrappers()
+  if 'sdist' in sys.argv:
+    generate_external_transform_wrappers()
 
   # generate cythonize extensions only if we are building a wheel or
   # building an extension or running in editable mode.
@@ -407,7 +406,6 @@ if __name__ == '__main__':
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<=7.0.0',
               'jinja2>=2.7.1,<4.0.0',
-              'yapf>=0.29.0,<1.0.0'
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',

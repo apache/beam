@@ -30,7 +30,7 @@ try:
         self.write(lines)
 
   transfer.email_generator = _WrapperNamespace
-  from apache_beam.transforms._external_transforms.io_gcp import *
+  from apache_beam.transforms.xlang.io_gcp import *
 except ImportError:
   # We may not have the GCP dependencies installed, so we pass in this case.
   pass
