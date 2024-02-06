@@ -15,35 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
+package org.apache.beam.runners.dataflow.worker.windmill.testing;
 
-import java.util.function.Function;
+import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Channel;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
-/**
- * Creates in process stubs to talk to Streaming Engine. Only recommended to be used for testing.
- */
-final class InProcessWindmillStubFactory implements WindmillStubFactory {
-  private final String testName;
-  private final Function<String, ManagedChannel> channelFactory;
+@VisibleForTesting
+public final class FakeWindmillStubFactory implements WindmillStubFactory {
+  private final Supplier<Channel> channelFactory;
 
-  InProcessWindmillStubFactory(String testName, Function<String, ManagedChannel> channelFactory) {
-    this.testName = testName;
+  public FakeWindmillStubFactory(Supplier<Channel> channelFactory) {
     this.channelFactory = channelFactory;
   }
 
   @Override
   public CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub
       createWindmillServiceStub(WindmillServiceAddress serviceAddress) {
-    return CloudWindmillServiceV1Alpha1Grpc.newStub(channelFactory.apply(testName));
+    return CloudWindmillServiceV1Alpha1Grpc.newStub(channelFactory.get());
   }
 
   @Override
   public CloudWindmillMetadataServiceV1Alpha1Grpc.CloudWindmillMetadataServiceV1Alpha1Stub
       createWindmillMetadataServiceStub(WindmillServiceAddress serviceAddress) {
-    return CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(channelFactory.apply(testName));
+    return CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(channelFactory.get());
   }
 }

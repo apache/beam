@@ -98,7 +98,7 @@ public abstract class WindmillEndpoints {
       return Optional.empty();
     }
 
-    InetAddress directEndpointAddress = null;
+    InetAddress directEndpointAddress;
     try {
       directEndpointAddress = Inet6Address.getByName(endpointProto.getDirectEndpoint());
     } catch (UnknownHostException e) {
@@ -106,6 +106,7 @@ public abstract class WindmillEndpoints {
           "Error occurred trying to parse direct_endpoint={} into IPv6 address. Exception={}",
           endpointProto.getDirectEndpoint(),
           e.toString());
+      return Optional.empty();
     }
 
     // Inet6Address.getByAddress returns either an IPv4 or an IPv6 address depending on the format

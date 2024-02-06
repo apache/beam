@@ -19,12 +19,8 @@ package org.apache.beam.runners.dataflow.worker.windmill;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.List;
 import java.util.Set;
-import java.util.function.Consumer;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
@@ -80,13 +76,8 @@ public abstract class WindmillServerStub implements StatusDataProvider {
   /** Returns the amount of time the server has been throttled and resets the time to 0. */
   public abstract long getAndResetThrottleTime();
 
-  public void start(JobHeader jobHeader) {}
-
   @Override
   public void appendSummaryHtml(PrintWriter writer) {}
-
-  public void setProcessHeartbeatResponses(
-      Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses) {}
 
   /** Generic Exception type for implementors to use to represent errors while making RPCs. */
   public static final class RpcException extends RuntimeException {

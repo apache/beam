@@ -45,8 +45,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataR
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactories;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
@@ -98,11 +98,11 @@ public class StreamingEngineClientTest {
   private final GrpcWindmillStreamFactory streamFactory =
       spy(GrpcWindmillStreamFactory.of(JOB_HEADER).build());
   private final WindmillStubFactory stubFactory =
-      WindmillStubFactories.inProcess(
-          "StreamingEngineClientTest",
-          name -> {
+      new FakeWindmillStubFactory(
+          () -> {
             ManagedChannel channel =
-                grpcCleanup.register(WindmillChannelFactory.inProcessChannel(name));
+                grpcCleanup.register(
+                    WindmillChannelFactory.inProcessChannel("StreamingEngineClientTest"));
             channels.add(channel);
             return channel;
           });

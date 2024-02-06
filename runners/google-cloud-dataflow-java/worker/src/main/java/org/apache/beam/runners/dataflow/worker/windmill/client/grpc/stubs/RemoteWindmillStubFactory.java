@@ -26,24 +26,29 @@ import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Al
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.auth.VendoredCredentialsAdapter;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.auth.MoreCallCredentials;
 
 /** Creates remote stubs to talk to Streaming Engine. */
-final class RemoteWindmillStubFactory implements WindmillStubFactory {
+@Internal
+public final class RemoteWindmillStubFactory implements WindmillStubFactory {
   private final int rpcChannelTimeoutSec;
   private final Credentials gcpCredentials;
+  private final boolean useIsolatedChannels;
 
-  RemoteWindmillStubFactory(int rpcChannelTimeoutSec, Credentials gcpCredentials) {
+  public RemoteWindmillStubFactory(
+      int rpcChannelTimeoutSec, Credentials gcpCredentials, boolean useIsolatedChannels) {
     this.rpcChannelTimeoutSec = rpcChannelTimeoutSec;
     this.gcpCredentials = gcpCredentials;
+    this.useIsolatedChannels = useIsolatedChannels;
   }
 
   @Override
   public CloudWindmillServiceV1Alpha1Stub createWindmillServiceStub(
       WindmillServiceAddress serviceAddress) {
     CloudWindmillServiceV1Alpha1Stub windmillServiceStub =
-        CloudWindmillServiceV1Alpha1Grpc.newStub(
-            remoteChannel(serviceAddress, rpcChannelTimeoutSec));
+        CloudWindmillServiceV1Alpha1Grpc.newStub(createChannel(serviceAddress));
     return serviceAddress.getKind() != WindmillServiceAddress.Kind.AUTHENTICATED_GCP_SERVICE_ADDRESS
         ? windmillServiceStub.withCallCredentials(
             MoreCallCredentials.from(new VendoredCredentialsAdapter(gcpCredentials)))
@@ -53,9 +58,13 @@ final class RemoteWindmillStubFactory implements WindmillStubFactory {
   @Override
   public CloudWindmillMetadataServiceV1Alpha1Stub createWindmillMetadataServiceStub(
       WindmillServiceAddress serviceAddress) {
-    return CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(
-            remoteChannel(serviceAddress, rpcChannelTimeoutSec))
+    return CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(createChannel(serviceAddress))
         .withCallCredentials(
             MoreCallCredentials.from(new VendoredCredentialsAdapter(gcpCredentials)));
+  }
+
+  private ManagedChannel createChannel(WindmillServiceAddress serviceAddress) {
+    ManagedChannel channel = remoteChannel(serviceAddress, rpcChannelTimeoutSec);
+    return useIsolatedChannels ? IsolationChannel.create(() -> channel) : channel;
   }
 }
