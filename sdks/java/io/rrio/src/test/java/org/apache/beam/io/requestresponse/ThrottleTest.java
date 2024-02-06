@@ -20,10 +20,14 @@ package org.apache.beam.io.requestresponse;
 import static org.apache.beam.io.requestresponse.Throttle.INPUT_ELEMENTS_COUNTER_NAME;
 import static org.apache.beam.io.requestresponse.Throttle.OUTPUT_ELEMENTS_COUNTER_NAME;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.Matchers.notNullValue;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -36,14 +40,14 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.PeriodicImpulse;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
@@ -52,7 +56,6 @@ import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -140,8 +143,8 @@ public class ThrottleTest {
     pipelineResult.waitUntilFinish();
     MetricResults results = pipelineResult.metrics();
 
-    assertThat(getCount(results, INPUT_ELEMENTS_COUNTER_NAME), is(size));
-    assertThat(getCount(results, OUTPUT_ELEMENTS_COUNTER_NAME), is(size));
+    assertThat(getCount(results, INPUT_ELEMENTS_COUNTER_NAME), equalTo(size));
+    assertThat(getCount(results, OUTPUT_ELEMENTS_COUNTER_NAME), equalTo(size));
   }
 
   /** Tests that an upstream GlobalWindows gets reapplied to the resulting PCollection. */
@@ -153,7 +156,7 @@ public class ThrottleTest {
             .apply(Window.into(new GlobalWindows()))
             .apply(transformOf(Rate.of(1, Duration.standardSeconds(1L))));
 
-    assertThat(throttled.getWindowingStrategy().getWindowFn(), is(new GlobalWindows()));
+    assertThat(throttled.getWindowingStrategy().getWindowFn(), equalTo(new GlobalWindows()));
 
     pipeline.run();
   }
@@ -169,7 +172,7 @@ public class ThrottleTest {
 
     assertThat(
         throttled.getWindowingStrategy().getWindowFn(),
-        is(Sessions.withGapDuration(Duration.standardSeconds(1L))));
+        equalTo(Sessions.withGapDuration(Duration.standardSeconds(1L))));
 
     pipeline.run();
   }
@@ -184,8 +187,8 @@ public class ThrottleTest {
             .apply(Create.of(1, 2, 3))
             .apply(transformOf(Rate.of(1, Duration.standardSeconds(1L))));
 
-    assertThat(throttled.getWindowingStrategy().getWindowFn(), is(new GlobalWindows()));
-    assertThat(throttled.getWindowingStrategy().getTrigger(), is(DefaultTrigger.of()));
+    assertThat(throttled.getWindowingStrategy().getWindowFn(), equalTo(new GlobalWindows()));
+    assertThat(throttled.getWindowingStrategy().getTrigger(), equalTo(DefaultTrigger.of()));
 
     pipeline.run();
   }
@@ -201,38 +204,86 @@ public class ThrottleTest {
 
     assertThat(
         throttled.getWindowingStrategy().getWindowFn(),
-        is(Sessions.withGapDuration(Duration.standardSeconds(2L))));
-    assertThat(throttled.getWindowingStrategy().getTrigger(), is(DefaultTrigger.of()));
+        equalTo(Sessions.withGapDuration(Duration.standardSeconds(2L))));
+    assertThat(throttled.getWindowingStrategy().getTrigger(), equalTo(DefaultTrigger.of()));
 
     pipeline.run();
   }
 
-  @Ignore
   @Test
   public void givenStreamSource_thenThrottles() {
-
-    Rate rate = Rate.of(5, Duration.standardSeconds(1L));
+    Rate rate = Rate.of(1, Duration.standardSeconds(1L));
+    long intervalMillis = rate.getInterval().getMillis();
+    long allowedError = (long) ((double) intervalMillis * 0.05);
+    Duration expectedInterval = Duration.millis(intervalMillis - allowedError);
     PCollection<Integer> stream =
         pipeline
             .apply(
-                TestStream.create(VarIntCoder.of())
-                    .addElements(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-                    .advanceProcessingTime(Duration.standardSeconds(1L))
-                    .advanceWatermarkToInfinity())
-            .apply(
-                Window.<Integer>into(FixedWindows.of(Duration.standardSeconds(1L)))
-                    .triggering(
-                        Repeatedly.forever(
-                            AfterProcessingTime.pastFirstElementInPane()
-                                .alignedTo(Duration.standardSeconds(1L))))
-                    .withAllowedLateness(Duration.ZERO)
-                    .discardingFiredPanes());
+                PeriodicImpulse.create().stopAfter(Duration.ZERO).withInterval(Duration.millis(1L)))
+            .apply(generate(3))
+            .setCoder(VarIntCoder.of());
 
-    PCollection<Integer> throttled = stream.apply(transformOf(rate));
-    //    PCollection<Integer> throttled = stream;
-    PAssert.that(throttled).containsInAnyOrder(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+    PAssert.that(stream).containsInAnyOrder(0, 1, 2);
+
+    PCollection<Integer> throttled = stream.apply(transformOf(rate).withStreamingConfiguration(3L));
+    PAssert.that(throttled).containsInAnyOrder(0, 1, 2);
+    PAssert.that(timestampsOf(throttled))
+        .satisfies(
+            itr -> {
+              List<Instant> timestamps =
+                  StreamSupport.stream(itr.spliterator(), true)
+                      .sorted()
+                      .collect(Collectors.toList());
+              assertTimestampIntervalsMatch(timestamps, greaterThan(expectedInterval));
+              return null;
+            });
 
     pipeline.run();
+  }
+
+  @Test
+  public void givenLargerStreamSource_noDataLost() {
+    Rate rate = Rate.of(2_000, Duration.standardSeconds(1L));
+    List<Integer> items = Stream.iterate(0, i -> i + 1).limit(4_000).collect(Collectors.toList());
+    PCollection<Integer> stream =
+        pipeline
+            .apply(
+                PeriodicImpulse.create()
+                    .stopAfter(Duration.millis(3L))
+                    .withInterval(Duration.millis(1L)))
+            .apply(generate(1_000))
+            .setCoder(VarIntCoder.of());
+
+    PAssert.that(stream).containsInAnyOrder(items);
+
+    PCollection<Integer> throttled =
+        stream.apply(transformOf(rate).withStreamingConfiguration(items.size()));
+    PAssert.that(throttled).containsInAnyOrder(items);
+
+    pipeline.run();
+  }
+
+  private static ParDo.SingleOutput<Instant, Integer> generate(int size) {
+    AtomicInteger atomicInteger = new AtomicInteger();
+    return ParDo.of(
+        new Generator<>(
+            ignored -> Stream.generate(atomicInteger::getAndIncrement).limit(size).iterator()));
+  }
+
+  private static class Generator<T> extends DoFn<Instant, T> {
+    private final SerializableFunction<Instant, Iterator<T>> generatorFn;
+
+    private Generator(SerializableFunction<Instant, Iterator<T>> generatorFn) {
+      this.generatorFn = generatorFn;
+    }
+
+    @ProcessElement
+    public void process(@Element Instant element, OutputReceiver<T> receiver) {
+      Iterator<T> iterator = generatorFn.apply(element);
+      while (iterator.hasNext()) {
+        receiver.output(iterator.next());
+      }
+    }
   }
 
   private static Throttle<Integer> transformOf(Rate rate) {
@@ -247,7 +298,7 @@ public class ThrottleTest {
                 .build());
     assertThat(metricQueryResults, notNullValue());
     Iterator<MetricResult<Long>> itr = metricQueryResults.getCounters().iterator();
-    assertThat(itr.hasNext(), is(true));
+    assertThat(itr.hasNext(), equalTo(true));
     return itr.next().getCommitted();
   }
 

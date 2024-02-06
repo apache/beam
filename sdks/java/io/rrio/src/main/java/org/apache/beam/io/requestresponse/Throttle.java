@@ -38,14 +38,8 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metric;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.GetInitialRestriction;
-import org.apache.beam.sdk.transforms.DoFn.GetInitialWatermarkEstimatorState;
-import org.apache.beam.sdk.transforms.DoFn.NewTracker;
-import org.apache.beam.sdk.transforms.DoFn.NewWatermarkEstimator;
-import org.apache.beam.sdk.transforms.DoFn.Restriction;
-import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
-import org.apache.beam.sdk.transforms.DoFn.WatermarkEstimatorState;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -66,6 +60,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.commons.math3.random.RandomDataGenerator;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -103,9 +98,54 @@ import org.joda.time.Instant;
  * );
  *
  * }</pre>
+ *
+ * <h2>Additional streaming configuration</h2>
+ *
+ * In a streaming context, {@link Throttle} uses {@link GroupIntoBatches} to group elements of the
+ * input {@link PCollection} prior to throttling. Therefore, it needs to know how it should apply
+ * {@link GroupIntoBatches} to the input {@link PCollection}. The following takes the additional
+ * parameters via {@link #withStreamingConfiguration} that it forwards when instantiating and
+ * applying {@link GroupIntoBatches}.
+ *
+ * <pre>{@code
+ * PCollection<RequestT> original = ...
+ *
+ * PCollection<RequestT> throttled = original.apply(
+ *  Throttle.of(Rate.of(10, Duration.standardSeconds(1L)))
+ *          .withStreamingConfiguration(bufferingSize)
+ * );
+ *
+ *   // or
+ *
+ * PCollection<RequestT> throttled = original.apply(
+ *  Throttle.of(Rate.of(10, Duration.standardSeconds(1L)))
+ *          .withStreamingConfiguration(bufferingSize, maxBufferingDuration)
+ * );
+ *
+ * }</pre>
+ *
+ * <h2>Throttle Algorithm</h2>
+ *
+ * The following discusses the algorithm for how {@link Throttle} reduces the throughput of a {@code
+ * PCollection<RequestT>}.
+ *
+ * <p>First, the transform processes the original {@code PCollection<RequestT>} into a {@code
+ * PCollection<KV<Integer, RequestT>>} via random assignment of the key using {@link
+ * RandomDataGenerator#nextInt}. The result is a key space: [0, {@link Rate#getNumElements()}) such
+ * that each keyed channel is throttled at a rate of {@link Rate#getInterval()}. Next, for unbounded
+ * {@link PCollection}s i.e. streaming, the transform applies {@link GroupIntoBatches}; for bounded
+ * it applies {@link GroupByKey}. Then the transform converts the resulting, {@code
+ * PCollection<KV<Integer, Iterable<RequestT>>>} into a {@code PCollection<KV<Integer,
+ * List<RequestT>>>}. This is done to simplify the coding of the downstream <a
+ * href="https://beam.apache.org/documentation/programming-guide/#splittable-dofns">Splittable
+ * DoFn</a>. Next the transform applies {@link GlobalWindows} to the {@code PCollection<KV<Integer,
+ * List<RequestT>>>} prior to applying to the splittable DoFn. This splittable DoFn performs the
+ * actual work of throttling by holding the watermark and performing a {@link
+ * DoFn.ProcessContinuation#withResumeDelay(Duration)} of {@link Rate#getInterval()} if there are
+ * remaining elements to process. Finally, the transform applies the original input's {@link
+ * WindowingStrategy} to the returning {@code PCollection<RequestT>}.
  */
 public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PCollection<RequestT>> {
-
   static final String INPUT_ELEMENTS_COUNTER_NAME = "input_elements_count";
   static final String OUTPUT_ELEMENTS_COUNTER_NAME = "output_elements_count";
 
@@ -122,6 +162,31 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
     return new Throttle<>(configuration.toBuilder().setCollectMetrics(true).build());
   }
 
+  /**
+   * Configures {@link Throttle} with additional parameters for use in streaming contexts. Calls
+   * {@link #withStreamingConfiguration(long, Duration)} with {@code null} {@link Duration}
+   * argument. See {@link #withStreamingConfiguration(long, Duration)} for more details.
+   */
+  Throttle<RequestT> withStreamingConfiguration(long bufferingSize) {
+    return withStreamingConfiguration(bufferingSize, null);
+  }
+
+  /**
+   * Configures {@link Throttle} for use with {@link PCollection.IsBounded#UNBOUNDED} {@link
+   * PCollection}s. In a streaming context, {@link Throttle} applies the input {@code
+   * PCollection<RequestT>} to {@link GroupIntoBatches} prior to throttling. Therefore, it requires
+   * additional configuration for how to handle streaming contexts.
+   */
+  Throttle<RequestT> withStreamingConfiguration(
+      long bufferingSize, @Nullable Duration maxBufferingDuration) {
+    return new Throttle<>(
+        configuration
+            .toBuilder()
+            .setStreamBufferingSize(bufferingSize)
+            .setStreamMaxBufferingDuration(maxBufferingDuration)
+            .build());
+  }
+
   private final Configuration configuration;
 
   private Throttle(Configuration configuration) {
@@ -134,25 +199,44 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
     Coder<KV<Integer, List<RequestT>>> kvCoder = KvCoder.of(VarIntCoder.of(), listCoder);
     WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
 
+    PTransform<PCollection<KV<Integer, RequestT>>, PCollection<KV<Integer, Iterable<RequestT>>>>
+        groupingTransform = GroupByKey.create();
+    String groupingStepName = GroupByKey.class.getSimpleName();
+    if (input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)) {
+      groupingStepName = GroupIntoBatches.class.getSimpleName();
+      long bufferingSize =
+          checkStateNotNull(
+              configuration.getStreamBufferingSize(),
+              "Unbounded PCollection is missing streaming configuration; configure Throttle for use with unbounded PCollections using Throttle#withStreamingConfiguration");
+      GroupIntoBatches<Integer, RequestT> groupIntoBatches = GroupIntoBatches.ofSize(bufferingSize);
+      if (configuration.getStreamMaxBufferingDuration() != null) {
+        Duration maxBufferingDuration =
+            checkStateNotNull(configuration.getStreamMaxBufferingDuration());
+        groupIntoBatches = groupIntoBatches.withMaxBufferingDuration(maxBufferingDuration);
+      }
+      groupingTransform = groupIntoBatches;
+    }
+
     return input
-        // Break up the PCollection into fixed channels assigned to an int key [0,
+        // Step 1. Break up the PCollection into fixed channels assigned to an int key [0,
         // Rate::numElements).
         .apply(AssignChannelFn.class.getSimpleName(), assignChannels())
-        // Apply GroupByKey to convert PCollection of KV<Integer, RequestT> to KV<Integer,
-        // Iterable<RequestT>>.
-        .apply(GroupByKey.class.getSimpleName(), GroupByKey.create())
-        // Convert KV<Integer, Iterable<RequestT>> to KV<Integer, List<RequestT>> for cleaner
-        // processing by ThrottleFn; IterableCoder uses a List for IterableLikeCoder's
-        // structuralValue.
+        .apply(groupingStepName, groupingTransform)
+        // Step 2. Convert KV<Integer, Iterable<RequestT>> to KV<Integer, List<RequestT>>.
+        // Working with a List<RequestT> is cleaner than an Iterable in Splittable DoFns.
+        // IterableCoder uses a List for IterableLikeCoder's structuralValue.
         .apply("ConvertToList", toList())
         .setCoder(kvCoder)
+        // Step 3. Apply GlobalWindows to prior to throttling
         .apply(
-            GlobalWindows.class.getSimpleName(),
+            GlobalWindows.class.getSimpleName() + "Post",
             Window.<KV<Integer, List<RequestT>>>into(new GlobalWindows())
                 .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
                 .withAllowedLateness(Duration.ZERO)
                 .discardingFiredPanes())
+        // Step 4. Apply the splittable DoFn that performs the actual work of throttling.
         .apply(ThrottleFn.class.getSimpleName(), throttle())
+        // Step 5. Finally, reapply the original input windowing strategy.
         .setWindowingStrategyInternal(windowingStrategy);
   }
 
@@ -160,6 +244,7 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
     return ParDo.of(new ThrottleFn());
   }
 
+  @DoFn.BoundedPerElement
   private class ThrottleFn extends DoFn<KV<Integer, List<RequestT>>, RequestT> {
     private @MonotonicNonNull Counter inputElementsCounter = null;
     private @MonotonicNonNull Counter outputElementsCounter = null;
@@ -227,6 +312,14 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
       };
     }
 
+    /**
+     * Emits the next {@code element.getValue().get(position)} from the {@link
+     * OffsetRange#getFrom()} if {@link RestrictionTracker#tryClaim} is true and sets the watermark.
+     * If remaining items exist, it returns {@link
+     * DoFn.ProcessContinuation#withResumeDelay(Duration)} with {@link
+     * Configuration#getMaximumRate()}'s {@link Rate#getInterval()}, otherwise {@link
+     * ProcessContinuation#stop()}.
+     */
     @ProcessElement
     public ProcessContinuation process(
         @Element KV<Integer, List<RequestT>> element,
@@ -247,7 +340,7 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
         return ProcessContinuation.stop();
       }
 
-      Instant timestamp = estimator.getState();
+      Instant timestamp = Instant.now();
       estimator.setWatermark(timestamp);
       receiver.outputWithTimestamp(element.getValue().get((int) position), timestamp);
       incIfPresent(outputElementsCounter);
@@ -342,6 +435,18 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
     /** Configures whether to collect {@link Metric}s. Defaults to false. */
     abstract Boolean getCollectMetrics();
 
+    /**
+     * The number of elements to buffer prior to throttling; required for {@link
+     * PCollection.IsBounded#UNBOUNDED} {@link PCollection} inputs.
+     */
+    abstract @Nullable Long getStreamBufferingSize();
+
+    /**
+     * The duration to buffer prior to throttling; optional for {@link
+     * PCollection.IsBounded#UNBOUNDED} {@link PCollection} inputs.
+     */
+    abstract @Nullable Duration getStreamMaxBufferingDuration();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -354,6 +459,12 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
       abstract Builder setCollectMetrics(Boolean value);
 
       abstract Optional<Boolean> getCollectMetrics();
+
+      /** {@link #getStreamBufferingSize()}. */
+      abstract Builder setStreamBufferingSize(Long value);
+
+      /** {@link #getStreamMaxBufferingDuration()}. */
+      abstract Builder setStreamMaxBufferingDuration(@Nullable Duration value);
 
       abstract Configuration autoBuild();
 
