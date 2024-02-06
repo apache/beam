@@ -25,6 +25,8 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.notNullValue;
 
+import com.google.protobuf.ByteString;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -52,6 +54,7 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.testinfra.mockapis.echo.v1.Echo;
 import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -210,6 +213,7 @@ public class ThrottleTest {
     pipeline.run();
   }
 
+  /** Tests that a stream PCollection is throttled. */
   @Test
   public void givenStreamSource_thenThrottles() {
     Rate rate = Rate.of(1, Duration.standardSeconds(1L));
@@ -241,6 +245,7 @@ public class ThrottleTest {
     pipeline.run();
   }
 
+  /** Tests given a feasibly larger dataset for unittests does not result in lost data. */
   @Test
   public void givenLargerStreamSource_noDataLost() {
     Rate rate = Rate.of(2_000, Duration.standardSeconds(1L));
@@ -258,6 +263,33 @@ public class ThrottleTest {
 
     PCollection<Integer> throttled =
         stream.apply(transformOf(rate).withStreamingConfiguration(items.size()));
+    PAssert.that(throttled).containsInAnyOrder(items);
+
+    pipeline.run();
+  }
+
+  /** Validates that the transform doesn't complain about coders for custom user types. */
+  @Test
+  public void givenCustomUserType_canProcessWithoutComplainingAboutCoders() {
+    Rate rate = Rate.of(3, Duration.standardSeconds(1L));
+    List<Echo.EchoRequest> items =
+        Arrays.asList(
+            Echo.EchoRequest.newBuilder()
+                .setId("1")
+                .setPayload(ByteString.copyFromUtf8("1"))
+                .build(),
+            Echo.EchoRequest.newBuilder()
+                .setId("2")
+                .setPayload(ByteString.copyFromUtf8("2"))
+                .build(),
+            Echo.EchoRequest.newBuilder()
+                .setId("3")
+                .setPayload(ByteString.copyFromUtf8("3"))
+                .build());
+
+    PCollection<Echo.EchoRequest> throttled =
+        pipeline.apply(Create.of(items)).apply(Throttle.of(rate));
+
     PAssert.that(throttled).containsInAnyOrder(items);
 
     pipeline.run();
