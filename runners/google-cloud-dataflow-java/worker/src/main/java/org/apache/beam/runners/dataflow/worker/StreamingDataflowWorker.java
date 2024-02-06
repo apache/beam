@@ -1397,20 +1397,12 @@ public class StreamingDataflowWorker {
   // Adds the commit to the commitStream if it fits, returning true iff it is consumed.
   private boolean addCommitToStream(Commit commit, CommitWorkStream commitStream) {
     Preconditions.checkNotNull(commit);
-    final ComputationState state = commit.computationState();
-    final Windmill.WorkItemCommitRequest request = commit.request();
     // Drop commits for failed work. Such commits will be dropped by Windmill anyway.
     if (commit.work().isFailed()) {
-      readerCache.invalidateReader(
-          WindmillComputationKey.create(
-              state.getComputationId(), request.getKey(), request.getShardingKey()));
-      stateCache
-          .forComputation(state.getComputationId())
-          .invalidate(request.getKey(), request.getShardingKey());
-      state.completeWorkAndScheduleNextWorkForKey(
-          ShardedKey.create(request.getKey(), request.getShardingKey()), request.getWorkToken());
       return true;
     }
+    final ComputationState state = commit.computationState();
+    final Windmill.WorkItemCommitRequest request = commit.request();
     final int size = commit.getSize();
     commit.work().setState(Work.State.COMMITTING);
     activeCommitBytes.addAndGet(size);
