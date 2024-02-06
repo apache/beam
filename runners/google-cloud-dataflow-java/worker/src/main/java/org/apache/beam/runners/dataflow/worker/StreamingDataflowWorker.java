@@ -486,8 +486,7 @@ public class StreamingDataflowWorker {
         "%s cannot be main() class with beam_fn_api enabled",
         StreamingDataflowWorker.class.getSimpleName());
 
-    StreamingDataflowWorker worker =
-        StreamingDataflowWorker.fromDataflowWorkerHarnessOptions(options);
+    StreamingDataflowWorker worker = StreamingDataflowWorker.fromOptions(options);
 
     // Use the MetricsLogger container which is used by BigQueryIO to periodically log process-wide
     // metrics.
@@ -506,8 +505,8 @@ public class StreamingDataflowWorker {
     worker.start();
   }
 
-  public static StreamingDataflowWorker fromDataflowWorkerHarnessOptions(
-      StreamingDataflowWorkerOptions options) throws IOException {
+  public static StreamingDataflowWorker fromOptions(StreamingDataflowWorkerOptions options)
+      throws IOException {
 
     return new StreamingDataflowWorker(
         Collections.emptyList(),
