@@ -33,7 +33,6 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.transforms.xlang.io import GenerateSequence
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external_transform_provider import STANDARD_URN_PATTERN
 from apache_beam.transforms.external_transform_provider import ExternalTransform
@@ -42,6 +41,7 @@ from apache_beam.transforms.external_transform_provider import camel_case_to_sna
 from apache_beam.transforms.external_transform_provider import infer_name_from_identifier
 from apache_beam.transforms.external_transform_provider import snake_case_to_lower_camel_case
 from apache_beam.transforms.external_transform_provider import snake_case_to_upper_camel_case
+from apache_beam.transforms.xlang.io import GenerateSequence
 
 try:
   from gen_xlang_wrappers import PYTHON_SUFFIX
