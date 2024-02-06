@@ -45,8 +45,6 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
   private transient @Nullable MessageConsumer consumer;
   private transient @Nullable Session session;
 
-  @VisibleForTesting final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-
   private JmsCheckpointMark(
       Instant oldestMessageTimestamp,
       @Nullable Message lastMessage,
@@ -58,45 +56,41 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
     this.session = session;
   }
 
-  /**
-   * Acknowledge all outstanding message. Since we believe that messages will be delivered in
-   * timestamp order, and acknowledged messages will not be retried, the newest message in this
-   * batch is a good bound for future messages.
-   */
+  /** Acknowledge all outstanding message. */
   @Override
   public void finalizeCheckpoint() {
-    // finalizeCheckpoint might be called multiple times
-    lock.writeLock().lock();
     try {
-      try {
-        // Jms spec will implicitly acknowledge _all_ messaged already received by the same
-        // session if one message in this session is being acknowledged.
-        if (lastMessage != null) {
-          lastMessage.acknowledge();
-        }
-      } catch (Exception e) {
-        LOG.error("Exception while finalizing message: ", e);
+      // Jms spec will implicitly acknowledge _all_ messaged already received by the same
+      // session if one message in this session is being acknowledged.
+      if (lastMessage != null) {
+        lastMessage.acknowledge();
       }
-    } finally {
+    } catch (JMSException e) {
+      // The effect of this is message not get acknowledged and thus will be redilivered. It is
+      // not fatal so we just raise error log. Similar below.
+      LOG.error("Exception while finalizing message: ", e);
+    }
+
+    // session is closed after message acknowledged otherwise other consumer may receive duplicate
+    // messages.
+    if (consumer != null) {
       try {
-        if (consumer != null) {
-          consumer.close();
-          consumer = null;
-        }
+        consumer.close();
+        consumer = null;
       } catch (JMSException e) {
         LOG.info("Error closing JMS consumer. It may have already been closed.");
       }
+    }
+
+    // session needs to be closed after message acknowledged because the latter needs session remain
+    // active.
+    if (session != null) {
       try {
-        if (session != null) {
-          // non-null session means the session is now owned by the checkpoint. It is now closed
-          // after messages acknowledged.
-          session.close();
-          session = null;
-        }
+        session.close();
+        session = null;
       } catch (JMSException e) {
         LOG.info("Error closing JMS session. It may have already been closed.");
       }
-      lock.writeLock().unlock();
     }
   }
 
