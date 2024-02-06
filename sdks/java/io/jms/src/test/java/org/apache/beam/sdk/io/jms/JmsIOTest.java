@@ -78,6 +78,8 @@ import org.apache.activemq.util.Callback;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.io.jms.JmsIO.UnboundedJmsReader;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
@@ -420,26 +422,7 @@ public class JmsIOTest {
     // that the consumer will poll for message, which is exactly what we want for the test.
     // We are also sending message acknowledgements synchronously to ensure that they are
     // processed before any subsequent assertions.
-    Connection connection =
-        connectionFactoryWithSyncAcksAndWithoutPrefetch.createConnection(USERNAME, PASSWORD);
-    connection.start();
-    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-    MessageProducer producer = session.createProducer(session.createQueue(QUEUE));
-    for (int i = 0; i < 10; i++) {
-      producer.send(session.createTextMessage("test " + i));
-    }
-    producer.close();
-    session.close();
-    connection.close();
-
-    JmsIO.Read spec =
-        JmsIO.read()
-            .withConnectionFactory(connectionFactoryWithSyncAcksAndWithoutPrefetch)
-            .withUsername(USERNAME)
-            .withPassword(PASSWORD)
-            .withQueue(QUEUE);
-    JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
-    JmsIO.UnboundedJmsReader reader = source.createReader(PipelineOptionsFactory.create(), null);
+    UnboundedJmsReader reader = setupReaderForTest();
 
     // start the reader and move to the first record
     assertTrue(reader.start());
@@ -470,6 +453,66 @@ public class JmsIOTest {
     reader.getCheckpointMark().finalizeCheckpoint();
 
     assertEquals(0, count(QUEUE));
+  }
+
+  @Test
+  public void testCheckpointMarkAndFinalizeSeparately() throws Exception {
+    UnboundedJmsReader reader = setupReaderForTest();
+
+    // start the reader and move to the first record
+    assertTrue(reader.start());
+
+    // consume 2 message (NB: start already consumed the first message)
+    assertTrue(reader.advance());
+    assertTrue(reader.advance());
+
+    // get checkpoint mark after consumed 4 messages
+    CheckpointMark mark = reader.getCheckpointMark();
+
+    // consume two more messages after checkpoint made
+    reader.advance();
+    reader.advance();
+
+    // the messages are still pending in the queue (no ACK yet)
+    assertEquals(10, count(QUEUE));
+
+    // we finalize the checkpoint
+    mark.finalizeCheckpoint();
+
+    // the checkpoint finalize ack the messages, and so they are not pending in the queue anymore
+    assertEquals(7, count(QUEUE));
+  }
+
+  private JmsIO.UnboundedJmsReader setupReaderForTest() throws JMSException {
+    // we are using no prefetch here
+    // prefetch is an ActiveMQ feature: to make efficient use of network resources the broker
+    // utilizes a 'push' model to dispatch messages to consumers. However, in the case of our
+    // test, it means that we can have some latency between the receiveNoWait() method used by
+    // the consumer and the prefetch buffer populated by the broker. Using a prefetch to 0 means
+    // that the consumer will poll for message, which is exactly what we want for the test.
+    // We are also sending message acknowledgements synchronously to ensure that they are
+    // processed before any subsequent assertions.
+    Connection connection =
+        connectionFactoryWithSyncAcksAndWithoutPrefetch.createConnection(USERNAME, PASSWORD);
+    connection.start();
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageProducer producer = session.createProducer(session.createQueue(QUEUE));
+    for (int i = 0; i < 10; i++) {
+      producer.send(session.createTextMessage("test " + i));
+    }
+    producer.close();
+    session.close();
+    connection.close();
+
+    JmsIO.Read spec =
+        JmsIO.read()
+            .withConnectionFactory(connectionFactoryWithSyncAcksAndWithoutPrefetch)
+            .withUsername(USERNAME)
+            .withPassword(PASSWORD)
+            .withQueue(QUEUE);
+    JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
+    JmsIO.UnboundedJmsReader reader = source.createReader(PipelineOptionsFactory.create(), null);
+    return reader;
   }
 
   private Function<?, ?> getJmsMessageAck(Class connectorClass) {
