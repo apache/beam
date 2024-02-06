@@ -334,6 +334,8 @@ class BeamModulePlugin implements Plugin<Project> {
     TaskProvider cleanupJobServer
     // any additional environment variables specific to the suite of tests
     Map<String,String> additionalEnvs
+    // Additional Python dependencies to install before running tests
+    List<String> additionalDeps
   }
 
   // A class defining the configuration for CrossLanguageUsingJavaExpansion.
@@ -361,6 +363,8 @@ class BeamModulePlugin implements Plugin<Project> {
     String collectMarker
     // any additional environment variables to be exported
     Map<String,String> additionalEnvs
+    // Additional Python dependencies to install before running tests
+    List<String> additionalDeps
   }
 
   // A class defining the configuration for CrossLanguageValidatesRunner.
@@ -2665,8 +2669,14 @@ class BeamModulePlugin implements Plugin<Project> {
             for (envs in config.additionalEnvs){
               environment envs.getKey(), envs.getValue()
             }
+            String additionalDependencyCmd = ""
+            if (config.additionalDeps != null && !config.additionalDeps.isEmpty()){
+              additionalDependencyCmd = "&& pip install ${config.additionalDeps.join(' ')}"
+            }
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
+            args '-c', ". ${project.ext.envdir}/bin/activate " +
+                    additionalDependencyCmd +
+                    "&& cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           }
         }
       }

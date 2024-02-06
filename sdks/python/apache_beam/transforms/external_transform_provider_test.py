@@ -154,7 +154,7 @@ class ExternalTransformProviderTest(unittest.TestCase):
       assert_that(numbers, equal_to([i for i in range(10)]))
 
 
-@pytest.mark.uses_multiple_java_expansion_services
+@pytest.mark.xlang_wrapper_generation
 @unittest.skipIf(
     PYTHON_SUFFIX is None,
     "Need access to gen_xlang_wrappers.py to run these tests")
