@@ -1793,7 +1793,7 @@ multiple windows&amp;rdquo;.&lt;/p>
 &lt;p>For values in the global window, you may want to use an even further compressed
 representation that doesn&amp;rsquo;t bother including the window at all.&lt;/p>
 &lt;p>We provide coders with these optimizations such as
-(&lt;code>PARAM_WINDOWED_VALUE&lt;/code>)[https://github.com/apache/beam/blob/release-2.49.0/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto#L968]
+&lt;a href="https://github.com/apache/beam/blob/release-2.49.0/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto#L968">&lt;code>PARAM_WINDOWED_VALUE&lt;/code>&lt;/a>
 that can be used to reduce the size of serialized data.&lt;/p>
 &lt;p>In the future, this primitive may be retired as it can be implemented as a
 ParDo if the capabilities of ParDo are enhanced to allow output to new windows.&lt;/p>
@@ -1819,16 +1819,16 @@ combiner lifting, where a new operation is placed before the &lt;code>GroupByKey
 that does partial (within-bundle) combining, which often requires a slight
 modification of what comes after the &lt;code>GroupByKey&lt;/code> as well.
 An example of this transformation can be found in the
-(Python)[https://github.com/apache/beam/blob/release-2.49.0/sdks/python/apache_beam/runners/portability/fn_api_runner/translations.py#L1193]
-or (go)[https://github.com/apache/beam/blob/release-2.49.0/sdks/go/pkg/beam/runners/prism/internal/handlecombine.go#L67]
+&lt;a href="https://github.com/apache/beam/blob/release-2.49.0/sdks/python/apache_beam/runners/portability/fn_api_runner/translations.py#L1193">Python&lt;/a>
+or &lt;a href="https://github.com/apache/beam/blob/release-2.49.0/sdks/go/pkg/beam/runners/prism/internal/handlecombine.go#L67">go&lt;/a>
 implementations of this optimization.
 The resulting pre- and post-&lt;code>GroupByKey&lt;/code> operations are generally fused in with
 the &lt;code>ParDo&lt;/code>s and executed as above.&lt;/p>
 &lt;h2 id="working-with-pipelines">Working with pipelines&lt;/h2>
 &lt;p>When you receive a pipeline from a user, you will need to translate it.
 An explanation of how Beam pipelines are represented can be found
-(here)[https://docs.google.com/presentation/d/1atu-QC_mnK2SaeLhc0D78wZYgVOX1fN0H544QmBi3VA]
-which compliment the (official proto declarations)[https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto].&lt;/p>
+&lt;a href="https://docs.google.com/presentation/d/1atu-QC_mnK2SaeLhc0D78wZYgVOX1fN0H544QmBi3VA">here&lt;/a>
+which compliment the &lt;a href="https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto">official proto declarations&lt;/a>.&lt;/p>
 &lt;h2 id="testing-your-runner">Testing your runner&lt;/h2>
 &lt;p>The Beam Java SDK and Python SDK have suites of runner validation tests. The
 configuration may evolve faster than this document, so check the configuration
@@ -2181,7 +2181,7 @@ which is used directly to front several Python-implemented runners.&lt;/p>
 and PipelineResult, but altered to be the minimal backend channel, versus a
 rich and convenient API.&lt;/p>
 &lt;p>A key piece of this is the
-(Artifacts API)[https://github.com/apache/beam/blob/master/model/job-management/src/main/proto/org/apache/beam/model/job_management/v1/beam_artifact_api.proto],
+&lt;a href="https://github.com/apache/beam/blob/master/model/job-management/src/main/proto/org/apache/beam/model/job_management/v1/beam_artifact_api.proto">Artifacts API&lt;/a>,
 which allows a Runner to fetch and deploy binary artifacts (such as jars,
 pypi packages, etc.) that are listed as dependencies in the various environments,
 and may have various representations. This is invoked after a pipeline

@@ -1,4 +1,139 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Thu, 04 Jan 2024 09:00:00 -0400</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.53.0</title><link>/blog/beam-2.53.0/</link><pubDate>Thu, 04 Jan 2024 09:00:00 -0400</pubDate><guid>/blog/beam-2.53.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 05 Feb 2024 09:00:00 -0400</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Behind the Scenes: Crafting an Autoscaler for Apache Beam in a High-Volume Streaming Environment</title><link>/blog/apache-beam-flink-and-kubernetes-part3/</link><pubDate>Mon, 05 Feb 2024 09:00:00 -0400</pubDate><guid>/blog/apache-beam-flink-and-kubernetes-part3/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h3 id="introduction-to-the-design-of-our-autoscaler-for-apache-beam-jobs">Introduction to the Design of Our Autoscaler for Apache Beam Jobs&lt;/h3>
+&lt;p>Welcome to the third and final part of our blog series on building a scalable, self-managed streaming infrastructure with Beam and Flink. &lt;a href="https://beam.apache.org/blog/apache-beam-flink-and-kubernetes/">In our previous post&lt;/a>, we delved into the scale of our streaming platforms, highlighting our capacity to manage over 40,000 streaming jobs and process upwards of 10 million events per second. This impressive scale sets the stage for the challenge we address today: the intricate task of resource allocation in a dynamic streaming environment.&lt;/p>
+&lt;p>In this blog post &lt;a href="https://www.linkedin.com/in/talatuyarer/">Talat Uyarer (Architect / Senior Principal Engineer)&lt;/a> and &lt;a href="https://www.linkedin.com/in/rishabhkedia/">Rishabh Kedia (Principal Engineer)&lt;/a> describe more details about our Autoscaler. Imagine a scenario where your streaming system is inundated with fluctuating workloads. Our case presents a unique challenge, as our customers, equipped with firewalls distributed globally, generate logs at various times of the day. This results in workloads that not only vary by time but also escalate over time due to changes in settings or the addition of new cybersecurity solutions from PANW. Furthermore, updates to our codebase necessitate rolling out changes across all streaming jobs, leading to a temporary surge in demand as the system processes unprocessed data.&lt;/p>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/apache-beam-flink-and-kubernetes-part3/resource-allocation.png"
+alt="Resource Allocation">&lt;/p>
+&lt;p>Traditionally, managing this ebb and flow of demand involves a manual, often inefficient approach. One might over-provision resources to handle peak loads, inevitably leading to resource wastage during off-peak hours. Conversely, a more cost-conscious strategy might involve accepting delays during peak times, with the expectation of catching up later. However, both methods demand constant monitoring and manual adjustment - a far from ideal situation.&lt;/p>
+&lt;p>In this modern era, where automated scaling of web front-ends is a given, we aspire to bring the same level of efficiency and automation to streaming infrastructure. Our goal is to develop a system that can dynamically track and adjust to the workload demands of our streaming operations. In this blog post, we will introduce you to our innovative solution - an autoscaler designed specifically for Apache Beam jobs.&lt;/p>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/apache-beam-flink-and-kubernetes-part3/auto-tuned-worker.png"
+alt="Auto Tuned Resource Allocation">&lt;/p>
+&lt;p>For clarity, when we refer to &amp;ldquo;resources&amp;rdquo; in this context, we mean the number of Flink Task Managers, or Kubernetes Pods, that process your streaming pipeline. These Task Managers aren&amp;rsquo;t just about CPU; they also involve RAM, Network, Disk IO, and other computational resources.&lt;/p>
+&lt;p>However, our solution is predicated on certain assumptions. Primarily, it&amp;rsquo;s geared towards operations processing substantial data volumes. If your workload only requires a couple of Task Managers, this system might not be the best fit. In Our case we have 10K+ workload and each each of them has different workload. Manual tuning was not an option for us. We also assume that the data is evenly distributed, allowing for increased throughput with the addition of more Task Managers. This assumption is crucial for effective horizontal scaling. While there are real-world complexities that might challenge these assumptions, for the scope of this discussion, we will focus on scenarios where these conditions hold true.&lt;/p>
+&lt;p>Join us as we delve into the design and functionality of our autoscaler, a solution tailored to bring efficiency, adaptability, and a touch of intelligence to the world of streaming infrastructure.&lt;/p>
+&lt;h2 id="identifying-the-right-signals-for-autoscaling">Identifying the Right Signals for Autoscaling&lt;/h2>
+&lt;p>When we&amp;rsquo;re overseeing a system like Apache Beam jobs on Flink, it&amp;rsquo;s crucial to identify key signals that help us understand the relationship between our workload and resources. These signals are our guiding lights, showing us when we&amp;rsquo;re lagging behind or wasting resources. By accurately identifying these signals, we can formulate effective scaling policies and implement changes in real-time. Imagine needing to expand from 100 to 200 TaskManagers — how do we smoothly make that transition? That&amp;rsquo;s where these signals come into play.&lt;/p>
+&lt;p>Remember, we&amp;rsquo;re aiming for a universal solution applicable to any workload and pipeline. While specific problems might benefit from unique signals, our focus here is on creating a one-size-fits-all approach.&lt;/p>
+&lt;p>In Flink, tasks form the basic execution unit and consist of one or more operators, such as map, filter, or reduce. Flink optimizes performance by chaining these operators into single tasks when possible, minimizing overheads like thread context switching and network I/O. Your pipeline, when optimized, turns into a directed acyclic graph of stages, each processing elements based on your code. Don&amp;rsquo;t confuse stages with physical machines — they&amp;rsquo;re separate concepts. In our job we measure backlog information by using Apache Beam&amp;rsquo;s &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/metrics/SourceMetrics.java#L32">&lt;code>backlog_bytes&lt;/code> and &lt;code>backlog_elements&lt;/code>&lt;/a> metrics.&lt;/p>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/apache-beam-flink-and-kubernetes-part3/flink-operator-chaining.png"
+alt="Apache Beam Pipeline Optimization by Apache Flink">&lt;/p>
+&lt;h5 id="upscaling-signals">&lt;strong>Upscaling Signals&lt;/strong>&lt;/h5>
+&lt;h5 id="backlog-growth">&lt;em>Backlog Growth&lt;/em>&lt;/h5>
+&lt;p>Let’s take a practical example. Consider a pipeline reading from Kafka, where different operators handle data parsing, formatting, and accumulation. The key metric here is throughput — how much data each operstor processes over time. But throughput alone isn&amp;rsquo;t enough. We need to examine the queue size or backlog at each operator. A growing backlog indicates we&amp;rsquo;re falling behind. We measure this as backlog growth — the first derivative of backlog size over time, highlighting our processing deficit.&lt;/p>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/apache-beam-flink-and-kubernetes-part3/backlog_growth.png"
+alt="Backlog Growth Calculation">&lt;/p>
+&lt;h5 id="backlog-time">&lt;em>Backlog Time&lt;/em>&lt;/h5>
+&lt;p>This leads us to backlog time, a derived metric that compares backlog size with throughput. It’s a measure of how long it would take to clear the current backlog, assuming no new data arrives. This helps us identify if a backlog of a certain size is acceptable or problematic, based on our specific processing needs and thresholds.&lt;/p>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/apache-beam-flink-and-kubernetes-part3/backlog_time.png"
+alt="Backlog Time Calculation">&lt;/p>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/apache-beam-flink-and-kubernetes-part3/operator-backlog.png"
+alt="Close looks at Operator Backlog">&lt;/p>
+&lt;h4 id="downscaling-when-less-is-more">&lt;strong>Downscaling: When Less is More&lt;/strong>&lt;/h4>
+&lt;h5 id="cpu-utilization">&lt;em>CPU Utilization&lt;/em>&lt;/h5>
+&lt;p>A key signal for downscaling is CPU utilization. Low CPU utilization suggests we&amp;rsquo;re using more resources than necessary. By monitoring this, we can scale down efficiently without compromising performance.&lt;/p>
+&lt;h4 id="signals-summary">&lt;strong>Signals Summary&lt;/strong>&lt;/h4>
+&lt;p>In summary, the signals we&amp;rsquo;ve identified for effective autoscaling are:&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>Throughput:&lt;/strong> The baseline of our performance.&lt;/li>
+&lt;li>&lt;strong>Backlog Growth:&lt;/strong> Indicates if we’re keeping pace with incoming data.&lt;/li>
+&lt;li>&lt;strong>Backlog Time:&lt;/strong> Helps understand the severity of backlog.&lt;/li>
+&lt;li>&lt;strong>CPU Utilization:&lt;/strong> Guides us in resource optimization.&lt;/li>
+&lt;/ol>
+&lt;p>These signals might seem straightforward, but their simplicity is key to a scalable, workload-agnostic autoscaling solution.&lt;/p>
+&lt;h2 id="simplifying-autoscaling-policies-for-apache-beam-jobs-on-flink">Simplifying Autoscaling Policies for Apache Beam Jobs on Flink&lt;/h2>
+&lt;p>In the world of Apache Beam jobs running on Flink, deciding when to scale up or down is a bit like being a chef in a busy kitchen. You need to keep an eye on several ingredients — your workload, virtual machines (VMs), and how they interact. It&amp;rsquo;s about maintaining a perfect balance. Our main goals? Avoid falling behind in processing (no backlog growth), ensure that any existing backlog is manageable (short backlog time), and use our resources (like CPU) efficiently.&lt;/p>
+&lt;h4 id="up-scaling-keeping-up-and-catching-up">&lt;strong>Up-scaling: Keeping Up and Catching Up&lt;/strong>&lt;/h4>
+&lt;p>Imagine your system is like a team of chefs working together. Here&amp;rsquo;s how we decide when to bring more chefs into the kitchen (a.k.a. upscaling):&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>&lt;strong>Keeping Up:&lt;/strong> First, we look at our current team size (number of VMs) and how much they&amp;rsquo;re processing (throughput). We then adjust our team size based on the amount of incoming orders (input rate). It&amp;rsquo;s about ensuring that our team is big enough to handle the current demand.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Catching Up:&lt;/strong> Sometimes, we might have a backlog of orders. In that case, we decide how many extra chefs we need to clear this backlog within a desired time (like 60 seconds). This part of the policy helps us get back on track swiftly.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;h4 id="scaling-example-a-practical-look">&lt;strong>Scaling Example: A Practical Look&lt;/strong>&lt;/h4>
+&lt;p>Let&amp;rsquo;s paint a picture with an example. Initially, we have a steady flow of orders (input rate) matching our processing capacity (throughput), so there&amp;rsquo;s no backlog. But suddenly, orders increase, and our team starts falling behind, creating a backlog. We respond by increasing our team size to match the new rate of orders. Though the backlog doesn&amp;rsquo;t grow further, it still exists. Finally, we add a few more chefs to the team, which allows us to clear the backlog quickly and return to a new, balanced state.&lt;/p>
+&lt;h4 id="downscaling-when-to-reduce-resources">&lt;strong>Downscaling: When to Reduce Resources&lt;/strong>&lt;/h4>
+&lt;p>Downscaling is like knowing when some chefs can take a break after a rush hour. We consider this when:&lt;/p>
+&lt;ul>
+&lt;li>Our backlog is low — we&amp;rsquo;ve caught up with the orders.&lt;/li>
+&lt;li>The backlog isn&amp;rsquo;t growing — we&amp;rsquo;re keeping up with incoming orders.&lt;/li>
+&lt;li>Our kitchen (CPU) isn&amp;rsquo;t working too hard — we&amp;rsquo;re using our resources efficiently.&lt;/li>
+&lt;/ul>
+&lt;p>Downscaling is all about reducing resources without affecting the quality of service. It&amp;rsquo;s about ensuring that we&amp;rsquo;re not overstaffed when the rush hour is over.&lt;/p>
+&lt;h4 id="summary-a-recipe-for-effective-scaling">&lt;strong>Summary: A Recipe for Effective Scaling&lt;/strong>&lt;/h4>
+&lt;p>In summary, our scaling policy is for scale up, we first ensure that the time to drain the backlog is beyond the threshold (120s) or the cpu is above the threshold (90%)&lt;/p>
+&lt;p>Increasing Backlog aka Backlog Growth &amp;gt; 0 :&lt;/p>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/apache-beam-flink-and-kubernetes-part3/worker_require.png"
+alt="Required Worker Calculation">&lt;/p>
+&lt;p>Consistent Backlog aka Backlog Growth = 0:&lt;/p>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/apache-beam-flink-and-kubernetes-part3/worker_extra.png"
+alt="Extra Worker Calculation">&lt;/p>
+&lt;p>To Sum up:&lt;/p>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/apache-beam-flink-and-kubernetes-part3/worker_scaleup.png"
+alt="Scale up Worker Calculation">&lt;/p>
+&lt;p>To scale down, we need to ensure the machine utilization is low (&amp;lt; 70%) and there is no backlog growth and current time to drain backlog is less than the limit (10s)&lt;/p>
+&lt;p>So the only driving factor to calculate the required resources after a scale down is CPU&lt;/p>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/apache-beam-flink-and-kubernetes-part3/cpurate_desired.png"
+alt="Desired Cpu Rate Calculation">&lt;/p>
+&lt;h2 id="executing-autoscaling-decision">Executing Autoscaling Decision&lt;/h2>
+&lt;p>In our setup we use Reactive Mode which uses Adaptive Scheduler and Declarative Resources manager. We wanted to align resources with slots. As advised in most of the Flink documentation we set one per vCPU slot. Most of our jobs use 1 vCPU 4GB Memory combination for TaskManager.&lt;/p>
+&lt;p>Reactive Mode, a unique feature of the Adaptive Scheduler, operates under the principle of one job per cluster, a rule enforced in Application Mode. In this mode, a job is configured to utilize all available resources within the cluster. Adding a TaskManager will increase the job&amp;rsquo;s scale, while removing resources will decrease it. In this setup, Flink autonomously manages the job&amp;rsquo;s parallelism, always maximizing it.&lt;/p>
+&lt;p>During a rescaling event, Reactive Mode restarts the job using the most recent checkpoint. This eliminates the need for creating a savepoint, typically required for manual job rescaling. The volume of data reprocessed after rescaling is influenced by the checkpointing interval(10 seconds for us), and the time it takes to restore depends on the size of the state.&lt;/p>
+&lt;p>The scheduler determines the parallelism of each operator within a job. This setting is not user-configurable and any attempts to set it, whether for individual operators or the entire job, will be overlooked.&lt;/p>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/apache-beam-flink-and-kubernetes-part3/adaptive_scheduler_rescale.png"
+alt="How Reactive Mode Works">&lt;/p>
+&lt;p>Parallelism can only be influenced by setting a maximum for pipelines, which the scheduler will honor. Our maxParallelism is limited by the total count of partitions that the pipeline will process, as well as by the job itself. We cap the maximum number of TaskManagers with maxWorker count and control the job&amp;rsquo;s key count in shuffle by setting maxParallelism. Additionally, we set maxParallelism per pipeline to manage pipeline parallelism. The job cannot exceed the job&amp;rsquo;s maxParallelism in terms of workers.&lt;/p>
+&lt;p>After autoscaler analysis, we will tag if the job needs to be scaled up, no action or scaled down. To interact with the job, we use a library we have built over Flink Kubernetes Operator. This library allows us to interact with our flink jobs via a simple java method call. Library will convert our method call to a kubernetes command.&lt;/p>
+&lt;p>In the kubernetes world, the call will look like this for a scale up:&lt;/p>
+&lt;p>&lt;code>kubectl scale flinkdeployment job-name --replicas=100&lt;/code>&lt;/p>
+&lt;p>Apache Flink will handle the rest of the work needed to scale up.&lt;/p>
+&lt;h2 id="maintaining-state-for-stateful-streaming-application-with-autoscaling">Maintaining State for Stateful Streaming Application with Autoscaling&lt;/h2>
+&lt;p>Adapting Apache Flink&amp;rsquo;s state recovery mechanisms for autoscaling involves leveraging its robust features like max parallelism, checkpointing, and the Adaptive Scheduler to ensure efficient and resilient stream processing, even as the system dynamically adjusts to varying loads. Here&amp;rsquo;s how these components work together in an autoscaling context:&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>Max Parallelism&lt;/strong> sets an upper limit on how much a job can scale out, ensuring that state can be redistributed across a larger or smaller number of nodes without exceeding predefined boundaries. This is crucial for autoscaling because it allows Flink to manage state effectively, even as the number of task slots changes to accommodate varying workloads.&lt;/li>
+&lt;li>&lt;strong>Checkpointing&lt;/strong> is at the heart of Flink&amp;rsquo;s fault tolerance mechanism, periodically saving the state of each job to a durable storage (in our case it is GCS bucket). In an autoscaling scenario, checkpointing enables Flink to recover to a consistent state after scaling operations. When the system scales out (adds more resources) or scales in (removes resources), Flink can restore the state from these checkpoints, ensuring data integrity and processing continuity without losing critical information. In scale down or up situations there could be a moment to reprocess data from last checkpoint. To reduce that amount we reduce the checkpointing interval to 10 seconds.&lt;/li>
+&lt;li>&lt;strong>Reactive Mode&lt;/strong> is a special mode for Adaptive Scheduler, that assumes a single job per-cluster (enforced by the Application Mode). Reactive Mode configures a job so that it always uses all resources available in the cluster. Adding a TaskManager will scale up your job, removing resources will scale it down. Flink will manage the parallelism of the job, always setting it to the highest possible values. When a job undergoes resizing, Reactive Mode triggers a restart using the most recent successful checkpoint.&lt;/li>
+&lt;/ol>
+&lt;h2 id="conclusion">Conclusion&lt;/h2>
+&lt;p>In this blog series, we&amp;rsquo;ve taken a deep dive into the creation of an autoscaler for Apache Beam in a high-volume streaming environment, highlighting the journey from conceptualization to implementation. This endeavor not only tackled the complexities of dynamic resource allocation but also set a new standard for efficiency and adaptability in streaming infrastructure. By marrying intelligent scaling policies with the robust capabilities of Apache Beam and Flink, we&amp;rsquo;ve showcased a scalable solution that optimizes resource use and maintains performance under varying loads. This project stands as a testament to the power of teamwork, innovation, and a forward-thinking approach to streaming data processing. As we wrap up this series, we express our gratitude to all contributors and look forward to the continuous evolution of this technology, inviting the community to join us in further discussions and developments.&lt;/p>
+&lt;h1 id="references">References&lt;/h1>
+&lt;p>[1] Streaming Auto-scaling in Google Cloud Dataflow &lt;a href="https://www.infoq.com/presentations/google-cloud-dataflow/">https://www.infoq.com/presentations/google-cloud-dataflow/&lt;/a>&lt;/p>
+&lt;p>[2] Pipeline lifecycle &lt;a href="https://cloud.google.com/dataflow/docs/pipeline-lifecycle">https://cloud.google.com/dataflow/docs/pipeline-lifecycle&lt;/a>&lt;/p>
+&lt;p>[3] Flink Elastic Scaling &lt;a href="https://nightlies.apache.org/flink/flink-docs-master/docs/deployment/elastic_scaling/">https://nightlies.apache.org/flink/flink-docs-master/docs/deployment/elastic_scaling/&lt;/a>&lt;/p>
+&lt;h1 id="acknowledgements">Acknowledgements&lt;/h1>
+&lt;p>This is a large effort to build the new infrastructure and to migrate the large customer based applications from cloud provider managed streaming infrastructure to self-managed Flink based infrastructure at scale. Thanks the Palo Alto Networks CDL streaming team who helped to make this happen: Kishore Pola, Andrew Park, Hemant Kumar, Manan Mangal, Helen Jiang, Mandy Wang, Praveen Kumar Pasupuleti, JM Teo, Rishabh Kedia, Talat Uyarer, Naitik Dani, and David He.&lt;/p>
+&lt;hr>
+&lt;p>&lt;strong>Explore More:&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://beam.apache.org/blog/apache-beam-flink-and-kubernetes/">Part 1: Introduction to Building and Managing Apache Beam Flink Services on Kubernetes&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://beam.apache.org/blog/apache-beam-flink-and-kubernetes-part2/">Part 2: Build a scalable, self-managed streaming infrastructure with Flink: Tackling Autoscaling Challenges - Part 2&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;p>&lt;em>Join the conversation and share your experiences on our &lt;a href="https://beam.apache.org/community/">Community&lt;/a> or contribute to our ongoing projects on &lt;a href="https://github.com/apache/beam">GitHub&lt;/a>. Your feedback is invaluable. If you have any comments or questions about this series, please feel free to reach out to us via &lt;a href="https://beam.apache.org/community/contact-us/">User Mailist&lt;/a>&lt;/em>&lt;/p>
+&lt;p>&lt;em>Stay connected with us for more updates and insights into Apache Beam, Flink, and Kubernetes.&lt;/em>&lt;/p></description></item><item><title>Blog: Apache Beam 2.53.0</title><link>/blog/beam-2.53.0/</link><pubDate>Thu, 04 Jan 2024 09:00:00 -0400</pubDate><guid>/blog/beam-2.53.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -6006,74 +6141,4 @@ Saavan Nanavati, Sam Bourne, Sam Rohde, Sam Whittle, Sergiy Kolesnikov, Sindy Li
 Niemitz, Terry Xian, Thomas Weise, Tobiasz Kędzierski, Truc Le, Tyson Hamilton, Udi Meiri, Valentyn
 Tymofieiev, Yichi Zhang, Yifan Mai, Yueyang Qiu, annaqin418, danielxjd, dennis, dp, fuyuwei,
 lostluck, nehsyc, odeshpande, odidev, pulasthi, purbanow, rworley-monster, sclukas77, terryxian78,
-tvalentyn, yoshiki.obata&lt;/p></description></item><item><title>Blog: Apache Beam 2.24.0</title><link>/blog/beam-2.24.0/</link><pubDate>Fri, 18 Sep 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.24.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.24.0 release of Apache Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2240-2020-09-18">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.24.0, check out the
-&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12347146">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Apache Beam 2.24.0 is the last release with Python 2 and Python 3.5
-support.&lt;/li>
-&lt;/ul>
-&lt;h2 id="ios">I/Os&lt;/h2>
-&lt;ul>
-&lt;li>New overloads for BigtableIO.Read.withKeyRange() and BigtableIO.Read.withRowFilter()
-methods that take ValueProvider as a parameter (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10283">BEAM-10283&lt;/a>).&lt;/li>
-&lt;li>The WriteToBigQuery transform (Python) in Dataflow Batch no longer relies on BigQuerySink by default. It relies on
-a new, fully-featured transform based on file loads into BigQuery. To revert the behavior to the old implementation,
-you may use &lt;code>--experiments=use_legacy_bq_sink&lt;/code>.&lt;/li>
-&lt;li>Add cross-language support to Java&amp;rsquo;s JdbcIO, now available in the Python module &lt;code>apache_beam.io.jdbc&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10135">BEAM-10135&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-10136">BEAM-10136&lt;/a>).&lt;/li>
-&lt;li>Add support of AWS SDK v2 for KinesisIO.Read (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9702">BEAM-9702&lt;/a>).&lt;/li>
-&lt;li>Add streaming support to SnowflakeIO in Java SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9896">BEAM-9896&lt;/a>)&lt;/li>
-&lt;li>Support reading and writing to Google Healthcare DICOM APIs in Python SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10601">BEAM-10601&lt;/a>)&lt;/li>
-&lt;li>Add dispositions for SnowflakeIO.write (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10343">BEAM-10343&lt;/a>)&lt;/li>
-&lt;li>Add cross-language support to SnowflakeIO.Read now available in the Python module &lt;code>apache_beam.io.external.snowflake&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9897">BEAM-9897&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>Shared library for simplifying management of large shared objects added to Python SDK. Example use case is sharing a large TF model object across threads (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10417">BEAM-10417&lt;/a>).&lt;/li>
-&lt;li>Dataflow streaming timers are not strictly time ordered when set earlier mid-bundle (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8543">BEAM-8543&lt;/a>).&lt;/li>
-&lt;li>OnTimerContext should not create a new one when processing each element/timer in FnApiDoFnRunner (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9839">BEAM-9839&lt;/a>)&lt;/li>
-&lt;li>Key should be available in @OnTimer methods (Spark Runner) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9850">BEAM-9850&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>WriteToBigQuery transforms now require a GCS location to be provided through either
-custom_gcs_temp_location in the constructor of WriteToBigQuery or the fallback option
-&amp;ndash;temp_location, or pass method=&amp;ldquo;STREAMING_INSERTS&amp;rdquo; to WriteToBigQuery (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6928">BEAM-6928&lt;/a>).&lt;/li>
-&lt;li>Python SDK now understands &lt;code>typing.FrozenSet&lt;/code> type hints, which are not interchangeable with &lt;code>typing.Set&lt;/code>. You may need to update your pipelines if type checking fails. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10197">BEAM-10197&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="known-issues">Known Issues&lt;/h2>
-&lt;ul>
-&lt;li>Default compressor change breaks dataflow python streaming job update compatibility. Please use python SDK version &amp;lt;= 2.23.0 or &amp;gt; 2.25.0 if job update is critical.(&lt;a href="https://issues.apache.org/jira/browse/BEAM-11113">BEAM-11113&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.24.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>adesormi, Ahmet Altay, Alex Amato, Alexey Romanenko, Andrew Pilloud, Ashwin Ramaswami, Borzoo,
-Boyuan Zhang, Brian Hulette, Brian M, Bu Sun Kim, Chamikara Jayalath, Colm O hEigeartaigh,
-Corvin Deboeser, Damian Gadomski, Damon Douglas, Daniel Oliveira, Dariusz Aniszewski,
-davidak09, David Cavazos, David Moravek, David Yan, dhodun, Doug Roeper, Emil Hessman, Emily Ye,
-Etienne Chauchot, Etta Rapp, Eugene Kirpichov, fuyuwei, Gleb Kanterov,
-Harrison Green, Heejong Lee, Henry Suryawirawan, InigoSJ, Ismaël Mejía, Israel Herraiz,
-Jacob Ferriero, Jan Lukavský, Jayendra, jfarr, jhnmora000, Jiadai Xia, JIahao wu, Jie Fan,
-Jiyong Jung, Julius Almeida, Kamil Gałuszka, Kamil Wasilewski, Kasia Kucharczyk, Kenneth Knowles,
-Kevin Puthusseri, Kyle Weaver, Łukasz Gajowy, Luke Cwik, Mark-Zeng, Maximilian Michels,
-Michal Walenia, Niel Markwick, Ning Kang, Pablo Estrada, pawel.urbanowicz, Piotr Szuberski,
-Rafi Kamal, rarokni, Rehman Murad Ali, Reuben van Ammers, Reuven Lax, Ricardo Bordon,
-Robert Bradshaw, Robert Burke, Robin Qiu, Rui Wang, Saavan Nanavati, sabhyankar, Sam Rohde,
-Scott Lukas, Siddhartha Thota, Simone Primarosa, Sławomir Andrian,
-Steve Niemitz, Tobiasz Kędzierski, Tomo Suzuki, Tyson Hamilton, Udi Meiri,
-Valentyn Tymofieiev, viktorjonsson, Xinyu Liu, Yichi Zhang, Yixing Zhang, yoshiki.obata,
-Yueyang Qiu, zijiesong&lt;/p></description></item></channel></rss>
+tvalentyn, yoshiki.obata&lt;/p></description></item></channel></rss>

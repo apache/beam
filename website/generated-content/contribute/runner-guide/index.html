@@ -220,7 +220,7 @@ or your own compressed representation. Remember that it simply represents
 multiple elements at the same time; there is no such thing as an element &ldquo;in
 multiple windows&rdquo;.</p><p>For values in the global window, you may want to use an even further compressed
 representation that doesn&rsquo;t bother including the window at all.</p><p>We provide coders with these optimizations such as
-(<code>PARAM_WINDOWED_VALUE</code>)[https://github.com/apache/beam/blob/release-2.49.0/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto#L968]
+<a href=https://github.com/apache/beam/blob/release-2.49.0/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto#L968><code>PARAM_WINDOWED_VALUE</code></a>
 that can be used to reduce the size of serialized data.</p><p>In the future, this primitive may be retired as it can be implemented as a
 ParDo if the capabilities of ParDo are enhanced to allow output to new windows.</p><h3 id=implementing-the-flatten-primitive>Implementing the Flatten primitive</h3><p>This one is easy - take as input a finite set of <code>PCollections</code> and outputs their
 bag union, keeping windows intact.</p><p>For this operation to make sense, it is the SDK&rsquo;s responsibility to make sure
@@ -238,14 +238,14 @@ combiner lifting, where a new operation is placed before the <code>GroupByKey</c
 that does partial (within-bundle) combining, which often requires a slight
 modification of what comes after the <code>GroupByKey</code> as well.
 An example of this transformation can be found in the
-(Python)[https://github.com/apache/beam/blob/release-2.49.0/sdks/python/apache_beam/runners/portability/fn_api_runner/translations.py#L1193]
-or (go)[https://github.com/apache/beam/blob/release-2.49.0/sdks/go/pkg/beam/runners/prism/internal/handlecombine.go#L67]
+<a href=https://github.com/apache/beam/blob/release-2.49.0/sdks/python/apache_beam/runners/portability/fn_api_runner/translations.py#L1193>Python</a>
+or <a href=https://github.com/apache/beam/blob/release-2.49.0/sdks/go/pkg/beam/runners/prism/internal/handlecombine.go#L67>go</a>
 implementations of this optimization.
 The resulting pre- and post-<code>GroupByKey</code> operations are generally fused in with
 the <code>ParDo</code>s and executed as above.</p><h2 id=working-with-pipelines>Working with pipelines</h2><p>When you receive a pipeline from a user, you will need to translate it.
 An explanation of how Beam pipelines are represented can be found
-(here)[https://docs.google.com/presentation/d/1atu-QC_mnK2SaeLhc0D78wZYgVOX1fN0H544QmBi3VA]
-which compliment the (official proto declarations)[https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto].</p><h2 id=testing-your-runner>Testing your runner</h2><p>The Beam Java SDK and Python SDK have suites of runner validation tests. The
+<a href=https://docs.google.com/presentation/d/1atu-QC_mnK2SaeLhc0D78wZYgVOX1fN0H544QmBi3VA>here</a>
+which compliment the <a href=https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto>official proto declarations</a>.</p><h2 id=testing-your-runner>Testing your runner</h2><p>The Beam Java SDK and Python SDK have suites of runner validation tests. The
 configuration may evolve faster than this document, so check the configuration
 of other Beam runners. But be aware that we have tests and you can use them
 very easily! To enable these tests in a Java-based runner using Gradle, you
@@ -422,7 +422,7 @@ A typical implementation of this can be found in
 which is used directly to front several Python-implemented runners.</p><p>The RPCs themselves will necessarily follow the existing APIs of PipelineRunner
 and PipelineResult, but altered to be the minimal backend channel, versus a
 rich and convenient API.</p><p>A key piece of this is the
-(Artifacts API)[https://github.com/apache/beam/blob/master/model/job-management/src/main/proto/org/apache/beam/model/job_management/v1/beam_artifact_api.proto],
+<a href=https://github.com/apache/beam/blob/master/model/job-management/src/main/proto/org/apache/beam/model/job_management/v1/beam_artifact_api.proto>Artifacts API</a>,
 which allows a Runner to fetch and deploy binary artifacts (such as jars,
 pypi packages, etc.) that are listed as dependencies in the various environments,
 and may have various representations. This is invoked after a pipeline
