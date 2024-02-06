@@ -19,8 +19,6 @@ package org.apache.beam.sdk.io.jms;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.jms.JMSException;
@@ -43,7 +41,7 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
   private static final Logger LOG = LoggerFactory.getLogger(JmsCheckpointMark.class);
 
   private Instant oldestMessageTimestamp;
-  private transient List<Message> messages;
+  private transient @Nullable Message lastMessage;
   private transient @Nullable MessageConsumer consumer;
   private transient @Nullable Session session;
 
@@ -51,11 +49,11 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
 
   private JmsCheckpointMark(
       Instant oldestMessageTimestamp,
-      List<Message> messages,
+      @Nullable Message lastMessage,
       @Nullable MessageConsumer consumer,
       @Nullable Session session) {
     this.oldestMessageTimestamp = oldestMessageTimestamp;
-    this.messages = messages;
+    this.lastMessage = lastMessage;
     this.consumer = consumer;
     this.session = session;
   }
@@ -70,22 +68,15 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
     // finalizeCheckpoint might be called multiple times
     lock.writeLock().lock();
     try {
-      for (Message message : messages) {
-        try {
-          // Jms spec will implicitly acknowledge _all_ messaged already received by the same
-          // session if one message in this session is being acknowledged. However, different
-          // implementations may or may not use per-message acknowledgement. So we acknowledge
-          // every message handled by the checkpoint.
-          message.acknowledge();
-          Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
-          if (currentMessageTimestamp.isAfter(oldestMessageTimestamp)) {
-            oldestMessageTimestamp = currentMessageTimestamp;
-          }
-        } catch (Exception e) {
-          LOG.error("Exception while finalizing message: ", e);
+      try {
+        // Jms spec will implicitly acknowledge _all_ messaged already received by the same
+        // session if one message in this session is being acknowledged.
+        if (lastMessage != null) {
+          lastMessage.acknowledge();
         }
+      } catch (Exception e) {
+        LOG.error("Exception while finalizing message: ", e);
       }
-      messages.clear();
     } finally {
       try {
         if (consumer != null) {
@@ -113,7 +104,7 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
   private void readObject(java.io.ObjectInputStream stream)
       throws IOException, ClassNotFoundException {
     stream.defaultReadObject();
-    messages = new ArrayList<>();
+    lastMessage = null;
     session = null;
   }
 
@@ -143,7 +134,7 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
    */
   static class Preparer {
     private Instant oldestMessageTimestamp = Instant.now();
-    private transient List<Message> messages = new ArrayList<>();
+    private transient @Nullable Message lastMessage = null;
 
     @VisibleForTesting transient boolean discarded = false;
 
@@ -163,7 +154,7 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
         if (currentMessageTimestamp.isBefore(oldestMessageTimestamp)) {
           oldestMessageTimestamp = currentMessageTimestamp;
         }
-        messages.add(message);
+        lastMessage = message;
       } finally {
         lock.writeLock().unlock();
       }
@@ -197,18 +188,26 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
       lock.writeLock().lock();
       try {
         if (discarded) {
-          messages.clear();
-          checkpointMark = new JmsCheckpointMark(oldestMessageTimestamp, messages, null, null);
+          lastMessage = null;
+          checkpointMark = this.emptyCheckpoint();
         } else {
           checkpointMark =
-              new JmsCheckpointMark(oldestMessageTimestamp, messages, consumer, session);
-          messages = new ArrayList<>();
+              new JmsCheckpointMark(oldestMessageTimestamp, lastMessage, consumer, session);
+          lastMessage = null;
           oldestMessageTimestamp = Instant.now();
         }
       } finally {
         lock.writeLock().unlock();
       }
       return checkpointMark;
+    }
+
+    JmsCheckpointMark emptyCheckpoint() {
+      return new JmsCheckpointMark(oldestMessageTimestamp, null, null, null);
+    }
+
+    boolean isEmpty() {
+      return lastMessage == null;
     }
   }
 }

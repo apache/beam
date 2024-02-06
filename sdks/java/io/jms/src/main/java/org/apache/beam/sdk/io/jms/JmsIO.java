@@ -609,6 +609,10 @@ public class JmsIO {
 
     @Override
     public CheckpointMark getCheckpointMark() {
+      if (checkpointMarkPreparer.isEmpty()) {
+        return checkpointMarkPreparer.emptyCheckpoint();
+      }
+
       MessageConsumer consumerToClose;
       Session sessionTofinalize;
       synchronized (this) {
