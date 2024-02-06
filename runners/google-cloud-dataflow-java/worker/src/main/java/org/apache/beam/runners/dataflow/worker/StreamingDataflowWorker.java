@@ -1395,12 +1395,8 @@ public class StreamingDataflowWorker {
       stateCache
           .forComputation(state.getComputationId())
           .invalidate(request.getKey(), request.getShardingKey());
-      try {
-        state.completeWorkAndScheduleNextWorkForKey(
-            ShardedKey.create(request.getKey(), request.getShardingKey()), request.getWorkToken());
-      } catch (RuntimeException e) {
-        LOG.warn("completeWorkAndScheduleNextWorkForKey on failed work threw", e);
-      }
+      state.completeWorkAndScheduleNextWorkForKey(
+          ShardedKey.create(request.getKey(), request.getShardingKey()), request.getWorkToken());
       return true;
     }
 
@@ -1420,8 +1416,6 @@ public class StreamingDataflowWorker {
                 .invalidate(request.getKey(), request.getShardingKey());
           }
           activeCommitBytes.addAndGet(-size);
-          // This may throw an exception if the commit was not active, which is possible if it
-          // was deemed stuck.
           state.completeWorkAndScheduleNextWorkForKey(
               ShardedKey.create(request.getKey(), request.getShardingKey()),
               request.getWorkToken());
