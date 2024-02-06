@@ -64,7 +64,6 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.core.metrics.MetricsLogger;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.internal.CustomSources;
-import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames;
@@ -472,9 +471,9 @@ public class StreamingDataflowWorker {
     JvmInitializers.runOnStartup();
 
     DataflowWorkerHarnessHelper.initializeLogging(StreamingDataflowWorker.class);
-    DataflowWorkerHarnessOptions options =
+    StreamingDataflowWorkerOptions options =
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
-            StreamingDataflowWorker.class);
+            StreamingDataflowWorker.class, StreamingDataflowWorkerOptions.class);
     DataflowWorkerHarnessHelper.configureLogging(options);
     checkArgument(
         options.isStreaming(),
@@ -486,8 +485,7 @@ public class StreamingDataflowWorker {
         "%s cannot be main() class with beam_fn_api enabled",
         StreamingDataflowWorker.class.getSimpleName());
 
-    StreamingDataflowWorker worker =
-        StreamingDataflowWorker.fromDataflowWorkerHarnessOptions(options);
+    StreamingDataflowWorker worker = StreamingDataflowWorker.fromOptions(options);
 
     // Use the MetricsLogger container which is used by BigQueryIO to periodically log process-wide
     // metrics.
@@ -506,14 +504,14 @@ public class StreamingDataflowWorker {
     worker.start();
   }
 
-  public static StreamingDataflowWorker fromDataflowWorkerHarnessOptions(
-      DataflowWorkerHarnessOptions options) throws IOException {
+  public static StreamingDataflowWorker fromOptions(StreamingDataflowWorkerOptions options)
+      throws IOException {
 
     return new StreamingDataflowWorker(
         Collections.emptyList(),
         IntrinsicMapTaskExecutorFactory.defaultFactory(),
         new DataflowWorkUnitClient(options, LOG),
-        options.as(StreamingDataflowWorkerOptions.class),
+        options,
         true,
         new HotKeyLogger(),
         Instant::now,
