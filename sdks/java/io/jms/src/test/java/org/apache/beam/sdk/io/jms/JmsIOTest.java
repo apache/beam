@@ -429,7 +429,7 @@ public class JmsIOTest {
 
     // consume 3 messages (NB: start already consumed the first message)
     for (int i = 0; i < 3; i++) {
-      assertTrue(reader.advance());
+      assertTrue(String.format("Failed at %d-th message", i), reader.advance());
     }
 
     // the messages are still pending in the queue (no ACK yet)
@@ -443,7 +443,7 @@ public class JmsIOTest {
 
     // we read the 6 pending messages
     for (int i = 0; i < 6; i++) {
-      assertTrue(reader.advance());
+      assertTrue(String.format("Failed at %d-th message", i), reader.advance());
     }
 
     // still 6 pending messages as we didn't finalize the checkpoint
