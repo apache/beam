@@ -100,6 +100,14 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
     }
 
     @Override
+    public boolean advance() throws IOException {
+      if (context.workIsFailed()) {
+        return false;
+      }
+      return super.advance();
+    }
+
+    @Override
     protected WindowedValue<T> decodeMessage(Windmill.Message message) throws IOException {
       Instant timestampMillis =
           WindmillTimeUtils.windmillToHarnessTimestamp(message.getTimestamp());

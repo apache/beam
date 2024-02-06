@@ -239,14 +239,32 @@ public interface DataflowPipelineDebugOptions
   /**
    * The size of the worker's in-memory cache, in megabytes.
    *
-   * <p>Currently, this cache is used for storing read values of side inputs. as well as the state
-   * for streaming jobs.
+   * <p>Currently, this cache is used for storing read values of side inputs in batch as well as the
+   * user state for streaming jobs.
    */
   @Description("The size of the worker's in-memory cache, in megabytes.")
   @Default.Integer(100)
   Integer getWorkerCacheMb();
 
   void setWorkerCacheMb(Integer value);
+
+  @Description("The size of the streaming worker's side input cache, in megabytes.")
+  @Default.Integer(100)
+  Integer getStreamingSideInputCacheMb();
+
+  void setStreamingSideInputCacheMb(Integer value);
+
+  @Description("The expiry for streaming worker's side input cache entries, in milliseconds.")
+  @Default.Integer(60 * 1000) // 1 minute
+  Integer getStreamingSideInputCacheExpirationMillis();
+
+  void setStreamingSideInputCacheExpirationMillis(Integer value);
+
+  @Description("Number of commit threads used to commit items to streaming engine.")
+  @Default.Integer(1)
+  Integer getWindmillServiceCommitThreads();
+
+  void setWindmillServiceCommitThreads(Integer value);
 
   /**
    * The amount of time before UnboundedReaders are considered idle and closed during streaming
@@ -279,6 +297,16 @@ public interface DataflowPipelineDebugOptions
   Integer getUnboundedReaderMaxWaitForElementsMs();
 
   void setUnboundedReaderMaxWaitForElementsMs(Integer value);
+
+  /**
+   * The desired number of initial splits for UnboundedSources. If this value is <=0, the splits
+   * will be computed based on the number of user workers.
+   */
+  @Description("The desired number of initial splits for UnboundedSources.")
+  @Default.Integer(0)
+  int getDesiredNumUnboundedSourceSplits();
+
+  void setDesiredNumUnboundedSourceSplits(int value);
 
   /**
    * CAUTION: This option implies dumpHeapOnOOM, and has similar caveats. Specifically, heap dumps

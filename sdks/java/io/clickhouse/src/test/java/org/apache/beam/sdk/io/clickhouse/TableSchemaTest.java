@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.clickhouse;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.schemas.Schema;
@@ -195,5 +196,55 @@ public class TableSchemaTest {
             Schema.Field.nullable("f1", Schema.FieldType.INT64));
 
     assertEquals(expected, TableSchema.getEquivalentSchema(tableSchema));
+  }
+
+  @Test
+  public void testParseTupleSingle() {
+    Map<String, ColumnType> m1 = new HashMap<>();
+    m1.put("s", ColumnType.STRING);
+    ColumnType columnType01 = ColumnType.parse("Tuple('s' String)");
+    assertEquals(ColumnType.tuple(m1), columnType01);
+  }
+
+  @Test
+  public void testParseTupleDouble() {
+    Map<String, ColumnType> m2 = new HashMap<>();
+    m2.put("a1", ColumnType.STRING);
+    m2.put("b", ColumnType.BOOL);
+    ColumnType columnType02 = ColumnType.parse("Tuple('a1' String,'b' Bool)");
+    assertEquals(ColumnType.tuple(m2), columnType02);
+  }
+
+  @Test
+  public void testTupleNested() {
+    Map<String, ColumnType> m1 = new HashMap<>();
+    m1.put("a", ColumnType.STRING);
+    Map<String, ColumnType> m3 = new HashMap<>();
+    m3.put("a", ColumnType.STRING);
+    m3.put("b", ColumnType.BOOL);
+    m3.put("c", ColumnType.tuple(m1));
+    ColumnType columnType03 = ColumnType.parse("Tuple('a' String,'b' Bool,'c' Tuple('a' String))");
+    assertEquals(ColumnType.tuple(m3), columnType03);
+  }
+
+  @Test
+  public void testTupleComplex() {
+    Map<String, ColumnType> m1 = new HashMap<>();
+    m1.put("width", ColumnType.INT64.withNullable(true));
+    m1.put("height", ColumnType.INT64.withNullable(true));
+
+    Map<String, ColumnType> m2 = new HashMap<>();
+    m2.put("name", ColumnType.STRING.withNullable(true));
+    m2.put("size", ColumnType.tuple(m1));
+    m2.put("version", ColumnType.STRING.withNullable(true));
+
+    Map<String, ColumnType> m3 = new HashMap<>();
+    m3.put("browser", ColumnType.tuple(m2));
+    m3.put("deviceCategory", ColumnType.STRING.withNullable(true));
+
+    ColumnType columnType03 =
+        ColumnType.parse(
+            "Tuple('browser' Tuple('name' Nullable(String),'size' Tuple('width' Nullable(Int64),'height' Nullable(Int64)),'version' Nullable(String)),'deviceCategory' Nullable(String))");
+    assertEquals(ColumnType.tuple(m3), columnType03);
   }
 }

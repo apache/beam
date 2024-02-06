@@ -50,6 +50,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.RowWriterFactory.AvroRowWriterFactory;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.Schema;
@@ -60,7 +62,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -188,7 +190,7 @@ public class BigQueryIOTranslation {
     }
 
     @Override
-    public TypedRead<?> fromConfigRow(Row configRow) {
+    public TypedRead<?> fromConfigRow(Row configRow, PipelineOptions options) {
       try {
         BigQueryIO.TypedRead.Builder builder = new AutoValue_BigQueryIO_TypedRead.Builder<>();
 
@@ -353,7 +355,7 @@ public class BigQueryIOTranslation {
             .addNullableBooleanField("propagate_successful_storage_api_writes")
             .addNullableInt32Field("max_files_per_partition")
             .addNullableInt64Field("max_bytes_per_partition")
-            .addNullableLogicalTypeField("triggerring_frequency", new NanosDuration())
+            .addNullableLogicalTypeField("triggering_frequency", new NanosDuration())
             .addNullableByteArrayField("method")
             .addNullableStringField("load_job_project_id")
             .addNullableByteArrayField("failed_insert_retry_policy")
@@ -477,7 +479,7 @@ public class BigQueryIOTranslation {
       fieldValues.put("max_bytes_per_partition", transform.getMaxBytesPerPartition());
       if (transform.getTriggeringFrequency() != null) {
         fieldValues.put(
-            "triggerring_frequency",
+            "triggering_frequency",
             Duration.ofMillis(transform.getTriggeringFrequency().getMillis()));
       }
       if (transform.getMethod() != null) {
@@ -552,7 +554,7 @@ public class BigQueryIOTranslation {
     }
 
     @Override
-    public Write<?> fromConfigRow(Row configRow) {
+    public Write<?> fromConfigRow(Row configRow, PipelineOptions options) {
       try {
         BigQueryIO.Write.Builder builder = new AutoValue_BigQueryIO_Write.Builder<>();
 
@@ -695,11 +697,29 @@ public class BigQueryIOTranslation {
         if (maxBytesPerPartition != null) {
           builder = builder.setMaxBytesPerPartition(maxBytesPerPartition);
         }
-        Duration triggerringFrequency = configRow.getValue("triggerring_frequency");
-        if (triggerringFrequency != null) {
+
+        String updateCompatibilityBeamVersion =
+            options.as(StreamingOptions.class).getUpdateCompatibilityVersion();
+
+        // We need to update the 'triggerring_frequency' field name for pipelines that are upgraded
+        // from Beam 2.53.0 due to https://github.com/apache/beam/pull/29785.
+        // We need to set a default 'updateCompatibilityBeamVersion' here since this PipelineOption
+        // is not correctly passed in for pipelines that use Beam 2.53.0.
+        // Both above issues are fixed for Beam 2.54.0 and later.
+        updateCompatibilityBeamVersion =
+            (updateCompatibilityBeamVersion != null) ? updateCompatibilityBeamVersion : "2.53.0";
+
+        String triggeringFrequencyFieldName =
+            (updateCompatibilityBeamVersion != null
+                    && updateCompatibilityBeamVersion.equals("2.53.0"))
+                ? "triggerring_frequency"
+                : "triggering_frequency";
+
+        Duration triggeringFrequency = configRow.getValue(triggeringFrequencyFieldName);
+        if (triggeringFrequency != null) {
           builder =
               builder.setTriggeringFrequency(
-                  org.joda.time.Duration.millis(triggerringFrequency.toMillis()));
+                  org.joda.time.Duration.millis(triggeringFrequency.toMillis()));
         }
         byte[] methodBytes = configRow.getBytes("method");
         if (methodBytes != null) {

@@ -17,6 +17,7 @@ package jobservices
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 
@@ -76,4 +77,64 @@ func TestServer_JobLifecycle(t *testing.T) {
 	called.Wait()
 	t.Log("success!")
 	// Nothing to cleanup because we didn't start the server.
+}
+
+// Validates that invoking Cancel cancels a running job.
+func TestServer_RunThenCancel(t *testing.T) {
+	var called sync.WaitGroup
+	called.Add(1)
+	undertest := NewServer(0, func(j *Job) {
+		if errors.Is(context.Cause(j.RootCtx), ErrCancel) {
+			j.state.Store(jobpb.JobState_CANCELLED)
+			called.Done()
+		}
+	})
+	ctx := context.Background()
+
+	wantPipeline := &pipepb.Pipeline{
+		Requirements: []string{urns.RequirementSplittableDoFn},
+	}
+	wantName := "testJob"
+
+	resp, err := undertest.Prepare(ctx, &jobpb.PrepareJobRequest{
+		Pipeline: wantPipeline,
+		JobName:  wantName,
+	})
+	if err != nil {
+		t.Fatalf("server.Prepare() = %v, want nil", err)
+	}
+
+	if got := resp.GetPreparationId(); got == "" {
+		t.Fatalf("server.Prepare() = returned empty preparation ID, want non-empty: %v", prototext.Format(resp))
+	}
+
+	runResp, err := undertest.Run(ctx, &jobpb.RunJobRequest{
+		PreparationId: resp.GetPreparationId(),
+	})
+	if err != nil {
+		t.Fatalf("server.Run() = %v, want nil", err)
+	}
+	if got := runResp.GetJobId(); got == "" {
+		t.Fatalf("server.Run() = returned empty preparation ID, want non-empty")
+	}
+
+	cancelResp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{
+		JobId: runResp.GetJobId(),
+	})
+	if err != nil {
+		t.Fatalf("server.Canceling() = %v, want nil", err)
+	}
+	if cancelResp.State != jobpb.JobState_CANCELLING {
+		t.Fatalf("server.Canceling() = %v, want %v", cancelResp.State, jobpb.JobState_CANCELLING)
+	}
+
+	called.Wait()
+
+	stateResp, err := undertest.GetState(ctx, &jobpb.GetJobStateRequest{JobId: runResp.GetJobId()})
+	if err != nil {
+		t.Fatalf("server.GetState() = %v, want nil", err)
+	}
+	if stateResp.State != jobpb.JobState_CANCELLED {
+		t.Fatalf("server.GetState() = %v, want %v", stateResp.State, jobpb.JobState_CANCELLED)
+	}
 }

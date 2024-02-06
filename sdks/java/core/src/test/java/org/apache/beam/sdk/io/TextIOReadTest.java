@@ -386,53 +386,96 @@ public class TextIOReadTest {
       runTestReadWithData(line.getBytes(UTF_8), expected);
     }
 
+    // Placeholder channel that only yields 0- and 1-length buffers.
+    private static class SlowReadChannel implements ReadableByteChannel {
+      int readCount = 0;
+      InputStream stream;
+      ReadableByteChannel channel;
+
+      public SlowReadChannel(FileBasedSource source) throws IOException {
+        channel =
+            FileSystems.open(
+                FileSystems.matchSingleFileSpec(source.getFileOrPatternSpec()).resourceId());
+        stream = Channels.newInputStream(channel);
+      }
+
+      // Data is read at most one byte at a time from line parameter.
+      @Override
+      public int read(ByteBuffer dst) throws IOException {
+        if (++readCount % 3 == 0) {
+          if (dst.hasRemaining()) {
+            int value = stream.read();
+            if (value == -1) {
+              return -1;
+            }
+            dst.put((byte) value);
+            return 1;
+          }
+        }
+        return 0;
+      }
+
+      @Override
+      public boolean isOpen() {
+        return channel.isOpen();
+      }
+
+      @Override
+      public void close() throws IOException {
+        stream.close();
+      }
+    }
+
     @Test
-    public void testReadLinesWithDefaultDelimiterAndZeroAndOneLengthReturningChannel()
-        throws Exception {
+    public void testReadLinesWithDefaultDelimiterAndSlowReadChannel() throws Exception {
       Path path = tempFolder.newFile().toPath();
       Files.write(path, line.getBytes(UTF_8));
       Metadata metadata = FileSystems.matchSingleFileSpec(path.toString());
       FileBasedSource source =
           getTextSource(path.toString(), null, 0)
               .createForSubrangeOfFile(metadata, 0, metadata.sizeBytes());
+
       FileBasedReader<String> reader =
           source.createSingleFileReader(PipelineOptionsFactory.create());
-      ReadableByteChannel channel =
-          FileSystems.open(
-              FileSystems.matchSingleFileSpec(source.getFileOrPatternSpec()).resourceId());
-      InputStream stream = Channels.newInputStream(channel);
-      reader.startReading(
-          // Placeholder channel that only yields 0- and 1-length buffers.
-          // Data is read at most one byte at a time from line parameter.
-          new ReadableByteChannel() {
-            int readCount = 0;
 
-            @Override
-            public int read(ByteBuffer dst) throws IOException {
-              if (++readCount % 3 == 0) {
-                if (dst.hasRemaining()) {
-                  int value = stream.read();
-                  if (value == -1) {
-                    return -1;
-                  }
-                  dst.put((byte) value);
-                  return 1;
-                }
-              }
-              return 0;
-            }
-
-            @Override
-            public boolean isOpen() {
-              return channel.isOpen();
-            }
-
-            @Override
-            public void close() throws IOException {
-              stream.close();
-            }
-          });
+      reader.startReading(new SlowReadChannel(source));
       assertEquals(expected, SourceTestUtils.readFromStartedReader(reader));
+    }
+
+    @Test
+    public void testReadLinesWithDefaultDelimiterOnSplittingSourceAndSlowReadChannel()
+        throws Exception {
+      Path path = tempFolder.newFile().toPath();
+      Files.write(path, line.getBytes(UTF_8));
+      Metadata metadata = FileSystems.matchSingleFileSpec(path.toString());
+      FileBasedSource<String> source =
+          getTextSource(path.toString(), null, 0)
+              .createForSubrangeOfFile(metadata, 0, metadata.sizeBytes());
+
+      PipelineOptions options = PipelineOptionsFactory.create();
+
+      // Check every possible split positions.
+      for (int i = 0; i < line.length(); ++i) {
+        double fraction = i * 1.0 / line.length();
+        FileBasedReader<String> reader = source.createSingleFileReader(options);
+
+        // Use a slow read channel to read the content byte by byte. This can simulate the scenario
+        // of a certain character (in our case CR) occurring at the end of the read buffer.
+        reader.startReading(new SlowReadChannel(source));
+
+        // In order to get a successful split, we need to read at least one record before calling
+        // splitAtFraction().
+        List<String> totalItems = SourceTestUtils.readNItemsFromStartedReader(reader, 1);
+        BoundedSource<String> residual = reader.splitAtFraction(fraction);
+        List<String> primaryItems = SourceTestUtils.readFromStartedReader(reader);
+        totalItems.addAll(primaryItems);
+
+        if (residual != null) {
+          List<String> residualItems = SourceTestUtils.readFromSource(residual, options);
+          totalItems.addAll(residualItems);
+        }
+        assertEquals(expected, totalItems);
+      }
     }
 
     @Test

@@ -64,7 +64,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
@@ -112,6 +112,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
   private UnboundedSource.UnboundedReader<?> activeReader;
   private volatile long backlogBytes;
+  private Supplier<Boolean> workIsFailed;
 
   public StreamingModeExecutionContext(
       CounterFactory counterFactory,
@@ -135,11 +136,16 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.stateNameMap = ImmutableMap.copyOf(stateNameMap);
     this.stateCache = stateCache;
     this.backlogBytes = UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
+    this.workIsFailed = () -> Boolean.FALSE;
   }
 
   @VisibleForTesting
   public long getBacklogBytes() {
     return backlogBytes;
+  }
+
+  public boolean workIsFailed() {
+    return workIsFailed.get();
   }
 
   public void start(
@@ -150,9 +156,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       @Nullable Instant synchronizedProcessingTime,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder) {
+      Windmill.WorkItemCommitRequest.Builder outputBuilder,
+      @Nullable Supplier<Boolean> workFailed) {
     this.key = key;
     this.work = work;
+    this.workIsFailed = (workFailed != null) ? workFailed : () -> Boolean.FALSE;
     this.computationKey =
         WindmillComputationKey.create(computationId, work.getKey(), work.getShardingKey());
     this.sideInputStateFetcher = sideInputStateFetcher;
@@ -429,7 +437,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
   /**
    * Execution states in Streaming are shared between multiple map-task executors. Thus this class
-   * needs to be thread safe for multiple writers. A single stage could have have multiple executors
+   * needs to be thread safe for multiple writers. A single stage could have multiple executors
    * running concurrently.
    */
   public static class StreamingModeExecutionState
@@ -670,7 +678,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     private NavigableSet<TimerData> modifiedUserSynchronizedProcessingTimersOrdered = null;
     // A list of timer keys that were modified by user processing earlier in this bundle. This
     // serves a tombstone, so
-    // that we know not to fire any bundle tiemrs that were moddified.
+    // that we know not to fire any bundle timers that were modified.
     private Table<String, StateNamespace, TimerData> modifiedUserTimerKeys = null;
 
     public StepContext(DataflowOperationContext operationContext) {

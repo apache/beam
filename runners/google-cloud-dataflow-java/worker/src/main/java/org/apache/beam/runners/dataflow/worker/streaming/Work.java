@@ -50,6 +50,8 @@ public class Work implements Runnable {
   private final Consumer<Work> processWorkFn;
   private TimedState currentState;
 
+  private volatile boolean isFailed;
+
   private Work(Windmill.WorkItem workItem, Supplier<Instant> clock, Consumer<Work> processWorkFn) {
     this.workItem = workItem;
     this.clock = clock;
@@ -57,6 +59,7 @@ public class Work implements Runnable {
     this.startTime = clock.get();
     this.totalDurationPerState = new EnumMap<>(Windmill.LatencyAttribution.State.class);
     this.currentState = TimedState.initialState(startTime);
+    this.isFailed = false;
   }
 
   public static Work create(
@@ -93,6 +96,10 @@ public class Work implements Runnable {
         (s, d) ->
             new Duration(this.currentState.startTime(), now).plus(d == null ? Duration.ZERO : d));
     this.currentState = TimedState.create(state, now);
+  }
+
+  public void setFailed() {
+    this.isFailed = true;
   }
 
   public boolean isCommitPending() {
@@ -178,6 +185,10 @@ public class Work implements Runnable {
       builder.addActiveLatencyBreakdown(stepBuilder.build());
     }
     return builder;
+  }
+
+  public boolean isFailed() {
+    return isFailed;
   }
 
   boolean isStuckCommittingAt(Instant stuckCommitDeadline) {

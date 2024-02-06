@@ -177,6 +177,7 @@ public class AwsTypes {
           || (type.equals(LIST) && needsConversion(elementField(field)));
     }
 
+    @SuppressWarnings("nullness")
     private static SerializableFunction andThen(
         SerializableFunction fn1, SerializableFunction fn2) {
       return v -> fn2.apply(fn1.apply(v));

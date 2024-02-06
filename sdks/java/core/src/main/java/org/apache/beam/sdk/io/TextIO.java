@@ -51,6 +51,8 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.Watch.Growth.TerminationCondition;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -176,6 +178,10 @@ import org.joda.time.Duration;
  *
  * <p>For backwards compatibility, {@link TextIO} also supports the legacy {@link
  * DynamicDestinations} interface for advanced features via {@link Write#to(DynamicDestinations)}.
+ *
+ * <p>Error handling for records that are malformed can be handled by using {@link
+ * TypedWrite#withBadRecordErrorHandler(ErrorHandler)}. See documentation in {@link FileIO} for
+ * details on usage
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -271,6 +277,7 @@ public class TextIO {
         .setWindowedWrites(false)
         .setNoSpilling(false)
         .setSkipIfEmpty(false)
+        .setAutoSharding(false)
         .build();
   }
 
@@ -696,6 +703,9 @@ public class TextIO {
     /** Whether to write windowed output files. */
     abstract boolean getWindowedWrites();
 
+    /** Whether to enable autosharding. */
+    abstract boolean getAutoSharding();
+
     /** Whether to skip the spilling of data caused by having maxNumWritersPerBundle. */
     abstract boolean getNoSpilling();
 
@@ -707,6 +717,8 @@ public class TextIO {
      * {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
      */
     abstract WritableByteChannelFactory getWritableByteChannelFactory();
+
+    abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
     abstract Builder<UserT, DestinationT> toBuilder();
 
@@ -747,12 +759,17 @@ public class TextIO {
 
       abstract Builder<UserT, DestinationT> setWindowedWrites(boolean windowedWrites);
 
+      abstract Builder<UserT, DestinationT> setAutoSharding(boolean windowedWrites);
+
       abstract Builder<UserT, DestinationT> setNoSpilling(boolean noSpilling);
 
       abstract Builder<UserT, DestinationT> setSkipIfEmpty(boolean noSpilling);
 
       abstract Builder<UserT, DestinationT> setWritableByteChannelFactory(
           WritableByteChannelFactory writableByteChannelFactory);
+
+      abstract Builder<UserT, DestinationT> setBadRecordErrorHandler(
+          @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
       abstract TypedWrite<UserT, DestinationT> build();
     }
@@ -988,9 +1005,19 @@ public class TextIO {
       return toBuilder().setWindowedWrites(true).build();
     }
 
+    public TypedWrite<UserT, DestinationT> withAutoSharding() {
+      return toBuilder().setAutoSharding(true).build();
+    }
+
     /** See {@link WriteFiles#withNoSpilling()}. */
     public TypedWrite<UserT, DestinationT> withNoSpilling() {
       return toBuilder().setNoSpilling(true).build();
+    }
+
+    /** See {@link FileIO.Write#withBadRecordErrorHandler(ErrorHandler)} for details on usage. */
+    public TypedWrite<UserT, DestinationT> withBadRecordErrorHandler(
+        ErrorHandler<BadRecord, ?> errorHandler) {
+      return toBuilder().setBadRecordErrorHandler(errorHandler).build();
     }
 
     /** Don't write any output files if the PCollection is empty. */
@@ -1080,8 +1107,14 @@ public class TextIO {
       if (getWindowedWrites()) {
         write = write.withWindowedWrites();
       }
+      if (getAutoSharding()) {
+        write = write.withAutoSharding();
+      }
       if (getNoSpilling()) {
         write = write.withNoSpilling();
+      }
+      if (getBadRecordErrorHandler() != null) {
+        write = write.withBadRecordErrorHandler(getBadRecordErrorHandler());
       }
       if (getSkipIfEmpty()) {
         write = write.withSkipIfEmpty();
@@ -1246,6 +1279,11 @@ public class TextIO {
     /** See {@link TypedWrite#withWindowedWrites}. */
     public Write withWindowedWrites() {
       return new Write(inner.withWindowedWrites());
+    }
+
+    /** See {@link TypedWrite#withAutoSharding}. */
+    public Write withAutoSharding() {
+      return new Write(inner.withAutoSharding());
     }
 
     /** See {@link TypedWrite#withNoSpilling}. */

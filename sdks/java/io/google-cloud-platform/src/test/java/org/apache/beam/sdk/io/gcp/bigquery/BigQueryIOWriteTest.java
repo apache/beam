@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
+import static org.apache.beam.sdk.io.gcp.bigquery.WriteTables.ResultCoder.INSTANCE;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -35,6 +36,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
+import com.google.api.core.ApiFuture;
+import com.google.api.core.SettableApiFuture;
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
@@ -48,7 +51,12 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
+import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
+import com.google.cloud.bigquery.storage.v1.Exceptions;
+import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.DescriptorProtos;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -85,6 +93,7 @@ import org.apache.avro.io.Encoder;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
@@ -98,6 +107,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.WritePartition.ResultCoder;
+import org.apache.beam.sdk.io.gcp.bigquery.WriteRename.TempTableCleanupFn;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteTables.Result;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
@@ -124,14 +134,18 @@ import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.PeriodicImpulse;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -245,7 +259,9 @@ public class BigQueryIOWriteTest implements Serializable {
       };
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
-  @Rule public transient ExpectedLogs loggedWriteRename = ExpectedLogs.none(WriteRename.class);
+
+  @Rule
+  public transient ExpectedLogs loggedWriteRename = ExpectedLogs.none(TempTableCleanupFn.class);
 
   private FakeDatasetService fakeDatasetService = new FakeDatasetService();
   private FakeJobService fakeJobService = new FakeJobService();
@@ -484,7 +500,7 @@ public class BigQueryIOWriteTest implements Serializable {
     }
   }
 
-  void testTimePartitioningClustering(
+  void testTimePartitioningAndClustering(
       BigQueryIO.Write.Method insertMethod, boolean enablePartitioning, boolean enableClustering)
       throws Exception {
     TableRow row1 = new TableRow().set("date", "2018-01-01").set("number", "1");
@@ -529,16 +545,8 @@ public class BigQueryIOWriteTest implements Serializable {
     }
   }
 
-  void testTimePartitioning(BigQueryIO.Write.Method insertMethod) throws Exception {
-    testTimePartitioningClustering(insertMethod, true, false);
-  }
-
-  void testClustering(BigQueryIO.Write.Method insertMethod) throws Exception {
-    testTimePartitioningClustering(insertMethod, true, true);
-  }
-
-  @Test
-  public void testTimePartitioning() throws Exception {
+  void testTimePartitioningAndClusteringWithAllMethods(
+      Boolean enablePartitioning, Boolean enableClustering) throws Exception {
     BigQueryIO.Write.Method method;
     if (useStorageApi) {
       method =
@@ -548,15 +556,27 @@ public class BigQueryIOWriteTest implements Serializable {
     } else {
       method = Method.FILE_LOADS;
     }
-    testTimePartitioning(method);
+    testTimePartitioningAndClustering(method, enablePartitioning, enableClustering);
   }
 
   @Test
-  public void testClusteringStorageApi() throws Exception {
-    if (useStorageApi) {
-      testClustering(
-          useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API);
-    }
+  public void testTimePartitioningWithoutClustering() throws Exception {
+    testTimePartitioningAndClusteringWithAllMethods(true, false);
+  }
+
+  @Test
+  public void testTimePartitioningWithClustering() throws Exception {
+    testTimePartitioningAndClusteringWithAllMethods(true, true);
+  }
+
+  @Test
+  public void testClusteringWithoutPartitioning() throws Exception {
+    testTimePartitioningAndClusteringWithAllMethods(false, true);
+  }
+
+  @Test
+  public void testNoClusteringNoPartitioning() throws Exception {
+    testTimePartitioningAndClusteringWithAllMethods(false, false);
   }
 
   @Test
@@ -2518,7 +2538,7 @@ public class BigQueryIOWriteTest implements Serializable {
     PCollection<KV<TableDestination, WriteTables.Result>> writeTablesOutput =
         writeTablesInput
             .apply(writeTables)
-            .setCoder(KvCoder.of(StringUtf8Coder.of(), WriteTables.ResultCoder.INSTANCE))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), INSTANCE))
             .apply(
                 ParDo.of(
                     new DoFn<
@@ -2618,13 +2638,19 @@ public class BigQueryIOWriteTest implements Serializable {
             BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED,
             3,
             "kms_key",
-            null);
+            null,
+            jobIdTokenView);
 
-    DoFnTester<Iterable<KV<TableDestination, WriteTables.Result>>, TableDestination> tester =
-        DoFnTester.of(writeRename);
-    tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
-    tester.processElement(tempTablesElement);
-    tester.finishBundle();
+    // Unfortunate hack to have create treat tempTablesElement as a single element, instead of as an
+    // iterable
+    p.apply(
+            Create.of(
+                    ImmutableList.of(
+                        (Iterable<KV<TableDestination, WriteTables.Result>>) tempTablesElement))
+                .withCoder(IterableCoder.of(KvCoder.of(TableDestinationCoder.of(), INSTANCE))))
+        .apply(writeRename);
+
+    p.run().waitUntilFinish();
 
     for (Map.Entry<TableDestination, Collection<String>> entry : tempTables.asMap().entrySet()) {
       TableDestination tableDestination = entry.getKey();
@@ -2672,7 +2698,7 @@ public class BigQueryIOWriteTest implements Serializable {
     tableRefs.add(
         BigQueryHelpers.parseTableSpec(String.format("%s:%s.%s", projectId, datasetId, "table4")));
 
-    WriteRename.removeTemporaryTables(datasetService, tableRefs);
+    WriteRename.TempTableCleanupFn.removeTemporaryTables(datasetService, tableRefs);
 
     for (TableReference ref : tableRefs) {
       loggedWriteRename.verifyDebug("Deleting table " + toJsonString(ref));
@@ -3102,6 +3128,104 @@ public class BigQueryIOWriteTest implements Serializable {
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(Iterables.toArray(rows, TableRow.class)));
+  }
+
+  public static class ThrowingFakeDatasetServices extends FakeDatasetService {
+    @Override
+    public BigQueryServices.StreamAppendClient getStreamAppendClient(
+        String streamName,
+        DescriptorProtos.DescriptorProto descriptor,
+        boolean useConnectionPool,
+        AppendRowsRequest.MissingValueInterpretation missingValueInterpretation) {
+      return new BigQueryServices.StreamAppendClient() {
+        @Override
+        public ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows) {
+          Map<Integer, String> errorMap = new HashMap<>();
+          for (int i = 0; i < rows.getSerializedRowsCount(); i++) {
+            errorMap.put(i, "some serialization error");
+          }
+          SettableApiFuture<AppendRowsResponse> appendResult = SettableApiFuture.create();
+          appendResult.setException(
+              new Exceptions.AppendSerializationError(
+                  404, "some description", "some stream", errorMap));
+          return appendResult;
+        }
+
+        @Override
+        public com.google.cloud.bigquery.storage.v1.@Nullable TableSchema getUpdatedSchema() {
+          return null;
+        }
+
+        @Override
+        public void pin() {}
+
+        @Override
+        public void unpin() {}
+
+        @Override
+        public void close() {}
+      };
+    }
+  }
+
+  @Test
+  public void testStorageWriteReturnsAppendSerializationError() throws Exception {
+    assumeTrue(useStorageApi);
+    assumeTrue(useStreaming);
+    p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdRecordCount(5);
+
+    TableSchema schema =
+        new TableSchema()
+            .setFields(Arrays.asList(new TableFieldSchema().setType("INTEGER").setName("long")));
+    Table fakeTable = new Table();
+    TableReference ref =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId("table-id");
+    fakeTable.setSchema(schema);
+    fakeTable.setTableReference(ref);
+
+    ThrowingFakeDatasetServices throwingService = new ThrowingFakeDatasetServices();
+    throwingService.createTable(fakeTable);
+
+    int numRows = 100;
+
+    WriteResult res =
+        p.apply(
+                PeriodicImpulse.create()
+                    .startAt(Instant.ofEpochMilli(0))
+                    .stopAfter(Duration.millis(numRows - 1))
+                    .withInterval(Duration.millis(1)))
+            .apply(
+                "Convert to longs",
+                MapElements.into(TypeDescriptor.of(TableRow.class))
+                    .via(instant -> new TableRow().set("long", instant.getMillis())))
+            .apply(
+                BigQueryIO.writeTableRows()
+                    .to(ref)
+                    .withSchema(schema)
+                    .withTestServices(
+                        new FakeBigQueryServices()
+                            .withDatasetService(throwingService)
+                            .withJobService(fakeJobService)));
+
+    PCollection<Integer> numErrors =
+        res.getFailedStorageApiInserts()
+            .apply(
+                "Count errors",
+                MapElements.into(TypeDescriptors.integers())
+                    .via(err -> err.getErrorMessage().equals("some serialization error") ? 1 : 0))
+            .apply(
+                Window.<Integer>into(new GlobalWindows())
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .discardingFiredPanes()
+                    .withAllowedLateness(Duration.ZERO))
+            .apply(Sum.integersGlobally());
+
+    PAssert.that(numErrors).containsInAnyOrder(numRows);
+
+    p.run().waitUntilFinish();
   }
 
   @Test

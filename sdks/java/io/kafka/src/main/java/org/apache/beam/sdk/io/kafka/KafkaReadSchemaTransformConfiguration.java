@@ -51,6 +51,29 @@ public abstract class KafkaReadSchemaTransformConfiguration {
     final String dataFormat = this.getFormat();
     assert dataFormat == null || VALID_DATA_FORMATS.contains(dataFormat)
         : "Valid data formats are " + VALID_DATA_FORMATS;
+
+    final String inputSchema = this.getSchema();
+    final String messageName = this.getMessageName();
+    final String fileDescriptorPath = this.getFileDescriptorPath();
+    final String confluentSchemaRegUrl = this.getConfluentSchemaRegistryUrl();
+    final String confluentSchemaRegSubject = this.getConfluentSchemaRegistrySubject();
+
+    if (confluentSchemaRegUrl != null) {
+      assert confluentSchemaRegSubject != null
+          : "To read from Kafka, a schema must be provided directly or though Confluent "
+              + "Schema Registry. Make sure you are providing one of these parameters.";
+    } else if (dataFormat != null && dataFormat.equals("RAW")) {
+      assert inputSchema == null : "To read from Kafka in RAW format, you can't provide a schema.";
+    } else if (dataFormat != null && dataFormat.equals("JSON")) {
+      assert inputSchema != null : "To read from Kafka in JSON format, you must provide a schema.";
+    } else if (dataFormat != null && dataFormat.equals("PROTO")) {
+      assert messageName != null
+          : "To read from Kafka in PROTO format, messageName must be provided.";
+      assert fileDescriptorPath != null || inputSchema != null
+          : "To read from Kafka in PROTO format, fileDescriptorPath or schema must be provided.";
+    } else {
+      assert inputSchema != null : "To read from Kafka in AVRO format, you must provide a schema.";
+    }
   }
 
   /** Instantiates a {@link KafkaReadSchemaTransformConfiguration.Builder} instance. */
