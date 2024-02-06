@@ -125,7 +125,10 @@ public class JdbcIOAutoPartitioningIT {
         }
       };
 
-  @ClassRule public static JdbcDatabaseContainer<?> mysql = new MySQLContainer<>("mysql");
+  // TODO(yathu) unpin tag when the fix of
+  // https://github.com/testcontainers/testcontainers-java/issues/8130
+  //  released and upgraded in Beam
+  @ClassRule public static JdbcDatabaseContainer<?> mysql = new MySQLContainer<>("mysql:8.2");
 
   @ClassRule
   public static JdbcDatabaseContainer<?> postgres = new PostgreSQLContainer<>("postgres");
