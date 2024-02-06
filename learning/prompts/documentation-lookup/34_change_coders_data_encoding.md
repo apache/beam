@@ -59,4 +59,3 @@ Here’s an example of a custom ‘Coder’ implementation in the Java SDK:
 https://www.waitingforcode.com/apache-beam/coders-apache-beam/read 
 
 For more details about working with coders, you can refer to the [Apache Beam documentation on data encoding and type safety](https://beam.apache.org/documentation/programming-guide/#data-encoding-and-type-safety). 
-
