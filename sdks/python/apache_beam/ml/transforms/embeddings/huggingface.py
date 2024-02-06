@@ -203,7 +203,6 @@ class InferenceAPIEmbeddings(EmbeddingsManager):
       api_url: API url for feature extraction. If specified, model_name will be
         ignored. If none, the default url https://api-inference.huggingface.co/pipeline/feature-extraction/{model_name} # pylint: disable=line-too-long
         will be used.
-
     """
     super().__init__(columns, **kwargs)
     self._authorization_token = {"Authorization": f"Bearer {hf_token}"}
