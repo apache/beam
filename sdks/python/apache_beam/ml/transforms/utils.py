@@ -90,6 +90,5 @@ class ArtifactsFetcher:
     """
     return self.transform_output.vocabulary_file_by_name(vocab_filename)
 
-  def get_vocab_size(
-      self, vocab_filename: str = 'compute_and_apply_vocab') -> int:
+  def get_vocab_size(self, vocab_filename: str) -> int:
     return self.transform_output.vocabulary_size_by_name(vocab_filename)
