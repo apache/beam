@@ -1,6 +1,6 @@
 ---
 title:  "Behind the Scenes: Crafting an Autoscaler for Apache Beam in a High-Volume Streaming Environment"
-date:   2024-02-07 09:00:00 -0400
+date:   2024-02-05 09:00:00 -0400
 categories:
   - blog
 authors:
