@@ -473,8 +473,7 @@ public class StreamingDataflowWorker {
     DataflowWorkerHarnessHelper.initializeLogging(StreamingDataflowWorker.class);
     StreamingDataflowWorkerOptions options =
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
-                StreamingDataflowWorker.class, StreamingDataflowWorkerOptions.class)
-            .as(StreamingDataflowWorkerOptions.class);
+            StreamingDataflowWorker.class, StreamingDataflowWorkerOptions.class);
     DataflowWorkerHarnessHelper.configureLogging(options);
     checkArgument(
         options.isStreaming(),

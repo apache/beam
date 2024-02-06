@@ -107,8 +107,7 @@ public class DataflowWorkerHarnessHelperTest {
 
     StreamingDataflowWorkerOptions generatedOptions =
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
-                DataflowBatchWorkerHarnessTest.class, StreamingDataflowWorkerOptions.class)
-            .as(StreamingDataflowWorkerOptions.class);
+            DataflowBatchWorkerHarnessTest.class, StreamingDataflowWorkerOptions.class);
     // Assert that the returned options are correct.
     assertThat(generatedOptions.getJobId(), equalTo(JOB_ID));
     assertThat(generatedOptions.getWorkerId(), equalTo(WORKER_ID));

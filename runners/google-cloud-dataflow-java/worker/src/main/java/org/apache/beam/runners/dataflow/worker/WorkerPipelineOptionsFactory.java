@@ -46,10 +46,10 @@ public class WorkerPipelineOptionsFactory {
    * @return A {@link DataflowWorkerHarnessOptions} object configured for the Dataflow worker
    *     harness.
    */
-  public static DataflowWorkerHarnessOptions createFromSystemProperties(
-      Class<? extends DataflowWorkerHarnessOptions> harnessOptionsClass) throws IOException {
+  public static <T extends DataflowWorkerHarnessOptions> T createFromSystemProperties(
+      Class<T> harnessOptionsClass) throws IOException {
     ObjectMapper objectMapper = new ObjectMapper();
-    DataflowWorkerHarnessOptions options;
+    T options;
     if (System.getProperties().containsKey("sdk_pipeline_options")) {
       // TODO: remove this method of getting pipeline options, once migration is complete.
       String serializedOptions = System.getProperty("sdk_pipeline_options");
