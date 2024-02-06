@@ -71,6 +71,7 @@
         'topic': 'topic'
         'bootstrap_servers': 'bootstrapServers'
         'producer_config_updates': 'producerConfigUpdates'
+        'error_handling': 'errorHandling'
         'file_descriptor_path': 'fileDescriptorPath'
         'message_name': 'messageName'
         'schema': 'schema'
@@ -97,6 +98,9 @@
         'attributes': 'attributes'
         'attribute_map': 'attributeMap'
         'attribute_id': 'attributeId'
+        'error_handling': 'errorHandling'
+        'file_descriptor_path': 'fileDescriptorPath'
+        'message_name': 'messageName'
       'WriteToPubSubLite':
         'project': 'project'
         'format': 'format'
@@ -104,6 +108,10 @@
         'location': 'location'
         'attributes': 'attributes'
         'attribute_id': 'attributeId'
+        'error_handling': 'errorHandling'
+        'file_descriptor_path': 'fileDescriptorPath'
+        'message_name': 'messageName'
+        'schema': 'schema'
     underlying_provider:
       type: beamJar
       transforms:
