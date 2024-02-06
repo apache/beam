@@ -64,7 +64,6 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.core.metrics.MetricsLogger;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.internal.CustomSources;
-import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames;
@@ -472,9 +471,10 @@ public class StreamingDataflowWorker {
     JvmInitializers.runOnStartup();
 
     DataflowWorkerHarnessHelper.initializeLogging(StreamingDataflowWorker.class);
-    DataflowWorkerHarnessOptions options =
+    StreamingDataflowWorkerOptions options =
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
-            StreamingDataflowWorker.class);
+                StreamingDataflowWorker.class, StreamingDataflowWorkerOptions.class)
+            .as(StreamingDataflowWorkerOptions.class);
     DataflowWorkerHarnessHelper.configureLogging(options);
     checkArgument(
         options.isStreaming(),
@@ -507,13 +507,13 @@ public class StreamingDataflowWorker {
   }
 
   public static StreamingDataflowWorker fromDataflowWorkerHarnessOptions(
-      DataflowWorkerHarnessOptions options) throws IOException {
+      StreamingDataflowWorkerOptions options) throws IOException {
 
     return new StreamingDataflowWorker(
         Collections.emptyList(),
         IntrinsicMapTaskExecutorFactory.defaultFactory(),
         new DataflowWorkUnitClient(options, LOG),
-        options.as(StreamingDataflowWorkerOptions.class),
+        options,
         true,
         new HotKeyLogger(),
         Instant::now,

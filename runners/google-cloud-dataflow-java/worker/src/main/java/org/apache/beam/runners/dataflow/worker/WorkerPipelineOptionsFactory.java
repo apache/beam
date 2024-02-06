@@ -46,7 +46,8 @@ public class WorkerPipelineOptionsFactory {
    * @return A {@link DataflowWorkerHarnessOptions} object configured for the Dataflow worker
    *     harness.
    */
-  public static DataflowWorkerHarnessOptions createFromSystemProperties() throws IOException {
+  public static DataflowWorkerHarnessOptions createFromSystemProperties(
+      Class<? extends DataflowWorkerHarnessOptions> harnessOptionsClass) throws IOException {
     ObjectMapper objectMapper = new ObjectMapper();
     DataflowWorkerHarnessOptions options;
     if (System.getProperties().containsKey("sdk_pipeline_options")) {
@@ -54,9 +55,7 @@ public class WorkerPipelineOptionsFactory {
       String serializedOptions = System.getProperty("sdk_pipeline_options");
       LOG.info("Worker harness starting with: {}", serializedOptions);
       options =
-          objectMapper
-              .readValue(serializedOptions, PipelineOptions.class)
-              .as(DataflowWorkerHarnessOptions.class);
+          objectMapper.readValue(serializedOptions, PipelineOptions.class).as(harnessOptionsClass);
     } else if (System.getProperties().containsKey("sdk_pipeline_options_file")) {
       String filePath = System.getProperty("sdk_pipeline_options_file");
       LOG.info("Loading pipeline options from " + filePath);
@@ -64,12 +63,10 @@ public class WorkerPipelineOptionsFactory {
           new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8);
       LOG.info("Worker harness starting with: " + serializedOptions);
       options =
-          objectMapper
-              .readValue(serializedOptions, PipelineOptions.class)
-              .as(DataflowWorkerHarnessOptions.class);
+          objectMapper.readValue(serializedOptions, PipelineOptions.class).as(harnessOptionsClass);
     } else {
       LOG.info("Using empty PipelineOptions, as none were provided.");
-      options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+      options = PipelineOptionsFactory.as(harnessOptionsClass);
     }
 
     // These values will not be known at job submission time and must be provided.
