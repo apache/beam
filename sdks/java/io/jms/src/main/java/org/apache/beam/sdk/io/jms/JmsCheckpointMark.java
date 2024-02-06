@@ -66,9 +66,10 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
         lastMessage.acknowledge();
       }
     } catch (JMSException e) {
-      // The effect of this is message not get acknowledged and thus will be redilivered. It is
-      // not fatal so we just raise error log. Similar below.
-      LOG.error("Exception while finalizing message: ", e);
+      // The effect of this is message not get acknowledged and thus will be redelivered. It is
+      // not fatal, so we just raise error log. Similar below.
+      LOG.error(
+          "Failed to acknowledge the message. Will redeliver and might cause duplication.", e);
     }
 
     // session is closed after message acknowledged otherwise other consumer may receive duplicate

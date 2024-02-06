@@ -204,18 +204,20 @@ public class JmsIOIT implements Serializable {
     MetricsReader metricsReader = new MetricsReader(readResult, NAMESPACE);
     long actualRecords = metricsReader.getCounterMetric(READ_ELEMENT_METRIC_NAME);
 
-    // TODO(yathu) resolve pending messages with direct runner. Due to direct runner only finalize
-    //   checkpoint at very end, there are open consumers (may with buffer) and O(open_consumer)
-    //   message won't get delivered to other session
-    int remainRecords = countRemain(QUEUE);
-    assertTrue(remainRecords < OPTIONS.getNumberOfRecords() * 0.005);
-    LOG.info("has {} messages remain", remainRecords);
+    // TODO(yathu) resolve pending messages with direct runner then we can simply assert
+    //   actual-records == total-records.
+    //   Due to direct runner only finalize checkpoint at very end, there are open consumers (may
+    //   with buffer) and O(open_consumer) message won't get delivered to other session.
+    int unackRecords = countRemain(QUEUE);
+    assertTrue(unackRecords < OPTIONS.getNumberOfRecords() * 0.002);
+    LOG.info("has {} messages acknowledged", unackRecords);
 
+    // acknowledged records
+    int ackRecords = OPTIONS.getNumberOfRecords() - unackRecords;
     assertTrue(
         String.format(
-            "actual number of records %d smaller than expected: %d.",
-            actualRecords, OPTIONS.getNumberOfRecords() - remainRecords),
-        OPTIONS.getNumberOfRecords() <= actualRecords + remainRecords);
+            "actual number of records %d smaller than expected: %d.", actualRecords, ackRecords),
+        ackRecords <= actualRecords);
     collectAndPublishMetrics(writeResult, readResult);
   }
 
