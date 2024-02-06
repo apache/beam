@@ -515,15 +515,6 @@ public class JmsIO {
     /** recreate session and consumer. */
     private synchronized void recreateSession() throws IOException {
       try {
-        if (consumer != null) {
-          consumer.close();
-          consumer = null;
-        }
-      } catch (JMSException e) {
-        LOG.error("Error closing JMS consumer. It may have already been closed.", e);
-      }
-
-      try {
         this.session = this.connection.createSession(false, Session.CLIENT_ACKNOWLEDGE);
       } catch (Exception e) {
         throw new IOException("Error creating JMS session", e);
@@ -573,14 +564,18 @@ public class JmsIO {
     @Override
     public boolean advance() throws IOException {
       try {
-        Message message = this.consumer.receiveNoWait();
-
+        Message message;
+        synchronized (this) {
+          message = this.consumer.receiveNoWait();
+          // put add in synchronized to make sure all messages in preparer are in same session
+          if (message != null) {
+            checkpointMarkPreparer.add(message);
+          }
+        }
         if (message == null) {
           currentMessage = null;
           return false;
         }
-
-        checkpointMarkPreparer.add(message);
 
         currentMessage = this.source.spec.getMessageMapper().mapMessage(message);
         currentTimestamp = new Instant(message.getJMSTimestamp());
@@ -614,8 +609,10 @@ public class JmsIO {
 
     @Override
     public CheckpointMark getCheckpointMark() {
+      MessageConsumer consumerToClose;
       Session sessionTofinalize;
       synchronized (this) {
+        consumerToClose = consumer;
         sessionTofinalize = session;
       }
       try {
@@ -623,7 +620,7 @@ public class JmsIO {
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
-      return checkpointMarkPreparer.newCheckpoint(sessionTofinalize);
+      return checkpointMarkPreparer.newCheckpoint(consumerToClose, sessionTofinalize);
     }
 
     @Override
@@ -643,7 +640,6 @@ public class JmsIO {
 
     @SuppressWarnings("FutureReturnValueIgnored")
     private void doClose() {
-
       try {
         closeAutoscaler();
         closeConsumer();
@@ -651,8 +647,7 @@ public class JmsIO {
             options.as(ExecutorOptions.class).getScheduledExecutorService();
         executorService.schedule(
             () -> {
-              LOG.debug(
-                  "Closing session and connection after delay {}", source.spec.getCloseTimeout());
+              LOG.debug("Closing connection after delay {}", source.spec.getCloseTimeout());
               // Discard the checkpoints and set the reader as inactive
               checkpointMarkPreparer.discard();
               closeSession();
@@ -660,7 +655,6 @@ public class JmsIO {
             },
             source.spec.getCloseTimeout().getMillis(),
             TimeUnit.MILLISECONDS);
-
       } catch (Exception e) {
         LOG.error("Error closing reader", e);
       }
@@ -689,7 +683,7 @@ public class JmsIO {
       }
     }
 
-    private void closeConsumer() {
+    private synchronized void closeConsumer() {
       try {
         if (consumer != null) {
           consumer.close();

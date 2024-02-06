@@ -439,7 +439,7 @@ public class JmsIOTest {
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
     JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
-    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+    JmsIO.UnboundedJmsReader reader = source.createReader(PipelineOptionsFactory.create(), null);
 
     // start the reader and move to the first record
     assertTrue(reader.start());
@@ -545,7 +545,7 @@ public class JmsIOTest {
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
     JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
-    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+    JmsIO.UnboundedJmsReader reader = source.createReader(PipelineOptionsFactory.create(), null);
 
     // start the reader and move to the first record
     assertTrue(reader.start());
@@ -583,7 +583,7 @@ public class JmsIOTest {
   /** Test the checkpoint mark default coder, which is actually AvroCoder. */
   @Test
   public void testCheckpointMarkDefaultCoder() throws Exception {
-    JmsCheckpointMark jmsCheckpointMark = JmsCheckpointMark.newPreparer().newCheckpoint(null);
+    JmsCheckpointMark jmsCheckpointMark = JmsCheckpointMark.newPreparer().newCheckpoint(null, null);
     Coder coder = new JmsIO.UnboundedJmsSource(null).getCheckpointMarkCoder();
     CoderProperties.coderSerializable(coder);
     CoderProperties.coderDecodeEncodeEqual(coder, jmsCheckpointMark);
@@ -598,7 +598,7 @@ public class JmsIOTest {
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
     JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
-    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+    JmsIO.UnboundedJmsReader reader = source.createReader(PipelineOptionsFactory.create(), null);
 
     // start the reader and check getSplitBacklogBytes and getTotalBacklogBytes values
     reader.start();
@@ -622,7 +622,7 @@ public class JmsIOTest {
             .withAutoScaler(autoScaler);
 
     JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
-    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+    JmsIO.UnboundedJmsReader reader = source.createReader(PipelineOptionsFactory.create(), null);
 
     // start the reader and check getSplitBacklogBytes and getTotalBacklogBytes values
     reader.start();
@@ -698,7 +698,7 @@ public class JmsIOTest {
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
     JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
-    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+    JmsIO.UnboundedJmsReader reader = source.createReader(PipelineOptionsFactory.create(), null);
 
     // start the reader and move to the first record
     assertTrue(reader.start());

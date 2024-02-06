@@ -25,6 +25,7 @@ import java.util.Objects;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.jms.JMSException;
 import javax.jms.Message;
+import javax.jms.MessageConsumer;
 import javax.jms.Session;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -43,14 +44,19 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
 
   private Instant oldestMessageTimestamp;
   private transient List<Message> messages;
+  private transient @Nullable MessageConsumer consumer;
   private transient @Nullable Session session;
 
   @VisibleForTesting final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
   private JmsCheckpointMark(
-      Instant oldestMessageTimestamp, List<Message> messages, @Nullable Session session) {
+      Instant oldestMessageTimestamp,
+      List<Message> messages,
+      @Nullable MessageConsumer consumer,
+      @Nullable Session session) {
     this.oldestMessageTimestamp = oldestMessageTimestamp;
     this.messages = messages;
+    this.consumer = consumer;
     this.session = session;
   }
 
@@ -81,6 +87,14 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
       }
       messages.clear();
     } finally {
+      try {
+        if (consumer != null) {
+          consumer.close();
+          consumer = null;
+        }
+      } catch (JMSException e) {
+        LOG.info("Error closing JMS consumer. It may have already been closed.");
+      }
       try {
         if (session != null) {
           // non-null session means the session is now owned by the checkpoint. It is now closed
@@ -178,15 +192,16 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
      * by the preparer, and the owner of the preparer is responsible to create a new Jms session
      * after this call.
      */
-    JmsCheckpointMark newCheckpoint(@Nullable Session session) {
+    JmsCheckpointMark newCheckpoint(@Nullable MessageConsumer consumer, @Nullable Session session) {
       JmsCheckpointMark checkpointMark;
       lock.writeLock().lock();
       try {
         if (discarded) {
           messages.clear();
-          checkpointMark = new JmsCheckpointMark(oldestMessageTimestamp, messages, null);
+          checkpointMark = new JmsCheckpointMark(oldestMessageTimestamp, messages, null, null);
         } else {
-          checkpointMark = new JmsCheckpointMark(oldestMessageTimestamp, messages, session);
+          checkpointMark =
+              new JmsCheckpointMark(oldestMessageTimestamp, messages, consumer, session);
           messages = new ArrayList<>();
           oldestMessageTimestamp = Instant.now();
         }
