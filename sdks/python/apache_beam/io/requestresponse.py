@@ -19,13 +19,16 @@
 import abc
 import concurrent.futures
 import contextlib
+import enum
 import logging
 import sys
 import time
 from typing import Generic
 from typing import Optional
+from typing import Tuple
 from typing import TypeVar
 
+import redis
 from google.api_core.exceptions import TooManyRequests
 
 import apache_beam as beam
@@ -41,6 +44,14 @@ ResponseT = TypeVar('ResponseT')
 DEFAULT_TIMEOUT_SECS = 30  # seconds
 
 _LOGGER = logging.getLogger(__name__)
+
+__all__ = [
+    'RequestResponseIO',
+    'ExponentialBackOffRepeater',
+    'DefaultThrottler',
+    'NoOpsRepeater',
+    'RedisCache',
+]
 
 
 class UserCodeExecutionException(Exception):
@@ -214,19 +225,12 @@ class NoOpsRepeater(Repeater):
     return _execute_request(caller, request, timeout, metrics_collector)
 
 
-class CacheReader(abc.ABC):
-  """CacheReader provides mechanism to read from the cache."""
-  pass
-
-
-class CacheWriter(abc.ABC):
-  """CacheWriter provides mechanism to write to the cache."""
-  pass
-
-
 class Cache(abc.ABC):
   """Base Cache class for
-  :class:`apache_beam.io.requestresponse.RequestResponseIO`."""
+  :class:`apache_beam.io.requestresponse.RequestResponseIO`.
+
+  For adding cache support to RequestResponseIO, implement this class.
+  """
   @abc.abstractmethod
   def get_read(self):
     """get_read returns a PTransform that reads from the cache."""
@@ -238,21 +242,116 @@ class Cache(abc.ABC):
     pass
 
 
+class _RedisMode(enum.Enum):
+  READ = 0
+  WRITE = 1
+
+
+class RedisCaller(Caller):
+  def __init__(
+      self,
+      uri: str,
+      request_coder: Optional[coders.Coder],
+      response_coder: Optional[coders.Coder],
+      mode: _RedisMode):
+    self.host, self.port = uri.split(':')
+    self.request_coder = request_coder
+    self.response_coder = response_coder
+    self.mode = mode
+
+  def __enter__(self):
+    self.client = redis.Redis(self.host, self.port)
+
+  def __call__(self, element, *args, **kwargs):
+    if self.mode == _RedisMode.READ:
+      encoded_request = self.request_coder.encode(element)
+      encoded_response = self.client.get(encoded_request)
+      response = self.response_coder.decode(encoded_response)
+      return element, response
+    else:
+      encoded_request = self.request_coder.encode(element[0])
+      encoded_response = self.response_coder.decode(element[1])
+      self.client.set(encoded_request, encoded_response)
+      return element
+
+  def __exit__(self, exc_type, exc_val, exc_tb):
+    self.client.client_kill(self.uri)
+
+
+class ReadFromRedis(beam.PTransform[beam.PCollection[RequestT],
+                                    beam.PCollection[ResponseT]]):
+  def __init__(
+      self,
+      uri: str,
+      request_coder: Optional[coders.Coder],
+      response_coder: Optional[coders.Coder]):
+    self.uri = uri
+    self.request_coder = request_coder
+    self.response_coder = response_coder
+    self.redis_caller = RedisCaller(
+        self.uri, self.request_coder, self.response_coder, _RedisMode.READ)
+
+  def expand(
+      self,
+      requests: beam.PCollection[RequestT]) -> beam.PCollection[ResponseT]:
+    return requests | RequestResponseIO(self.redis_caller)
+
+
+class WriteToRedis(beam.PTransform[beam.PCollection[Tuple[RequestT, ResponseT]],
+                                   beam.PCollection[ResponseT]]):
+  def __init__(
+      self,
+      uri: str,
+      request_coder: Optional[coders.Coder],
+      response_coder: Optional[coders.Coder]):
+    self.uri = uri
+    self.request_coder = request_coder
+    self.response_coder = response_coder
+    self.redis_caller = RedisCaller(
+        self.uri, self.request_coder, self.response_coder, _RedisMode.WRITE)
+
+  def expand(
+      self, elements: beam.PCollection[Tuple[RequestT, ResponseT]]
+  ) -> beam.PCollection[ResponseT]:
+    return elements | RequestResponseIO(self.redis_caller)
+
+
+def ensure_coders_exist(request_coder, response_coder):
+  if not request_coder or not response_coder:
+    _LOGGER.warning(
+        'need both request and response coder to be able to use'
+        'Cache with RequestResponseIO.')
+
+
 class RedisCache(Cache):
   def __init__(
-      self, uri: str, request_coder: coders.Coder,
-      response_coder: coders.Coder):
+      self,
+      uri: str,
+      request_coder: Optional[coders.Coder] = None,
+      response_coder: Optional[coders.Coder] = None):
     self._uri = uri
     self._request_coder = request_coder
     self._response_coder = response_coder
 
   def get_read(self):
-    """get_read returns a PTransform that reads from the cache."""
-    pass
+    """get_read returns a callback that returns a PTransform
+    for reading from the cache."""
+    ensure_coders_exist(self._request_coder, self._response_coder)
+
+    def callback():
+      return ReadFromRedis(self._uri, self._request_coder, self._response_coder)
+
+    return callback
 
   def get_write(self):
-    """get_write returns a PTransform that writes to the cache."""
-    pass
+    """get_write returns a callback that returns a PTransform
+    for writing to the cache."""
+    ensure_coders_exist(self._request_coder, self._response_coder)
+
+    def callback():
+      return WriteToRedis(self._uri, self._request_coder, self._response_coder)
+
+    return callback
 
 
 class PreCallThrottler(abc.ABC):
@@ -283,6 +382,20 @@ class DefaultThrottler(PreCallThrottler):
     self.delay_secs = delay_secs
 
 
+class _FilterNullCacheReadFn(beam.DoFn):
+  """DoFn that returns the responses from cache read that are not `None`."""
+  def process(self, element: Tuple[RequestT, ResponseT], *args, **kwargs):
+    if element[1]:
+      yield element[1]
+
+
+class _FilterCacheRequestsFn(beam.DoFn):
+  """DoFn that returns the requests not fulfilled by the cache read."""
+  def process(self, element, *args, **kwargs):
+    if not element[1]:
+      yield element[0]
+
+
 class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
                                         beam.PCollection[ResponseT]]):
   """A :class:`RequestResponseIO` transform to read and write to APIs.
@@ -297,8 +410,7 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
       timeout: Optional[float] = DEFAULT_TIMEOUT_SECS,
       should_backoff: Optional[ShouldBackOff] = None,
       repeater: Repeater = ExponentialBackOffRepeater(),
-      cache_reader: Optional[CacheReader] = None,
-      cache_writer: Optional[CacheWriter] = None,
+      cache: Optional[Cache] = None,
       throttler: PreCallThrottler = DefaultThrottler(),
   ):
     """
@@ -314,10 +426,8 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
         repeat failed requests to API due to service errors. Defaults to
         :class:`apache_beam.io.requestresponse.ExponentialBackOffRepeater` to
         repeat requests with exponential backoff.
-      cache_reader (~apache_beam.io.requestresponse.CacheReader): (Optional)
-        provides methods to read external cache.
-      cache_writer (~apache_beam.io.requestresponse.CacheWriter): (Optional)
-        provides methods to write to external cache.
+      cache: (Optional) a :class:`apache_beam.io.requestresponse.Cache` object
+        to use the appropriate cache.
       throttler (~apache_beam.io.requestresponse.PreCallThrottler):
         provides methods to pre-throttle a request. Defaults to
         :class:`apache_beam.io.requestresponse.DefaultThrottler` for
@@ -331,27 +441,56 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
       self._repeater = repeater
     else:
       self._repeater = NoOpsRepeater()
-    self._cache_reader = cache_reader
-    self._cache_writer = cache_writer
+    self._cache = cache
     self._throttler = throttler
 
   def expand(
       self,
       requests: beam.PCollection[RequestT]) -> beam.PCollection[ResponseT]:
-    # TODO(riteshghorse): handle Cache and Throttle PTransforms when available.
+    # TODO(riteshghorse): handle Throttle PTransforms when available.
+
+    inputs = requests
+    if self._cache:
+      # read from cache.
+      cache_read_callback = self._cache.get_read()
+      outputs = inputs | cache_read_callback()
+      # filter responses that are None and send them to the Call transform
+      # to fetch a value from external service.
+      cached_responses = outputs | beam.ParDo(_FilterNullCacheReadFn())
+      inputs = outputs | beam.ParDo(_FilterCacheRequestsFn())
+
     if isinstance(self._throttler, DefaultThrottler):
-      return requests | _Call(
-          caller=self._caller,
-          timeout=self._timeout,
-          should_backoff=self._should_backoff,
-          repeater=self._repeater,
-          throttler=self._throttler)
+      # DefaultThrottler applies throttling in the DoFn of
+      # Call PTransform.
+      responses = (
+          inputs
+          | _Call(
+              caller=self._caller,
+              timeout=self._timeout,
+              should_backoff=self._should_backoff,
+              repeater=self._repeater,
+              throttler=self._throttler))
     else:
-      return requests | _Call(
-          caller=self._caller,
-          timeout=self._timeout,
-          should_backoff=self._should_backoff,
-          repeater=self._repeater)
+      # No throttling mechanism. The requests are made to the external source
+      # as they come.
+      responses = (
+          inputs
+          | _Call(
+              caller=self._caller,
+              timeout=self._timeout,
+              should_backoff=self._should_backoff,
+              repeater=self._repeater))
+
+    if self._cache:
+      # write to cache.
+      cache_write_callback = self._cache.get_write()
+      # TODO: Check for the case when response is already a tuple of requests
+      #  and response. The EnrichmentSourceHandlers return tuple like this in
+      #  order to be able to do a join later in with Enrichment transform.
+      _ = (inputs, responses) | cache_write_callback()
+      return (cached_responses, responses) | beam.Flatten()
+
+    return responses
 
 
 class _Call(beam.PTransform[beam.PCollection[RequestT],

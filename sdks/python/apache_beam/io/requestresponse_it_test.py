@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import base64
+import logging
 import sys
 import typing
 import unittest
@@ -23,6 +24,7 @@ from typing import Tuple
 from typing import Union
 
 import urllib3
+from testcontainers.redis import RedisContainer
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -40,6 +42,8 @@ except ImportError:
 _HTTP_PATH = '/v1/echo'
 _PAYLOAD = base64.b64encode(bytes('payload', 'utf-8'))
 _HTTP_ENDPOINT_ADDRESS_FLAG = '--httpEndpointAddress'
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class EchoITOptions(PipelineOptions):
@@ -126,6 +130,7 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
   def setUpClass(cls) -> None:
     cls.options = EchoITOptions()
     http_endpoint_address = cls.options.http_endpoint_address
+    http_endpoint_address = 'http://localhost:8080'
     if not http_endpoint_address or http_endpoint_address == '':
       raise unittest.SkipTest(f'{_HTTP_ENDPOINT_ADDRESS_FLAG} is required.')
 
@@ -183,6 +188,30 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
           | 'Create PCollection' >> beam.Create([req])
           | 'RRIO Transform' >> RequestResponseIO(client))
       self.assertIsNotNone(output)
+
+
+class TestRedisCache(unittest.TestCase):
+  def setUp(self) -> None:
+    self.retries = 3
+    self._start_container()
+
+  def test_rrio_cache(self):
+    self.assertEqual(self.uri, "")
+
+  def tearDown(self) -> None:
+    self.container.stop()
+
+  def _start_container(self):
+    for i in range(self.retries):
+      try:
+        self.container = RedisContainer(image='redis:7.2.4')
+        self.container.start()
+        self.uri = self.container.get_container_host_ip()
+        break
+      except Exception as e:
+        if i == self.retries - 1:
+          _LOGGER.error('Unable to start redis container for RRIO tests.')
+          raise e
 
 
 if __name__ == '__main__':
