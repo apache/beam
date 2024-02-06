@@ -201,8 +201,7 @@ class InferenceAPIEmbeddings(EmbeddingsManager):
       columns: List of columns to be embedded.
       model_name: Model name used for feature extraction.
       api_url: API url for feature extraction. If specified, model_name will be
-        ignored. If none, the default url
-        https://api-inference.huggingface.co/pipeline/feature-extraction/{model_name} # pylint: disable=line-too-long
+        ignored. If none, the default url https://api-inference.huggingface.co/pipeline/feature-extraction/{model_name} # pylint: disable=line-too-long
         will be used.
 
     """
