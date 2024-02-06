@@ -1401,6 +1401,12 @@ public class StreamingDataflowWorker {
     final Windmill.WorkItemCommitRequest request = commit.request();
     // Drop commits for failed work. Such commits will be dropped by Windmill anyway.
     if (commit.work().isFailed()) {
+      readerCache.invalidateReader(
+          WindmillComputationKey.create(
+              state.getComputationId(), request.getKey(), request.getShardingKey()));
+      stateCache
+          .forComputation(state.getComputationId())
+          .invalidate(request.getKey(), request.getShardingKey());
       state.completeWorkAndScheduleNextWorkForKey(
           ShardedKey.create(request.getKey(), request.getShardingKey()), request.getWorkToken());
       return true;
