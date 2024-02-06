@@ -22,8 +22,24 @@ import tempfile
 import typing
 
 import tensorflow_transform as tft
-from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.transforms import base
+
+from google.cloud.storage import Client
+from google.cloud.storage import transfer_manager
+
+
+def download_artifacts_from_gcs(bucket_name, prefix, local_path):
+  """Downloads artifacts from GCS to the local file system.
+    Args:
+        bucket_name: The name of the GCS bucket to download from.
+        folder_name: The name of the folder to download.
+        local_path: The local path to download the folder to.
+    """
+  client = Client()
+  bucket = client.get_bucket(bucket_name)
+  blobs = [blob.name for blob in bucket.list_blobs(prefix=prefix)]
+  _ = transfer_manager.download_many_to_path(
+      bucket, blobs, destination_directory=local_path, max_workers=6)
 
 
 class ArtifactsFetcher:
@@ -33,25 +49,28 @@ class ArtifactsFetcher:
 
   This is intended to be used for testing purposes only.
   """
-  def __init__(self, artifact_location):
-    with tempfile.TemporaryDirectory() as tempdir:
-      # TODO: Can we use FileSystems.match() here with a * glob pattern?
-      # using match, does it output files and directories path?
-      FileSystems.copy(artifact_location, tempdir)
-      assert os.listdir(tempdir), f"No files found in {artifact_location}"
-      artifact_location = tempdir
-      files = os.listdir(artifact_location)
-      files.remove(base._ATTRIBUTE_FILE_NAME)
-      # TODO: https://github.com/apache/beam/issues/29356
-      #  Integrate ArtifactFetcher into MLTransform.
-      if len(files) > 1:
-        raise NotImplementedError(
-            "MLTransform may have been utilized alongside transforms written "
-            "in TensorFlow Transform, in conjunction with those from different "
-            "frameworks. Currently, retrieving artifacts from this "
-            "multi-framework setup is not supported.")
-      self._artifact_location = os.path.join(artifact_location, files[0])
-      self.transform_output = tft.TFTransformOutput(self._artifact_location)
+  def __init__(self, artifact_location: str):
+    tempdir = tempfile.mkdtemp()
+    if artifact_location.startswith('gs://'):
+      parts = artifact_location[5:].split('/')
+      bucket_name = parts[0]
+      prefix = '/'.join(parts[1:])
+      download_artifacts_from_gcs(bucket_name, prefix, tempdir)
+
+    assert os.listdir(tempdir), f"No files found in {artifact_location}"
+    artifact_location = os.path.join(tempdir, prefix)
+    files = os.listdir(artifact_location)
+    files.remove(base._ATTRIBUTE_FILE_NAME)
+    # TODO: https://github.com/apache/beam/issues/29356
+    #  Integrate ArtifactFetcher into MLTransform.
+    if len(files) > 1:
+      raise NotImplementedError(
+          "MLTransform may have been utilized alongside transforms written "
+          "in TensorFlow Transform, in conjunction with those from different "
+          "frameworks. Currently, retrieving artifacts from this "
+          "multi-framework setup is not supported.")
+    self._artifact_location = os.path.join(artifact_location, files[0])
+    self.transform_output = tft.TFTransformOutput(self._artifact_location)
 
   def get_vocab_list(self, vocab_filename: str) -> typing.List[bytes]:
     """
