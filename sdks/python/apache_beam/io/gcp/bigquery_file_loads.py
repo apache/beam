@@ -747,6 +747,7 @@ class TriggerLoadJobs(beam.DoFn):
     )
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
+
     job_reference = self.bq_wrapper.perform_load_job(
         destination=table_reference,
         source_uris=files,

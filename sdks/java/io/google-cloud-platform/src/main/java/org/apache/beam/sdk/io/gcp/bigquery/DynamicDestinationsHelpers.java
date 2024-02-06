@@ -272,23 +272,28 @@ class DynamicDestinationsHelpers {
     }
   }
 
-  static class ConstantTimePartitioningDestinations<T>
+  static class ConstantTimePartitioningClusteringDestinations<T>
       extends DelegatingDynamicDestinations<T, TableDestination> {
 
-    private final ValueProvider<String> jsonTimePartitioning;
+    private final @Nullable ValueProvider<String> jsonTimePartitioning;
     private final @Nullable ValueProvider<String> jsonClustering;
 
-    ConstantTimePartitioningDestinations(
+    ConstantTimePartitioningClusteringDestinations(
         DynamicDestinations<T, TableDestination> inner,
         ValueProvider<String> jsonTimePartitioning,
         ValueProvider<String> jsonClustering) {
       super(inner);
-      Preconditions.checkArgumentNotNull(
-          jsonTimePartitioning, "jsonTimePartitioning provider can not be null");
-      if (jsonTimePartitioning.isAccessible()) {
-        Preconditions.checkArgumentNotNull(
-            jsonTimePartitioning.get(), "jsonTimePartitioning can not be null");
-      }
+
+      checkArgument(
+          (jsonTimePartitioning != null
+                  && jsonTimePartitioning.isAccessible()
+                  && jsonTimePartitioning.get() != null)
+              || (jsonClustering != null
+                  && jsonClustering.isAccessible()
+                  && jsonClustering.get() != null),
+          "at least one of jsonTimePartitioning or jsonClustering must be non-null, accessible "
+              + "and present");
+
       this.jsonTimePartitioning = jsonTimePartitioning;
       this.jsonClustering = jsonClustering;
     }
@@ -296,13 +301,12 @@ class DynamicDestinationsHelpers {
     @Override
     public TableDestination getDestination(@Nullable ValueInSingleWindow<T> element) {
       TableDestination destination = super.getDestination(element);
-      String partitioning = this.jsonTimePartitioning.get();
-      checkArgument(partitioning != null, "jsonTimePartitioning can not be null");
+      String partitioning =
+          Optional.ofNullable(jsonTimePartitioning).map(ValueProvider::get).orElse(null);
+      String clustering = Optional.ofNullable(jsonClustering).map(ValueProvider::get).orElse(null);
+
       return new TableDestination(
-          destination.getTableSpec(),
-          destination.getTableDescription(),
-          partitioning,
-          Optional.ofNullable(jsonClustering).map(ValueProvider::get).orElse(null));
+          destination.getTableSpec(), destination.getTableDescription(), partitioning, clustering);
     }
 
     @Override
@@ -316,10 +320,10 @@ class DynamicDestinationsHelpers {
 
     @Override
     public String toString() {
-      MoreObjects.ToStringHelper helper =
-          MoreObjects.toStringHelper(this)
-              .add("inner", inner)
-              .add("jsonTimePartitioning", jsonTimePartitioning);
+      MoreObjects.ToStringHelper helper = MoreObjects.toStringHelper(this).add("inner", inner);
+      if (jsonTimePartitioning != null) {
+        helper.add("jsonTimePartitioning", jsonTimePartitioning);
+      }
       if (jsonClustering != null) {
         helper.add("jsonClustering", jsonClustering);
       }

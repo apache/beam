@@ -16,16 +16,10 @@
  * limitations under the License.
  */
 apply plugin: 'org.apache.beam.module'
-apply plugin: 'application'
-mainClassName = "org.apache.beam.sdk.transformservice.launcher.TransformServiceLauncher"
 
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.transform.service',
-        exportJavadoc: false,
-        validateShadowJar: false,
-        shadowClosure: {},
+    automaticModuleName: 'org.apache.beam.sdk.transform.service',
 )
-
 
 description = "Apache Beam :: SDKs :: Java :: Transform Service :: Launcher"
 ext.summary = """Contains code that can be used to run an transform service."""
@@ -40,10 +34,11 @@ test {
 }
 
 dependencies {
-    shadow library.java.vendored_guava_32_1_2_jre
-    shadow library.java.slf4j_api
-    shadow library.java.args4j
-    shadow library.java.error_prone_annotations
+    //  This library is designed to be light-weight, having minimum amount of dependencies and is used by Beam runner artifacts.
+    implementation library.java.vendored_guava_32_1_2_jre
+    implementation library.java.slf4j_api
+    implementation library.java.args4j
+    compileOnly library.java.error_prone_annotations
     permitUnusedDeclared(library.java.error_prone_annotations)
     testImplementation library.java.junit
     testImplementation library.java.mockito_core
@@ -56,11 +51,5 @@ sourceSets {
             srcDirs "../docker-compose"
         }
         output.resourcesDir = "$buildDir/resources/docker-compose/$name"
-    }
-}
-
-jar {
-    manifest {
-        attributes 'Main-Class': application.mainClass
     }
 }

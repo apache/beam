@@ -361,6 +361,7 @@ import itertools
 import json
 import logging
 import random
+import secrets
 import time
 import uuid
 import warnings
@@ -1854,6 +1855,7 @@ class WriteToBigQuery(PTransform):
       kms_key=None,
       batch_size=None,
       max_file_size=None,
+      max_partition_size=None,
       max_files_per_bundle=None,
       test_client=None,
       custom_gcs_temp_location=None,
@@ -1934,6 +1936,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       max_file_size (int): The maximum size for a file to be written and then
         loaded into BigQuery. The default value is 4TB, which is 80% of the
         limit of 5TB for BigQuery to load any file.
+      max_partition_size (int): Maximum byte size for each load job to
+        BigQuery. Defaults to 15TB. Applicable to FILE_LOADS only.
       max_files_per_bundle(int): The maximum number of files to be concurrently
         written by a worker. The default here is 20. Larger values will allow
         writing to multiple destinations without having to reshard - but they
@@ -2059,6 +2063,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     # TODO(pabloem): Consider handling ValueProvider for this location.
     self.custom_gcs_temp_location = custom_gcs_temp_location
     self.max_file_size = max_file_size
+    self.max_partition_size = max_partition_size
     self.max_files_per_bundle = max_files_per_bundle
     self.method = method or WriteToBigQuery.Method.DEFAULT
     self.triggering_frequency = triggering_frequency
@@ -2202,6 +2207,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           with_auto_sharding=self.with_auto_sharding,
           temp_file_format=self._temp_file_format,
           max_file_size=self.max_file_size,
+          max_partition_size=self.max_partition_size,
           max_files_per_bundle=self.max_files_per_bundle,
           custom_gcs_temp_location=self.custom_gcs_temp_location,
           test_client=self.test_client,
@@ -2920,8 +2926,9 @@ class ReadFromBigQueryRequest:
     self.table = table
     self.validate()
 
-    # We use this internal object ID to generate BigQuery export directories.
-    self.obj_id = random.randint(0, 100000)
+    # We use this internal object ID to generate BigQuery export directories
+    # and to create BigQuery job names
+    self.obj_id = '%d_%s' % (int(time.time()), secrets.token_hex(3))
 
   def validate(self):
     if self.table is not None and self.query is not None:
