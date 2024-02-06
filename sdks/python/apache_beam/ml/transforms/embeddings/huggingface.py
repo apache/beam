@@ -16,6 +16,7 @@
 
 __all__ = ["SentenceTransformerEmbeddings", "InferenceAPIEmbeddings"]
 
+import logging
 import os
 from typing import Any
 from typing import Callable
@@ -37,6 +38,8 @@ try:
   from sentence_transformers import SentenceTransformer
 except ImportError:
   SentenceTransformer = None
+
+_LOGGER = logging.getLogger(__name__)
 
 
 # TODO: https://github.com/apache/beam/issues/29621
@@ -184,6 +187,19 @@ class _InferenceAPIHandler(ModelHandler):
 
 
 class InferenceAPIEmbeddings(EmbeddingsManager):
+  """
+    Feature extraction using HuggingFace's Inference API.
+    Intended to be used for feature-extraction. For other tasks, please
+    refer to https://huggingface.co/inference-api.
+
+    Args:
+      hf_token: HuggingFace token.
+      columns: List of columns to be embedded.
+      model_name: Model name used for feature extraction.
+      api_url: API url for feature extraction. If specified, model_name will be
+        ignored. If none, the default url for feature extraction
+        will be used.
+  """
   def __init__(
       self,
       hf_token: Optional[str],
@@ -192,18 +208,6 @@ class InferenceAPIEmbeddings(EmbeddingsManager):
       api_url: Optional[str] = None,
       **kwargs,
       ):
-    """
-    Feature extraction using HuggingFace's Inference API.
-    Intended to be used for feature-extraction. For other tasks, please
-    refer to https://huggingface.co/inference-api.
-    Args:
-      hf_token: HuggingFace token.
-      columns: List of columns to be embedded.
-      model_name: Model name used for feature extraction.
-      api_url: API url for feature extraction. If specified, model_name will be
-        ignored. If none, the default url https://api-inference.huggingface.co/pipeline/feature-extraction/{model_name} # pylint: disable=line-too-long
-        will be used.
-    """
     super().__init__(columns, **kwargs)
     self._authorization_token = {"Authorization": f"Bearer {hf_token}"}
     self._model_name = model_name
@@ -216,6 +220,8 @@ class InferenceAPIEmbeddings(EmbeddingsManager):
       )
     else:
       self._api_url = api_url
+
+    _LOGGER.info("HuggingFace API URL: %s")
 
   def get_token(self):
     return os.environ.get('HF_TOKEN')
