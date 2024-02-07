@@ -46,7 +46,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
@@ -376,8 +375,9 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
    * Assigns each {@link RequestT} an {@link KV} key using {@link RandomDataGenerator#nextInt} from
    * [0, {@link Rate#getNumElements}). The design goals of this {@link DoFn} are to distribute
    * elements among fixed parallel channels that are each throttled such that the sum total maximum
-   * rate of emission is up to {@link Configuration#getMaximumRate()}. Additionally, wraps the {@link RequestT}
-   * in a {@link TimestampedValue} to preserve the timestamp from the original input {@link PCollection}.
+   * rate of emission is up to {@link Configuration#getMaximumRate()}. Additionally, wraps the
+   * {@link RequestT} in a {@link TimestampedValue} to preserve the timestamp from the original
+   * input {@link PCollection}.
    */
   private class AssignChannelFn extends DoFn<RequestT, KV<Integer, TimestampedValue<RequestT>>> {
     private transient @MonotonicNonNull RandomDataGenerator random;
@@ -491,28 +491,6 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
         }
         return autoBuild();
       }
-    }
-  }
-
-  /**
-   * An extended {@link OffsetRangeTracker} to prevent splitting. See the {@link
-   * OffsetRangeTrackerWithoutTrySplit#trySplit} for more details.
-   */
-  private static class OffsetRangeTrackerWithoutTrySplit extends OffsetRangeTracker {
-    private OffsetRangeTrackerWithoutTrySplit(OffsetRange range) {
-      super(range);
-    }
-
-    /**
-     * {@link OffsetRangeTracker} override of {@link OffsetRangeTracker#trySplit} to avoid
-     * parallelization of the {@code List<RequestT>}. The point of using a splittable DoFn is to use
-     * {@link DoFn.ProcessContinuation} and {@link WatermarkEstimator} to throttle a PCollection.
-     * Therefore, if we enable parallel processing of the {@link OffsetRange}, it defeats the
-     * purpose of the entire {@link Throttle} transform.
-     */
-    @Override
-    public @Nullable SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
-      return null;
     }
   }
 }

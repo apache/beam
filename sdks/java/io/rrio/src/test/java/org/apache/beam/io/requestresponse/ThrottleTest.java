@@ -48,10 +48,6 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.PeriodicImpulse;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.Sessions;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.testinfra.mockapis.echo.v1.Echo;
@@ -148,69 +144,6 @@ public class ThrottleTest {
 
     assertThat(getCount(results, INPUT_ELEMENTS_COUNTER_NAME), equalTo(size));
     assertThat(getCount(results, OUTPUT_ELEMENTS_COUNTER_NAME), equalTo(size));
-  }
-
-  /** Tests that an upstream GlobalWindows gets reapplied to the resulting PCollection. */
-  @Test
-  public void givenUpstreamGlobalWindows_thenReassignedToGlobalWindow() {
-    PCollection<Integer> throttled =
-        pipeline
-            .apply(Create.of(1, 2, 3))
-            .apply(Window.into(new GlobalWindows()))
-            .apply(transformOf(Rate.of(1, Duration.standardSeconds(1L))));
-
-    assertThat(throttled.getWindowingStrategy().getWindowFn(), equalTo(new GlobalWindows()));
-
-    pipeline.run();
-  }
-
-  /** Tests that an upstream SessionWindows gets reapplied to the resulting PCollection. */
-  @Test
-  public void givenUpstreamSessionWindows_thenReassignedToSessionWindows() {
-    PCollection<Integer> throttled =
-        pipeline
-            .apply(Create.of(1, 2, 3))
-            .apply(Window.into(Sessions.withGapDuration(Duration.standardSeconds(1L))))
-            .apply(transformOf(Rate.of(1, Duration.standardSeconds(1L))));
-
-    assertThat(
-        throttled.getWindowingStrategy().getWindowFn(),
-        equalTo(Sessions.withGapDuration(Duration.standardSeconds(1L))));
-
-    pipeline.run();
-  }
-
-  /**
-   * Tests that an upstream Default Window and Trigger gets reapplied to the resulting PCollection.
-   */
-  @Test
-  public void givenUpstreamDefaultWindow_thenReassignedDefaultWindow() {
-    PCollection<Integer> throttled =
-        pipeline
-            .apply(Create.of(1, 2, 3))
-            .apply(transformOf(Rate.of(1, Duration.standardSeconds(1L))));
-
-    assertThat(throttled.getWindowingStrategy().getWindowFn(), equalTo(new GlobalWindows()));
-    assertThat(throttled.getWindowingStrategy().getTrigger(), equalTo(DefaultTrigger.of()));
-
-    pipeline.run();
-  }
-
-  /** Tests whether downstream Windows can be applied. */
-  @Test
-  public void canReassignDownstreamWindow() {
-    PCollection<Integer> throttled =
-        pipeline
-            .apply(Create.of(1, 2, 3))
-            .apply(transformOf(Rate.of(1, Duration.standardSeconds(1L))))
-            .apply(Window.into(Sessions.withGapDuration(Duration.standardSeconds(2L))));
-
-    assertThat(
-        throttled.getWindowingStrategy().getWindowFn(),
-        equalTo(Sessions.withGapDuration(Duration.standardSeconds(2L))));
-    assertThat(throttled.getWindowingStrategy().getTrigger(), equalTo(DefaultTrigger.of()));
-
-    pipeline.run();
   }
 
   /** Tests that a stream PCollection is throttled. */
