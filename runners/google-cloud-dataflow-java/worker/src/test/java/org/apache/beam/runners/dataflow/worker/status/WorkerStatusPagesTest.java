@@ -21,7 +21,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 
 import java.util.function.BooleanSupplier;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.eclipse.jetty.server.LocalConnector;
 import org.eclipse.jetty.server.Server;
 import org.junit.After;
@@ -45,7 +47,9 @@ public class WorkerStatusPagesTest {
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
-    wsp = new WorkerStatusPages(server, mockMemoryMonitor, mockHealthyIndicator);
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.create().as(DataflowWorkerHarnessOptions.class);
+    wsp = new WorkerStatusPages(options, server, mockMemoryMonitor, mockHealthyIndicator);
     server.addConnector(connector);
     wsp.start();
   }
@@ -74,9 +78,11 @@ public class WorkerStatusPagesTest {
 
   @Test
   public void testHealthzUnhealthy() throws Exception {
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.create().as(DataflowWorkerHarnessOptions.class);
     // set up WorkerStatusPages that respond unhealthy status on "healthz"
     wsp.stop();
-    wsp = new WorkerStatusPages(server, mockMemoryMonitor, () -> false);
+    wsp = new WorkerStatusPages(options, server, mockMemoryMonitor, () -> false);
     wsp.start();
 
     String response = getPage("/healthz");

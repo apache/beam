@@ -130,6 +130,11 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
 
   void setWindmillMessagesBetweenIsReadyChecks(int value);
 
+  @Default.Boolean(true)
+  boolean getChannelzShowOnlyWindmillServiceChannels();
+
+  void setChannelzShowOnlyWindmillServiceChannels(boolean value);
+
   /**
    * Factory for creating local Windmill address. Reads from system propery 'windmill.hostport' for
    * backwards compatibility.

@@ -21,7 +21,6 @@ import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs
 import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.localhostChannel;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
@@ -48,7 +47,7 @@ class GrpcDispatcherClient {
   private final List<CloudWindmillServiceV1Alpha1Stub> dispatcherStubs;
 
   @GuardedBy("this")
-  private final Set<HostAndPort> dispatcherEndpoints;
+  private ImmutableSet<HostAndPort> dispatcherEndpoints;
 
   @GuardedBy("this")
   private final Random rand;
@@ -56,7 +55,7 @@ class GrpcDispatcherClient {
   private GrpcDispatcherClient(
       WindmillStubFactory windmillStubFactory,
       List<CloudWindmillServiceV1Alpha1Stub> dispatcherStubs,
-      Set<HostAndPort> dispatcherEndpoints,
+      ImmutableSet<HostAndPort> dispatcherEndpoints,
       Random rand) {
     this.windmillStubFactory = windmillStubFactory;
     this.dispatcherStubs = dispatcherStubs;
@@ -66,7 +65,7 @@ class GrpcDispatcherClient {
 
   static GrpcDispatcherClient create(WindmillStubFactory windmillStubFactory) {
     return new GrpcDispatcherClient(
-        windmillStubFactory, new ArrayList<>(), new HashSet<>(), new Random());
+        windmillStubFactory, new ArrayList<>(), ImmutableSet.of(), new Random());
   }
 
   @VisibleForTesting
@@ -76,7 +75,10 @@ class GrpcDispatcherClient {
       Set<HostAndPort> dispatcherEndpoints) {
     Preconditions.checkArgument(dispatcherEndpoints.size() == dispatcherStubs.size());
     return new GrpcDispatcherClient(
-        windmillGrpcStubFactory, dispatcherStubs, dispatcherEndpoints, new Random());
+        windmillGrpcStubFactory,
+        dispatcherStubs,
+        ImmutableSet.copyOf(dispatcherEndpoints),
+        new Random());
   }
 
   synchronized CloudWindmillServiceV1Alpha1Stub getDispatcherStub() {
@@ -86,6 +88,10 @@ class GrpcDispatcherClient {
     return (dispatcherStubs.size() == 1
         ? dispatcherStubs.get(0)
         : dispatcherStubs.get(rand.nextInt(dispatcherStubs.size())));
+  }
+
+  synchronized ImmutableSet<HostAndPort> getDispatcherEndpoints() {
+    return dispatcherEndpoints;
   }
 
   synchronized boolean isReady() {
@@ -114,10 +120,8 @@ class GrpcDispatcherClient {
       ImmutableSet<HostAndPort> newDispatcherEndpoints) {
     LOG.info("Initializing Streaming Engine GRPC client for endpoints: {}", newDispatcherEndpoints);
     this.dispatcherStubs.clear();
-    this.dispatcherEndpoints.clear();
-    this.dispatcherEndpoints.addAll(newDispatcherEndpoints);
-
-    dispatcherEndpoints.stream()
+    this.dispatcherEndpoints = ImmutableSet.copyOf(newDispatcherEndpoints);
+    this.dispatcherEndpoints.stream()
         .map(this::createDispatcherStubForWindmillService)
         .forEach(dispatcherStubs::add);
   }

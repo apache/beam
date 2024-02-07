@@ -26,8 +26,11 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
+import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOptions;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture.Capturable;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.ChannelzServlet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletHandler;
@@ -47,19 +50,21 @@ public class WorkerStatusPages {
   private final List<Capturable> capturePages;
   private final StatuszServlet statuszServlet = new StatuszServlet();
   private final ThreadzServlet threadzServlet = new ThreadzServlet();
-  private final ChannelzServlet channelzServlet = new ChannelzServlet();
   private final ServletHandler servletHandler = new ServletHandler();
 
-
   @VisibleForTesting
-  WorkerStatusPages(Server server, MemoryMonitor memoryMonitor, BooleanSupplier healthyIndicator) {
+  WorkerStatusPages(
+      DataflowWorkerHarnessOptions options,
+      Server server,
+      MemoryMonitor memoryMonitor,
+      BooleanSupplier healthyIndicator) {
     this.statusServer = server;
     this.capturePages = new ArrayList<>();
     this.statusServer.setHandler(servletHandler);
 
     // Install the default servlets (threadz, healthz, heapz, jfrz, statusz)
     addServlet(threadzServlet);
-    addServlet(channelzServlet);
+
     addServlet(new HealthzServlet(healthyIndicator));
     addServlet(new HeapzServlet(memoryMonitor));
     if (Environments.getJavaVersion() != Environments.JavaVersion.java8) {
@@ -70,18 +75,26 @@ public class WorkerStatusPages {
     // Add default capture pages (threadz, statusz)
     this.capturePages.add(threadzServlet);
     this.capturePages.add(statuszServlet);
-    this.capturePages.add(channelzServlet);
+    if (options.isStreaming()) {
+      ChannelzServlet channelzServlet =
+          new ChannelzServlet(options.as(StreamingDataflowWorkerOptions.class));
+      addServlet(channelzServlet);
+      this.capturePages.add(channelzServlet);
+    }
     // Add some status pages
     addStatusDataProvider("resources", "Resources", memoryMonitor);
   }
 
   public static WorkerStatusPages create(
-      int defaultStatusPort, MemoryMonitor memoryMonitor, BooleanSupplier healthyIndicator) {
+      DataflowWorkerHarnessOptions options,
+      int defaultStatusPort,
+      MemoryMonitor memoryMonitor,
+      BooleanSupplier healthyIndicator) {
     int statusPort = defaultStatusPort;
     if (System.getProperties().containsKey("status_port")) {
       statusPort = Integer.parseInt(System.getProperty("status_port"));
     }
-    return new WorkerStatusPages(new Server(statusPort), memoryMonitor, healthyIndicator);
+    return new WorkerStatusPages(options, new Server(statusPort), memoryMonitor, healthyIndicator);
   }
 
   /** Start the server. */
