@@ -172,7 +172,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
                 WindmillStubFactory.remoteStubFactory(
                     workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
                     workerOptions.getGcpCredential(),
-                    workerOptions.getUseIsolatedChannels())));
+                    workerOptions.getUseWindmillIsolatedChannels())));
     if (workerOptions.getWindmillServiceEndpoint() != null) {
       grpcWindmillServer.configureWindmillServiceEndpoints();
     } else if (!workerOptions.isEnableStreamingEngine()

@@ -62,7 +62,7 @@ public class MetricTrackingWindmillServerStub {
 
   private final WindmillStreamPool<GetDataStream> getDataStreamPool;
 
-  // May be the same instance as getDataStreamPool based upon options.
+  // This may be the same instance as getDataStreamPool based upon options.
   private final WindmillStreamPool<GetDataStream> heartbeatStreamPool;
 
   @GuardedBy("this")
@@ -108,7 +108,8 @@ public class MetricTrackingWindmillServerStub {
     this.useStreamingRequests = useStreamingRequests;
     if (useStreamingRequests) {
       getDataStreamPool =
-          WindmillStreamPool.create(numGetDataStreams, STREAM_TIMEOUT, this.server::getDataStream);
+          WindmillStreamPool.create(
+              Math.max(1, numGetDataStreams), STREAM_TIMEOUT, this.server::getDataStream);
       if (useSeparateHeartbeatStreams) {
         heartbeatStreamPool =
             WindmillStreamPool.create(1, STREAM_TIMEOUT, this.server::getDataStream);
@@ -279,18 +280,19 @@ public class MetricTrackingWindmillServerStub {
 
   /** Tells windmill processing is ongoing for the given keys. */
   public void refreshActiveWork(Map<String, List<HeartbeatRequest>> heartbeats) {
+    if (heartbeats.isEmpty()) {
+      return;
+    }
     activeHeartbeats.set(heartbeats.size());
     try {
       if (useStreamingRequests) {
-        // With streaming requests, always send the request even when it is empty, to ensure that
-        // we trigger health checks for the stream even when it is idle.
         GetDataStream stream = heartbeatStreamPool.getStream();
         try {
           stream.refreshActiveWork(heartbeats);
         } finally {
           heartbeatStreamPool.releaseStream(stream);
         }
-      } else if (!heartbeats.isEmpty()) {
+      } else {
         // This code path is only used by appliance which sends heartbeats (used to refresh active
         // work) as KeyedGetDataRequests. So we must translate the HeartbeatRequest to a
         // KeyedGetDataRequest here regardless of the value of sendKeyedGetDataRequests.

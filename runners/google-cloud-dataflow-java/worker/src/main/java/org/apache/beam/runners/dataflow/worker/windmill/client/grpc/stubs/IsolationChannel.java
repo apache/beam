@@ -24,7 +24,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.sdk.annotations.Internal;
@@ -49,13 +48,13 @@ class IsolationChannel extends ManagedChannel {
 
   private final Supplier<ManagedChannel> channelFactory;
 
-  @GuardedBy("channelCache")
+  @GuardedBy("this")
   private final List<ManagedChannel> channelCache;
 
-  @GuardedBy("channelCache")
+  @GuardedBy("this")
   private final Set<ManagedChannel> usedChannels;
 
-  @GuardedBy("channelCache")
+  @GuardedBy("this")
   private boolean shutdownStarted = false;
 
   private final String authority;
@@ -88,74 +87,74 @@ class IsolationChannel extends ManagedChannel {
     return new ReleasingClientCall<>(this, channel, channel.newCall(methodDescriptor, callOptions));
   }
 
-  private ManagedChannel getChannel() {
-    synchronized (channelCache) {
-      if (!channelCache.isEmpty()) {
-        ManagedChannel result = channelCache.remove(channelCache.size() - 1);
-        usedChannels.add(result);
-        return result;
-      }
-    }
-    ManagedChannel result = channelFactory.get();
-    synchronized (channelCache) {
+  private synchronized ManagedChannel getChannel() {
+    if (!channelCache.isEmpty()) {
+      ManagedChannel result = channelCache.remove(channelCache.size() - 1);
       usedChannels.add(result);
-      if (shutdownStarted) result.shutdown();
+      return result;
     }
+    if (shutdownStarted) {
+      // Avoid creating a new channel if we're shutting down and just use an existing one
+      // that has already started shutting down.
+      Preconditions.checkArgument(!usedChannels.isEmpty());
+      return usedChannels.iterator().next();
+    }
+
+    ManagedChannel result = channelFactory.get();
+    usedChannels.add(result);
     return result;
   }
 
   @Override
-  public ManagedChannel shutdown() {
-    synchronized (channelCache) {
-      shutdownStarted = true;
-      for (ManagedChannel channel : usedChannels) {
-        channel.shutdown();
-      }
-      for (ManagedChannel channel : channelCache) {
-        channel.shutdown();
-      }
+  public synchronized ManagedChannel shutdown() {
+    shutdownStarted = true;
+    for (ManagedChannel channel : usedChannels) {
+      channel.shutdown();
+    }
+    for (ManagedChannel channel : channelCache) {
+      channel.shutdown();
     }
     return this;
   }
 
   @Override
-  public boolean isShutdown() {
-    synchronized (channelCache) {
-      if (!shutdownStarted) return false;
-      for (ManagedChannel channel : usedChannels) {
-        if (!channel.isShutdown()) return false;
-      }
-      for (ManagedChannel channel : channelCache) {
-        if (!channel.isShutdown()) return false;
-      }
+  public synchronized boolean isShutdown() {
+    if (!shutdownStarted) {
+      return false;
+    }
+    for (ManagedChannel channel : usedChannels) {
+      if (!channel.isShutdown()) return false;
+    }
+    for (ManagedChannel channel : channelCache) {
+      if (!channel.isShutdown()) return false;
     }
     return true;
   }
 
   @Override
-  public boolean isTerminated() {
-    synchronized (channelCache) {
-      if (!shutdownStarted) return false;
-      for (ManagedChannel channel : usedChannels) {
-        if (!channel.isTerminated()) return false;
-      }
-      for (ManagedChannel channel : channelCache) {
-        if (!channel.isTerminated()) return false;
-      }
+  public synchronized boolean isTerminated() {
+    if (!shutdownStarted) {
+      return false;
+    }
+    for (ManagedChannel channel : usedChannels) {
+      if (!channel.isTerminated()) return false;
+    }
+    for (ManagedChannel channel : channelCache) {
+      if (!channel.isTerminated()) return false;
     }
     return true;
   }
 
   @Override
-  public ManagedChannel shutdownNow() {
-    synchronized (channelCache) {
+  public synchronized ManagedChannel shutdownNow() {
+    ArrayList<ManagedChannel> channels = new ArrayList<>();
+    synchronized (this) {
       shutdownStarted = true;
-      for (ManagedChannel channel : usedChannels) {
-        channel.shutdownNow();
-      }
-      for (ManagedChannel channel : channelCache) {
-        channel.shutdownNow();
-      }
+      channels.addAll(usedChannels);
+      channels.addAll(channelCache);
+    }
+    for (ManagedChannel channel : channels) {
+      channel.shutdownNow();
     }
     return this;
   }
@@ -163,32 +162,37 @@ class IsolationChannel extends ManagedChannel {
   @Override
   public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
     long endTimeNanos = System.nanoTime() + unit.toNanos(timeout);
-    if (isTerminated()) return true;
-    synchronized (channelCache) {
-      if (!shutdownStarted) return false;
-      for (ManagedChannel channel : usedChannels) {
-        long awaitTimeNanos = endTimeNanos - System.nanoTime();
-        if (awaitTimeNanos <= 0) {
-          break;
-        }
-        channel.awaitTermination(awaitTimeNanos, TimeUnit.NANOSECONDS);
+    ArrayList<ManagedChannel> channels = new ArrayList<>();
+    synchronized (this) {
+      if (!shutdownStarted) {
+        return false;
       }
-      for (ManagedChannel channel : channelCache) {
-        long awaitTimeNanos = endTimeNanos - System.nanoTime();
-        if (awaitTimeNanos <= 0) {
-          break;
-        }
-        channel.awaitTermination(awaitTimeNanos, TimeUnit.NANOSECONDS);
+      if (isTerminated()) {
+        return true;
       }
+      channels.addAll(usedChannels);
+      channels.addAll(channelCache);
+    }
+    // Block outside the synchronized section.
+    for (ManagedChannel channel : channels) {
+      long awaitTimeNanos = endTimeNanos - System.nanoTime();
+      if (awaitTimeNanos <= 0) {
+        break;
+      }
+      channel.awaitTermination(awaitTimeNanos, TimeUnit.NANOSECONDS);
     }
     return isTerminated();
   }
 
-  void releaseChannelAfterCall(ManagedChannel managedChannel) {
-    synchronized (channelCache) {
-      Preconditions.checkState(
-          usedChannels.remove(managedChannel), "Channel released that was not used");
+  synchronized void releaseChannelAfterCall(ManagedChannel managedChannel) {
+    boolean wasInUsedChannels = usedChannels.remove(managedChannel);
+    if (wasInUsedChannels) {
       channelCache.add(managedChannel);
+    } else {
+      // If we've started shutting down, we may have started multiple calls for a channel.
+      Preconditions.checkState(
+          shutdownStarted && channelCache.contains(managedChannel),
+          "Channel released that was not used, and not in shutdown.");
     }
   }
 
@@ -234,8 +238,7 @@ class IsolationChannel extends ManagedChannel {
       if (!wasReleased.getAndSet(true)) {
         isolationChannel.releaseChannelAfterCall(channel);
       } else {
-        LOG.log(
-            Level.WARNING,
+        LOG.warning(
             "The entry is already released. This indicates that onClose() has already been called previously");
       }
     }
