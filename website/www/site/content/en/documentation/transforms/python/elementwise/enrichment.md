@@ -31,7 +31,7 @@ limitations under the License.
 
 The enrichment transform lets you dynamically enrich data in a pipeline by doing a key-value lookup to a remote service. The transform uses [`RequestResponeIO`](https://beam.apache.org/releases/pydoc/current/apache_beam.io.requestresponseio.html#apache_beam.io.requestresponseio.RequestResponseIO) internally. This feature uses client-side throttling to ensure that the remote service isn't overloaded with requests. If service-side errors occur, like `TooManyRequests` and `Timeout` exceptions, it retries the requests by using exponential backoff.
 
-Starting Apache Beam 2.54.0, the package provides a built-in enrichment handler for [Cloud Bigtable](https://cloud.google.com/bigtable?hl=en).
+In Apache Beam 2.54.0 and later versions, the transform includes a built-in enrichment handler for [Cloud Bigtable](https://cloud.google.com/bigtable?hl=en).
 
 ## Examples
 
