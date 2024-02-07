@@ -23,16 +23,18 @@ from dataclasses import dataclass
 from typing import Tuple
 from typing import Union
 
+import pytest
 import urllib3
 from testcontainers.redis import RedisContainer
 
 import apache_beam as beam
+from apache_beam.coders import coders
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 
 # pylint: disable=ungrouped-imports
 try:
-  from apache_beam.io.requestresponse import Caller
+  from apache_beam.io.requestresponse import Caller, RedisCache
   from apache_beam.io.requestresponse import RequestResponseIO
   from apache_beam.io.requestresponse import UserCodeExecutionException
   from apache_beam.io.requestresponse import UserCodeQuotaException
@@ -190,13 +192,101 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
       self.assertIsNotNone(output)
 
 
+class ValidateCacheResponses(beam.DoFn):
+  def process(self, element, *args, **kwargs):
+    if not element[1] or 'cached-' not in element[1]:
+      raise ValueError(
+          'responses not fetched from cache even though cache '
+          'entries are present.')
+
+
+class ValidateCallerResponses(beam.DoFn):
+  def process(self, element, *args, **kwargs):
+    if not element[1] or 'ACK-' not in element[1]:
+      raise ValueError('responses not fetched from caller when they should.')
+
+
+class FakeCallerForCache(Caller[str, str]):
+  def __init__(self, use_cache: bool = False):
+    self.use_cache = use_cache
+
+  def __enter__(self):
+    pass
+
+  def __call__(self, element, *args, **kwargs):
+    if self.use_cache:
+      return None, None
+
+    return element, 'ACK-{element}'
+
+  def __exit__(self, exc_type, exc_val, exc_tb):
+    pass
+
+
+@pytest.mark.it_postcommit
 class TestRedisCache(unittest.TestCase):
   def setUp(self) -> None:
     self.retries = 3
     self._start_container()
 
-  def test_rrio_cache(self):
-    self.assertEqual(self.uri, "")
+  def test_rrio_cache_all_miss(self):
+    caller = FakeCallerForCache()
+    req = ['redis', 'cachetools', 'memcache']
+    cache = RedisCache(
+        self.host,
+        self.port,
+        request_coder=coders.StrUtf8Coder(),
+        response_coder=coders.StrUtf8Coder())
+    with TestPipeline(is_integration_test=True) as p:
+      _ = (
+          p
+          | beam.Create(req)
+          | RequestResponseIO(caller, cache=cache)
+          | beam.ParDo(ValidateCallerResponses()))
+
+  def test_rrio_cache_all_hit(self):
+    caller = FakeCallerForCache()
+    requests = ['foo', 'bar']
+    responses = ['cached-foo', 'cached-bar']
+    coder = coders.StrUtf8Coder()
+    for i in range(len(requests)):
+      enc_req = coder.encode(requests[i])
+      enc_resp = coder.encode(responses[i])
+      self.client.setex(enc_req, 120, enc_resp)
+    cache = RedisCache(
+        self.host,
+        self.port,
+        request_coder=coders.StrUtf8Coder(),
+        response_coder=coders.StrUtf8Coder())
+    with TestPipeline(is_integration_test=True) as p:
+      _ = (
+          p
+          | beam.Create(requests)
+          | RequestResponseIO(caller, cache=cache)
+          | beam.ParDo(ValidateCacheResponses()))
+
+  def test_rrio_cache_miss_and_hit(self):
+    caller = FakeCallerForCache()
+    requests = ['beam', 'flink', 'spark']
+    cache = RedisCache(
+        self.host,
+        self.port,
+        request_coder=coders.StrUtf8Coder(),
+        response_coder=coders.StrUtf8Coder())
+    with TestPipeline(is_integration_test=True) as p:
+      _ = (
+          p
+          | beam.Create(requests)
+          | RequestResponseIO(caller, cache=cache)
+          | beam.ParDo(ValidateCallerResponses()))
+
+    caller = FakeCallerForCache(use_cache=True)
+    with TestPipeline(is_integration_test=True) as p:
+      _ = (
+          p
+          | beam.Create(requests)
+          | RequestResponseIO(caller, cache=cache)
+          | beam.ParDo(ValidateCallerResponses()))
 
   def tearDown(self) -> None:
     self.container.stop()
@@ -206,7 +296,9 @@ class TestRedisCache(unittest.TestCase):
       try:
         self.container = RedisContainer(image='redis:7.2.4')
         self.container.start()
-        self.uri = self.container.get_container_host_ip()
+        self.host = self.container.get_container_host_ip()
+        self.port = self.container.get_exposed_port(6379)
+        self.client = self.container.get_client()
         break
       except Exception as e:
         if i == self.retries - 1:

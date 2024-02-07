@@ -18,7 +18,7 @@
 apply plugin: 'org.apache.beam.module'
 
 applyJavaNature(
-    automaticModuleName: 'org.apache.beam.sdk.transform.service',
+    automaticModuleName: 'org.apache.beam.sdk.transformservice.launcher',
 )
 
 description = "Apache Beam :: SDKs :: Java :: Transform Service :: Launcher"
@@ -28,9 +28,7 @@ ext.summary = """Contains code that can be used to run an transform service."""
 // Exclude tests that need a runner
 test {
     systemProperty "beamUseDummyRunner", "true"
-    useJUnit {
-        excludeCategories "org.apache.beam.sdk.testing.NeedsRunner"
-    }
+    useJUnit { }
 }
 
 dependencies {
@@ -42,7 +40,6 @@ dependencies {
     permitUnusedDeclared(library.java.error_prone_annotations)
     testImplementation library.java.junit
     testImplementation library.java.mockito_core
-    testImplementation project(path: ":sdks:java:core")
 }
 
 sourceSets {
