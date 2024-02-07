@@ -16,6 +16,16 @@
 #
 # pylint: skip-file
 
+"""
+This example demonstrates the use of MLTransform to preprocess text data using
+ComputeAndApplyVocabulary.
+
+This examples follows https://github.com/tensorflow/models/blob/master/official/recommendation/ranking/preprocessing/criteo_preprocess.py
+but the instead of tensorflow-transform, it uses Apache Beam's MLTransform.
+MLTransform abstracts the user away from providing tensorflow-transform's
+schema and making it easier for users to use it with Apache Beam.
+"""
+
 import logging
 import argparse
 import numpy as np
@@ -34,6 +44,7 @@ csv_delimiter = '\t'
 NUMERIC_FEATURE_KEYS = ["int_feature_%d" % x for x in range(1, 14)]
 CATEGORICAL_FEATURE_KEYS = ["categorical_feature_%d" % x for x in range(14, 40)]
 LABEL_KEY = "clicked"
+MAX_VOCAB_SIZE = 5000000
 
 
 class FillMissing(beam.DoFn):
@@ -60,11 +71,18 @@ class NegsToZeroLog(beam.DoFn):
     yield (csv_delimiter).join(out_list)
 
 
-def convert_str_to_int(element):
-  for key, value in element.items():
-    if key in NUMERIC_FEATURE_KEYS:
-      element[key] = float(value)
-  return element
+class HexToIntModRange(beam.DoFn):
+  """For categorical features, takes decimal value and mods with max value."""
+  def process(self, element):
+    elem_list = element.split(csv_delimiter)
+    out_list = []
+    for i, val in enumerate(elem_list):
+      if i > NUM_NUMERIC_FEATURES:
+        new_val = int(val, 16) % MAX_VOCAB_SIZE
+      else:
+        new_val = val
+      out_list.append(str(new_val))
+    yield str.encode((csv_delimiter).join(out_list))
 
 
 def parse_known_args(argv):
@@ -93,11 +111,8 @@ def run(argv=None):
         | "FillMissing" >> beam.ParDo(FillMissing())
         # For numerical features, set negatives to zero. Then take log(x+1).
         | "NegsToZeroLog" >> beam.ParDo(NegsToZeroLog())
-        | beam.Map(lambda x: str(x).split(csv_delimiter))
-        # Creates 50 GB data.
-        | beam.Map(lambda x: {ordered_columns[i]: x[i]
-                              for i in range(len(x))})
-        | beam.Map(convert_str_to_int))
+        # For categorical features, mod the values with vocab size.
+        | "HexToIntModRange" >> beam.ParDo(HexToIntModRange()))
 
     transformed_lines = (
         processed_lines
@@ -109,6 +124,7 @@ def run(argv=None):
         ).with_transform(
             Bucketize(columns=NUMERIC_FEATURE_KEYS, num_buckets=_NUM_BUCKETS)))
 
+    # TODO: Write to CSV.
     transformed_lines | beam.Map(logging.info)
 
 
