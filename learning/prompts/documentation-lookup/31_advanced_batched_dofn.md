@@ -7,6 +7,8 @@ Batched `DoFns` are only available in the Apache Beam Python SDK.
 
 You can provide element-wise, batched or both implementation for a `DoFn`
 
+In example below, when `MultiplyByTen` is applied to a `PCollection`, Beam recognizes that `np.ndarray` is an acceptable batch type to use in conjunction with `np.int64` elements.
+
 ```python
 class MultiplyByTen(beam.DoFn):
   def process(self, element: np.int64) -> Iterator[np.int64]:
@@ -16,8 +18,6 @@ class MultiplyByTen(beam.DoFn):
     yield batch * 10
 ```
 Apache Beam runner will select the best implementation during pipeline execution.
-
-Then, when `MultiplyByTen` is applied to a `PCollection`, Beam recognizes that `np.ndarray` is an acceptable batch type to use in conjunction with `np.int64` elements.
 
 Apache Beam implicitly creates and explodes batches at the input and output boundaries. However, if Batched DoFns with equivalent types are chained together, this batch creation and explosion will be skipped making the compose batch transform more efficient.
 
