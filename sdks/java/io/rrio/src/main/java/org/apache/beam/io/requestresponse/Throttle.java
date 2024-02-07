@@ -46,6 +46,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
@@ -55,6 +56,7 @@ import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -195,11 +197,16 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
 
   @Override
   public PCollection<RequestT> expand(PCollection<RequestT> input) {
-    ListCoder<RequestT> listCoder = ListCoder.of(input.getCoder());
-    Coder<KV<Integer, List<RequestT>>> kvCoder = KvCoder.of(VarIntCoder.of(), listCoder);
+    TimestampedValue.TimestampedValueCoder<RequestT> timestampedValueCoder =
+        TimestampedValue.TimestampedValueCoder.of(input.getCoder());
+    ListCoder<TimestampedValue<RequestT>> listCoder = ListCoder.of(timestampedValueCoder);
+    Coder<KV<Integer, List<TimestampedValue<RequestT>>>> kvCoder =
+        KvCoder.of(VarIntCoder.of(), listCoder);
     WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
 
-    PTransform<PCollection<KV<Integer, RequestT>>, PCollection<KV<Integer, Iterable<RequestT>>>>
+    PTransform<
+            PCollection<KV<Integer, TimestampedValue<RequestT>>>,
+            PCollection<KV<Integer, Iterable<TimestampedValue<RequestT>>>>>
         groupingTransform = GroupByKey.create();
     String groupingStepName = GroupByKey.class.getSimpleName();
     if (input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)) {
@@ -208,7 +215,8 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
           checkStateNotNull(
               configuration.getStreamBufferingSize(),
               "Unbounded PCollection is missing streaming configuration; configure Throttle for use with unbounded PCollections using Throttle#withStreamingConfiguration");
-      GroupIntoBatches<Integer, RequestT> groupIntoBatches = GroupIntoBatches.ofSize(bufferingSize);
+      GroupIntoBatches<Integer, TimestampedValue<RequestT>> groupIntoBatches =
+          GroupIntoBatches.ofSize(bufferingSize);
       if (configuration.getStreamMaxBufferingDuration() != null) {
         Duration maxBufferingDuration =
             checkStateNotNull(configuration.getStreamMaxBufferingDuration());
@@ -230,7 +238,7 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
         // Step 3. Apply GlobalWindows to prior to throttling
         .apply(
             GlobalWindows.class.getSimpleName() + "Post",
-            Window.<KV<Integer, List<RequestT>>>into(new GlobalWindows())
+            Window.<KV<Integer, List<TimestampedValue<RequestT>>>>into(new GlobalWindows())
                 .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
                 .withAllowedLateness(Duration.ZERO)
                 .discardingFiredPanes())
@@ -240,12 +248,12 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
         .setWindowingStrategyInternal(windowingStrategy);
   }
 
-  private ParDo.SingleOutput<KV<Integer, List<RequestT>>, RequestT> throttle() {
+  private ParDo.SingleOutput<KV<Integer, List<TimestampedValue<RequestT>>>, RequestT> throttle() {
     return ParDo.of(new ThrottleFn());
   }
 
   @DoFn.BoundedPerElement
-  private class ThrottleFn extends DoFn<KV<Integer, List<RequestT>>, RequestT> {
+  private class ThrottleFn extends DoFn<KV<Integer, List<TimestampedValue<RequestT>>>, RequestT> {
     private @MonotonicNonNull Counter inputElementsCounter = null;
     private @MonotonicNonNull Counter outputElementsCounter = null;
 
@@ -263,7 +271,8 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
      * KV#getValue()} elements.
      */
     @GetInitialRestriction
-    public OffsetRange getInitialRange(@Element KV<Integer, List<RequestT>> element) {
+    public OffsetRange getInitialRange(
+        @Element KV<Integer, List<TimestampedValue<RequestT>>> element) {
       int size = 0;
       if (element.getValue() != null) {
         size = element.getValue().size();
@@ -322,7 +331,7 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
      */
     @ProcessElement
     public ProcessContinuation process(
-        @Element KV<Integer, List<RequestT>> element,
+        @Element KV<Integer, List<TimestampedValue<RequestT>>> element,
         ManualWatermarkEstimator<Instant> estimator,
         RestrictionTracker<OffsetRange, Long> tracker,
         OutputReceiver<RequestT> receiver) {
@@ -340,9 +349,9 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
         return ProcessContinuation.stop();
       }
 
-      Instant timestamp = Instant.now();
-      estimator.setWatermark(timestamp);
-      receiver.outputWithTimestamp(element.getValue().get((int) position), timestamp);
+      TimestampedValue<RequestT> timestampedValue = element.getValue().get((int) position);
+      estimator.setWatermark(timestampedValue.getTimestamp());
+      receiver.outputWithTimestamp(timestampedValue.getValue(), timestampedValue.getTimestamp());
       incIfPresent(outputElementsCounter);
 
       // If we know that the next position is at the end, then we don't bother resuming.
@@ -359,7 +368,7 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
    * Returns a {@link ParDo.SingleOutput} that assigns each {@link RequestT} a key using {@link
    * AssignChannelFn}.
    */
-  private ParDo.SingleOutput<RequestT, KV<Integer, RequestT>> assignChannels() {
+  private ParDo.SingleOutput<RequestT, KV<Integer, TimestampedValue<RequestT>>> assignChannels() {
     return ParDo.of(new AssignChannelFn());
   }
 
@@ -367,9 +376,10 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
    * Assigns each {@link RequestT} an {@link KV} key using {@link RandomDataGenerator#nextInt} from
    * [0, {@link Rate#getNumElements}). The design goals of this {@link DoFn} are to distribute
    * elements among fixed parallel channels that are each throttled such that the sum total maximum
-   * rate of emission is up to {@link Configuration#getMaximumRate()}.
+   * rate of emission is up to {@link Configuration#getMaximumRate()}. Additionally, wraps the {@link RequestT}
+   * in a {@link TimestampedValue} to preserve the timestamp from the original input {@link PCollection}.
    */
-  private class AssignChannelFn extends DoFn<RequestT, KV<Integer, RequestT>> {
+  private class AssignChannelFn extends DoFn<RequestT, KV<Integer, TimestampedValue<RequestT>>> {
     private transient @MonotonicNonNull RandomDataGenerator random;
 
     @Setup
@@ -378,10 +388,13 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
     }
 
     @ProcessElement
-    public void process(@Element RequestT request, OutputReceiver<KV<Integer, RequestT>> receiver) {
+    public void process(
+        @Element RequestT request,
+        @Timestamp Instant elementTimestamp,
+        OutputReceiver<KV<Integer, TimestampedValue<RequestT>>> receiver) {
       Integer key =
           checkStateNotNull(random).nextInt(0, configuration.getMaximumRate().getNumElements() - 1);
-      receiver.output(KV.of(key, request));
+      receiver.output(KV.of(key, TimestampedValue.of(request, elementTimestamp)));
     }
   }
 
@@ -390,20 +403,24 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
    * Iterable} of {@link RequestT}s value. This method converts to a {@link List} for cleaner
    * processing via {@link ThrottleFn} within a Splittable DoFn context.
    */
-  private MapElements<KV<Integer, Iterable<RequestT>>, KV<Integer, List<RequestT>>> toList() {
-    return MapElements.into(kvs(integers(), new TypeDescriptor<List<RequestT>>() {}))
+  private MapElements<
+          KV<Integer, Iterable<TimestampedValue<RequestT>>>,
+          KV<Integer, List<TimestampedValue<RequestT>>>>
+      toList() {
+    return MapElements.into(
+            kvs(integers(), new TypeDescriptor<List<TimestampedValue<RequestT>>>() {}))
         .via(
             kv -> {
               if (kv.getValue() == null) {
                 return KV.of(kv.getKey(), ImmutableList.of());
               }
               try {
-                List<RequestT> list =
+                List<TimestampedValue<RequestT>> list =
                     StreamSupport.stream(kv.getValue().spliterator(), true)
                         .collect(Collectors.toList());
                 return KV.of(kv.getKey(), list);
               } catch (OutOfMemoryError e) {
-                Spliterator<RequestT> spliterator = kv.getValue().spliterator();
+                Spliterator<TimestampedValue<RequestT>> spliterator = kv.getValue().spliterator();
                 long count = spliterator.estimateSize();
                 if (count == -1) {
                   count = StreamSupport.stream(kv.getValue().spliterator(), true).count();
@@ -474,6 +491,28 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
         }
         return autoBuild();
       }
+    }
+  }
+
+  /**
+   * An extended {@link OffsetRangeTracker} to prevent splitting. See the {@link
+   * OffsetRangeTrackerWithoutTrySplit#trySplit} for more details.
+   */
+  private static class OffsetRangeTrackerWithoutTrySplit extends OffsetRangeTracker {
+    private OffsetRangeTrackerWithoutTrySplit(OffsetRange range) {
+      super(range);
+    }
+
+    /**
+     * {@link OffsetRangeTracker} override of {@link OffsetRangeTracker#trySplit} to avoid
+     * parallelization of the {@code List<RequestT>}. The point of using a splittable DoFn is to use
+     * {@link DoFn.ProcessContinuation} and {@link WatermarkEstimator} to throttle a PCollection.
+     * Therefore, if we enable parallel processing of the {@link OffsetRange}, it defeats the
+     * purpose of the entire {@link Throttle} transform.
+     */
+    @Override
+    public @Nullable SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
+      return null;
     }
   }
 }
