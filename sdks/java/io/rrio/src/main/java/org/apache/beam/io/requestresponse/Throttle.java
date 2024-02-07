@@ -201,7 +201,7 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
     ListCoder<TimestampedValue<RequestT>> listCoder = ListCoder.of(timestampedValueCoder);
     Coder<KV<Integer, List<TimestampedValue<RequestT>>>> kvCoder =
         KvCoder.of(VarIntCoder.of(), listCoder);
-    WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
+    Window<RequestT> window = windowOf(input);
 
     PTransform<
             PCollection<KV<Integer, TimestampedValue<RequestT>>>,
@@ -244,7 +244,36 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
         // Step 4. Apply the splittable DoFn that performs the actual work of throttling.
         .apply(ThrottleFn.class.getSimpleName(), throttle())
         // Step 5. Finally, reapply the original input windowing strategy.
-        .setWindowingStrategyInternal(windowingStrategy);
+        .apply(Window.class.getSimpleName(), window);
+  }
+
+  /**
+   * Extracts the {@link WindowingStrategy} of the {@link PCollection} input. The purpose of this is
+   * to re-apply the original {@link Window} back to the resulting {@link PCollection} output. This
+   * is because simply {@link PCollection#setWindowingStrategyInternal} fails to really re-apply the
+   * original {@link WindowingStrategy}.
+   */
+  private Window<RequestT> windowOf(PCollection<RequestT> input) {
+    @SuppressWarnings({"unchecked"})
+    WindowingStrategy<? super RequestT, ?> windowingStrategy =
+        (WindowingStrategy<? super RequestT, ?>) input.getWindowingStrategy();
+
+    Window<RequestT> window =
+        Window.<RequestT>into(windowingStrategy.getWindowFn())
+            .triggering(windowingStrategy.getTrigger())
+            .withAllowedLateness(
+                windowingStrategy.getAllowedLateness(), windowingStrategy.getClosingBehavior())
+            .withOnTimeBehavior(windowingStrategy.getOnTimeBehavior())
+            .withTimestampCombiner(windowingStrategy.getTimestampCombiner());
+
+    switch (windowingStrategy.getMode()) {
+      case DISCARDING_FIRED_PANES:
+        return window.discardingFiredPanes();
+      case ACCUMULATING_FIRED_PANES:
+        return window.accumulatingFiredPanes();
+      default:
+        return window;
+    }
   }
 
   private ParDo.SingleOutput<KV<Integer, List<TimestampedValue<RequestT>>>, RequestT> throttle() {

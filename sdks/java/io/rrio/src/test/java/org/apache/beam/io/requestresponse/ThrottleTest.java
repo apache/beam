@@ -19,11 +19,13 @@ package org.apache.beam.io.requestresponse;
 
 import static org.apache.beam.io.requestresponse.Throttle.INPUT_ELEMENTS_COUNTER_NAME;
 import static org.apache.beam.io.requestresponse.Throttle.OUTPUT_ELEMENTS_COUNTER_NAME;
+import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.fail;
 
 import com.google.protobuf.ByteString;
 import java.util.Arrays;
@@ -48,7 +50,15 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.PeriodicImpulse;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.testinfra.mockapis.echo.v1.Echo;
 import org.hamcrest.Matcher;
@@ -146,7 +156,11 @@ public class ThrottleTest {
     assertThat(getCount(results, OUTPUT_ELEMENTS_COUNTER_NAME), equalTo(size));
   }
 
-  /** Tests that a stream PCollection is throttled. */
+  /**
+   * Tests that a stream PCollection is throttled. Note that TestStream does not work well as it
+   * fails to set the process timer clock. Therefore, PeriodicImpulse is used instead to test
+   * against a more realistic stream PCollection instead of a fake one.
+   */
   @Test
   public void givenStreamSource_thenThrottles() {
     Rate rate = Rate.of(1, Duration.standardSeconds(1L));
@@ -157,7 +171,7 @@ public class ThrottleTest {
         pipeline
             .apply(
                 PeriodicImpulse.create().stopAfter(Duration.ZERO).withInterval(Duration.millis(1L)))
-            .apply(generate(3))
+            .apply(generatePerImpulse(3))
             .setCoder(VarIntCoder.of());
 
     PAssert.that(stream).containsInAnyOrder(0, 1, 2);
@@ -178,7 +192,7 @@ public class ThrottleTest {
     pipeline.run();
   }
 
-  /** Tests given a feasibly larger dataset for unittests does not result in lost data. */
+  /** Tests that given a feasibly larger dataset for unittests does not result in lost data. */
   @Test
   public void givenLargerStreamSource_noDataLost() {
     Rate rate = Rate.of(2_000, Duration.standardSeconds(1L));
@@ -189,7 +203,7 @@ public class ThrottleTest {
                 PeriodicImpulse.create()
                     .stopAfter(Duration.millis(3L))
                     .withInterval(Duration.millis(1L)))
-            .apply(generate(1_000))
+            .apply(generatePerImpulse(1_000))
             .setCoder(VarIntCoder.of());
 
     PAssert.that(stream).containsInAnyOrder(items);
@@ -228,17 +242,93 @@ public class ThrottleTest {
     pipeline.run();
   }
 
-  private static ParDo.SingleOutput<Instant, Integer> generate(int size) {
+  /** During batch, validates original FixedWindow assignments are maintained. */
+  @Test
+  public void givenBatchFixedWindow_preservesWindowAssignments() {
+    Rate rate = Rate.of(3, Duration.standardSeconds(1L));
+
+    PCollection<Integer> unthrottled =
+        pipeline
+            .apply(
+                Create.timestamped(
+                    TimestampedValue.of(0, epochPlus(0L)),
+                    TimestampedValue.of(1, epochPlus(1000L)),
+                    TimestampedValue.of(2, epochPlus(2000L))))
+            .apply(Window.into(FixedWindows.of(Duration.standardSeconds(1L))));
+
+    PCollection<Integer> throttled = unthrottled.apply(transformOf(rate));
+    PCollection<WindowedValue<Integer>> originalWindow =
+        unthrottled
+            .apply("unthrottled", extractWindowedValues())
+            .setCoder(WindowedValue.getFullCoder(VarIntCoder.of(), IntervalWindow.getCoder()));
+    throttled.apply(assertIntervalWindowAssignments(originalWindow));
+
+    pipeline.run();
+  }
+
+  /**
+   * During stream, validates original FixedWindow assignments are maintained. As commented above,
+   * TestStream is not used to produce a test stream PCollection because it fails to set the process
+   * timer clock. Therefore, we need to begin the stream from PeriodicImpulse.
+   */
+  @Test
+  public void givenStreamFixedWindow_preservesWindowAssignments() {
+    Rate rate = Rate.of(10, Duration.standardSeconds(1L));
+    Instant start = Instant.now();
+    PCollection<Integer> unthrottled =
+        pipeline
+            .apply(
+                PeriodicImpulse.create()
+                    .stopAfter(Duration.millis(900L))
+                    .withInterval(Duration.millis(100L)))
+            .apply(
+                MapElements.into(integers()).via(ts -> (int) (ts.getMillis() - start.getMillis())))
+            .apply(Window.into(FixedWindows.of(Duration.millis(500L))));
+
+    PCollection<WindowedValue<Integer>> originalWindow =
+        unthrottled
+            .apply(extractWindowedValues())
+            .setCoder(WindowedValue.getFullCoder(VarIntCoder.of(), IntervalWindow.getCoder()));
+    PCollection<Integer> throttled =
+        unthrottled.apply(transformOf(rate).withStreamingConfiguration(10L));
+    throttled.apply(assertIntervalWindowAssignments(originalWindow));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void givenBatchUpstreamDefaultWindow_thenCanApplyDownstreamWindow() {
+    Rate rate = Rate.of(3, Duration.standardSeconds(1L));
+    List<Integer> items = Stream.iterate(0, i -> i + 1).limit(3).collect(Collectors.toList());
+    FixedWindows window = FixedWindows.of(Duration.standardSeconds(1L));
+
+    PCollection<Integer> unthrottled = pipeline.apply(Create.of(items));
+
+    PCollection<WindowedValue<Integer>> unthrottledWithWindow =
+        unthrottled
+            .apply("unthrottledWindow", Window.into(window))
+            .apply(extractWindowedValues())
+            .setCoder(WindowedValue.getFullCoder(VarIntCoder.of(), window.windowCoder()));
+
+    unthrottled
+        .apply(transformOf(rate))
+        .apply("throttledWindow", Window.into(window))
+        .apply(assertIntervalWindowAssignments(unthrottledWithWindow));
+
+    pipeline.run();
+  }
+
+  private static ParDo.SingleOutput<Instant, Integer> generatePerImpulse(int size) {
     AtomicInteger atomicInteger = new AtomicInteger();
     return ParDo.of(
-        new Generator<>(
+        new GeneratePerImpulseFn<>(
             ignored -> Stream.generate(atomicInteger::getAndIncrement).limit(size).iterator()));
   }
 
-  private static class Generator<T> extends DoFn<Instant, T> {
+  private static class GeneratePerImpulseFn<T> extends DoFn<Instant, T> {
     private final SerializableFunction<Instant, Iterator<T>> generatorFn;
 
-    private Generator(SerializableFunction<Instant, Iterator<T>> generatorFn) {
+    private GeneratePerImpulseFn(SerializableFunction<Instant, Iterator<T>> generatorFn) {
       this.generatorFn = generatorFn;
     }
 
@@ -283,5 +373,49 @@ public class ThrottleTest {
       assertThat(diff, matcher);
       current = next;
     }
+  }
+
+  private static <T> ParDo.SingleOutput<T, WindowedValue<T>> extractWindowedValues() {
+    return ParDo.of(new ExtractWindowedValueFn<>());
+  }
+
+  private static class ExtractWindowedValueFn<T> extends DoFn<T, WindowedValue<T>> {
+    @ProcessElement
+    public void process(
+        @Element T element,
+        @Timestamp Instant instant,
+        IntervalWindow window,
+        PaneInfo paneInfo,
+        OutputReceiver<WindowedValue<T>> receiver) {
+      receiver.output(WindowedValue.of(element, instant, window, paneInfo));
+    }
+  }
+
+  private static <T> ParDo.SingleOutput<T, Void> assertIntervalWindowAssignments(
+      PCollection<WindowedValue<T>> containsInAnyOrder) {
+    PCollectionView<List<WindowedValue<T>>> view = containsInAnyOrder.apply(View.asList());
+    return ParDo.of(new AssertIntervalWindowAssignmentsFn<>(view)).withSideInputs(view);
+  }
+
+  private static class AssertIntervalWindowAssignmentsFn<T> extends DoFn<T, Void> {
+    private final PCollectionView<List<WindowedValue<T>>> view;
+
+    private AssertIntervalWindowAssignmentsFn(PCollectionView<List<WindowedValue<T>>> view) {
+      this.view = view;
+    }
+
+    @ProcessElement
+    public void process(IntervalWindow window, ProcessContext c) {
+      List<WindowedValue<T>> expected = c.sideInput(view);
+      for (WindowedValue<T> want : expected) {
+        if (!want.getWindows().contains(window)) {
+          fail(String.format("mismatched value in %s, want %s", window, want.getWindows()));
+        }
+      }
+    }
+  }
+
+  private static Instant epochPlus(long millis) {
+    return Instant.EPOCH.plus(Duration.millis(millis));
   }
 }
