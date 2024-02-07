@@ -871,7 +871,6 @@ public class StreamingDataflowWorkerTest {
     workItem.setStreamingConfigTask(streamingConfig);
     when(mockWorkUnitClient.getGlobalStreamingConfigWorkItem()).thenReturn(Optional.of(workItem));
 
-
     StreamingDataflowWorker worker =
         makeWorker(instructions, createTestingPipelineOptions(), true /* publishCounters */);
     worker.start();
@@ -3888,14 +3887,12 @@ public class StreamingDataflowWorkerTest {
         removeDynamicFields(result.get(1L)));
   }
 
-  private void runNumCommitThreadsTest(int configNumCommitThreads, int expectedNumCommitThreads)
-      throws Exception {
+  private void runNumCommitThreadsTest(int configNumCommitThreads, int expectedNumCommitThreads) {
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
-    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
-    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions();
     options.setWindmillServiceCommitThreads(configNumCommitThreads);
     StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
@@ -3904,7 +3901,7 @@ public class StreamingDataflowWorkerTest {
   }
 
   @Test
-  public void testDefaultNumCommitThreads() throws Exception {
+  public void testDefaultNumCommitThreads() {
     if (streamingEngine) {
       runNumCommitThreadsTest(1, 1);
       runNumCommitThreadsTest(2, 2);
