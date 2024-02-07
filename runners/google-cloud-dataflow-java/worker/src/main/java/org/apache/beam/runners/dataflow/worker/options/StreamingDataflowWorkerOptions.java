@@ -130,6 +130,7 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
 
   void setWindmillMessagesBetweenIsReadyChecks(int value);
 
+  @Description("If true, will only show windmill service channels on /channelz")
   @Default.Boolean(true)
   boolean getChannelzShowOnlyWindmillServiceChannels();
 
