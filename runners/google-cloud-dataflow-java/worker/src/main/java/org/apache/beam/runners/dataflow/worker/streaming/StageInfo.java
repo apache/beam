@@ -21,6 +21,7 @@ import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.THRO
 
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterUpdate;
+import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.List;
@@ -110,5 +111,13 @@ public abstract class StageInfo {
         throttledMsecs().addValue(msecs);
       }
     }
+  }
+
+  public List<PerStepNamespaceMetrics> extractPerWorkerMetricValues() {
+    List<PerStepNamespaceMetrics> metrics = new ArrayList<>();
+    Iterables.addAll(
+        metrics,
+        StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(metricsContainerRegistry()));
+    return metrics;
   }
 }

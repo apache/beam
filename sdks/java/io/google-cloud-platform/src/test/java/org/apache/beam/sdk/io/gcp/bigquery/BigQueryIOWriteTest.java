@@ -500,7 +500,7 @@ public class BigQueryIOWriteTest implements Serializable {
     }
   }
 
-  void testTimePartitioningClustering(
+  void testTimePartitioningAndClustering(
       BigQueryIO.Write.Method insertMethod, boolean enablePartitioning, boolean enableClustering)
       throws Exception {
     TableRow row1 = new TableRow().set("date", "2018-01-01").set("number", "1");
@@ -545,16 +545,8 @@ public class BigQueryIOWriteTest implements Serializable {
     }
   }
 
-  void testTimePartitioning(BigQueryIO.Write.Method insertMethod) throws Exception {
-    testTimePartitioningClustering(insertMethod, true, false);
-  }
-
-  void testClustering(BigQueryIO.Write.Method insertMethod) throws Exception {
-    testTimePartitioningClustering(insertMethod, true, true);
-  }
-
-  @Test
-  public void testTimePartitioning() throws Exception {
+  void testTimePartitioningAndClusteringWithAllMethods(
+      Boolean enablePartitioning, Boolean enableClustering) throws Exception {
     BigQueryIO.Write.Method method;
     if (useStorageApi) {
       method =
@@ -564,15 +556,27 @@ public class BigQueryIOWriteTest implements Serializable {
     } else {
       method = Method.FILE_LOADS;
     }
-    testTimePartitioning(method);
+    testTimePartitioningAndClustering(method, enablePartitioning, enableClustering);
   }
 
   @Test
-  public void testClusteringStorageApi() throws Exception {
-    if (useStorageApi) {
-      testClustering(
-          useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API);
-    }
+  public void testTimePartitioningWithoutClustering() throws Exception {
+    testTimePartitioningAndClusteringWithAllMethods(true, false);
+  }
+
+  @Test
+  public void testTimePartitioningWithClustering() throws Exception {
+    testTimePartitioningAndClusteringWithAllMethods(true, true);
+  }
+
+  @Test
+  public void testClusteringWithoutPartitioning() throws Exception {
+    testTimePartitioningAndClusteringWithAllMethods(false, true);
+  }
+
+  @Test
+  public void testNoClusteringNoPartitioning() throws Exception {
+    testTimePartitioningAndClusteringWithAllMethods(false, false);
   }
 
   @Test

@@ -188,16 +188,13 @@ public final class ActiveWorkState {
 
   private synchronized void removeCompletedWorkFromQueue(
       Queue<Work> workQueue, ShardedKey shardedKey, long workToken) {
-    // avoid Preconditions.checkState here to prevent eagerly evaluating the
-    // format string parameters for the error message.
-    Work completedWork =
-        Optional.ofNullable(workQueue.peek())
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        String.format(
-                            "Active key %s without work, expected token %d",
-                            shardedKey, workToken)));
+    Work completedWork = workQueue.peek();
+    if (completedWork == null) {
+      // Work may have been completed due to clearing of stuck commits.
+      LOG.warn(
+          String.format("Active key %s without work, expected token %d", shardedKey, workToken));
+      return;
+    }
 
     if (completedWork.getWorkItem().getWorkToken() != workToken) {
       // Work may have been completed due to clearing of stuck commits.

@@ -222,7 +222,6 @@ dependencies {
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
-  implementation project(":sdks:java:fn-execution")
   implementation library.java.jackson_databind
   runtimeOnly library.java.jackson_jaxb_annotations
   examplesJavaIntegrationTest project(project.path)
