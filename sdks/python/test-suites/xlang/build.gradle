@@ -67,22 +67,13 @@ def ioXlang = new CrossLanguageTask().tap {
 
 // This list should include all expansion service targets in sdks/python/standard_expansion_services.yaml
 def servicesToGenerateFrom = [ioExpansionPath, gcpExpansionPath]
-def lowestSupportedVersion = project.properties['cross_language_validates_py_versions'].split(',')[0]
-List<String> dependencies = new File(project(":sdks:python:container:py${getVersionSuffix(lowestSupportedVersion)}").projectDir, "base_image_requirements.txt").text.split('\n')
-List<String> xlangGenerationDeps = []
-for (dep in dependencies){
-    if (dep.containsIgnoreCase("jinja2")){
-        xlangGenerationDeps.add(dep)
-        break
-    }
-}
 def xlangWrapperValidation = new CrossLanguageTask().tap {
     name = "xlangWrapperValidation"
     expansionProjectPaths = servicesToGenerateFrom
     collectMarker = "xlang_wrapper_generation"
     startJobServer = setupTask
     cleanupJobServer = cleanupTask
-    additionalDeps = xlangGenerationDeps
+    additionalDeps = ['Jinja2']
 }
 
 // List of task metadata objects to create cross-language tasks from.

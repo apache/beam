@@ -2675,8 +2675,8 @@ class BeamModulePlugin implements Plugin<Project> {
             }
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate " +
-                    additionalDependencyCmd +
-                    "&& cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
+                additionalDependencyCmd +
+                "&& cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           }
         }
       }

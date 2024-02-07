@@ -18,8 +18,6 @@
 """
 Generates Python wrappers for external transforms (specifically,
 SchemaTransforms)
-
-Experimental; no backwards compatibility guarantees.
 """
 
 import argparse
@@ -35,12 +33,12 @@ from typing import List
 from typing import Union
 
 import yaml
-from jinja2 import Environment
-from jinja2 import FileSystemLoader
 
 from gen_protos import LICENSE_HEADER
 from gen_protos import PROJECT_ROOT
 from gen_protos import PYTHON_SDK_ROOT
+from jinja2 import Environment
+from jinja2 import FileSystemLoader
 
 SUPPORTED_SDK_DESTINATIONS = ['python']
 PYTHON_SUFFIX = "_et.py"

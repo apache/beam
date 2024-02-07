@@ -43,17 +43,6 @@ from apache_beam.transforms.external_transform_provider import snake_case_to_low
 from apache_beam.transforms.external_transform_provider import snake_case_to_upper_camel_case
 from apache_beam.transforms.xlang.io import GenerateSequence
 
-try:
-  from gen_xlang_wrappers import PYTHON_SUFFIX
-  from gen_xlang_wrappers import delete_generated_files
-  from gen_xlang_wrappers import generate_transforms_config
-  from gen_xlang_wrappers import get_wrappers_from_transform_configs
-  from gen_xlang_wrappers import pretty_type
-  from gen_xlang_wrappers import write_wrappers_to_destinations
-  from gen_protos import PROJECT_ROOT
-except ImportError:
-  PYTHON_SUFFIX = None  # type: ignore[assignment]
-
 
 class NameAndTypeUtilsTest(unittest.TestCase):
   def test_snake_case_to_upper_camel_case(self):
@@ -155,9 +144,6 @@ class ExternalTransformProviderTest(unittest.TestCase):
 
 
 @pytest.mark.xlang_wrapper_generation
-@unittest.skipIf(
-    PYTHON_SUFFIX is None,
-    "Need access to gen_xlang_wrappers.py to run these tests")
 @unittest.skipUnless(
     os.environ.get('EXPANSION_PORTS'),
     "EXPANSION_PORTS environment var is not provided.")
@@ -172,6 +158,8 @@ class AutoGenerationScriptTest(unittest.TestCase):
     'beam:schematransform:org.apache.beam:generate_sequence:v1'
 
   def setUp(self):
+    # import script from top-level sdks/python directory
+    self.script = import_module('gen_xlang_wrappers')
     args = TestPipeline(is_integration_test=True).get_full_options_as_args()
     runner = PipelineOptions(args).get_all_options()['runner']
     if runner and "direct" not in runner.lower():
@@ -193,7 +181,7 @@ class AutoGenerationScriptTest(unittest.TestCase):
     shutil.rmtree(self.test_dir, ignore_errors=False)
 
   def delete_and_validate(self):
-    delete_generated_files(self.test_dir)
+    self.script.delete_generated_files(self.test_dir)
     self.assertEqual(len(os.listdir(self.test_dir)), 0)
 
   def test_script_fails_with_invalid_destinations(self):
@@ -222,13 +210,14 @@ class AutoGenerationScriptTest(unittest.TestCase):
                            ('Dict[int, Union[str, NoneType]]', False)]
 
     for i in range(len(types)):
-      self.assertEqual(pretty_type(types[i]), expected_type_names[i])
+      self.assertEqual(
+          self.script.pretty_type(types[i]), expected_type_names[i])
 
   def create_and_check_transforms_config_exists(self, expansion_service_config):
     with open(self.service_config_path, 'w') as f:
       yaml.dump([expansion_service_config], f)
 
-    generate_transforms_config(
+    self.script.generate_transforms_config(
         self.service_config_path, self.transform_config_path)
     self.assertTrue(os.path.exists(self.transform_config_path))
 
@@ -268,13 +257,13 @@ class AutoGenerationScriptTest(unittest.TestCase):
 
     :return: Generated wrappers grouped by destination
     """
-    grouped_wrappers = get_wrappers_from_transform_configs(
+    grouped_wrappers = self.script.get_wrappers_from_transform_configs(
         self.transform_config_path)
     for dest in destinations:
       self.assertIn(dest, grouped_wrappers)
 
     # write to our test directory to avoid messing with other files
-    write_wrappers_to_destinations(
+    self.script.write_wrappers_to_destinations(
         grouped_wrappers, self.test_dir, format_code=False)
 
     for dest in destinations:
@@ -365,7 +354,7 @@ class AutoGenerationScriptTest(unittest.TestCase):
     with open(self.service_config_path, 'w') as f:
       yaml.dump([expansion_service_config], f)
 
-    generate_transforms_config(
+    self.script.generate_transforms_config(
         self.service_config_path, self.transform_config_path)
 
     # gen sequence shouldn't exist in the transform config
@@ -393,12 +382,13 @@ class AutoGenerationScriptTest(unittest.TestCase):
     Fix by running `./gradlew generateExternalTransformWrappers` and
     committing the changes.
     """
-    generate_transforms_config(
-        os.path.join(PROJECT_ROOT, 'sdks', 'standard_expansion_services.yaml'),
+    project_root = import_module('gen_protos').PROJECT_ROOT
+    self.script.generate_transforms_config(
+        os.path.join(project_root, 'sdks', 'standard_expansion_services.yaml'),
         self.transform_config_path)
     with open(self.transform_config_path) as f:
       test_config = yaml.safe_load(f)
-    with open(os.path.join(PROJECT_ROOT,
+    with open(os.path.join(project_root,
                            'sdks',
                            'standard_external_transforms.yaml'),
               'r') as f:

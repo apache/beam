@@ -207,18 +207,18 @@ def generate_protos_first():
 
 def generate_external_transform_wrappers():
   try:
-    sdks_dir = os.path.realpath(
-        os.path.join(os.path.realpath(__file__), '..', '..'))
+    sdk_dir = os.path.abspath(os.path.dirname(__file__))
     script_exists = os.path.exists(
-        os.path.join(sdks_dir, 'python', 'gen_xlang_wrappers.py'))
+        os.path.join(sdk_dir, 'gen_xlang_wrappers.py'))
     config_exists = os.path.exists(
-        os.path.join(sdks_dir, 'standard_external_transforms.yaml'))
+        os.path.join(os.path.dirname(sdk_dir),
+                     'standard_external_transforms.yaml'))
     # we need both the script and the standard transforms config file.
     # at build time, we don't have access to apache_beam to discover and
     # retrieve external transforms, so the config file has to already exist
     if not script_exists or not config_exists:
       generated_transforms_dir = os.path.join(
-        sdks_dir, 'python', 'apache_beam', 'transforms', 'xlang')
+        sdk_dir, 'apache_beam', 'transforms', 'xlang')
 
       # if exists, this directory will have at least its __init__.py file
       if (not os.path.exists(generated_transforms_dir) or
@@ -237,10 +237,11 @@ def generate_external_transform_wrappers():
       return
     subprocess.run([
         sys.executable,
-        os.path.join(sdks_dir, 'python', 'gen_xlang_wrappers.py'),
+        os.path.join(sdk_dir, 'gen_xlang_wrappers.py'),
         '--cleanup',
         '--transforms-config-source',
-        os.path.join(sdks_dir, 'standard_external_transforms.yaml')
+        os.path.join(os.path.dirname(sdk_dir),
+                     'standard_external_transforms.yaml')
     ], capture_output=True, check=True)
   except subprocess.CalledProcessError as err:
     raise RuntimeError(
@@ -274,8 +275,7 @@ if __name__ == '__main__':
   # executes below.
   generate_protos_first()
 
-  if 'sdist' in sys.argv:
-    generate_external_transform_wrappers()
+  generate_external_transform_wrappers()
 
   # generate cythonize extensions only if we are building a wheel or
   # building an extension or running in editable mode.

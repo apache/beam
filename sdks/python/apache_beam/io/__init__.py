@@ -29,6 +29,7 @@ from apache_beam.io.parquetio import *
 from apache_beam.io.textio import *
 from apache_beam.io.tfrecordio import *
 from apache_beam.io.range_trackers import *
+from apache_beam.transforms.xlang.io import *
 
 # Protect against environments where clientslibrary is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -36,7 +37,6 @@ try:
   from apache_beam.io.gcp.bigquery import *
   from apache_beam.io.gcp.pubsub import *
   from apache_beam.io.gcp import gcsio
-  from apache_beam.transforms.xlang.io import *
 except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position
