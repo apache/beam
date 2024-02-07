@@ -127,6 +127,8 @@ public class BigQueryIOTranslationTest {
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getWriteTempDataset", "write_temp_dataset");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put(
         "getRowMutationInformationFn", "row_mutation_information_fn");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getBadRecordRouter", "bad_record_router");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getBadRecordErrorHandler", "bad_record_error_handler");
   }
 
   @Test

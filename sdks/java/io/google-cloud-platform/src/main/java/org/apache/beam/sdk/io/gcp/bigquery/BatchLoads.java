@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
+import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -80,6 +81,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -612,9 +614,13 @@ class BatchLoads<DestinationT, ElementT>
                         unwrittedRecordsTag,
                         maxNumWritersPerBundle,
                         maxFileSize,
-                        rowWriterFactory))
+                        rowWriterFactory,
+                        input.getCoder(),
+                        badRecordRouter))
                 .withSideInputs(tempFilePrefix)
-                .withOutputTags(writtenFilesTag, TupleTagList.of(unwrittedRecordsTag)));
+                .withOutputTags(
+                    writtenFilesTag,
+                    TupleTagList.of(ImmutableList.of(unwrittedRecordsTag, BAD_RECORD_TAG))));
     PCollection<WriteBundlesToFiles.Result<DestinationT>> writtenFiles =
         writeBundlesTuple
             .get(writtenFilesTag)
@@ -623,6 +629,8 @@ class BatchLoads<DestinationT, ElementT>
         writeBundlesTuple
             .get(unwrittedRecordsTag)
             .setCoder(KvCoder.of(ShardedKeyCoder.of(destinationCoder), elementCoder));
+    badRecordErrorHandler.addErrorCollection(
+        writeBundlesTuple.get(BAD_RECORD_TAG).setCoder(BadRecord.getCoder(input.getPipeline())));
 
     // If the bundles contain too many output tables to be written inline to files (due to memory
     // limits), any unwritten records will be spilled to the unwrittenRecordsTag PCollection.
@@ -691,62 +699,92 @@ class BatchLoads<DestinationT, ElementT>
     // parallelize properly. We also ensure that the files are written if a threshold number of
     // records are ready. Dynamic sharding is achieved via the withShardedKey() option provided by
     // GroupIntoBatches.
-    return input
-        .apply(
-            GroupIntoBatches.<DestinationT, ElementT>ofSize(FILE_TRIGGERING_RECORD_COUNT)
-                .withByteSize(byteSize)
-                .withMaxBufferingDuration(maxBufferingDuration)
-                .withShardedKey())
-        .setCoder(
-            KvCoder.of(
-                org.apache.beam.sdk.util.ShardedKey.Coder.of(destinationCoder),
-                IterableCoder.of(elementCoder)))
-        .apply(
-            "StripShardId",
-            MapElements.via(
-                new SimpleFunction<
-                    KV<org.apache.beam.sdk.util.ShardedKey<DestinationT>, Iterable<ElementT>>,
-                    KV<DestinationT, Iterable<ElementT>>>() {
-                  @Override
-                  public KV<DestinationT, Iterable<ElementT>> apply(
-                      KV<org.apache.beam.sdk.util.ShardedKey<DestinationT>, Iterable<ElementT>>
-                          input) {
-                    return KV.of(input.getKey().getKey(), input.getValue());
-                  }
-                }))
-        .setCoder(KvCoder.of(destinationCoder, IterableCoder.of(elementCoder)))
-        .apply(
-            "WriteGroupedRecords",
-            ParDo.of(
-                    new WriteGroupedRecordsToFiles<DestinationT, ElementT>(
-                        tempFilePrefix, maxFileSize, rowWriterFactory))
-                .withSideInputs(tempFilePrefix))
+    TupleTag<Result<DestinationT>> successfulResultsTag = new TupleTag<>();
+    PCollectionTuple writeResults =
+        input
+            .apply(
+                GroupIntoBatches.<DestinationT, ElementT>ofSize(FILE_TRIGGERING_RECORD_COUNT)
+                    .withByteSize(byteSize)
+                    .withMaxBufferingDuration(maxBufferingDuration)
+                    .withShardedKey())
+            .setCoder(
+                KvCoder.of(
+                    org.apache.beam.sdk.util.ShardedKey.Coder.of(destinationCoder),
+                    IterableCoder.of(elementCoder)))
+            .apply(
+                "StripShardId",
+                MapElements.via(
+                    new SimpleFunction<
+                        KV<org.apache.beam.sdk.util.ShardedKey<DestinationT>, Iterable<ElementT>>,
+                        KV<DestinationT, Iterable<ElementT>>>() {
+                      @Override
+                      public KV<DestinationT, Iterable<ElementT>> apply(
+                          KV<org.apache.beam.sdk.util.ShardedKey<DestinationT>, Iterable<ElementT>>
+                              input) {
+                        return KV.of(input.getKey().getKey(), input.getValue());
+                      }
+                    }))
+            .setCoder(KvCoder.of(destinationCoder, IterableCoder.of(elementCoder)))
+            .apply(
+                "WriteGroupedRecords",
+                ParDo.of(
+                        new WriteGroupedRecordsToFiles<DestinationT, ElementT>(
+                            tempFilePrefix,
+                            maxFileSize,
+                            rowWriterFactory,
+                            badRecordRouter,
+                            successfulResultsTag,
+                            elementCoder))
+                    .withSideInputs(tempFilePrefix)
+                    .withOutputTags(successfulResultsTag, TupleTagList.of(BAD_RECORD_TAG)));
+    badRecordErrorHandler.addErrorCollection(
+        writeResults.get(BAD_RECORD_TAG).setCoder(BadRecord.getCoder(input.getPipeline())));
+
+    return writeResults
+        .get(successfulResultsTag)
         .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder));
   }
 
   private PCollection<Result<DestinationT>> writeShardedRecords(
       PCollection<KV<ShardedKey<DestinationT>, ElementT>> shardedRecords,
       PCollectionView<String> tempFilePrefix) {
-    return shardedRecords
-        .apply("GroupByDestination", GroupByKey.create())
-        .apply(
-            "StripShardId",
-            MapElements.via(
-                new SimpleFunction<
-                    KV<ShardedKey<DestinationT>, Iterable<ElementT>>,
-                    KV<DestinationT, Iterable<ElementT>>>() {
-                  @Override
-                  public KV<DestinationT, Iterable<ElementT>> apply(
-                      KV<ShardedKey<DestinationT>, Iterable<ElementT>> input) {
-                    return KV.of(input.getKey().getKey(), input.getValue());
-                  }
-                }))
-        .setCoder(KvCoder.of(destinationCoder, IterableCoder.of(elementCoder)))
-        .apply(
-            "WriteGroupedRecords",
-            ParDo.of(
-                    new WriteGroupedRecordsToFiles<>(tempFilePrefix, maxFileSize, rowWriterFactory))
-                .withSideInputs(tempFilePrefix))
+    TupleTag<Result<DestinationT>> successfulResultsTag = new TupleTag<>();
+    PCollectionTuple writeResults =
+        shardedRecords
+            .apply("GroupByDestination", GroupByKey.create())
+            .apply(
+                "StripShardId",
+                MapElements.via(
+                    new SimpleFunction<
+                        KV<ShardedKey<DestinationT>, Iterable<ElementT>>,
+                        KV<DestinationT, Iterable<ElementT>>>() {
+                      @Override
+                      public KV<DestinationT, Iterable<ElementT>> apply(
+                          KV<ShardedKey<DestinationT>, Iterable<ElementT>> input) {
+                        return KV.of(input.getKey().getKey(), input.getValue());
+                      }
+                    }))
+            .setCoder(KvCoder.of(destinationCoder, IterableCoder.of(elementCoder)))
+            .apply(
+                "WriteGroupedRecords",
+                ParDo.of(
+                        new WriteGroupedRecordsToFiles<>(
+                            tempFilePrefix,
+                            maxFileSize,
+                            rowWriterFactory,
+                            badRecordRouter,
+                            successfulResultsTag,
+                            elementCoder))
+                    .withSideInputs(tempFilePrefix)
+                    .withOutputTags(successfulResultsTag, TupleTagList.of(BAD_RECORD_TAG)));
+
+    badRecordErrorHandler.addErrorCollection(
+        writeResults
+            .get(BAD_RECORD_TAG)
+            .setCoder(BadRecord.getCoder(shardedRecords.getPipeline())));
+
+    return writeResults
+        .get(successfulResultsTag)
         .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder));
   }
 

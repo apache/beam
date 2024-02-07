@@ -389,6 +389,8 @@ public class BigQueryIOTranslation {
             .addNullableByteArrayField("deterministic_record_id_fn")
             .addNullableStringField("write_temp_dataset")
             .addNullableByteArrayField("row_mutation_information_fn")
+            .addNullableByteArrayField("bad_record_error_handler")
+            .addNullableByteArrayField("bad_record_router")
             .build();
 
     public static final String BIGQUERY_WRITE_TRANSFORM_URN =
@@ -560,6 +562,9 @@ public class BigQueryIOTranslation {
         fieldValues.put(
             "row_mutation_information_fn", toByteArray(transform.getRowMutationInformationFn()));
       }
+      fieldValues.put("bad_record_router", toByteArray(transform.getBadRecordRouter()));
+      fieldValues.put(
+          "bad_record_error_handler", toByteArray(transform.getBadRecordErrorHandler()));
 
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
     }
@@ -815,6 +820,11 @@ public class BigQueryIOTranslation {
               builder.setRowMutationInformationFn(
                   (SerializableFunction) fromByteArray(rowMutationInformationFnBytes));
         }
+        byte[] badRecordRouter = configRow.getBytes("bad_record_router");
+        builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));
+        byte[] badRecordErrorHandler = configRow.getBytes("bad_record_error_handler");
+        builder.setBadRecordErrorHandler(
+            (ErrorHandler<BadRecord, ?>) fromByteArray(badRecordErrorHandler));
 
         return builder.build();
       } catch (InvalidClassException e) {

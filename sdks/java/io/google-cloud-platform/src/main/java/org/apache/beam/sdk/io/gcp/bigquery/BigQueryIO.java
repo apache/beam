@@ -3686,7 +3686,7 @@ public class BigQueryIO {
             !getPropagateSuccessfulStorageApiWrites(),
             "withPropagateSuccessfulStorageApiWrites only supported when using storage api writes.");
         checkArgument(
-            !(getBadRecordRouter() instanceof ThrowingBadRecordRouter),
+            getBadRecordRouter() instanceof ThrowingBadRecordRouter,
             "Error Handling is not supported with STREAMING_INSERTS");
 
         RowWriterFactory.TableRowWriterFactory<T, DestinationT> tableRowWriterFactory =

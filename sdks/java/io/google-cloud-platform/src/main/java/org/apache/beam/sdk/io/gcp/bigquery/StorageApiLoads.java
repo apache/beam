@@ -28,8 +28,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -396,18 +394,18 @@ public class StorageApiLoads<DestinationT, ElementT>
           PCollectionList.of(
                   convertMessagesResult
                       .get(failedRowsTag)
-                      .apply(
+                      .apply("ConvertMessageFailuresToBadRecord",
                           ParDo.of(
                               new ConvertInsertErrorToBadRecord(
                                   "Failed to Convert to Storage API Message"))))
               .and(
                   writeRecordsResult
                       .get(failedRowsTag)
-                      .apply(
+                      .apply("WriteRecordFailuresToBadRecord",
                           ParDo.of(
                               new ConvertInsertErrorToBadRecord(
                                   "Failed to Write Message to Storage API"))))
-              .apply("flattenErrors", Flatten.pCollections());
+              .apply("flattenBadRecords", Flatten.pCollections());
       badRecordErrorHandler.addErrorCollection(badRecords);
     }
   }
