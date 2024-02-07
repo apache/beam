@@ -89,7 +89,8 @@ class LargeMovieReviewDatasetProcessTest(unittest.TestCase):
     artifacts_fetcher = ArtifactsFetcher(artifact_location=artifact_location)
 
     vocab_filename = f'vocab_{vocab_tfidf_processing.REVIEW_COLUMN}'
-    actual_vocab_list = artifacts_fetcher.get_vocab_list()
+    actual_vocab_list = artifacts_fetcher.get_vocab_list(
+        vocab_filename=vocab_filename)
 
     expected_artifact_filepath = f'gs://apache-beam-ml/testing/expected_outputs/{vocab_filename}'  # pylint: disable=line-too-long
 
