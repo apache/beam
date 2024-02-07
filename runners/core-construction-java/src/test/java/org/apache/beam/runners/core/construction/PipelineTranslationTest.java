@@ -235,7 +235,7 @@ public class PipelineTranslationTest {
 
     private void addCoders(Coder<?> coder) {
       coders.add(coder);
-      if (CoderTranslation.KNOWN_CODER_URNS.containsKey(coder.getClass())) {
+      if (CoderTranslation.getKnownCoderUrns().containsKey(coder.getClass())) {
         for (Coder<?> component : ((StructuredCoder<?>) coder).getComponents()) {
           addCoders(component);
         }
