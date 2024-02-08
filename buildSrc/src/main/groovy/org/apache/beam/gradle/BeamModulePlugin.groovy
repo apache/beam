@@ -611,7 +611,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
-    def grpc_version = "1.61.0"
+    def grpc_version = "1.60.0"
     def guava_version = "32.1.2-jre"
     def hadoop_version = "2.10.2"
     def hamcrest_version = "2.1"
@@ -626,11 +626,11 @@ class BeamModulePlugin implements Plugin<Project> {
     def log4j2_version = "2.20.0"
     def nemo_version = "0.1"
     // Try to keep netty_version consistent with the netty version in grpc_bom (includes grpc_netty) in google_cloud_platform_libraries_bom
-    def netty_version = "4.1.87.Final"
+    def netty_version = "4.1.100.Final"
     def postgres_version = "42.2.16"
     def powermock_version = "2.0.9"
     // Try to keep protobuf_version consistent with the protobuf version in google_cloud_platform_libraries_bom
-    def protobuf_version = "3.25.2"
+    def protobuf_version = "3.25.1"
     def qpid_jms_client_version = "0.61.0"
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
@@ -640,7 +640,8 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark3_version = "3.2.2"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.17.3"
-    def arrow_version = "5.0.0"
+    // Try to keep arrow_version consistent with the arrow version in google-cloud-bigquery in google_cloud_platform_libraries_bom
+    def arrow_version = "14.0.2"
     def jmh_version = "1.34"
     def jupiter_version = "5.7.0"
 
