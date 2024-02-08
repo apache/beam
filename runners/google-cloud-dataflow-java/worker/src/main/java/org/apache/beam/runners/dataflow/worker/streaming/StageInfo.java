@@ -47,7 +47,7 @@ public abstract class StageInfo {
         stageName,
         systemName,
         StreamingStepMetricsContainer.createRegistry(),
-        new StreamingModeExecutionStateRegistry(worker),
+        new StreamingModeExecutionStateRegistry(),
         deltaCounters,
         deltaCounters.longSum(
             DataflowSystemMetrics.StreamingPerStageSystemCounterNames.THROTTLED_MSECS.counterName(

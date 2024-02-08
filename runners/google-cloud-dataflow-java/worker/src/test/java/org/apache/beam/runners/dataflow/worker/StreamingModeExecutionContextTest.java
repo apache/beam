@@ -90,7 +90,7 @@ public class StreamingModeExecutionContextTest {
   @Mock private WindmillStateReader stateReader;
 
   private final StreamingModeExecutionStateRegistry executionStateRegistry =
-      new StreamingModeExecutionStateRegistry(null);
+      new StreamingModeExecutionStateRegistry();
   private StreamingModeExecutionContext executionContext;
   DataflowWorkerHarnessOptions options;
 
@@ -319,8 +319,7 @@ public class StreamingModeExecutionContextTest {
             NameContextsForTests.nameContextForTest(),
             "testState",
             null,
-            NoopProfileScope.NOOP,
-            null);
+            NoopProfileScope.NOOP);
     ExecutorService executor = Executors.newFixedThreadPool(2);
     AtomicBoolean doneWriting = new AtomicBoolean(false);
 
@@ -362,8 +361,7 @@ public class StreamingModeExecutionContextTest {
             NameContextsForTests.nameContextForTest(),
             "testState",
             null,
-            NoopProfileScope.NOOP,
-            null);
+            NoopProfileScope.NOOP);
     ExecutionStateSampler sampler = ExecutionStateSampler.newForTest();
     try {
       sampler.start();
