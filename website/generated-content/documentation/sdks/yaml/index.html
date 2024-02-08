@@ -1,0 +1,469 @@
+<!doctype html><html lang=en class=no-js><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><title>Apache Beam YAML API</title><meta name=description content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes."><link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700" rel=stylesheet><link rel=preload href=/scss/main.min.408fddfe3e8a45f87a5a8c9a839d77db667c1c534e5e5cd0d957ffc3dd6c14cf.css as=style><link href=/scss/main.min.408fddfe3e8a45f87a5a8c9a839d77db667c1c534e5e5cd0d957ffc3dd6c14cf.css rel=stylesheet integrity><script src=https://code.jquery.com/jquery-2.2.4.min.js></script><style>.body__contained img{max-width:100%}</style><script type=text/javascript src=/js/bootstrap.min.2979f9a6e32fc42c3e7406339ee9fe76b31d1b52059776a02b4a7fa6a4fd280a.js defer></script>
+<script type=text/javascript src=/js/language-switch-v2.min.121952b7980b920320ab229551857669209945e39b05ba2b433a565385ca44c6.js defer></script>
+<script type=text/javascript src=/js/fix-menu.min.039174b67107465f2090a493f91e126f7aa797f29420f9edab8a54d9dd4b3d2d.js defer></script>
+<script type=text/javascript src=/js/section-nav.min.1405fd5e70fab5f6c54037c269b1d137487d8f3d1b3009032525f6db3fbce991.js defer></script>
+<script type=text/javascript src=/js/page-nav.min.af231204c9c52c5089d53a4c02739eacbb7f939e3be1c6ffcc212e0ac4dbf879.js defer></script>
+<script type=text/javascript src=/js/expandable-list.min.75a4526624a3b8898fe7fb9e3428c205b581f8b38c7926922467aef17eac69f2.js defer></script>
+<script type=text/javascript src=/js/copy-to-clipboard.min.364c06423d7e8993fc42bb4abc38c03195bc8386db26d18774ce775d08d5b18d.js defer></script>
+<script type=text/javascript src=/js/calendar.min.336664054fa0f52b08bbd4e3c59b5cb6d63dcfb2b4d602839746516b0817446b.js defer></script>
+<script type=text/javascript src=/js/fix-playground-nested-scroll.min.0283f1037cb1b9d5074c6eaf041292b524a8148a7cdb803d5ccd6d1fc4eb3253.js defer></script>
+<script type=text/javascript src=/js/anchor-content-jump-fix.min.22d3240f81632e4c11179b9d2aaf37a40da9414333c43aa97344e8b21a7df0e4.js defer></script>
+<link rel=alternate type=application/rss+xml title="Apache Beam" href=/feed.xml><link rel=canonical href=/documentation/sdks/yaml/ data-proofer-ignore><link rel="shortcut icon" type=image/x-icon href=/images/favicon.ico><link rel=stylesheet href=https://use.fontawesome.com/releases/v5.4.1/css/all.css integrity=sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz crossorigin=anonymous><link rel=stylesheet href=https://unpkg.com/swiper@8/swiper-bundle.min.css><script async src=https://platform.twitter.com/widgets.js></script>
+<script>(function(e,t,n,s,o,i,a){e.GoogleAnalyticsObject=o,e[o]=e[o]||function(){(e[o].q=e[o].q||[]).push(arguments)},e[o].l=1*new Date,i=t.createElement(n),a=t.getElementsByTagName(n)[0],i.async=1,i.src=s,a.parentNode.insertBefore(i,a)})(window,document,"script","//www.google-analytics.com/analytics.js","ga"),ga("create","UA-73650088-1","auto"),ga("send","pageview")</script><script>(function(e,t,n,s,o,i){e.hj=e.hj||function(){(e.hj.q=e.hj.q||[]).push(arguments)},e._hjSettings={hjid:2182187,hjsv:6},o=t.getElementsByTagName("head")[0],i=t.createElement("script"),i.async=1,i.src=n+e._hjSettings.hjid+s+e._hjSettings.hjsv,o.appendChild(i)})(window,document,"https://static.hotjar.com/c/hotjar-",".js?sv=")</script></head><body class=body data-spy=scroll data-target=.page-nav data-offset=0><nav class="navigation-bar-mobile header navbar navbar-fixed-top"><div class=navbar-header><a href=/ class=navbar-brand><img alt=Brand style=height:46px;width:43px src=/images/beam_logo_navbar_mobile.png></a>
+<a class=navbar-link href=/get-started/>Get Started</a>
+<a class=navbar-link href=/documentation/>Documentation</a>
+<button type=button class="navbar-toggle menu-open" aria-expanded=false aria-controls=navbar onclick=openMenu()>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span></button></div><div class="navbar-mask closed"></div><div id=navbar class="navbar-container closed"><button type=button class=navbar-toggle aria-expanded=false aria-controls=navbar id=closeMenu>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span>
+<span class=icon-bar></span>
+<span class=icon-bar></span></button><ul class="nav navbar-nav"><li><div class=searchBar-mobile><script>(function(){var t,n="012923275103528129024:4emlchv9wzi",e=document.createElement("script");e.type="text/javascript",e.async=!0,e.src="https://cse.google.com/cse.js?cx="+n,t=document.getElementsByTagName("script")[0],t.parentNode.insertBefore(e,t)})()</script><gcse:search></gcse:search></div></li><li><a class=navbar-link href=/about>About</a></li><li><a class=navbar-link href=/get-started/>Get Started</a></li><li><span class=navbar-link>Documentation</span><ul><li><a href=/documentation/>General</a></li><li><a href=/documentation/sdks/java/>Languages</a></li><li><a href=/documentation/runners/capability-matrix/>Runners</a></li><li><a href=/documentation/io/connectors/>I/O Connectors</a></li></ul></li><li><a class=navbar-link href=/roadmap/>Roadmap</a></li><li><a class=navbar-link href=/community/>Community</a></li><li><a class=navbar-link href=/contribute/>Contribute</a></li><li><a class=navbar-link href=/blog/>Blog</a></li><li><a class=navbar-link href=/case-studies/>Case Studies</a></li></ul><ul class="nav navbar-nav navbar-right"><li><a href=https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/sdks/yaml.md data-proofer-ignore><svg xmlns="http://www.w3.org/2000/svg" width="25" height="24" fill="none" viewBox="0 0 25 24"><path stroke="#ff6d00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M4.543 20h4l10.5-10.5c.53-.53.828-1.25.828-2s-.298-1.47-.828-2-1.25-.828-2-.828-1.47.298-2 .828L4.543 16v4zm9.5-13.5 4 4"/></svg></a></li><li class=dropdown><a href=# class=dropdown-toggle id=apache-dropdown data-toggle=dropdown role=button aria-haspopup=true aria-expanded=false><img src=https://www.apache.org/foundation/press/kit/feather_small.png alt="Apache Logo" style=height:20px>
+&nbsp;Apache
+<span class=arrow-icon><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 20 20"><circle cx="10" cy="10" r="10" fill="#ff6d00"/><path stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.535 5.28l4.573 4.818-4.573 4.403"/></svg></span></a><ul class="dropdown-menu dropdown-menu-right"><li><a target=_blank href=https://www.apache.org/>ASF Homepage</a></li><li><a target=_blank href=https://www.apache.org/licenses/>License</a></li><li><a target=_blank href=https://www.apache.org/security/>Security</a></li><li><a target=_blank href=https://www.apache.org/foundation/thanks.html>Thanks</a></li><li><a target=_blank href=https://www.apache.org/foundation/sponsorship.html>Sponsorship</a></li><li><a target=_blank href=https://www.apache.org/foundation/policies/conduct>Code of Conduct</a></li></ul></li></ul></div></nav><nav class=navigation-bar-desktop><a href=/ class=navbar-logo><img src=/images/beam_logo_navbar.png alt="Beam Logo"></a><div class=navbar-bar-left><div class=navbar-links><a class=navbar-link href=/about>About</a>
+<a class=navbar-link href=/get-started/>Get Started</a><li class="dropdown navbar-dropdown navbar-dropdown-documentation"><a href=# class="dropdown-toggle navbar-link" role=button aria-haspopup=true aria-expanded=false>Documentation
+<span><svg xmlns="http://www.w3.org/2000/svg" width="12" height="11" fill="none" viewBox="0 0 12 11"><path stroke="#ff6d00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.666 4.535 5.847 9.108 1.444 4.535"/></svg></span></a><ul class=dropdown-menu><li><a class=navbar-dropdown-menu-link href=/documentation/>General</a></li><li><a class=navbar-dropdown-menu-link href=/documentation/sdks/java/>Languages</a></li><li><a class=navbar-dropdown-menu-link href=/documentation/runners/capability-matrix/>Runners</a></li><li><a class=navbar-dropdown-menu-link href=/documentation/io/connectors/>I/O Connectors</a></li></ul></li><a class=navbar-link href=/roadmap/>Roadmap</a>
+<a class=navbar-link href=/community/>Community</a>
+<a class=navbar-link href=/contribute/>Contribute</a>
+<a class=navbar-link href=/blog/>Blog</a>
+<a class=navbar-link href=/case-studies/>Case Studies</a></div><div id=iconsBar><a type=button onclick=showSearch()><svg xmlns="http://www.w3.org/2000/svg" width="25" height="24" fill="none" viewBox="0 0 25 24"><path stroke="#ff6d00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M10.191 17c3.866.0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm11 4-6-6"/></svg></a><a target=_blank href=https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/sdks/yaml.md data-proofer-ignore><svg xmlns="http://www.w3.org/2000/svg" width="25" height="24" fill="none" viewBox="0 0 25 24"><path stroke="#ff6d00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M4.543 20h4l10.5-10.5c.53-.53.828-1.25.828-2s-.298-1.47-.828-2-1.25-.828-2-.828-1.47.298-2 .828L4.543 16v4zm9.5-13.5 4 4"/></svg></a><li class="dropdown navbar-dropdown navbar-dropdown-apache"><a href=# class=dropdown-toggle role=button aria-haspopup=true aria-expanded=false><img src=https://www.apache.org/foundation/press/kit/feather_small.png alt="Apache Logo" style=height:20px>
+&nbsp;Apache
+<span class=arrow-icon><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 20 20"><circle cx="10" cy="10" r="10" fill="#ff6d00"/><path stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.535 5.28l4.573 4.818-4.573 4.403"/></svg></span></a><ul class=dropdown-menu><li><a class=navbar-dropdown-menu-link target=_blank href=https://www.apache.org/>ASF Homepage</a></li><li><a class=navbar-dropdown-menu-link target=_blank href=https://www.apache.org/licenses/>License</a></li><li><a class=navbar-dropdown-menu-link target=_blank href=https://www.apache.org/security/>Security</a></li><li><a class=navbar-dropdown-menu-link target=_blank href=https://www.apache.org/foundation/thanks.html>Thanks</a></li><li><a class=navbar-dropdown-menu-link target=_blank href=https://www.apache.org/foundation/sponsorship.html>Sponsorship</a></li><li><a class=navbar-dropdown-menu-link target=_blank href=https://www.apache.org/foundation/policies/conduct>Code of Conduct</a></li></ul></li></div><div class="searchBar disappear"><script>(function(){var t,n="012923275103528129024:4emlchv9wzi",e=document.createElement("script");e.type="text/javascript",e.async=!0,e.src="https://cse.google.com/cse.js?cx="+n,t=document.getElementsByTagName("script")[0],t.parentNode.insertBefore(e,t)})()</script><gcse:search></gcse:search>
+<a type=button onclick=endSearch()><svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="none" viewBox="0 0 25 25"><path stroke="#ff6d00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M21.122 20.827 4.727 4.432M21.122 4.43 4.727 20.827"/></svg></a></div></div></nav><div class=header-push></div><div class="top-banners swiper"><div class=swiper-wrapper><div class=swiper-slide><a href=https://beamcollege.dev/><img class=banner-img-desktop src=/images/college_2023_banner_desktop.png alt=banner-desktop>
+<img class=banner-img-mobile src=/images/college_2023_banner_mobile.png alt=banner-mobile></a></div><div class=swiper-slide><a href=https://tour.beam.apache.org><img class=banner-img-desktop src=/images/banners/tour-of-beam/tour-of-beam-desktop.png alt="Start Tour of Beam">
+<img class=banner-img-mobile src=/images/banners/tour-of-beam/tour-of-beam-mobile.png alt="Start Tour of Beam"></a></div><div class=swiper-slide><a href=https://beam.apache.org/documentation/ml/overview/><img class=banner-img-desktop src=/images/banners/machine-learning/machine-learning-desktop.jpg alt="Machine Learning">
+<img class=banner-img-mobile src=/images/banners/machine-learning/machine-learning-mobile.jpg alt="Machine Learning"></a></div></div><div class=swiper-pagination></div></div><script src=/js/swiper-bundle.min.min.e0e8f81b0b15728d35ff73c07f42ddbb17a108d6f23df4953cb3e60df7ade675.js></script>
+<script src=/js/sliders/top-banners.min.91104c476b3d8123ebee5ed9a8168556ec546abb698549551b38a0cee187ee1c.js></script>
+<script>function showSearch(){addPlaceholder();var e,t=document.querySelector(".searchBar");t.classList.remove("disappear"),e=document.querySelector("#iconsBar"),e.classList.add("disappear")}function addPlaceholder(){$("input:text").attr("placeholder","What are you looking for?")}function endSearch(){var e,t=document.querySelector(".searchBar");t.classList.add("disappear"),e=document.querySelector("#iconsBar"),e.classList.remove("disappear")}function blockScroll(){$("body").toggleClass("fixedPosition")}function openMenu(){addPlaceholder(),blockScroll()}</script><div class="clearfix container-main-content"><div class="section-nav closed" data-offset-top=90 data-offset-bottom=500><span class="section-nav-back glyphicon glyphicon-menu-left"></span><nav><ul class=section-nav-list data-section-nav><li><span class=section-nav-list-main-title>Languages</span></li><li><span class=section-nav-list-title>Java</span><ul class=section-nav-list><li><a href=/documentation/sdks/java/>Java SDK overview</a></li><li><a href=https://beam.apache.org/releases/javadoc/2.53.0/ target=_blank>Java SDK API reference <img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></li><li><a href=/documentation/sdks/java-dependencies/>Java SDK dependencies</a></li><li><a href=/documentation/sdks/java-extensions/>Java SDK extensions</a></li><li><a href=/documentation/sdks/java-thirdparty/>Java 3rd party extensions</a></li><li><a href=/documentation/sdks/java/testing/nexmark/>Nexmark benchmark suite</a></li><li><a href=/documentation/sdks/java/testing/tpcds/>TPC-DS benchmark suite</a></li><li><a href=/documentation/sdks/java-multi-language-pipelines/>Java multi-language pipelines quickstart</a></li></ul></li><li><span class=section-nav-list-title>Python</span><ul class=section-nav-list><li><a href=/documentation/sdks/python/>Python SDK overview</a></li><li><a href=https://beam.apache.org/releases/pydoc/2.53.0/ target=_blank>Python SDK API reference <img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></li><li><a href=/documentation/sdks/python-dependencies/>Python SDK dependencies</a></li><li><a href=/documentation/sdks/python-streaming/>Python streaming pipelines</a></li><li><a href=/documentation/sdks/python-type-safety/>Ensuring Python type safety</a></li><li><a href=/documentation/sdks/python-machine-learning/>Machine Learning</a></li><li><a href=/documentation/sdks/python-pipeline-dependencies/>Managing pipeline dependencies</a></li><li><a href=/documentation/sdks/python-multi-language-pipelines/>Python multi-language pipelines quickstart</a></li><li><a href=/documentation/sdks/python-unrecoverable-errors/>Python Unrecoverable Errors</a></li></ul></li><li><span class=section-nav-list-title>Go</span><ul class=section-nav-list><li><a href=/documentation/sdks/go/>Go SDK overview</a></li><li><a href=https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam target=_blank>Go SDK API reference <img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a><li><a href=/documentation/sdks/go-dependencies/>Go SDK dependencies</a></li><li><a href=/documentation/sdks/go-cross-compilation/>Cross compilation</a></li></li></ul></li><li><span class=section-nav-list-title>Typescript</span><ul class=section-nav-list><li><a href=/documentation/sdks/typescript/>Typescript SDK overview</a></li><li><a href=https://beam.apache.org/releases/typedoc/current/ target=_blank>Typescript SDK API reference <img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></li></ul></li><li><span class=section-nav-list-title>Scala</span><ul class=section-nav-list><li><a href=/documentation/sdks/scala/>Scio</a></li><li><a href=https://spotify.github.io/scio/api/com/spotify/scio/index.html target=_blank>Scio SDK API reference <img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></li></ul></li><li><span class=section-nav-list-title>Yaml</span><ul class=section-nav-list><li><a href=/documentation/sdks/yaml/>Yaml overview</a></li><li><a href=/documentation/sdks/yaml-udf/>Yaml User Defined Functions</a></li><li><a href=/documentation/sdks/yaml-combine/>Yaml Aggregation</a></li><li><a href=/documentation/sdks/yaml-errors/>Error handling</a></li><li><a href=/documentation/sdks/yaml-inline-python/>Inlining Python</a></li></ul></li><li><span class=section-nav-list-title>SQL</span><ul class=section-nav-list><li><a href=/documentation/dsls/sql/overview/>Overview</a></li><li><a href=/documentation/dsls/sql/walkthrough/>Walkthrough</a></li><li><a href=/documentation/dsls/sql/shell/>Shell</a></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Apache Calcite dialect</span><ul class=section-nav-list><li><a href=/documentation/dsls/sql/calcite/overview/>Calcite support overview</a></li><li><a href=/documentation/dsls/sql/calcite/query-syntax/>Query syntax</a></li><li><a href=/documentation/dsls/sql/calcite/lexical/>Lexical structure</a></li><li><a href=/documentation/dsls/sql/calcite/data-types/>Data types</a></li><li><a href=/documentation/dsls/sql/calcite/scalar-functions/>Scalar functions</a></li><li><a href=/documentation/dsls/sql/calcite/aggregate-functions/>Aggregate functions</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>ZetaSQL dialect</span><ul class=section-nav-list><li><a href=/documentation/dsls/sql/zetasql/overview/>ZetaSQL support overview</a></li><li><a href=/documentation/dsls/sql/zetasql/syntax/>Function call rules</a></li><li><a href=/documentation/dsls/sql/zetasql/conversion-rules/>Conversion rules</a></li><li><a href=/documentation/dsls/sql/zetasql/query-syntax/>Query syntax</a></li><li><a href=/documentation/dsls/sql/zetasql/lexical/>Lexical structure</a></li><li><a href=/documentation/dsls/sql/zetasql/data-types/>Data types</a></li><li><a href=/documentation/dsls/sql/zetasql/operators/>Operators</a></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Scalar functions</span><ul class=section-nav-list><li><a href=/documentation/dsls/sql/zetasql/string-functions/>String functions</a></li><li><a href=/documentation/dsls/sql/zetasql/math-functions/>Mathematical functions</a></li><li><a href=/documentation/dsls/sql/zetasql/conditional-expressions/>Conditional expressions</a></li></ul></li><li><a href=/documentation/dsls/sql/zetasql/aggregate-functions/>Aggregate functions</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Beam SQL extensions</span><ul class=section-nav-list><li><a href=/documentation/dsls/sql/extensions/create-external-table/>CREATE EXTERNAL TABLE</a></li><li><a href=/documentation/dsls/sql/extensions/windowing-and-triggering/>Windowing & triggering</a></li><li><a href=/documentation/dsls/sql/extensions/joins/>Joins</a></li><li><a href=/documentation/dsls/sql/extensions/user-defined-functions/>User-defined functions</a></li><li><a href=/documentation/dsls/sql/extensions/set/>SET pipeline options</a></li></ul></li></ul></li><li><span class=section-nav-list-title>DataFrames</span><ul class=section-nav-list><li><a href=/documentation/dsls/dataframes/overview/>Overview</a></li><li><a href=/documentation/dsls/dataframes/differences-from-pandas/>Differences from pandas</a></li><li><a href=https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/dataframe target=_blank>Example pipelines <img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></li><li><a href=https://beam.apache.org/releases/pydoc/2.53.0/apache_beam.dataframe.html target=_blank>DataFrame API reference <img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></li></ul></li></ul></nav></div><nav class="page-nav clearfix" data-offset-top=90 data-offset-bottom=500><nav id=TableOfContents><ul><li><a href=#running-pipelines>Running pipelines</a></li><li><a href=#example-pipelines>Example pipelines</a></li><li><a href=#windowing>Windowing</a></li><li><a href=#providers>Providers</a></li><li><a href=#other-resources>Other Resources</a></li></ul></nav></nav><div class="body__contained body__section-nav"><h1 id=beam-yaml-api>Beam YAML API</h1><p>While Beam provides powerful APIs for authoring sophisticated data
+processing pipelines, it often still has too high a barrier for
+getting started and authoring simple pipelines. Even setting up the
+environment, installing the dependencies, and setting up the project
+can be an overwhelming amount of boilerplate for some (though
+<a href=https://beam.apache.org/blog/beam-starter-projects/>https://beam.apache.org/blog/beam-starter-projects/</a> has gone a long
+way in making this easier).</p><p>Here we provide a simple declarative syntax for describing pipelines
+that does not require coding experience or learning how to use an
+SDK—any text editor will do.
+Some installation may be required to actually <em>execute</em> a pipeline, but
+we envision various services (such as Dataflow) to accept yaml pipelines
+directly obviating the need for even that in the future.
+We also anticipate the ability to generate code directly from these
+higher-level yaml descriptions, should one want to graduate to a full
+Beam SDK (and possibly the other direction as well as far as possible).</p><p>Though we intend this syntax to be easily authored (and read) directly by
+humans, this may also prove a useful intermediate representation for
+tools to use as well, either as output (e.g. a pipeline authoring GUI)
+or consumption (e.g. a lineage analysis tool) and expect it to be more
+easily manipulated and semantically meaningful than the Beam protos
+themselves (which concern themselves more with execution).</p><p>It should be noted that everything here is still under development, but any
+features already included are considered stable. Feedback is welcome at
+<a href=mailto:dev@apache.beam.org>dev@apache.beam.org</a>.</p><h2 id=running-pipelines>Running pipelines</h2><p>The Beam yaml parser is currently included as part of the Apache Beam Python SDK.
+This can be installed (e.g. within a virtual environment) as</p><pre tabindex=0><code>pip install apache_beam[yaml,gcp]
+</code></pre><p>In addition, several of the provided transforms (such as SQL) are implemented
+in Java and their expansion will require a working Java interpeter. (The
+requisite artifacts will be automatically downloaded from the apache maven
+repositories, so no further installs will be required.)
+Docker is also currently required for local execution of these
+cross-language-requiring transforms, but not for submission to a non-local
+runner such as Flink or Dataflow.</p><p>Once the prerequisites are installed, you can execute a pipeline defined
+in a yaml file as</p><pre tabindex=0><code>python -m apache_beam.yaml.main --yaml_pipeline_file=/path/to/pipeline.yaml [other pipeline options such as the runner]
+</code></pre><p>You can do a dry-run of your pipeline using the render runner to see what the
+execution graph is, e.g.</p><pre tabindex=0><code>python -m apache_beam.yaml.main --yaml_pipeline_file=/path/to/pipeline.yaml --runner=apache_beam.runners.render.RenderRunner --render_output=out.png [--render_port=0]
+</code></pre><p>(This requires <a href=https://graphviz.org/download/>Graphviz</a> to be installed to render the pipeline.)</p><p>We intend to support running a pipeline on Dataflow by directly passing the
+yaml specification to a template, no local installation of the Beam SDKs required.</p><h2 id=example-pipelines>Example pipelines</h2><p>Here is a simple pipeline that reads some data from csv files and
+writes it out in json format.</p><pre tabindex=0><code>pipeline:
+  transforms:
+    - type: ReadFromCsv
+      config:
+        path: /path/to/input*.csv
+    - type: WriteToJson
+      config:
+        path: /path/to/output.json
+      input: ReadFromCsv
+</code></pre><p>We can also add a transformation</p><pre tabindex=0><code>pipeline:
+  transforms:
+    - type: ReadFromCsv
+      config:
+        path: /path/to/input*.csv
+    - type: Filter
+      config:
+        language: python
+        keep: &#34;col3 &gt; 100&#34;
+      input: ReadFromCsv
+    - type: WriteToJson
+      config:
+        path: /path/to/output.json
+      input: Filter
+</code></pre><p>or two.</p><pre tabindex=0><code>pipeline:
+  transforms:
+    - type: ReadFromCsv
+      config:
+        path: /path/to/input*.csv
+    - type: Filter
+      config:
+        language: python
+        keep: &#34;col3 &gt; 100&#34;
+      input: ReadFromCsv
+    - type: Sql
+      config:
+        query: &#34;select col1, count(*) as cnt from PCOLLECTION group by col1&#34;
+      input: Filter
+    - type: WriteToJson
+      config:
+        path: /path/to/output.json
+      input: Sql
+</code></pre><p>Transforms can be named to help with monitoring and debugging.</p><pre tabindex=0><code>pipeline:
+  transforms:
+    - type: ReadFromCsv
+      name: ReadMyData
+      config:
+        path: /path/to/input*.csv
+    - type: Filter
+      name: KeepBigRecords
+      config:
+        language: python
+        keep: &#34;col3 &gt; 100&#34;
+      input: ReadMyData
+    - type: Sql
+      name: MySqlTransform
+      config:
+        query: &#34;select col1, count(*) as cnt from PCOLLECTION group by col1&#34;
+      input: KeepBigRecords
+    - type: WriteToJson
+      name: WriteTheOutput
+      config:
+        path: /path/to/output.json
+      input: MySqlTransform
+</code></pre><p>(This is also needed to disambiguate if more than one transform of the same
+type is used.)</p><p>If the pipeline is linear, we can let the inputs be implicit by designating
+the pipeline as a <code>chain</code> type.</p><pre tabindex=0><code>pipeline:
+  type: chain
+
+  transforms:
+    - type: ReadFromCsv
+      config:
+        path: /path/to/input*.csv
+    - type: Filter
+      config:
+        language: python
+        keep: &#34;col3 &gt; 100&#34;
+    - type: Sql
+      name: MySqlTransform
+      config:
+        query: &#34;select col1, count(*) as cnt from PCOLLECTION group by col1&#34;
+    - type: WriteToJson
+      config:
+        path: /path/to/output.json
+</code></pre><p>As syntactic sugar, we can name the first and last transforms in our pipeline
+as <code>source</code> and <code>sink</code>.</p><pre tabindex=0><code>pipeline:
+  type: chain
+
+  source:
+    type: ReadFromCsv
+    config:
+      path: /path/to/input*.csv
+
+  transforms:
+    - type: Filter
+      config:
+        language: python
+        keep: &#34;col3 &gt; 100&#34;
+
+    - type: Sql
+      name: MySqlTransform
+      config:
+        query: &#34;select col1, count(*) as cnt from PCOLLECTION group by col1&#34;
+
+  sink:
+    type: WriteToJson
+    config:
+      path: /path/to/output.json
+</code></pre><p>Arbitrary non-linear pipelines are supported as well, though in this case
+inputs must be explicitly named.
+Here we read two sources, join them, and write two outputs.</p><pre tabindex=0><code>pipeline:
+  transforms:
+    - type: ReadFromCsv
+      name: ReadLeft
+      config:
+        path: /path/to/left*.csv
+
+    - type: ReadFromCsv
+      name: ReadRight
+      config:
+        path: /path/to/right*.csv
+
+    - type: Sql
+      config:
+        query: select A.col1, B.col2 from A join B using (col3)
+      input:
+        A: ReadLeft
+        B: ReadRight
+
+    - type: WriteToJson
+      name: WriteAll
+      input: Sql
+      config:
+        path: /path/to/all.json
+
+    - type: Filter
+      name: FilterToBig
+      input: Sql
+      config:
+        language: python
+        keep: &#34;col2 &gt; 100&#34;
+
+    - type: WriteToCsv
+      name: WriteBig
+      input: FilterToBig
+      config:
+        path: /path/to/big.csv
+</code></pre><p>One can, however, nest <code>chains</code> within a non-linear pipeline.
+For example, here <code>ExtraProcessingForBigRows</code> is itself a &ldquo;chain&rdquo; transform
+that has a single input and contains its own sink.</p><pre tabindex=0><code>pipeline:
+  transforms:
+    - type: ReadFromCsv
+      name: ReadLeft
+      config:
+        path: /path/to/left*.csv
+
+    - type: ReadFromCsv
+      name: ReadRight
+      config:
+        path: /path/to/right*.csv
+
+    - type: Sql
+      config:
+        query: select A.col1, B.col2 from A join B using (col3)
+      input:
+        A: ReadLeft
+        B: ReadRight
+
+    - type: WriteToJson
+      name: WriteAll
+      input: Sql
+      config:
+        path: /path/to/all.json
+
+    - type: chain
+      name: ExtraProcessingForBigRows
+      input: Sql
+      transforms:
+        - type: Filter
+          config:
+            language: python
+            keep: &#34;col2 &gt; 100&#34;
+        - type: Filter
+          config:
+            language: python
+            keep: &#34;len(col1) &gt; 10&#34;
+        - type: Filter
+          config:
+            language: python
+            keep: &#34;col1 &gt; &#39;z&#39;&#34;
+      sink:
+        type: WriteToCsv
+        config:
+          path: /path/to/big.csv
+</code></pre><h2 id=windowing>Windowing</h2><p>This API can be used to define both streaming and batch pipelines.
+In order to meaningfully aggregate elements in a streaming pipeline,
+some kind of windowing is typically required. Beam&rsquo;s
+<a href=https://beam.apache.org/documentation/programming-guide/#windowing>windowing</a>
+and <a href=https://beam.apache.org/documentation/programming-guide/#triggers>triggering</a>
+can be declared using the same WindowInto transform available in all other
+SDKs.</p><pre tabindex=0><code>pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromPubSub
+      config:
+        topic: myPubSubTopic
+        format: json
+        schema:
+          type: object
+          properties:
+            col1: {type: string}
+            col2: {type: integer}
+            col3: {type: number}
+    - type: WindowInto
+      windowing:
+        type: fixed
+        size: 60s
+    - type: SomeGroupingTransform
+      config:
+        arg: ...
+    - type: WriteToPubSub
+      config:
+        topic: anotherPubSubTopic
+        format: json
+</code></pre><p>Rather than using an explicit <code>WindowInto</code> operation, one may instead tag a
+transform itself with a specified windowing which will cause its inputs
+(and hence the transform itself) to be applied with that windowing.</p><pre tabindex=0><code>pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromPubSub
+      config:
+        topic: myPubSubTopic
+        format: ...
+        schema: ...
+    - type: SomeGroupingTransform
+      config:
+        arg: ...
+      windowing:
+        type: sliding
+        size: 60s
+        period: 10s
+    - type: WriteToPubSub
+      config:
+        topic: anotherPubSubTopic
+        format: json
+</code></pre><p>Note that the <code>Sql</code> operation itself is often a from of aggregation, and
+applying a windowing (or consuming an already windowed input) will cause all
+grouping to be done per window.</p><pre tabindex=0><code>pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromPubSub
+      config:
+        topic: myPubSubTopic
+        format: ...
+        schema: ...
+    - type: Sql
+      config:
+        query: &#34;select col1, count(*) as c from PCOLLECTION&#34;
+      windowing:
+        type: sessions
+        gap: 60s
+    - type: WriteToPubSub
+      config:
+        topic: anotherPubSubTopic
+        format: json
+</code></pre><p>The specified windowing is applied to all inputs, in this case resulting in
+a join per window.</p><pre tabindex=0><code>pipeline:
+  transforms:
+    - type: ReadFromPubSub
+      name: ReadLeft
+      config:
+        topic: leftTopic
+        format: ...
+        schema: ...
+
+    - type: ReadFromPubSub
+      name: ReadRight
+      config:
+        topic: rightTopic
+        format: ...
+        schema: ...
+
+    - type: Sql
+      config:
+        query: select A.col1, B.col2 from A join B using (col3)
+      input:
+        A: ReadLeft
+        B: ReadRight
+      windowing:
+        type: fixed
+        size: 60s
+</code></pre><p>For a transform with no inputs, the specified windowing is instead applied to
+its output(s). As per the Beam model, the windowing is then inherited by all
+consuming operations. This is especially useful for root operations like Read.</p><pre tabindex=0><code>pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromPubSub
+      config:
+        topic: myPubSubTopic
+        format: ...
+        schema: ...
+      windowing:
+        type: fixed
+        size: 60s
+    - type: Sql
+      config:
+        query: &#34;select col1, count(*) as c from PCOLLECTION&#34;
+    - type: WriteToPubSub
+      config:
+        topic: anotherPubSubTopic
+        format: json
+</code></pre><p>One can also specify windowing at the top level of a pipeline (or composite),
+which is a shorthand to simply applying this same windowing to all root
+operations (that don&rsquo;t otherwise specify their own windowing),
+and can be an effective way to apply it everywhere.</p><pre tabindex=0><code>pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromPubSub
+      config:
+        topic: myPubSubTopic
+        format: ...
+        schema: ...
+    - type: Sql
+      config:
+        query: &#34;select col1, count(*) as c from PCOLLECTION&#34;
+    - type: WriteToPubSub
+      config:
+        topic: anotherPubSubTopic
+        format: json
+  windowing:
+    type: fixed
+    size: 60
+</code></pre><p>Note that all these windowing specifications are compatible with the <code>source</code>
+and <code>sink</code> syntax as well</p><pre tabindex=0><code>pipeline:
+  type: chain
+
+  source:
+    type: ReadFromPubSub
+    config:
+      topic: myPubSubTopic
+      format: ...
+      schema: ...
+    windowing:
+      type: fixed
+      size: 10s
+
+  transforms:
+    - type: Sql
+      config:
+        query: &#34;select col1, count(*) as c from PCOLLECTION&#34;
+
+  sink:
+    type: WriteToCsv
+    config:
+      path: /path/to/output.json
+    windowing:
+      type: fixed
+      size: 5m
+</code></pre><h2 id=providers>Providers</h2><p>Though we aim to offer a large suite of built-in transforms, it is inevitable
+that people will want to be able to author their own. This is made possible
+through the notion of Providers which leverage expansion services and
+schema transforms.</p><p>For example, one could build a jar that vends a
+<a href=https://beam.apache.org/documentation/sdks/python-multi-language-pipelines/>cross language transform</a>
+or <a href=https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/schemas/transforms/SchemaTransformProvider.html>schema transform</a>
+and then use it in a transform as follows</p><pre tabindex=0><code>pipeline:
+  type: chain
+  source:
+    type: ReadFromCsv
+    config:
+      path: /path/to/input*.csv
+
+  transforms:
+    - type: MyCustomTransform
+      config:
+        arg: whatever
+
+  sink:
+    type: WriteToJson
+    config:
+      path: /path/to/output.json
+
+providers:
+  - type: javaJar
+    jar: /path/or/url/to/myExpansionService.jar
+    transforms:
+       MyCustomTransform: &#34;urn:registered:in:expansion:service&#34;
+</code></pre><p>Arbitrary Python transforms can be provided as well, using the syntax</p><pre tabindex=0><code>providers:
+  - type: pythonPackage
+    packages:
+        - my_pypi_package&gt;=version
+        - /path/to/local/package.zip
+    transforms:
+       MyCustomTransform: &#34;pkg.subpkg.PTransformClassOrCallable&#34;
+</code></pre><h2 id=other-resources>Other Resources</h2><ul><li><a href=https://gist.github.com/robertwb/2cb26973f1b1203e8f5f8f88c5764da0>Example pipelines</a></li><li><a href=https://github.com/Polber/beam/tree/jkinard/bug-bash/sdks/python/apache_beam/yaml/examples>More examples</a></li><li><a href=https://gist.github.com/robertwb/64e2f51ff88320eeb6ffd96634202df7>Transform glossary</a></li></ul><p>Additional documentation in this directory</p><ul><li><a href=yaml_mapping.md>Mapping</a></li><li><a href=yaml_combine.md>Aggregation</a></li><li><a href=yaml_errors.md>Error handling</a></li><li><a href=inline_python.md>Inlining Python</a></li></ul></div></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class="footer__cols__col footer__cols__col__logos"><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class=footer-wrapper><div class=wrapper-grid><div class=footer__cols__col><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div><div class=footer__bottom>&copy;
+<a href=https://www.apache.org>The Apache Software Foundation</a>
+| <a href=/privacy_policy>Privacy Policy</a>
+| <a href=/feed.xml>RSS Feed</a><br><br>Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.</div></div><div class="footer__cols__col footer__cols__col__logos"><div class=footer__cols__col--group><div class=footer__cols__col__logo><a href=https://github.com/apache/beam><img src=/images/logos/social-icons/github-logo-150.png class=footer__logo alt="Github logo"></a></div><div class=footer__cols__col__logo><a href=https://www.linkedin.com/company/apache-beam/><img src=/images/logos/social-icons/linkedin-logo-150.png class=footer__logo alt="Linkedin logo"></a></div></div><div class=footer__cols__col--group><div class=footer__cols__col__logo><a href=https://twitter.com/apachebeam><img src=/images/logos/social-icons/twitter-logo-150.png class=footer__logo alt="Twitter logo"></a></div><div class=footer__cols__col__logo><a href=https://www.youtube.com/channel/UChNnb_YO_7B0HlW6FhAXZZQ><img src=/images/logos/social-icons/youtube-logo-150.png class=footer__logo alt="Youtube logo"></a></div></div></div></div></div></footer></body></html>
