@@ -39,9 +39,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 /** Contains a few of the stage specific fields. E.g. metrics container registry, counters etc. */
 @AutoValue
 public abstract class StageInfo {
-  public static StageInfo create(
-      String stageName, String systemName, StreamingDataflowWorker worker) {
-    NameContext nameContext = NameContext.create(stageName, null, systemName, null);
+  public static StageInfo create(String stageName, String systemName) {
+    NameContext nameContext = NameContext.newBuilder(stageName).setSystemName(systemName).build();
     CounterSet deltaCounters = new CounterSet();
     return new AutoValue_StageInfo(
         stageName,
