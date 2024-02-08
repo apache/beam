@@ -2472,6 +2472,9 @@ public class JdbcIO {
       abstract @Nullable Long getBatchSize();
 
       @Pure
+      abstract @Nullable Long getMaxBatchBufferingDuration();
+
+      @Pure
       abstract Boolean getReturnResults();
 
       @Pure
