@@ -35,6 +35,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class SpannerSchema implements Serializable {
+
   abstract ImmutableList<String> tables();
 
   abstract Dialect dialect();
@@ -194,7 +195,7 @@ public abstract class SpannerSchema implements Serializable {
           }
           if (spannerType.startsWith("ARRAY")) {
             // Substring "ARRAY<xxx>"
-            String spannerArrayType = spannerType.substring(6, spannerType.length() - 1);
+            String spannerArrayType = originalSpannerType.substring(6, originalSpannerType.length() - 1);
             Type itemType = parseSpannerType(spannerArrayType, dialect);
             return Type.array(itemType);
           }
