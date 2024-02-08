@@ -79,7 +79,7 @@ public final class GrpcDirectGetWorkStream
   private final WorkItemProcessor workItemProcessorFn;
   private final ThrottleTimer getWorkThrottleTimer;
   private final Supplier<GetDataStream> getDataStream;
-  private final Supplier<CommitWorkStream> commitWorkStream;
+  private final Supplier<AsyncCommitWorkStream> commitWorkStream;
   /**
    * Map of stream IDs to their buffers. Used to aggregate streaming gRPC response chunks as they
    * come in. Once all chunks for a response has been received, the chunk is processed and the
@@ -99,7 +99,7 @@ public final class GrpcDirectGetWorkStream
       int logEveryNStreamFailures,
       ThrottleTimer getWorkThrottleTimer,
       Supplier<GetDataStream> getDataStream,
-      Supplier<CommitWorkStream> commitWorkStream,
+      Supplier<AsyncCommitWorkStream> commitWorkStream,
       WorkItemProcessor workItemProcessorFn) {
     super(
         startGetWorkRpcFn, backoff, streamObserverFactory, streamRegistry, logEveryNStreamFailures);
@@ -128,7 +128,7 @@ public final class GrpcDirectGetWorkStream
       int logEveryNStreamFailures,
       ThrottleTimer getWorkThrottleTimer,
       Supplier<GetDataStream> getDataStream,
-      Supplier<CommitWorkStream> commitWorkStream,
+      Supplier<AsyncCommitWorkStream> commitWorkStream,
       WorkItemProcessor workItemProcessorFn) {
     GrpcDirectGetWorkStream getWorkStream =
         new GrpcDirectGetWorkStream(

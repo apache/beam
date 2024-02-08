@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
 
+import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map.Entry;
@@ -30,19 +31,25 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.CheckReturnValue;
 import javax.annotation.concurrent.ThreadSafe;
+
+import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoint;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkerMetadataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
@@ -50,6 +57,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudge
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetRefresher;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
@@ -89,6 +97,10 @@ public final class StreamingEngineClient {
   private final long clientId;
   private final Supplier<GetWorkerMetadataStream> getWorkerMetadataStream;
   private final Queue<WindmillEndpoints> newWindmillEndpoints;
+  private final ChannelCache channelCache;
+  private final Consumer<List<Windmill.ComputationHeartbeatResponse>>
+      workHeartbeatResponseProcessor;
+
   /** Writes are guarded by synchronization, reads are lock free. */
   private final AtomicReference<StreamingEngineConnectionState> connections;
 
@@ -102,7 +114,9 @@ public final class StreamingEngineClient {
       WindmillStubFactory stubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
-      long clientId) {
+      long clientId,
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> workHeartbeatResponseProcessor,
+      ChannelCache channelCache) {
     this.jobHeader = jobHeader;
     this.started = new AtomicBoolean();
     this.streamFactory = streamFactory;
@@ -137,6 +151,8 @@ public final class StreamingEngineClient {
                         // Run this on a separate thread than the grpc stream thread.
                         newWorkerMetadataPublisher.submit(
                             () -> newWindmillEndpoints.add(endpoints))));
+    this.workHeartbeatResponseProcessor = workHeartbeatResponseProcessor;
+    this.channelCache = channelCache;
   }
 
   private static ExecutorService singleThreadedExecutorServiceOf(String threadName) {
@@ -166,20 +182,21 @@ public final class StreamingEngineClient {
       WorkItemProcessor processWorkItem,
       WindmillStubFactory windmillGrpcStubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
-      GrpcDispatcherClient dispatcherClient) {
-    StreamingEngineClient streamingEngineClient =
-        new StreamingEngineClient(
-            jobHeader,
-            totalGetWorkBudget,
-            new AtomicReference<>(StreamingEngineConnectionState.EMPTY),
-            streamingEngineStreamFactory,
-            processWorkItem,
-            windmillGrpcStubFactory,
-            getWorkBudgetDistributor,
-            dispatcherClient,
-            new Random().nextLong());
-    streamingEngineClient.start();
-    return streamingEngineClient;
+      GrpcDispatcherClient dispatcherClient,
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> workHeartbeatResponseProcessor,
+      ChannelCache channelCache) {
+    return new StreamingEngineClient(
+        jobHeader,
+        totalGetWorkBudget,
+        new AtomicReference<>(StreamingEngineConnectionState.EMPTY),
+        streamingEngineStreamFactory,
+        processWorkItem,
+        windmillGrpcStubFactory,
+        getWorkBudgetDistributor,
+        dispatcherClient,
+        new Random().nextLong(),
+        workHeartbeatResponseProcessor,
+        channelCache);
   }
 
   @VisibleForTesting
@@ -203,15 +220,26 @@ public final class StreamingEngineClient {
             stubFactory,
             getWorkBudgetDistributor,
             dispatcherClient,
-            clientId);
+            clientId,
+            ignored -> {},
+            new ChannelCache() {
+              @Override
+              public ManagedChannel get(WindmillServiceAddress windmillServiceAddress) {
+                return null;
+              }
+
+              @Override
+              public void remove(WindmillServiceAddress windmillServiceAddress) {
+                // no-op
+              }
+
+              @Override
+              public void appendSummaryHtml(PrintWriter writer) {
+
+              }
+            });
     streamingEngineClient.start();
     return streamingEngineClient;
-  }
-
-  private void start() {
-    startGetWorkerMetadataStream();
-    startWorkerMetadataConsumer();
-    getWorkBudgetRefresher.start();
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
@@ -225,15 +253,22 @@ public final class StreamingEngineClient {
         });
   }
 
-  @VisibleForTesting
-  void finish() {
-    if (!started.compareAndSet(true, false)) {
-      return;
+  public void start() {
+    if (started.compareAndSet(false, true)) {
+      startGetWorkerMetadataStream();
+      startWorkerMetadataConsumer();
+      getWorkBudgetRefresher.start();
     }
-    getWorkerMetadataStream.get().close();
-    getWorkBudgetRefresher.stop();
-    newWorkerMetadataPublisher.shutdownNow();
-    newWorkerMetadataConsumer.shutdownNow();
+  }
+
+  @VisibleForTesting
+  public void finish() {
+    if (started.compareAndSet(true, false)) {
+      getWorkBudgetRefresher.stop();
+      newWorkerMetadataPublisher.shutdownNow();
+      newWorkerMetadataConsumer.shutdownNow();
+      getWorkerMetadataStream.get().close();
+    }
   }
 
   /**
@@ -310,8 +345,10 @@ public final class StreamingEngineClient {
     currentStreams.entrySet().stream()
         .filter(
             connectionAndStream -> !newWindmillConnections.contains(connectionAndStream.getKey()))
-        .map(Entry::getValue)
-        .forEach(WindmillStreamSender::closeAllStreams);
+        .forEach(entry-> {
+          entry.getValue().closeAllStreams();
+          entry.getKey().directEndpoint().ifPresent(channelCache::remove);
+        });
 
     return newWindmillConnections.stream()
         .collect(
@@ -366,7 +403,8 @@ public final class StreamingEngineClient {
                 .build(),
             GetWorkBudget.noBudget(),
             streamFactory,
-            workItemProcessor);
+            workItemProcessor,
+            workHeartbeatResponseProcessor);
     windmillStreamSender.startStreams();
     return windmillStreamSender;
   }
