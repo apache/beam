@@ -41,15 +41,17 @@ public final class WorkHeartbeatProcessor implements Consumer<List<ComputationHe
   public void accept(List<ComputationHeartbeatResponse> responses) {
     for (ComputationHeartbeatResponse computationHeartbeatResponse : responses) {
       // Maps sharding key to (work token, cache token) for work that should be marked failed.
-      Map<Long, List<ActiveWorkState.FailedTokens>> failedWork = new HashMap<>();
+      Map<Long, List<FailedWorkToken>> failedWork = new HashMap<>();
       for (HeartbeatResponse heartbeatResponse :
           computationHeartbeatResponse.getHeartbeatResponsesList()) {
         if (heartbeatResponse.getFailed()) {
           failedWork
               .computeIfAbsent(heartbeatResponse.getShardingKey(), key -> new ArrayList<>())
               .add(
-                  new ActiveWorkState.FailedTokens(
-                      heartbeatResponse.getWorkToken(), heartbeatResponse.getCacheToken()));
+                  FailedWorkToken.newBuilder()
+                      .setWorkToken(heartbeatResponse.getWorkToken())
+                      .setCacheToken(heartbeatResponse.getCacheToken())
+                      .build());
         }
       }
 
