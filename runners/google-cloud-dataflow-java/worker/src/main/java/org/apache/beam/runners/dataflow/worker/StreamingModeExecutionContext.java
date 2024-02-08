@@ -441,8 +441,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    * needs to be thread safe for multiple writers. A single stage could have multiple executors
    * running concurrently.
    */
-  public static class StreamingModeExecutionState
-      extends DataflowExecutionState {
+  public static class StreamingModeExecutionState extends DataflowExecutionState {
 
     // AtomicLong is used because this value is written in two places:
     // 1. The sampling thread calls takeSample to increment the time spent in this state
@@ -499,8 +498,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         Integer inputIndex,
         MetricsContainer container,
         ProfileScope profileScope) {
-      return new StreamingModeExecutionState(
-          nameContext, stateName, container, profileScope);
+      return new StreamingModeExecutionState(nameContext, stateName, container, profileScope);
     }
   }
 

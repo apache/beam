@@ -316,10 +316,7 @@ public class StreamingModeExecutionContextTest {
 
     StreamingModeExecutionState state =
         new StreamingModeExecutionState(
-            NameContextsForTests.nameContextForTest(),
-            "testState",
-            null,
-            NoopProfileScope.NOOP);
+            NameContextsForTests.nameContextForTest(), "testState", null, NoopProfileScope.NOOP);
     ExecutorService executor = Executors.newFixedThreadPool(2);
     AtomicBoolean doneWriting = new AtomicBoolean(false);
 
@@ -358,10 +355,7 @@ public class StreamingModeExecutionContextTest {
     // reach the reading thread.
     StreamingModeExecutionState state =
         new StreamingModeExecutionState(
-            NameContextsForTests.nameContextForTest(),
-            "testState",
-            null,
-            NoopProfileScope.NOOP);
+            NameContextsForTests.nameContextForTest(), "testState", null, NoopProfileScope.NOOP);
     ExecutionStateSampler sampler = ExecutionStateSampler.newForTest();
     try {
       sampler.start();
