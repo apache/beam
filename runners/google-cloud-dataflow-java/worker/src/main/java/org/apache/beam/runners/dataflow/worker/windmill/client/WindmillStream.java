@@ -22,8 +22,11 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.joda.time.Instant;
 
@@ -77,12 +80,17 @@ public interface WindmillStream {
      * <p>onDone will be called with the status of the commit.
      */
     boolean commitWorkItem(
-        String computation,
-        Windmill.WorkItemCommitRequest request,
-        Consumer<Windmill.CommitStatus> onDone);
+        String computation, WorkItemCommitRequest request, Consumer<Windmill.CommitStatus> onDone);
 
     /** Flushes any pending work items to the wire. */
     void flush();
+  }
+
+  interface AsyncCommitWorkStream extends CommitWorkStream {
+    void queueCommit(
+        WorkItemCommitRequest workItemCommitRequest, ComputationState computationState, Work work);
+
+    long currentActiveCommitBytes();
   }
 
   /** Interface for streaming GetWorkerMetadata requests to Windmill. */
