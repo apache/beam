@@ -1761,7 +1761,10 @@ public class JdbcIO {
   /* The maximum number of elements that will be included in a batch. */
 
   static <T> PCollection<Iterable<T>> batchElements(
-      PCollection<T> input, @Nullable Boolean withAutoSharding, long batchSize, long maxBatchBufferingDuration) {
+      PCollection<T> input,
+      @Nullable Boolean withAutoSharding,
+      long batchSize,
+      long maxBatchBufferingDuration) {
     PCollection<Iterable<T>> iterables;
     if (input.isBounded() == IsBounded.UNBOUNDED) {
       PCollection<KV<String, T>> keyedInput = input.apply(WithKeys.<String, T>of(""));
@@ -1965,7 +1968,8 @@ public class JdbcIO {
           "Autosharding is only supported for streaming pipelines.");
 
       PCollection<Iterable<T>> iterables =
-          JdbcIO.<T>batchElements(input, autoSharding, DEFAULT_BATCH_SIZE, DEFAULT_MAX_BATCH_BUFFERING_DURATION);
+          JdbcIO.<T>batchElements(
+              input, autoSharding, DEFAULT_BATCH_SIZE, DEFAULT_MAX_BATCH_BUFFERING_DURATION);
       return iterables.apply(
           ParDo.of(
               new WriteFn<T, V>(
@@ -2071,12 +2075,16 @@ public class JdbcIO {
     }
 
     /**
-     * Provide maximum buffering time to batch elements before committing SQL statement. Default is 200
+     * Provide maximum buffering time to batch elements before committing SQL statement. Default is
+     * 200
      *
      * @param maxBatchBufferingDuration maximum time in milliseconds before batch is committed
      */
     public WriteVoid<T> withMaxBatchBufferingDuration(long maxBatchBufferingDuration) {
-      checkArgument(maxBatchBufferingDuration > 0, "maxBatchBufferingDuration must be > 0, but was %s", maxBatchBufferingDuration);
+      checkArgument(
+          maxBatchBufferingDuration > 0,
+          "maxBatchBufferingDuration must be > 0, but was %s",
+          maxBatchBufferingDuration);
       return toBuilder().setMaxBatchBufferingDuration(maxBatchBufferingDuration).build();
     }
 
@@ -2150,7 +2158,8 @@ public class JdbcIO {
       }
 
       PCollection<Iterable<T>> iterables =
-          JdbcIO.<T>batchElements(input, getAutoSharding(), getBatchSize(), getMaxBatchBufferingDuration());
+          JdbcIO.<T>batchElements(
+              input, getAutoSharding(), getBatchSize(), getMaxBatchBufferingDuration());
 
       return iterables
           .apply(
@@ -2503,7 +2512,8 @@ public class JdbcIO {
 
         abstract Builder<T, V> setBatchSize(@Nullable Long batchSize);
 
-        abstract Builder<T, V> setMaxBatchBufferingDuration(@Nullable Long maxBatchBufferingDuration);
+        abstract Builder<T, V> setMaxBatchBufferingDuration(
+            @Nullable Long maxBatchBufferingDuration);
 
         abstract Builder<T, V> setReturnResults(Boolean returnResults);
 
