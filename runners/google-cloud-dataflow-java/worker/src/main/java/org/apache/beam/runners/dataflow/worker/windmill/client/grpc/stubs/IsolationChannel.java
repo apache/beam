@@ -24,7 +24,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.CallOptions;
@@ -37,6 +36,8 @@ import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.MethodDescriptor;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Status;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link ManagedChannel} that creates a dynamic # of cached channels to the same endpoint such
@@ -44,7 +45,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
  */
 @Internal
 class IsolationChannel extends ManagedChannel {
-  static final Logger LOG = Logger.getLogger(IsolationChannel.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(IsolationChannel.class);
 
   private final Supplier<ManagedChannel> channelFactory;
 
@@ -106,13 +107,29 @@ class IsolationChannel extends ManagedChannel {
   }
 
   @Override
-  public synchronized ManagedChannel shutdown() {
-    shutdownStarted = true;
-    for (ManagedChannel channel : usedChannels) {
+  public ManagedChannel shutdown() {
+    ArrayList<ManagedChannel> channels = new ArrayList<>();
+    synchronized (this) {
+      shutdownStarted = true;
+      channels.addAll(usedChannels);
+      channels.addAll(channelCache);
+    }
+    for (ManagedChannel channel : channels) {
       channel.shutdown();
     }
-    for (ManagedChannel channel : channelCache) {
-      channel.shutdown();
+    return this;
+  }
+
+  @Override
+  public ManagedChannel shutdownNow() {
+    ArrayList<ManagedChannel> channels = new ArrayList<>();
+    synchronized (this) {
+      shutdownStarted = true;
+      channels.addAll(usedChannels);
+      channels.addAll(channelCache);
+    }
+    for (ManagedChannel channel : channels) {
+      channel.shutdownNow();
     }
     return this;
   }
@@ -143,20 +160,6 @@ class IsolationChannel extends ManagedChannel {
       if (!channel.isTerminated()) return false;
     }
     return true;
-  }
-
-  @Override
-  public synchronized ManagedChannel shutdownNow() {
-    ArrayList<ManagedChannel> channels = new ArrayList<>();
-    synchronized (this) {
-      shutdownStarted = true;
-      channels.addAll(usedChannels);
-      channels.addAll(channelCache);
-    }
-    for (ManagedChannel channel : channels) {
-      channel.shutdownNow();
-    }
-    return this;
   }
 
   @Override
@@ -238,8 +241,8 @@ class IsolationChannel extends ManagedChannel {
       if (!wasReleased.getAndSet(true)) {
         isolationChannel.releaseChannelAfterCall(channel);
       } else {
-        LOG.warning(
-            "The entry is already released. This indicates that onClose() has already been called previously");
+        LOG.warn(
+            "The entry was already released. This indicates that onClose() was called multiple times.");
       }
     }
   }
