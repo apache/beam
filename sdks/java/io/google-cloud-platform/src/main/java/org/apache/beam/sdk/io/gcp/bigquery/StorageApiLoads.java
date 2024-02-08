@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
+
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import java.io.IOException;
@@ -121,7 +123,7 @@ public class StorageApiLoads<DestinationT, ElementT>
   }
 
   public boolean usesErrorHandler() {
-    return (badRecordRouter instanceof ThrowingBadRecordRouter);
+    return !(badRecordRouter instanceof ThrowingBadRecordRouter);
   }
 
   @Override
@@ -160,7 +162,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 successfulConvertedRowsTag,
                 BigQueryStorageApiInsertErrorCoder.of(),
                 successCoder,
-                rowUpdateFn));
+                rowUpdateFn,
+                badRecordRouter));
     PCollectionTuple writeRecordsResult =
         convertMessagesResult
             .get(successfulConvertedRowsTag)
@@ -221,7 +224,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 successfulConvertedRowsTag,
                 BigQueryStorageApiInsertErrorCoder.of(),
                 successCoder,
-                rowUpdateFn));
+                rowUpdateFn,
+                badRecordRouter));
 
     PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>> groupedRecords;
 
@@ -341,7 +345,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 successfulConvertedRowsTag,
                 BigQueryStorageApiInsertErrorCoder.of(),
                 successCoder,
-                rowUpdateFn));
+                rowUpdateFn,
+                badRecordRouter));
 
     PCollectionTuple writeRecordsResult =
         convertMessagesResult
@@ -394,14 +399,17 @@ public class StorageApiLoads<DestinationT, ElementT>
           PCollectionList.of(
                   convertMessagesResult
                       .get(failedRowsTag)
-                      .apply("ConvertMessageFailuresToBadRecord",
+                      .apply(
+                          "ConvertMessageFailuresToBadRecord",
                           ParDo.of(
                               new ConvertInsertErrorToBadRecord(
                                   "Failed to Convert to Storage API Message"))))
+              .and(convertMessagesResult.get(BAD_RECORD_TAG))
               .and(
                   writeRecordsResult
                       .get(failedRowsTag)
-                      .apply("WriteRecordFailuresToBadRecord",
+                      .apply(
+                          "WriteRecordFailuresToBadRecord",
                           ParDo.of(
                               new ConvertInsertErrorToBadRecord(
                                   "Failed to Write Message to Storage API"))))

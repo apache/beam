@@ -155,6 +155,8 @@ public class BigQueryIOStorageReadIT {
                     .withErrorHandler(errorHandler))
             .apply("Count", Count.globally());
 
+    errorHandler.close();
+
     PAssert.thatSingleton(count).isEqualTo(options.getNumRecords() * 49 / 50);
     PAssert.thatSingleton(errorHandler.getOutput()).isEqualTo(options.getNumRecords() / 50);
     p.run().waitUntilFinish();
