@@ -214,6 +214,21 @@ public class MetricTrackingWindmillServerStub {
     }
   }
 
+  public Windmill.KeyedGetDataResponse getStateData(
+      GetDataStream stream, String computation, Windmill.KeyedGetDataRequest request) {
+    gcThrashingMonitor.waitForResources("GetStateData-DirectPath");
+    activeStateReads.getAndIncrement();
+
+    try {
+      return stream.requestKeyedData(computation, request);
+
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    } finally {
+      activeStateReads.getAndDecrement();
+    }
+  }
+
   public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request) {
     gcThrashingMonitor.waitForResources("GetSideInputData");
     activeSideInputs.getAndIncrement();
@@ -224,6 +239,31 @@ public class MetricTrackingWindmillServerStub {
           return stream.requestGlobalData(request);
         } finally {
           streamPool.releaseStream(stream);
+        }
+      } else {
+        return server
+            .getData(
+                Windmill.GetDataRequest.newBuilder().addGlobalDataFetchRequests(request).build())
+            .getGlobalData(0);
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to get side input: ", e);
+    } finally {
+      activeSideInputs.getAndDecrement();
+    }
+  }
+
+  public Windmill.GlobalData getSideInputData(
+      GetDataStream getDataStream, Windmill.GlobalDataRequest request) {
+    gcThrashingMonitor.waitForResources("GetSideInputData");
+    activeSideInputs.getAndIncrement();
+    try {
+      if (useStreamingRequests) {
+        GetDataStream stream = getDataStreamPool.getStream();
+        try {
+          return stream.requestGlobalData(request);
+        } finally {
+          getDataStreamPool.releaseStream(stream);
         }
       } else {
         return server
@@ -272,6 +312,25 @@ public class MetricTrackingWindmillServerStub {
           builder.addRequests(perComputationBuilder.build());
         }
         server.getData(builder.build());
+      }
+    } finally {
+      activeHeartbeats.set(0);
+    }
+  }
+
+  /** Tells windmill processing is ongoing for the given keys. */
+  public void refreshActiveWork(
+      HashMap<GetDataStream, Map<String, List<HeartbeatRequest>>> heartbeats) {
+    if (heartbeats.isEmpty()) {
+      return;
+    }
+    activeHeartbeats.set(heartbeats.size());
+    try {
+      for (Map.Entry<GetDataStream, Map<String, List<HeartbeatRequest>>> heartbeat :
+          heartbeats.entrySet()) {
+        GetDataStream stream = heartbeat.getKey();
+        Map<String, List<HeartbeatRequest>> heartbeatRequests = heartbeat.getValue();
+        stream.refreshActiveWork(heartbeatRequests);
       }
     } finally {
       activeHeartbeats.set(0);

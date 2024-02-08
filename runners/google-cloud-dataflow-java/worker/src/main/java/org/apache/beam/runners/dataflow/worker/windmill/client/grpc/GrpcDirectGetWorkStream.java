@@ -99,7 +99,7 @@ public final class GrpcDirectGetWorkStream
       int logEveryNStreamFailures,
       ThrottleTimer getWorkThrottleTimer,
       Supplier<GetDataStream> getDataStream,
-      Supplier<CommitWorkStream> commitWorkStream,
+      Supplier<AsyncCommitWorkStream> commitWorkStream,
       WorkItemProcessor workItemProcessorFn) {
     super(
         startGetWorkRpcFn, backoff, streamObserverFactory, streamRegistry, logEveryNStreamFailures);
@@ -128,7 +128,7 @@ public final class GrpcDirectGetWorkStream
       int logEveryNStreamFailures,
       ThrottleTimer getWorkThrottleTimer,
       Supplier<GetDataStream> getDataStream,
-      Supplier<CommitWorkStream> commitWorkStream,
+      Supplier<AsyncCommitWorkStream> commitWorkStream,
       WorkItemProcessor workItemProcessorFn) {
     GrpcDirectGetWorkStream getWorkStream =
         new GrpcDirectGetWorkStream(

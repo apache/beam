@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
 import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
@@ -103,9 +104,12 @@ public class WindmillStateReaderTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-
     underTest =
-        new WindmillStateReader(mockWindmill, COMPUTATION, DATA_KEY, SHARDING_KEY, WORK_TOKEN);
+        WindmillStateReader.forTesting(
+            (request) -> Optional.ofNullable(mockWindmill.getStateData(COMPUTATION, request)),
+            DATA_KEY,
+            SHARDING_KEY,
+            WORK_TOKEN);
   }
 
   private Windmill.Value intValue(int value) throws IOException {

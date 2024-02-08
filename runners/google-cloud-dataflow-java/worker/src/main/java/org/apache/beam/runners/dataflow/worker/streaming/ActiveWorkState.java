@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 
+import com.google.auto.value.AutoValue;
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.Collection;
@@ -39,6 +40,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.annotations.Internal;
@@ -127,6 +129,31 @@ public final class ActiveWorkState {
                         work.getLatencyAttributions(
                             /* isHeartbeat= */ true, work.getLatencyTrackingId(), sampler))
                     .build());
+  }
+
+  private static Stream<DirectHeartbeatRequest> toHeartbeatRequestStreamDirectPath(
+      Entry<ShardedKey, Deque<Work>> shardedKeyAndWorkQueue,
+      Instant refreshDeadline,
+      DataflowExecutionStateSampler sampler) {
+    ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
+    Deque<Work> workQueue = shardedKeyAndWorkQueue.getValue();
+
+    return workQueue.stream()
+        .filter(work -> work.getStartTime().isBefore(refreshDeadline))
+        // Don't send heartbeats for queued work we already know is failed.
+        .filter(work -> !work.isFailed())
+        .map(
+            work ->
+                DirectHeartbeatRequest.create(
+                    work.getProcessWorkItemClient().getDataStream(),
+                    Windmill.HeartbeatRequest.newBuilder()
+                        .setShardingKey(shardedKey.shardingKey())
+                        .setWorkToken(work.getWorkItem().getWorkToken())
+                        .setCacheToken(work.getWorkItem().getCacheToken())
+                        .addAllLatencyAttribution(
+                            work.getLatencyAttributions(
+                                /* isHeartbeat= */ true, work.getLatencyTrackingId(), sampler))
+                        .build()));
   }
 
   /**
@@ -328,6 +355,13 @@ public final class ActiveWorkState {
         .collect(toImmutableList());
   }
 
+  synchronized ImmutableList<DirectHeartbeatRequest> getKeyHeartbeatsDirectPath(
+      Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
+    return activeWork.entrySet().stream()
+        .flatMap(entry -> toHeartbeatRequestStreamDirectPath(entry, refreshDeadline, sampler))
+        .collect(toImmutableList());
+  }
+
   /**
    * Returns the current aggregate {@link GetWorkBudget} that is active on the user worker. Active
    * means that the work is received from Windmill, being processed or queued to be processed in
@@ -392,5 +426,18 @@ public final class ActiveWorkState {
     EXECUTE,
     DUPLICATE,
     STALE
+  }
+
+  @AutoValue
+  public abstract static class DirectHeartbeatRequest {
+
+    public static DirectHeartbeatRequest create(
+        GetDataStream stream, HeartbeatRequest heartbeatRequest) {
+      return new AutoValue_ActiveWorkState_DirectHeartbeatRequest(stream, heartbeatRequest);
+    }
+
+    public abstract GetDataStream stream();
+
+    public abstract HeartbeatRequest heartbeatRequest();
   }
 }

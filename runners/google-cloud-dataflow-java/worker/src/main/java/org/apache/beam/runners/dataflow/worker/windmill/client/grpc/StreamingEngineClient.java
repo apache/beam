@@ -131,7 +131,7 @@ public final class StreamingEngineClient {
         Suppliers.memoize(
             () ->
                 streamFactory.createGetWorkerMetadataStream(
-                    dispatcherClient.getDispatcherStub(),
+                    dispatcherClient.getWindmillMetadataServiceStub(),
                     getWorkerMetadataThrottleTimer,
                     endpoints ->
                         // Run this on a separate thread than the grpc stream thread.
@@ -178,9 +178,6 @@ public final class StreamingEngineClient {
             getWorkBudgetDistributor,
             dispatcherClient,
             new Random().nextLong());
-    streamingEngineClient.startGetWorkerMetadataStream();
-    streamingEngineClient.startWorkerMetadataConsumer();
-    streamingEngineClient.getWorkBudgetRefresher.start();
     return streamingEngineClient;
   }
 
@@ -206,9 +203,7 @@ public final class StreamingEngineClient {
             getWorkBudgetDistributor,
             dispatcherClient,
             clientId);
-    streamingEngineClient.startGetWorkerMetadataStream();
-    streamingEngineClient.startWorkerMetadataConsumer();
-    streamingEngineClient.getWorkBudgetRefresher.start();
+    streamingEngineClient.start();
     return streamingEngineClient;
   }
 
@@ -223,20 +218,26 @@ public final class StreamingEngineClient {
         });
   }
 
-  @VisibleForTesting
+  public void start() {
+    if (started.compareAndSet(false, true)) {
+      startGetWorkerMetadataStream();
+      startWorkerMetadataConsumer();
+      getWorkBudgetRefresher.start();
+    }
+  }
+
   boolean isWorkerMetadataReady() {
     return !connections.get().equals(StreamingEngineConnectionState.EMPTY);
   }
 
   @VisibleForTesting
-  void finish() {
-    if (!started.compareAndSet(true, false)) {
-      return;
+  public void finish() {
+    if (started.compareAndSet(true, false)) {
+      getWorkBudgetRefresher.stop();
+      newWorkerMetadataPublisher.shutdownNow();
+      newWorkerMetadataConsumer.shutdownNow();
+      getWorkerMetadataStream.get().close();
     }
-    getWorkerMetadataStream.get().close();
-    getWorkBudgetRefresher.stop();
-    newWorkerMetadataPublisher.shutdownNow();
-    newWorkerMetadataConsumer.shutdownNow();
   }
 
   /**
@@ -267,7 +268,7 @@ public final class StreamingEngineClient {
     getWorkBudgetRefresher.requestBudgetRefresh();
   }
 
-  public final ImmutableList<Long> getAndResetThrottleTimes() {
+  public ImmutableList<Long> getAndResetThrottleTimes() {
     StreamingEngineConnectionState currentConnections = connections.get();
 
     ImmutableList<Long> keyedWorkStreamThrottleTimes =
@@ -375,21 +376,10 @@ public final class StreamingEngineClient {
   }
 
   private CloudWindmillServiceV1Alpha1Stub createWindmillStub(Endpoint endpoint) {
-    switch (stubFactory.getKind()) {
-        // This is only used in tests.
-      case IN_PROCESS:
-        return stubFactory.inProcess().get();
-        // Create stub for direct_endpoint or just default to Dispatcher stub.
-      case REMOTE:
-        return endpoint
-            .directEndpoint()
-            .map(stubFactory.remote())
-            .orElseGet(dispatcherClient::getDispatcherStub);
-        // Should never be called, this switch statement is exhaustive.
-      default:
-        throw new UnsupportedOperationException(
-            "Only remote or in-process stub factories are available.");
-    }
+    return endpoint
+        .directEndpoint()
+        .map(stubFactory::createWindmillServiceStub)
+        .orElseGet(dispatcherClient::getWindmillServiceStub);
   }
 
   private static class StreamingEngineClientException extends IllegalStateException {

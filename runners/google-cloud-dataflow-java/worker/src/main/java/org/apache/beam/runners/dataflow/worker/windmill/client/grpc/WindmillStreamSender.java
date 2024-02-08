@@ -23,7 +23,7 @@ import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.AsyncCommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.StreamingEngineThrottleTimers;
@@ -58,7 +58,7 @@ public class WindmillStreamSender {
   private final AtomicReference<GetWorkBudget> getWorkBudget;
   private final Supplier<GetWorkStream> getWorkStream;
   private final Supplier<GetDataStream> getDataStream;
-  private final Supplier<CommitWorkStream> commitWorkStream;
+  private final Supplier<AsyncCommitWorkStream> commitWorkStream;
   private final StreamingEngineThrottleTimers streamingEngineThrottleTimers;
 
   private WindmillStreamSender(
@@ -83,8 +83,11 @@ public class WindmillStreamSender {
     this.commitWorkStream =
         Suppliers.memoize(
             () ->
-                streamingEngineStreamFactory.createCommitWorkStream(
-                    stub, streamingEngineThrottleTimers.commitWorkThrottleTimer()));
+                streamingEngineStreamFactory.createAsyncCommitWorkStream(
+                    stub,
+                    streamingEngineThrottleTimers.commitWorkThrottleTimer(),
+                    workItemProcessor::onFailedCommit,
+                    workItemProcessor::onCommitComplete));
     this.getWorkStream =
         Suppliers.memoize(
             () ->
