@@ -444,7 +444,9 @@ public class StreamingDataflowWorker {
             .setUseSeparateHeartbeatStreams(options.getUseSeparateWindmillHeartbeatStreams())
             .setNumGetDataStreams(options.getWindmillGetDataStreamCount())
             .build();
-    this.sideInputStateFetcher = new SideInputStateFetcher(metricTrackingWindmillServer, options);
+
+    this.sideInputStateFetcher =
+        new SideInputStateFetcher(metricTrackingWindmillServer::getSideInputData, options);
 
     for (MapTask mapTask : mapTasks) {
       addComputation(mapTask.getSystemName(), mapTask, ImmutableMap.of());
@@ -1156,19 +1158,16 @@ public class StreamingDataflowWorker {
 
       WindmillStateReader stateReader =
           new WindmillStateReader(
-              metricTrackingWindmillServer,
+              (request) ->
+                  Optional.ofNullable(
+                      metricTrackingWindmillServer.getStateData(computationId, request)),
               computationId,
               key,
               workItem.getShardingKey(),
               workItem.getWorkToken(),
               () -> {
                 work.setState(State.READING);
-                return new AutoCloseable() {
-                  @Override
-                  public void close() {
-                    work.setState(State.PROCESSING);
-                  }
-                };
+                return () -> work.setState(State.PROCESSING);
               },
               work::isFailed);
       SideInputStateFetcher localSideInputStateFetcher = sideInputStateFetcher.byteTrackingView();
