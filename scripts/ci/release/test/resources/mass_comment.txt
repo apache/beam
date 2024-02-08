@@ -79,7 +79,6 @@ Run PythonDocs PreCommit
 Run PythonFormatter PreCommit
 Run PythonLint PreCommit
 Run Python_PVR_Flink PreCommit
-Run Python_Xlang_IO_Direct PostCommit
 Run Python_Xlang_Gcp_Direct PostCommit
 Run RAT PreCommit
 Run SQL PostCommit
