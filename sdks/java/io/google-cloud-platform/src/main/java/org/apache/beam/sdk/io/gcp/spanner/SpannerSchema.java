@@ -195,7 +195,8 @@ public abstract class SpannerSchema implements Serializable {
           }
           if (spannerType.startsWith("ARRAY")) {
             // Substring "ARRAY<xxx>"
-            String spannerArrayType = originalSpannerType.substring(6, originalSpannerType.length() - 1);
+            String spannerArrayType =
+                originalSpannerType.substring(6, originalSpannerType.length() - 1);
             Type itemType = parseSpannerType(spannerArrayType, dialect);
             return Type.array(itemType);
           }
