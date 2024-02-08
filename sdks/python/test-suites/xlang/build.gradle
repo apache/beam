@@ -73,7 +73,8 @@ def xlangWrapperValidation = new CrossLanguageTask().tap {
     collectMarker = "xlang_wrapper_generation"
     startJobServer = setupTask
     cleanupJobServer = cleanupTask
-    additionalDeps = ['Jinja2']
+    // update Jinja2 bounds in pyproject.toml as well
+    additionalDeps = ['\"Jinja2>=2.7.1,<4.0.0\"']
 }
 
 // List of task metadata objects to create cross-language tasks from.
