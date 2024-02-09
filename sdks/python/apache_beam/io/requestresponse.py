@@ -57,6 +57,8 @@ __all__ = [
     'DefaultThrottler',
     'NoOpsRepeater',
     'RedisCache',
+    'DEFAULT_TIMEOUT_SECS',
+    'DEFAULT_TIME_TO_LIVE_SECS'
 ]
 
 
@@ -380,6 +382,18 @@ class Cache(abc.ABC):
     """get_write returns a PTransform that writes to the cache."""
     pass
 
+  @abc.abstractmethod
+  def has_coders(self) -> bool:
+    """returns `True` if the request and response coders are present.
+    Otherwise, returns `False`."""
+    pass
+
+  @abc.abstractmethod
+  def set_coders(
+      self, request_coder: coders.Coder, response_coder: coders.Coder):
+    """sets the request and response coders to use with Cache."""
+    pass
+
 
 class _RedisMode(enum.Enum):
   READ = 0
@@ -538,6 +552,16 @@ class RedisCache(Cache):
 
     return callback
 
+  def has_coders(self) -> bool:
+    return ((self._request_coder is not None) and
+            (self._response_coder is not None))
+
+  def set_coders(
+      self, request_coder: coders.Coder, response_coder: coders.Coder):
+    if request_coder and response_coder:
+      self._request_coder = request_coder
+      self._response_coder = response_coder
+
 
 class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
                                         beam.PCollection[ResponseT]]):
@@ -593,7 +617,8 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
     # TODO(riteshghorse): handle Throttle PTransforms when available.
 
     inputs = requests
-    if self._cache:
+
+    if self._cache and self._cache.has_coders():
       # read from cache.
       cache_read_callback = self._cache.get_read()
       outputs = inputs | cache_read_callback()
@@ -624,7 +649,14 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
               should_backoff=self._should_backoff,
               repeater=self._repeater))
 
-    if self._cache:
+    if not self._cache.has_coders():
+      # At this point, after the first batch run, caller should have populated
+      # the request and response coders. Set them for the cache so that it
+      # can be used in next batch. This is useful when inferring coders,
+      # especially with Enrichment transform.
+      self._cache.set_coders(self._caller.get_coders())
+
+    if self._cache and self._cache.has_coders():
       # write to cache.
       cache_write_callback = self._cache.get_write()
       _ = responses | cache_write_callback()

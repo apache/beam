@@ -15,18 +15,22 @@
 # limitations under the License.
 #
 import logging
-from typing import Any
+from datetime import timedelta
+from typing import Any, Union
 from typing import Callable
 from typing import Dict
 from typing import Optional
 from typing import TypeVar
 
 import apache_beam as beam
+from apache_beam.coders import coders
+from apache_beam.io.requestresponse import DEFAULT_TIME_TO_LIVE_SECS
 from apache_beam.io.requestresponse import DEFAULT_TIMEOUT_SECS
 from apache_beam.io.requestresponse import Caller
 from apache_beam.io.requestresponse import DefaultThrottler
 from apache_beam.io.requestresponse import ExponentialBackOffRepeater
 from apache_beam.io.requestresponse import PreCallThrottler
+from apache_beam.io.requestresponse import RedisCache
 from apache_beam.io.requestresponse import Repeater
 from apache_beam.io.requestresponse import RequestResponseIO
 
@@ -42,6 +46,14 @@ OutputT = TypeVar('OutputT')
 JoinFn = Callable[[Dict[str, Any], Dict[str, Any]], beam.Row]
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def has_valid_redis_address(host: str, port: int) -> bool:
+  """returns `True` if both host and port are not `None`,
+  `False` otherwise."""
+  if host and port:
+    return True
+  return False
 
 
 def cross_join(left: Dict[str, Any], right: Dict[str, Any]) -> beam.Row:
@@ -76,7 +88,8 @@ class EnrichmentSourceHandler(Caller[InputT, OutputT]):
   Ensure that the implementation of ``__call__`` method returns a tuple
   of `beam.Row`  objects.
   """
-  pass
+  def get_coders(self) -> (coders.Coder, coders.Coder):
+    return None, None
 
 
 class Enrichment(beam.PTransform[beam.PCollection[InputT],
@@ -109,6 +122,9 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
       :class:`apache_beam.io.requestresponse.DefaultThrottler` for
       client-side adaptive throttling using
       :class:`apache_beam.io.components.adaptive_throttler.AdaptiveThrottler`.
+    redis_cache_host (str): pass.
+    redis_cache_port (int): pass.
+    redis_ttl: (`int`, `datetime.timedelta`) pass.
   """
   def __init__(
       self,
@@ -117,12 +133,20 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
       timeout: Optional[float] = DEFAULT_TIMEOUT_SECS,
       repeater: Repeater = ExponentialBackOffRepeater(),
       throttler: PreCallThrottler = DefaultThrottler(),
-  ):
+      *,
+      redis_cache_host: Optional[str] = "",
+      redis_cache_port: Optional[int] = None,
+      redis_ttl: Union[int, timedelta] = DEFAULT_TIME_TO_LIVE_SECS):
     self._source_handler = source_handler
     self._join_fn = join_fn
     self._timeout = timeout
     self._repeater = repeater
     self._throttler = throttler
+    self._cache = None
+    # Check for valid cache configuration. We use these params instead of
+    # `RedisCache` object to make it easy for cross-language usage.
+    if has_valid_redis_address(redis_cache_host, redis_cache_port):
+      self._cache = RedisCache(redis_cache_host, redis_cache_port, redis_ttl)
 
   def expand(self,
              input_row: beam.PCollection[InputT]) -> beam.PCollection[OutputT]:
@@ -130,8 +154,9 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
         caller=self._source_handler,
         timeout=self._timeout,
         repeater=self._repeater,
+        cache=self._cache,
         throttler=self._throttler)
-    input_row.element_type
+
     # EnrichmentSourceHandler returns a tuple of (request,response).
     return fetched_data | beam.Map(
         lambda x: self._join_fn(x[0]._asdict(), x[1]._asdict()))
