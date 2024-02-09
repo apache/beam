@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
@@ -53,9 +54,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils.MillisProvider;
 import org.joda.time.Instant;
 
-/** Execution context for the Dataflow worker. */
+/**
+ * Execution context for the Dataflow worker.
+ */
 @SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
 
@@ -85,8 +88,8 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
   private Map<String, T> cachedStepContexts = new LinkedHashMap<>();
 
   /**
-   * Returns a {@link SideInputReader} based on {@link SideInputInfo} descriptors and {@link
-   * PCollectionView PCollectionViews}.
+   * Returns a {@link SideInputReader} based on {@link SideInputInfo} descriptors and
+   * {@link PCollectionView PCollectionViews}.
    *
    * <p>If side input source metadata is provided by the service in {@link SideInputInfo
    * sideInputInfos}, we request a {@link SideInputReader} from the {@code executionContext} using
@@ -117,7 +120,9 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     return counterFactory;
   }
 
-  /** Returns a collection view of all of the {@link StepContext}s. */
+  /**
+   * Returns a collection view of all of the {@link StepContext}s.
+   */
   public Collection<? extends T> getAllStepContexts() {
     return Collections.unmodifiableCollection(cachedStepContexts.values());
   }
@@ -149,8 +154,8 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
   }
 
   /**
-   * Returns a {@link SideInputReader} for all the side inputs described in the given {@link
-   * SideInputInfo} descriptors.
+   * Returns a {@link SideInputReader} for all the side inputs described in the given
+   * {@link SideInputInfo} descriptors.
    */
   protected abstract SideInputReader getSideInputReader(
       Iterable<? extends SideInputInfo> sideInputInfos, DataflowOperationContext operationContext)
@@ -176,7 +181,9 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
   protected abstract SideInputReader getSideInputReaderForViews(
       Iterable<? extends PCollectionView<?>> views) throws Exception;
 
-  /** Dataflow specific {@link StepContext}. */
+  /**
+   * Dataflow specific {@link StepContext}.
+   */
   public abstract static class DataflowStepContext implements StepContext {
 
     private final NameContext nameContext;
@@ -255,10 +262,13 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
      * Metadata on the message whose processing is currently being managed by this tracker. If no
      * message is actively being processed, activeMessageMetadata will be null.
      */
-    @Nullable private ActiveMessageMetadata activeMessageMetadata = null;
+    @GuardedBy("this")
+    @Nullable
+    private ActiveMessageMetadata activeMessageMetadata = null;
 
     private final MillisProvider clock = System::currentTimeMillis;
 
+    @GuardedBy("this")
     private final Map<String, IntSummaryStatistics> processingTimesByStep = new HashMap<>();
 
     public DataflowExecutionStateTracker(
@@ -315,19 +325,24 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       if (isDataflowProcessElementState) {
         DataflowExecutionState newDFState = (DataflowExecutionState) newState;
         if (newDFState.getStepName() != null && newDFState.getStepName().userName() != null) {
-          if (this.activeMessageMetadata != null) {
-            recordActiveMessageInProcessingTimesMap();
+          synchronized (this) {
+            if (this.activeMessageMetadata != null) {
+              recordActiveMessageInProcessingTimesMap();
+            }
+            this.activeMessageMetadata =
+                ActiveMessageMetadata.create(newDFState.getStepName().userName(),
+                    clock.getMillis());
           }
-          this.activeMessageMetadata =
-              ActiveMessageMetadata.create(newDFState.getStepName().userName(), clock.getMillis());
         }
         elementExecutionTracker.enter(newDFState.getStepName());
       }
 
       return () -> {
         if (isDataflowProcessElementState) {
-          if (this.activeMessageMetadata != null) {
-            recordActiveMessageInProcessingTimesMap();
+          synchronized (this) {
+            if (this.activeMessageMetadata != null) {
+              recordActiveMessageInProcessingTimesMap();
+            }
           }
           elementExecutionTracker.exit();
         }
@@ -346,7 +361,11 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     public synchronized Map<String, IntSummaryStatistics> getProcessingTimesByStepCopy() {
       Map<String, IntSummaryStatistics> processingTimesCopy =
           processingTimesByStep.entrySet().stream()
-              .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+              .collect(Collectors.toMap(e -> e.getKey(), e -> {
+                IntSummaryStatistics clone = new IntSummaryStatistics();
+                clone.combine(e.getValue());
+                return clone;
+              }));
       return processingTimesCopy;
     }
 
@@ -365,7 +384,10 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
             if (v == null) {
               v = new IntSummaryStatistics();
             }
-            v.accept((int) (System.currentTimeMillis() - this.activeMessageMetadata.startTime()));
+            synchronized (this) {
+              v.accept(
+                  (int) (System.currentTimeMillis() - this.activeMessageMetadata.startTime()));
+            }
             return v;
           });
       this.activeMessageMetadata = null;
