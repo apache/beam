@@ -234,8 +234,7 @@ public class ActiveWorkStateTest {
 
     assertThat(activeWorkState.currentActiveWorkBudget()).isEqualTo(expectedActiveBudget1);
 
-    activeWorkState.completeWorkAndGetNextWorkForKey(
-        shardedKey, work1.id());
+    activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, work1.id());
 
     GetWorkBudget expectedActiveBudget2 =
         GetWorkBudget.builder()
@@ -254,8 +253,7 @@ public class ActiveWorkStateTest {
 
     activeWorkState.activateWorkForKey(shardedKey, work1);
     activeWorkState.activateWorkForKey(shardedKey, work2);
-    activeWorkState.completeWorkAndGetNextWorkForKey(
-        shardedKey, work1.id());
+    activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, work1.id());
 
     GetWorkBudget expectedActiveBudget =
         GetWorkBudget.builder()
@@ -333,8 +331,7 @@ public class ActiveWorkStateTest {
         activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, differentWorkTokenWork.id());
     assertTrue(nextWork.isPresent());
     assertSame(firstWork, nextWork.get());
-    nextWork =
-        activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, firstWork.id());
+    nextWork = activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, firstWork.id());
     assertTrue(nextWork.isPresent());
     assertSame(secondWork, nextWork.get());
   }
