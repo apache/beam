@@ -21,11 +21,11 @@ import os
 import tempfile
 import typing
 
-import tensorflow_transform as tft
-from apache_beam.ml.transforms import base
-
 from google.cloud.storage import Client
 from google.cloud.storage import transfer_manager
+
+import tensorflow_transform as tft
+from apache_beam.ml.transforms import base
 
 
 def download_artifacts_from_gcs(bucket_name, prefix, local_path):
