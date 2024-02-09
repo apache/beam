@@ -165,6 +165,7 @@ public class BeamFnDataInboundObserverTest {
     Future<?> future2 =
         executor.submit(
             () -> {
+              Thread.sleep(500); // give the previous future some time to reach the inf while loop
               observer.close();
               return null;
             });
