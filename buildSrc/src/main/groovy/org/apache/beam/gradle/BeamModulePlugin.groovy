@@ -640,6 +640,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark3_version = "3.2.2"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.17.3"
+    // Try to keep arrow_version consistent with the arrow version in google_cloud_bigquery, managed by google_cloud_platform_libraries_bom
     def arrow_version = "15.0.0"
     def jmh_version = "1.34"
     def jupiter_version = "5.7.0"
