@@ -330,8 +330,8 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
               recordActiveMessageInProcessingTimesMap();
             }
             this.activeMessageMetadata =
-                ActiveMessageMetadata.create(newDFState.getStepName().userName(),
-                    clock.getMillis());
+                ActiveMessageMetadata.create(
+                    newDFState.getStepName().userName(), clock.getMillis());
           }
         }
         elementExecutionTracker.enter(newDFState.getStepName());
@@ -361,11 +361,14 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     public synchronized Map<String, IntSummaryStatistics> getProcessingTimesByStepCopy() {
       Map<String, IntSummaryStatistics> processingTimesCopy =
           processingTimesByStep.entrySet().stream()
-              .collect(Collectors.toMap(e -> e.getKey(), e -> {
-                IntSummaryStatistics clone = new IntSummaryStatistics();
-                clone.combine(e.getValue());
-                return clone;
-              }));
+              .collect(
+                  Collectors.toMap(
+                      e -> e.getKey(),
+                      e -> {
+                        IntSummaryStatistics clone = new IntSummaryStatistics();
+                        clone.combine(e.getValue());
+                        return clone;
+                      }));
       return processingTimesCopy;
     }
 
@@ -385,8 +388,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
               v = new IntSummaryStatistics();
             }
             synchronized (this) {
-              v.accept(
-                  (int) (System.currentTimeMillis() - this.activeMessageMetadata.startTime()));
+              v.accept((int) (System.currentTimeMillis() - this.activeMessageMetadata.startTime()));
             }
             return v;
           });
