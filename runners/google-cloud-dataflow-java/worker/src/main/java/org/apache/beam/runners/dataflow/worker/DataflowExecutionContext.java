@@ -177,6 +177,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
 
   /** Dataflow specific {@link StepContext}. */
   public abstract static class DataflowStepContext implements StepContext {
+
     private final NameContext nameContext;
 
     public DataflowStepContext(NameContext nameContext) {
@@ -341,8 +342,8 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       return Optional.ofNullable(activeMessageMetadata);
     }
 
-    public Map<String, IntSummaryStatistics> getProcessingTimesByStepCopy() {
-      Map<String, IntSummaryStatistics> processingTimesCopy = processingTimesByStep;
+    public synchronized Map<String, IntSummaryStatistics> getProcessingTimesByStepCopy() {
+      Map<String, IntSummaryStatistics> processingTimesCopy = new HashMap<>(processingTimesByStep);
       return processingTimesCopy;
     }
 
