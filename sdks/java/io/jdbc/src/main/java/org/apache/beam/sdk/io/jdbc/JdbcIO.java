@@ -2065,9 +2065,9 @@ public class JdbcIO {
     }
 
     /**
-     * Provide a maximum size in number of SQL statement for the batch. Default is 1000.
-     * The pipeline will either commit a batch when this maximum is reached or its
-     * maximum buffering time has been reached. See {@link #withMaxBatchBufferingDuration(long)}
+     * Provide a maximum size in number of SQL statement for the batch. Default is 1000. The
+     * pipeline will either commit a batch when this maximum is reached or its maximum buffering
+     * time has been reached. See {@link #withMaxBatchBufferingDuration(long)}
      *
      * @param batchSize maximum batch size in number of statements
      */
@@ -2077,9 +2077,9 @@ public class JdbcIO {
     }
 
     /**
-     * Provide maximum buffering time to batch elements before committing SQL statement. Default is 200
-     * The pipeline will either commit a batch when this maximum buffering time has been reached or the maximum
-     * amount of elements has been collected. See {@link #withBatchSize(long)}
+     * Provide maximum buffering time to batch elements before committing SQL statement. Default is
+     * 200 The pipeline will either commit a batch when this maximum buffering time has been reached
+     * or the maximum amount of elements has been collected. See {@link #withBatchSize(long)}
      *
      * @param maxBatchBufferingDuration maximum time in milliseconds before batch is committed
      */
