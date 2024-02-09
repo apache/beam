@@ -34,7 +34,7 @@ def download_artifacts_from_gcs(bucket_name, prefix, local_path):
         bucket_name: The name of the GCS bucket to download from.
         folder_name: The name of the folder to download.
         local_path: The local path to download the folder to.
-    """
+  """
   client = Client()
   bucket = client.get_bucket(bucket_name)
   blobs = [blob.name for blob in bucket.list_blobs(prefix=prefix)]
