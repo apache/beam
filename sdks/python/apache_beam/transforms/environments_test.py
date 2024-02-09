@@ -23,12 +23,11 @@
 import logging
 import tempfile
 import unittest
+from unittest.mock import MagicMock
 
 from apache_beam.options.pipeline_options import PortableOptions
-from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.portability import common_urns
 from apache_beam.runners import pipeline_context
-from apache_beam.runners.portability import stager
 from apache_beam.transforms import environments
 from apache_beam.transforms.environments import DockerEnvironment
 from apache_beam.transforms.environments import EmbeddedPythonEnvironment
@@ -36,24 +35,7 @@ from apache_beam.transforms.environments import EmbeddedPythonGrpcEnvironment
 from apache_beam.transforms.environments import Environment
 from apache_beam.transforms.environments import ExternalEnvironment
 from apache_beam.transforms.environments import ProcessEnvironment
-from apache_beam.transforms.environments import PyPIArtifactRegistry
 from apache_beam.transforms.environments import SubprocessSDKEnvironment
-
-# create a temp directory so that all artifacts are put in the same directory.
-tmp_dir = tempfile.mkdtemp()
-
-
-def mock_python_sdk_dependencies(options, tmp_dir=tmp_dir):
-  skip_prestaged_dependencies = options.view_as(
-      SetupOptions).prebuild_sdk_container_engine is not None
-  return stager.Stager.create_job_resources(
-      options,
-      tmp_dir,
-      pypi_requirements=[
-          artifact[0] + artifact[1]
-          for artifact in PyPIArtifactRegistry.get_artifacts()
-      ],
-      skip_prestaged_dependencies=skip_prestaged_dependencies)
 
 
 class RunnerApiTest(unittest.TestCase):
@@ -103,11 +85,13 @@ class RunnerApiTest(unittest.TestCase):
 
 class EnvironmentOptionsTest(unittest.TestCase):
   def setUp(self) -> None:
-    self.actual_python_sdk_dependencies = environments.python_sdk_dependencies
-    environments.python_sdk_dependencies = mock_python_sdk_dependencies
+    self.tmp_dir = tempfile.TemporaryDirectory()
+    self.actual_mkdtemp = tempfile.mkdtemp
+    tempfile.mkdtemp = MagicMock(return_value=self.tmp_dir.name)
 
   def tearDown(self) -> None:
-    environments.python_sdk_dependencies = self.actual_python_sdk_dependencies
+    tempfile.mkdtemp = self.actual_mkdtemp
+    self.tmp_dir.cleanup()
 
   def test_process_variables_empty(self):
     options = PortableOptions([

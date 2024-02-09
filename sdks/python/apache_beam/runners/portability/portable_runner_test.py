@@ -21,8 +21,10 @@ import logging
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 import unittest
+from unittest.mock import MagicMock
 
 import grpc
 
@@ -44,7 +46,6 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
-from apache_beam.transforms.environments_test import mock_python_sdk_dependencies
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -310,11 +311,13 @@ class PortableRunnerTestWithSubprocessesAndMultiWorkers(
 
 class PortableRunnerInternalTest(unittest.TestCase):
   def setUp(self) -> None:
-    self.actual_python_sdk_dependencies = environments.python_sdk_dependencies
-    environments.python_sdk_dependencies = mock_python_sdk_dependencies
+    self.tmp_dir = tempfile.TemporaryDirectory()
+    self.actual_mkdtemp = tempfile.mkdtemp
+    tempfile.mkdtemp = MagicMock(return_value=self.tmp_dir.name)
 
   def tearDown(self) -> None:
-    environments.python_sdk_dependencies = self.actual_python_sdk_dependencies
+    tempfile.mkdtemp = self.actual_mkdtemp
+    self.tmp_dir.cleanup()
 
   def test__create_default_environment(self):
     docker_image = environments.DockerEnvironment.default_docker_image()
