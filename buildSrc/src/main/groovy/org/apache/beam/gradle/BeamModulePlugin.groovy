@@ -611,7 +611,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
-    def grpc_version = "1.61.0"
+    def grpc_version = "1.60.0"
     def guava_version = "32.1.2-jre"
     def hadoop_version = "2.10.2"
     def hamcrest_version = "2.1"
@@ -2861,7 +2861,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.evaluationDependsOn(":sdks:python")
       project.evaluationDependsOn(":runners:core-construction-java")
       project.evaluationDependsOn(":sdks:java:extensions:python")
-      project.evaluationDependsOn(":sdks:java:transform-service:launcher")
+      project.evaluationDependsOn(":sdks:java:transform-service:app")
 
       def usesDataflowRunner = config.pythonPipelineOptions.contains("--runner=TestDataflowRunner") || config.pythonPipelineOptions.contains("--runner=DataflowRunner")
 
@@ -2869,7 +2869,7 @@ class BeamModulePlugin implements Plugin<Project> {
       def envDir = project.project(":sdks:python").envdir
       def pythonDir = project.project(":sdks:python").projectDir
       def externalPort = getRandomPort()
-      def launcherJar = project.project(':sdks:java:transform-service:launcher').shadowJar.archivePath
+      def launcherJar = project.project(':sdks:java:transform-service:app').shadowJar.archivePath
       def groupId = project.name + randomUUID().toString()
       def transformServiceOpts = [
         "transform_service_launcher_jar": launcherJar,
@@ -2896,7 +2896,7 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn ':sdks:python:expansion-service-container:docker'
         dependsOn ':sdks:java:expansion-service:container:docker'
         dependsOn ":sdks:python:installGcpTest"
-        dependsOn project.project(':sdks:java:transform-service:launcher').shadowJar.getPath()
+        dependsOn project.project(':sdks:java:transform-service:app').shadowJar.getPath()
 
         if (usesDataflowRunner) {
           dependsOn ":sdks:python:test-suites:dataflow:py${project.ext.pythonVersion.replace('.', '')}:initializeForDataflowJob"

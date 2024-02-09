@@ -258,7 +258,13 @@ public interface DataflowPipelineDebugOptions
   @Default.Integer(60 * 1000) // 1 minute
   Integer getStreamingSideInputCacheExpirationMillis();
 
-  void setstreamingSideInputCacheExpirationMillis(Integer value);
+  void setStreamingSideInputCacheExpirationMillis(Integer value);
+
+  @Description("Number of commit threads used to commit items to streaming engine.")
+  @Default.Integer(1)
+  Integer getWindmillServiceCommitThreads();
+
+  void setWindmillServiceCommitThreads(Integer value);
 
   /**
    * The amount of time before UnboundedReaders are considered idle and closed during streaming

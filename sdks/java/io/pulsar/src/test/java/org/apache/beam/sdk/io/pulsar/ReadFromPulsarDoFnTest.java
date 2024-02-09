@@ -21,14 +21,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.internal.DefaultImplementation;
@@ -174,16 +171,6 @@ public class ReadFromPulsarDoFnTest {
     public void outputWithTimestamp(
         PulsarMessage output, @UnknownKeyFor @NonNull @Initialized Instant timestamp) {
       records.add(output);
-    }
-
-    @Override
-    public void outputWindowedValue(
-        PulsarMessage output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo) {
-      throw new UnsupportedOperationException(
-          "unsupported outputWindowedValue in mock outputreceiver");
     }
 
     public List<PulsarMessage> getOutputs() {

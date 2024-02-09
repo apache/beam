@@ -70,7 +70,6 @@ dependencies {
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(path: ":model:pipeline", configuration: "shadow")
-  implementation project(":sdks:java:fn-execution")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   testImplementation library.java.hamcrest
