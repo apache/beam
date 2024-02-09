@@ -39,7 +39,7 @@ def download_artifacts_from_gcs(bucket_name, prefix, local_path):
   bucket = client.get_bucket(bucket_name)
   blobs = [blob.name for blob in bucket.list_blobs(prefix=prefix)]
   _ = transfer_manager.download_many_to_path(
-      bucket, blobs, destination_directory=local_path, max_workers=6)
+      bucket, blobs, destination_directory=local_path)
 
 
 class ArtifactsFetcher:
