@@ -29,7 +29,7 @@ dependencies {
   // :sdks:java:core and transitive dependencies
   provided project(path: ":model:pipeline", configuration: "shadow")
   provided project(path: ":sdks:java:core", configuration: "shadow")
-  provided project(path: ":sdks:java:transform-service:launcher", configuration: "shadow")
+  provided project(path: ":sdks:java:transform-service:launcher")
   provided library.java.avro
   provided library.java.joda_time
   provided library.java.slf4j_api
@@ -87,12 +87,10 @@ dependencies {
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(":runners:core-construction-java")
   implementation project(":runners:core-java")
-  implementation project(":sdks:java:fn-execution")
   permitUnusedDeclared project(path: ":sdks:java:transform-service:launcher")
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
-  shadowTestRuntimeClasspath project(path: ":sdks:java:core", configuration: "shadowTest")
-  testImplementation project(path: ":sdks:java:fn-execution", configuration: "testRuntimeMigration")
+  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
   permitUnusedDeclared library.java.avro
 }

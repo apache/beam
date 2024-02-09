@@ -126,10 +126,6 @@ applyJavaNature(
             relocate("org.apache.beam.runners.fnexecution", getWorkerRelocatedPath("org.apache.beam.runners.fnexecution"))
             relocate("org.apache.beam.repackaged.beam_runners_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_java_fn_execution"))
 
-            dependencies {
-                include(project(":sdks:java:fn-execution"))
-            }
-            relocate("org.apache.beam.sdk.fn", getWorkerRelocatedPath("org.apache.beam.sdk.fn"))
             relocate("org.apache.beam.repackaged.beam_sdks_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_sdks_java_fn_execution"))
 
             dependencies {
@@ -193,7 +189,6 @@ dependencies {
     implementation project(":runners:core-construction-java")
     implementation project(":runners:core-java")
     implementation project(":runners:java-fn-execution")
-    implementation project(":sdks:java:fn-execution")
     implementation project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
     shadow library.java.vendored_guava_32_1_2_jre
 

@@ -42,7 +42,6 @@ import org.joda.time.Instant;
 
 @NotThreadSafe
 public class Work implements Runnable {
-
   private final Windmill.WorkItem workItem;
   private final Supplier<Instant> clock;
   private final Instant startTime;
@@ -50,7 +49,6 @@ public class Work implements Runnable {
   private final Consumer<Work> processWorkFn;
   private final WorkId id;
   private TimedState currentState;
-
   private volatile boolean isFailed;
 
   private Work(Windmill.WorkItem workItem, Supplier<Instant> clock, Consumer<Work> processWorkFn) {
@@ -122,6 +120,10 @@ public class Work implements Runnable {
     workIdBuilder.append('-');
     workIdBuilder.append(Long.toHexString(workItem.getWorkToken()));
     return workIdBuilder.toString();
+  }
+
+  public WorkId id() {
+    return id;
   }
 
   private void recordGetWorkStreamLatencies(
@@ -200,17 +202,6 @@ public class Work implements Runnable {
   boolean isStuckCommittingAt(Instant stuckCommitDeadline) {
     return currentState.state() == Work.State.COMMITTING
         && currentState.startTime().isBefore(stuckCommitDeadline);
-  }
-
-  public WorkId id() {
-    return id;
-  }
-
-  @Override
-  public final String toString() {
-    return String.format(
-        "work_id:[%s]; work_item:[%s]; start_time:[%s]; current_state:[%s]",
-        id, workItem, startTime, currentState);
   }
 
   public enum State {

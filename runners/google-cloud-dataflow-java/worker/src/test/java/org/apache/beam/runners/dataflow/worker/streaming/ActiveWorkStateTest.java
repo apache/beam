@@ -34,9 +34,10 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.ActivateWorkResult;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
@@ -60,25 +61,25 @@ public class ActiveWorkStateTest {
     return ShardedKey.create(ByteString.copyFromUtf8(str), shardKey);
   }
 
-  private static Work createWork(WorkItem workItem) {
+  private static Work createWork(Windmill.WorkItem workItem) {
     return Work.create(workItem, Instant::now, Collections.emptyList(), unused -> {});
   }
 
-  private static Work expiredWork(WorkItem workItem) {
+  private static Work expiredWork(Windmill.WorkItem workItem) {
     return Work.create(workItem, () -> Instant.EPOCH, Collections.emptyList(), unused -> {});
   }
 
-  private static WorkItem createWorkItem(long workToken, long cacheToken) {
-    return WorkItem.newBuilder()
+  private static WorkId workId(long workToken, long cacheToken) {
+    return WorkId.builder().setCacheToken(cacheToken).setWorkToken(workToken).build();
+  }
+
+  private static Windmill.WorkItem createWorkItem(long workToken, long cacheToken) {
+    return Windmill.WorkItem.newBuilder()
         .setKey(ByteString.copyFromUtf8(""))
         .setShardingKey(1)
         .setWorkToken(workToken)
         .setCacheToken(cacheToken)
         .build();
-  }
-
-  private static WorkId workDedupeId(long workToken, long cacheToken) {
-    return WorkId.builder().setCacheToken(cacheToken).setWorkToken(workToken).build();
   }
 
   @Before
@@ -103,13 +104,13 @@ public class ActiveWorkStateTest {
     ShardedKey shardedKey = shardedKey("someKey", 1L);
     long workToken = 1L;
     long cacheToken = 2L;
+
     ActivateWorkResult activateWorkResult =
         activeWorkState.activateWorkForKey(
             shardedKey, createWork(createWorkItem(workToken, cacheToken)));
 
     Optional<Work> nextWorkForKey =
-        activeWorkState.completeWorkAndGetNextWorkForKey(
-            shardedKey, workDedupeId(workToken, cacheToken));
+        activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, workId(workToken, cacheToken));
 
     assertEquals(ActivateWorkResult.EXECUTE, activateWorkResult);
     assertEquals(Optional.empty(), nextWorkForKey);
@@ -119,17 +120,192 @@ public class ActiveWorkStateTest {
   @Test
   public void testActivateWorkForKey_DUPLICATE() {
     long workToken = 10L;
-    long cacheToken = 5L;
     ShardedKey shardedKey = shardedKey("someKey", 1L);
 
     // ActivateWork with the same shardedKey, and the same workTokens.
-    activeWorkState.activateWorkForKey(
-        shardedKey, createWork(createWorkItem(workToken, cacheToken)));
+    activeWorkState.activateWorkForKey(shardedKey, createWork(createWorkItem(workToken, 1L)));
     ActivateWorkResult activateWorkResult =
-        activeWorkState.activateWorkForKey(
-            shardedKey, createWork(createWorkItem(workToken, cacheToken)));
+        activeWorkState.activateWorkForKey(shardedKey, createWork(createWorkItem(workToken, 1L)));
 
     assertEquals(ActivateWorkResult.DUPLICATE, activateWorkResult);
+  }
+
+  @Test
+  public void testActivateWorkForKey_QUEUED() {
+    ShardedKey shardedKey = shardedKey("someKey", 1L);
+
+    // ActivateWork with the same shardedKey, but different workTokens.
+    activeWorkState.activateWorkForKey(shardedKey, createWork(createWorkItem(1L, 1L)));
+    ActivateWorkResult activateWorkResult =
+        activeWorkState.activateWorkForKey(shardedKey, createWork(createWorkItem(2L, 1L)));
+
+    assertEquals(ActivateWorkResult.QUEUED, activateWorkResult);
+  }
+
+  @Test
+  public void testCompleteWorkAndGetNextWorkForKey_noWorkQueueForKey() {
+    assertEquals(
+        Optional.empty(),
+        activeWorkState.completeWorkAndGetNextWorkForKey(
+            shardedKey("someKey", 1L), workId(1L, 1L)));
+  }
+
+  @Test
+  public void
+      testCompleteWorkAndGetNextWorkForKey_currentWorkInQueueWorkTokenDoesNotMatchWorkToComplete() {
+    long workTokenInQueue = 2L;
+    long otherWorkToken = 1L;
+    long cacheToken = 1L;
+    Work workInQueue = createWork(createWorkItem(workTokenInQueue, cacheToken));
+    ShardedKey shardedKey = shardedKey("someKey", 1L);
+
+    activeWorkState.activateWorkForKey(shardedKey, workInQueue);
+    activeWorkState.completeWorkAndGetNextWorkForKey(
+        shardedKey, workId(otherWorkToken, cacheToken));
+
+    assertEquals(1, readOnlyActiveWork.get(shardedKey).size());
+    assertEquals(workInQueue, readOnlyActiveWork.get(shardedKey).peek());
+  }
+
+  @Test
+  public void testCompleteWorkAndGetNextWorkForKey_removesWorkFromQueueWhenComplete() {
+    Work activeWork = createWork(createWorkItem(1L, 1L));
+    Work nextWork = createWork(createWorkItem(2L, 2L));
+    ShardedKey shardedKey = shardedKey("someKey", 1L);
+
+    activeWorkState.activateWorkForKey(shardedKey, activeWork);
+    activeWorkState.activateWorkForKey(shardedKey, nextWork);
+    activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, activeWork.id());
+
+    assertEquals(nextWork, readOnlyActiveWork.get(shardedKey).peek());
+    assertEquals(1, readOnlyActiveWork.get(shardedKey).size());
+    assertFalse(readOnlyActiveWork.get(shardedKey).contains(activeWork));
+  }
+
+  @Test
+  public void testCompleteWorkAndGetNextWorkForKey_removesQueueIfNoWorkPresent() {
+    Work workInQueue = createWork(createWorkItem(1L, 1L));
+    ShardedKey shardedKey = shardedKey("someKey", 1L);
+
+    activeWorkState.activateWorkForKey(shardedKey, workInQueue);
+    activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, workInQueue.id());
+
+    assertFalse(readOnlyActiveWork.containsKey(shardedKey));
+  }
+
+  @Test
+  public void testCompleteWorkAndGetNextWorkForKey_returnsWorkIfPresent() {
+    Work workToBeCompleted = createWork(createWorkItem(1L, 1L));
+    Work nextWork = createWork(createWorkItem(2L, 2L));
+    ShardedKey shardedKey = shardedKey("someKey", 1L);
+
+    activeWorkState.activateWorkForKey(shardedKey, workToBeCompleted);
+    activeWorkState.activateWorkForKey(shardedKey, nextWork);
+    activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, workToBeCompleted.id());
+
+    Optional<Work> nextWorkOpt =
+        activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, workToBeCompleted.id());
+
+    assertTrue(nextWorkOpt.isPresent());
+    assertSame(nextWork, nextWorkOpt.get());
+
+    Optional<Work> endOfWorkQueue =
+        activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, nextWork.id());
+
+    assertFalse(endOfWorkQueue.isPresent());
+    assertFalse(readOnlyActiveWork.containsKey(shardedKey));
+  }
+
+  @Test
+  public void testCurrentActiveWorkBudget_correctlyAggregatesActiveWorkBudget_oneShardKey() {
+    ShardedKey shardedKey = shardedKey("someKey", 1L);
+    Work work1 = createWork(createWorkItem(1L, 1L));
+    Work work2 = createWork(createWorkItem(2L, 2L));
+
+    activeWorkState.activateWorkForKey(shardedKey, work1);
+    activeWorkState.activateWorkForKey(shardedKey, work2);
+
+    GetWorkBudget expectedActiveBudget1 =
+        GetWorkBudget.builder()
+            .setItems(2)
+            .setBytes(
+                work1.getWorkItem().getSerializedSize() + work2.getWorkItem().getSerializedSize())
+            .build();
+
+    assertThat(activeWorkState.currentActiveWorkBudget()).isEqualTo(expectedActiveBudget1);
+
+    activeWorkState.completeWorkAndGetNextWorkForKey(
+        shardedKey, work1.id());
+
+    GetWorkBudget expectedActiveBudget2 =
+        GetWorkBudget.builder()
+            .setItems(1)
+            .setBytes(work1.getWorkItem().getSerializedSize())
+            .build();
+
+    assertThat(activeWorkState.currentActiveWorkBudget()).isEqualTo(expectedActiveBudget2);
+  }
+
+  @Test
+  public void testCurrentActiveWorkBudget_correctlyAggregatesActiveWorkBudget_whenWorkCompleted() {
+    ShardedKey shardedKey = shardedKey("someKey", 1L);
+    Work work1 = createWork(createWorkItem(1L, 1L));
+    Work work2 = createWork(createWorkItem(2L, 2L));
+
+    activeWorkState.activateWorkForKey(shardedKey, work1);
+    activeWorkState.activateWorkForKey(shardedKey, work2);
+    activeWorkState.completeWorkAndGetNextWorkForKey(
+        shardedKey, work1.id());
+
+    GetWorkBudget expectedActiveBudget =
+        GetWorkBudget.builder()
+            .setItems(1)
+            .setBytes(work1.getWorkItem().getSerializedSize())
+            .build();
+
+    assertThat(activeWorkState.currentActiveWorkBudget()).isEqualTo(expectedActiveBudget);
+  }
+
+  @Test
+  public void testCurrentActiveWorkBudget_correctlyAggregatesActiveWorkBudget_multipleShardKeys() {
+    ShardedKey shardedKey1 = shardedKey("someKey", 1L);
+    ShardedKey shardedKey2 = shardedKey("someKey", 2L);
+    Work work1 = createWork(createWorkItem(1L, 1L));
+    Work work2 = createWork(createWorkItem(2L, 2L));
+
+    activeWorkState.activateWorkForKey(shardedKey1, work1);
+    activeWorkState.activateWorkForKey(shardedKey2, work2);
+
+    GetWorkBudget expectedActiveBudget =
+        GetWorkBudget.builder()
+            .setItems(2)
+            .setBytes(
+                work1.getWorkItem().getSerializedSize() + work2.getWorkItem().getSerializedSize())
+            .build();
+
+    assertThat(activeWorkState.currentActiveWorkBudget()).isEqualTo(expectedActiveBudget);
+  }
+
+  @Test
+  public void testInvalidateStuckCommits() {
+    Map<ShardedKey, WorkId> invalidatedCommits = new HashMap<>();
+
+    Work stuckWork1 = expiredWork(createWorkItem(1L, 1L));
+    stuckWork1.setState(Work.State.COMMITTING);
+    Work stuckWork2 = expiredWork(createWorkItem(2L, 1L));
+    stuckWork2.setState(Work.State.COMMITTING);
+    ShardedKey shardedKey1 = shardedKey("someKey", 1L);
+    ShardedKey shardedKey2 = shardedKey("anotherKey", 2L);
+
+    activeWorkState.activateWorkForKey(shardedKey1, stuckWork1);
+    activeWorkState.activateWorkForKey(shardedKey2, stuckWork2);
+
+    activeWorkState.invalidateStuckCommits(Instant.now(), invalidatedCommits::put);
+
+    assertThat(invalidatedCommits).containsEntry(shardedKey1, stuckWork1.id());
+    assertThat(invalidatedCommits).containsEntry(shardedKey2, stuckWork2.id());
+    verify(computationStateCache).invalidate(shardedKey1.key(), shardedKey1.shardingKey());
+    verify(computationStateCache).invalidate(shardedKey2.key(), shardedKey2.shardingKey());
   }
 
   @Test
@@ -151,14 +327,16 @@ public class ActiveWorkStateTest {
         activeWorkState.activateWorkForKey(shardedKey, secondWork);
 
     assertEquals(ActivateWorkResult.QUEUED, activateWorkResult);
-    // Different cacheTokens, so no work should be removed from the queue.
-    assertTrue(readOnlyActiveWork.get(shardedKey).contains(firstWork));
     assertTrue(readOnlyActiveWork.get(shardedKey).contains(secondWork));
 
     Optional<Work> nextWork =
         activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, differentWorkTokenWork.id());
     assertTrue(nextWork.isPresent());
     assertSame(firstWork, nextWork.get());
+    nextWork =
+        activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, firstWork.id());
+    assertTrue(nextWork.isPresent());
+    assertSame(secondWork, nextWork.get());
   }
 
   @Test
@@ -247,133 +425,9 @@ public class ActiveWorkStateTest {
   }
 
   @Test
-  public void testActivateWorkForKey_QUEUED() {
-    ShardedKey shardedKey = shardedKey("someKey", 1L);
-
-    // ActivateWork with the same shardedKey, but different workTokens.
-    activeWorkState.activateWorkForKey(shardedKey, createWork(createWorkItem(1L, 1L)));
-    ActivateWorkResult activateWorkResult =
-        activeWorkState.activateWorkForKey(shardedKey, createWork(createWorkItem(2L, 2L)));
-
-    assertEquals(ActivateWorkResult.QUEUED, activateWorkResult);
-  }
-
-  @Test
-  public void testCompleteWorkAndGetNextWorkForKey_noWorkQueueForKey() {
-    assertEquals(
-        Optional.empty(),
-        activeWorkState.completeWorkAndGetNextWorkForKey(
-            shardedKey("someKey", 1L), workDedupeId(1L, 1L)));
-  }
-
-  @Test
-  public void
-      testCompleteWorkAndGetNextWorkForKey_currentWorkInQueueWorkTokenDoesNotMatchWorkToComplete() {
-    long workTokenInQueue = 2L;
-    long otherWorkToken = 1L;
-    long cacheToken = 1L;
-    Work workInQueue = createWork(createWorkItem(workTokenInQueue, cacheToken));
-    ShardedKey shardedKey = shardedKey("someKey", 1L);
-
-    activeWorkState.activateWorkForKey(shardedKey, workInQueue);
-    activeWorkState.completeWorkAndGetNextWorkForKey(
-        shardedKey, workDedupeId(otherWorkToken, cacheToken));
-
-    assertEquals(1, readOnlyActiveWork.get(shardedKey).size());
-    assertEquals(workInQueue, readOnlyActiveWork.get(shardedKey).peek());
-  }
-
-  @Test
-  public void
-      testCompleteWorkAndGetNextWorkForKey_currentWorkInQueueCacheTokenDoesNotMatchWorkToComplete() {
-    long cacheTokenInQueue = 2L;
-    long otherCacheToken = 1L;
-    long workToken = 1L;
-    Work workInQueue = createWork(createWorkItem(workToken, cacheTokenInQueue));
-    ShardedKey shardedKey = shardedKey("someKey", 1L);
-
-    activeWorkState.activateWorkForKey(shardedKey, workInQueue);
-    activeWorkState.completeWorkAndGetNextWorkForKey(
-        shardedKey, workDedupeId(workToken, otherCacheToken));
-
-    assertEquals(1, readOnlyActiveWork.get(shardedKey).size());
-    assertEquals(workInQueue, readOnlyActiveWork.get(shardedKey).peek());
-  }
-
-  @Test
-  public void testCompleteWorkAndGetNextWorkForKey_removesWorkFromQueueWhenComplete() {
-    Work activeWork = createWork(createWorkItem(1L, 1L));
-    Work nextWork = createWork(createWorkItem(2L, 2L));
-    ShardedKey shardedKey = shardedKey("someKey", 1L);
-
-    activeWorkState.activateWorkForKey(shardedKey, activeWork);
-    activeWorkState.activateWorkForKey(shardedKey, nextWork);
-    activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, activeWork.id());
-
-    assertEquals(nextWork, readOnlyActiveWork.get(shardedKey).peek());
-    assertEquals(1, readOnlyActiveWork.get(shardedKey).size());
-    assertFalse(readOnlyActiveWork.get(shardedKey).contains(activeWork));
-  }
-
-  @Test
-  public void testCompleteWorkAndGetNextWorkForKey_removesQueueIfNoWorkPresent() {
-    Work workInQueue = createWork(createWorkItem(1L, 1L));
-    ShardedKey shardedKey = shardedKey("someKey", 1L);
-
-    activeWorkState.activateWorkForKey(shardedKey, workInQueue);
-    activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, workInQueue.id());
-
-    assertFalse(readOnlyActiveWork.containsKey(shardedKey));
-  }
-
-  @Test
-  public void testCompleteWorkAndGetNextWorkForKey_returnsWorkIfPresent() {
-    Work workToBeCompleted = createWork(createWorkItem(1L, 1L));
-    Work nextWork = createWork(createWorkItem(2L, 2L));
-    ShardedKey shardedKey = shardedKey("someKey", 1L);
-
-    activeWorkState.activateWorkForKey(shardedKey, workToBeCompleted);
-    activeWorkState.activateWorkForKey(shardedKey, nextWork);
-    activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, workToBeCompleted.id());
-
-    Optional<Work> nextWorkOpt =
-        activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, workToBeCompleted.id());
-
-    assertTrue(nextWorkOpt.isPresent());
-    assertSame(nextWork, nextWorkOpt.get());
-
-    Optional<Work> endOfWorkQueue =
-        activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, nextWork.id());
-
-    assertFalse(endOfWorkQueue.isPresent());
-    assertFalse(readOnlyActiveWork.containsKey(shardedKey));
-  }
-
-  @Test
-  public void testInvalidateStuckCommits() {
-    Map<ShardedKey, WorkId> invalidatedCommits = new HashMap<>();
-
-    Work stuckWork1 = expiredWork(createWorkItem(1L, 1L));
-    stuckWork1.setState(Work.State.COMMITTING);
-    Work stuckWork2 = expiredWork(createWorkItem(2L, 2L));
-    stuckWork2.setState(Work.State.COMMITTING);
-    ShardedKey shardedKey1 = shardedKey("someKey", 1L);
-    ShardedKey shardedKey2 = shardedKey("anotherKey", 2L);
-
-    activeWorkState.activateWorkForKey(shardedKey1, stuckWork1);
-    activeWorkState.activateWorkForKey(shardedKey2, stuckWork2);
-
-    activeWorkState.invalidateStuckCommits(Instant.now(), invalidatedCommits::put);
-
-    assertThat(invalidatedCommits).containsEntry(shardedKey1, stuckWork1.id());
-    assertThat(invalidatedCommits).containsEntry(shardedKey2, stuckWork2.id());
-    verify(computationStateCache).invalidate(shardedKey1.key(), shardedKey1.shardingKey());
-    verify(computationStateCache).invalidate(shardedKey2.key(), shardedKey2.shardingKey());
-  }
-
-  @Test
   public void testGetKeyHeartbeats() {
     Instant refreshDeadline = Instant.now();
+
     Work freshWork = createWork(createWorkItem(3L, 3L));
     Work refreshableWork1 = expiredWork(createWorkItem(1L, 1L));
     refreshableWork1.setState(Work.State.COMMITTING);

@@ -23,12 +23,15 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.MapTask;
+import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
+import com.google.api.services.dataflow.model.PerWorkerMetrics;
 import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.StreamingScalingReport;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
+import com.google.api.services.dataflow.model.WorkerMessage;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
@@ -61,7 +64,6 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.core.metrics.MetricsLogger;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.internal.CustomSources;
-import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames;
@@ -118,6 +120,7 @@ import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.BackOff;
@@ -132,11 +135,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.EvictingQueue;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ListMultimap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.MultimapBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.*;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.MutableNetwork;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -228,7 +227,7 @@ public class StreamingDataflowWorker {
   private final BoundedQueueExecutor workUnitExecutor;
   private final WindmillServerStub windmillServer;
   private final Thread dispatchThread;
-  private final Thread commitThread;
+  @VisibleForTesting final ImmutableList<Thread> commitThreads;
   private final AtomicLong activeCommitBytes = new AtomicLong();
   private final AtomicLong previousTimeAtMaxThreads = new AtomicLong();
   private final AtomicBoolean running = new AtomicBoolean();
@@ -406,21 +405,28 @@ public class StreamingDataflowWorker {
     dispatchThread.setPriority(Thread.MIN_PRIORITY);
     dispatchThread.setName("DispatchThread");
 
-    commitThread =
-        new Thread(
-            new Runnable() {
-              @Override
-              public void run() {
+    int numCommitThreads = 1;
+    if (windmillServiceEnabled && options.getWindmillServiceCommitThreads() > 0) {
+      numCommitThreads = options.getWindmillServiceCommitThreads();
+    }
+
+    ImmutableList.Builder<Thread> commitThreadsBuilder = ImmutableList.builder();
+    for (int i = 0; i < numCommitThreads; ++i) {
+      Thread commitThread =
+          new Thread(
+              () -> {
                 if (windmillServiceEnabled) {
                   streamingCommitLoop();
                 } else {
                   commitLoop();
                 }
-              }
-            });
-    commitThread.setDaemon(true);
-    commitThread.setPriority(Thread.MAX_PRIORITY);
-    commitThread.setName("CommitThread");
+              });
+      commitThread.setDaemon(true);
+      commitThread.setPriority(Thread.MAX_PRIORITY);
+      commitThread.setName("CommitThread " + i);
+      commitThreadsBuilder.add(commitThread);
+    }
+    commitThreads = commitThreadsBuilder.build();
 
     this.publishCounters = publishCounters;
     this.windmillServer = options.getWindmillServerStub();
@@ -466,9 +472,9 @@ public class StreamingDataflowWorker {
     JvmInitializers.runOnStartup();
 
     DataflowWorkerHarnessHelper.initializeLogging(StreamingDataflowWorker.class);
-    DataflowWorkerHarnessOptions options =
+    StreamingDataflowWorkerOptions options =
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
-            StreamingDataflowWorker.class);
+            StreamingDataflowWorker.class, StreamingDataflowWorkerOptions.class);
     DataflowWorkerHarnessHelper.configureLogging(options);
     checkArgument(
         options.isStreaming(),
@@ -480,31 +486,33 @@ public class StreamingDataflowWorker {
         "%s cannot be main() class with beam_fn_api enabled",
         StreamingDataflowWorker.class.getSimpleName());
 
-    StreamingDataflowWorker worker =
-        StreamingDataflowWorker.fromDataflowWorkerHarnessOptions(options);
+    StreamingDataflowWorker worker = StreamingDataflowWorker.fromOptions(options);
 
     // Use the MetricsLogger container which is used by BigQueryIO to periodically log process-wide
     // metrics.
     MetricsEnvironment.setProcessWideContainer(new MetricsLogger(null));
 
-    // When enabled, the Pipeline will record Per-Worker metrics that will be piped to WMW.
+    // When enabled, the Pipeline will record Per-Worker metrics that will be piped to DFE.
     StreamingStepMetricsContainer.setEnablePerWorkerMetrics(
         options.isEnableStreamingEngine()
             && DataflowRunner.hasExperiment(options, "enable_per_worker_metrics"));
+    // StreamingStepMetricsContainer automatically deletes perWorkerCounters if they are zero-valued
+    // for longer than 5 minutes.
+    BigQuerySinkMetrics.setSupportMetricsDeletion(true);
 
     JvmInitializers.runBeforeProcessing(options);
     worker.startStatusPages();
     worker.start();
   }
 
-  public static StreamingDataflowWorker fromDataflowWorkerHarnessOptions(
-      DataflowWorkerHarnessOptions options) throws IOException {
+  public static StreamingDataflowWorker fromOptions(StreamingDataflowWorkerOptions options)
+      throws IOException {
 
     return new StreamingDataflowWorker(
         Collections.emptyList(),
         IntrinsicMapTaskExecutorFactory.defaultFactory(),
         new DataflowWorkUnitClient(options, LOG),
-        options.as(StreamingDataflowWorkerOptions.class),
+        options,
         true,
         new HotKeyLogger(),
         Instant::now,
@@ -579,7 +587,7 @@ public class StreamingDataflowWorker {
 
     memoryMonitorThread.start();
     dispatchThread.start();
-    commitThread.start();
+    commitThreads.forEach(Thread::start);
     sampler.start();
 
     // Periodically report workers counters and other updates.
@@ -711,10 +719,12 @@ public class StreamingDataflowWorker {
       running.set(false);
       dispatchThread.interrupt();
       dispatchThread.join();
-      // We need to interrupt the commitThread in case it is blocking on pulling
+      // We need to interrupt the commitThreads in case they are blocking on pulling
       // from the commitQueue.
-      commitThread.interrupt();
-      commitThread.join();
+      commitThreads.forEach(Thread::interrupt);
+      for (Thread commitThread : commitThreads) {
+        commitThread.join();
+      }
       memoryMonitor.stop();
       memoryMonitorThread.join();
       workUnitExecutor.shutdown();
@@ -1368,9 +1378,9 @@ public class StreamingDataflowWorker {
       }
       Windmill.CommitWorkRequest commitRequest = commitRequestBuilder.build();
       LOG.trace("Commit: {}", commitRequest);
-      activeCommitBytes.set(commitBytes);
+      activeCommitBytes.addAndGet(commitBytes);
       windmillServer.commitWork(commitRequest);
-      activeCommitBytes.set(0);
+      activeCommitBytes.addAndGet(-commitBytes);
       for (Map.Entry<ComputationState, Windmill.ComputationCommitWorkRequest.Builder> entry :
           computationRequestMap.entrySet()) {
         ComputationState computationState = entry.getKey();
@@ -1389,12 +1399,25 @@ public class StreamingDataflowWorker {
   // Adds the commit to the commitStream if it fits, returning true iff it is consumed.
   private boolean addCommitToStream(Commit commit, CommitWorkStream commitStream) {
     Preconditions.checkNotNull(commit);
-    // Drop commits for failed work. Such commits will be dropped by Windmill anyway.
-    if (commit.work().isFailed()) {
-      return true;
-    }
     final ComputationState state = commit.computationState();
     final Windmill.WorkItemCommitRequest request = commit.request();
+    // Drop commits for failed work. Such commits will be dropped by Windmill anyway.
+    if (commit.work().isFailed()) {
+      readerCache.invalidateReader(
+          WindmillComputationKey.create(
+              state.getComputationId(), request.getKey(), request.getShardingKey()));
+      stateCache
+          .forComputation(state.getComputationId())
+          .invalidate(request.getKey(), request.getShardingKey());
+      state.completeWorkAndScheduleNextWorkForKey(
+          ShardedKey.create(request.getKey(), request.getShardingKey()),
+          WorkId.builder()
+              .setWorkToken(request.getWorkToken())
+              .setCacheToken(request.getCacheToken())
+              .build());
+      return true;
+    }
+
     final int size = commit.getSize();
     commit.work().setState(Work.State.COMMITTING);
     activeCommitBytes.addAndGet(size);
@@ -1411,8 +1434,6 @@ public class StreamingDataflowWorker {
                 .invalidate(request.getKey(), request.getShardingKey());
           }
           activeCommitBytes.addAndGet(-size);
-          // This may throw an exception if the commit was not active, which is possible if it
-          // was deemed stuck.
           state.completeWorkAndScheduleNextWorkForKey(
               ShardedKey.create(request.getKey(), request.getShardingKey()),
               WorkId.builder()
@@ -1784,7 +1805,7 @@ public class StreamingDataflowWorker {
     maxOutstandingBundles.addValue((long) workUnitExecutor.maximumElementsOutstanding());
   }
 
-  private void sendWorkerMessage() throws IOException {
+  private WorkerMessage createWorkerMessageForStreamingScalingReport() {
     StreamingScalingReport activeThreadsReport =
         new StreamingScalingReport()
             .setActiveThreadCount(workUnitExecutor.activeCount())
@@ -1793,8 +1814,33 @@ public class StreamingDataflowWorker {
             .setMaximumThreadCount(chooseMaximumNumberOfThreads())
             .setMaximumBundleCount(workUnitExecutor.maximumElementsOutstanding())
             .setMaximumBytes(workUnitExecutor.maximumBytesOutstanding());
-    workUnitClient.reportWorkerMessage(
-        workUnitClient.createWorkerMessageFromStreamingScalingReport(activeThreadsReport));
+    return workUnitClient.createWorkerMessageFromStreamingScalingReport(activeThreadsReport);
+  }
+
+  private Optional<WorkerMessage> createWorkerMessageForPerWorkerMetrics() {
+    List<PerStepNamespaceMetrics> metrics = new ArrayList<>();
+    stageInfoMap.values().forEach(s -> metrics.addAll(s.extractPerWorkerMetricValues()));
+
+    if (metrics.isEmpty()) {
+      return Optional.empty();
+    }
+
+    PerWorkerMetrics perWorkerMetrics = new PerWorkerMetrics().setPerStepNamespaceMetrics(metrics);
+    return Optional.of(workUnitClient.createWorkerMessageFromPerWorkerMetrics(perWorkerMetrics));
+  }
+
+  private void sendWorkerMessage() throws IOException {
+    List<WorkerMessage> workerMessages = new ArrayList<WorkerMessage>(2);
+    workerMessages.add(createWorkerMessageForStreamingScalingReport());
+
+    if (StreamingStepMetricsContainer.getEnablePerWorkerMetrics()) {
+      Optional<WorkerMessage> metricsMsg = createWorkerMessageForPerWorkerMetrics();
+      if (metricsMsg.isPresent()) {
+        workerMessages.add(metricsMsg.get());
+      }
+    }
+
+    workUnitClient.reportWorkerMessage(workerMessages);
   }
 
   @VisibleForTesting
@@ -1935,8 +1981,10 @@ public class StreamingDataflowWorker {
           failedWork
               .computeIfAbsent(heartbeatResponse.getShardingKey(), key -> new ArrayList<>())
               .add(
-                  new FailedTokens(
-                      heartbeatResponse.getWorkToken(), heartbeatResponse.getCacheToken()));
+                  FailedTokens.newBuilder()
+                      .setWorkToken(heartbeatResponse.getWorkToken())
+                      .setCacheToken(heartbeatResponse.getCacheToken())
+                      .build());
         }
       }
       ComputationState state = computationMap.get(computationHeartbeatResponse.getComputationId());

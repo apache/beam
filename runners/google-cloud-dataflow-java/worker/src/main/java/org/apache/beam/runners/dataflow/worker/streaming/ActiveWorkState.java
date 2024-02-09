@@ -19,17 +19,19 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 
+import com.google.auto.value.AutoValue;
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
-import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -38,9 +40,9 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -73,11 +75,19 @@ public final class ActiveWorkState {
   @GuardedBy("this")
   private final WindmillStateCache.ForComputation computationStateCache;
 
+  /**
+   * Current budget that is being processed or queued on the user worker. Incremented when work is
+   * activated in {@link #activateWorkForKey(ShardedKey, Work)}, and decremented when work is
+   * completed in {@link #completeWorkAndGetNextWorkForKey(ShardedKey, WorkId)}.
+   */
+  private final AtomicReference<GetWorkBudget> activeGetWorkBudget;
+
   private ActiveWorkState(
       Map<ShardedKey, Deque<Work>> activeWork,
       WindmillStateCache.ForComputation computationStateCache) {
     this.activeWork = activeWork;
     this.computationStateCache = computationStateCache;
+    this.activeGetWorkBudget = new AtomicReference<>(GetWorkBudget.noBudget());
   }
 
   static ActiveWorkState create(WindmillStateCache.ForComputation computationStateCache) {
@@ -91,31 +101,231 @@ public final class ActiveWorkState {
     return new ActiveWorkState(activeWork, computationStateCache);
   }
 
-  private static Stream<KeyedGetDataRequest> makeHeartbeatKeyedGetDataRequests(
-      ShardedKey shardedKey, Collection<Work> workQueue, Instant refreshDeadline) {
-    return workQueue.stream()
-        .filter(work -> work.getStartTime().isBefore(refreshDeadline))
-        .map(
-            work ->
-                KeyedGetDataRequest.newBuilder()
-                    .setKey(shardedKey.key())
-                    .setShardingKey(shardedKey.shardingKey())
-                    .setWorkToken(work.getWorkItem().getWorkToken())
-                    .addAllLatencyAttribution(work.getLatencyAttributions())
-                    .build());
-  }
-
   private static String elapsedString(Instant start, Instant end) {
     Duration activeFor = new Duration(start, end);
     // Duration's toString always starts with "PT"; remove that here.
     return activeFor.toString().substring(2);
   }
 
-  private static void removeIfNotActive(
-      Work queuedWork, Iterator<Work> workIterator, Deque<Work> workQueue) {
-    // Check to see if the queuedWork is active. We only want to remove it if it is NOT currently
-    // active.
-    if (!queuedWork.equals(workQueue.peek())) workIterator.remove();
+  /**
+   * Activates {@link Work} for the {@link ShardedKey}. Outcome can be 1 of 4 {@link
+   * ActivateWorkResult}
+   *
+   * <p>1. EXECUTE: The {@link ShardedKey} has not been seen before, create a {@link Queue<Work>}
+   * for the key. The caller should execute the work.
+   *
+   * <p>2. DUPLICATE: A work queue for the {@link ShardedKey} exists, and the work already exists in
+   * the {@link ShardedKey}'s work queue, mark the {@link Work} as a duplicate.
+   *
+   * <p>3. QUEUED: A work queue for the {@link ShardedKey} exists, and the work is not in the key's
+   * work queue, OR the work in the work queue is stale, OR the work in the queue has a matching
+   * work token but different cache token, queue the work for later processing.
+   *
+   * <p>4. STALE: A work queue for the {@link ShardedKey} exists, and there is a queued {@link Work}
+   * with a greater workToken than the passed in {@link Work}.
+   */
+  synchronized ActivateWorkResult activateWorkForKey(ShardedKey shardedKey, Work work) {
+    Deque<Work> workQueue = activeWork.getOrDefault(shardedKey, new ArrayDeque<>());
+    // This key does not have any work queued up on it. Create one, insert Work, and mark the work
+    // to be executed.
+    if (!activeWork.containsKey(shardedKey) || workQueue.isEmpty()) {
+      workQueue.addLast(work);
+      activeWork.put(shardedKey, workQueue);
+      incrementActiveWorkBudget(work);
+      return ActivateWorkResult.EXECUTE;
+    }
+
+    // Check to see if we have this work token queued.
+    // This set is for adding remove-able WorkItems if they exist in the workQueue. We add them to
+    // this set since a ConcurrentModificationException will be thrown if we modify the workQueue
+    // and then resume iteration.
+    Set<WorkId> queuedWorkToRemove = new HashSet<>();
+    for (Work queuedWork : workQueue) {
+      if (queuedWork.id().equals(work.id())) {
+        return ActivateWorkResult.DUPLICATE;
+      }
+      if (queuedWork.id().cacheToken() == work.id().cacheToken()) {
+        if (work.id().workToken() > queuedWork.id().workToken()) {
+          queuedWorkToRemove.add(queuedWork.id());
+          // Continue here to possibly remove more non-active stale work that is queued.
+        } else {
+          return ActivateWorkResult.STALE;
+        }
+      }
+    }
+
+    workQueue.removeIf(
+        queuedWork ->
+            queuedWorkToRemove.contains(queuedWork.id()) && !queuedWork.equals(workQueue.peek()));
+
+    // Queue the work for later processing.
+    workQueue.addLast(work);
+    incrementActiveWorkBudget(work);
+    return ActivateWorkResult.QUEUED;
+  }
+
+  @AutoValue
+  public abstract static class FailedTokens {
+    public static Builder newBuilder() {
+      return new AutoValue_ActiveWorkState_FailedTokens.Builder();
+    }
+
+    public abstract long workToken();
+
+    public abstract long cacheToken();
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setWorkToken(long value);
+
+      public abstract Builder setCacheToken(long value);
+
+      public abstract FailedTokens build();
+    }
+  }
+
+  /**
+   * Fails any active work matching an element of the input Map.
+   *
+   * @param failedWork a map from sharding_key to tokens for the corresponding work.
+   */
+  synchronized void failWorkForKey(Map<Long, List<FailedTokens>> failedWork) {
+    // Note we can't construct a ShardedKey and look it up in activeWork directly since
+    // HeartbeatResponse doesn't include the user key.
+    for (Entry<ShardedKey, Deque<Work>> entry : activeWork.entrySet()) {
+      List<FailedTokens> failedTokens = failedWork.get(entry.getKey().shardingKey());
+      if (failedTokens == null) continue;
+      for (FailedTokens failedToken : failedTokens) {
+        for (Work queuedWork : entry.getValue()) {
+          WorkItem workItem = queuedWork.getWorkItem();
+          if (workItem.getWorkToken() == failedToken.workToken()
+              && workItem.getCacheToken() == failedToken.cacheToken()) {
+            LOG.debug(
+                "Failing work "
+                    + computationStateCache.getComputation()
+                    + " "
+                    + entry.getKey().shardingKey()
+                    + " "
+                    + failedToken.workToken()
+                    + " "
+                    + failedToken.cacheToken()
+                    + ". The work will be retried and is not lost.");
+            queuedWork.setFailed();
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  private void incrementActiveWorkBudget(Work work) {
+    activeGetWorkBudget.updateAndGet(
+        getWorkBudget -> getWorkBudget.apply(1, work.getWorkItem().getSerializedSize()));
+  }
+
+  private void decrementActiveWorkBudget(Work work) {
+    activeGetWorkBudget.updateAndGet(
+        getWorkBudget -> getWorkBudget.subtract(1, work.getWorkItem().getSerializedSize()));
+  }
+
+  /**
+   * Removes the complete work from the {@link Queue<Work>}. The {@link Work} is marked as completed
+   * if its workToken matches the one that is passed in. Returns the next {@link Work} in the {@link
+   * ShardedKey}'s work queue, if one exists else removes the {@link ShardedKey} from {@link
+   * #activeWork}.
+   */
+  synchronized Optional<Work> completeWorkAndGetNextWorkForKey(
+      ShardedKey shardedKey, WorkId workId) {
+    @Nullable Queue<Work> workQueue = activeWork.get(shardedKey);
+    if (workQueue == null) {
+      // Work may have been completed due to clearing of stuck commits.
+      LOG.warn("Unable to complete inactive work for key {} and token {}.", shardedKey, workId);
+      return Optional.empty();
+    }
+    removeCompletedWorkFromQueue(workQueue, shardedKey, workId);
+    return getNextWork(workQueue, shardedKey);
+  }
+
+  private synchronized void removeCompletedWorkFromQueue(
+      Queue<Work> workQueue, ShardedKey shardedKey, WorkId workId) {
+    // avoid Preconditions.checkState here to prevent eagerly evaluating the
+    // format string parameters for the error message.
+    Work completedWork = workQueue.peek();
+    if (completedWork == null) {
+      // Work may have been completed due to clearing of stuck commits.
+      LOG.warn("Active key {} without work, expected token {}", shardedKey, workId);
+      return;
+    }
+
+    if (!completedWork.id().equals(workId)) {
+      // Work may have been completed due to clearing of stuck commits.
+      LOG.warn(
+          "Unable to complete due to token mismatch for "
+              + "key {},"
+              + "expected work_id {}, "
+              + "actual work_id was {}",
+          shardedKey,
+          workId,
+          completedWork.id());
+      return;
+    }
+
+    // We consumed the matching work item.
+    workQueue.remove();
+    decrementActiveWorkBudget(completedWork);
+  }
+
+  private synchronized Optional<Work> getNextWork(Queue<Work> workQueue, ShardedKey shardedKey) {
+    Optional<Work> nextWork = Optional.ofNullable(workQueue.peek());
+    if (!nextWork.isPresent()) {
+      Preconditions.checkState(workQueue == activeWork.remove(shardedKey));
+    }
+
+    return nextWork;
+  }
+
+  /**
+   * Invalidates all {@link Work} that is in the {@link Work.State#COMMITTING} state which started
+   * before the stuckCommitDeadline.
+   */
+  synchronized void invalidateStuckCommits(
+      Instant stuckCommitDeadline, BiConsumer<ShardedKey, WorkId> shardedKeyAndWorkTokenConsumer) {
+    for (Entry<ShardedKey, WorkId> shardedKeyAndWorkId :
+        getStuckCommitsAt(stuckCommitDeadline).entrySet()) {
+      ShardedKey shardedKey = shardedKeyAndWorkId.getKey();
+      WorkId workId = shardedKeyAndWorkId.getValue();
+      computationStateCache.invalidate(shardedKey.key(), shardedKey.shardingKey());
+      shardedKeyAndWorkTokenConsumer.accept(shardedKey, workId);
+    }
+  }
+
+  private synchronized ImmutableMap<ShardedKey, WorkId> getStuckCommitsAt(
+      Instant stuckCommitDeadline) {
+    // Determine the stuck commit keys but complete them outside the loop iterating over
+    // activeWork as completeWork may delete the entry from activeWork.
+    ImmutableMap.Builder<ShardedKey, WorkId> stuckCommits = ImmutableMap.builder();
+    for (Entry<ShardedKey, Deque<Work>> entry : activeWork.entrySet()) {
+      ShardedKey shardedKey = entry.getKey();
+      @Nullable Work work = entry.getValue().peek();
+      if (work != null) {
+        if (work.isStuckCommittingAt(stuckCommitDeadline)) {
+          LOG.error(
+              "Detected key {} stuck in COMMITTING state since {}, completing it with error.",
+              shardedKey,
+              work.getStateStartTime());
+          stuckCommits.put(shardedKey, work.id());
+        }
+      }
+    }
+
+    return stuckCommits.build();
+  }
+
+  synchronized ImmutableList<HeartbeatRequest> getKeyHeartbeats(
+      Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
+    return activeWork.entrySet().stream()
+        .flatMap(entry -> toHeartbeatRequestStream(entry, refreshDeadline, sampler))
+        .collect(toImmutableList());
   }
 
   private static Stream<HeartbeatRequest> toHeartbeatRequestStream(
@@ -136,198 +346,18 @@ public final class ActiveWorkState {
                     .setWorkToken(work.getWorkItem().getWorkToken())
                     .setCacheToken(work.getWorkItem().getCacheToken())
                     .addAllLatencyAttribution(
-                        work.getLatencyAttributions(true, work.getLatencyTrackingId(), sampler))
+                        work.getLatencyAttributions(
+                            /* isHeartbeat= */ true, work.getLatencyTrackingId(), sampler))
                     .build());
   }
 
   /**
-   * Activates {@link Work} for the {@link ShardedKey}. Outcome can be 1 of 3 {@link
-   * ActivateWorkResult}
-   *
-   * <p>1. EXECUTE: The {@link ShardedKey} has not been seen before, create a {@link Queue<Work>}
-   * for the key. The caller should execute the work.
-   *
-   * <p>2. DUPLICATE: A work queue for the {@link ShardedKey} exists, and the work already exists in
-   * the {@link ShardedKey}'s work queue, mark the {@link Work} as a duplicate.
-   *
-   * <p>3. QUEUED: A work queue for the {@link ShardedKey} exists, and the work is not in the key's
-   * work queue, OR the work in the work queue is stale, OR the work in the queue has a matching
-   * work token but different cache token, queue the work for later processing.
-   *
-   * <p>4. STALE: A work queue for the {@link ShardedKey} exists, and there is a queued {@link Work}
-   * with a greater workToken than the passed in {@link Work}.
+   * Returns the current aggregate {@link GetWorkBudget} that is active on the user worker. Active
+   * means that the work is received from Windmill, being processed or queued to be processed in
+   * {@link ActiveWorkState}, and not committed back to Windmill.
    */
-  synchronized ActivateWorkResult activateWorkForKey(ShardedKey shardedKey, Work work) {
-    Deque<Work> workQueue = activeWork.getOrDefault(shardedKey, new ArrayDeque<>());
-
-    // This key does not have any work queued up on it. Create one, insert Work, and mark the work
-    // to be executed.
-    if (!activeWork.containsKey(shardedKey) || workQueue.isEmpty()) {
-      workQueue.addLast(work);
-      activeWork.put(shardedKey, workQueue);
-      return ActivateWorkResult.EXECUTE;
-    }
-
-    // Check to see if we have this work token queued.
-    Iterator<Work> workIterator = workQueue.iterator();
-    while (workIterator.hasNext()) {
-      Work queuedWork = workIterator.next();
-      if (queuedWork.id().equals(work.id())) {
-        return ActivateWorkResult.DUPLICATE;
-      } else if (queuedWork.id().cacheToken() == work.id().cacheToken()) {
-        if (work.id().workToken() <= queuedWork.id().workToken()) {
-          return ActivateWorkResult.STALE;
-        }
-
-        if (!queuedWork.equals(workQueue.peek())) {
-          // We only want to remove it if it is NOT currently active.
-          workIterator.remove();
-        }
-      }
-    }
-
-    // Queue the work for later processing.
-    workQueue.addLast(work);
-    return ActivateWorkResult.QUEUED;
-  }
-
-  /**
-   * Fails any active work matching an element of the input Map.
-   *
-   * @param failedWork a map from sharding_key to tokens for the corresponding work.
-   */
-  synchronized void failWorkForKey(Map<Long, List<FailedTokens>> failedWork) {
-    // Note we can't construct a ShardedKey and look it up in activeWork directly since
-    // HeartbeatResponse doesn't include the user key.
-    for (Entry<ShardedKey, Deque<Work>> entry : activeWork.entrySet()) {
-      List<FailedTokens> failedTokens = failedWork.get(entry.getKey().shardingKey());
-      if (failedTokens == null) continue;
-      for (FailedTokens failedToken : failedTokens) {
-        for (Work queuedWork : entry.getValue()) {
-          WorkItem workItem = queuedWork.getWorkItem();
-          if (workItem.getWorkToken() == failedToken.workToken
-              && workItem.getCacheToken() == failedToken.cacheToken) {
-            LOG.debug(
-                "Failing work "
-                    + computationStateCache.getComputation()
-                    + " "
-                    + entry.getKey().shardingKey()
-                    + " "
-                    + failedToken.workToken
-                    + " "
-                    + failedToken.cacheToken
-                    + ". The work will be retried and is not lost.");
-            queuedWork.setFailed();
-            break;
-          }
-        }
-      }
-    }
-  }
-
-  /**
-   * Removes the complete work from the {@link Queue<Work>}. The {@link Work} is marked as completed
-   * if its workToken matches the one that is passed in. Returns the next {@link Work} in the {@link
-   * ShardedKey}'s work queue, if one exists else removes the {@link ShardedKey} from {@link
-   * #activeWork}.
-   */
-  synchronized Optional<Work> completeWorkAndGetNextWorkForKey(
-      ShardedKey shardedKey, WorkId workId) {
-    @Nullable Queue<Work> workQueue = activeWork.get(shardedKey);
-    if (workQueue == null) {
-      // Work may have been completed due to clearing of stuck commits.
-      LOG.warn(
-          "Unable to complete inactive work for sharded_key {} and work_id {}.",
-          shardedKey,
-          workId);
-      return Optional.empty();
-    }
-    removeCompletedWorkFromQueue(workQueue, shardedKey, workId);
-    return getNextWork(workQueue, shardedKey);
-  }
-
-  private synchronized void removeCompletedWorkFromQueue(
-      Queue<Work> workQueue, ShardedKey shardedKey, WorkId workId) {
-    // avoid Preconditions.checkState here to prevent eagerly evaluating the
-    // format string parameters for the error message.
-    Work completedWork =
-        Optional.ofNullable(workQueue.peek())
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        String.format(
-                            "Active key %s without work, expected work_id= %s",
-                            shardedKey, workId)));
-
-    if (!completedWork.id().equals(workId)) {
-      // Work may have been completed due to clearing of stuck commits.
-      LOG.warn(
-          "Unable to complete due to token mismatch for "
-              + "key {},"
-              + "expected work_id {}, "
-              + "actual work_id was {}",
-          shardedKey,
-          workId,
-          completedWork.id());
-      return;
-    }
-
-    // We consumed the matching work item.
-    workQueue.remove();
-  }
-
-  private synchronized Optional<Work> getNextWork(Queue<Work> workQueue, ShardedKey shardedKey) {
-    Optional<Work> nextWork = Optional.ofNullable(workQueue.peek());
-    if (!nextWork.isPresent()) {
-      Preconditions.checkState(workQueue == activeWork.remove(shardedKey));
-    }
-    return nextWork;
-  }
-
-  /**
-   * Invalidates all {@link Work} that is in the {@link Work.State#COMMITTING} state which started
-   * before the stuckCommitDeadline.
-   */
-  synchronized void invalidateStuckCommits(
-      Instant stuckCommitDeadline, BiConsumer<ShardedKey, WorkId> shardedKeyAndWorkIdConsumer) {
-    for (Entry<ShardedKey, WorkId> shardedKeyAndWorkId :
-        getStuckCommitsAt(stuckCommitDeadline).entrySet()) {
-      ShardedKey shardedKey = shardedKeyAndWorkId.getKey();
-      WorkId workId = shardedKeyAndWorkId.getValue();
-      computationStateCache.invalidate(shardedKey.key(), shardedKey.shardingKey());
-      shardedKeyAndWorkIdConsumer.accept(shardedKey, workId);
-    }
-  }
-
-  private synchronized ImmutableMap<ShardedKey, WorkId> getStuckCommitsAt(
-      Instant stuckCommitDeadline) {
-    // Determine the stuck commit keys but complete them outside the loop iterating over
-    // activeWork as completeWork may delete the entry from activeWork.
-    ImmutableMap.Builder<ShardedKey, WorkId> stuckCommits = ImmutableMap.builder();
-    for (Entry<ShardedKey, Deque<Work>> entry : activeWork.entrySet()) {
-      ShardedKey shardedKey = entry.getKey();
-      @Nullable Work work = entry.getValue().peek();
-      if (work != null && work.isStuckCommittingAt(stuckCommitDeadline)) {
-        LOG.error(
-            "Detected key {} stuck in COMMITTING state since {}, completing it with error.",
-            shardedKey,
-            work.getStateStartTime());
-        stuckCommits.put(shardedKey, work.id());
-      }
-    }
-
-    return stuckCommits.build();
-  }
-
-  synchronized ImmutableList<HeartbeatRequest> getKeyHeartbeats(
-      Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
-    return activeWork.entrySet().stream()
-        .flatMap(entry -> toHeartbeatRequestStream(entry, refreshDeadline, sampler))
-        .flatMap(
-            entry ->
-                makeHeartbeatKeyedGetDataRequests(
-                    entry.getKey(), entry.getValue(), refreshDeadline))
-        .collect(toImmutableList());
+  GetWorkBudget currentActiveWorkBudget() {
+    return activeGetWorkBudget.get();
   }
 
   synchronized void printActiveWork(PrintWriter writer, Instant now) {
@@ -373,6 +403,11 @@ public final class ActiveWorkState {
       writer.println(commitsPendingCount - MAX_PRINTABLE_COMMIT_PENDING_KEYS);
       writer.println("<br>");
     }
+
+    writer.println("<br>");
+    writer.println("Current Active Work Budget: ");
+    writer.println(currentActiveWorkBudget());
+    writer.println("<br>");
   }
 
   enum ActivateWorkResult {
@@ -380,15 +415,5 @@ public final class ActiveWorkState {
     EXECUTE,
     DUPLICATE,
     STALE
-  }
-
-  public static final class FailedTokens {
-    public long workToken;
-    public long cacheToken;
-
-    public FailedTokens(long workToken, long cacheToken) {
-      this.workToken = workToken;
-      this.cacheToken = cacheToken;
-    }
   }
 }

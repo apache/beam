@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static org.apache.beam.sdk.io.jdbc.JdbcUtil.JDBC_DRIVER_MAP;
+
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -73,8 +76,15 @@ public class JdbcWriteSchemaTransformProvider
     }
 
     protected JdbcIO.DataSourceConfiguration dataSourceConfiguration() {
+      String driverClassName = config.getDriverClassName();
+
+      if (Strings.isNullOrEmpty(driverClassName)) {
+        driverClassName =
+            JDBC_DRIVER_MAP.get(Objects.requireNonNull(config.getJdbcType()).toLowerCase());
+      }
+
       JdbcIO.DataSourceConfiguration dsConfig =
-          JdbcIO.DataSourceConfiguration.create(config.getDriverClassName(), config.getJdbcUrl())
+          JdbcIO.DataSourceConfiguration.create(driverClassName, config.getJdbcUrl())
               .withUsername("".equals(config.getUsername()) ? null : config.getUsername())
               .withPassword("".equals(config.getPassword()) ? null : config.getPassword());
       String connectionProperties = config.getConnectionProperties();
@@ -162,7 +172,11 @@ public class JdbcWriteSchemaTransformProvider
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class JdbcWriteSchemaTransformConfiguration implements Serializable {
 
+    @Nullable
     public abstract String getDriverClassName();
+
+    @Nullable
+    public abstract String getJdbcType();
 
     public abstract String getJdbcUrl();
 
@@ -192,11 +206,23 @@ public class JdbcWriteSchemaTransformProvider
     public abstract String getDriverJars();
 
     public void validate() throws IllegalArgumentException {
-      if (Strings.isNullOrEmpty(getDriverClassName())) {
-        throw new IllegalArgumentException("JDBC Driver class name cannot be blank.");
-      }
       if (Strings.isNullOrEmpty(getJdbcUrl())) {
         throw new IllegalArgumentException("JDBC URL cannot be blank");
+      }
+
+      boolean driverClassNamePresent = !Strings.isNullOrEmpty(getDriverClassName());
+      boolean jdbcTypePresent = !Strings.isNullOrEmpty(getJdbcType());
+      if (driverClassNamePresent && jdbcTypePresent) {
+        throw new IllegalArgumentException(
+            "JDBC Driver class name and JDBC type are mutually exclusive configurations.");
+      }
+      if (!driverClassNamePresent && !jdbcTypePresent) {
+        throw new IllegalArgumentException(
+            "One of JDBC Driver class name or JDBC type must be specified.");
+      }
+      if (jdbcTypePresent
+          && !JDBC_DRIVER_MAP.containsKey(Objects.requireNonNull(getJdbcType()).toLowerCase())) {
+        throw new IllegalArgumentException("JDBC type must be one of " + JDBC_DRIVER_MAP.keySet());
       }
 
       boolean writeStatementPresent =
@@ -220,6 +246,8 @@ public class JdbcWriteSchemaTransformProvider
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setDriverClassName(String value);
+
+      public abstract Builder setJdbcType(String value);
 
       public abstract Builder setJdbcUrl(String value);
 
