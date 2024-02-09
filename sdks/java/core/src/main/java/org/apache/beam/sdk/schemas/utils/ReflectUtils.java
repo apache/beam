@@ -68,8 +68,8 @@ public class ReflectUtils {
   private static final Map<Class<?>, List<Field>> DECLARED_FIELDS = Maps.newConcurrentMap();
 
   /**
-   * Returns the list of non private/protected, non-static methods in the class, caching the
-   * results.
+   * Returns the list of non private/protected, non-static methods in the lexicographical order in
+   * the class, caching the results.
    */
   public static List<Method> getMethods(Class<?> clazz) {
     return DECLARED_METHODS.computeIfAbsent(
@@ -82,6 +82,7 @@ public class ReflectUtils {
               .filter(m -> !Modifier.isPrivate(m.getModifiers()))
               .filter(m -> !Modifier.isProtected(m.getModifiers()))
               .filter(m -> !Modifier.isStatic(m.getModifiers()))
+              .sorted((m1, m2) -> m1.getName().compareTo(m2.getName()))
               .collect(Collectors.toList());
         });
   }
