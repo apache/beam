@@ -1410,7 +1410,11 @@ public class StreamingDataflowWorker {
           .forComputation(state.getComputationId())
           .invalidate(request.getKey(), request.getShardingKey());
       state.completeWorkAndScheduleNextWorkForKey(
-          ShardedKey.create(request.getKey(), request.getShardingKey()), request.getWorkToken());
+          ShardedKey.create(request.getKey(), request.getShardingKey()),
+          WorkId.builder()
+              .setWorkToken(request.getWorkToken())
+              .setCacheToken(request.getCacheToken())
+              .build());
       return true;
     }
 

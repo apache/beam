@@ -94,7 +94,7 @@ public class ActiveWorkStateTest {
   public void testActivateWorkForKey_EXECUTE_unknownKey() {
     ActivateWorkResult activateWorkResult =
         activeWorkState.activateWorkForKey(
-            shardedKey("someKey", 1L), createWork(createWorkItem(1L)));
+            shardedKey("someKey", 1L), createWork(createWorkItem(1L, 1L)));
 
     assertEquals(ActivateWorkResult.EXECUTE, activateWorkResult);
   }
@@ -219,8 +219,8 @@ public class ActiveWorkStateTest {
   @Test
   public void testCurrentActiveWorkBudget_correctlyAggregatesActiveWorkBudget_oneShardKey() {
     ShardedKey shardedKey = shardedKey("someKey", 1L);
-    Work work1 = createWork(createWorkItem(1L));
-    Work work2 = createWork(createWorkItem(2L));
+    Work work1 = createWork(createWorkItem(1L, 1L));
+    Work work2 = createWork(createWorkItem(2L, 2L));
 
     activeWorkState.activateWorkForKey(shardedKey, work1);
     activeWorkState.activateWorkForKey(shardedKey, work2);
@@ -235,7 +235,7 @@ public class ActiveWorkStateTest {
     assertThat(activeWorkState.currentActiveWorkBudget()).isEqualTo(expectedActiveBudget1);
 
     activeWorkState.completeWorkAndGetNextWorkForKey(
-        shardedKey, work1.getWorkItem().getWorkToken());
+        shardedKey, work1.id());
 
     GetWorkBudget expectedActiveBudget2 =
         GetWorkBudget.builder()
@@ -249,13 +249,13 @@ public class ActiveWorkStateTest {
   @Test
   public void testCurrentActiveWorkBudget_correctlyAggregatesActiveWorkBudget_whenWorkCompleted() {
     ShardedKey shardedKey = shardedKey("someKey", 1L);
-    Work work1 = createWork(createWorkItem(1L));
-    Work work2 = createWork(createWorkItem(2L));
+    Work work1 = createWork(createWorkItem(1L, 1L));
+    Work work2 = createWork(createWorkItem(2L, 2L));
 
     activeWorkState.activateWorkForKey(shardedKey, work1);
     activeWorkState.activateWorkForKey(shardedKey, work2);
     activeWorkState.completeWorkAndGetNextWorkForKey(
-        shardedKey, work1.getWorkItem().getWorkToken());
+        shardedKey, work1.id());
 
     GetWorkBudget expectedActiveBudget =
         GetWorkBudget.builder()
@@ -270,8 +270,8 @@ public class ActiveWorkStateTest {
   public void testCurrentActiveWorkBudget_correctlyAggregatesActiveWorkBudget_multipleShardKeys() {
     ShardedKey shardedKey1 = shardedKey("someKey", 1L);
     ShardedKey shardedKey2 = shardedKey("someKey", 2L);
-    Work work1 = createWork(createWorkItem(1L));
-    Work work2 = createWork(createWorkItem(2L));
+    Work work1 = createWork(createWorkItem(1L, 1L));
+    Work work2 = createWork(createWorkItem(2L, 2L));
 
     activeWorkState.activateWorkForKey(shardedKey1, work1);
     activeWorkState.activateWorkForKey(shardedKey2, work2);
@@ -327,11 +327,14 @@ public class ActiveWorkStateTest {
         activeWorkState.activateWorkForKey(shardedKey, secondWork);
 
     assertEquals(ActivateWorkResult.QUEUED, activateWorkResult);
-    assertFalse(readOnlyActiveWork.get(shardedKey).contains(firstWork));
     assertTrue(readOnlyActiveWork.get(shardedKey).contains(secondWork));
 
     Optional<Work> nextWork =
         activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, differentWorkTokenWork.id());
+    assertTrue(nextWork.isPresent());
+    assertSame(firstWork, nextWork.get());
+    nextWork =
+        activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, firstWork.id());
     assertTrue(nextWork.isPresent());
     assertSame(secondWork, nextWork.get());
   }
