@@ -90,7 +90,8 @@ applyJavaNature(
                 "org/slf4j/impl/**"
         ],
         generatedClassPatterns: [
-                /^org\.apache\.beam\.runners\.dataflow\.worker\.windmill.*/
+                /^org\.apache\.beam\.runners\.dataflow\.worker\.windmill.*/,
+                /^org\.apache\.beam\.runners\.dataflow\.worker\..*AutoBuilder.*/,
         ],
         shadowClosure: {
             // Each included dependency must also include all of its necessary transitive dependencies

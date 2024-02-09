@@ -431,8 +431,11 @@ public class StreamingDataflowWorker {
     this.windmillServer = options.getWindmillServerStub();
     this.windmillServer.setProcessHeartbeatResponses(this::handleHeartbeatResponses);
     this.metricTrackingWindmillServer =
-        new MetricTrackingWindmillServerStub(windmillServer, memoryMonitor, windmillServiceEnabled);
-    this.metricTrackingWindmillServer.start();
+        MetricTrackingWindmillServerStub.builder(windmillServer, memoryMonitor)
+            .setUseStreamingRequests(windmillServiceEnabled)
+            .setUseSeparateHeartbeatStreams(options.getUseSeparateWindmillHeartbeatStreams())
+            .setNumGetDataStreams(options.getWindmillGetDataStreamCount())
+            .build();
     this.sideInputStateFetcher = new SideInputStateFetcher(metricTrackingWindmillServer, options);
     this.clientId = clientIdGenerator.nextLong();
 
@@ -1970,8 +1973,10 @@ public class StreamingDataflowWorker {
           failedWork
               .computeIfAbsent(heartbeatResponse.getShardingKey(), key -> new ArrayList<>())
               .add(
-                  new FailedTokens(
-                      heartbeatResponse.getWorkToken(), heartbeatResponse.getCacheToken()));
+                  FailedTokens.newBuilder()
+                      .setWorkToken(heartbeatResponse.getWorkToken())
+                      .setCacheToken(heartbeatResponse.getCacheToken())
+                      .build());
         }
       }
       ComputationState state = computationMap.get(computationHeartbeatResponse.getComputationId());
