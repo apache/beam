@@ -29,6 +29,7 @@ import java.util.IntSummaryStatistics;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
@@ -338,12 +339,14 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       return this.workItemId;
     }
 
-    public Optional<ActiveMessageMetadata> getActiveMessageMetadata() {
+    public synchronized Optional<ActiveMessageMetadata> getActiveMessageMetadata() {
       return Optional.ofNullable(activeMessageMetadata);
     }
 
     public synchronized Map<String, IntSummaryStatistics> getProcessingTimesByStepCopy() {
-      Map<String, IntSummaryStatistics> processingTimesCopy = new HashMap<>(processingTimesByStep);
+      Map<String, IntSummaryStatistics> processingTimesCopy =
+          processingTimesByStep.entrySet().stream()
+              .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
       return processingTimesCopy;
     }
 
@@ -352,7 +355,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
      * processing times map. Sets the activeMessageMetadata to null after the entry has been
      * recorded.
      */
-    private void recordActiveMessageInProcessingTimesMap() {
+    private synchronized void recordActiveMessageInProcessingTimesMap() {
       if (this.activeMessageMetadata == null) {
         return;
       }
