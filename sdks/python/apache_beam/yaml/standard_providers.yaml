@@ -52,6 +52,11 @@
      Flatten: 'beam:schematransform:org.apache.beam:yaml:flatten:v1'
      LogForTesting: 'beam:schematransform:org.apache.beam:yaml:log_for_testing:v1'
 
+- type: 'python'
+  config: {}
+  transforms:
+    MLTransform: 'apache_beam.yaml.yaml_ml.ml_transform'
+
 - type: renaming
   transforms:
     'MapToFields-java': 'MapToFields-java'
