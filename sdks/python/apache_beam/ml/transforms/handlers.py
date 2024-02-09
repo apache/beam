@@ -92,7 +92,7 @@ class DataCoder:
       coder=coders.registry.get_coder(Any),
   ):
     """
-    Uses PickleCoder to encode/decode the dictonaries.
+    Encodes/decodes items of a dictionary into a single element.
     Args:
       exclude_columns: list of columns to exclude from the encoding.
     """
