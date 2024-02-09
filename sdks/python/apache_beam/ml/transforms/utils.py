@@ -32,7 +32,7 @@ def download_artifacts_from_gcs(bucket_name, prefix, local_path):
   """Downloads artifacts from GCS to the local file system.
     Args:
         bucket_name: The name of the GCS bucket to download from.
-        folder_name: The name of the folder to download.
+        prefix: Prefix of GCS objects to download.
         local_path: The local path to download the folder to.
   """
   client = Client()
