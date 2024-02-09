@@ -152,20 +152,18 @@ public class BeamFnDataInboundObserverTest {
         executor.submit(
             () -> {
               observer.accept(dataWith("ABC"));
+              synchronized (this) {
+                isReady.set(true);
+                notify();
+              }
               assertThrows(
                   BeamFnDataInboundObserver.CloseException.class,
                   () -> {
-                    {
-                      synchronized (this) {
-                        isReady.set(true);
-                        notify();
-                      }
-                      while (true) {
-                        // keep trying to send messages since the queue buffers messages and the
-                        // consumer
-                        // may have not yet noticed the bad state.
-                        observer.accept(dataWith("ABC"));
-                      }
+                    while (true) {
+                      // keep trying to send messages since the queue buffers messages and the
+                      // consumer
+                      // may have not yet noticed the bad state.
+                      observer.accept(dataWith("ABC"));
                     }
                   });
               return null;
