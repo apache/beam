@@ -988,7 +988,7 @@ public class StreamingDataflowWorker {
 
     StageInfo stageInfo =
         stageInfoMap.computeIfAbsent(
-            mapTask.getStageName(), s -> StageInfo.create(s, mapTask.getSystemName(), this));
+            mapTask.getStageName(), s -> StageInfo.create(s, mapTask.getSystemName()));
 
     ExecutionState executionState = null;
     String counterName = "dataflow_source_bytes_processed-" + mapTask.getSystemName();
