@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -146,6 +147,7 @@ public class BeamFnDataInboundObserverTest {
             Arrays.asList(DataEndpoint.create(TRANSFORM_ID, CODER, (value) -> {})),
             Collections.emptyList());
 
+    AtomicBoolean isReady = new AtomicBoolean(false);
     Future<?> future =
         executor.submit(
             () -> {
@@ -153,11 +155,17 @@ public class BeamFnDataInboundObserverTest {
               assertThrows(
                   BeamFnDataInboundObserver.CloseException.class,
                   () -> {
-                    while (true) {
-                      // keep trying to send messages since the queue buffers messages and the
-                      // consumer
-                      // may have not yet noticed the bad state.
-                      observer.accept(dataWith("ABC"));
+                    {
+                      synchronized (this) {
+                        isReady.set(true);
+                        notify();
+                      }
+                      while (true) {
+                        // keep trying to send messages since the queue buffers messages and the
+                        // consumer
+                        // may have not yet noticed the bad state.
+                        observer.accept(dataWith("ABC"));
+                      }
                     }
                   });
               return null;
@@ -165,7 +173,11 @@ public class BeamFnDataInboundObserverTest {
     Future<?> future2 =
         executor.submit(
             () -> {
-              Thread.sleep(500); // give the previous future some time to reach the inf while loop
+              synchronized (this) {
+                while (!isReady.get()) {
+                  wait();
+                }
+              }
               observer.close();
               return null;
             });
