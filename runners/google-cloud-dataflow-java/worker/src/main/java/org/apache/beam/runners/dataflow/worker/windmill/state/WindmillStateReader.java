@@ -113,7 +113,6 @@ public class WindmillStateReader {
 
   public static final long MAX_CONTINUATION_KEY_BYTES = 72L << 20; // 72MB
   @VisibleForTesting final ConcurrentLinkedQueue<StateTag<?>> pendingLookups;
-  private final String computation;
   private final ByteString key;
   private final long shardingKey;
   private final long workToken;
@@ -128,14 +127,12 @@ public class WindmillStateReader {
 
   public WindmillStateReader(
       Function<KeyedGetDataRequest, Optional<KeyedGetDataResponse>> fetchStateFromWindmillFn,
-      String computation,
       ByteString key,
       long shardingKey,
       long workToken,
       Supplier<AutoCloseable> readWrapperSupplier,
       Supplier<Boolean> workItemIsFailed) {
     this.fetchStateFromWindmillFn = fetchStateFromWindmillFn;
-    this.computation = computation;
     this.key = key;
     this.shardingKey = shardingKey;
     this.workToken = workToken;
@@ -148,18 +145,11 @@ public class WindmillStateReader {
   @VisibleForTesting
   static WindmillStateReader forTesting(
       Function<KeyedGetDataRequest, Optional<KeyedGetDataResponse>> fetchStateFromWindmillFn,
-      String computation,
       ByteString key,
       long shardingKey,
       long workToken) {
     return new WindmillStateReader(
-        fetchStateFromWindmillFn,
-        computation,
-        key,
-        shardingKey,
-        workToken,
-        () -> null,
-        () -> Boolean.FALSE);
+        fetchStateFromWindmillFn, key, shardingKey, workToken, () -> null, () -> Boolean.FALSE);
   }
 
   private <FutureT> Future<FutureT> stateFuture(StateTag<?> stateTag, @Nullable Coder<?> coder) {

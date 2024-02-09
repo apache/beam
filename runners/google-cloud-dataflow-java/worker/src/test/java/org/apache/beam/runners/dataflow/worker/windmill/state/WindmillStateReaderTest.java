@@ -107,7 +107,6 @@ public class WindmillStateReaderTest {
     underTest =
         WindmillStateReader.forTesting(
             (request) -> Optional.ofNullable(mockWindmill.getStateData(COMPUTATION, request)),
-            COMPUTATION,
             DATA_KEY,
             SHARDING_KEY,
             WORK_TOKEN);

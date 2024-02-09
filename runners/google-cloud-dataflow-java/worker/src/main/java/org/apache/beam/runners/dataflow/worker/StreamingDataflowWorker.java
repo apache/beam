@@ -1161,7 +1161,6 @@ public class StreamingDataflowWorker {
               (request) ->
                   Optional.ofNullable(
                       metricTrackingWindmillServer.getStateData(computationId, request)),
-              computationId,
               key,
               workItem.getShardingKey(),
               workItem.getWorkToken(),
