@@ -337,7 +337,7 @@ class WriteToPubSub(PTransform):
     """Initializes ``WriteToPubSub``.
 
     Args:
-      topic: Cloud Pub/Sub topic in the form "/projects/<project>/topics/<topic>".
+      topic: Cloud Pub/Sub topic in the form "projects/<project>/topics/<topic>".
       with_attributes:
         True - input elements will be :class:`~PubsubMessage` objects.
         False - input elements will be of type ``bytes`` (message
