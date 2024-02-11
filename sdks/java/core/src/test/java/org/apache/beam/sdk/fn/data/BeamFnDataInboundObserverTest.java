@@ -152,9 +152,9 @@ public class BeamFnDataInboundObserverTest {
         executor.submit(
             () -> {
               observer.accept(dataWith("ABC"));
-              synchronized (this) {
+              synchronized (isReady) {
                 isReady.set(true);
-                notify();
+                isReady.notify();
               }
               assertThrows(
                   BeamFnDataInboundObserver.CloseException.class,
@@ -171,9 +171,9 @@ public class BeamFnDataInboundObserverTest {
     Future<?> future2 =
         executor.submit(
             () -> {
-              synchronized (this) {
+              synchronized (isReady) {
                 while (!isReady.get()) {
-                  wait();
+                  isReady.wait();
                 }
               }
               observer.close();
