@@ -81,8 +81,12 @@ public class WorkerPipelineOptionsFactory {
     }
 
     // Remove impersonate information from workers
-    // More details: https://cloud.google.com/dataflow/docs/reference/pipeline-options#security_and_networking
-    if (options.getImpersonateServiceAccount()!=null) {
+    // More details:
+    // https://cloud.google.com/dataflow/docs/reference/pipeline-options#security_and_networking
+    if (options.getImpersonateServiceAccount() != null) {
+      LOG.info(
+          "Remove the impersonateServiceAccount pipeline option ({}) when starting the Worker harness.",
+          options.getImpersonateServiceAccount());
       options.setImpersonateServiceAccount(null);
     }
 
