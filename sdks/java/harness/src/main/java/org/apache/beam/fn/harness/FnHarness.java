@@ -17,6 +17,9 @@
  */
 package org.apache.beam.fn.harness;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -107,6 +110,28 @@ public class FnHarness {
     return apiServiceDescriptorBuilder.build();
   }
 
+
+  public static String removeNestedKey(String jsonString, String keyToRemove) throws Exception {
+    ObjectMapper mapper = new ObjectMapper();
+    JsonNode rootNode = mapper.readTree(jsonString);
+
+    removeKeyRecursively(rootNode, keyToRemove);
+
+    return mapper.writeValueAsString(rootNode);
+  }
+
+  private static void removeKeyRecursively(JsonNode node, String keyToRemove) {
+    if (node.isObject()) {
+      node.fields().forEachRemaining(field -> {
+        if (field.getKey().equals(keyToRemove)) {
+          ((com.fasterxml.jackson.databind.node.ObjectNode) node).remove(keyToRemove);
+        } else {
+          removeKeyRecursively(field.getValue(), keyToRemove);
+        }
+      });
+    }
+  }
+
   public static void main(String[] args) throws Exception {
     main(System::getenv);
   }
@@ -144,6 +169,11 @@ public class FnHarness {
     }
 
     System.out.format("Pipeline options %s%n", pipelineOptionsJson);
+
+    System.out.format("Pipeline options %s%n", pipelineOptionsJson);
+    pipelineOptionsJson = removeNestedKey(pipelineOptionsJson, "impersonateServiceAccount");
+    System.out.format("New Pipeline options %s%n", pipelineOptionsJson);
+
     PipelineOptions options = PipelineOptionsTranslation.fromJson(pipelineOptionsJson);
 
     Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor =
