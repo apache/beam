@@ -30,6 +30,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
+import java.util.Iterator;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler;
