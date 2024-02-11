@@ -452,7 +452,7 @@ createCrossLanguageValidatesRunnerTask(
     "--timeout=4500",
     "--log-cli-level=INFO",
   ],
-  goScrptOptions: [
+  goScriptOptions: [
     "--runner dataflow",
     "--project ${dataflowProject}",
     "--dataflow_project ${dataflowProject}",
