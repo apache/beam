@@ -270,10 +270,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       missing.add("appName");
     }
 
-    LOG.info("ImpersonateServiceAccount is {}", dataflowOptions.getImpersonateServiceAccount());
-
-    dataflowOptions.setImpersonateServiceAccount(null);
-
     if (Strings.isNullOrEmpty(dataflowOptions.getRegion())
         && isServiceEndpoint(dataflowOptions.getDataflowEndpoint())) {
       missing.add("region");

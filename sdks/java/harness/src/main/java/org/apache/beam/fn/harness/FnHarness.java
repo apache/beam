@@ -174,7 +174,6 @@ public class FnHarness {
 
     System.out.format("Pipeline options %s%n", pipelineOptionsJson);
     pipelineOptionsJson = removeNestedKey(pipelineOptionsJson, "impersonateServiceAccount");
-    System.out.format("New Pipeline options %s%n", pipelineOptionsJson);
 
     PipelineOptions options = PipelineOptionsTranslation.fromJson(pipelineOptionsJson);
 
