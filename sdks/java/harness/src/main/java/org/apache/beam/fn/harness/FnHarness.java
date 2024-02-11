@@ -19,19 +19,18 @@ package org.apache.beam.fn.harness;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
-import java.util.Iterator;
-import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler;
@@ -111,7 +110,6 @@ public class FnHarness {
     TextFormat.merge(descriptor, apiServiceDescriptorBuilder);
     return apiServiceDescriptorBuilder.build();
   }
-
 
   public static String removeNestedKey(String jsonString, String keyToRemove) throws Exception {
     ObjectMapper mapper = new ObjectMapper();
