@@ -648,21 +648,9 @@ tasks.register("checkSetup") {
   dependsOn(":examples:java:wordCount")
 }
 
-// Generates external transform config and wrappers.
-// Currently only supports Python wrappers
-project.tasks.register("generateExternalTransformWrappers") {
-  dependsOn(":sdks:python:sdist")
-  // Need to build all expansion services listed in sdks/python/standard_expansion_services.yaml
-  dependsOn(":sdks:java:io:google-cloud-platform:expansion-service:build")
-  dependsOn(":sdks:java:io:expansion-service:build")
-
-  doLast {
-    exec {
-      val pythonDir = project(":sdks:python").projectDir
-      executable("python")
-      args("$pythonDir/gen_xlang_wrappers.py", "--cleanup")
-    }
-  }
+// Generates external transform config
+project.tasks.register("generateExternalTransformsConfig") {
+  dependsOn(":sdks:python:generateExternalTransformsConfig")
 }
 
 // Configure the release plugin to do only local work; the release manager determines what, if

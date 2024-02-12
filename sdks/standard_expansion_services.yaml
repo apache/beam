@@ -27,8 +27,8 @@
 # Transform identifiers listed in the `skip_transforms` field will be skipped.
 #
 # Any new gradle targets added here should also be added to:
+# - sdks/python/build.gradle (as a dependency in the 'generateExternalTransformsConfig' task)
 # - sdks/python/test-suites/xlang/build.gradle (look for 'servicesToGenerateFrom')
-# - build.gradle.kts (as a dependency in the 'generateExternalTransformWrappers' task)
 #
 # Refer to sdks/python/gen_xlang_wrappers.py for more info.
 

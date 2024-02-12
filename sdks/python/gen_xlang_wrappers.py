@@ -37,8 +37,6 @@ import yaml
 from gen_protos import LICENSE_HEADER
 from gen_protos import PROJECT_ROOT
 from gen_protos import PYTHON_SDK_ROOT
-from jinja2 import Environment
-from jinja2 import FileSystemLoader
 
 SUPPORTED_SDK_DESTINATIONS = ['python']
 PYTHON_SUFFIX = "_et.py"
@@ -267,6 +265,9 @@ def get_wrappers_from_transform_configs(config_file) -> Dict[str, List[str]]:
 
   Returns the generated classes, grouped by destination.
   """
+  from jinja2 import Environment
+  from jinja2 import FileSystemLoader
+
   env = Environment(loader=FileSystemLoader(PYTHON_SDK_ROOT))
   python_wrapper_template = env.get_template("python_xlang_wrapper.template")
 
@@ -364,6 +365,7 @@ def delete_generated_files(root_dir):
   deleted_files = os.listdir(root_dir)
   for file in deleted_files:
     if file == '__init__.py':
+      deleted_files.remove(file)
       continue
     path = os.path.join(root_dir, file)
     if os.path.isfile(path) or os.path.islink(path):
@@ -373,7 +375,7 @@ def delete_generated_files(root_dir):
   logging.info("Successfully deleted files: %s", deleted_files)
 
 
-def run_script(cleanup, input_expansion_services, transforms_config_source):
+def run_script(cleanup, generate_config_only, input_expansion_services, transforms_config_source):
   # Cleanup first if requested. This is needed to remove outdated wrappers.
   if cleanup:
     delete_generated_files(PY_WRAPPER_OUTPUT_DIR)
@@ -394,6 +396,9 @@ def run_script(cleanup, input_expansion_services, transforms_config_source):
           "Could not find the provided transforms config "
           f"source: {transforms_config_source}")
 
+  if generate_config_only:
+    return
+
   wrappers_grouped_by_destination = get_wrappers_from_transform_configs(
       transforms_config_source)
 
@@ -407,6 +412,12 @@ if __name__ == '__main__':
       dest='cleanup',
       action='store_true',
       help="Whether to cleanup existing generated wrappers first.")
+  parser.add_argument(
+    '--generate-config-only',
+    dest='generate_config_only',
+    action='store_true',
+    help="If set, will generate the transform config only without generating"
+         "any wrappers.")
   parser.add_argument(
       '--input-expansion-services',
       dest='input_expansion_services',
@@ -427,5 +438,6 @@ if __name__ == '__main__':
 
   run_script(
       args.cleanup,
+      args.generate_config_only,
       args.input_expansion_services,
       args.transforms_config_source)
