@@ -2901,9 +2901,11 @@ class BeamModulePlugin implements Plugin<Project> {
           dependsOn ":sdks:python:test-suites:dataflow:py${project.ext.pythonVersion.replace('.', '')}:initializeForDataflowJob"
         }
 
+        System.err.println '************ xyz123 running script run_transform_service.sh.'
         // setup test env
         executable 'sh'
         args '-c', "$pythonDir/scripts/run_transform_service.sh stop $serviceArgs && $pythonDir/scripts/run_transform_service.sh start $serviceArgs"
+        System.err.println '************ xyz123 DONE running script run_transform_service.sh.'
       }
 
       if (config.needsSdkLocation) {
