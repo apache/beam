@@ -32,7 +32,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -118,7 +117,7 @@ public class GrpcWindmillServerTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServerTest.class);
   private static final int STREAM_CHUNK_SIZE = 2 << 20;
-  private final long clientId = new Random().nextLong();
+  private final long clientId = 10L;
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   private Server server;
   private GrpcWindmillServer client;

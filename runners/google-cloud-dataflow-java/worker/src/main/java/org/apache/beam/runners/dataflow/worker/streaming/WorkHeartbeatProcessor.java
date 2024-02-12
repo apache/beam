@@ -30,9 +30,11 @@ import org.apache.beam.sdk.annotations.Internal;
 
 @Internal
 public final class WorkHeartbeatProcessor implements Consumer<List<ComputationHeartbeatResponse>> {
+  /** Fetches a {@link ComputationState} for a computationId. */
   private final Function<String, Optional<ComputationState>> computationStateFetcher;
 
   public WorkHeartbeatProcessor(
+      /* Fetches a {@link ComputationState} for a String computationId. */
       Function<String, Optional<ComputationState>> computationStateFetcher) {
     this.computationStateFetcher = computationStateFetcher;
   }

@@ -553,13 +553,11 @@ public class StreamingDataflowWorker {
   }
 
   public static StreamingDataflowWorker fromOptions(StreamingDataflowWorkerOptions options) {
-    StreamingDataflowWorkerOptions streamingOptions =
-        options.as(StreamingDataflowWorkerOptions.class);
     ConcurrentMap<String, ComputationState> computationMap = new ConcurrentHashMap<>();
     long clientId = clientIdGenerator.nextLong();
     return new StreamingDataflowWorker(
         createWindmillServerStub(
-            streamingOptions,
+            options,
             clientId,
             new WorkHeartbeatProcessor(
                 computationId -> Optional.ofNullable(computationMap.get(computationId)))),
@@ -568,7 +566,7 @@ public class StreamingDataflowWorker {
         Collections.emptyList(),
         IntrinsicMapTaskExecutorFactory.defaultFactory(),
         new DataflowWorkUnitClient(options, LOG),
-        streamingOptions,
+        options,
         true,
         new HotKeyLogger(),
         Instant::now,
@@ -1678,7 +1676,6 @@ public class StreamingDataflowWorker {
   @SuppressWarnings("FutureReturnValueIgnored")
   private void schedulePeriodicGlobalConfigRequests() {
     Preconditions.checkState(windmillServiceEnabled);
-
     if (!windmillServer.isReady()) {
       // Get the initial global configuration. This will initialize the windmillServer stub.
       while (true) {
