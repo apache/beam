@@ -164,7 +164,7 @@ public class ExternalTest implements Serializable {
     private final TupleTag<Integer> odd = new TupleTag<Integer>("odd") {};
 
     @Override
-    public Map<String, ExpansionService.TransformProvider> knownTransforms() {
+    public Map<String, TransformProvider> knownTransforms() {
       return ImmutableMap.of(
           TEST_URN_SIMPLE,
           (spec, options) -> MapElements.into(TypeDescriptors.strings()).via((String x) -> x + x),

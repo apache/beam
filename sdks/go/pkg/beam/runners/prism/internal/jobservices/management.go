@@ -17,6 +17,7 @@ package jobservices
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -28,6 +29,11 @@ import (
 	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+var (
+	// ErrCancel represents a pipeline cancellation by the user.
+	ErrCancel = errors.New("pipeline canceled")
 )
 
 func (s *Server) nextId() string {
@@ -212,6 +218,31 @@ func (s *Server) Run(ctx context.Context, req *jobpb.RunJobRequest) (*jobpb.RunJ
 
 	return &jobpb.RunJobResponse{
 		JobId: job.key,
+	}, nil
+}
+
+// Cancel a Job requested by the CancelJobRequest for jobs not in an already terminal state.
+// Otherwise, returns nil if Job does not exist or the Job's existing state as part of the CancelJobResponse.
+func (s *Server) Cancel(_ context.Context, req *jobpb.CancelJobRequest) (*jobpb.CancelJobResponse, error) {
+	s.mu.Lock()
+	job, ok := s.jobs[req.GetJobId()]
+	s.mu.Unlock()
+	if !ok {
+		return nil, nil
+	}
+	state := job.state.Load().(jobpb.JobState_Enum)
+	switch state {
+	case jobpb.JobState_CANCELLED, jobpb.JobState_DONE, jobpb.JobState_DRAINED, jobpb.JobState_UPDATED, jobpb.JobState_FAILED:
+		// Already at terminal state.
+		return &jobpb.CancelJobResponse{
+			State: state,
+		}, nil
+	}
+	job.SendMsg("canceling " + job.String())
+	job.Canceling()
+	job.CancelFn(ErrCancel)
+	return &jobpb.CancelJobResponse{
+		State: jobpb.JobState_CANCELLING,
 	}, nil
 }
 
