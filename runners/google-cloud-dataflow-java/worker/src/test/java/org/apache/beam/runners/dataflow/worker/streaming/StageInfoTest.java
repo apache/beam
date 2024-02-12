@@ -28,7 +28,7 @@ import org.junit.Test;
 public class StageInfoTest {
   @Test
   public void testTranslateKnownPerWorkerCounters() throws Exception {
-    StageInfo stageInfo = StageInfo.create("user_name", "system_name", null);
+    StageInfo stageInfo = StageInfo.create("user_name", "system_name");
     StreamingStepMetricsContainer metricsContainer =
         stageInfo.metricsContainerRegistry().getContainer("s1");
     MetricsEnvironment.setCurrentContainer(metricsContainer);
