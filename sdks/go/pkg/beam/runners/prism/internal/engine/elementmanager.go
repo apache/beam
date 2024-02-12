@@ -231,7 +231,6 @@ func (em *ElementManager) AddTestStream(id string, tagToPCol map[string]string) 
 	impl := &testStreamImpl{em: em}
 	impl.initHandler(id)
 	impl.TagsToPCollections(tagToPCol)
-	// em.addRefreshes(singleSet(id))
 	return impl
 }
 
