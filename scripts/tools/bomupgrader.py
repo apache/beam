@@ -27,13 +27,19 @@ Specifically, it
 1. preprocessing BeamModulePlugin.groovy to decide the dependencies need to sync
 2. generate an empty Maven project to fetch the exact target versions to change
 3. Write back to BeamModulePlugin.groovy
+4. Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
 
 There are few reasons we need to declare the version numbers:
 1. Sync the dependency that not included in GCP-BOM with those included with BOM
   For example, "com.google.cloud:google-cloud-spanner" does while "com.google.cloud:google-cloud-spanner:():test" doesn't
 2. There are Beam artifacts not depending on GCP-BOM but used dependency managed
   by GCP-BOM.
+
+Refer to https://github.com/googleapis/java-cloud-bom/tags for the dependency
+versions managed by gcp-cloud-bom
 """
+
+# To format: yapf --style sdks/python/setup.cfg --in-place scripts/tools/bomupgrader.py
 
 
 class BeamModulePluginProcessor:
@@ -51,20 +57,21 @@ class BeamModulePluginProcessor:
   # dependencies managed by GCP-BOM that used the dependencies in KNOWN_DEPS
   # So we need to add it to the example project to get the version to sync
   OTHER_CONSTRANTS = [
-    "com.google.cloud:google-cloud-bigquery"  # uses arrow
+      "com.google.cloud:google-cloud-bigquery"  # uses arrow
   ]
 
-  # e.g. // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
+  # TODO: the logic can be generalized to support multiple BOM
   ANCHOR = re.compile(
-      r'^\s*// Try to keep .+ consistent .+ google_cloud_platform_libraries_bom\s*$'
+      r'\s*//\s*\[bomupgrader\] determined by: (\S+), consistent with: google_cloud_platform_libraries_bom'
   )
   # e.g.  def grpc_version = "1.61.0"
-  VERSION_STRING = re.compile(
-      r'^\s*def (\w+)_version\s*=\s*[\'"](\S+)[\'"]')
+  VERSION_STRING = re.compile(r'^\s*def (\w+)_version\s*=\s*[\'"](\S+)[\'"]')
   BOM_VERSION_STRING = re.compile(
       r'\s*google_cloud_platform_libraries_bom\s*:\s*[\'"]com\.google\.cloud:libraries-bom:([0-9\.]+)[\'"],?'
   )
   BUILD_DIR = 'build/dependencyResolver'
+  BEAMMPLG_PATH = 'buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy'
+  LICENSE_SC_PATH = 'sdks/java/container/license_scripts/dep_urls_java.yaml'
   GRADLE_TEMPLATE = """
 plugins { id 'java' }
 repositories { mavenCentral() }
@@ -75,20 +82,17 @@ implementation platform('com.google.cloud:libraries-bom:%s')
 configurations.implementation.canBeResolved = true
 """
 
-  def __init__(
-      self,
-      bom_version,
-      filepath='buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy',
-      runnable=None):
+  def __init__(self, bom_version, project_root='.', runnable=None):
     self.bom_version = bom_version
-    self.filepath = filepath
+    self.project_root = project_root
     self.runnable = runnable or os.path.abspath('gradlew')
     logging.info('-----Read BeamModulePlugin-----')
-    with open(filepath, 'r') as fin:
+    with open(os.path.join(project_root, self.BEAMMPLG_PATH), 'r') as fin:
       self.original_lines = fin.readlines()
     # e.g. {"io.grpc:grpc-netty", "1.61.0"}
     self.dep_versions = {}
     self.dep_versions_current = {}
+    self.known_deps = {}
 
   def check_dependencies(self):
     """Check dependencies in KNOWN_DEPS are found in BeamModulePlugin, and vice versa."""
@@ -103,9 +107,10 @@ configurations.implementation.canBeResolved = true
               "Version definition not found after anchor comment. Try standardize it."
           )
         found_deps[n.group(1)] = n.group(2)
-    assert sorted(self.KNOWN_DEPS.keys()) == sorted(found_deps.keys())
+    assert sorted(self.KNOWN_DEPS.keys()) == sorted(found_deps.keys()), f"expect {self.KNOWN_DEPS.keys()} == {found_deps.keys()}"
     self.dep_versions_current = {
-        self.KNOWN_DEPS[k]: v for k, v in found_deps.items()
+        self.KNOWN_DEPS[k]: v
+        for k, v in found_deps.items()
     }
 
   def prepare_gradle(self, bom_version):
@@ -130,8 +135,9 @@ configurations.implementation.canBeResolved = true
     logging.info("-----resolve dependency-----")
     subp = subprocess.run([
         self.runnable,
-        *('-q dependencies --configuration implementation --console=plain'
-          .split())
+        *(
+            '-q dependencies --configuration implementation --console=plain'.
+            split())
     ],
                           cwd=self.BUILD_DIR,
                           stdout=subprocess.PIPE)
@@ -155,8 +161,8 @@ configurations.implementation.canBeResolved = true
         break
 
     if len(self.dep_versions) < len(self.KNOWN_DEPS):
-      logging.warning("Warning: not all dependencies are resolved: %s",
-                      self.dep_versions)
+      logging.warning(
+          "Warning: not all dependencies are resolved: %s", self.dep_versions)
       logging.info(result)
 
   def write_back(self):
@@ -186,14 +192,29 @@ configurations.implementation.canBeResolved = true
         # replace GCP BOM version
         n = self.BOM_VERSION_STRING.match(line)
         if n:
-          self.target_lines[idx] = self.original_lines[idx].replace( n.group(1), self.bom_version)
+          self.target_lines[idx] = self.original_lines[idx].replace(
+              n.group(1), self.bom_version)
           found_bom = True
 
     if not found_bom:
-      logging.warning('GCP_BOM version declaration not found in BeamModulePlugin')
+      logging.warning(
+          'GCP_BOM version declaration not found in BeamModulePlugin')
 
-    with open(self.filepath, 'w') as fout:
+    with open(os.path.join(self.project_root, self.BEAMMPLG_PATH), 'w') as fout:
       for line in self.target_lines:
+        fout.write(line)
+
+  def write_license_script(self):
+    logging.info("-----Update dep_urls_java.yaml-----")
+    with open(os.path.join(self.project_root, self.LICENSE_SC_PATH),
+              'r') as fin:
+      lines = fin.readlines()
+    with open(os.path.join(self.project_root, self.LICENSE_SC_PATH),
+              'w') as fout:
+      for idx, line in enumerate(lines):
+        if line.strip() == 'libraries-bom:':
+          lines[idx + 1] = re.sub(
+              r'[\'"]\d[\.\d]+[\'"]', f"'{self.bom_version}'", lines[idx + 1])
         fout.write(line)
 
   def run(self):
@@ -201,7 +222,7 @@ configurations.implementation.canBeResolved = true
     self.prepare_gradle(self.bom_version)
     self.resolve()
     self.write_back()
-
+    self.write_license_script()
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
