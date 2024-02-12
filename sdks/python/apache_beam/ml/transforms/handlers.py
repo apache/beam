@@ -85,7 +85,7 @@ tft_process_handler_input_type = typing.Union[typing.NamedTuple,
 tft_process_handler_output_type = typing.Union[beam.Row, Dict[str, np.ndarray]]
 
 
-class DataCoder:
+class _DataCoder:
   def __init__(
       self,
       exclude_columns,
@@ -101,11 +101,12 @@ class DataCoder:
 
   def encode(self, element):
     data_to_encode = element.copy()
+    element_to_return = element.copy()
     for key in self.exclude_columns:
       if key in data_to_encode:
         del data_to_encode[key]
-    element[_TEMP_KEY] = self.coder.encode(data_to_encode)
-    return element
+    element_to_return[_TEMP_KEY] = self.coder.encode(data_to_encode)
+    return element_to_return
 
   def decode(self, element):
     clone = copy.copy(element)
@@ -411,7 +412,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     # To preserve these extra columns without disrupting TFT processing,
     # they are temporarily encoded as bytes and added to the PCollection with
     # a unique identifier
-    data_coder = DataCoder(exclude_columns=feature_set)
+    data_coder = _DataCoder(exclude_columns=feature_set)
     data_with_encoded_columns = (
         raw_data
         | "EncodeUnmodifiedColumns" >>
