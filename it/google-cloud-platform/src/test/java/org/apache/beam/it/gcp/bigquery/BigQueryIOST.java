@@ -382,7 +382,7 @@ public final class BigQueryIOST extends IOLoadTestBase {
     public void processElement(
         @Element byte[] element,
         OutputReceiver<byte[]> outputReceiver,
-        @Timestamp Instant timestamp) {
+        @DoFn.Timestamp Instant timestamp) {
 
       int multiplier = this.startMultiplier;
       long elapsedTimeMillis = timestamp.getMillis() - startTimesMillis;
