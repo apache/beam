@@ -1982,7 +1982,7 @@ public class JdbcIO {
                       .setRetryConfiguration(getRetryConfiguration())
                       .setReturnResults(true)
                       .setBatchSize(1L)
-                      .setMaxBatchBufferingDuration(200L)
+                      .setMaxBatchBufferingDuration(DEFAULT_MAX_BATCH_BUFFERING_DURATION)
                       .build())));
     }
   }
