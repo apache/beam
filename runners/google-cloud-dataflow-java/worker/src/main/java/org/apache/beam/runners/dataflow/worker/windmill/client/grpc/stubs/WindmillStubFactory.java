@@ -51,13 +51,18 @@ public abstract class WindmillStubFactory {
   }
 
   public static WindmillStubFactory remoteStubFactory(
-      int rpcChannelTimeoutSec, Credentials gcpCredentials) {
+      int rpcChannelTimeoutSec, Credentials gcpCredentials, boolean useIsolatedChannels) {
     return AutoOneOf_WindmillStubFactory.remote(
-        directEndpoint ->
-            CloudWindmillServiceV1Alpha1Grpc.newStub(
-                    remoteChannel(directEndpoint, rpcChannelTimeoutSec))
-                .withCallCredentials(
-                    MoreCallCredentials.from(new VendoredCredentialsAdapter(gcpCredentials))));
+        directEndpoint -> {
+          Supplier<ManagedChannel> channelSupplier =
+              () -> remoteChannel(directEndpoint, rpcChannelTimeoutSec);
+          return CloudWindmillServiceV1Alpha1Grpc.newStub(
+                  useIsolatedChannels
+                      ? IsolationChannel.create(channelSupplier)
+                      : channelSupplier.get())
+              .withCallCredentials(
+                  MoreCallCredentials.from(new VendoredCredentialsAdapter(gcpCredentials)));
+        });
   }
 
   public abstract Kind getKind();

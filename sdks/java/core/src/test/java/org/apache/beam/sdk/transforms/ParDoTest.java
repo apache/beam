@@ -507,6 +507,10 @@ public class ParDoTest implements Serializable {
                   DisplayDataMatchers.hasValue(fn.getClass().getName()))));
 
       assertThat(displayData, includesDisplayDataFor("fn", fn));
+
+      // Test setting DisplayData through PTransform API
+      parDo.setDisplayData(ImmutableList.of(DisplayData.item("doFnMetadata", "baz")));
+      assertThat(DisplayData.from(parDo), hasDisplayItem("doFnMetadata", "baz"));
     }
 
     @Test

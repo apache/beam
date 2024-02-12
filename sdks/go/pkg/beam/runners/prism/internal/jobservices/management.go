@@ -32,6 +32,7 @@ import (
 )
 
 var (
+	// ErrCancel represents a pipeline cancellation by the user.
 	ErrCancel = errors.New("pipeline canceled")
 )
 
