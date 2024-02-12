@@ -16,6 +16,7 @@
 package internal
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -24,6 +25,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -246,13 +248,38 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 				if err := proto.Unmarshal(t.GetSpec().GetPayload(), &pyld); err != nil {
 					return fmt.Errorf("prism error building stage %v - decoding TestStreamPayload: \n%w", stage.ID, err)
 				}
+
+				// Ensure awareness of the coder used for the teststream.
+				cID, err := lpUnknownCoders(pyld.GetCoderId(), coders, comps.GetCoders())
+				if err != nil {
+					panic(err)
+				}
+				mayLP := func(v []byte) []byte {
+					return v
+				}
+				if cID != pyld.GetCoderId() {
+					// The coder needed length prefixing. For simplicity, add a length prefix to each
+					// encoded element, since we will be sending a length prefixed coder to consume
+					// this anyway. This is simpler than trying to find all the re-written coders after the fact.
+					mayLP = func(v []byte) []byte {
+						var buf bytes.Buffer
+						if err := coder.EncodeVarInt((int64)(len(v)), &buf); err != nil {
+							panic(err)
+						}
+						if _, err := buf.Write(v); err != nil {
+							panic(err)
+						}
+						return buf.Bytes()
+					}
+				}
+
 				tsb := em.AddTestStream(stage.ID, t.Outputs)
 				for _, e := range pyld.GetEvents() {
 					switch ev := e.GetEvent().(type) {
 					case *pipepb.TestStreamPayload_Event_ElementEvent:
 						var elms []engine.TestStreamElement
 						for _, e := range ev.ElementEvent.GetElements() {
-							elms = append(elms, engine.TestStreamElement{Encoded: e.GetEncodedElement(), EventTime: mtime.Time(e.GetTimestamp())})
+							elms = append(elms, engine.TestStreamElement{Encoded: mayLP(e.GetEncodedElement()), EventTime: mtime.Time(e.GetTimestamp())})
 						}
 						tsb.AddElementEvent(ev.ElementEvent.GetTag(), elms)
 						ev.ElementEvent.GetTag()

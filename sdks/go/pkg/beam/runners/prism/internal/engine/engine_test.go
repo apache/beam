@@ -184,6 +184,7 @@ func TestTestStream(t *testing.T) {
 		{pipeline: primitives.TestStreamTwoBoolSequences},
 		{pipeline: primitives.TestStreamTwoFloat64Sequences},
 		{pipeline: primitives.TestStreamTwoInt64Sequences},
+		{pipeline: primitives.TestStreamTwoUserTypeSequences},
 	}
 
 	configs := []struct {
