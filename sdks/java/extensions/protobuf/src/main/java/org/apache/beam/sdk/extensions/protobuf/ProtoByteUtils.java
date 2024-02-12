@@ -20,6 +20,9 @@ package org.apache.beam.sdk.extensions.protobuf;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
@@ -41,15 +44,15 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.commons.compress.utils.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Utility class for working with Protocol Buffer (Proto) data in the context of Apache Beam. This
- * class provides methods to retrieve Beam Schemas from Proto messages, convert Proto bytes to Beam
- * Rows, and vice versa. It also includes utilities for handling Protocol Buffer schemas and related
- * file operations.
+ * Utility class for working with Protocol Buffer (Proto) data. This class provides methods to
+ * retrieve Beam Schemas from Proto messages, convert Proto bytes to Beam Rows, and vice versa. It
+ * also includes utilities for handling Protocol Buffer schemas and related file operations.
  *
  * <p>Users can utilize the methods in this class to facilitate the integration of Proto data
  * processing within Apache Beam pipelines, allowing for the seamless transformation of Proto
@@ -105,7 +108,11 @@ public class ProtoByteUtils {
     try {
       Descriptors.FileDescriptor fileDescriptor =
           FileDescriptorUtils.protoFileToFileDescriptor(result);
-      return fileDescriptor.findMessageTypeByName(messageName);
+
+      List<String> messageElements = Splitter.on('.').splitToList(messageName);
+      String messageTypeByName = messageElements.get(messageElements.size() - 1);
+
+      return fileDescriptor.findMessageTypeByName(messageTypeByName);
     } catch (Descriptors.DescriptorValidationException e) {
       throw new RuntimeException(e);
     }
@@ -148,10 +155,12 @@ public class ProtoByteUtils {
       @Override
       public Row apply(byte[] input) {
         try {
+          List<String> messageElements = Splitter.on('.').splitToList(messageName);
+          String messageTypeByName = messageElements.get(messageElements.size() - 1);
           final Descriptors.Descriptor descriptor =
               protoDomain
                   .getFileDescriptor(dynamicProtoDomain.getFileName())
-                  .findMessageTypeByName(messageName);
+                  .findMessageTypeByName(messageTypeByName);
           DynamicMessage dynamicMessage = DynamicMessage.parseFrom(descriptor, input);
           SerializableFunction<DynamicMessage, Row> res =
               protoDynamicMessageSchema.getToRowFunction();
@@ -243,6 +252,41 @@ public class ProtoByteUtils {
    * @throws RuntimeException if an error occurs while finding or opening the file.
    */
   private static ReadableByteChannel getFileByteChannel(String filePath) {
+    if (isGcsPath(filePath)) {
+      return openGcsFile(filePath);
+    } else {
+      return openLocalFile(filePath);
+    }
+  }
+
+  private static boolean isGcsPath(String filePath) {
+    return filePath.startsWith("gs://");
+  }
+
+  /**
+   * Opens a ReadableByteChannel for reading from a Google Cloud Storage (GCS) file.
+   *
+   * @param filePath The GCS file path (e.g., "gs://your-bucket-name/your-object-name").
+   * @return A ReadableByteChannel for reading from the specified GCS file.
+   */
+  private static ReadableByteChannel openGcsFile(String filePath) {
+    Storage storage = StorageOptions.getDefaultInstance().getService();
+    String bucketName = getBucketName(filePath);
+    String objectName = getObjectName(filePath);
+    Blob blob = storage.get(bucketName, objectName);
+    return blob.reader();
+  }
+
+  /**
+   * Opens a ReadableByteChannel for reading from a local file using the Apache Beam FileSystems
+   * API.
+   *
+   * @param filePath The local file path.
+   * @return A ReadableByteChannel for reading from the specified local file.
+   * @throws IllegalArgumentException If no files match the specified pattern or if more than one
+   *     file matches.
+   */
+  private static ReadableByteChannel openLocalFile(String filePath) {
     try {
       MatchResult result = FileSystems.match(filePath);
       checkArgument(
@@ -257,6 +301,29 @@ public class ProtoByteUtils {
     } catch (IOException e) {
       throw new RuntimeException("Error when finding: " + filePath, e);
     }
+  }
+
+  /**
+   * Extracts the bucket name from a Google Cloud Storage (GCS) file path.
+   *
+   * @param gcsPath The GCS file path (e.g., "gs://your-bucket-name/your-object-name").
+   * @return The bucket name extracted from the GCS path.
+   */
+  private static String getBucketName(String gcsPath) {
+    int startIndex = "gs://".length();
+    int endIndex = gcsPath.indexOf('/', startIndex);
+    return gcsPath.substring(startIndex, endIndex);
+  }
+
+  /**
+   * Extracts the object name from a Google Cloud Storage (GCS) file path.
+   *
+   * @param gcsPath The GCS file path (e.g., "gs://your-bucket-name/your-object-name").
+   * @return The object name extracted from the GCS path.
+   */
+  private static String getObjectName(String gcsPath) {
+    int startIndex = gcsPath.indexOf('/', "gs://".length()) + 1;
+    return gcsPath.substring(startIndex);
   }
 
   /**

@@ -51,8 +51,8 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20231212'
-ext.dataflowFnapiContainerVersion = 'beam-master-20240109'
+ext.dataflowLegacyContainerVersion = 'beam-master-20240125'
+ext.dataflowFnapiContainerVersion = 'beam-master-20240125'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
@@ -566,6 +566,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/PubsubReadIT.class'
   exclude '**/FhirIOReadIT.class'
+  exclude '**/DicomIOReadIT.class'
   exclude '**/gcp/spanner/changestreams/it/*.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
@@ -610,6 +611,7 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   exclude '**/SpannerWriteIT.class'
   exclude '**/*KmsKeyIT.class'
   exclude '**/FhirIOReadIT.class'
+  exclude '**/DicomIOReadIT.class'
   exclude '**/FhirIOWriteIT.class'
   exclude '**/FhirIOLROIT.class'
   exclude '**/FhirIOSearchIT.class'

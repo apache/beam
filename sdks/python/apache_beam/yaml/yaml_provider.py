@@ -46,6 +46,7 @@ import apache_beam.dataframe.io
 import apache_beam.io
 import apache_beam.transforms.util
 from apache_beam.portability.api import schema_pb2
+from apache_beam.runners import pipeline_context
 from apache_beam.transforms import external
 from apache_beam.transforms import window
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
@@ -557,17 +558,42 @@ class YamlProviders:
   def create(elements: Iterable[Any], reshuffle: Optional[bool] = True):
     """Creates a collection containing a specified set of elements.
 
-    YAML/JSON-style mappings will be interpreted as Beam rows. For example::
+    This transform always produces schema'd data. For example::
 
         type: Create
-        elements:
-           - {first: 0, second: {str: "foo", values: [1, 2, 3]}}
+        config:
+          elements: [1, 2, 3]
+
+    will result in an output with three elements with a schema of
+    Row(element=int) whereas YAML/JSON-style mappings will be interpreted
+    directly as Beam rows, e.g.::
+
+        type: Create
+        config:
+          elements:
+             - {first: 0, second: {str: "foo", values: [1, 2, 3]}}
+             - {first: 1, second: {str: "bar", values: [4, 5, 6]}}
 
     will result in a schema of the form (int, Row(string, List[int])).
+
+    This can also be expressed as YAML::
+
+        type: Create
+        config:
+          elements:
+            - first: 0
+              second:
+                str: "foo"
+                 values: [1, 2, 3]
+            - first: 1
+              second:
+                str: "bar"
+                 values: [4, 5, 6]
 
     Args:
         elements: The set of elements that should belong to the PCollection.
             YAML/JSON-style mappings will be interpreted as Beam rows.
+            Primitives will be mapped to rows with a single "element" field.
         reshuffle: (optional) Whether to introduce a reshuffle (to possibly
             redistribute the work) if there is more than one element in the
             collection. Defaults to True.
@@ -731,14 +757,46 @@ class YamlProviders:
       return beam.WindowInto(window_fn)
 
   @staticmethod
-  def log_for_testing():
+  def log_for_testing(
+      level: Optional[str] = 'INFO', prefix: Optional[str] = ''):
     """Logs each element of its input PCollection.
 
     The output of this transform is a copy of its input for ease of use in
     chain-style pipelines.
+
+    Args:
+      level: one of ERROR, INFO, or DEBUG, mapped to a corresponding
+        language-specific logging level
+      prefix: an optional identifier that will get prepended to the element
+        being logged
     """
+    # Keeping this simple to be language agnostic.
+    # The intent is not to develop a logging library (and users can always do)
+    # their own mappings to get fancier output.
+    log_levels = {
+        'ERROR': logging.error,
+        'INFO': logging.info,
+        'DEBUG': logging.debug,
+    }
+    if level not in log_levels:
+      raise ValueError(
+          f'Unknown log level {level} not in {list(log_levels.keys())}')
+    logger = log_levels[level]
+
+    def to_loggable_json_recursive(o):
+      if isinstance(o, (str, bytes)):
+        return o
+      elif callable(getattr(o, '_asdict', None)):
+        return to_loggable_json_recursive(o._asdict())
+      elif isinstance(o, Mapping) and callable(getattr(o, 'items', None)):
+        return {str(k): to_loggable_json_recursive(v) for k, v in o.items()}
+      elif isinstance(o, Iterable):
+        return [to_loggable_json_recursive(x) for x in o]
+      else:
+        return o
+
     def log_and_return(x):
-      logging.info(x)
+      logger(prefix + json.dumps(to_loggable_json_recursive(x)))
       return x
 
     return "LogForTesting" >> beam.Map(log_and_return)
@@ -753,6 +811,81 @@ class YamlProviders:
         'WindowInto': YamlProviders.WindowInto,
     },
                           no_input_transforms=('Create', ))
+
+
+class TranslatingProvider(Provider):
+  def __init__(
+      self,
+      transforms: Mapping[str, Callable[..., beam.PTransform]],
+      underlying_provider: Provider):
+    self._transforms = transforms
+    self._underlying_provider = underlying_provider
+
+  def provided_transforms(self):
+    return self._transforms.keys()
+
+  def available(self):
+    return self._underlying_provider.available()
+
+  def cache_artifacts(self):
+    return self._underlying_provider.cache_artifacts()
+
+  def underlying_provider(self):
+    return self._underlying_provider
+
+  def to_json(self):
+    return {'type': "TranslatingProvider"}
+
+  def create_transform(
+      self, typ: str, config: Mapping[str, Any],
+      yaml_create_transform: Any) -> beam.PTransform:
+    return self._transforms[typ](self._underlying_provider, **config)
+
+
+def create_java_builtin_provider():
+  """Exposes built-in transforms from Java as well as Python to maximize
+  opportunities for fusion.
+
+  This class holds those transforms that require pre-processing of the configs.
+  For those Java transforms that can consume the user-provided configs directly
+  (or only need a simple renaming of parameters) a direct or renaming provider
+  is the simpler choice.
+  """
+
+  # An alternative could be examining the capabilities of various environments
+  # during (or as a pre-processing phase before) fusion to align environments
+  # where possible.  This would also require extra care in skipping these
+  # common transforms when doing the provider affinity analysis.
+
+  def java_window_into(java_provider, **config):
+    """Parses the config into a WindowingStrategy and invokes the Java class.
+
+    Though it would not be that difficult to implement this in Java as well,
+    we prefer to implement it exactly once for consistency (especially as
+    it evolves).
+    """
+    windowing_strategy = YamlProviders.WindowInto._parse_window_spec(
+        config).get_windowing(None)
+    # No context needs to be preserved for the basic WindowFns.
+    empty_context = pipeline_context.PipelineContext()
+    return java_provider.create_transform(
+        'WindowIntoStrategy',
+        {
+            'serializedWindowingStrategy': windowing_strategy.to_runner_api(
+                empty_context).SerializeToString()
+        },
+        None)
+
+  return TranslatingProvider(
+      transforms={'WindowInto': java_window_into},
+      underlying_provider=beam_jar(
+          urns={
+              'WindowIntoStrategy': (
+                  'beam:schematransform:'
+                  'org.apache.beam:yaml:window_into_strategy:v1')
+          },
+          gradle_target=
+          'sdks:java:extensions:schemaio-expansion-service:shadowJar'))
 
 
 class PypiExpansionService:
@@ -993,6 +1126,7 @@ def standard_providers():
 
   return merge_providers(
       YamlProviders.create_builtin_provider(),
+      create_java_builtin_provider(),
       create_mapping_providers(),
       create_combine_providers(),
       io_providers(),
