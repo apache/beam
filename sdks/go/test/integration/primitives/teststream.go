@@ -31,6 +31,7 @@ func TestStreamStrings(s beam.Scope) {
 	col := teststream.Create(s, con)
 
 	passert.Count(s, col, "teststream strings", 3)
+	passert.Equals(s, col, "a", "b", "c")
 }
 
 // TestStreamByteSliceSequence tests the TestStream primitive by inserting byte slice elements
