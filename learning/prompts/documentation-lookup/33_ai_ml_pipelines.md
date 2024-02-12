@@ -12,7 +12,7 @@ Apache Beam allows using pre-trained models with [PyTorch](https://pytorch.org/)
 Machine learning inference can be performed in Apache Beam using the `RunInference API`.
 [RunInference](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/) transform supports usage of any custom models. See [here](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_custom_inference.ipynb) for an example of running inference on a model loaded with [spaCy](https://spacy.io/).
 
-RunInference works well on arbitrary large models. See [here](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/) for example of deployment and inference on LLM.
+`RunInference` works well on arbitrary large models. See [here](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/) for example of deployment and inference on LLM.
 
 For more information on building AI/ML pipelines see [here](https://beam.apache.org/documentation/ml/overview/).
 
