@@ -16,11 +16,13 @@
 #
 
 import datetime
+import logging
 import unittest
 from typing import Dict
 from typing import List
 from typing import NamedTuple
 from typing import Tuple
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -33,11 +35,14 @@ try:
   from google.api_core.exceptions import NotFound
   from google.cloud.bigtable import Client
   from google.cloud.bigtable.row_filters import ColumnRangeFilter
+  from testcontainers.redis import RedisContainer
   from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.transforms.enrichment_handlers.bigtable import BigTableEnrichmentHandler
   from apache_beam.transforms.enrichment_handlers.bigtable import ExceptionLevel
 except ImportError:
-  raise unittest.SkipTest('GCP BigTable dependencies are not installed.')
+  raise unittest.SkipTest('Bigtable test dependencies are not installed.')
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class ValidateResponse(beam.DoFn):
@@ -142,12 +147,14 @@ def create_rows(table):
     row.commit()
 
 
-@pytest.mark.it_postcommit
 class TestBigTableEnrichment(unittest.TestCase):
   def setUp(self):
     self.project_id = 'apache-beam-testing'
     self.instance_id = 'beam-test'
     self.table_id = 'bigtable-enrichment-test'
+    self.project_id = 'google.com:clouddfe'
+    self.instance_id = 'beam-test'
+    self.table_id = 'riteshghorse-bigtable-test'
     self.req = [
         beam.Row(sale_id=1, customer_id=1, product_id=1, quantity=1),
         beam.Row(sale_id=3, customer_id=3, product_id=2, quantity=3),
@@ -160,10 +167,27 @@ class TestBigTableEnrichment(unittest.TestCase):
     instance = client.instance(self.instance_id)
     self.table = instance.table(self.table_id)
     create_rows(self.table)
+    self.retries = 3
+    self._start_container()
+
+  def _start_container(self):
+    for i in range(self.retries):
+      try:
+        self.container = RedisContainer(image='redis:7.2.4')
+        self.container.start()
+        self.host = self.container.get_container_host_ip()
+        self.port = self.container.get_exposed_port(6379)
+        break
+      except Exception as e:
+        if i == self.retries - 1:
+          _LOGGER.error('Unable to start redis container for RRIO tests.')
+          raise e
 
   def tearDown(self) -> None:
+    self.container.stop()
     self.table = None
 
+  @pytest.mark.it_postcommit
   def test_enrichment_with_bigtable(self):
     expected_fields = [
         'sale_id', 'customer_id', 'product_id', 'quantity', 'product'
@@ -187,6 +211,7 @@ class TestBigTableEnrichment(unittest.TestCase):
                   expected_fields,
                   expected_enriched_fields)))
 
+  @pytest.mark.it_postcommit
   def test_enrichment_with_bigtable_row_filter(self):
     expected_fields = [
         'sale_id', 'customer_id', 'product_id', 'quantity', 'product'
@@ -213,6 +238,7 @@ class TestBigTableEnrichment(unittest.TestCase):
                   expected_fields,
                   expected_enriched_fields)))
 
+  @pytest.mark.it_postcommit
   def test_enrichment_with_bigtable_no_enrichment(self):
     # row_key which is product_id=11 doesn't exist, so the enriched field
     # won't be added. Hence, the response is same as the request.
@@ -235,6 +261,7 @@ class TestBigTableEnrichment(unittest.TestCase):
                   expected_fields,
                   expected_enriched_fields)))
 
+  @pytest.mark.it_postcommit
   def test_enrichment_with_bigtable_bad_row_filter(self):
     # in case of a bad column filter, that is, incorrect column_family_id and
     # columns, no enrichment is done. If the column_family is correct but not
@@ -256,6 +283,7 @@ class TestBigTableEnrichment(unittest.TestCase):
       res = test_pipeline.run()
       res.wait_until_finish()
 
+  @pytest.mark.it_postcommit
   def test_enrichment_with_bigtable_raises_key_error(self):
     """raises a `KeyError` when the row_key doesn't exist in
     the input PCollection."""
@@ -273,6 +301,7 @@ class TestBigTableEnrichment(unittest.TestCase):
       res = test_pipeline.run()
       res.wait_until_finish()
 
+  @pytest.mark.it_postcommit
   def test_enrichment_with_bigtable_raises_not_found(self):
     """raises a `NotFound` exception when the GCP BigTable Cluster
     doesn't exist."""
@@ -290,6 +319,7 @@ class TestBigTableEnrichment(unittest.TestCase):
       res = test_pipeline.run()
       res.wait_until_finish()
 
+  @pytest.mark.it_postcommit
   def test_enrichment_with_bigtable_exception_level(self):
     """raises a `ValueError` exception when the GCP BigTable query returns
     an empty row."""
@@ -309,6 +339,7 @@ class TestBigTableEnrichment(unittest.TestCase):
       res = test_pipeline.run()
       res.wait_until_finish()
 
+  @pytest.mark.it_postcommit
   def test_enrichment_with_bigtable_with_timestamp(self):
     """test whether the `(value,timestamp)` is returned when the
     `include_timestamp` is enabled."""
@@ -335,6 +366,66 @@ class TestBigTableEnrichment(unittest.TestCase):
                   expected_fields,
                   expected_enriched_fields,
                   include_timestamp=True)))
+
+  @pytest.mark.uses_redis
+  def test_bigtable_enrichment_with_redis(self):
+    """
+    In this test, we run two pipelines back to back.
+
+    In the first pipeline, we run a simple bigtable enrichment pipeline with
+    zero cache records. Therefore, it makes call to the Bigtable source and
+    ultimately writes to the cache with a TTL of 300 seconds.
+
+    For the second pipeline, we mock the `BigTableEnrichmentHandler`'s
+    `__call__` method to always return a `None` response. However, this change
+    won't impact the second pipeline because the Enrichment transform first
+    checks the cache to fulfill requests. Since all requests are cached, it
+    will return from there without making calls to the Bigtable source.
+    """
+    expected_fields = [
+        'sale_id', 'customer_id', 'product_id', 'quantity', 'product'
+    ]
+    expected_enriched_fields = {
+        'product': ['product_name', 'product_stock'],
+    }
+    start_column = 'product_name'.encode()
+    column_filter = ColumnRangeFilter(self.column_family_id, start_column)
+    bigtable = BigTableEnrichmentHandler(
+        project_id=self.project_id,
+        instance_id=self.instance_id,
+        table_id=self.table_id,
+        row_key=self.row_key,
+        row_filter=column_filter)
+    with TestPipeline(is_integration_test=True) as test_pipeline:
+      _ = (
+          test_pipeline
+          | "Create1" >> beam.Create(self.req)
+          | "Enrich W/ BigTable1" >> Enrichment(bigtable).with_redis_cache(
+              self.host, self.port, 300)
+          | "Validate Response" >> beam.ParDo(
+              ValidateResponse(
+                  len(expected_fields),
+                  expected_fields,
+                  expected_enriched_fields)))
+
+    actual = BigTableEnrichmentHandler.__call__
+    BigTableEnrichmentHandler.__call__ = MagicMock(
+        return_value=(
+            beam.Row(sale_id=1, customer_id=1, product_id=1, quantity=1),
+            beam.Row()))
+
+    with TestPipeline(is_integration_test=True) as test_pipeline:
+      _ = (
+          test_pipeline
+          | "Create2" >> beam.Create(self.req)
+          | "Enrich W/ BigTable2" >> Enrichment(bigtable).with_redis_cache(
+              self.host, self.port)
+          | "Validate Response" >> beam.ParDo(
+              ValidateResponse(
+                  len(expected_fields),
+                  expected_fields,
+                  expected_enriched_fields)))
+    BigTableEnrichmentHandler.__call__ = actual
 
 
 if __name__ == '__main__':

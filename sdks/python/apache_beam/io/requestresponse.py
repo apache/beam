@@ -33,10 +33,10 @@ from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
-import redis
 from google.api_core.exceptions import TooManyRequests
 
 import apache_beam as beam
+import redis
 from apache_beam.coders import coders
 from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
 from apache_beam.metrics import Metrics
@@ -46,8 +46,11 @@ from apache_beam.utils import retry
 RequestT = TypeVar('RequestT')
 ResponseT = TypeVar('ResponseT')
 
+# DEFAULT_TIMEOUT_SECS represents the time interval for completing the request
+# with external source.
 DEFAULT_TIMEOUT_SECS = 30
 
+# DEFAULT_TIME_TO_LIVE_SECS represents the total time to live for cache record.
 DEFAULT_TIME_TO_LIVE_SECS = 24 * 60 * 60
 
 _LOGGER = logging.getLogger(__name__)
@@ -58,8 +61,16 @@ __all__ = [
     'DefaultThrottler',
     'NoOpsRepeater',
     'RedisCache',
+    'ReadFromRedis',
+    'WriteToRedis',
+    'RedisCaller',
     'DEFAULT_TIMEOUT_SECS',
-    'DEFAULT_TIME_TO_LIVE_SECS'
+    'DEFAULT_TIME_TO_LIVE_SECS',
+    'Caller',
+    'PreCallThrottler',
+    'Repeater',
+    'Cache',
+    'ShouldBackOff',
 ]
 
 
@@ -128,6 +139,17 @@ class Caller(contextlib.AbstractContextManager,
   def __exit__(self, exc_type, exc_val, exc_tb):
     return None
 
+  def get_cache_request(self, request: RequestT):
+    """Returns the request to be cached. This is how the
+    response will be looked up in the cache as well.
+
+    By default, entire request is cached as the key for the cache.
+    Implement this method to override the key for the cache.
+    For example, in `BigTableEnrichmentHandler`, the row key for the element
+    is returned and cached here.
+    """
+    return None
+
 
 class ShouldBackOff(abc.ABC):
   """
@@ -150,8 +172,8 @@ class Repeater(abc.ABC):
     a repeater is enabled.
 
     Args:
-      caller: :class:`apache_beam.io.requestresponse.Caller` object that calls
-        the API.
+      caller: a :class:`apache_beam.io.requestresponse.Caller` object that
+        calls the API.
       request: input request to repeat.
       timeout: time to wait for the request to complete.
       metrics_collector: (Optional) a
@@ -262,7 +284,7 @@ class DefaultThrottler(PreCallThrottler):
     self.delay_secs = delay_secs
 
 
-class _FilterNullCacheReadFn(beam.DoFn):
+class _FilterNoneCacheReadFn(beam.DoFn):
   """DoFn that returns the responses from cache read that are not `None`."""
   def process(self, element: Tuple[RequestT, ResponseT], *args, **kwargs):
     if element[1]:
@@ -271,7 +293,7 @@ class _FilterNullCacheReadFn(beam.DoFn):
 
 class _FilterCacheRequestsFn(beam.DoFn):
   """DoFn that returns the requests not fulfilled by the cache read."""
-  def process(self, element, *args, **kwargs):
+  def process(self, element: Tuple[RequestT, ResponseT], *args, **kwargs):
     if not element[1]:
       yield element[0]
 
@@ -384,24 +406,44 @@ class Cache(abc.ABC):
     pass
 
   @abc.abstractmethod
-  def has_coders(self) -> bool:
-    """returns `True` if the request and response coders are present.
-    Otherwise, returns `False`."""
+  def has_request_coder(self) -> bool:
+    """returns `True` if the request coder is present."""
     pass
 
   @abc.abstractmethod
-  def set_coders(
-      self, request_coder: coders.Coder, response_coder: coders.Coder):
-    """sets the request and response coders to use with Cache."""
+  def set_request_coder(self, request_coder: coders.Coder):
+    """sets the request coder to use with Cache."""
+    pass
+
+  @abc.abstractmethod
+  def set_response_coder(self, response_coder: coders.Coder):
+    """sets the response coder to use with Cache."""
+    pass
+
+  @abc.abstractmethod
+  def set_source_caller(self, caller: Caller):
+    """(Internal-only) This method allows
+    :class:`apache_beam.io.requestresponse.RequestResponseIO` to pull
+    cache requests from respective callers."""
     pass
 
 
 class _RedisMode(enum.Enum):
+  """
+  Mode of operation for redis cache when using
+  :class:`apache_beam.io.requestresponse.RedisCaller`.
+  """
   READ = 0
   WRITE = 1
 
 
 class RedisCaller(Caller):
+  """`RedisCaller` is an implementation of
+  :class:`apache_beam.io.requestresponse.Caller` for Redis client.
+
+  It provides the functionality for making requests to Redis server using
+  :class:`apache_beam.io.requestresponse.RequestResponseIO`.
+  """
   def __init__(
       self,
       host: str,
@@ -410,13 +452,34 @@ class RedisCaller(Caller):
       *,
       request_coder: Optional[coders.Coder],
       response_coder: Optional[coders.Coder],
-      kwargs: Dict[str, Any] = None,
-      mode: _RedisMode):
+      kwargs: Optional[Dict[str, Any]] = None,
+      source_caller: Optional[Caller] = None,
+      mode: _RedisMode,
+  ):
+    """
+    Args:
+      host (str): The hostname or IP address of the Redis server.
+      port (int): The port number of the Redis server.
+      time_to_live: `(Union[int, timedelta])` The time-to-live (TTL) for
+        records stored in Redis. Provide an integer (in seconds) or a
+        `datetime.timedelta` object.
+      request_coder: (Optional[`coders.Coder`]) coder for requests stored
+        in Redis.
+      response_coder: (Optional[`coders.Coder`]) coder for decoding responses
+        received from Redis.
+      kwargs: Optional(Dict[str, Any]) additional keyword arguments that
+        are required to connect to your redis server. Same as `redis.Redis()`.
+      source_caller: (Optional[`Caller`]): The source caller using this Redis
+        cache in case of fetching the cache request to store in Redis.
+      mode: `_RedisMode` An enum type specifying the operational mode of
+        the `RedisCaller`.
+    """
     self.host, self.port = host, port
     self.time_to_live = time_to_live
     self.request_coder = request_coder
     self.response_coder = response_coder
     self.kwargs = kwargs
+    self.source_caller = source_caller
     self.mode = mode
 
   def __enter__(self):
@@ -424,10 +487,19 @@ class RedisCaller(Caller):
 
   def __call__(self, element, *args, **kwargs):
     if self.mode == _RedisMode.READ:
-      encoded_request = self.request_coder.encode(element)
+      cache_request = self.source_caller.get_cache_request(element)
+      # check if the caller is a enrichment handler. EnrichmentHandler
+      # provides the request format for cache.
+      if cache_request:
+        encoded_request = self.request_coder.encode(cache_request)
+      else:
+        encoded_request = self.request_coder.encode(element)
+
       encoded_response = self.client.get(encoded_request)
       if not encoded_response:
+        # no cache entry present for this request.
         return element, None
+
       if self.response_coder is None:
         try:
           response_dict = json.loads(encoded_response.decode('utf-8'))
@@ -440,18 +512,25 @@ class RedisCaller(Caller):
         response = self.response_coder.decode(encoded_response)
       return element, response
     else:
-      encoded_request = self.request_coder.encode(element[0])
+      cache_request = self.source_caller.get_cache_request(element[0])
+      if cache_request:
+        encoded_request = self.request_coder.encode(cache_request)
+      else:
+        encoded_request = self.request_coder.encode(element[0])
       if self.response_coder is None:
         try:
           encoded_response = json.dumps(element[1]._asdict()).encode('utf-8')
-        except Exception:
+        except Exception as e:
           _LOGGER.warning(
               'cannot encode response %s for %s to store in '
               'redis cache.' % (element[1], element[0]))
-          return element
+          raise e
       else:
         encoded_response = self.response_coder.encode(element[1])
-      self.client.setex(encoded_request, self.time_to_live, encoded_response)
+      # Write to cache with TTL. Set nx to True to prevent overwriting for the
+      # same key.
+      self.client.set(
+          encoded_request, encoded_response, self.time_to_live, nx=True)
       return element
 
   def __exit__(self, exc_type, exc_val, exc_tb):
@@ -460,15 +539,34 @@ class RedisCaller(Caller):
 
 class ReadFromRedis(beam.PTransform[beam.PCollection[RequestT],
                                     beam.PCollection[ResponseT]]):
+  """ReadFromRedis is a `PTransform` that performs Redis cache read."""
   def __init__(
       self,
       host: str,
       port: int,
       time_to_live: Union[int, timedelta],
       *,
-      kwargs: Dict[str, Any] = None,
+      kwargs: Optional[Dict[str, Any]] = None,
       request_coder: Optional[coders.Coder],
-      response_coder: Optional[coders.Coder]):
+      response_coder: Optional[coders.Coder],
+      source_caller: Optional[Caller[RequestT, ResponseT]] = None,
+  ):
+    """
+    Args:
+      host (str): The hostname or IP address of the Redis server.
+      port (int): The port number of the Redis server.
+      time_to_live: `(Union[int, timedelta])` The time-to-live (TTL) for
+        records stored in Redis. Provide an integer (in seconds) or a
+        `datetime.timedelta` object.
+      kwargs: Optional(Dict[str, Any]) additional keyword arguments that
+        are required to connect to your redis server. Same as `redis.Redis()`.
+      request_coder: (Optional[`coders.Coder`]) coder for requests stored
+        in Redis.
+      response_coder: (Optional[`coders.Coder`]) coder for decoding responses
+        received from Redis.
+      source_caller: (Optional[`Caller`]): The source caller using this Redis
+        cache in case of fetching the cache request to store in Redis.
+    """
     self.request_coder = request_coder
     self.response_coder = response_coder
     self.redis_caller = RedisCaller(
@@ -478,6 +576,7 @@ class ReadFromRedis(beam.PTransform[beam.PCollection[RequestT],
         request_coder=self.request_coder,
         response_coder=self.response_coder,
         kwargs=kwargs,
+        source_caller=source_caller,
         mode=_RedisMode.READ)
 
   def expand(
@@ -488,15 +587,34 @@ class ReadFromRedis(beam.PTransform[beam.PCollection[RequestT],
 
 class WriteToRedis(beam.PTransform[beam.PCollection[Tuple[RequestT, ResponseT]],
                                    beam.PCollection[ResponseT]]):
+  """WriteToRedis is a `PTransfrom` that performs write to Redis cache."""
   def __init__(
       self,
       host: str,
       port: int,
       time_to_live: Union[int, timedelta],
       *,
-      kwargs: Dict[str, Any] = None,
+      kwargs: Optional[Dict[str, Any]] = None,
       request_coder: Optional[coders.Coder],
-      response_coder: Optional[coders.Coder]):
+      response_coder: Optional[coders.Coder],
+      source_caller: Optional[Caller[RequestT, ResponseT]] = None,
+  ):
+    """
+    Args:
+      host (str): The hostname or IP address of the Redis server.
+      port (int): The port number of the Redis server.
+      time_to_live: `(Union[int, timedelta])` The time-to-live (TTL) for
+        records stored in Redis. Provide an integer (in seconds) or a
+        `datetime.timedelta` object.
+      kwargs: Optional(Dict[str, Any]) additional keyword arguments that
+        are required to connect to your redis server. Same as `redis.Redis()`.
+      request_coder: (Optional[`coders.Coder`]) coder for requests stored
+        in Redis.
+      response_coder: (Optional[`coders.Coder`]) coder for decoding responses
+        received from Redis.
+      source_caller: (Optional[`Caller`]): The source caller using this Redis
+        cache in case of fetching the cache request to store in Redis.
+      """
     self.request_coder = request_coder
     self.response_coder = response_coder
     self.redis_caller = RedisCaller(
@@ -506,6 +624,7 @@ class WriteToRedis(beam.PTransform[beam.PCollection[Tuple[RequestT, ResponseT]],
         request_coder=self.request_coder,
         response_coder=self.response_coder,
         kwargs=kwargs,
+        source_caller=source_caller,
         mode=_RedisMode.WRITE)
 
   def expand(
@@ -515,6 +634,7 @@ class WriteToRedis(beam.PTransform[beam.PCollection[Tuple[RequestT, ResponseT]],
 
 
 def ensure_coders_exist(request_coder):
+  """checks if the coder exists to encode the request for caching."""
   if not request_coder:
     _LOGGER.warning(
         'need request coder to be able to use'
@@ -522,6 +642,8 @@ def ensure_coders_exist(request_coder):
 
 
 class RedisCache(Cache):
+  """RedisCache to configure cache using Redis for
+  :class:`apache_beam.io.requestresponse.RequestResponseIO`."""
   def __init__(
       self,
       host: str,
@@ -530,14 +652,28 @@ class RedisCache(Cache):
       request_coder: Optional[coders.Coder] = None,
       response_coder: Optional[coders.Coder] = None,
       *,
-      kwargs: Dict[str, Any] = None,
+      kwargs: Optional[Dict[str, Any]] = None,
   ):
+    """
+    Args:
+      host (str): The hostname or IP address of the Redis server.
+      port (int): The port number of the Redis server.
+      time_to_live: `(Union[int, timedelta])` The time-to-live (TTL) for
+        records stored in Redis. Provide an integer (in seconds) or a
+        `datetime.timedelta` object.
+      request_coder: (Optional[`coders.Coder`]) coder for encoding requests.
+      response_coder: (Optional[`coders.Coder`]) coder for decoding responses
+        received from Redis.
+      kwargs: Optional(Dict[str, Any]) additional keyword arguments that
+        are required to connect to your redis server. Same as `redis.Redis()`.
+    """
     self._host = host
     self._port = port
     self._time_to_live = time_to_live
     self._request_coder = request_coder
     self._response_coder = response_coder
     self._kwargs = kwargs if kwargs else {}
+    self._source_caller = None
 
   def get_read(self):
     """get_read returns a callback that returns a PTransform
@@ -551,7 +687,8 @@ class RedisCache(Cache):
           time_to_live=self._time_to_live,
           kwargs=self._kwargs,
           request_coder=self._request_coder,
-          response_coder=self._response_coder)
+          response_coder=self._response_coder,
+          source_caller=self._source_caller)
 
     return callback
 
@@ -567,18 +704,28 @@ class RedisCache(Cache):
           time_to_live=self._time_to_live,
           kwargs=self._kwargs,
           request_coder=self._request_coder,
-          response_coder=self._response_coder)
+          response_coder=self._response_coder,
+          source_caller=self._source_caller)
 
     return callback
 
-  def has_coders(self) -> bool:
+  def has_request_coder(self) -> bool:
+    """returns True if the request coder exists."""
     return self._request_coder is not None
 
-  def set_coders(
-      self, request_coder: coders.Coder, response_coder: coders.Coder):
-    if request_coder and response_coder:
+  def set_request_coder(self, request_coder: coders.Coder):
+    """sets the request coder to encode request for `RedisCache`."""
+    if request_coder and not self._request_coder:
       self._request_coder = request_coder
+
+  def set_response_coder(self, response_coder: coders.Coder):
+    """sets the response coder to encode/decode response for `RedisCache`."""
+    if response_coder and not self._response_coder:
       self._response_coder = response_coder
+
+  def set_source_caller(self, caller: Caller[RequestT, ResponseT]):
+    """sets the actual caller using the `RedisCache`."""
+    self._source_caller = caller
 
 
 class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
@@ -634,15 +781,18 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
       requests: beam.PCollection[RequestT]) -> beam.PCollection[ResponseT]:
     # TODO(riteshghorse): handle Throttle PTransforms when available.
 
+    if self._cache:
+      self._cache.set_source_caller(caller=self._caller)
+
     inputs = requests
 
-    if self._cache and self._cache.has_coders():
+    if self._cache and self._cache.has_request_coder():
       # read from cache.
       cache_read_callback = self._cache.get_read()
       outputs = inputs | cache_read_callback()
       # filter responses that are None and send them to the Call transform
       # to fetch a value from external service.
-      cached_responses = outputs | beam.ParDo(_FilterNullCacheReadFn())
+      cached_responses = outputs | beam.ParDo(_FilterNoneCacheReadFn())
       inputs = outputs | beam.ParDo(_FilterCacheRequestsFn())
 
     if isinstance(self._throttler, DefaultThrottler):
@@ -667,14 +817,7 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
               should_backoff=self._should_backoff,
               repeater=self._repeater))
 
-    if self._cache and not self._cache.has_coders():
-      # At this point, after the first batch run, caller should have populated
-      # the request and response coders. Set them for the cache so that it
-      # can be used in next batch. This is useful when inferring coders,
-      # especially with Enrichment transform.
-      self._cache.set_coders(self._caller.get_coders())
-
-    if self._cache and self._cache.has_coders():
+    if self._cache and self._cache.has_request_coder():
       # write to cache.
       cache_write_callback = self._cache.get_write()
       _ = responses | cache_write_callback()

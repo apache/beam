@@ -27,7 +27,6 @@ from google.cloud.bigtable.row_filters import CellsColumnLimitFilter
 from google.cloud.bigtable.row_filters import RowFilter
 
 import apache_beam as beam
-from apache_beam.coders import coders
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 __all__ = [
@@ -102,8 +101,6 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     self._encoding = encoding
     self._exception_level = exception_level
     self._include_timestamp = include_timestamp
-    self._request_coder = None
-    self._response_coder = None
 
   def __enter__(self):
     """connect to the Google BigTable cluster."""
@@ -157,12 +154,6 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     except Exception as e:
       raise e
 
-    # set coders for cache
-    if not self._request_coder and not self._response_coder:
-      # self._request_coder = RowCoder(schema=request.get_schema())
-      # self._response_coder = RowCoder(schema=)
-      pass
-
     return request, beam.Row(**response_dict)
 
   def __exit__(self, exc_type, exc_val, exc_tb):
@@ -171,5 +162,7 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     self.instance = None
     self._table = None
 
-  def get_coders(self) -> (coders.Coder, coders.Coder):
-    return self._request_coder, self._response_coder
+  def get_cache_request(self, request: beam.Row):
+    """return a string formatted with row key since it is unique to
+    a request made to `Bigtable`."""
+    return "%s: %s" % (self._row_key, request._asdict()[self._row_key])

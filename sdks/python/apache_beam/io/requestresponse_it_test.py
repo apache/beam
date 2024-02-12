@@ -25,7 +25,6 @@ from typing import Union
 
 import pytest
 import urllib3
-from testcontainers.redis import RedisContainer
 
 import apache_beam as beam
 from apache_beam.coders import coders
@@ -34,7 +33,9 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 # pylint: disable=ungrouped-imports
 try:
-  from apache_beam.io.requestresponse import Caller, RedisCache
+  from testcontainers.redis import RedisContainer
+  from apache_beam.io.requestresponse import Caller
+  from apache_beam.io.requestresponse import RedisCache
   from apache_beam.io.requestresponse import RequestResponseIO
   from apache_beam.io.requestresponse import UserCodeExecutionException
   from apache_beam.io.requestresponse import UserCodeQuotaException
@@ -58,6 +59,7 @@ class EchoITOptions(PipelineOptions):
   def _add_argparse_args(cls, parser) -> None:
     parser.add_argument(
         _HTTP_ENDPOINT_ADDRESS_FLAG,
+        default='http://10.138.0.32:8080',
         dest='http_endpoint_address',
         help='The HTTP address of the Echo API endpoint; must being with '
         'http(s)://')
@@ -124,6 +126,7 @@ class EchoHTTPCaller(Caller[Request, EchoResponse]):
       raise UserCodeExecutionException(e)
 
 
+@pytest.mark.uses_mock_api
 class EchoHTTPCallerTestIT(unittest.TestCase):
   options: Union[EchoITOptions, None] = None
   client: Union[EchoHTTPCaller, None] = None
@@ -132,7 +135,6 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
   def setUpClass(cls) -> None:
     cls.options = EchoITOptions()
     http_endpoint_address = cls.options.http_endpoint_address
-    http_endpoint_address = 'http://localhost:8080'
     if not http_endpoint_address or http_endpoint_address == '':
       raise unittest.SkipTest(f'{_HTTP_ENDPOINT_ADDRESS_FLAG} is required.')
 
@@ -193,6 +195,7 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
 
 
 class ValidateCacheResponses(beam.DoFn):
+  """Validates that the responses are fetched from the cache."""
   def process(self, element, *args, **kwargs):
     if not element[1] or 'cached-' not in element[1]:
       raise ValueError(
@@ -201,6 +204,7 @@ class ValidateCacheResponses(beam.DoFn):
 
 
 class ValidateCallerResponses(beam.DoFn):
+  """Validates that the responses are fetched from the caller."""
   def process(self, element, *args, **kwargs):
     if not element[1] or 'ACK-' not in element[1]:
       raise ValueError('responses not fetched from caller when they should.')
@@ -223,18 +227,20 @@ class FakeCallerForCache(Caller[str, str]):
     pass
 
 
-@pytest.mark.it_postcommit
+@pytest.mark.uses_redis
 class TestRedisCache(unittest.TestCase):
   def setUp(self) -> None:
     self.retries = 3
     self._start_container()
 
   def test_rrio_cache_all_miss(self):
+    """Cache is empty so all responses are fetched from caller."""
     caller = FakeCallerForCache()
     req = ['redis', 'cachetools', 'memcache']
     cache = RedisCache(
         self.host,
         self.port,
+        time_to_live=30,
         request_coder=coders.StrUtf8Coder(),
         response_coder=coders.StrUtf8Coder())
     with TestPipeline(is_integration_test=True) as p:
@@ -245,6 +251,7 @@ class TestRedisCache(unittest.TestCase):
           | beam.ParDo(ValidateCallerResponses()))
 
   def test_rrio_cache_all_hit(self):
+    """Validate that records are fetched from cache."""
     caller = FakeCallerForCache()
     requests = ['foo', 'bar']
     responses = ['cached-foo', 'cached-bar']
@@ -256,6 +263,7 @@ class TestRedisCache(unittest.TestCase):
     cache = RedisCache(
         self.host,
         self.port,
+        time_to_live=30,
         request_coder=coders.StrUtf8Coder(),
         response_coder=coders.StrUtf8Coder())
     with TestPipeline(is_integration_test=True) as p:
@@ -266,6 +274,8 @@ class TestRedisCache(unittest.TestCase):
           | beam.ParDo(ValidateCacheResponses()))
 
   def test_rrio_cache_miss_and_hit(self):
+    """Run two back-to-back pipelines, one with pulling the data from caller
+    and other from the cache."""
     caller = FakeCallerForCache()
     requests = ['beam', 'flink', 'spark']
     cache = RedisCache(
