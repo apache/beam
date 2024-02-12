@@ -42,14 +42,12 @@ import org.joda.time.Instant;
 
 @NotThreadSafe
 public class Work implements Runnable {
-
   private final Windmill.WorkItem workItem;
   private final Supplier<Instant> clock;
   private final Instant startTime;
   private final Map<Windmill.LatencyAttribution.State, Duration> totalDurationPerState;
   private final Consumer<Work> processWorkFn;
   private TimedState currentState;
-
   private volatile boolean isFailed;
 
   private Work(Windmill.WorkItem workItem, Supplier<Instant> clock, Consumer<Work> processWorkFn) {

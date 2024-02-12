@@ -27,14 +27,14 @@ PRIVATE_REPOSITORIES=(java-postcommit-it python-postcommit-it jenkins github-act
 # set as the same as 6-week release period
 if [[ $OSTYPE == "linux-gnu"* ]]; then
   # date command usage depending on OS
-  DELETE_BEFORE_DAY=$(date --iso-8601=s -d '6 weeks ago')
+  DELETE_BEFORE_PUBLIC=$(date --iso-8601=s -d '6 weeks ago')
+  DELETE_BEFORE_PRIVATE=$(date --iso-8601=s -d '3 days ago')
 elif [[ $OSTYPE == "darwin"* ]]; then
-  DELETE_BEFORE_DAY=$(date -j -v-6w '+%Y-%m-%dT%H:%M:%S')
+  DELETE_BEFORE_PUBLIC=$(date -j -v-6w '+%Y-%m-%dT%H:%M:%S')
+  DELETE_BEFORE_PRIVATE=$(date -j -v-3d '+%Y-%m-%dT%H:%M:%S')
 fi
 
-REPOSITORIES=("${PUBLIC_REPOSITORIES[@]/#/gcr.io/apache-beam-testing/}" "${PRIVATE_REPOSITORIES[@]/#/us.gcr.io/apache-beam-testing/}")
-
-echo $REPOSITORIES
+REPOSITORIES=("${PRIVATE_REPOSITORIES[@]/#/us.gcr.io/apache-beam-testing/}" "${PUBLIC_REPOSITORIES[@]/#/gcr.io/apache-beam-testing/}")
 
 # walk repos recursively
 IMAGE_NAMES=""
@@ -54,8 +54,8 @@ while [ -n "$REPOSITORIES" ]; do
   REPOSITORIES=("${PENDING_REPOSITORIES[@]}")
 done
 
-STALE_IMAGES=""
-FAILED_INSPECT=""
+HAS_STALE_IMAGES=""
+FAILED_IMAGES=""
 
 for image_name in ${IMAGE_NAMES[@]}; do
   echo IMAGES FOR image ${image_name}
@@ -64,22 +64,31 @@ for image_name in ${IMAGE_NAMES[@]}; do
   LATEST_IN_TIME=$(gcloud container images list-tags \
      ${image_name} --sort-by="~TIMESTAMP"  --filter="NOT tags:latest " --format="get(digest)" --limit=1)
   if [ -n "$LATEST_IN_TIME" ]; then
+    # decide timestamp cutoff
+    if [[ $image_name =~ 'us.gcr.io' ]]; then
+      DELETE_BEFORE_DAY=$DELETE_BEFORE_PRIVATE
+    else
+      DELETE_BEFORE_DAY=$DELETE_BEFORE_PUBLIC
+    fi
     # list containers of the image name
     echo "Command" gcloud container images list-tags \
     ${image_name} \
     --sort-by=TIMESTAMP  --filter="NOT tags:latest AND timestamp.datetime < $DELETE_BEFORE_DAY" \
-    --format="get(digest)"
-    STALE_IMAGES_CURRENT=$(gcloud container images list-tags \
+    --format="get(digest,timestamp.year)"
+    STALE_IMAGES=$(gcloud container images list-tags \
      ${image_name} \
       --sort-by=TIMESTAMP  --filter="NOT tags:latest AND timestamp.datetime < $DELETE_BEFORE_DAY" \
-      --format="get(digest)")
-    STALE_IMAGES+=$STALE_IMAGES_CURRENT
-    for current in ${STALE_IMAGES_CURRENT[@]}; do
+      --format="get(digest,timestamp.year)")
+
+    STALE_IMAGES_CURRENT=($STALE_IMAGES)
+    for (( i_stale_images_current=0; i_stale_images_current<${#STALE_IMAGES_CURRENT[@]} ; i_stale_images_current+=2 )) ; do
+      current=${STALE_IMAGES_CURRENT[i_stale_images_current]}
+      currentyear=${STALE_IMAGES_CURRENT[i_stale_images_current+1]}
       # do not delete the one with latest label and the newest image without latest label
       # this make sure we leave at least one container under each image name, either labelled "latest" or not
       if [ "$LATEST_IN_TIME" != "$current" ]; then
-        if [[ $image_name =~ 'beamgrafana' || $image_name =~ 'beammetricssyncjenkins' || $image_name =~ 'beammetricssyncgithub' ]]; then
-          # Skip docker manifest inspect for known single arch images, workaround permission issue & saving API call
+        if [[ $currentyear > 1970 ]]; then
+          # Skip docker manifest inspect for those not in epoch to save API call
           SHOULD_DELETE=0
         else
           # Check to see if this image is built on top of earlier images. This is the case for multiarch images,
@@ -89,15 +98,15 @@ for image_name in ${IMAGE_NAMES[@]}; do
           MANIFEST=$(docker manifest inspect ${image_name}@"${current}" || echo "")
           if [ -z "$MANIFEST" ]; then
             # Sometimes "no such manifest" seen. Skip current if command hit error
-            FAILED_INSPECT+=" $current"
+            FAILED_IMAGES+=" $current"
             continue
           fi
           SHOULD_DELETE=0
           DIGEST=$(echo $MANIFEST |  jq -r '.manifests[0].digest')
           if [ "$DIGEST" != "null" ]; then
             SHOULD_DELETE=1
-            for i in ${STALE_IMAGES_CURRENT[@]}; do
-              if [ "$i" = "$DIGEST" ]; then
+            for (( j_stale_images_current=0; j_stale_images_current<${#STALE_IMAGES_CURRENT[@]} ; j_stale_images_current+=2 )) ; do
+              if [ "${STALE_IMAGES_CURRENT[j_stale_images_current]}" = "$DIGEST" ]; then
                 SHOULD_DELETE=0
                 break
               fi
@@ -105,8 +114,8 @@ for image_name in ${IMAGE_NAMES[@]}; do
           fi
         fi
 
-        if [ $SHOULD_DELETE = 0 ]
-        then
+        if [ $SHOULD_DELETE = 0 ]; then
+          HAS_STALE_IMAGES="true"
           echo "Deleting image. Command: gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q"
           gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q || FAILED_TO_DELETE+="${current} "
         fi
@@ -120,18 +129,18 @@ for image_name in ${IMAGE_NAMES[@]}; do
     echo "Failed to delete the following images: ${FAILED_TO_DELETE}. Retrying each of them."
     for current in $RETRY_DELETE; do
       echo "Trying again to delete image ${image_name}@"${current}". Command: gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q"
-      gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q
+      gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q || FAILED_IMAGES+=" ${image_name}@${current}"
     done
   fi
 done
 
-if [[ ${STALE_IMAGES} ]]; then
+if [[ -n "$HAS_STALE_IMAGES" ]]; then
   echo "Deleted multiple images"
 else
   echo "No stale prebuilt container images found."
 fi
 
-if [ -n "$FAILED_INSPECT" ]; then
-  echo "Failed delete images $FAILED_INSPECT"
+if [ -n "$FAILED_IMAGES" ]; then
+  echo "Failed delete images $FAILED_IMAGES"
   exit 1
 fi

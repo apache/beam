@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 
+import com.google.auto.value.AutoValue;
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -28,6 +29,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -38,6 +40,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -70,11 +73,19 @@ public final class ActiveWorkState {
   @GuardedBy("this")
   private final WindmillStateCache.ForComputation computationStateCache;
 
+  /**
+   * Current budget that is being processed or queued on the user worker. Incremented when work is
+   * activated in {@link #activateWorkForKey(ShardedKey, Work)}, and decremented when work is
+   * completed in {@link #completeWorkAndGetNextWorkForKey(ShardedKey, long)}.
+   */
+  private final AtomicReference<GetWorkBudget> activeGetWorkBudget;
+
   private ActiveWorkState(
       Map<ShardedKey, Deque<Work>> activeWork,
       WindmillStateCache.ForComputation computationStateCache) {
     this.activeWork = activeWork;
     this.computationStateCache = computationStateCache;
+    this.activeGetWorkBudget = new AtomicReference<>(GetWorkBudget.noBudget());
   }
 
   static ActiveWorkState create(WindmillStateCache.ForComputation computationStateCache) {
@@ -86,6 +97,12 @@ public final class ActiveWorkState {
       Map<ShardedKey, Deque<Work>> activeWork,
       WindmillStateCache.ForComputation computationStateCache) {
     return new ActiveWorkState(activeWork, computationStateCache);
+  }
+
+  private static String elapsedString(Instant start, Instant end) {
+    Duration activeFor = new Duration(start, end);
+    // Duration's toString always starts with "PT"; remove that here.
+    return activeFor.toString().substring(2);
   }
 
   /**
@@ -103,12 +120,12 @@ public final class ActiveWorkState {
    */
   synchronized ActivateWorkResult activateWorkForKey(ShardedKey shardedKey, Work work) {
     Deque<Work> workQueue = activeWork.getOrDefault(shardedKey, new ArrayDeque<>());
-
     // This key does not have any work queued up on it. Create one, insert Work, and mark the work
     // to be executed.
     if (!activeWork.containsKey(shardedKey) || workQueue.isEmpty()) {
       workQueue.addLast(work);
       activeWork.put(shardedKey, workQueue);
+      incrementActiveWorkBudget(work);
       return ActivateWorkResult.EXECUTE;
     }
 
@@ -121,16 +138,27 @@ public final class ActiveWorkState {
 
     // Queue the work for later processing.
     workQueue.addLast(work);
+    incrementActiveWorkBudget(work);
     return ActivateWorkResult.QUEUED;
   }
 
-  public static final class FailedTokens {
-    public long workToken;
-    public long cacheToken;
+  @AutoValue
+  public abstract static class FailedTokens {
+    public static Builder newBuilder() {
+      return new AutoValue_ActiveWorkState_FailedTokens.Builder();
+    }
 
-    public FailedTokens(long workToken, long cacheToken) {
-      this.workToken = workToken;
-      this.cacheToken = cacheToken;
+    public abstract long workToken();
+
+    public abstract long cacheToken();
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setWorkToken(long value);
+
+      public abstract Builder setCacheToken(long value);
+
+      public abstract FailedTokens build();
     }
   }
 
@@ -148,17 +176,17 @@ public final class ActiveWorkState {
       for (FailedTokens failedToken : failedTokens) {
         for (Work queuedWork : entry.getValue()) {
           WorkItem workItem = queuedWork.getWorkItem();
-          if (workItem.getWorkToken() == failedToken.workToken
-              && workItem.getCacheToken() == failedToken.cacheToken) {
+          if (workItem.getWorkToken() == failedToken.workToken()
+              && workItem.getCacheToken() == failedToken.cacheToken()) {
             LOG.debug(
                 "Failing work "
                     + computationStateCache.getComputation()
                     + " "
                     + entry.getKey().shardingKey()
                     + " "
-                    + failedToken.workToken
+                    + failedToken.workToken()
                     + " "
-                    + failedToken.cacheToken
+                    + failedToken.cacheToken()
                     + ". The work will be retried and is not lost.");
             queuedWork.setFailed();
             break;
@@ -166,6 +194,16 @@ public final class ActiveWorkState {
         }
       }
     }
+  }
+
+  private void incrementActiveWorkBudget(Work work) {
+    activeGetWorkBudget.updateAndGet(
+        getWorkBudget -> getWorkBudget.apply(1, work.getWorkItem().getSerializedSize()));
+  }
+
+  private void decrementActiveWorkBudget(Work work) {
+    activeGetWorkBudget.updateAndGet(
+        getWorkBudget -> getWorkBudget.subtract(1, work.getWorkItem().getSerializedSize()));
   }
 
   /**
@@ -188,16 +226,13 @@ public final class ActiveWorkState {
 
   private synchronized void removeCompletedWorkFromQueue(
       Queue<Work> workQueue, ShardedKey shardedKey, long workToken) {
-    // avoid Preconditions.checkState here to prevent eagerly evaluating the
-    // format string parameters for the error message.
-    Work completedWork =
-        Optional.ofNullable(workQueue.peek())
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        String.format(
-                            "Active key %s without work, expected token %d",
-                            shardedKey, workToken)));
+    Work completedWork = workQueue.peek();
+    if (completedWork == null) {
+      // Work may have been completed due to clearing of stuck commits.
+      LOG.warn(
+          String.format("Active key %s without work, expected token %d", shardedKey, workToken));
+      return;
+    }
 
     if (completedWork.getWorkItem().getWorkToken() != workToken) {
       // Work may have been completed due to clearing of stuck commits.
@@ -211,6 +246,7 @@ public final class ActiveWorkState {
 
     // We consumed the matching work item.
     workQueue.remove();
+    decrementActiveWorkBudget(completedWork);
   }
 
   private synchronized Optional<Work> getNextWork(Queue<Work> workQueue, ShardedKey shardedKey) {
@@ -288,6 +324,15 @@ public final class ActiveWorkState {
                     .build());
   }
 
+  /**
+   * Returns the current aggregate {@link GetWorkBudget} that is active on the user worker. Active
+   * means that the work is received from Windmill, being processed or queued to be processed in
+   * {@link ActiveWorkState}, and not committed back to Windmill.
+   */
+  GetWorkBudget currentActiveWorkBudget() {
+    return activeGetWorkBudget.get();
+  }
+
   synchronized void printActiveWork(PrintWriter writer, Instant now) {
     writer.println(
         "<table border=\"1\" "
@@ -331,12 +376,11 @@ public final class ActiveWorkState {
       writer.println(commitsPendingCount - MAX_PRINTABLE_COMMIT_PENDING_KEYS);
       writer.println("<br>");
     }
-  }
 
-  private static String elapsedString(Instant start, Instant end) {
-    Duration activeFor = new Duration(start, end);
-    // Duration's toString always starts with "PT"; remove that here.
-    return activeFor.toString().substring(2);
+    writer.println("<br>");
+    writer.println("Current Active Work Budget: ");
+    writer.println(currentActiveWorkBudget());
+    writer.println("<br>");
   }
 
   enum ActivateWorkResult {

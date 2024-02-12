@@ -32,12 +32,12 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.ActivateWorkResult;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
@@ -50,9 +50,9 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class ActiveWorkStateTest {
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private final WindmillStateCache.ForComputation computationStateCache =
       mock(WindmillStateCache.ForComputation.class);
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private Map<ShardedKey, Deque<Work>> readOnlyActiveWork;
 
   private ActiveWorkState activeWorkState;
@@ -61,11 +61,7 @@ public class ActiveWorkStateTest {
     return ShardedKey.create(ByteString.copyFromUtf8(str), shardKey);
   }
 
-  private static Work emptyWork() {
-    return createWork(null);
-  }
-
-  private static Work createWork(@Nullable Windmill.WorkItem workItem) {
+  private static Work createWork(Windmill.WorkItem workItem) {
     return Work.create(workItem, Instant::now, Collections.emptyList(), unused -> {});
   }
 
@@ -92,7 +88,8 @@ public class ActiveWorkStateTest {
   @Test
   public void testActivateWorkForKey_EXECUTE_unknownKey() {
     ActivateWorkResult activateWorkResult =
-        activeWorkState.activateWorkForKey(shardedKey("someKey", 1L), emptyWork());
+        activeWorkState.activateWorkForKey(
+            shardedKey("someKey", 1L), createWork(createWorkItem(1L)));
 
     assertEquals(ActivateWorkResult.EXECUTE, activateWorkResult);
   }
@@ -212,6 +209,76 @@ public class ActiveWorkStateTest {
 
     assertFalse(endOfWorkQueue.isPresent());
     assertFalse(readOnlyActiveWork.containsKey(shardedKey));
+  }
+
+  @Test
+  public void testCurrentActiveWorkBudget_correctlyAggregatesActiveWorkBudget_oneShardKey() {
+    ShardedKey shardedKey = shardedKey("someKey", 1L);
+    Work work1 = createWork(createWorkItem(1L));
+    Work work2 = createWork(createWorkItem(2L));
+
+    activeWorkState.activateWorkForKey(shardedKey, work1);
+    activeWorkState.activateWorkForKey(shardedKey, work2);
+
+    GetWorkBudget expectedActiveBudget1 =
+        GetWorkBudget.builder()
+            .setItems(2)
+            .setBytes(
+                work1.getWorkItem().getSerializedSize() + work2.getWorkItem().getSerializedSize())
+            .build();
+
+    assertThat(activeWorkState.currentActiveWorkBudget()).isEqualTo(expectedActiveBudget1);
+
+    activeWorkState.completeWorkAndGetNextWorkForKey(
+        shardedKey, work1.getWorkItem().getWorkToken());
+
+    GetWorkBudget expectedActiveBudget2 =
+        GetWorkBudget.builder()
+            .setItems(1)
+            .setBytes(work1.getWorkItem().getSerializedSize())
+            .build();
+
+    assertThat(activeWorkState.currentActiveWorkBudget()).isEqualTo(expectedActiveBudget2);
+  }
+
+  @Test
+  public void testCurrentActiveWorkBudget_correctlyAggregatesActiveWorkBudget_whenWorkCompleted() {
+    ShardedKey shardedKey = shardedKey("someKey", 1L);
+    Work work1 = createWork(createWorkItem(1L));
+    Work work2 = createWork(createWorkItem(2L));
+
+    activeWorkState.activateWorkForKey(shardedKey, work1);
+    activeWorkState.activateWorkForKey(shardedKey, work2);
+    activeWorkState.completeWorkAndGetNextWorkForKey(
+        shardedKey, work1.getWorkItem().getWorkToken());
+
+    GetWorkBudget expectedActiveBudget =
+        GetWorkBudget.builder()
+            .setItems(1)
+            .setBytes(work1.getWorkItem().getSerializedSize())
+            .build();
+
+    assertThat(activeWorkState.currentActiveWorkBudget()).isEqualTo(expectedActiveBudget);
+  }
+
+  @Test
+  public void testCurrentActiveWorkBudget_correctlyAggregatesActiveWorkBudget_multipleShardKeys() {
+    ShardedKey shardedKey1 = shardedKey("someKey", 1L);
+    ShardedKey shardedKey2 = shardedKey("someKey", 2L);
+    Work work1 = createWork(createWorkItem(1L));
+    Work work2 = createWork(createWorkItem(2L));
+
+    activeWorkState.activateWorkForKey(shardedKey1, work1);
+    activeWorkState.activateWorkForKey(shardedKey2, work2);
+
+    GetWorkBudget expectedActiveBudget =
+        GetWorkBudget.builder()
+            .setItems(2)
+            .setBytes(
+                work1.getWorkItem().getSerializedSize() + work2.getWorkItem().getSerializedSize())
+            .build();
+
+    assertThat(activeWorkState.currentActiveWorkBudget()).isEqualTo(expectedActiveBudget);
   }
 
   @Test
