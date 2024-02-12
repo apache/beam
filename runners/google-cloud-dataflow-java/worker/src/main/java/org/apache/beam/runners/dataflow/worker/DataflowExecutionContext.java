@@ -369,15 +369,15 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       if (this.activeMessageMetadata == null) {
         return;
       }
+      int processingTime =
+          (int) (System.currentTimeMillis() - this.activeMessageMetadata.startTime());
       this.processingTimesByStep.compute(
           this.activeMessageMetadata.userStepName(),
           (k, v) -> {
             if (v == null) {
               v = new IntSummaryStatistics();
             }
-            synchronized (this) {
-              v.accept((int) (System.currentTimeMillis() - this.activeMessageMetadata.startTime()));
-            }
+            v.accept(processingTime);
             return v;
           });
       this.activeMessageMetadata = null;
