@@ -20,6 +20,7 @@ import abc
 import concurrent.futures
 import contextlib
 import enum
+import json
 import logging
 import sys
 import time
@@ -427,11 +428,29 @@ class RedisCaller(Caller):
       encoded_response = self.client.get(encoded_request)
       if not encoded_response:
         return element, None
-      response = self.response_coder.decode(encoded_response)
+      if self.response_coder is None:
+        try:
+          response_dict = json.loads(encoded_response.decode('utf-8'))
+          response = beam.Row(**response_dict)
+        except Exception:
+          _LOGGER.warning(
+              'cannot decode response from redis cache for %s.' % element)
+          return element, None
+      else:
+        response = self.response_coder.decode(encoded_response)
       return element, response
     else:
       encoded_request = self.request_coder.encode(element[0])
-      encoded_response = self.response_coder.encode(element[1])
+      if self.response_coder is None:
+        try:
+          encoded_response = json.dumps(element[1]._asdict()).encode('utf-8')
+        except Exception:
+          _LOGGER.warning(
+              'cannot encode response %s for %s to store in '
+              'redis cache.' % (element[1], element[0]))
+          return element
+      else:
+        encoded_response = self.response_coder.encode(element[1])
       self.client.setex(encoded_request, self.time_to_live, encoded_response)
       return element
 
@@ -495,10 +514,10 @@ class WriteToRedis(beam.PTransform[beam.PCollection[Tuple[RequestT, ResponseT]],
     return elements | RequestResponseIO(self.redis_caller)
 
 
-def ensure_coders_exist(request_coder, response_coder):
-  if not request_coder or not response_coder:
+def ensure_coders_exist(request_coder):
+  if not request_coder:
     _LOGGER.warning(
-        'need both request and response coder to be able to use'
+        'need request coder to be able to use'
         'Cache with RequestResponseIO.')
 
 
@@ -523,7 +542,7 @@ class RedisCache(Cache):
   def get_read(self):
     """get_read returns a callback that returns a PTransform
     for reading from the cache."""
-    ensure_coders_exist(self._request_coder, self._response_coder)
+    ensure_coders_exist(self._request_coder)
 
     def callback():
       return ReadFromRedis(
@@ -539,7 +558,7 @@ class RedisCache(Cache):
   def get_write(self):
     """get_write returns a callback that returns a PTransform
     for writing to the cache."""
-    ensure_coders_exist(self._request_coder, self._response_coder)
+    ensure_coders_exist(self._request_coder)
 
     def callback():
       return WriteToRedis(
@@ -553,8 +572,7 @@ class RedisCache(Cache):
     return callback
 
   def has_coders(self) -> bool:
-    return ((self._request_coder is not None) and
-            (self._response_coder is not None))
+    return self._request_coder is not None
 
   def set_coders(
       self, request_coder: coders.Coder, response_coder: coders.Coder):
@@ -649,7 +667,7 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
               should_backoff=self._should_backoff,
               repeater=self._repeater))
 
-    if not self._cache.has_coders():
+    if self._cache and not self._cache.has_coders():
       # At this point, after the first batch run, caller should have populated
       # the request and response coders. Set them for the cache so that it
       # can be used in next batch. This is useful when inferring coders,
