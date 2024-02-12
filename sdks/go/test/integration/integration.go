@@ -139,8 +139,6 @@ var portableFilters = []string{
 var prismFilters = []string{
 	// The prism runner does not yet support Java's CoGBK.
 	"TestXLang_CoGroupBy",
-	// The prism runner does not support the TestStream primitive
-	"TestTestStream.*",
 	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
 	"TestPanes",
