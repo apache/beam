@@ -375,7 +375,11 @@ def delete_generated_files(root_dir):
   logging.info("Successfully deleted files: %s", deleted_files)
 
 
-def run_script(cleanup, generate_config_only, input_expansion_services, transforms_config_source):
+def run_script(
+    cleanup,
+    generate_config_only,
+    input_expansion_services,
+    transforms_config_source):
   # Cleanup first if requested. This is needed to remove outdated wrappers.
   if cleanup:
     delete_generated_files(PY_WRAPPER_OUTPUT_DIR)
@@ -413,11 +417,11 @@ if __name__ == '__main__':
       action='store_true',
       help="Whether to cleanup existing generated wrappers first.")
   parser.add_argument(
-    '--generate-config-only',
-    dest='generate_config_only',
-    action='store_true',
-    help="If set, will generate the transform config only without generating"
-         "any wrappers.")
+      '--generate-config-only',
+      dest='generate_config_only',
+      action='store_true',
+      help="If set, will generate the transform config only without generating"
+      "any wrappers.")
   parser.add_argument(
       '--input-expansion-services',
       dest='input_expansion_services',
