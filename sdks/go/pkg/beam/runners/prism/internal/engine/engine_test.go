@@ -180,6 +180,7 @@ func TestTestStream(t *testing.T) {
 		{pipeline: primitives.TestStreamByteSliceSequence},
 		{pipeline: primitives.TestStreamFloat64Sequence},
 		{pipeline: primitives.TestStreamInt64Sequence},
+		{pipeline: primitives.TestStreamInt16Sequence},
 		{pipeline: primitives.TestStreamStrings},
 		{pipeline: primitives.TestStreamTwoBoolSequences},
 		{pipeline: primitives.TestStreamTwoFloat64Sequences},

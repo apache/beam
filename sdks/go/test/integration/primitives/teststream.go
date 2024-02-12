@@ -158,3 +158,17 @@ func TestStreamTwoUserTypeSequences(s beam.Scope) {
 	passert.Count(s, col, "teststream usertype", 6)
 	passert.EqualsList(s, col, append(eo, et...))
 }
+
+// TestStreamInt16Sequence validates that a non-beam standard coder
+// works with test stream.
+func TestStreamInt16Sequence(s beam.Scope) {
+	con := teststream.NewConfig()
+	ele := []int16{91, 92, 93}
+	con.AddElementList(100, ele)
+	con.AdvanceWatermarkToInfinity()
+
+	col := teststream.Create(s, con)
+
+	passert.Count(s, col, "teststream int15", 3)
+	passert.EqualsList(s, col, ele)
+}
