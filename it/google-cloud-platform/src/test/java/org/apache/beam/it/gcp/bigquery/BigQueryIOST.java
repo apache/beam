@@ -313,8 +313,8 @@ public final class BigQueryIOST extends IOLoadTestBase {
                 "autoscalingAlgorithm",
                 DataflowPipelineWorkerPoolOptions.AutoscalingAlgorithmType.THROUGHPUT_BASED
                     .toString())
-            .addParameter("numWorkers", "20")
-            .addParameter("maxNumWorkers", "100")
+            .addParameter("numWorkers", String.valueOf(configuration.numWorkers))
+            .addParameter("maxNumWorkers", String.valueOf(configuration.maxNumWorkers))
             .addParameter("experiments", GcpOptions.STREAMING_ENGINE_EXPERIMENT)
             .build();
 
@@ -526,6 +526,12 @@ public final class BigQueryIOST extends IOLoadTestBase {
 
     /** Runner specified to run the pipeline. */
     @JsonProperty public String runner = "DirectRunner";
+
+    /** Number of workers for the pipeline. */
+    @JsonProperty public int numWorkers = 20;
+
+    /** Maximum number of workers for the pipeline. */
+    @JsonProperty public int maxNumWorkers = 100;
 
     /** BigQuery write method: DEFAULT/FILE_LOADS/STREAMING_INSERTS/STORAGE_WRITE_API. */
     @JsonProperty public String writeMethod = "DEFAULT";
