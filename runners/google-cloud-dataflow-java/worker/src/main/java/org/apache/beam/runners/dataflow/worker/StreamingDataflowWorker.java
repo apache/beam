@@ -87,7 +87,6 @@ import org.apache.beam.runners.dataflow.worker.status.DebugCapture.Capturable;
 import org.apache.beam.runners.dataflow.worker.status.LastExceptionDataProvider;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
-import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.FailedTokens;
 import org.apache.beam.runners.dataflow.worker.streaming.Commit;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutionState;
@@ -105,6 +104,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
@@ -1971,18 +1971,19 @@ public class StreamingDataflowWorker {
     }
   }
 
-  public void handleHeartbeatResponses(List<Windmill.ComputationHeartbeatResponse> responses) {
-    for (Windmill.ComputationHeartbeatResponse computationHeartbeatResponse : responses) {
+  public void handleHeartbeatResponses(List<ComputationHeartbeatResponse> responses) {
+    for (ComputationHeartbeatResponse computationHeartbeatResponse : responses) {
       // Maps sharding key to (work token, cache token) for work that should be marked failed.
-      Map<Long, List<FailedTokens>> failedWork = new HashMap<>();
+      Multimap<Long, WorkId> failedWork = ArrayListMultimap.create();
       for (Windmill.HeartbeatResponse heartbeatResponse :
           computationHeartbeatResponse.getHeartbeatResponsesList()) {
         if (heartbeatResponse.getFailed()) {
-          failedWork
-              .computeIfAbsent(heartbeatResponse.getShardingKey(), key -> new ArrayList<>())
-              .add(
-                  new FailedTokens(
-                      heartbeatResponse.getWorkToken(), heartbeatResponse.getCacheToken()));
+          failedWork.put(
+              heartbeatResponse.getShardingKey(),
+              WorkId.builder()
+                  .setWorkToken(heartbeatResponse.getWorkToken())
+                  .setCacheToken(heartbeatResponse.getCacheToken())
+                  .build());
         }
       }
       ComputationState state = computationMap.get(computationHeartbeatResponse.getComputationId());
