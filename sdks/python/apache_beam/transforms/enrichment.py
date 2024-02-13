@@ -15,18 +15,23 @@
 # limitations under the License.
 #
 import logging
+from datetime import timedelta
 from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Optional
 from typing import TypeVar
+from typing import Union
 
 import apache_beam as beam
+from apache_beam.coders import coders
+from apache_beam.io.requestresponse import DEFAULT_TIME_TO_LIVE_SECS
 from apache_beam.io.requestresponse import DEFAULT_TIMEOUT_SECS
 from apache_beam.io.requestresponse import Caller
 from apache_beam.io.requestresponse import DefaultThrottler
 from apache_beam.io.requestresponse import ExponentialBackOffRepeater
 from apache_beam.io.requestresponse import PreCallThrottler
+from apache_beam.io.requestresponse import RedisCache
 from apache_beam.io.requestresponse import Repeater
 from apache_beam.io.requestresponse import RequestResponseIO
 
@@ -42,6 +47,13 @@ OutputT = TypeVar('OutputT')
 JoinFn = Callable[[Dict[str, Any], Dict[str, Any]], beam.Row]
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def has_valid_redis_address(host: str, port: int) -> bool:
+  """returns `True` if both host and port are not `None`."""
+  if host and port:
+    return True
+  return False
 
 
 def cross_join(left: Dict[str, Any], right: Dict[str, Any]) -> beam.Row:
@@ -116,8 +128,8 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
       join_fn: JoinFn = cross_join,
       timeout: Optional[float] = DEFAULT_TIMEOUT_SECS,
       repeater: Repeater = ExponentialBackOffRepeater(),
-      throttler: PreCallThrottler = DefaultThrottler(),
-  ):
+      throttler: PreCallThrottler = DefaultThrottler()):
+    self._cache = None
     self._source_handler = source_handler
     self._join_fn = join_fn
     self._timeout = timeout
@@ -126,12 +138,55 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
 
   def expand(self,
              input_row: beam.PCollection[InputT]) -> beam.PCollection[OutputT]:
+    # For caching with enrichment transform, enrichment handlers provide a
+    # get_cache_request() method that returns a unique string formatted request
+    # for that row.
+    request_coder = coders.StrUtf8Coder()
+    if self._cache:
+      self._cache.set_request_coder(request_coder)
+
     fetched_data = input_row | RequestResponseIO(
         caller=self._source_handler,
         timeout=self._timeout,
         repeater=self._repeater,
+        cache=self._cache,
         throttler=self._throttler)
 
     # EnrichmentSourceHandler returns a tuple of (request,response).
     return fetched_data | beam.Map(
         lambda x: self._join_fn(x[0]._asdict(), x[1]._asdict()))
+
+  def with_redis_cache(
+      self,
+      host: str,
+      port: int,
+      time_to_live: Union[int, timedelta] = DEFAULT_TIME_TO_LIVE_SECS,
+      *,
+      request_coder: Optional[coders.Coder] = None,
+      response_coder: Optional[coders.Coder] = None,
+      kwargs: Optional[Dict[str, Any]] = None,
+  ):
+    """Configure the Redis cache to use with enrichment transform.
+
+    Args:
+      host (str): The hostname or IP address of the Redis server.
+      port (int): The port number of the Redis server.
+      time_to_live: `(Union[int, timedelta])` The time-to-live (TTL) for
+        records stored in Redis. Provide an integer (in seconds) or a
+        `datetime.timedelta` object.
+      request_coder: (Optional[`coders.Coder`]) coder for requests stored
+        in Redis.
+      response_coder: (Optional[`coders.Coder`]) coder for decoding responses
+        received from Redis.
+      kwargs: Optional(Dict[str, Any]) additional keyword arguments that
+        are required to connect to your redis server. Same as `redis.Redis()`.
+    """
+    if has_valid_redis_address(host, port):
+      self._cache = RedisCache(  # type: ignore[assignment]
+          host,
+          port,
+          time_to_live,
+          request_coder,
+          response_coder,
+          kwargs=kwargs)
+    return self

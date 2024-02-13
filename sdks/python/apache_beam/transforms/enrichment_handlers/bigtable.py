@@ -161,3 +161,8 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     self.client = None
     self.instance = None
     self._table = None
+
+  def get_cache_request(self, request: beam.Row):
+    """return a string formatted with row key since it is unique to
+    a request made to `Bigtable`."""
+    return "%s: %s" % (self._row_key, request._asdict()[self._row_key])
