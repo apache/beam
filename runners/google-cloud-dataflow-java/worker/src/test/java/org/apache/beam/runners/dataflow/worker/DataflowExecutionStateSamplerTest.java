@@ -30,8 +30,8 @@ import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.Dataflow
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.joda.time.DateTimeUtils.MillisProvider;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
