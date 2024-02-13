@@ -226,9 +226,8 @@ This may cause difficulties customizing the image with using one of the above ap
 As a fallback, it's possible to build a custom image from scratch, by building a matching boot loader, and setting
 that as the container's entry point.
 
-If modifying a container image as above doesn't work, it's also possible to build one from scratch.
 For example, if it's preferable to use alpine as the container OS your multi-stage docker file might
-look like.
+look like the following: 
 
 ```
 FROM golang:latest-alpine AS build_base
