@@ -57,6 +57,8 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link DataflowExecutionStateTrackerTest}. */
 public class DataflowExecutionStateTrackerTest {
@@ -66,29 +68,12 @@ public class DataflowExecutionStateTrackerTest {
   private ExecutionStateSampler sampler;
   private CounterSet counterSet;
 
-  @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
-
-  private File logFolder;
-
   @Before
   public void setUp() {
     options = PipelineOptionsFactory.create();
     clock = mock(MillisProvider.class);
     sampler = ExecutionStateSampler.newForTest(clock);
     counterSet = new CounterSet();
-    logFolder = tempFolder.newFolder();
-    System.setProperty(
-        DataflowWorkerLoggingInitializer.RUNNER_FILEPATH_PROPERTY,
-        new File(logFolder, "dataflow-json.log").getAbsolutePath());
-    // We need to reset *first* because some other test may have already initialized the
-    // logging initializer.
-    DataflowWorkerLoggingInitializer.reset();
-    DataflowWorkerLoggingInitializer.initialize();
-  }
-
-  @After
-  public void tearDown() {
-    DataflowWorkerLoggingInitializer.reset();
   }
 
   private final NameContext step1 =
@@ -127,6 +112,75 @@ public class DataflowExecutionStateTrackerTest {
 
     sampler.doSampling(100);
     assertThat(step1Process.getTotalMillis(), equalTo(100L));
+  }
+
+  private void enableTimePerElementExperiment() {
+    options
+        .as(DataflowPipelineDebugOptions.class)
+        .setExperiments(
+            Lists.newArrayList(DataflowElementExecutionTracker.TIME_PER_ELEMENT_EXPERIMENT));
+  }
+
+  private void assertElementProcessingTimeCounter(NameContext step, int millis, int bucketOffset) {
+    CounterName counterName = ElementExecutionTracker.COUNTER_NAME.withOriginalName(step);
+    Counter<?, CounterDistribution> counter =
+        (Counter<?, CounterFactory.CounterDistribution>) counterSet.getExistingCounter(counterName);
+    assertNotNull(counter);
+
+    CounterFactory.CounterDistribution distribution = counter.getAggregate();
+    assertThat(
+        distribution,
+        equalTo(
+            CounterFactory.CounterDistribution.builder()
+                .minMax(millis, millis)
+                .count(1)
+                .sum(millis)
+                .sumOfSquares(millis * millis)
+                .buckets(bucketOffset, Lists.newArrayList(1L))
+                .build()));
+  }
+
+  private ExecutionStateTracker createTracker() {
+    return new DataflowExecutionStateTracker(
+        sampler,
+        new TestDataflowExecutionState(NameContext.forStage("test-stage"), "other"),
+        counterSet,
+        options,
+        "test-work-item-id");
+  }
+}
+
+/** Tests for the lull logging in {@link DataflowOperationContext}. */
+@RunWith(JUnit4.class)
+public static class LullLoggingTest {
+
+  @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+
+  @Rule public RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties();
+
+  private File logFolder;
+  private PipelineOptions options;
+  private ExecutionStateSampler sampler;
+  private CounterSet counterSet;
+
+  @Before
+  public void setUp() throws IOException {
+    options = PipelineOptionsFactory.create();
+    sampler = ExecutionStateSampler.newForTest(mock(MillisProvider.class));
+    counterSet = new CounterSet();
+    logFolder = tempFolder.newFolder();
+    System.setProperty(
+        DataflowWorkerLoggingInitializer.RUNNER_FILEPATH_PROPERTY,
+        new File(logFolder, "dataflow-json.log").getAbsolutePath());
+    // We need to reset *first* because some other test may have already initialized the
+    // logging initializer.
+    DataflowWorkerLoggingInitializer.reset();
+    DataflowWorkerLoggingInitializer.initialize();
+  }
+
+  @After
+  public void tearDown() {
+    DataflowWorkerLoggingInitializer.reset();
   }
 
   @Test
@@ -215,41 +269,6 @@ public class DataflowExecutionStateTrackerTest {
     }
     // Truncate the file when done to prepare for the next test.
     new FileOutputStream(logFile, false).getChannel().truncate(0).close();
-  }
-
-  private void enableTimePerElementExperiment() {
-    options
-        .as(DataflowPipelineDebugOptions.class)
-        .setExperiments(
-            Lists.newArrayList(DataflowElementExecutionTracker.TIME_PER_ELEMENT_EXPERIMENT));
-  }
-
-  private void assertElementProcessingTimeCounter(NameContext step, int millis, int bucketOffset) {
-    CounterName counterName = ElementExecutionTracker.COUNTER_NAME.withOriginalName(step);
-    Counter<?, CounterDistribution> counter =
-        (Counter<?, CounterFactory.CounterDistribution>) counterSet.getExistingCounter(counterName);
-    assertNotNull(counter);
-
-    CounterFactory.CounterDistribution distribution = counter.getAggregate();
-    assertThat(
-        distribution,
-        equalTo(
-            CounterFactory.CounterDistribution.builder()
-                .minMax(millis, millis)
-                .count(1)
-                .sum(millis)
-                .sumOfSquares(millis * millis)
-                .buckets(bucketOffset, Lists.newArrayList(1L))
-                .build()));
-  }
-
-  private ExecutionStateTracker createTracker() {
-    return new DataflowExecutionStateTracker(
-        sampler,
-        new TestDataflowExecutionState(NameContext.forStage("test-stage"), "other"),
-        counterSet,
-        options,
-        "test-work-item-id");
   }
 
   private ExecutionStateTracker createTracker(Clock clock) {
