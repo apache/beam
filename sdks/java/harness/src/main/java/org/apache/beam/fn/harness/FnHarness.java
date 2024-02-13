@@ -171,6 +171,7 @@ public class FnHarness {
     }
 
     System.out.format("Pipeline options %s%n", pipelineOptionsJson);
+    // TODO: https://github.com/apache/beam/issues/30301
     pipelineOptionsJson = removeNestedKey(pipelineOptionsJson, "impersonateServiceAccount");
 
     PipelineOptions options = PipelineOptionsTranslation.fromJson(pipelineOptionsJson);
