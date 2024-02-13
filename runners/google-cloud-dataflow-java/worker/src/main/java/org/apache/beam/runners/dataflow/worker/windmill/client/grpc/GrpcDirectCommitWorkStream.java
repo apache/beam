@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
  * <p>Callers should call {@link #queueCommit(WorkItemCommitRequest, ComputationState, Work)} when
  * work is ready to be committed.
  */
-public final class GrpcDirectCommitWorkStream extends GrpcCommitWorkStream
+public class GrpcDirectCommitWorkStream extends GrpcCommitWorkStream
     implements AsyncCommitWorkStream {
   @VisibleForTesting static final int COMMIT_BATCH_SIZE = 5;
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDirectCommitWorkStream.class);

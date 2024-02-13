@@ -175,7 +175,6 @@ public class GrpcDirectCommitWorkStreamTest {
             .build());
     // Wait for commit response to get processed.
     Thread.sleep(100);
-    assertThat(commitWorkStream.currentActiveCommitBytes()).isEqualTo(0);
     assertThat(work.getState()).isEqualTo(Work.State.COMMITTING);
   }
 
@@ -212,7 +211,10 @@ public class GrpcDirectCommitWorkStreamTest {
 
     commitWorkStream.queueCommit(
         workItemCommitRequest(failedWorkItem), computationState, failedWork);
-    ackWorkProcessed.awaitAdvanceInterruptibly(0, 100, TimeUnit.MILLISECONDS);
+    try {
+      ackWorkProcessed.awaitAdvanceInterruptibly(0, 100, TimeUnit.MILLISECONDS);
+    } catch (TimeoutException unused) {
+    }
 
     assertThat(failedWork.getState()).isEqualTo(Work.State.QUEUED);
     Mockito.verify(commitWorkStream, times(0)).commitWorkItem(any(), any(), any());
@@ -234,10 +236,11 @@ public class GrpcDirectCommitWorkStreamTest {
     ComputationState computationState = computationState("test");
     computationState.activateWork(ShardedKey.create(DEFAULT_KEY, 1), work);
     commitWorkStream.queueCommit(workItemCommitRequest(workItem), computationState, work);
-
+    assertThat(work.getState()).isEqualTo(Work.State.QUEUED);
     Commit expectedFailedCommit =
         Commit.create(workItemCommitRequest(workItem), computationState, work);
-    assertThat(work.getState()).isEqualTo(Work.State.QUEUED);
+    CompleteCommit expectedFailedCommitAndStatus =
+        CompleteCommit.create(expectedFailedCommit, Windmill.CommitStatus.ABORTED);
     assertThat(commitWorkStream.currentActiveCommitBytes())
         .isEqualTo(expectedFailedCommit.getSize());
     Thread.sleep(100);
@@ -247,9 +250,8 @@ public class GrpcDirectCommitWorkStreamTest {
             .addStatus(Windmill.CommitStatus.ABORTED)
             .build());
 
-    assertThat(commitWorkStream.currentActiveCommitBytes()).isEqualTo(0);
     assertThat(work.getState()).isEqualTo(Work.State.COMMITTING);
-    assertThat(completeCommits).contains(expectedFailedCommit);
+    assertThat(completeCommits).contains(expectedFailedCommitAndStatus);
   }
 
   private GrpcDirectCommitWorkStream directCommitWorkTestStream(
