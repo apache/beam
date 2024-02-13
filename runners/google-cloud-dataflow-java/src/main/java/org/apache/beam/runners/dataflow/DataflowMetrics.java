@@ -187,10 +187,10 @@ class DataflowMetrics extends MetricResults {
         return DistributionResult.IDENTITY_ELEMENT;
       }
       ArrayMap distributionMap = (ArrayMap) metricUpdate.getDistribution();
-      long count = ((Number) distributionMap.get("count")).longValue();
-      long min = ((Number) distributionMap.get("min")).longValue();
-      long max = ((Number) distributionMap.get("max")).longValue();
-      long sum = ((Number) distributionMap.get("sum")).longValue();
+      long count = checkArgumentNotNull(((Number) distributionMap.get("count"))).longValue();
+      long min = checkArgumentNotNull(((Number) distributionMap.get("min"))).longValue();
+      long max = checkArgumentNotNull(((Number) distributionMap.get("max"))).longValue();
+      long sum = checkArgumentNotNull(((Number) distributionMap.get("sum"))).longValue();
       return DistributionResult.create(sum, count, min, max);
     }
 

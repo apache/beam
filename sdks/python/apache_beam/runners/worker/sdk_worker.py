@@ -68,6 +68,7 @@ from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.runners.worker.worker_status import FnApiWorkerStatusHandler
 from apache_beam.utils import thread_pool_executor
 from apache_beam.utils.sentinel import Sentinel
+from apache_beam.version import __version__ as beam_version
 
 if TYPE_CHECKING:
   from apache_beam.portability.api import endpoints_pb2
@@ -265,6 +266,16 @@ class SdkHarness(object):
       for work_request in self._control_stub.Control(get_responses()):
         _LOGGER.debug('Got work %s', work_request.instruction_id)
         request_type = work_request.WhichOneof('request')
+
+        if request_type is None:
+          raise RuntimeError(
+              "Cannot interpret a request received over control channel. "
+              "This is not expected. "
+              "Verify that SDK was not accidentally downgraded at runtime. "
+              f"SDK version: {beam_version}, "
+              f"instruction id: {work_request.instruction_id}, "
+              f"raw request: {str(work_request.SerializeToString())}")
+
         # Name spacing the request method with 'request_'. The called method
         # will be like self.request_register(request)
         getattr(self, SdkHarness.REQUEST_METHOD_PREFIX + request_type)(

@@ -44,7 +44,7 @@ import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.checkerframework.checker.nullness.qual.Nullable;

@@ -23,7 +23,7 @@ import java.util.function.Function;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 
 /** Default factory for ExpansionServiceClient used by External transform. */
 public class DefaultExpansionServiceClientFactory implements ExpansionServiceClientFactory {

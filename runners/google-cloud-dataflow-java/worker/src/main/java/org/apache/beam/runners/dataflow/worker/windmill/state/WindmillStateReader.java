@@ -39,6 +39,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
 import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
+import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
@@ -53,7 +54,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -123,6 +124,7 @@ public class WindmillStateReader {
   private final MetricTrackingWindmillServerStub metricTrackingWindmillServerStub;
   private final ConcurrentHashMap<StateTag<?>, CoderAndFuture<?>> waiting;
   private long bytesRead = 0L;
+  private final Supplier<Boolean> workItemIsFailed;
 
   public WindmillStateReader(
       MetricTrackingWindmillServerStub metricTrackingWindmillServerStub,
@@ -130,7 +132,8 @@ public class WindmillStateReader {
       ByteString key,
       long shardingKey,
       long workToken,
-      Supplier<AutoCloseable> readWrapperSupplier) {
+      Supplier<AutoCloseable> readWrapperSupplier,
+      Supplier<Boolean> workItemIsFailed) {
     this.metricTrackingWindmillServerStub = metricTrackingWindmillServerStub;
     this.computation = computation;
     this.key = key;
@@ -139,6 +142,7 @@ public class WindmillStateReader {
     this.readWrapperSupplier = readWrapperSupplier;
     this.waiting = new ConcurrentHashMap<>();
     this.pendingLookups = new ConcurrentLinkedQueue<>();
+    this.workItemIsFailed = workItemIsFailed;
   }
 
   public WindmillStateReader(
@@ -147,7 +151,14 @@ public class WindmillStateReader {
       ByteString key,
       long shardingKey,
       long workToken) {
-    this(metricTrackingWindmillServerStub, computation, key, shardingKey, workToken, () -> null);
+    this(
+        metricTrackingWindmillServerStub,
+        computation,
+        key,
+        shardingKey,
+        workToken,
+        () -> null,
+        () -> Boolean.FALSE);
   }
 
   private <FutureT> Future<FutureT> stateFuture(StateTag<?> stateTag, @Nullable Coder<?> coder) {
@@ -404,6 +415,9 @@ public class WindmillStateReader {
 
   private KeyedGetDataResponse tryGetDataFromWindmill(HashSet<StateTag<?>> stateTags)
       throws Exception {
+    if (workItemIsFailed.get()) {
+      throw new WorkItemCancelledException(shardingKey);
+    }
     KeyedGetDataRequest keyedGetDataRequest = createRequest(stateTags);
     try (AutoCloseable ignored = readWrapperSupplier.get()) {
       return Optional.ofNullable(

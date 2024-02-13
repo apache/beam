@@ -48,6 +48,42 @@ It should be noted that everything here is still under development, but any
 features already included are considered stable. Feedback is welcome at
 dev@apache.beam.org.
 
+## Running pipelines
+
+The Beam yaml parser is currently included as part of the Apache Beam Python SDK.
+This can be installed (e.g. within a virtual environment) as
+
+```
+pip install apache_beam[yaml,gcp]
+```
+
+In addition, several of the provided transforms (such as SQL) are implemented
+in Java and their expansion will require a working Java interpeter. (The
+requisite artifacts will be automatically downloaded from the apache maven
+repositories, so no further installs will be required.)
+Docker is also currently required for local execution of these
+cross-language-requiring transforms, but not for submission to a non-local
+runner such as Flink or Dataflow.
+
+Once the prerequisites are installed, you can execute a pipeline defined
+in a yaml file as
+
+```
+python -m apache_beam.yaml.main --yaml_pipeline_file=/path/to/pipeline.yaml [other pipeline options such as the runner]
+```
+
+You can do a dry-run of your pipeline using the render runner to see what the
+execution graph is, e.g.
+
+```
+python -m apache_beam.yaml.main --yaml_pipeline_file=/path/to/pipeline.yaml --runner=apache_beam.runners.render.RenderRunner --render_output=out.png [--render_port=0]
+```
+
+(This requires [Graphviz](https://graphviz.org/download/) to be installed to render the pipeline.)
+
+We intend to support running a pipeline on Dataflow by directly passing the
+yaml specification to a template, no local installation of the Beam SDKs required.
+
 ## Example pipelines
 
 Here is a simple pipeline that reads some data from csv files and
@@ -98,15 +134,44 @@ pipeline:
         keep: "col3 > 100"
       input: ReadFromCsv
     - type: Sql
-      name: MySqlTransform
       config:
         query: "select col1, count(*) as cnt from PCOLLECTION group by col1"
       input: Filter
     - type: WriteToJson
       config:
         path: /path/to/output.json
+      input: Sql
+```
+
+Transforms can be named to help with monitoring and debugging.
+
+```
+pipeline:
+  transforms:
+    - type: ReadFromCsv
+      name: ReadMyData
+      config:
+        path: /path/to/input*.csv
+    - type: Filter
+      name: KeepBigRecords
+      config:
+        language: python
+        keep: "col3 > 100"
+      input: ReadMyData
+    - type: Sql
+      name: MySqlTransform
+      config:
+        query: "select col1, count(*) as cnt from PCOLLECTION group by col1"
+      input: KeepBigRecords
+    - type: WriteToJson
+      name: WriteTheOutput
+      config:
+        path: /path/to/output.json
       input: MySqlTransform
 ```
+
+(This is also needed to disambiguate if more than one transform of the same
+type is used.)
 
 If the pipeline is linear, we can let the inputs be implicit by designating
 the pipeline as a `chain` type.
@@ -180,10 +245,10 @@ pipeline:
 
     - type: Sql
       config:
-        query: select left.col1, right.col2 from left join right using (col3)
+        query: select A.col1, B.col2 from A join B using (col3)
       input:
-        left: ReadLeft
-        right: ReadRight
+        A: ReadLeft
+        B: ReadRight
 
     - type: WriteToJson
       name: WriteAll
@@ -224,10 +289,10 @@ pipeline:
 
     - type: Sql
       config:
-        query: select left.col1, right.col2 from left join right using (col3)
+        query: select A.col1, B.col2 from A join B using (col3)
       input:
-        left: ReadLeft
-        right: ReadRight
+        A: ReadLeft
+        B: ReadRight
 
     - type: WriteToJson
       name: WriteAll
@@ -264,7 +329,7 @@ In order to meaningfully aggregate elements in a streaming pipeline,
 some kind of windowing is typically required. Beam's
 [windowing](https://beam.apache.org/documentation/programming-guide/#windowing)
 and [triggering](https://beam.apache.org/documentation/programming-guide/#triggers)
-can be be declared using the same WindowInto transform available in all other
+can be declared using the same WindowInto transform available in all other
 SDKs.
 
 ```
@@ -284,8 +349,10 @@ pipeline:
     - type: WindowInto
       windowing:
         type: fixed
-        size: 60
-    - type: SomeAggregation
+        size: 60s
+    - type: SomeGroupingTransform
+      config:
+        arg: ...
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
@@ -305,11 +372,13 @@ pipeline:
         topic: myPubSubTopic
         format: ...
         schema: ...
-    - type: SomeAggregation
+    - type: SomeGroupingTransform
+      config:
+        arg: ...
       windowing:
         type: sliding
-        size: 60
-        period: 10
+        size: 60s
+        period: 10s
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
@@ -334,7 +403,7 @@ pipeline:
         query: "select col1, count(*) as c from PCOLLECTION"
       windowing:
         type: sessions
-        gap: 60
+        gap: 60s
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
@@ -363,13 +432,13 @@ pipeline:
 
     - type: Sql
       config:
-        query: select left.col1, right.col2 from left join right using (col3)
+        query: select A.col1, B.col2 from A join B using (col3)
       input:
-        left: ReadLeft
-        right: ReadRight
+        A: ReadLeft
+        B: ReadRight
       windowing:
         type: fixed
-        size: 60
+        size: 60s
 ```
 
 For a transform with no inputs, the specified windowing is instead applied to
@@ -387,7 +456,7 @@ pipeline:
         schema: ...
       windowing:
         type: fixed
-        size: 60
+        size: 60s
     - type: Sql
       config:
         query: "select col1, count(*) as c from PCOLLECTION"
@@ -438,7 +507,7 @@ pipeline:
       schema: ...
     windowing:
       type: fixed
-      size: 10
+      size: 10s
 
   transforms:
     - type: Sql
@@ -451,7 +520,7 @@ pipeline:
       path: /path/to/output.json
     windowing:
       type: fixed
-      size: 300
+      size: 5m
 ```
 
 
@@ -504,26 +573,15 @@ providers:
        MyCustomTransform: "pkg.subpkg.PTransformClassOrCallable"
 ```
 
-## Running pipelines
+## Other Resources
 
-The Beam yaml parser is currently included as part of the Apache Beam Python SDK.
-This can be installed (e.g. within a virtual environment) as
+* [Example pipelines](https://gist.github.com/robertwb/2cb26973f1b1203e8f5f8f88c5764da0)
+* [More examples](https://github.com/Polber/beam/tree/jkinard/bug-bash/sdks/python/apache_beam/yaml/examples)
+* [Transform glossary](https://gist.github.com/robertwb/64e2f51ff88320eeb6ffd96634202df7)
 
-```
-pip install apache_beam[yaml,gcp]
-```
+Additional documentation in this directory
 
-In addition, several of the provided transforms (such as SQL) are implemented
-in Java and their expansion will require a working Java interpeter. (The
-requisite artifacts will be automatically downloaded from the apache maven
-repositories, so no further installs will be required.)
-Docker is also currently required for local execution of these
-cross-language-requiring transforms, but not for submission to a non-local
-runner such as Flink or Dataflow.
-
-Once the prerequisites are installed, you can execute a pipeline defined
-in a yaml file as
-
-```
-python -m apache_beam.yaml.main --yaml_pipeline_file=/path/to/pipeline.yaml [other pipeline options such as the runner]
-```
+* [Mapping](yaml_mapping.md)
+* [Aggregation](yaml_combine.md)
+* [Error handling](yaml_errors.md)
+* [Inlining Python](inline_python.md)

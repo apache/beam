@@ -17,6 +17,7 @@ package internal
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -70,6 +71,13 @@ func RunPipeline(j *jobservices.Job) {
 		j.Failed(err)
 		return
 	}
+
+	if errors.Is(context.Cause(j.RootCtx), jobservices.ErrCancel) {
+		j.SendMsg("pipeline canceled " + j.String())
+		j.Canceled()
+		return
+	}
+
 	j.SendMsg("pipeline completed " + j.String())
 
 	j.SendMsg("terminating " + j.String())

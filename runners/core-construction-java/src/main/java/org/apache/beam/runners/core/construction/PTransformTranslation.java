@@ -38,8 +38,10 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.Splittabl
 import org.apache.beam.runners.core.construction.ExternalTranslation.ExternalTranslator;
 import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoTranslator;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -51,13 +53,13 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSortedSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -398,48 +400,78 @@ public class PTransformTranslation {
     }
   }
 
+  private static @MonotonicNonNull Map<Class<? extends PTransform>, TransformPayloadTranslator>
+      knownPayloadTranslators;
+
+  @Internal
+  public static Map<Class<? extends PTransform>, TransformPayloadTranslator>
+      getKnownPayloadTranslators() {
+    if (knownPayloadTranslators == null) {
+      knownPayloadTranslators = loadTransformPayloadTranslators();
+    }
+    return knownPayloadTranslators;
+  }
+
+  private static Map<Class<? extends PTransform>, TransformPayloadTranslator>
+      loadTransformPayloadTranslators() {
+
+    HashMap<Class<? extends PTransform>, TransformPayloadTranslator> translators = new HashMap<>();
+
+    ImmutableSet.Builder<Class<? extends PTransform>> conflictingRegistrations =
+        new ImmutableSet.Builder<>();
+
+    for (TransformPayloadTranslatorRegistrar registrar :
+        ServiceLoader.load(TransformPayloadTranslatorRegistrar.class)) {
+
+      Map<Class<? extends PTransform>, TransformPayloadTranslator> newTranslators =
+          (Map) registrar.getTransformPayloadTranslators();
+
+      for (Map.Entry<Class<? extends PTransform>, TransformPayloadTranslator> entry :
+          newTranslators.entrySet()) {
+        // spotbugs enforces using entrySet() and then getKey() for micro-optimization
+        Class<? extends PTransform> ptransformClass = entry.getKey();
+        TransformPayloadTranslator newTranslator = entry.getValue();
+        @Nullable TransformPayloadTranslator existingTranslator = translators.get(ptransformClass);
+
+        if (existingTranslator == null) {
+          translators.put(ptransformClass, newTranslator);
+        } else {
+          LOG.error(
+              "Conflicting registrations for {}: {} and {}",
+              ptransformClass,
+              existingTranslator,
+              newTranslator);
+          conflictingRegistrations.add(ptransformClass);
+        }
+      }
+    }
+    Set<Class<? extends PTransform>> conflictingRegistrationSet = conflictingRegistrations.build();
+
+    if (!conflictingRegistrationSet.isEmpty()) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Conflicting registrations for: %s",
+              Joiner.on(", ").join(conflictingRegistrationSet)));
+    }
+
+    return ImmutableMap.copyOf(translators);
+  }
+
   /**
    * Translates a set of registered transforms whose content only differs based by differences in
    * their {@link FunctionSpec}s and URNs.
    */
   private static class KnownTransformPayloadTranslator<T extends PTransform<?, ?>>
       implements TransformTranslator<T> {
-    private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
-        KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
-
-    private static Map<Class<? extends PTransform>, TransformPayloadTranslator>
-        loadTransformPayloadTranslators() {
-      HashMap<Class<? extends PTransform>, TransformPayloadTranslator> translators =
-          new HashMap<>();
-
-      for (TransformPayloadTranslatorRegistrar registrar :
-          ServiceLoader.load(TransformPayloadTranslatorRegistrar.class)) {
-
-        Map<Class<? extends PTransform>, TransformPayloadTranslator> newTranslators =
-            (Map) registrar.getTransformPayloadTranslators();
-
-        Set<Class<? extends PTransform>> alreadyRegistered =
-            Sets.intersection(translators.keySet(), newTranslators.keySet());
-
-        if (!alreadyRegistered.isEmpty()) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "Classes already registered: %s", Joiner.on(", ").join(alreadyRegistered)));
-        }
-
-        translators.putAll(newTranslators);
-      }
-      return ImmutableMap.copyOf(translators);
-    }
 
     @Override
     public boolean canTranslate(PTransform pTransform) {
-      return KNOWN_PAYLOAD_TRANSLATORS.containsKey(pTransform.getClass());
+      return getKnownPayloadTranslators().containsKey(pTransform.getClass());
     }
 
     @Override
     public String getUrn(PTransform transform) {
-      return KNOWN_PAYLOAD_TRANSLATORS.get(transform.getClass()).getUrn(transform);
+      return getKnownPayloadTranslators().get(transform.getClass()).getUrn(transform);
     }
 
     @Override
@@ -452,7 +484,7 @@ public class PTransformTranslation {
           translateAppliedPTransform(appliedPTransform, subtransforms, components);
 
       TransformPayloadTranslator payloadTranslator =
-          KNOWN_PAYLOAD_TRANSLATORS.get(appliedPTransform.getTransform().getClass());
+          getKnownPayloadTranslators().get(appliedPTransform.getTransform().getClass());
       FunctionSpec spec = payloadTranslator.translate(appliedPTransform, components);
       if (spec != null) {
         transformBuilder.setSpec(spec);
@@ -577,7 +609,6 @@ public class PTransformTranslation {
       return getUrn();
     }
 
-    /** */
     /**
      * Translates the given transform represented by the provided {@code AppliedPTransform} to a
      * {@code FunctionSpec} with a URN and a payload.
@@ -609,7 +640,7 @@ public class PTransformTranslation {
      *     {@link #toConfigRow(PTransform)} method.
      * @return a transform represented by the current {@code TransformPayloadTranslator}.
      */
-    default T fromConfigRow(Row configRow) {
+    default T fromConfigRow(Row configRow, PipelineOptions options) {
       throw new UnsupportedOperationException("Not implemented");
     }
 

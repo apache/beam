@@ -35,12 +35,15 @@ dependencies {
     implementation project(path: ":sdks:java:harness", configuration: "shadow")
     implementation project(path: ":runners:java-fn-execution")
     implementation project(path: ":model:pipeline", configuration: "shadow")
-    implementation library.java.vendored_grpc_1_54_0
+    implementation project(path: ":model:fn-execution", configuration: "shadow")
+    implementation library.java.vendored_grpc_1_60_1
     implementation library.java.vendored_guava_32_1_2_jre
     implementation library.java.slf4j_api
     implementation library.java.joda_time
+    implementation library.java.junit
     runtimeOnly library.java.slf4j_jdk14
     jammAgent library.java.jamm
+    testImplementation library.java.junit
 }
 
 jmh {

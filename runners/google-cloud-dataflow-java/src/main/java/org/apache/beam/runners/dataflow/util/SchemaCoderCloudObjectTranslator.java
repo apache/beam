@@ -31,7 +31,7 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.util.JsonFormat;
 
 /** Translator for Schema coders. */
 @SuppressWarnings({

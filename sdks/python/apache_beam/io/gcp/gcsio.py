@@ -175,17 +175,14 @@ class GcsIO(object):
       ValueError: Invalid open file mode.
     """
     bucket_name, blob_name = parse_gcs_path(filename)
-    bucket = self.client.get_bucket(bucket_name)
+    bucket = self.client.bucket(bucket_name)
 
     if mode == 'r' or mode == 'rb':
-      blob = bucket.get_blob(blob_name)
+      blob = bucket.blob(blob_name)
       return BeamBlobReader(blob, chunk_size=read_buffer_size)
     elif mode == 'w' or mode == 'wb':
-      blob = bucket.get_blob(blob_name)
-      if not blob:
-        blob = storage.Blob(blob_name, bucket)
+      blob = bucket.blob(blob_name)
       return BeamBlobWriter(blob, mime_type)
-
     else:
       raise ValueError('Invalid file open mode: %s.' % mode)
 
@@ -199,7 +196,7 @@ class GcsIO(object):
     """
     bucket_name, blob_name = parse_gcs_path(path)
     try:
-      bucket = self.client.get_bucket(bucket_name)
+      bucket = self.client.bucket(bucket_name)
       bucket.delete_blob(blob_name)
     except NotFound:
       return
@@ -208,7 +205,8 @@ class GcsIO(object):
     """Deletes the objects at the given GCS paths.
 
     Args:
-      paths: List of GCS file path patterns in the form gs://<bucket>/<name>,
+      paths: List of GCS file path patterns or Dict with GCS file path patterns
+             as keys. The patterns are in the form gs://<bucket>/<name>, but
              not to exceed MAX_BATCH_OPERATION_SIZE in length.
 
     Returns: List of tuples of (path, exception) in the same order as the
@@ -217,6 +215,7 @@ class GcsIO(object):
     """
     final_results = []
     s = 0
+    if not isinstance(paths, list): paths = list(iter(paths))
     while s < len(paths):
       if (s + MAX_BATCH_OPERATION_SIZE) < len(paths):
         current_paths = paths[s:s + MAX_BATCH_OPERATION_SIZE]
@@ -226,16 +225,15 @@ class GcsIO(object):
       with current_batch:
         for path in current_paths:
           bucket_name, blob_name = parse_gcs_path(path)
-          bucket = self.client.get_bucket(bucket_name)
+          bucket = self.client.bucket(bucket_name)
           bucket.delete_blob(blob_name)
 
       for i, path in enumerate(current_paths):
         error_code = None
-        for j in range(2):
-          resp = current_batch._responses[2 * i + j]
-          if resp.status_code >= 400 and resp.status_code != 404:
-            error_code = resp.status_code
-            break
+        resp = current_batch._responses[i]
+        if resp.status_code >= 400 and resp.status_code != 404:
+          error_code = resp.status_code
+          break
         final_results.append((path, error_code))
 
       s += MAX_BATCH_OPERATION_SIZE
@@ -256,11 +254,9 @@ class GcsIO(object):
     """
     src_bucket_name, src_blob_name = parse_gcs_path(src)
     dest_bucket_name, dest_blob_name= parse_gcs_path(dest, object_optional=True)
-    src_bucket = self.get_bucket(src_bucket_name)
-    src_blob = src_bucket.get_blob(src_blob_name)
-    if not src_blob:
-      raise NotFound("Source %s not found", src)
-    dest_bucket = self.get_bucket(dest_bucket_name)
+    src_bucket = self.client.bucket(src_bucket_name)
+    src_blob = src_bucket.blob(src_blob_name)
+    dest_bucket = self.client.bucket(dest_bucket_name)
     if not dest_blob_name:
       dest_blob_name = None
     src_bucket.copy_blob(src_blob, dest_bucket, new_name=dest_blob_name)
@@ -289,19 +285,18 @@ class GcsIO(object):
         for pair in current_pairs:
           src_bucket_name, src_blob_name = parse_gcs_path(pair[0])
           dest_bucket_name, dest_blob_name = parse_gcs_path(pair[1])
-          src_bucket = self.client.get_bucket(src_bucket_name)
-          src_blob = src_bucket.get_blob(src_blob_name)
-          dest_bucket = self.client.get_bucket(dest_bucket_name)
+          src_bucket = self.client.bucket(src_bucket_name)
+          src_blob = src_bucket.blob(src_blob_name)
+          dest_bucket = self.client.bucket(dest_bucket_name)
 
           src_bucket.copy_blob(src_blob, dest_bucket, dest_blob_name)
 
       for i, pair in enumerate(current_pairs):
         error_code = None
-        for j in range(4):
-          resp = current_batch._responses[4 * i + j]
-          if resp.status_code >= 400:
-            error_code = resp.status_code
-            break
+        resp = current_batch._responses[i]
+        if resp.status_code >= 400:
+          error_code = resp.status_code
+          break
         final_results.append((pair[0], pair[1], error_code))
 
       s += MAX_BATCH_OPERATION_SIZE
@@ -415,12 +410,12 @@ class GcsIO(object):
     """Returns a gcs object for the given path
 
     This method does not perform glob expansion. Hence the given path must be
-    for a single GCS object.
+    for a single GCS object. The method will make HTTP requests.
 
     Returns: GCS object.
     """
     bucket_name, blob_name = parse_gcs_path(path)
-    bucket = self.client.get_bucket(bucket_name)
+    bucket = self.client.bucket(bucket_name)
     blob = bucket.get_blob(blob_name)
     if blob:
       return blob
@@ -468,7 +463,7 @@ class GcsIO(object):
       _LOGGER.debug("Starting the file information of the input")
     else:
       _LOGGER.debug("Starting the size estimation of the input")
-    bucket = self.client.get_bucket(bucket_name)
+    bucket = self.client.bucket(bucket_name)
     response = self.client.list_blobs(bucket, prefix=prefix)
     for item in response:
       file_name = 'gs://%s/%s' % (item.bucket.name, item.name)
