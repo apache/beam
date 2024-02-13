@@ -22,8 +22,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
-import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
@@ -86,9 +85,9 @@ public interface WindmillStream {
     void flush();
   }
 
+  @ThreadSafe
   interface AsyncCommitWorkStream extends CommitWorkStream {
-    void queueCommit(
-        WorkItemCommitRequest workItemCommitRequest, ComputationState computationState, Work work);
+    void queueCommit(Commit commit);
 
     long currentActiveCommitBytes();
   }

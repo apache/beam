@@ -31,6 +31,10 @@ public abstract class Commit {
     return new AutoValue_Commit(request, computationState, work);
   }
 
+  public final String computationId() {
+    return computationState().getComputationId();
+  }
+
   public abstract WorkItemCommitRequest request();
 
   public abstract ComputationState computationState();
