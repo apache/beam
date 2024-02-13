@@ -5387,7 +5387,7 @@ programming guide, take a look at the
 &lt;li data-value="typescript">TypeScript SDK&lt;/li>
 &lt;/ul>
 &lt;/nav>
-&lt;p class="language-py">The Python SDK supports Python 3.7, 3.8, 3.9, 3.10, and 3.11.&lt;/p>
+&lt;p class="language-py">The Python SDK supports Python 3.8, 3.9, 3.10, and 3.11.&lt;/p>
 &lt;p class="language-go">The &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam">Go SDK&lt;/a> supports Go v1.20+.&lt;/p>
 &lt;p class="language-typescript">The Typescript SDK supports Node v16+ and is still experimental.&lt;/p>
 &lt;h2 id="overview">1. Overview&lt;/h2>
@@ -17309,7 +17309,7 @@ limitations under the License.
 &lt;li>Launching third-party software in the worker environment&lt;/li>
 &lt;li>Further customizing the execution environment&lt;/li>
 &lt;/ul>
-&lt;p>This guide describes how to create and use customized containers for the Beam SDK.&lt;/p>
+&lt;p>This guide describes how to create and use customized containers for the Beam SDKs.&lt;/p>
 &lt;h3 id="prerequisites">Prerequisites&lt;/h3>
 &lt;ul>
 &lt;li>This guide requires building images using Docker. &lt;a href="https://docs.docker.com/get-docker/">Install Docker locally&lt;/a>. Some CI/CD platforms like &lt;a href="https://cloud.google.com/cloud-build/docs/building/build-containers">Google Cloud Build&lt;/a> also provide the ability to build images using Docker.&lt;/li>
@@ -17456,7 +17456,34 @@ docker build -f Dockerfile -t &amp;#34;${IMAGE_NAME}:${TAG}&amp;#34; .
 &lt;li>If your runner is running remotely, retag the image and &lt;a href="https://docs.docker.com/engine/reference/commandline/push/">push&lt;/a> the image to your repository.&lt;/li>
 &lt;/ol>
 &lt;pre tabindex="0">&lt;code>docker push &amp;#34;${IMAGE_NAME}:${TAG}&amp;#34;
-&lt;/code>&lt;/pre>&lt;h2 id="running-pipelines">Running pipelines with custom container images&lt;/h2>
+&lt;/code>&lt;/pre>&lt;h4 id="from-scratch-go">Building a compatible container image from scratch (Go)&lt;/h4>
+&lt;p>From the 2.55.0 release, the Beam Go SDK has moved to using &lt;a href="https://github.com/GoogleContainerTools/distroless">distroless images&lt;/a> as a base.
+These images have a reduced security attack surface by not including common tools and utilities.
+This may cause difficulties customizing the image with using one of the above approaches.
+As a fallback, it&amp;rsquo;s possible to build a custom image from scratch, by building a matching boot loader, and setting
+that as the container&amp;rsquo;s entry point.&lt;/p>
+&lt;p>For example, if it&amp;rsquo;s preferable to use alpine as the container OS your multi-stage docker file might
+look like the following:&lt;/p>
+&lt;pre tabindex="0">&lt;code>FROM golang:latest-alpine AS build_base
+# Set the Current Working Directory inside the container
+WORKDIR /tmp/beam
+# Build the Beam Go bootloader, to the local directory, matching your Beam version.
+# Similar go targets exist for other SDK languages.
+RUN GOBIN=`pwd` go install github.com/apache/beam/sdks/v2/go/container@v2.53.0
+# Set the real base image.
+FROM alpine:3.9
+RUN apk add ca-certificates
+# The following are required for the container to operate correctly.
+# Copy the boot loader `container` to the image.
+COPY --from=build_base /tmp/beam/container /opt/apache/beam/boot
+# Set the container to use the newly built boot loader.
+ENTRYPOINT [&amp;#34;/opt/apache/beam/boot&amp;#34;]
+&lt;/code>&lt;/pre>&lt;p>Build and push the new image as when &lt;a href="#modify-existing-base-image">modifying an existing base image&lt;/a> above.&lt;/p>
+&lt;blockquote>
+&lt;p>&lt;strong>NOTE&lt;/strong>: Java and Python require additional dependencies, such as their runtimes, and SDK packages for
+a valid container image. The bootloader isn&amp;rsquo;t sufficient for creating a custom container for these SDKs.&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="running-pipelines">Running pipelines with custom container images&lt;/h2>
 &lt;p>The common method for providing a container image requires using the
 PortableRunner flag &lt;code>--environment_config&lt;/code> as supported by the Portable
 Runner or by runners supported PortableRunner flags.
