@@ -32,6 +32,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
+import java.util.stream.Collectors;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
@@ -421,10 +423,13 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         if (newDFState.getStepName() != null && newDFState.getStepName().userName() != null) {
           if (this.activeMessageMetadata != null) {
             recordActiveMessageInProcessingTimesMap();
+            synchronized (this) {
+              this.activeMessageMetadata =
+                ActiveMessageMetadata.create(
+                    newDFState.getStepName().userName(), clock.currentTimeMillis());
+            }
           }
-          this.activeMessageMetadata =
-              ActiveMessageMetadata.create(
-                  newDFState.getStepName().userName(), clock.currentTimeMillis());
+          
         }
         elementExecutionTracker.enter(newDFState.getStepName());
       }
