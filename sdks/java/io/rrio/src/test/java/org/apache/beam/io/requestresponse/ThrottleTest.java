@@ -42,20 +42,23 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.PeriodicImpulse;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.testinfra.mockapis.echo.v1.Echo;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -237,44 +240,79 @@ public class ThrottleTest {
     pipeline.run();
   }
 
-  /** During batch, validates original FixedWindow assignments are maintained. */
+  /** During batch, validates upstream Window assignments are preserved. */
   @Test
-  public void givenUpstreamFixedWindow_thenPreservesWindowAssignments() {
+  public void givenUpstreamNonGlobalWindow_thenPreservesWindowAssignments() {
     Rate rate = Rate.of(3, Duration.standardSeconds(1L));
+
+    List<KV<Integer, Long>> expected = ImmutableList.of(KV.of(1, 5L), KV.of(2, 5L));
 
     PCollection<Integer> unthrottled =
         pipeline
             .apply(
                 Create.timestamped(
-                    TimestampedValue.of(0, epochPlus(0L)),
+                    TimestampedValue.of(1, Instant.EPOCH),
                     TimestampedValue.of(1, epochPlus(1_000L)),
-                    TimestampedValue.of(2, epochPlus(2_000L))))
-            .apply(Window.into(FixedWindows.of(Duration.standardSeconds(5L))));
+                    TimestampedValue.of(1, epochPlus(2_000L)),
+                    TimestampedValue.of(1, epochPlus(3_000L)),
+                    TimestampedValue.of(1, epochPlus(4_000L)),
+                    TimestampedValue.of(2, epochPlus(5_000L)),
+                    TimestampedValue.of(2, epochPlus(6_000L)),
+                    TimestampedValue.of(2, epochPlus(7_000L)),
+                    TimestampedValue.of(2, epochPlus(8_000L)),
+                    TimestampedValue.of(2, epochPlus(9_000L))))
+            .apply(
+                Window.<Integer>into(FixedWindows.of(Duration.standardSeconds(5L)))
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .withAllowedLateness(Duration.ZERO)
+                    .discardingFiredPanes());
 
     PCollection<Integer> throttled = unthrottled.apply(transformOf(rate));
-    PAssert.that(throttled).inWindow(new IntervalWindow(Instant.EPOCH, epochPlus(5_000L)));
+    PCollection<KV<Integer, Long>> counts = throttled.apply(Count.perElement());
+    PAssert.that(counts).containsInAnyOrder(expected);
 
     pipeline.run();
   }
 
   @Test
-  public void givenGlobalUpstreamWindow_thenCanApplyDownstreamWindow() {
-    Rate rate = Rate.of(3, Duration.standardSeconds(1L));
+  public void givenUpstreamNonWindow_canReassignDownstreamWindow() {
+    Rate rate = Rate.of(1, Duration.standardSeconds(1L));
+
+    //    List<KV<Integer, Long>> expected = ImmutableList.of(
+    //            KV.of(1, 5L),
+    //            KV.of(2, 5L)
+    //    );
 
     PCollection<Integer> unthrottled =
-        pipeline.apply(
-            Create.timestamped(
-                TimestampedValue.of(0, epochPlus(0L)),
-                TimestampedValue.of(1, epochPlus(1_000L)),
-                TimestampedValue.of(2, epochPlus(2_000L))));
+        pipeline
+            .apply(
+                Create.timestamped(
+                    TimestampedValue.of(1, Instant.EPOCH),
+                    TimestampedValue.of(1, epochPlus(1_000L)),
+                    TimestampedValue.of(2, epochPlus(2_000L)),
+                    TimestampedValue.of(2, epochPlus(3_000L))))
+            .apply(
+                "beforeThrottle",
+                Window.<Integer>into(FixedWindows.of(Duration.standardSeconds(2L)))
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .withAllowedLateness(Duration.ZERO)
+                    .discardingFiredPanes());
 
-    PAssert.that(unthrottled).inWindow(GlobalWindow.INSTANCE);
+    PAssert.that(unthrottled.apply("beforeThrottleSum", Sum.integersGlobally().withoutDefaults()))
+        .containsInAnyOrder(2, 4);
 
     PCollection<Integer> throttled =
         unthrottled
             .apply(transformOf(rate))
-            .apply(Window.into(FixedWindows.of(Duration.standardSeconds(5L))));
-    PAssert.that(throttled).inWindow(new IntervalWindow(Instant.EPOCH, epochPlus(5_000L)));
+            .apply(
+                "afterThrottle",
+                Window.<Integer>into(FixedWindows.of(Duration.standardSeconds(6L)))
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .withAllowedLateness(Duration.ZERO)
+                    .discardingFiredPanes());
+
+    PAssert.that(throttled.apply("afterThrottleSum", Sum.integersGlobally().withoutDefaults()))
+        .containsInAnyOrder(6);
 
     pipeline.run();
   }
