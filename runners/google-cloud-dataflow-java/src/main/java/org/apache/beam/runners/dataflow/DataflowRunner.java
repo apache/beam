@@ -565,7 +565,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 new StreamingPubsubIOWriteOverrideFactory(this)));
       }
 
-      overridesBuilder.add(KafkaIO.Read.KAFKA_READ_OVERRIDE);
+      try {
+        overridesBuilder.add(KafkaIO.Read.KAFKA_READ_OVERRIDE);
+      } catch (NoClassDefFoundError e) {
+        // Do nothing. io-kafka is an optional dependency of runners-google-cloud-dataflow-java
+        // and only needed when KafkaIO is used in the pipeline.
+      }
+
       overridesBuilder.add(SubscribeTransform.V1_READ_OVERRIDE);
 
       if (!hasExperiment(options, "enable_file_dynamic_sharding")) {
