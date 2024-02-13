@@ -227,7 +227,7 @@ As a fallback, it's possible to build a custom image from scratch, by building a
 that as the container's entry point.
 
 For example, if it's preferable to use alpine as the container OS your multi-stage docker file might
-look like the following: 
+look like the following:
 
 ```
 FROM golang:latest-alpine AS build_base
