@@ -73,7 +73,7 @@
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 * Arrow version was bumped to 15.0.0 from 5.0.0 ([#30181](https://github.com/apache/beam/pull/30181)).
 * Go SDK users who build custom worker containers may run into issues with the move to distroless containers as a base (see Security Fixes).
-  * The recommendation is to confinue to use the container for 2.53.0 as a base for now eg. `apache/beam_go_sdk:2.53.0`.
+  * The recommendation is to confinue to use the container for 2.54.0 as a base for now eg. `apache/beam_go_sdk:2.54.0`.
   * The issue stems from distroless containers lacking additional tools, which current custom container processes may rely on.
   * If this affects you, please file an issue and contact the beam dev list.
 
