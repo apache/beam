@@ -15,13 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.windmill.client;
 
 import com.google.auto.value.AutoValue;
 import org.apache.beam.runners.dataflow.worker.streaming.Commit;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 
+/**
+ * A {@link Commit} is marked as complete when it has been attempted to be committed back to
+ * Streaming Engine/Appliance via {@link
+ * org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub#commitWorkStream(StreamObserver)}
+ * for Streaming Engine or {@link
+ * org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub#commitWork(Windmill.CommitWorkRequest,
+ * StreamObserver)} for Streaming Appliance.
+ */
 @AutoValue
 public abstract class CompleteCommit {
 
