@@ -160,7 +160,8 @@ public class GrpcDirectCommitWorkStreamTest {
     work.setState(Work.State.PROCESSING);
     ComputationState computationState = computationState("test");
     computationState.activateWork(ShardedKey.create(DEFAULT_KEY, 1), work);
-    commitWorkStream.queueCommit(workItemCommitRequest(workItem), computationState, work);
+    commitWorkStream.queueCommit(
+        Commit.create(workItemCommitRequest(workItem), computationState, work));
 
     assertThat(work.getState()).isEqualTo(Work.State.QUEUED);
     // Wait for commit to get queued.
@@ -210,7 +211,7 @@ public class GrpcDirectCommitWorkStreamTest {
     computationState.activateWork(shardedKey, nextWork);
 
     commitWorkStream.queueCommit(
-        workItemCommitRequest(failedWorkItem), computationState, failedWork);
+        Commit.create(workItemCommitRequest(failedWorkItem), computationState, failedWork));
     try {
       ackWorkProcessed.awaitAdvanceInterruptibly(0, 100, TimeUnit.MILLISECONDS);
     } catch (TimeoutException unused) {
@@ -235,7 +236,7 @@ public class GrpcDirectCommitWorkStreamTest {
     work.setState(Work.State.PROCESSING);
     ComputationState computationState = computationState("test");
     computationState.activateWork(ShardedKey.create(DEFAULT_KEY, 1), work);
-    commitWorkStream.queueCommit(workItemCommitRequest(workItem), computationState, work);
+    commitWorkStream.queueCommit(Commit.create(workItemCommitRequest(workItem), computationState, work));
     assertThat(work.getState()).isEqualTo(Work.State.QUEUED);
     Commit expectedFailedCommit =
         Commit.create(workItemCommitRequest(workItem), computationState, work);
