@@ -231,12 +231,12 @@ For example, if it's preferable to use alpine as the container OS your multi-sta
 look like.
 
 ```
-FROM golang:1.22-alpine AS build_base
+FROM golang:latest-alpine AS build_base
 
 # Set the Current Working Directory inside the container
 WORKDIR /tmp/beam
 
-# Build the Beam Go bootloader, to the local directory, matching your Beam version
+# Build the Beam Go bootloader, to the local directory, matching your Beam version.
 # Similar go targets exist for other SDK languages.
 RUN GOBIN=`pwd` go install github.com/apache/beam/sdks/v2/go/container@v2.53.0
 
@@ -244,6 +244,7 @@ RUN GOBIN=`pwd` go install github.com/apache/beam/sdks/v2/go/container@v2.53.0
 FROM alpine:3.9 
 RUN apk add ca-certificates
 
+# The following are required for the container to operate correctly.
 # Copy the boot loader `container` to the image.
 COPY --from=build_base /tmp/beam/container /opt/apache/beam/boot
 
