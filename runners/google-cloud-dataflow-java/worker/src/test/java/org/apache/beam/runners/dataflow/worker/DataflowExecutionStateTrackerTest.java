@@ -58,23 +58,39 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for {@link DataflowExecutionStateTrackerTest}. */
 public class DataflowExecutionStateTrackerTest {
 
+  @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+
+  @Rule public RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties();
+
+  private File logFolder;
   private PipelineOptions options;
   private MillisProvider clock;
   private ExecutionStateSampler sampler;
   private CounterSet counterSet;
 
   @Before
-  public void setUp() {
+  public void setUp() throws IOException {
     options = PipelineOptionsFactory.create();
     clock = mock(MillisProvider.class);
     sampler = ExecutionStateSampler.newForTest(clock);
     counterSet = new CounterSet();
+    logFolder = tempFolder.newFolder();
+      System.setProperty(
+          DataflowWorkerLoggingInitializer.RUNNER_FILEPATH_PROPERTY,
+          new File(logFolder, "dataflow-json.log").getAbsolutePath());
+      // We need to reset *first* because some other test may have already initialized the
+      // logging initializer.
+      DataflowWorkerLoggingInitializer.reset();
+      DataflowWorkerLoggingInitializer.initialize();
+  }
+
+  @After
+  public void tearDown() {
+    DataflowWorkerLoggingInitializer.reset();
   }
 
   private final NameContext step1 =
@@ -148,40 +164,6 @@ public class DataflowExecutionStateTrackerTest {
         counterSet,
         options,
         "test-work-item-id");
-  }
-}
-
-/** Tests for the lull logging in {@link DataflowOperationContext}. */
-@RunWith(JUnit4.class)
-public static class LullLoggingTest {
-
-  @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
-
-  @Rule public RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties();
-
-  private File logFolder;
-  private PipelineOptions options;
-  private ExecutionStateSampler sampler;
-  private CounterSet counterSet;
-
-  @Before
-  public void setUp() throws IOException {
-    options = PipelineOptionsFactory.create();
-    sampler = ExecutionStateSampler.newForTest(mock(MillisProvider.class));
-    counterSet = new CounterSet();
-    logFolder = tempFolder.newFolder();
-    System.setProperty(
-        DataflowWorkerLoggingInitializer.RUNNER_FILEPATH_PROPERTY,
-        new File(logFolder, "dataflow-json.log").getAbsolutePath());
-    // We need to reset *first* because some other test may have already initialized the
-    // logging initializer.
-    DataflowWorkerLoggingInitializer.reset();
-    DataflowWorkerLoggingInitializer.initialize();
-  }
-
-  @After
-  public void tearDown() {
-    DataflowWorkerLoggingInitializer.reset();
   }
 
   @Test
