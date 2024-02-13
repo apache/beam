@@ -48,11 +48,8 @@ import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
-import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.Repeatedly;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -197,7 +194,6 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
   public PCollection<RequestT> expand(PCollection<RequestT> input) {
     ListCoder<RequestT> listCoder = ListCoder.of(input.getCoder());
     Coder<KV<Integer, List<RequestT>>> kvCoder = KvCoder.of(VarIntCoder.of(), listCoder);
-    Window<RequestT> window = windowOf(input);
 
     PTransform<PCollection<KV<Integer, RequestT>>, PCollection<KV<Integer, Iterable<RequestT>>>>
         groupingTransform = GroupByKey.create();
@@ -222,51 +218,15 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
         // Rate::numElements).
         .apply(AssignChannelFn.class.getSimpleName(), assignChannels())
         .apply(groupingStepName, groupingTransform)
+
         // Step 2. Convert KV<Integer, Iterable<RequestT>> to KV<Integer, List<RequestT>>.
         // Working with a List<RequestT> is cleaner than an Iterable in Splittable DoFns.
         // IterableCoder uses a List for IterableLikeCoder's structuralValue.
         .apply("ConvertToList", toList())
         .setCoder(kvCoder)
-        // Step 3. Apply GlobalWindows to prior to throttling
-        .apply(
-            GlobalWindows.class.getSimpleName() + "Post",
-            Window.<KV<Integer, List<RequestT>>>into(new GlobalWindows())
-                .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
-                .withAllowedLateness(Duration.ZERO)
-                .discardingFiredPanes())
-        // Step 4. Apply the splittable DoFn that performs the actual work of throttling.
-        .apply(ThrottleFn.class.getSimpleName(), throttle())
-        // Step 5. Finally, reapply the original input windowing strategy.
-        .apply(Window.class.getSimpleName(), window);
-  }
 
-  /**
-   * Extracts the {@link WindowingStrategy} of the {@link PCollection} input. The purpose of this is
-   * to re-apply the original {@link Window} back to the resulting {@link PCollection} output. This
-   * is because simply {@link PCollection#setWindowingStrategyInternal} fails to really re-apply the
-   * original {@link WindowingStrategy}.
-   */
-  private Window<RequestT> windowOf(PCollection<RequestT> input) {
-    @SuppressWarnings({"unchecked"})
-    WindowingStrategy<? super RequestT, ?> windowingStrategy =
-        (WindowingStrategy<? super RequestT, ?>) input.getWindowingStrategy();
-
-    Window<RequestT> window =
-        Window.<RequestT>into(windowingStrategy.getWindowFn())
-            .triggering(windowingStrategy.getTrigger())
-            .withAllowedLateness(
-                windowingStrategy.getAllowedLateness(), windowingStrategy.getClosingBehavior())
-            .withOnTimeBehavior(windowingStrategy.getOnTimeBehavior())
-            .withTimestampCombiner(windowingStrategy.getTimestampCombiner());
-
-    switch (windowingStrategy.getMode()) {
-      case DISCARDING_FIRED_PANES:
-        return window.discardingFiredPanes();
-      case ACCUMULATING_FIRED_PANES:
-        return window.accumulatingFiredPanes();
-      default:
-        return window;
-    }
+        // Step 3. Apply the splittable DoFn that performs the actual work of throttling.
+        .apply(ThrottleFn.class.getSimpleName(), throttle());
   }
 
   private ParDo.SingleOutput<KV<Integer, List<RequestT>>, RequestT> throttle() {
@@ -352,6 +312,7 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
     @ProcessElement
     public ProcessContinuation process(
         @Element KV<Integer, List<RequestT>> element,
+        @Timestamp Instant timestamp,
         ManualWatermarkEstimator<Instant> estimator,
         RestrictionTracker<OffsetRange, Long> tracker,
         OutputReceiver<RequestT> receiver) {
@@ -370,9 +331,8 @@ public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PColle
       }
 
       RequestT value = element.getValue().get((int) position);
-      Instant timestamp = Instant.now();
       estimator.setWatermark(timestamp);
-      receiver.outputWithTimestamp(value, timestamp);
+      receiver.output(value);
       incIfPresent(outputElementsCounter);
 
       // If we know that the next position is at the end, then we don't bother resuming.

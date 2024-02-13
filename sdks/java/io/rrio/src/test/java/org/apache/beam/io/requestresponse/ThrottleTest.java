@@ -42,7 +42,6 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -53,12 +52,10 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.testinfra.mockapis.echo.v1.Echo;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -243,9 +240,7 @@ public class ThrottleTest {
   /** During batch, validates upstream Window assignments are preserved. */
   @Test
   public void givenUpstreamNonGlobalWindow_thenPreservesWindowAssignments() {
-    Rate rate = Rate.of(3, Duration.standardSeconds(1L));
-
-    List<KV<Integer, Long>> expected = ImmutableList.of(KV.of(1, 5L), KV.of(2, 5L));
+    Rate rate = Rate.of(10, Duration.standardSeconds(1L));
 
     PCollection<Integer> unthrottled =
         pipeline
@@ -268,20 +263,15 @@ public class ThrottleTest {
                     .discardingFiredPanes());
 
     PCollection<Integer> throttled = unthrottled.apply(transformOf(rate));
-    PCollection<KV<Integer, Long>> counts = throttled.apply(Count.perElement());
-    PAssert.that(counts).containsInAnyOrder(expected);
+    PAssert.that(throttled.apply(Sum.integersGlobally().withoutDefaults()))
+        .containsInAnyOrder(5, 10);
 
     pipeline.run();
   }
 
   @Test
-  public void givenUpstreamNonWindow_canReassignDownstreamWindow() {
-    Rate rate = Rate.of(1, Duration.standardSeconds(1L));
-
-    //    List<KV<Integer, Long>> expected = ImmutableList.of(
-    //            KV.of(1, 5L),
-    //            KV.of(2, 5L)
-    //    );
+  public void givenUpstreamNonGlobalWindow_canReassignDownstreamWindow() {
+    Rate rate = Rate.of(10, Duration.standardSeconds(1L));
 
     PCollection<Integer> unthrottled =
         pipeline
@@ -289,30 +279,33 @@ public class ThrottleTest {
                 Create.timestamped(
                     TimestampedValue.of(1, Instant.EPOCH),
                     TimestampedValue.of(1, epochPlus(1_000L)),
-                    TimestampedValue.of(2, epochPlus(2_000L)),
-                    TimestampedValue.of(2, epochPlus(3_000L))))
+                    TimestampedValue.of(1, epochPlus(2_000L)),
+                    TimestampedValue.of(1, epochPlus(3_000L)),
+                    TimestampedValue.of(1, epochPlus(4_000L)),
+                    TimestampedValue.of(2, epochPlus(5_000L)),
+                    TimestampedValue.of(2, epochPlus(6_000L)),
+                    TimestampedValue.of(2, epochPlus(7_000L)),
+                    TimestampedValue.of(2, epochPlus(8_000L)),
+                    TimestampedValue.of(2, epochPlus(9_000L))))
             .apply(
-                "beforeThrottle",
-                Window.<Integer>into(FixedWindows.of(Duration.standardSeconds(2L)))
+                "before",
+                Window.<Integer>into(FixedWindows.of(Duration.standardSeconds(1L)))
                     .triggering(AfterWatermark.pastEndOfWindow())
                     .withAllowedLateness(Duration.ZERO)
                     .discardingFiredPanes());
-
-    PAssert.that(unthrottled.apply("beforeThrottleSum", Sum.integersGlobally().withoutDefaults()))
-        .containsInAnyOrder(2, 4);
 
     PCollection<Integer> throttled =
         unthrottled
             .apply(transformOf(rate))
             .apply(
-                "afterThrottle",
-                Window.<Integer>into(FixedWindows.of(Duration.standardSeconds(6L)))
+                "after",
+                Window.<Integer>into(FixedWindows.of(Duration.standardSeconds(5L)))
                     .triggering(AfterWatermark.pastEndOfWindow())
                     .withAllowedLateness(Duration.ZERO)
                     .discardingFiredPanes());
 
-    PAssert.that(throttled.apply("afterThrottleSum", Sum.integersGlobally().withoutDefaults()))
-        .containsInAnyOrder(6);
+    PAssert.that(throttled.apply(Sum.integersGlobally().withoutDefaults()))
+        .containsInAnyOrder(5, 10);
 
     pipeline.run();
   }
