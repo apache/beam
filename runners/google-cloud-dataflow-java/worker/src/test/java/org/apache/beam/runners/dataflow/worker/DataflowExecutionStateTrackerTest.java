@@ -52,7 +52,6 @@ import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Test;
 
-
 /** Tests for {@link DataflowExecutionStateTrackerTest}. */
 public class DataflowExecutionStateTrackerTest {
 

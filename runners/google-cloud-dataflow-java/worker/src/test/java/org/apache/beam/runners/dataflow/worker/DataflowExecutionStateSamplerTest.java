@@ -22,20 +22,14 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.io.File;
 import java.util.HashMap;
 import java.util.IntSummaryStatistics;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.DateTimeUtils.MillisProvider;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -47,27 +41,10 @@ public class DataflowExecutionStateSamplerTest {
   private MillisProvider clock;
   private DataflowExecutionStateSampler sampler;
 
-  @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
-
-  private File logFolder;
-
   @Before
   public void setUp() {
-    logFolder = tempFolder.newFolder();
-    System.setProperty(
-        DataflowWorkerLoggingInitializer.RUNNER_FILEPATH_PROPERTY,
-        new File(logFolder, "dataflow-json.log").getAbsolutePath());
-    // We need to reset *first* because some other test may have already initialized the
-    // logging initializer.
-    DataflowWorkerLoggingInitializer.reset();
-    DataflowWorkerLoggingInitializer.initialize();
     clock = mock(MillisProvider.class);
     sampler = DataflowExecutionStateSampler.newForTest(clock);
-  }
-
-  @After
-  public void tearDown() {
-    DataflowWorkerLoggingInitializer.reset();
   }
 
   private final TestOperationContext.TestDataflowExecutionState step1act1 =

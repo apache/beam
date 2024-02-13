@@ -364,7 +364,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
           .append(DURATION_FORMATTER.print(lullDuration.toPeriod()))
           .append(" without completing")
           .append("\n");
-      synchronized (this) {  
+      synchronized (this) {
         if (this.activeMessageMetadata != null) {
           message.append(
               "Current user step name: " + getActiveMessageMetadata().get().userStepName() + "\n");
@@ -374,7 +374,8 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
                   + "\n");
         }
         message.append("Processing times in each step(millis)\n");
-        for (Map.Entry<String, IntSummaryStatistics> entry : this.processingTimesByStep.entrySet()) {
+        for (Map.Entry<String, IntSummaryStatistics> entry :
+            this.processingTimesByStep.entrySet()) {
           message.append("Step name: " + entry.getKey() + "\n");
           message.append("Time spent in this step: " + entry.getValue().toString() + "\n");
         }
