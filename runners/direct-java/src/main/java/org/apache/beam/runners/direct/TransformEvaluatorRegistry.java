@@ -38,7 +38,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
@@ -132,9 +131,6 @@ class TransformEvaluatorRegistry {
           .put(
               DirectTestStream.class,
               TransformPayloadTranslator.NotSerializable.forUrn(DIRECT_TEST_STREAM_URN))
-          .put(
-              SplittableParDoViaKeyedWorkItems.ProcessElements.class,
-              TransformPayloadTranslator.NotSerializable.forUrn(SPLITTABLE_PROCESS_URN))
           .build();
     }
   }

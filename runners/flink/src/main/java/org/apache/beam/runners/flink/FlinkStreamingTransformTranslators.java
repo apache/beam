@@ -1449,10 +1449,6 @@ class FlinkStreamingTransformTranslators {
           .put(
               CreateStreamingFlinkView.CreateFlinkPCollectionView.class,
               new CreateStreamingFlinkViewPayloadTranslator())
-          .put(
-              SplittableParDoViaKeyedWorkItems.ProcessElements.class,
-              PTransformTranslation.TransformPayloadTranslator.NotSerializable.forUrn(
-                  SPLITTABLE_PROCESS_URN))
           .build();
     }
   }

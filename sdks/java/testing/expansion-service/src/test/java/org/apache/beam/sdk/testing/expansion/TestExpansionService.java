@@ -28,6 +28,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.expansion.service.ExpansionService;
+import org.apache.beam.sdk.expansion.service.TransformProvider;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.TextIO;
@@ -86,16 +87,15 @@ public class TestExpansionService {
   @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
   public static class TestServiceRegistrar implements ExpansionService.ExpansionServiceRegistrar {
     @Override
-    public Map<String, ExpansionService.TransformProvider> knownTransforms() {
-      ImmutableMap.Builder<String, ExpansionService.TransformProvider> builder =
-          ImmutableMap.builder();
+    public Map<String, TransformProvider> knownTransforms() {
+      ImmutableMap.Builder<String, TransformProvider> builder = ImmutableMap.builder();
       builder.put(TEST_CGBK_URN, new TestCoGroupByKeyTransformProvider());
       builder.put(TEST_FLATTEN_URN, new TestFlattenTransformProvider());
       return builder.build();
     }
 
     public static class TestCoGroupByKeyTransformProvider
-        implements ExpansionService.TransformProvider<
+        implements TransformProvider<
             KeyedPCollectionTuple<Long>, PCollection<KV<Long, Iterable<String>>>> {
       public static class TestCoGroupByKeyTransform
           extends PTransform<KeyedPCollectionTuple<Long>, PCollection<KV<Long, Iterable<String>>>> {
@@ -144,7 +144,7 @@ public class TestExpansionService {
     }
 
     public static class TestFlattenTransformProvider
-        implements ExpansionService.TransformProvider<PCollectionList<Long>, PCollection<Long>> {
+        implements TransformProvider<PCollectionList<Long>, PCollection<Long>> {
       @Override
       public PCollectionList<Long> createInput(Pipeline p, Map<String, PCollection<?>> inputs) {
         PCollectionList<Long> inputList = PCollectionList.empty(p);

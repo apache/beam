@@ -258,18 +258,11 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     Linear linearOptions1 = new Linear().setNumberOfBuckets(10).setWidth(10.0).setStart(0.0);
     BucketOptions bucketOptions1 = new BucketOptions().setLinear(linearOptions1);
 
-    OutlierStats outlierStats1 =
-        new OutlierStats()
-            .setUnderflowCount(0L)
-            .setUnderflowMean(0.0)
-            .setOverflowCount(0L)
-            .setOverflowMean(0.0);
     DataflowHistogramValue linearHistogram1 =
         new DataflowHistogramValue()
             .setCount(1L)
             .setBucketOptions(bucketOptions1)
-            .setBucketCounts(bucketCounts1)
-            .setOutlierStats(outlierStats1);
+            .setBucketCounts(bucketCounts1);
 
     Map<String, String> histogramLabelMap = new HashMap<>();
     histogramLabelMap.put("label2", "val2");
