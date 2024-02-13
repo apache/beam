@@ -31,6 +31,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableBiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.dataflow.qual.Deterministic;
 
 /** Converts to and from Beam Runner API representations of {@link Coder Coders}. */
 @SuppressWarnings({
@@ -58,29 +60,40 @@ public class CoderTranslation {
   // TODO: standardize such things
   public static final String JAVA_SERIALIZED_CODER_URN = "beam:coders:javasdk:0.1";
 
-  @VisibleForTesting
-  static final BiMap<Class<? extends Coder>, String> KNOWN_CODER_URNS = loadCoderURNs();
+  private static @MonotonicNonNull BiMap<Class<? extends Coder>, String> knownCoderUrns;
+
+  private static @MonotonicNonNull Map<Class<? extends Coder>, CoderTranslator<? extends Coder>>
+      knownTranslators;
 
   @VisibleForTesting
-  static final Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> KNOWN_TRANSLATORS =
-      loadTranslators();
-
-  private static BiMap<Class<? extends Coder>, String> loadCoderURNs() {
-    ImmutableBiMap.Builder<Class<? extends Coder>, String> coderUrns = ImmutableBiMap.builder();
-    for (CoderTranslatorRegistrar registrar : ServiceLoader.load(CoderTranslatorRegistrar.class)) {
-      coderUrns.putAll(registrar.getCoderURNs());
+  @Deterministic
+  static BiMap<Class<? extends Coder>, String> getKnownCoderUrns() {
+    if (knownCoderUrns == null) {
+      ImmutableBiMap.Builder<Class<? extends Coder>, String> coderUrns = ImmutableBiMap.builder();
+      for (CoderTranslatorRegistrar registrar :
+          ServiceLoader.load(CoderTranslatorRegistrar.class)) {
+        coderUrns.putAll(registrar.getCoderURNs());
+      }
+      knownCoderUrns = coderUrns.build();
     }
-    return coderUrns.build();
+
+    return knownCoderUrns;
   }
 
-  private static Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> loadTranslators() {
-    ImmutableMap.Builder<Class<? extends Coder>, CoderTranslator<? extends Coder>> translators =
-        ImmutableMap.builder();
-    for (CoderTranslatorRegistrar coderTranslatorRegistrar :
-        ServiceLoader.load(CoderTranslatorRegistrar.class)) {
-      translators.putAll(coderTranslatorRegistrar.getCoderTranslators());
+  @VisibleForTesting
+  @Deterministic
+  static Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> getKnownTranslators() {
+    if (knownTranslators == null) {
+      ImmutableMap.Builder<Class<? extends Coder>, CoderTranslator<? extends Coder>> translators =
+          ImmutableMap.builder();
+      for (CoderTranslatorRegistrar coderTranslatorRegistrar :
+          ServiceLoader.load(CoderTranslatorRegistrar.class)) {
+        translators.putAll(coderTranslatorRegistrar.getCoderTranslators());
+      }
+      knownTranslators = translators.build();
     }
-    return translators.build();
+
+    return knownTranslators;
   }
 
   public static RunnerApi.MessageWithComponents toProto(Coder<?> coder) throws IOException {
@@ -94,7 +107,7 @@ public class CoderTranslation {
 
   public static RunnerApi.Coder toProto(Coder<?> coder, SdkComponents components)
       throws IOException {
-    if (KNOWN_CODER_URNS.containsKey(coder.getClass())) {
+    if (getKnownCoderUrns().containsKey(coder.getClass())) {
       return toKnownCoder(coder, components);
     }
 
@@ -116,13 +129,13 @@ public class CoderTranslation {
 
   private static RunnerApi.Coder toKnownCoder(Coder<?> coder, SdkComponents components)
       throws IOException {
-    CoderTranslator translator = KNOWN_TRANSLATORS.get(coder.getClass());
+    CoderTranslator translator = getKnownTranslators().get(coder.getClass());
     List<String> componentIds = registerComponents(coder, translator, components);
     return RunnerApi.Coder.newBuilder()
         .addAllComponentCoderIds(componentIds)
         .setSpec(
             FunctionSpec.newBuilder()
-                .setUrn(KNOWN_CODER_URNS.get(coder.getClass()))
+                .setUrn(getKnownCoderUrns().get(coder.getClass()))
                 .setPayload(ByteString.copyFrom(translator.getPayload(coder))))
         .build();
   }
@@ -173,8 +186,8 @@ public class CoderTranslation {
                   components.getComponents().getCodersOrThrow(componentId), components, context);
       coderComponents.add(innerCoder);
     }
-    Class<? extends Coder> coderType = KNOWN_CODER_URNS.inverse().get(coderUrn);
-    CoderTranslator<?> translator = KNOWN_TRANSLATORS.get(coderType);
+    Class<? extends Coder> coderType = getKnownCoderUrns().inverse().get(coderUrn);
+    CoderTranslator<?> translator = getKnownTranslators().get(coderType);
     if (translator != null) {
       return translator.fromComponents(
           coderComponents, coder.getSpec().getPayload().toByteArray(), context);

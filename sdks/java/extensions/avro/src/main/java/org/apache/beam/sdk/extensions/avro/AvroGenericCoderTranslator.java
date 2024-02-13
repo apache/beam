@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction;
+package org.apache.beam.sdk.extensions.avro;
 
 import java.util.Collections;
 import java.util.List;
 import org.apache.avro.Schema;
 import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
+import org.apache.beam.runners.core.construction.CoderTranslator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
