@@ -124,6 +124,31 @@ public class KafkaIOTranslationTest {
   }
 
   @Test
+  public void testReCreateReadTransformWithTopics() throws Exception {
+    Map<String, Object> consumerConfig = new HashMap<>();
+    consumerConfig.put("dummyconfig", "dummyvalue");
+
+    Read<String, Integer> readTransform =
+        KafkaIO.<String, Integer>read()
+            .withBootstrapServers("dummykafkaserver")
+            .withTopic("dummytopic")
+            .withConsumerConfigUpdates(consumerConfig);
+    KafkaIOTranslation.KafkaIOReadWithMetadataTranslator translator =
+        new KafkaIOReadWithMetadataTranslator();
+    Row row = translator.toConfigRow(readTransform);
+
+    Read<String, Integer> readTransformFromRow =
+        (Read<String, Integer>) translator.fromConfigRow(row, PipelineOptionsFactory.create());
+    assertNotNull(
+        readTransformFromRow.getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
+    assertEquals(
+        "dummykafkaserver",
+        readTransformFromRow.getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
+    assertEquals(1, readTransformFromRow.getTopics().size());
+    assertEquals("dummytopic", readTransformFromRow.getTopics().get(0));
+  }
+
+  @Test
   public void testReadTransformRowIncludesAllFields() throws Exception {
     // TODO: support 'withBadRecordErrorHandler' property.
     List<String> fieldsToIgnore =
