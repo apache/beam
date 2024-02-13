@@ -98,17 +98,6 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
      */
     public abstract void reportLull(Thread trackedThread, long millis);
 
-    /**
-     * Called when a lull has been detected since the start of bundle processing. This indicates
-     * that more than {@link #BUNDLE_LULL_REPORT_MS} has been spent processing the same bundle (ie
-     * between startBundle/finishBundle).
-     *
-     * @param trackedThread The execution thread that is in a lull.
-     * @param millis The milliseconds since the bundle started processing.
-     */
-    public abstract void reportBundleLull(
-        Thread trackedThread, String customLogMessage, long millis);
-
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass()).add("stateName", stateName).toString();
@@ -317,11 +306,6 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     return millisSinceLastTransition;
   }
 
-  /** Return the time since the initial state. */
-  public long getMillisSinceBundleStart() {
-    return millisSinceBundleStart;
-  }
-
   /** Return the number of transitions since the last sample. */
   public long getTransitionsAtLastSample() {
     return transitionsAtLastSample;
@@ -330,11 +314,6 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   /** Return the time of the next lull report. */
   public long getNextLullReportMs() {
     return nextLullReportMs;
-  }
-
-  /** Return true if time in bundle start is greater than BUNDLE_LULL_REPORT_MS. */
-  public boolean shouldReportBundleLull() {
-    return millisSinceBundleStart > nextBundleLullReportMs;
   }
 
   /**
@@ -351,13 +330,6 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
       } finally {
         SAMPLING_UPDATER.set(this, 0);
       }
-    }
-  }
-
-  protected void reportBundleLull(String customLogMessage) {
-    if (currentState != null) {
-      currentState.reportBundleLull(trackedThread, customLogMessage, millisSinceBundleStart);
-      nextBundleLullReportMs += BUNDLE_LULL_REPORT_MS;
     }
   }
 
@@ -378,9 +350,16 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     updateMillisSinceBundleStart(millisSinceLastSample);
   }
 
+  // Override this to implement bundle level lull reporting.
+  protected void reportBundleLull(long millisSinceBundleStart) {}
+
   @SuppressWarnings("NonAtomicVolatileUpdate")
   private void updateMillisSinceBundleStart(long millisSinceLastSample) {
     millisSinceBundleStart += millisSinceLastSample;
+    if (millisSinceBundleStart > nextBundleLullReportMs) {
+      reportBundleLull(millisSinceBundleStart);
+      nextBundleLullReportMs += BUNDLE_LULL_REPORT_MS;
+    }
   }
 
   @SuppressWarnings("NonAtomicVolatileUpdate")
