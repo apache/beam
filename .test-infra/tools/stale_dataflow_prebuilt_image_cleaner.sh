@@ -17,7 +17,7 @@
 #
 #    Delete stale python prebuilt SDK container images older than one day.
 #
-set -euo pipefail
+set -exuo pipefail
 
 # Clean up private registry (us.gcr.io)
 # Images more than 5 day old and not the latest (either has latest label or newest)
