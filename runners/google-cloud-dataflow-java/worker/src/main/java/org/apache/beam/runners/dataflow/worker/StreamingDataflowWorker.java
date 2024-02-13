@@ -1353,7 +1353,7 @@ public class StreamingDataflowWorker {
           Windmill.CommitWorkRequest.newBuilder();
       long commitBytes = 0;
       // Block until we have a commit, then batch with additional commits.
-      Commit commit = null;
+      Commit commit;
       try {
         commit = commitQueue.take();
       } catch (InterruptedException e) {
@@ -1408,7 +1408,9 @@ public class StreamingDataflowWorker {
     if (commit.work().isFailed()) {
       readerCache.invalidateReader(
           WindmillComputationKey.create(
-              state.getComputationId(), request.getKey(), request.getShardingKey()));
+              state.getComputationId(),
+              request.getKey(),
+              request.getShardingKey()));
       stateCache
           .forComputation(state.getComputationId())
           .invalidate(request.getKey(), request.getShardingKey());

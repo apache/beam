@@ -26,8 +26,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.streaming.Commit;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
-import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedBoundedQueue;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
@@ -53,8 +51,7 @@ import org.slf4j.LoggerFactory;
  * manages its own commit queue, and asynchronously CommitWork RPCs to Streaming Engine as callers
  * queue commits on the internal queue.
  *
- * <p>Callers should call {@link #queueCommit(WorkItemCommitRequest, ComputationState, Work)} when
- * work is ready to be committed.
+ * <p>Callers should call {@link #queueCommit(Commit)} when work is ready to be committed.
  */
 public class GrpcDirectCommitWorkStream extends GrpcCommitWorkStream
     implements AsyncCommitWorkStream {
@@ -141,10 +138,9 @@ public class GrpcDirectCommitWorkStream extends GrpcCommitWorkStream
   }
 
   @Override
-  public void queueCommit(
-      WorkItemCommitRequest workItemCommitRequest, ComputationState computationState, Work work) {
-    work.setState(Work.State.QUEUED);
-    commitQueue.put(Commit.create(workItemCommitRequest, computationState, work));
+  public void queueCommit(Commit commit) {
+    commit.work().setState(Work.State.QUEUED);
+    commitQueue.put(commit);
   }
 
   @Override
@@ -164,7 +160,7 @@ public class GrpcDirectCommitWorkStream extends GrpcCommitWorkStream
     commitSender.submit(
         () -> {
           @Nullable Commit lastAttempedCommit = waitForInitialCommit();
-          while (!clientClosed.get()) {
+          while (!super.clientClosed.get()) {
             // We initialize the commit stream only after we have a commit to make sure it is fresh.
             if (!addCommitToStream(lastAttempedCommit)) {
               throw new IllegalStateException(
@@ -173,13 +169,13 @@ public class GrpcDirectCommitWorkStream extends GrpcCommitWorkStream
             // Batch additional commits to the stream and possibly make an un-batched commit the
             // next initial commit.
             lastAttempedCommit = batchCommitsToStream();
-            flush();
+            super.flush();
           }
         });
   }
 
   private @Nullable Commit waitForInitialCommit() {
-    while (!clientClosed.get()) {
+    while (!super.clientClosed.get()) {
       try {
         return commitQueue.take();
       } catch (InterruptedException ignored) {
@@ -191,34 +187,32 @@ public class GrpcDirectCommitWorkStream extends GrpcCommitWorkStream
 
   private boolean addCommitToStream(@Nullable Commit commit) {
     Preconditions.checkNotNull(commit);
-    ComputationState state = commit.computationState();
-    WorkItemCommitRequest request = commit.request();
     // Drop commits for failed work. Such commits will be dropped by Windmill anyway.
     if (commit.work().isFailed()) {
       onFailedCommit.accept(commit);
-      state.completeWorkAndScheduleNextWorkForKey(
-          ShardedKey.create(request.getKey(), request.getShardingKey()), request.getWorkToken());
       return true;
     }
 
     commit.work().setState(Work.State.COMMITTING);
     activeCommitBytes.addAndGet(commit.getSize());
-    if (commitWorkItem(
-        state.getComputationId(),
-        request,
-        (status) -> onCommitComplete.accept(CompleteCommit.create(commit, status)))) {
-      return true;
-    } else {
-      // Back out the stats changes since the commit wasn't consumed.
+    boolean isCommitSuccessful =
+        super.commitWorkItem(
+            commit.computationId(),
+            commit.request(),
+            (status) -> onCommitComplete.accept(CompleteCommit.create(commit, status)));
+
+    // Back out the stats changes since the commit wasn't consumed.
+    if (!isCommitSuccessful) {
       commit.work().setState(Work.State.COMMIT_QUEUED);
-      activeCommitBytes.addAndGet(-commit.getSize());
-      return false;
     }
+
+    activeCommitBytes.addAndGet(-commit.getSize());
+    return isCommitSuccessful;
   }
 
   private Commit batchCommitsToStream() {
     int commits = 1;
-    while (!clientClosed.get()) {
+    while (!super.clientClosed.get()) {
       Commit commit;
       try {
         commit =
