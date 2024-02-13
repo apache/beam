@@ -10,10 +10,12 @@ Producing additional outputs requires [tagging](https://beam.apache.org/document
 
 In the Apache Beam Java SDK, you can implement additional outputs by creating a `TupleTag` object to identify each collection produced by the `ParDo` transform. After specifying the `TupleTag`s for each of the outputs, the tags are passed to the `ParDo` using the `.withOutputTags` method. You can find a sample Apache Beam Java pipeline that applies one transform to output two `PCollection`s in the [Branching `PCollection`s](https://beam.apache.org/documentation/pipelines/design-your-pipeline/#a-single-transform-that-produces-multiple-outputs) section in the Apache Beam documentation.
 
+The following Java code implements two additional output `PCollection`s for string and integer values in addition to the main output `PCollection` of strings:
+
 ```java
 // Input PCollection that contains strings.
   PCollection<String> input = ...;
-// Output tag for the main output Pcollection of strings.
+// Output tag for the main output PCollection of strings.
 final TupleTag<String> mainOutputTag = new TupleTag<String>(){};
 // Output tag for the additional output PCollection of strings.
 final TupleTag<String> additionalOutputTagString = new TupleTag<Integer>(){};
@@ -52,3 +54,10 @@ public void processElement(@Element String word, MultiOutputReceiver out) {
 ```
 
 In the Apache Beam Python SDK, you can implement additional outputs by invoking the `with_outputs()` method on the `ParDo` and specifying the expected tags for the multiple outputs. The method returns a `DoOutputsTuple` object, with the specified tags serving as attributes that provide `ParDo` with access to the corresponding output `PCollection`s. For a sample Apache Beam Python pipeline demonstrating a word count example with multiple outputs, refer to the [multiple output `ParDo`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/multiple_output_pardo.py) example in the Apache Beam GitHub repository.
+
+For more information about additional outputs and sample pipelines demonstrating their use, you can refer to the Apache Beam documentation on:
+* [Tagging multiple outputs](https://beam.apache.org/documentation/programming-guide/#output-tags)
+* [Emitting elements to multiple outputs](https://beam.apache.org/documentation/programming-guide/#multiple-outputs-dofn)
+* [Accessing additional parameters in your `DoFn`](https://beam.apache.org/documentation/programming-guide/#other-dofn-parameters) 
+* [Branching `PCollection`s](https://beam.apache.org/documentation/pipelines/design-your-pipeline/#branching-pcollections)
+
