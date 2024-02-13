@@ -59,11 +59,6 @@ public class ExecutionStateSamplerTest {
     public void reportLull(Thread trackedThread, long millis) {
       lullReported = true;
     }
-
-    @Override
-    public void reportBundleLull(Thread trackedThread, String customLogMessage, long millis) {
-      bundleLullReported = true;
-    }
   }
 
   private final TestExecutionState step1act1 = new TestExecutionState("activity1");
