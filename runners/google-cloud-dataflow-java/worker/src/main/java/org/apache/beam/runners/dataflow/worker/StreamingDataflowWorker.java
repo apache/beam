@@ -1508,9 +1508,7 @@ public class StreamingDataflowWorker {
     if (commit.work().isFailed()) {
       readerCache.invalidateReader(
           WindmillComputationKey.create(
-              state.getComputationId(),
-              request.getKey(),
-              request.getShardingKey()));
+              state.getComputationId(), request.getKey(), request.getShardingKey()));
       stateCache
           .forComputation(state.getComputationId())
           .invalidate(request.getKey(), request.getShardingKey());

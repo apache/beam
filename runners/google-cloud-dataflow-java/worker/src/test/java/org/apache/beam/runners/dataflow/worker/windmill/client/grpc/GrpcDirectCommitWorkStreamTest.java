@@ -236,7 +236,8 @@ public class GrpcDirectCommitWorkStreamTest {
     work.setState(Work.State.PROCESSING);
     ComputationState computationState = computationState("test");
     computationState.activateWork(ShardedKey.create(DEFAULT_KEY, 1), work);
-    commitWorkStream.queueCommit(Commit.create(workItemCommitRequest(workItem), computationState, work));
+    commitWorkStream.queueCommit(
+        Commit.create(workItemCommitRequest(workItem), computationState, work));
     assertThat(work.getState()).isEqualTo(Work.State.QUEUED);
     Commit expectedFailedCommit =
         Commit.create(workItemCommitRequest(workItem), computationState, work);
