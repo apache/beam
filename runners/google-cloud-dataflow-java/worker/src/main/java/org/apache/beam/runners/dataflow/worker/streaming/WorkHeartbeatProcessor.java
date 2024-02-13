@@ -17,16 +17,15 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatResponse;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 
 @Internal
 public final class WorkHeartbeatProcessor implements Consumer<List<ComputationHeartbeatResponse>> {
@@ -43,17 +42,16 @@ public final class WorkHeartbeatProcessor implements Consumer<List<ComputationHe
   public void accept(List<ComputationHeartbeatResponse> responses) {
     for (ComputationHeartbeatResponse computationHeartbeatResponse : responses) {
       // Maps sharding key to (work token, cache token) for work that should be marked failed.
-      Map<Long, List<FailedWorkToken>> failedWork = new HashMap<>();
+      Multimap<Long, WorkId> failedWork = ArrayListMultimap.create();
       for (HeartbeatResponse heartbeatResponse :
           computationHeartbeatResponse.getHeartbeatResponsesList()) {
         if (heartbeatResponse.getFailed()) {
-          failedWork
-              .computeIfAbsent(heartbeatResponse.getShardingKey(), key -> new ArrayList<>())
-              .add(
-                  FailedWorkToken.newBuilder()
-                      .setWorkToken(heartbeatResponse.getWorkToken())
-                      .setCacheToken(heartbeatResponse.getCacheToken())
-                      .build());
+          failedWork.put(
+              heartbeatResponse.getShardingKey(),
+              WorkId.builder()
+                  .setWorkToken(heartbeatResponse.getWorkToken())
+                  .setCacheToken(heartbeatResponse.getCacheToken())
+                  .build());
         }
       }
 

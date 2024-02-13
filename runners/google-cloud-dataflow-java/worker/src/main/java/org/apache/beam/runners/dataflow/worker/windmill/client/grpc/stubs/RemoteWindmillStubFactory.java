@@ -20,6 +20,8 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.remoteChannel;
 
 import com.google.auth.Credentials;
+import java.util.function.Supplier;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc.CloudWindmillMetadataServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
@@ -32,6 +34,7 @@ import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.auth.MoreCallCredentials;
 
 /** Creates remote stubs to talk to Streaming Engine. */
 @Internal
+@ThreadSafe
 public final class RemoteWindmillStubFactory implements WindmillStubFactory {
   private final int rpcChannelTimeoutSec;
   private final Credentials gcpCredentials;
@@ -64,7 +67,10 @@ public final class RemoteWindmillStubFactory implements WindmillStubFactory {
   }
 
   private ManagedChannel createChannel(WindmillServiceAddress serviceAddress) {
-    ManagedChannel channel = remoteChannel(serviceAddress, rpcChannelTimeoutSec);
-    return useIsolatedChannels ? IsolationChannel.create(() -> channel) : channel;
+    Supplier<ManagedChannel> channelFactory =
+        () -> remoteChannel(serviceAddress, rpcChannelTimeoutSec);
+    // IsolationChannel will create and manage separate RPC channels to the same serviceAddress via
+    // calling the channelFactory, else just directly return the RPC channel.
+    return useIsolatedChannels ? IsolationChannel.create(channelFactory) : channelFactory.get();
   }
 }
