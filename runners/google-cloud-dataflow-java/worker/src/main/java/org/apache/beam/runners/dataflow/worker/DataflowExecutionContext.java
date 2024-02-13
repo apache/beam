@@ -391,7 +391,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     }
 
     @Override
-    protected void reportBundleLull(long millisElapsedSinceBundleStart) {
+    public void reportBundleLull(long millisElapsedSinceBundleStart) {
       // If we're not logging warnings, nothing to report.
       if (!LOG.isWarnEnabled()) {
         return;

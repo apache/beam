@@ -42,15 +42,20 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterDi
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementExecutionTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matchers;
 import org.joda.time.DateTimeUtils.MillisProvider;
 import org.joda.time.Duration;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 /** Tests for {@link DataflowExecutionStateTrackerTest}. */
 public class DataflowExecutionStateTrackerTest {
@@ -60,12 +65,29 @@ public class DataflowExecutionStateTrackerTest {
   private ExecutionStateSampler sampler;
   private CounterSet counterSet;
 
+  @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+
+  private File logFolder;
+
   @Before
   public void setUp() {
     options = PipelineOptionsFactory.create();
     clock = mock(MillisProvider.class);
     sampler = ExecutionStateSampler.newForTest(clock);
     counterSet = new CounterSet();
+    logFolder = tempFolder.newFolder();
+    System.setProperty(
+        DataflowWorkerLoggingInitializer.RUNNER_FILEPATH_PROPERTY,
+        new File(logFolder, "dataflow-json.log").getAbsolutePath());
+    // We need to reset *first* because some other test may have already initialized the
+    // logging initializer.
+    DataflowWorkerLoggingInitializer.reset();
+    DataflowWorkerLoggingInitializer.initialize();
+  }
+
+  @After
+  public void tearDown() {
+    DataflowWorkerLoggingInitializer.reset();
   }
 
   private final NameContext step1 =
