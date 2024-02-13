@@ -30,7 +30,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
-import org.apache.beam.runners.core.SimpleDoFnRunner;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
@@ -228,11 +227,11 @@ public class DataflowExecutionStateTrackerTest {
     assertThat(
         warnLines,
         Matchers.allOf(
-            Matchers.containsString(
-                "Operation ongoing in bundle for at least"),
+            Matchers.containsString("Operation ongoing in bundle for at least"),
             Matchers.containsString(" without completing"),
             Matchers.containsString("Processing times in each step"),
-            Matchers.containsString("org.apache.beam.runners.dataflow.worker.DataflowExecutionContext$DataflowExecutionStateTracker")));
+            Matchers.containsString(
+                "org.apache.beam.runners.dataflow.worker.DataflowExecutionContext$DataflowExecutionStateTracker")));
 
     String infoLines =
         Joiner.on("\n").join(Iterables.filter(lines, line -> line.contains("\"INFO\"")));
