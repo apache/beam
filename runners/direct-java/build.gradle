@@ -40,9 +40,6 @@ applyJavaNature(
               include(project(path: it, configuration: "shadow"))
             }
           }
-          relocate "org.apache.beam.runners.core", getJavaRelocatedPath("runners.core")
-          relocate "org.apache.beam.runners.fnexecution", getJavaRelocatedPath("runners.fnexecution")
-          relocate "org.apache.beam.runners.local", getJavaRelocatedPath("runners.local")
         },
 )
 

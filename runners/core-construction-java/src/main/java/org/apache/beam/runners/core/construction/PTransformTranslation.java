@@ -298,6 +298,7 @@ public class PTransformTranslation {
   /** Returns the URN for the transform if it is known, otherwise throws. */
   public static String urnForTransform(PTransform<?, ?> transform) {
     String urn = urnForTransformOrNull(transform);
+
     if (urn == null) {
       throw new IllegalStateException(
           String.format("No translator known for %s", transform.getClass().getName()));
@@ -485,6 +486,7 @@ public class PTransformTranslation {
 
       TransformPayloadTranslator payloadTranslator =
           getKnownPayloadTranslators().get(appliedPTransform.getTransform().getClass());
+
       FunctionSpec spec = payloadTranslator.translate(appliedPTransform, components);
       if (spec != null) {
         transformBuilder.setSpec(spec);
