@@ -241,7 +241,7 @@ WORKDIR /tmp/beam
 RUN GOBIN=`pwd` go install github.com/apache/beam/sdks/v2/go/container@v2.53.0
 
 # Set the real base image.
-FROM alpine:3.9 
+FROM alpine:3.9
 RUN apk add ca-certificates
 
 # The following are required for the container to operate correctly.
