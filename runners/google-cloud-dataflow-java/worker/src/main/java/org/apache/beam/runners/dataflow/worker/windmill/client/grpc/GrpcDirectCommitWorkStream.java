@@ -30,12 +30,12 @@ import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedBoundedQueue;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.CompleteCommit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.AsyncCommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
@@ -63,7 +63,8 @@ public class GrpcDirectCommitWorkStream extends GrpcCommitWorkStream
   private static final int MAX_COMMIT_QUEUE_BYTES = 500 << 20; // 500MB
   private final WeightedBoundedQueue<Commit> commitQueue;
   private final ExecutorService commitSender;
-  private final Consumer<Commit> onFailedCommits;
+  private final Consumer<Commit> onFailedCommit;
+  private final Consumer<CompleteCommit> onCommitComplete;
   private final AtomicLong activeCommitBytes;
 
   private GrpcDirectCommitWorkStream(
@@ -77,7 +78,8 @@ public class GrpcDirectCommitWorkStream extends GrpcCommitWorkStream
       JobHeader jobHeader,
       AtomicLong idGenerator,
       int streamingRpcBatchLimit,
-      Consumer<Commit> onFailedCommits) {
+      Consumer<Commit> onFailedCommit,
+      Consumer<CompleteCommit> onCommitComplete) {
     super(
         startCommitWorkRpcFn,
         backoff,
@@ -102,7 +104,8 @@ public class GrpcDirectCommitWorkStream extends GrpcCommitWorkStream
                             t.getName(),
                             e))
                 .build());
-    this.onFailedCommits = onFailedCommits;
+    this.onFailedCommit = onFailedCommit;
+    this.onCommitComplete = onCommitComplete;
     this.activeCommitBytes = new AtomicLong();
   }
 
@@ -117,7 +120,8 @@ public class GrpcDirectCommitWorkStream extends GrpcCommitWorkStream
       JobHeader jobHeader,
       AtomicLong idGenerator,
       int streamingRpcBatchLimit,
-      Consumer<Commit> onFailedCommits) {
+      Consumer<Commit> onFailedCommit,
+      Consumer<CompleteCommit> onCommitComplete) {
     GrpcDirectCommitWorkStream commitWorkStream =
         new GrpcDirectCommitWorkStream(
             startCommitWorkRpcFn,
@@ -129,7 +133,8 @@ public class GrpcDirectCommitWorkStream extends GrpcCommitWorkStream
             jobHeader,
             idGenerator,
             streamingRpcBatchLimit,
-            onFailedCommits);
+            onFailedCommit,
+            onCommitComplete);
     commitWorkStream.startStream();
     commitWorkStream.startCommitSender();
     return commitWorkStream;
@@ -190,7 +195,7 @@ public class GrpcDirectCommitWorkStream extends GrpcCommitWorkStream
     WorkItemCommitRequest request = commit.request();
     // Drop commits for failed work. Such commits will be dropped by Windmill anyway.
     if (commit.work().isFailed()) {
-      onFailedCommits.accept(commit);
+      onFailedCommit.accept(commit);
       state.completeWorkAndScheduleNextWorkForKey(
           ShardedKey.create(request.getKey(), request.getShardingKey()), request.getWorkToken());
       return true;
@@ -198,18 +203,10 @@ public class GrpcDirectCommitWorkStream extends GrpcCommitWorkStream
 
     commit.work().setState(Work.State.COMMITTING);
     activeCommitBytes.addAndGet(commit.getSize());
-    if (this.commitWorkItem(
+    if (commitWorkItem(
         state.getComputationId(),
         request,
-        (Windmill.CommitStatus status) -> {
-          if (status != Windmill.CommitStatus.OK) {
-            onFailedCommits.accept(commit);
-          }
-          activeCommitBytes.addAndGet(-commit.getSize());
-          state.completeWorkAndScheduleNextWorkForKey(
-              ShardedKey.create(request.getKey(), request.getShardingKey()),
-              request.getWorkToken());
-        })) {
+        (status) -> onCommitComplete.accept(CompleteCommit.create(commit, status)))) {
       return true;
     } else {
       // Back out the stats changes since the commit wasn't consumed.
