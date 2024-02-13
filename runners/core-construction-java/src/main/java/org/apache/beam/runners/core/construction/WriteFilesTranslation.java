@@ -45,7 +45,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -88,6 +88,11 @@ public class WriteFilesTranslation {
           @Override
           public boolean isWindowedWrites() {
             return transform.getWindowedWrites();
+          }
+
+          @Override
+          public boolean isAutoSharded() {
+            return transform.getWithAutoSharding();
           }
 
           @Override
@@ -173,6 +178,16 @@ public class WriteFilesTranslation {
           transform)
       throws IOException {
     return getWriteFilesPayload(transform).getWindowedWrites();
+  }
+
+  public static <T, DestinationT> boolean isAutoSharded(
+      AppliedPTransform<
+              PCollection<T>,
+              WriteFilesResult<DestinationT>,
+              ? extends PTransform<PCollection<T>, WriteFilesResult<DestinationT>>>
+          transform)
+      throws IOException {
+    return getWriteFilesPayload(transform).getAutoSharded();
   }
 
   public static <T, DestinationT> boolean isRunnerDeterminedSharding(
@@ -269,6 +284,11 @@ public class WriteFilesTranslation {
     }
 
     @Override
+    public boolean isAutoSharded() {
+      return payload.getAutoSharded();
+    }
+
+    @Override
     public boolean isRunnerDeterminedSharding() {
       return payload.getRunnerDeterminedSharding();
     }
@@ -309,6 +329,8 @@ public class WriteFilesTranslation {
 
     boolean isWindowedWrites();
 
+    boolean isAutoSharded();
+
     boolean isRunnerDeterminedSharding();
   }
 
@@ -319,6 +341,7 @@ public class WriteFilesTranslation {
         .setSink(writeFiles.translateSink(components))
         .putAllSideInputs(writeFiles.translateSideInputs(components))
         .setWindowedWrites(writeFiles.isWindowedWrites())
+        .setAutoSharded(writeFiles.isAutoSharded())
         .setRunnerDeterminedSharding(writeFiles.isRunnerDeterminedSharding())
         .build();
   }

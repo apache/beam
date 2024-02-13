@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.tpcds;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -59,16 +61,16 @@ public class TableSchemaJSONLoader {
     StringBuilder schemaStringBuilder = new StringBuilder();
 
     Iterator jsonArrIterator = jsonArray.iterator();
-    Iterator recordIterator;
     while (jsonArrIterator.hasNext()) {
-      recordIterator = ((Map) jsonArrIterator.next()).entrySet().iterator();
+      Map jsonMap = checkArgumentNotNull((Map) jsonArrIterator.next());
+      Iterator recordIterator = jsonMap.entrySet().iterator();
       while (recordIterator.hasNext()) {
-        Map.Entry pair = (Map.Entry) recordIterator.next();
-
-        if (pair.getKey().equals("type")) {
+        Map.Entry pair = checkArgumentNotNull((Map.Entry) recordIterator.next());
+        Object key = checkArgumentNotNull(pair.getKey());
+        if (key.equals("type")) {
           // If the key of the pair is "type", make some modification before appending it to the
           // schemaStringBuilder, then append a comma.
-          String typeName = (String) pair.getValue();
+          String typeName = checkArgumentNotNull((String) pair.getValue());
           if (typeName.equalsIgnoreCase("identifier") || typeName.equalsIgnoreCase("integer")) {
             // Use long type to represent int, prevent overflow
             schemaStringBuilder.append("bigint");

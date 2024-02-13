@@ -130,6 +130,25 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
 
   void setWindmillMessagesBetweenIsReadyChecks(int value);
 
+  @Description("If true, a most a single active rpc will be used per channel.")
+  @Default.Boolean(false)
+  boolean getUseWindmillIsolatedChannels();
+
+  void setUseWindmillIsolatedChannels(boolean value);
+
+  @Description(
+      "If true, separate streaming rpcs will be used for heartbeats instead of sharing streams with state reads.")
+  @Default.Boolean(false)
+  boolean getUseSeparateWindmillHeartbeatStreams();
+
+  void setUseSeparateWindmillHeartbeatStreams(boolean value);
+
+  @Description("The number of streams to use for GetData requests.")
+  @Default.Integer(1)
+  int getWindmillGetDataStreamCount();
+
+  void setWindmillGetDataStreamCount(int value);
+
   /**
    * Factory for creating local Windmill address. Reads from system propery 'windmill.hostport' for
    * backwards compatibility.

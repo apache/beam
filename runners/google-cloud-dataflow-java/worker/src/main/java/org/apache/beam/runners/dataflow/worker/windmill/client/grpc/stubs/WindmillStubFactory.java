@@ -27,8 +27,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Al
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.auth.VendoredCredentialsAdapter;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.auth.MoreCallCredentials;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.auth.MoreCallCredentials;
 
 /**
  * Used to create stubs to talk to Streaming Engine. Stubs are either in-process for testing, or
@@ -51,13 +51,18 @@ public abstract class WindmillStubFactory {
   }
 
   public static WindmillStubFactory remoteStubFactory(
-      int rpcChannelTimeoutSec, Credentials gcpCredentials) {
+      int rpcChannelTimeoutSec, Credentials gcpCredentials, boolean useIsolatedChannels) {
     return AutoOneOf_WindmillStubFactory.remote(
-        directEndpoint ->
-            CloudWindmillServiceV1Alpha1Grpc.newStub(
-                    remoteChannel(directEndpoint, rpcChannelTimeoutSec))
-                .withCallCredentials(
-                    MoreCallCredentials.from(new VendoredCredentialsAdapter(gcpCredentials))));
+        directEndpoint -> {
+          Supplier<ManagedChannel> channelSupplier =
+              () -> remoteChannel(directEndpoint, rpcChannelTimeoutSec);
+          return CloudWindmillServiceV1Alpha1Grpc.newStub(
+                  useIsolatedChannels
+                      ? IsolationChannel.create(channelSupplier)
+                      : channelSupplier.get())
+              .withCallCredentials(
+                  MoreCallCredentials.from(new VendoredCredentialsAdapter(gcpCredentials)));
+        });
   }
 
   public abstract Kind getKind();

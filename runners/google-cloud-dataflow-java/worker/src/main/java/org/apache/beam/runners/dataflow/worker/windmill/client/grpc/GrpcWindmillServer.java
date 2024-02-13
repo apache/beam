@@ -28,13 +28,17 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOptions;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkResponse;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetConfigRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetConfigResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataRequest;
@@ -58,9 +62,9 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.StatusRuntimeException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
@@ -93,6 +97,10 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   private final StreamingEngineThrottleTimers throttleTimers;
   private Duration maxBackoff;
   private @Nullable WindmillApplianceGrpc.WindmillApplianceBlockingStub syncApplianceStub;
+  // If true, then active work refreshes will be sent as KeyedGetDataRequests. Otherwise, use the
+  // newer ComputationHeartbeatRequests.
+  private final boolean sendKeyedGetDataRequests;
+  private Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
 
   private GrpcWindmillServer(
       StreamingDataflowWorkerOptions options, GrpcDispatcherClient grpcDispatcherClient) {
@@ -118,9 +126,21 @@ public final class GrpcWindmillServer extends WindmillServerStub {
 
     this.dispatcherClient = grpcDispatcherClient;
     this.syncApplianceStub = null;
+    this.sendKeyedGetDataRequests =
+        !options.isEnableStreamingEngine()
+            || !DataflowRunner.hasExperiment(
+                options, "streaming_engine_send_new_heartbeat_requests");
+    this.processHeartbeatResponses = (responses) -> {};
   }
 
-  private static StreamingDataflowWorkerOptions testOptions(boolean enableStreamingEngine) {
+  @Override
+  public void setProcessHeartbeatResponses(
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
+    this.processHeartbeatResponses = processHeartbeatResponses;
+  };
+
+  private static StreamingDataflowWorkerOptions testOptions(
+      boolean enableStreamingEngine, List<String> additionalExperiments) {
     StreamingDataflowWorkerOptions options =
         PipelineOptionsFactory.create().as(StreamingDataflowWorkerOptions.class);
     options.setProject("project");
@@ -131,6 +151,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     if (enableStreamingEngine) {
       experiments.add(GcpOptions.STREAMING_ENGINE_EXPERIMENT);
     }
+    experiments.addAll(additionalExperiments);
     options.setExperiments(experiments);
 
     options.setWindmillServiceStreamingRpcBatchLimit(Integer.MAX_VALUE);
@@ -150,7 +171,8 @@ public final class GrpcWindmillServer extends WindmillServerStub {
             GrpcDispatcherClient.create(
                 WindmillStubFactory.remoteStubFactory(
                     workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
-                    workerOptions.getGcpCredential())));
+                    workerOptions.getGcpCredential(),
+                    workerOptions.getUseWindmillIsolatedChannels())));
     if (workerOptions.getWindmillServiceEndpoint() != null) {
       grpcWindmillServer.configureWindmillServiceEndpoints();
     } else if (!workerOptions.isEnableStreamingEngine()
@@ -162,7 +184,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   }
 
   @VisibleForTesting
-  static GrpcWindmillServer newTestInstance(String name) {
+  static GrpcWindmillServer newTestInstance(String name, List<String> experiments) {
     ManagedChannel inProcessChannel = inProcessChannel(name);
     CloudWindmillServiceV1Alpha1Stub stub =
         CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel);
@@ -173,14 +195,15 @@ public final class GrpcWindmillServer extends WindmillServerStub {
             WindmillStubFactory.inProcessStubFactory(name, unused -> inProcessChannel),
             dispatcherStubs,
             dispatcherEndpoints);
-    return new GrpcWindmillServer(testOptions(/* enableStreamingEngine= */ true), dispatcherClient);
+    return new GrpcWindmillServer(
+        testOptions(/* enableStreamingEngine= */ true, experiments), dispatcherClient);
   }
 
   @VisibleForTesting
   static GrpcWindmillServer newApplianceTestInstance(Channel channel) {
     GrpcWindmillServer testServer =
         new GrpcWindmillServer(
-            testOptions(/* enableStreamingEngine= */ false),
+            testOptions(/* enableStreamingEngine= */ false, new ArrayList<>()),
             // No-op, Appliance does not use Dispatcher to call Streaming Engine.
             GrpcDispatcherClient.create(WindmillStubFactory.inProcessStubFactory("test")));
     testServer.syncApplianceStub = createWindmillApplianceStubWithDeadlineInterceptor(channel);
@@ -319,7 +342,10 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   @Override
   public GetDataStream getDataStream() {
     return windmillStreamFactory.createGetDataStream(
-        dispatcherClient.getDispatcherStub(), throttleTimers.getDataThrottleTimer());
+        dispatcherClient.getDispatcherStub(),
+        throttleTimers.getDataThrottleTimer(),
+        sendKeyedGetDataRequests,
+        this.processHeartbeatResponses);
   }
 
   @Override

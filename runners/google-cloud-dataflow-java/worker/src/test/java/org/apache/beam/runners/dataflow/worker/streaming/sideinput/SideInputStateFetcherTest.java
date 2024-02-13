@@ -32,6 +32,7 @@ import java.io.Closeable;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.Coder;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Sum;
@@ -46,7 +48,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
@@ -79,7 +81,9 @@ public class SideInputStateFetcherTest {
 
   @Test
   public void testFetchGlobalDataBasic() throws Exception {
-    SideInputStateFetcher fetcher = new SideInputStateFetcher(server);
+    SideInputStateFetcher fetcher =
+        new SideInputStateFetcher(
+            server, PipelineOptionsFactory.as(DataflowPipelineDebugOptions.class));
 
     ByteStringOutputStream stream = new ByteStringOutputStream();
     ListCoder.of(StringUtf8Coder.of())
@@ -147,7 +151,9 @@ public class SideInputStateFetcherTest {
 
   @Test
   public void testFetchGlobalDataNull() throws Exception {
-    SideInputStateFetcher fetcher = new SideInputStateFetcher(server);
+    SideInputStateFetcher fetcher =
+        new SideInputStateFetcher(
+            server, PipelineOptionsFactory.as(DataflowPipelineDebugOptions.class));
 
     ByteStringOutputStream stream = new ByteStringOutputStream();
     ListCoder.of(VoidCoder.of())
@@ -302,7 +308,9 @@ public class SideInputStateFetcherTest {
 
   @Test
   public void testEmptyFetchGlobalData() throws Exception {
-    SideInputStateFetcher fetcher = new SideInputStateFetcher(server);
+    SideInputStateFetcher fetcher =
+        new SideInputStateFetcher(
+            server, PipelineOptionsFactory.as(DataflowPipelineDebugOptions.class));
 
     ByteString encodedIterable = ByteString.EMPTY;
 

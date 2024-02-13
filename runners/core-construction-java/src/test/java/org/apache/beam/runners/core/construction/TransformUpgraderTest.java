@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
 import java.io.ByteArrayInputStream;
@@ -34,6 +35,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.Schema;
@@ -45,7 +47,7 @@ import org.apache.beam.sdk.transforms.ToString;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
@@ -92,7 +94,7 @@ public class TransformUpgraderTest {
     }
 
     @Override
-    public TestTransform fromConfigRow(Row configRow) {
+    public TestTransform fromConfigRow(Row configRow, PipelineOptions options) {
       return new TestTransform(configRow.getInt32("multiplier"));
     }
 
@@ -284,6 +286,9 @@ public class TransformUpgraderTest {
             .get("TransformUpgraderTest-TestTransform");
 
     validateTestParam(upgradedTransform, 4);
+
+    // Confirm that the upgraded transform includes the upgrade annotation.
+    assertTrue(upgradedTransform.getAnnotationsMap().containsKey(TransformUpgrader.UPGRADE_KEY));
   }
 
   @Test

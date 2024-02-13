@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransform;
@@ -136,8 +137,8 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
 
     writeTransform.setBigQueryServices(fakeBigQueryServices);
     String tag = provider.inputCollectionNames().get(0);
-
-    PCollection<Row> rows = p.apply(Create.of(inputRows).withRowSchema(SCHEMA));
+    PCollection<Row> rows =
+        p.apply(Create.of(inputRows).withRowSchema(inputRows.get(0).getSchema()));
 
     PCollectionRowTuple input = PCollectionRowTuple.of(tag, rows);
     PCollectionRowTuple result = input.apply(writeTransform);
@@ -155,14 +156,18 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
       TableRow actualRow = actualRows.get(i);
       Row expectedRow = expectedRows.get(Integer.parseInt(actualRow.get("number").toString()) - 1);
 
-      if (!expectedRow.getValue("name").equals(actualRow.get("name"))
-          || !expectedRow
-              .getValue("number")
-              .equals(Long.parseLong(actualRow.get("number").toString()))) {
+      if (!rowEquals(expectedRow, actualRow)) {
         return false;
       }
     }
     return true;
+  }
+
+  public boolean rowEquals(Row expectedRow, TableRow actualRow) {
+    return expectedRow.getValue("name").equals(actualRow.get("name"))
+        && expectedRow
+            .getValue("number")
+            .equals(Long.parseLong(actualRow.get("number").toString()));
   }
 
   @Test
@@ -177,6 +182,43 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     assertNotNull(fakeDatasetService.getTable(BigQueryHelpers.parseTableSpec(tableSpec)));
     assertTrue(
         rowsEquals(ROWS, fakeDatasetService.getAllRows("project", "dataset", "simple_write")));
+  }
+
+  @Test
+  public void testWriteToDynamicDestinations() throws Exception {
+    String dynamic = BigQueryStorageWriteApiSchemaTransformProvider.DYNAMIC_DESTINATIONS;
+    BigQueryStorageWriteApiSchemaTransformConfiguration config =
+        BigQueryStorageWriteApiSchemaTransformConfiguration.builder().setTable(dynamic).build();
+
+    String baseTableSpec = "project:dataset.dynamic_write_";
+
+    Schema schemaWithDestinations =
+        Schema.builder().addStringField("destination").addRowField("record", SCHEMA).build();
+    List<Row> rowsWithDestinations =
+        ROWS.stream()
+            .map(
+                row ->
+                    Row.withSchema(schemaWithDestinations)
+                        .withFieldValue("destination", baseTableSpec + row.getInt64("number"))
+                        .withFieldValue("record", row)
+                        .build())
+            .collect(Collectors.toList());
+
+    runWithConfig(config, rowsWithDestinations);
+    p.run().waitUntilFinish();
+
+    assertTrue(
+        rowEquals(
+            ROWS.get(0),
+            fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_1").get(0)));
+    assertTrue(
+        rowEquals(
+            ROWS.get(1),
+            fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_2").get(0)));
+    assertTrue(
+        rowEquals(
+            ROWS.get(2),
+            fakeDatasetService.getAllRows("project", "dataset", "dynamic_write_3").get(0)));
   }
 
   @Test

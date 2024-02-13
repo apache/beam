@@ -239,14 +239,32 @@ public interface DataflowPipelineDebugOptions
   /**
    * The size of the worker's in-memory cache, in megabytes.
    *
-   * <p>Currently, this cache is used for storing read values of side inputs. as well as the state
-   * for streaming jobs.
+   * <p>Currently, this cache is used for storing read values of side inputs in batch as well as the
+   * user state for streaming jobs.
    */
   @Description("The size of the worker's in-memory cache, in megabytes.")
   @Default.Integer(100)
   Integer getWorkerCacheMb();
 
   void setWorkerCacheMb(Integer value);
+
+  @Description("The size of the streaming worker's side input cache, in megabytes.")
+  @Default.Integer(100)
+  Integer getStreamingSideInputCacheMb();
+
+  void setStreamingSideInputCacheMb(Integer value);
+
+  @Description("The expiry for streaming worker's side input cache entries, in milliseconds.")
+  @Default.Integer(60 * 1000) // 1 minute
+  Integer getStreamingSideInputCacheExpirationMillis();
+
+  void setStreamingSideInputCacheExpirationMillis(Integer value);
+
+  @Description("Number of commit threads used to commit items to streaming engine.")
+  @Default.Integer(1)
+  Integer getWindmillServiceCommitThreads();
+
+  void setWindmillServiceCommitThreads(Integer value);
 
   /**
    * The amount of time before UnboundedReaders are considered idle and closed during streaming

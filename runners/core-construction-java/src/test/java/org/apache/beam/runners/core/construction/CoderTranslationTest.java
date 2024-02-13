@@ -28,7 +28,6 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
-import org.apache.avro.SchemaBuilder;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
@@ -47,7 +46,6 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -136,7 +134,7 @@ public class CoderTranslationTest {
           equalTo(new ModelCoderRegistrar().getCoderTranslators().keySet()));
       assertThat(
           "All Model Coders should be registered",
-          CoderTranslation.KNOWN_TRANSLATORS.keySet(),
+          CoderTranslation.getKnownTranslators().keySet(),
           hasItems(new ModelCoderRegistrar().getCoderTranslators().keySet().toArray(new Class[0])));
     }
   }
@@ -152,14 +150,13 @@ public class CoderTranslationTest {
               StringUtf8Coder.of(),
               SerializableCoder.of(Record.class),
               new RecordCoder(),
-              KvCoder.of(
-                  new RecordCoder(),
-                  AvroCoder.of(SchemaBuilder.record("record").fields().endRecord())))
+              KvCoder.of(new RecordCoder(), StringUtf8Coder.of()))
           .add(
               StringUtf8Coder.of(),
               SerializableCoder.of(Record.class),
               new RecordCoder(),
-              KvCoder.of(new RecordCoder(), AvroCoder.of(Record.class)))
+              KvCoder.of(new RecordCoder(), StringUtf8Coder.of()))
+          .add(UnknownCoderWrapper.of("dummy_urn", new byte[] {}))
           .build();
     }
 

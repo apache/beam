@@ -62,7 +62,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Test;
@@ -235,7 +235,7 @@ public class PipelineTranslationTest {
 
     private void addCoders(Coder<?> coder) {
       coders.add(coder);
-      if (CoderTranslation.KNOWN_CODER_URNS.containsKey(coder.getClass())) {
+      if (CoderTranslation.getKnownCoderUrns().containsKey(coder.getClass())) {
         for (Coder<?> component : ((StructuredCoder<?>) coder).getComponents()) {
           addCoders(component);
         }

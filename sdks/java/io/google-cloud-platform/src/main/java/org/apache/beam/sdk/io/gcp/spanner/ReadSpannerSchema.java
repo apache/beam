@@ -154,14 +154,12 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
                 + "  FROM ("
                 + "    SELECT c.table_name, c.column_name, c.spanner_type, c.ordinal_position"
                 + "      FROM information_schema.columns as c"
-                + "      WHERE c.table_schema NOT IN"
-                + "      ('information_schema', 'spanner_sys', 'pg_catalog')) AS c"
+                + "      WHERE c.table_schema='public') AS c"
                 + "  LEFT OUTER JOIN ("
                 + "    SELECT t.table_name, t.column_name, COUNT(*) AS indices"
                 + "      FROM information_schema.index_columns AS t "
                 + "      WHERE t.index_name != 'PRIMARY_KEY'"
-                + "      AND t.table_schema NOT IN"
-                + "      ('information_schema', 'spanner_sys', 'pg_catalog')"
+                + "      AND t.table_schema='public'"
                 + "      GROUP BY t.table_name, t.column_name) AS t"
                 + "  USING (table_name, column_name)"
                 + "  ORDER BY c.table_name, c.ordinal_position";
@@ -188,7 +186,7 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
             "SELECT t.table_name, t.column_name, t.column_ordering"
                 + " FROM information_schema.index_columns AS t "
                 + " WHERE t.index_name = 'PRIMARY_KEY'"
-                + " AND t.table_schema NOT IN ('information_schema', 'spanner_sys', 'pg_catalog')"
+                + " AND t.table_schema='public'"
                 + " ORDER BY t.table_name, t.ordinal_position";
         break;
       default:

@@ -41,10 +41,10 @@ import { serviceProviderFromJavaGradleTarget } from "../utils/service";
  *    ));
  */
 export function sqlTransform<
-  InputT extends PCollection<any> | { [key: string]: PCollection<any> }
+  InputT extends PCollection<any> | { [key: string]: PCollection<any> },
 >(
   query: string,
-  inputTypes = null
+  inputTypes = null,
 ): transform.AsyncPTransform<InputT, PCollection<any>> {
   // TOOD: (API) (Typescript): How to infer input_types, or at least make it optional.
   async function expandInternal(input: InputT): Promise<PCollection<any>> {
@@ -60,7 +60,7 @@ export function sqlTransform<
             "SqlTransform can only be applied to schema'd transforms. " +
               "Please ensure the input PCollection(s) have a RowCoder, " +
               "or pass a prototypical element in as the second argument " +
-              "of SqlTransform so that one can be inferred."
+              "of SqlTransform so that one can be inferred.",
           );
         }
         return pcoll;
@@ -78,9 +78,9 @@ export function sqlTransform<
             input[tag],
             inputTypes === null || inputTypes === undefined
               ? null
-              : inputTypes[tag]
+              : inputTypes[tag],
           ),
-        ])
+        ]),
       ) as InputT;
     }
 
@@ -89,9 +89,9 @@ export function sqlTransform<
         "beam:external:java:sql:v1",
         { query: query },
         serviceProviderFromJavaGradleTarget(
-          "sdks:java:extensions:sql:expansion-service:shadowJar"
-        )
-      )
+          "sdks:java:extensions:sql:expansion-service:shadowJar",
+        ),
+      ),
     );
   }
 

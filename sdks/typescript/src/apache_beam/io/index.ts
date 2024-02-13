@@ -26,4 +26,5 @@ export * from "./pubsublite";
 export * from "./schemaio";
 
 import { requireForSerialization } from "../serialization";
-requireForSerialization("apache-beam/io", exports);
+import { packageName } from "../utils/packageJson";
+requireForSerialization(`${packageName}/io`, exports);

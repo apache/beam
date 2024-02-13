@@ -315,6 +315,8 @@ class BaseMLTransformTest(unittest.TestCase):
 class FakeModel:
   def __call__(self, example: List[str]) -> List[str]:
     for i in range(len(example)):
+      if not isinstance(example[i], str):
+        raise TypeError('Input must be a string')
       example[i] = example[i][::-1]
     return example
 
@@ -332,14 +334,18 @@ class FakeModelHandler(ModelHandler):
 
 
 class FakeEmbeddingsManager(base.EmbeddingsManager):
-  def __init__(self, columns):
-    super().__init__(columns=columns)
+  def __init__(self, columns, **kwargs):
+    super().__init__(columns=columns, **kwargs)
 
   def get_model_handler(self) -> ModelHandler:
+    FakeModelHandler.__repr__ = lambda x: 'FakeEmbeddingsManager'  # type: ignore[assignment]
     return FakeModelHandler()
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     return (RunInference(model_handler=base._TextEmbeddingHandler(self)))
+
+  def __repr__(self):
+    return 'FakeEmbeddingsManager'
 
 
 class TextEmbeddingHandlerTest(unittest.TestCase):
@@ -410,7 +416,6 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
       )
 
   def test_handler_on_multiple_columns(self):
-    self.embedding_conig.columns = ['x', 'y']
     data = [
         {
             'x': "Hello world", 'y': "Apache Beam", 'z': 'unchanged'
@@ -437,6 +442,26 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
           equal_to(expected_data),
       )
 
+  def test_handler_on_columns_not_exist_in_input_data(self):
+    data = [
+        {
+            'x': "Hello world", 'y': "Apache Beam"
+        },
+        {
+            'x': "Apache Beam", 'y': "Hello world"
+        },
+    ]
+    self.embedding_conig.columns = ['x', 'y', 'a']
+
+    with self.assertRaises(RuntimeError):
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create(data)
+            | base.MLTransform(
+                write_artifact_location=self.artifact_location).with_transform(
+                    self.embedding_conig))
+
   def test_handler_with_list_data(self):
     data = [{
         'x': ['Hello world', 'Apache Beam'],
@@ -444,6 +469,28 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
         'x': ['Apache Beam', 'Hello world'],
     }]
     with self.assertRaises(TypeError):
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create(data)
+            | base.MLTransform(
+                write_artifact_location=self.artifact_location).with_transform(
+                    self.embedding_conig))
+
+  def test_handler_with_inconsistent_keys(self):
+    data = [
+        {
+            'x': 'foo', 'y': 'bar', 'z': 'baz'
+        },
+        {
+            'x': 'foo2', 'y': 'bar2'
+        },
+        {
+            'x': 'foo3', 'y': 'bar3', 'z': 'baz3'
+        },
+    ]
+    self.embedding_conig.min_batch_size = 2
+    with self.assertRaises(RuntimeError):
       with beam.Pipeline() as p:
         _ = (
             p
@@ -586,6 +633,88 @@ class TestJsonPickleTransformAttributeManager(unittest.TestCase):
     with self.assertRaises(FileExistsError):
       attribute_manager.save_attributes([lambda x: x],
                                         artifact_location=artifact_location)
+
+
+class MLTransformDLQTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
+  def test_dlq_with_embeddings(self):
+    with beam.Pipeline() as p:
+      good, bad = (
+          p
+          | beam.Create([{
+              'x': 1
+          },
+          {
+            'x': 3,
+          },
+          {
+            'x': 'Hello'
+          }
+          ],
+          )
+          | base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  FakeEmbeddingsManager(
+                    columns=['x'])).with_exception_handling())
+
+      good_expected_elements = [{'x': 'olleH'}]
+
+      assert_that(
+          good,
+          equal_to(good_expected_elements),
+          label='good',
+      )
+
+      # batching happens in RunInference hence elements
+      # are in lists in the bad pcoll.
+      bad_expected_elements = [[{'x': 1}], [{'x': 3}]]
+
+      assert_that(
+          bad | beam.Map(lambda x: x.element),
+          equal_to(bad_expected_elements),
+          label='bad',
+      )
+
+  def test_mltransform_with_dlq_and_extract_tranform_name(self):
+    with beam.Pipeline() as p:
+      good, bad = (
+        p
+        | beam.Create([{
+            'x': 1
+        },
+        {
+          'x': 3,
+        },
+        {
+          'x': 'Hello'
+        }
+        ],
+        )
+        | base.MLTransform(
+            write_artifact_location=self.artifact_location).with_transform(
+                FakeEmbeddingsManager(
+                  columns=['x'])).with_exception_handling())
+
+      good_expected_elements = [{'x': 'olleH'}]
+      assert_that(
+          good,
+          equal_to(good_expected_elements),
+          label='good',
+      )
+
+      bad_expected_transform_name = [
+          'FakeEmbeddingsManager', 'FakeEmbeddingsManager'
+      ]
+
+      assert_that(
+          bad | beam.Map(lambda x: x.transform_name),
+          equal_to(bad_expected_transform_name),
+      )
 
 
 if __name__ == '__main__':

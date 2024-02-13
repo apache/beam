@@ -48,28 +48,28 @@ const defaultReadFromKafkaOptions = {
 export function readFromKafka<T>(
   consumerConfig: { [key: string]: string }, // TODO: Or a map?
   topics: string[],
-  options: ReadFromKafkaOptions = {}
+  options: ReadFromKafkaOptions = {},
 ): beam.AsyncPTransform<beam.Root, beam.PCollection<T>> {
   return readFromKafkaMaybeWithMetadata(
     "readFromKafkaWithMetadata",
     "beam:transform:org.apache.beam:kafka_read_without_metadata:v1",
     consumerConfig,
     topics,
-    options
+    options,
   );
 }
 
 export function readFromKafkaWithMetadata<T>(
   consumerConfig: { [key: string]: string }, // TODO: Or a map?
   topics: string[],
-  options: ReadFromKafkaOptions = {}
+  options: ReadFromKafkaOptions = {},
 ): beam.AsyncPTransform<beam.Root, beam.PCollection<T>> {
   return readFromKafkaMaybeWithMetadata<T>(
     "readFromKafkaWithMetadata",
     "beam:transform:org.apache.beam:kafka_read_with_metadata:v1",
     consumerConfig,
     topics,
-    options
+    options,
   );
 }
 
@@ -78,7 +78,7 @@ function readFromKafkaMaybeWithMetadata<T>(
   urn: string,
   consumerConfig: { [key: string]: string }, // TODO: Or a map?
   topics: string[],
-  options: ReadFromKafkaOptions = {}
+  options: ReadFromKafkaOptions = {},
 ): beam.AsyncPTransform<beam.Root, beam.PCollection<T>> {
   return beam.withName(
     name,
@@ -89,8 +89,8 @@ function readFromKafkaMaybeWithMetadata<T>(
         consumerConfig,
         ...camelToSnakeOptions({ ...defaultReadFromKafkaOptions, ...options }),
       },
-      serviceProviderFromJavaGradleTarget(KAFKA_EXPANSION_GRADLE_TARGET)
-    )
+      serviceProviderFromJavaGradleTarget(KAFKA_EXPANSION_GRADLE_TARGET),
+    ),
   );
 }
 
@@ -107,7 +107,7 @@ const defaultWriteToKafkaOptions = {
 export function writeToKafka<K = Uint8Array, V = Uint8Array>(
   producerConfig: { [key: string]: string }, // TODO: Or a map?
   topics: string[],
-  options: WriteToKafkaOptions = {}
+  options: WriteToKafkaOptions = {},
 ): beam.AsyncPTransform<beam.PCollection<{ key: K; value: V }>, {}> {
   return beam.withName(
     "writeToKafka",
@@ -118,7 +118,7 @@ export function writeToKafka<K = Uint8Array, V = Uint8Array>(
         producerConfig,
         ...camelToSnakeOptions({ ...defaultWriteToKafkaOptions, ...options }),
       },
-      serviceProviderFromJavaGradleTarget(KAFKA_EXPANSION_GRADLE_TARGET)
-    )
+      serviceProviderFromJavaGradleTarget(KAFKA_EXPANSION_GRADLE_TARGET),
+    ),
   );
 }

@@ -89,7 +89,17 @@ func initTestName(fn any) string {
 	return name[n+1:]
 }
 
-func TestStateAPI(t *testing.T) {
+// TestStatefulStages validates that stateful transform execution is correct in
+// four different modes for producing bundles:
+//
+//   - Greedily batching all ready keys and elements.
+//   - All elements for a single key.
+//   - Only one element for each available key.
+//   - Only one element.
+//
+// Executing these pipeline here ensures their coverage is reflected in the
+// engine package.
+func TestStatefulStages(t *testing.T) {
 	initRunner(t)
 
 	tests := []struct {
@@ -105,6 +115,8 @@ func TestStateAPI(t *testing.T) {
 		{pipeline: primitives.MapStateParDoClear},
 		{pipeline: primitives.SetStateParDo},
 		{pipeline: primitives.SetStateParDoClear},
+		{pipeline: primitives.TimersEventTimeBounded},
+		{pipeline: primitives.TimersEventTimeUnbounded},
 	}
 
 	configs := []struct {
