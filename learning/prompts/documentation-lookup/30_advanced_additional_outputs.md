@@ -58,6 +58,5 @@ In the Apache Beam Python SDK, you can implement additional outputs by invoking 
 For more information about additional outputs and sample pipelines demonstrating their use, you can refer to the Apache Beam documentation on:
 * [Tagging multiple outputs](https://beam.apache.org/documentation/programming-guide/#output-tags)
 * [Emitting elements to multiple outputs](https://beam.apache.org/documentation/programming-guide/#multiple-outputs-dofn)
-* [Accessing additional parameters in your `DoFn`](https://beam.apache.org/documentation/programming-guide/#other-dofn-parameters) 
+* [Accessing additional parameters in your `DoFn`](https://beam.apache.org/documentation/programming-guide/#other-dofn-parameters)
 * [Branching `PCollection`s](https://beam.apache.org/documentation/pipelines/design-your-pipeline/#branching-pcollections)
-
