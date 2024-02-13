@@ -47,6 +47,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommit
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.CompleteCommit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.fn.stream.AdvancingPhaser;
@@ -153,7 +154,7 @@ public class GrpcDirectCommitWorkStreamTest {
     TestGrpcDirectCommitWorkStreamStub commitWorkStreamStub =
         new TestGrpcDirectCommitWorkStreamStub(new TestCommitWorkStreamRequestObserver());
     GrpcDirectCommitWorkStream commitWorkStream =
-        directCommitWorkTestStream(commitWorkStreamStub, (unused) -> {});
+        directCommitWorkTestStream(commitWorkStreamStub, (unused) -> {}, (unused) -> {});
     WorkItem workItem = workItem(1, 1);
     Work work = work(workItem);
     work.setState(Work.State.PROCESSING);
@@ -184,7 +185,9 @@ public class GrpcDirectCommitWorkStreamTest {
         new TestGrpcDirectCommitWorkStreamStub(new TestCommitWorkStreamRequestObserver());
     Set<Commit> failedCommitsResult = new HashSet<>();
     GrpcDirectCommitWorkStream commitWorkStream =
-        Mockito.spy(directCommitWorkTestStream(commitWorkStreamStub, failedCommitsResult::add));
+        Mockito.spy(
+            directCommitWorkTestStream(
+                commitWorkStreamStub, failedCommitsResult::add, (unused) -> {}));
     ShardedKey shardedKey = ShardedKey.create(DEFAULT_KEY, 1);
     WorkItem failedWorkItem = workItem(1, 1);
     WorkItemCommitRequest failedWorkItemCommitRequest = workItemCommitRequest(failedWorkItem);
@@ -222,9 +225,9 @@ public class GrpcDirectCommitWorkStreamTest {
   public void testCommitFailedInStreamingEngine() throws InterruptedException {
     TestGrpcDirectCommitWorkStreamStub commitWorkStreamStub =
         new TestGrpcDirectCommitWorkStreamStub(new TestCommitWorkStreamRequestObserver());
-    HashSet<Commit> failedCommits = new HashSet<>();
+    HashSet<CompleteCommit> completeCommits = new HashSet<>();
     GrpcDirectCommitWorkStream commitWorkStream =
-        directCommitWorkTestStream(commitWorkStreamStub, failedCommits::add);
+        directCommitWorkTestStream(commitWorkStreamStub, (unused) -> {}, completeCommits::add);
     WorkItem workItem = workItem(1, 1);
     Work work = work(workItem);
     work.setState(Work.State.PROCESSING);
@@ -246,12 +249,13 @@ public class GrpcDirectCommitWorkStreamTest {
 
     assertThat(commitWorkStream.currentActiveCommitBytes()).isEqualTo(0);
     assertThat(work.getState()).isEqualTo(Work.State.COMMITTING);
-    assertThat(failedCommits).contains(expectedFailedCommit);
+    assertThat(completeCommits).contains(expectedFailedCommit);
   }
 
   private GrpcDirectCommitWorkStream directCommitWorkTestStream(
       TestGrpcDirectCommitWorkStreamStub directCommitWorkStreamTestStub,
-      Consumer<Commit> onFailedCommits) {
+      Consumer<Commit> onFailedCommits,
+      Consumer<CompleteCommit> onCompleteCommit) {
     serviceRegistry.addService(directCommitWorkStreamTestStub);
     return GrpcDirectCommitWorkStream.create(
         responseObserver ->
@@ -264,8 +268,9 @@ public class GrpcDirectCommitWorkStreamTest {
         new ThrottleTimer(),
         TEST_JOB_HEADER,
         idGenerator,
-        1,
-        onFailedCommits);
+        1, // streamingRpcBatchLimit
+        onFailedCommits,
+        onCompleteCommit);
   }
 
   private static class TestGrpcDirectCommitWorkStreamStub
