@@ -79,13 +79,13 @@ public class DataflowExecutionStateTrackerTest {
     sampler = ExecutionStateSampler.newForTest(clock);
     counterSet = new CounterSet();
     logFolder = tempFolder.newFolder();
-      System.setProperty(
-          DataflowWorkerLoggingInitializer.RUNNER_FILEPATH_PROPERTY,
-          new File(logFolder, "dataflow-json.log").getAbsolutePath());
-      // We need to reset *first* because some other test may have already initialized the
-      // logging initializer.
-      DataflowWorkerLoggingInitializer.reset();
-      DataflowWorkerLoggingInitializer.initialize();
+    System.setProperty(
+        DataflowWorkerLoggingInitializer.RUNNER_FILEPATH_PROPERTY,
+        new File(logFolder, "dataflow-json.log").getAbsolutePath());
+    // We need to reset *first* because some other test may have already initialized the
+    // logging initializer.
+    DataflowWorkerLoggingInitializer.reset();
+    DataflowWorkerLoggingInitializer.initialize();
   }
 
   @After
