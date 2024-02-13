@@ -29,8 +29,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.api.client.testing.http.FixedClock;
-import com.google.api.client.util.Clock;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import java.io.Closeable;
 import java.io.File;
@@ -206,7 +204,6 @@ public class DataflowOperationContextTest {
     @Test
     public void testLullReportsRightTrace() throws Exception {
       Thread mockThread = mock(Thread.class);
-      FixedClock clock = new FixedClock(Clock.SYSTEM.currentTimeMillis());
 
       DataflowExecutionState executionState =
           new DataflowExecutionState(
