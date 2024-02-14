@@ -1,72 +1,73 @@
 import os
 import re
-import json
 import requests
 from github import Github
 from github import Auth
 
+# TODO: remove
 GIT_ORG = "volatilemolotov"
-GRAFANA_URL = "https://tempgrafana.volatilemolotov.com"
 GIT_REPO = "beam"
+GRAFANA_URL = "https://tempgrafana.volatilemolotov.com"
+#
 ALERT_NAME = "flaky_test"
 READ_ONLY = os.environ.get("READ_ONLY", "false")
 
 
 class Alert:
-    def __init__(self, workflow_id, workflow_url, workflow_name, workflow_file_name):
-        self.workflow_id = workflow_id
-        self.workflow_url = workflow_url
-        self.workflow_name = workflow_name
-        self.workflow_file_name = workflow_file_name
+    def __init__(self, id, url, name, file_name):
+        self.workflow_id = id
+        self.workflow_url = url
+        self.workflow_name = name
+        self.workflow_file_name = file_name
 
 
-def get_existing_issues(r):
-    open_issues = r.get_issues(state="open", labels=["flaky_test"])
-    existing_label_ids = []
-    for issue in open_issues:
+def extract_workflow_id_from_issue_label(issues):
+    label_ids = []
+    for issue in issues:
         for label in issue.get_labels():
-            label_id = re.search(r"\d+", str(label.name))
-            if label_id is not None:
-                label_id = label_id.group()
-                existing_label_ids.append(label_id)
+            match = re.search(r"workflow_id:\s*(\d+)", str(label.name))
+            if match:
+                label_id = match.group(1)
+                label_ids.append(label_id)
 
-    return existing_label_ids
+    return label_ids
 
 
-def create_issue(r, alert):
-    # REMOVE: debug
-    GIT_ORG = "apache"
-    failing_runs_url = f"https://github.com/{GIT_ORG}/{GIT_REPO}/actions/{alert.workflow_file_name}?query=is%3Afailure+branch%3Amaster"
-    title_string = f"{alert.workflow_name} is failing"
-    body_string = f"""It seems that the {alert.workflow_name }is failing
-    Please visit {failing_runs_url} to see the logs"""
-    labels_list = ["flaky_test", f"workflow id: {alert.workflow_id}"]
-    print("-" * 10)
-    print(f"Title: {title_string}")
-    print(f"Body: {body_string}")
-    print(f"Labels: {labels_list}")
-    print("-" * 10)
+def create_github_issue(repo, alert):
+    failing_runs_url = f"https://github.com/{GIT_ORG}/beam/actions/{alert.workflow_file_name}?query=is%3Afailure+branch%3Amaster"
+    title = f"The {alert.workflow_name} job is flaky"
+    body = f"The {alert.workflow_name } is constantly failing.\nPlease visit {failing_runs_url} to see the logs."
+    labels = ["flaky_test", f"workflow_id: {alert.workflow_id}"]
+    print("___")
+    print(f"Title: {title}")
+    print(f"Body: {body}")
+    print(f"Labels: {labels}")
+    print("___")
 
     if READ_ONLY == "true":
         print("READ_ONLY is true, not creating issue")
     else:
-        r.create_issue(title=title_string, labels=labels_list, body=body_string)
+        repo.create_issue(title=title, body=body, labels=labels)
 
 
 def get_grafana_alerts():
+    url = f"{GRAFANA_URL}/api/alertmanager/grafana/api/v2/alerts?active=true&filter=alertname%3D{ALERT_NAME}"
+    response = requests.get(url)
+    if response.status_code != 200:
+        raise RuntimeError(
+            "Request to %s failed with status %d: %s" %
+            (url, response.status_code, response.text))
     alerts = []
-    jsonAlerts = requests.get(
-        f"{GRAFANA_URL}/api/alertmanager/grafana/api/v2/alerts?active=true&filter=alertname%3D{ALERT_NAME}"
-    ).json()
-    for alert in jsonAlerts:
-        alerts.append(
-            Alert(
-                alert["labels"]["workflow_id"],
-                alert["labels"]["workflow_url"],
-                alert["labels"]["job_name"],
-                alert["labels"]["job_yml_filename"],
+    if response.text:
+        for alert in response.json():
+            alerts.append(
+                Alert(
+                    alert["labels"]["workflow_id"],
+                    alert["labels"]["url"],
+                    alert["labels"]["name"],
+                    alert["labels"]["filename"],
+                )
             )
-        )
     return alerts
 
 
@@ -74,20 +75,21 @@ def main():
     if "GITHUB_TOKEN" not in os.environ:
         print("Please set the GITHUB_TOKEN environment variable.")
         return
+
     token = os.environ["GITHUB_TOKEN"]
     auth = Auth.Token(token)
     g = Github(auth=auth)
     repo = g.get_repo(f"{GIT_ORG}/{GIT_REPO}")
 
     alerts = get_grafana_alerts()
-
-    existing_label_ids = get_existing_issues(repo)
+    open_issues = repo.get_issues(state="open", labels=["flaky_test"])
+    workflow_ids = extract_workflow_id_from_issue_label(open_issues)
     for alert in alerts:
-        if alert.workflow_id in existing_label_ids:
-            print("issue already exists, skipping")
-            continue
-        create_issue(repo, alert)
-        existing_label_ids.append(alert.workflow_id)
+        if alert.workflow_id not in workflow_ids:
+            create_github_issue(repo, alert)
+            workflow_ids.append(alert.workflow_id)
+        else:
+            print("Issue already exists, skipping")
 
     g.close()
 
