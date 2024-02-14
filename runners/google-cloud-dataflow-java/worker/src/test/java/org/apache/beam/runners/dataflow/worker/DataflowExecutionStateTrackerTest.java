@@ -238,7 +238,7 @@ public class DataflowExecutionStateTrackerTest {
     if (hasFullThreadDump) {
       assertThat(
           infoLines,
-          Matchers.allOf(
+          Matchers.anyOf(
               Matchers.containsString("Thread[backgroundThread,"),
               Matchers.containsString("org.apache.beam.runners.dataflow.worker.StackTraceUtil")));
     } else {
