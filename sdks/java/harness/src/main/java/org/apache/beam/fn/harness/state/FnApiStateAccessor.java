@@ -616,13 +616,13 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
               @Override
               public Object apply(StateKey key) {
                 return new OrderedListState<T>() {
-                  private final OrderedListUserState<T> impl = createOrderedListUserState(
-                      key, elemCoder);
+                  private final OrderedListUserState<T> impl =
+                      createOrderedListUserState(key, elemCoder);
 
                   @Override
                   public void clear() {
-                    clearRange(BoundedWindow.TIMESTAMP_MIN_VALUE,
-                        BoundedWindow.TIMESTAMP_MAX_VALUE);
+                    clearRange(
+                        BoundedWindow.TIMESTAMP_MIN_VALUE, BoundedWindow.TIMESTAMP_MAX_VALUE);
                   }
 
                   @Override
@@ -648,18 +648,19 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   @Nullable
                   @Override
                   public Iterable<TimestampedValue<T>> read() {
-                    return readRange(BoundedWindow.TIMESTAMP_MIN_VALUE,
-                        BoundedWindow.TIMESTAMP_MAX_VALUE);
+                    return readRange(
+                        BoundedWindow.TIMESTAMP_MIN_VALUE, BoundedWindow.TIMESTAMP_MAX_VALUE);
                   }
 
                   @Override
-                  public GroupingState<TimestampedValue<T>, Iterable<TimestampedValue<T>>> readLater() {
+                  public GroupingState<TimestampedValue<T>, Iterable<TimestampedValue<T>>>
+                      readLater() {
                     throw new UnsupportedOperationException();
                   }
 
                   @Override
-                  public Iterable<TimestampedValue<T>> readRange(Instant minTimestamp,
-                      Instant limitTimestamp) {
+                  public Iterable<TimestampedValue<T>> readRange(
+                      Instant minTimestamp, Instant limitTimestamp) {
                     return impl.readRange(minTimestamp, limitTimestamp);
                   }
 
@@ -669,8 +670,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   }
 
                   @Override
-                  public OrderedListState<T> readRangeLater(Instant minTimestamp,
-                      Instant limitTimestamp) {
+                  public OrderedListState<T> readRangeLater(
+                      Instant minTimestamp, Instant limitTimestamp) {
                     throw new UnsupportedOperationException();
                   }
                 };
@@ -925,7 +926,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     return builder.build();
   }
 
-  private <T> OrderedListUserState<T> createOrderedListUserState(StateKey stateKey, Coder<T> valueCoder) {
+  private <T> OrderedListUserState<T> createOrderedListUserState(
+      StateKey stateKey, Coder<T> valueCoder) {
     OrderedListUserState<T> rval =
         new OrderedListUserState<>(
             getCacheFor(stateKey),

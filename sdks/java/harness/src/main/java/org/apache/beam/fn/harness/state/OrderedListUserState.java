@@ -24,34 +24,25 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.CachingStateIterable;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListEntry;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListRange;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListStateUpdateRequest;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListStateGetRequest;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListStateGetResponse;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListRange;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListEntry;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BoundType;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -121,11 +112,12 @@ public class OrderedListUserState<T> {
     //   (1) a sort key is added to or removed from pendingAdds, or
     //   (2) a new value is added to an existing sort key
     ArrayList<PrefetchableIterable<TimestampedValue<T>>> pendingAddsInRange = new ArrayList<>();
-    for (Entry<Instant, Collection<T>> kv : pendingAdds.subMap(minTimestamp,
-        limitTimestamp).entrySet()) {
-      pendingAddsInRange.add(PrefetchableIterables.limit(
-          Iterables.transform(kv.getValue(), (v) -> TimestampedValue.of(v, kv.getKey())),
-          kv.getValue().size()));
+    for (Entry<Instant, Collection<T>> kv :
+        pendingAdds.subMap(minTimestamp, limitTimestamp).entrySet()) {
+      pendingAddsInRange.add(
+          PrefetchableIterables.limit(
+              Iterables.transform(kv.getValue(), (v) -> TimestampedValue.of(v, kv.getKey())),
+              kv.getValue().size()));
     }
     Iterable<TimestampedValue<T>> valuesInRange = Iterables.concat(pendingAddsInRange);
 
@@ -140,7 +132,9 @@ public class OrderedListUserState<T> {
       // TODO: consider use cache here
       CachingStateIterable<TimestampedValue<T>> persistentValues =
           StateFetchingIterators.readAllAndDecodeStartingFrom(
-              Caches.noop(), this.beamFnStateClient, getRequestBuilder.build(),
+              Caches.noop(),
+              this.beamFnStateClient,
+              getRequestBuilder.build(),
               this.timestampedValueCoder);
 
       // Make a snapshot of the current pendingRemoves and use them to filter persistent values.
@@ -148,10 +142,12 @@ public class OrderedListUserState<T> {
       // pre-existing iterables even after a sort key is removed.
       TreeRangeSet<Instant> pendingRemovesSnapshot = TreeRangeSet.create(pendingRemoves);
       Iterable<TimestampedValue<T>> persistentValuesAfterRemoval =
-          Iterables.filter(persistentValues, v -> !pendingRemovesSnapshot.contains(v.getTimestamp()));
+          Iterables.filter(
+              persistentValues, v -> !pendingRemovesSnapshot.contains(v.getTimestamp()));
 
-      return Iterables.mergeSorted(ImmutableList.of(persistentValuesAfterRemoval,
-          valuesInRange), Comparator.comparing(TimestampedValue::getTimestamp));
+      return Iterables.mergeSorted(
+          ImmutableList.of(persistentValuesAfterRemoval, valuesInRange),
+          Comparator.comparing(TimestampedValue::getTimestamp));
     }
 
     return valuesInRange;
@@ -176,8 +172,10 @@ public class OrderedListUserState<T> {
     // The old values of the removed sub map are kept, so that they will still be accessible in
     // pre-existing iterables even after the sort key is cleared.
     pendingAdds.subMap(minTimestamp, true, limitTimestamp, false).clear();
-    if (!isCleared)
-      pendingRemoves.add(Range.range(minTimestamp, BoundType.CLOSED, limitTimestamp, BoundType.OPEN));
+    if (!isCleared) {
+      pendingRemoves.add(
+          Range.range(minTimestamp, BoundType.CLOSED, limitTimestamp, BoundType.OPEN));
+    }
   }
 
   public void clear() {
@@ -197,23 +195,30 @@ public class OrderedListUserState<T> {
   public void asyncClose() throws Exception {
     isClosed = true;
 
-    OrderedListStateUpdateRequest.Builder updateRequestBuilder = OrderedListStateUpdateRequest.newBuilder();
+    OrderedListStateUpdateRequest.Builder updateRequestBuilder =
+        OrderedListStateUpdateRequest.newBuilder();
     if (!pendingRemoves.isEmpty()) {
-      updateRequestBuilder
-          .addAllDeletes(Iterables.transform(pendingRemoves.asRanges(),
-              (r) -> OrderedListRange.newBuilder()
-                  .setStart(r.lowerEndpoint().getMillis())
-                  .setEnd(r.upperEndpoint().getMillis()).build()));
+      updateRequestBuilder.addAllDeletes(
+          Iterables.transform(
+              pendingRemoves.asRanges(),
+              (r) ->
+                  OrderedListRange.newBuilder()
+                      .setStart(r.lowerEndpoint().getMillis())
+                      .setEnd(r.upperEndpoint().getMillis())
+                      .build()));
       pendingRemoves.clear();
     }
 
     if (!pendingAdds.isEmpty()) {
       for (Entry<Instant, Collection<T>> entry : pendingAdds.entrySet()) {
-        updateRequestBuilder
-            .addAllInserts(Iterables.transform(entry.getValue(),
-                (v) -> OrderedListEntry.newBuilder()
-                    .setSortKey(entry.getKey().getMillis())
-                    .setData(encodeValue(v)).build()));
+        updateRequestBuilder.addAllInserts(
+            Iterables.transform(
+                entry.getValue(),
+                (v) ->
+                    OrderedListEntry.newBuilder()
+                        .setSortKey(entry.getKey().getMillis())
+                        .setData(encodeValue(v))
+                        .build()));
       }
       pendingAdds.clear();
     }
@@ -223,8 +228,9 @@ public class OrderedListUserState<T> {
       stateRequest.setOrderedListUpdate(updateRequestBuilder);
 
       CompletableFuture<StateResponse> response = beamFnStateClient.handle(stateRequest);
-      if (!response.get().getError().isEmpty())
+      if (!response.get().getError().isEmpty()) {
         throw new IllegalStateException(response.get().getError());
+      }
     }
   }
 

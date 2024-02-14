@@ -37,7 +37,6 @@ import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.CachingStateIterable.Blocks;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.WeightedList;
@@ -579,7 +578,8 @@ public class StateFetchingIterators {
             stateRequestForFirstChunk
                 .toBuilder()
                 .setOrderedListGet(
-                    stateRequestForFirstChunk.getOrderedListGet()
+                    stateRequestForFirstChunk
+                        .getOrderedListGet()
                         .toBuilder()
                         .setContinuationToken(continuationToken)));
       } else {
@@ -618,10 +618,11 @@ public class StateFetchingIterators {
       prefetchedResponse = null;
 
       ByteString tokenFromResponse;
-      if (stateRequestForFirstChunk.getStateKey().getTypeCase() == ORDERED_LIST_USER_STATE)
+      if (stateRequestForFirstChunk.getStateKey().getTypeCase() == ORDERED_LIST_USER_STATE) {
         tokenFromResponse = stateResponse.getOrderedListGet().getContinuationToken();
-      else
+      } else {
         tokenFromResponse = stateResponse.getGet().getContinuationToken();
+      }
 
       // If the continuation token is empty, that means we have reached EOF.
       if (ByteString.EMPTY.equals(tokenFromResponse)) {
@@ -632,10 +633,11 @@ public class StateFetchingIterators {
       }
 
       ByteString ret;
-      if (stateRequestForFirstChunk.getStateKey().getTypeCase() == ORDERED_LIST_USER_STATE)
+      if (stateRequestForFirstChunk.getStateKey().getTypeCase() == ORDERED_LIST_USER_STATE) {
         ret = stateResponse.getOrderedListGet().getData();
-      else
+      } else {
         ret = stateResponse.getGet().getData();
+      }
       return ret;
     }
   }

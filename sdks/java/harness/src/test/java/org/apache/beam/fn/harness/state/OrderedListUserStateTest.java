@@ -26,7 +26,6 @@ import static org.junit.Assert.assertThrows;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.List;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -43,12 +42,18 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class OrderedListUserStateTest {
-  private static final TimestampedValue<String> A1 = TimestampedValue.of("A1", Instant.ofEpochMilli(1));
-  private static final TimestampedValue<String> B1 = TimestampedValue.of("B1", Instant.ofEpochMilli(1));
-  private static final TimestampedValue<String> A2 = TimestampedValue.of("A2", Instant.ofEpochMilli(2));
-  private static final TimestampedValue<String> B2 = TimestampedValue.of("B2", Instant.ofEpochMilli(2));
-  private static final TimestampedValue<String> A3 = TimestampedValue.of("A3", Instant.ofEpochMilli(3));
-  private static final TimestampedValue<String> A4 = TimestampedValue.of("A4", Instant.ofEpochMilli(4));
+  private static final TimestampedValue<String> A1 =
+      TimestampedValue.of("A1", Instant.ofEpochMilli(1));
+  private static final TimestampedValue<String> B1 =
+      TimestampedValue.of("B1", Instant.ofEpochMilli(1));
+  private static final TimestampedValue<String> A2 =
+      TimestampedValue.of("A2", Instant.ofEpochMilli(2));
+  private static final TimestampedValue<String> B2 =
+      TimestampedValue.of("B2", Instant.ofEpochMilli(2));
+  private static final TimestampedValue<String> A3 =
+      TimestampedValue.of("A3", Instant.ofEpochMilli(3));
+  private static final TimestampedValue<String> A4 =
+      TimestampedValue.of("A4", Instant.ofEpochMilli(4));
 
   private final String pTransformId = "pTransformId";
   private final String stateId = "stateId";
@@ -81,7 +86,8 @@ public class OrderedListUserStateTest {
             createOrderedListStateKey("A"),
             StringUtf8Coder.of());
 
-    assertArrayEquals(asList(A1, B1).toArray(), Iterables.toArray(userState.read(), TimestampedValue.class));
+    assertArrayEquals(
+        asList(A1, B1).toArray(), Iterables.toArray(userState.read(), TimestampedValue.class));
     userState.asyncClose();
     assertThrows(IllegalStateException.class, () -> userState.read());
   }
@@ -91,9 +97,10 @@ public class OrderedListUserStateTest {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
             TimestampedValueCoder.of(StringUtf8Coder.of()),
-            ImmutableMap.of(createOrderedListStateKey("A", 1), asList(A1, B1),
-                            createOrderedListStateKey("A", 4), Collections.singletonList(A4),
-                            createOrderedListStateKey("A", 2), Collections.singletonList(A2)));
+            ImmutableMap.of(
+                createOrderedListStateKey("A", 1), asList(A1, B1),
+                createOrderedListStateKey("A", 4), Collections.singletonList(A4),
+                createOrderedListStateKey("A", 2), Collections.singletonList(A2)));
 
     OrderedListUserState<String> userState =
         new OrderedListUserState<>(
@@ -103,28 +110,38 @@ public class OrderedListUserStateTest {
             createOrderedListStateKey("A"),
             StringUtf8Coder.of());
 
-    Iterable<TimestampedValue<String>> stateBeforeB2 = userState.readRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4));
-    assertArrayEquals(Collections.singletonList(A2).toArray(),
+    Iterable<TimestampedValue<String>> stateBeforeB2 =
+        userState.readRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4));
+    assertArrayEquals(
+        Collections.singletonList(A2).toArray(),
         Iterables.toArray(stateBeforeB2, TimestampedValue.class));
 
     // Add a new value to an existing sort key
     userState.add(B2);
-    assertArrayEquals(Collections.singletonList(A2).toArray(),
+    assertArrayEquals(
+        Collections.singletonList(A2).toArray(),
         Iterables.toArray(stateBeforeB2, TimestampedValue.class));
-    assertArrayEquals(asList(A2, B2).toArray(),
-        Iterables.toArray(userState.readRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4)),
-             TimestampedValue.class));
+    assertArrayEquals(
+        asList(A2, B2).toArray(),
+        Iterables.toArray(
+            userState.readRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4)),
+            TimestampedValue.class));
 
     // Add a new value to a new sort key
     userState.add(A3);
-    assertArrayEquals(Collections.singletonList(A2).toArray(),
+    assertArrayEquals(
+        Collections.singletonList(A2).toArray(),
         Iterables.toArray(stateBeforeB2, TimestampedValue.class));
-    assertArrayEquals(asList(A2, B2, A3).toArray(),
-        Iterables.toArray(userState.readRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4)),
+    assertArrayEquals(
+        asList(A2, B2, A3).toArray(),
+        Iterables.toArray(
+            userState.readRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4)),
             TimestampedValue.class));
 
     userState.asyncClose();
-    assertThrows(IllegalStateException.class, () -> userState.readRange(Instant.ofEpochMilli(1), Instant.ofEpochMilli(2)));
+    assertThrows(
+        IllegalStateException.class,
+        () -> userState.readRange(Instant.ofEpochMilli(1), Instant.ofEpochMilli(2)));
   }
 
   @Test
@@ -132,9 +149,13 @@ public class OrderedListUserStateTest {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
             TimestampedValueCoder.of(StringUtf8Coder.of()),
-            ImmutableMap.of(createOrderedListStateKey("A", 1), Collections.singletonList(A1),
-                createOrderedListStateKey("A", 4), Collections.singletonList(A4),
-                createOrderedListStateKey("A", 2), asList(A2, B2)));
+            ImmutableMap.of(
+                createOrderedListStateKey("A", 1),
+                Collections.singletonList(A1),
+                createOrderedListStateKey("A", 4),
+                Collections.singletonList(A4),
+                createOrderedListStateKey("A", 2),
+                asList(A2, B2)));
 
     OrderedListUserState<String> userState =
         new OrderedListUserState<>(
@@ -146,17 +167,20 @@ public class OrderedListUserStateTest {
 
     // add to an existing timestamp
     userState.add(B1);
-    assertArrayEquals(asList(A1, B1, A2, B2, A4).toArray(),
+    assertArrayEquals(
+        asList(A1, B1, A2, B2, A4).toArray(),
         Iterables.toArray(userState.read(), TimestampedValue.class));
 
     // add to a nonexistent timestamp
     userState.add(A3);
-    assertArrayEquals(asList(A1, B1, A2, B2, A3, A4).toArray(),
+    assertArrayEquals(
+        asList(A1, B1, A2, B2, A3, A4).toArray(),
         Iterables.toArray(userState.read(), TimestampedValue.class));
 
     // add a duplicated value
     userState.add(B1);
-    assertArrayEquals(asList(A1, B1, B1, A2, B2, A3, A4).toArray(),
+    assertArrayEquals(
+        asList(A1, B1, B1, A2, B2, A3, A4).toArray(),
         Iterables.toArray(userState.read(), TimestampedValue.class));
 
     userState.asyncClose();
@@ -168,11 +192,15 @@ public class OrderedListUserStateTest {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
             TimestampedValueCoder.of(StringUtf8Coder.of()),
-            ImmutableMap.of(createOrderedListStateKey("A", 1), asList(A1, B1),
-                createOrderedListStateKey("A", 4), Collections.singletonList(A4),
-                createOrderedListStateKey("A", 2), asList(A2, B2),
-                createOrderedListStateKey("A", 3), Collections.singletonList(A3))
-            );
+            ImmutableMap.of(
+                createOrderedListStateKey("A", 1),
+                asList(A1, B1),
+                createOrderedListStateKey("A", 4),
+                Collections.singletonList(A4),
+                createOrderedListStateKey("A", 2),
+                asList(A2, B2),
+                createOrderedListStateKey("A", 3),
+                Collections.singletonList(A3)));
 
     OrderedListUserState<String> userState =
         new OrderedListUserState<>(
@@ -182,45 +210,49 @@ public class OrderedListUserStateTest {
             createOrderedListStateKey("A"),
             StringUtf8Coder.of());
 
-    Iterable<TimestampedValue<String>> initStateFrom2To3 = userState.readRange(
-        Instant.ofEpochMilli(2), Instant.ofEpochMilli(4));
+    Iterable<TimestampedValue<String>> initStateFrom2To3 =
+        userState.readRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4));
 
     // clear range below the current timestamp range
     userState.clearRange(Instant.ofEpochMilli(-1), Instant.ofEpochMilli(0));
-    assertArrayEquals(asList(A2, B2, A3).toArray(),
-        Iterables.toArray(initStateFrom2To3, TimestampedValue.class));
-    assertArrayEquals(asList(A1, B1, A2, B2, A3, A4).toArray(),
+    assertArrayEquals(
+        asList(A2, B2, A3).toArray(), Iterables.toArray(initStateFrom2To3, TimestampedValue.class));
+    assertArrayEquals(
+        asList(A1, B1, A2, B2, A3, A4).toArray(),
         Iterables.toArray(userState.read(), TimestampedValue.class));
 
     // clear range above the current timestamp range
     userState.clearRange(Instant.ofEpochMilli(5), Instant.ofEpochMilli(10));
-    assertArrayEquals(asList(A2, B2, A3).toArray(),
-        Iterables.toArray(initStateFrom2To3, TimestampedValue.class));
-    assertArrayEquals(asList(A1, B1, A2, B2, A3, A4).toArray(),
+    assertArrayEquals(
+        asList(A2, B2, A3).toArray(), Iterables.toArray(initStateFrom2To3, TimestampedValue.class));
+    assertArrayEquals(
+        asList(A1, B1, A2, B2, A3, A4).toArray(),
         Iterables.toArray(userState.read(), TimestampedValue.class));
 
     // clear range that falls inside the current timestamp range
     userState.clearRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4));
-    assertArrayEquals(asList(A2, B2, A3).toArray(),
-        Iterables.toArray(initStateFrom2To3, TimestampedValue.class));
-    assertArrayEquals(asList(A1, B1, A4).toArray(),
-        Iterables.toArray(userState.read(), TimestampedValue.class));
+    assertArrayEquals(
+        asList(A2, B2, A3).toArray(), Iterables.toArray(initStateFrom2To3, TimestampedValue.class));
+    assertArrayEquals(
+        asList(A1, B1, A4).toArray(), Iterables.toArray(userState.read(), TimestampedValue.class));
 
     // clear range that partially covers the current timestamp range
     userState.clearRange(Instant.ofEpochMilli(3), Instant.ofEpochMilli(5));
-    assertArrayEquals(asList(A2, B2, A3).toArray(),
-        Iterables.toArray(initStateFrom2To3, TimestampedValue.class));
-    assertArrayEquals(asList(A1, B1).toArray(),
-        Iterables.toArray(userState.read(), TimestampedValue.class));
+    assertArrayEquals(
+        asList(A2, B2, A3).toArray(), Iterables.toArray(initStateFrom2To3, TimestampedValue.class));
+    assertArrayEquals(
+        asList(A1, B1).toArray(), Iterables.toArray(userState.read(), TimestampedValue.class));
 
     // clear range that fully covers the current timestamp range
     userState.clearRange(Instant.ofEpochMilli(-1), Instant.ofEpochMilli(10));
-    assertArrayEquals(asList(A2, B2, A3).toArray(),
-        Iterables.toArray(initStateFrom2To3, TimestampedValue.class));
+    assertArrayEquals(
+        asList(A2, B2, A3).toArray(), Iterables.toArray(initStateFrom2To3, TimestampedValue.class));
     assertThat(userState.read(), is(emptyIterable()));
 
     userState.asyncClose();
-    assertThrows(IllegalStateException.class, () -> userState.clearRange(Instant.ofEpochMilli(1), Instant.ofEpochMilli(2)));
+    assertThrows(
+        IllegalStateException.class,
+        () -> userState.clearRange(Instant.ofEpochMilli(1), Instant.ofEpochMilli(2)));
   }
 
   @Test
@@ -228,11 +260,15 @@ public class OrderedListUserStateTest {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
             TimestampedValueCoder.of(StringUtf8Coder.of()),
-            ImmutableMap.of(createOrderedListStateKey("A", 1), asList(A1, B1),
-                createOrderedListStateKey("A", 4), Collections.singletonList(A4),
-                createOrderedListStateKey("A", 2), asList(A2, B2),
-                createOrderedListStateKey("A", 3), Collections.singletonList(A3))
-        );
+            ImmutableMap.of(
+                createOrderedListStateKey("A", 1),
+                asList(A1, B1),
+                createOrderedListStateKey("A", 4),
+                Collections.singletonList(A4),
+                createOrderedListStateKey("A", 2),
+                asList(A2, B2),
+                createOrderedListStateKey("A", 3),
+                Collections.singletonList(A3)));
 
     OrderedListUserState<String> userState =
         new OrderedListUserState<>(
@@ -244,7 +280,8 @@ public class OrderedListUserStateTest {
 
     Iterable<TimestampedValue<String>> stateBeforeClear = userState.read();
     userState.clear();
-    assertArrayEquals(asList(A1, B1, A2, B2, A3, A4).toArray(),
+    assertArrayEquals(
+        asList(A1, B1, A2, B2, A3, A4).toArray(),
         Iterables.toArray(stateBeforeClear, TimestampedValue.class));
     assertThat(userState.read(), is(emptyIterable()));
 
@@ -257,10 +294,13 @@ public class OrderedListUserStateTest {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
             TimestampedValueCoder.of(StringUtf8Coder.of()),
-            ImmutableMap.of(createOrderedListStateKey("A", 1), Collections.singletonList(A1),
-                createOrderedListStateKey("A", 3), Collections.singletonList(A3),
-                createOrderedListStateKey("A", 4), Collections.singletonList(A4))
-        );
+            ImmutableMap.of(
+                createOrderedListStateKey("A", 1),
+                Collections.singletonList(A1),
+                createOrderedListStateKey("A", 3),
+                Collections.singletonList(A3),
+                createOrderedListStateKey("A", 4),
+                Collections.singletonList(A4)));
 
     OrderedListUserState<String> userState =
         new OrderedListUserState<>(
@@ -274,40 +314,49 @@ public class OrderedListUserStateTest {
     userState.add(A2);
     Iterable<TimestampedValue<String>> stateBeforeFirstClearRange = userState.read();
     userState.clearRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(3));
-    assertArrayEquals(asList(A1, A2, A3, A4).toArray(),
+    assertArrayEquals(
+        asList(A1, A2, A3, A4).toArray(),
         Iterables.toArray(stateBeforeFirstClearRange, TimestampedValue.class));
-    assertArrayEquals(asList(A1, A3, A4).toArray(),
-        Iterables.toArray(userState.read(), TimestampedValue.class));
+    assertArrayEquals(
+        asList(A1, A3, A4).toArray(), Iterables.toArray(userState.read(), TimestampedValue.class));
     userState.add(B2);
-    assertArrayEquals(asList(A1, A2, A3, A4).toArray(),
+    assertArrayEquals(
+        asList(A1, A2, A3, A4).toArray(),
         Iterables.toArray(stateBeforeFirstClearRange, TimestampedValue.class));
-    assertArrayEquals(asList(A1, B2, A3, A4).toArray(),
+    assertArrayEquals(
+        asList(A1, B2, A3, A4).toArray(),
         Iterables.toArray(userState.read(), TimestampedValue.class));
 
     // add to an existing timestamp, clear, and then add
     userState.add(B1);
     userState.clearRange(Instant.ofEpochMilli(1), Instant.ofEpochMilli(2));
-    assertArrayEquals(asList(A1, A2, A3, A4).toArray(),
+    assertArrayEquals(
+        asList(A1, A2, A3, A4).toArray(),
         Iterables.toArray(stateBeforeFirstClearRange, TimestampedValue.class));
-    assertArrayEquals(asList(B2, A3, A4).toArray(),
-        Iterables.toArray(userState.read(), TimestampedValue.class));
+    assertArrayEquals(
+        asList(B2, A3, A4).toArray(), Iterables.toArray(userState.read(), TimestampedValue.class));
     userState.add(B1);
-    assertArrayEquals(asList(A1, A2, A3, A4).toArray(),
+    assertArrayEquals(
+        asList(A1, A2, A3, A4).toArray(),
         Iterables.toArray(stateBeforeFirstClearRange, TimestampedValue.class));
-    assertArrayEquals(asList(B1, B2, A3, A4).toArray(),
+    assertArrayEquals(
+        asList(B1, B2, A3, A4).toArray(),
         Iterables.toArray(userState.read(), TimestampedValue.class));
 
     // add a duplicated value, clear, and then add
     userState.add(A3);
     userState.clearRange(Instant.ofEpochMilli(3), Instant.ofEpochMilli(4));
-    assertArrayEquals(asList(A1, A2, A3, A4).toArray(),
+    assertArrayEquals(
+        asList(A1, A2, A3, A4).toArray(),
         Iterables.toArray(stateBeforeFirstClearRange, TimestampedValue.class));
-    assertArrayEquals(asList(B1, B2, A4).toArray(),
-        Iterables.toArray(userState.read(), TimestampedValue.class));
+    assertArrayEquals(
+        asList(B1, B2, A4).toArray(), Iterables.toArray(userState.read(), TimestampedValue.class));
     userState.add(A3);
-    assertArrayEquals(asList(A1, A2, A3, A4).toArray(),
+    assertArrayEquals(
+        asList(A1, A2, A3, A4).toArray(),
         Iterables.toArray(stateBeforeFirstClearRange, TimestampedValue.class));
-    assertArrayEquals(asList(B1, B2, A3, A4).toArray(),
+    assertArrayEquals(
+        asList(B1, B2, A3, A4).toArray(),
         Iterables.toArray(userState.read(), TimestampedValue.class));
   }
 
@@ -316,10 +365,13 @@ public class OrderedListUserStateTest {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
             TimestampedValueCoder.of(StringUtf8Coder.of()),
-            ImmutableMap.of(createOrderedListStateKey("A", 1), Collections.singletonList(A1),
-                createOrderedListStateKey("A", 3), Collections.singletonList(A3),
-                createOrderedListStateKey("A", 4), Collections.singletonList(A4))
-        );
+            ImmutableMap.of(
+                createOrderedListStateKey("A", 1),
+                Collections.singletonList(A1),
+                createOrderedListStateKey("A", 3),
+                Collections.singletonList(A3),
+                createOrderedListStateKey("A", 4),
+                Collections.singletonList(A4)));
 
     OrderedListUserState<String> userState =
         new OrderedListUserState<>(
@@ -334,17 +386,18 @@ public class OrderedListUserStateTest {
     assertThat(userState.read(), is(emptyIterable()));
 
     userState.add(A1);
-    assertArrayEquals(Collections.singletonList(A1).toArray(),
+    assertArrayEquals(
+        Collections.singletonList(A1).toArray(),
         Iterables.toArray(userState.read(), TimestampedValue.class));
 
     userState.add(A2);
     userState.add(A3);
-    assertArrayEquals(asList(A1, A2, A3).toArray(),
-        Iterables.toArray(userState.read(), TimestampedValue.class));
+    assertArrayEquals(
+        asList(A1, A2, A3).toArray(), Iterables.toArray(userState.read(), TimestampedValue.class));
 
     userState.clearRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(3));
-    assertArrayEquals(asList(A1, A3).toArray(),
-        Iterables.toArray(userState.read(), TimestampedValue.class));
+    assertArrayEquals(
+        asList(A1, A3).toArray(), Iterables.toArray(userState.read(), TimestampedValue.class));
   }
 
   @Test
@@ -352,10 +405,13 @@ public class OrderedListUserStateTest {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
             TimestampedValueCoder.of(StringUtf8Coder.of()),
-            ImmutableMap.of(createOrderedListStateKey("A", 1), Collections.singletonList(A1),
-                createOrderedListStateKey("A", 3), Collections.singletonList(A3),
-                createOrderedListStateKey("A", 4), Collections.singletonList(A4))
-        );
+            ImmutableMap.of(
+                createOrderedListStateKey("A", 1),
+                Collections.singletonList(A1),
+                createOrderedListStateKey("A", 3),
+                Collections.singletonList(A3),
+                createOrderedListStateKey("A", 4),
+                Collections.singletonList(A4)));
     {
       OrderedListUserState<String> userState =
           new OrderedListUserState<>(
@@ -375,9 +431,10 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-             StringUtf8Coder.of());
+              StringUtf8Coder.of());
 
-      assertArrayEquals(asList(A1, A3, A4).toArray(),
+      assertArrayEquals(
+          asList(A1, A3, A4).toArray(),
           Iterables.toArray(userState.read(), TimestampedValue.class));
     }
   }
@@ -387,10 +444,13 @@ public class OrderedListUserStateTest {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
             TimestampedValueCoder.of(StringUtf8Coder.of()),
-            ImmutableMap.of(createOrderedListStateKey("A", 1), Collections.singletonList(A1),
-                createOrderedListStateKey("A", 3), Collections.singletonList(A3),
-                createOrderedListStateKey("A", 4), Collections.singletonList(A4))
-        );
+            ImmutableMap.of(
+                createOrderedListStateKey("A", 1),
+                Collections.singletonList(A1),
+                createOrderedListStateKey("A", 3),
+                Collections.singletonList(A3),
+                createOrderedListStateKey("A", 4),
+                Collections.singletonList(A4)));
     {
       OrderedListUserState<String> userState =
           new OrderedListUserState<>(
@@ -413,7 +473,8 @@ public class OrderedListUserStateTest {
               createOrderedListStateKey("A"),
               StringUtf8Coder.of());
 
-      assertArrayEquals(asList(A1, B1, A2, A3, A4).toArray(),
+      assertArrayEquals(
+          asList(A1, B1, A2, A3, A4).toArray(),
           Iterables.toArray(userState.read(), TimestampedValue.class));
     }
   }
@@ -423,11 +484,15 @@ public class OrderedListUserStateTest {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
             TimestampedValueCoder.of(StringUtf8Coder.of()),
-            ImmutableMap.of(createOrderedListStateKey("A", 1), Collections.singletonList(A1),
-                createOrderedListStateKey("A", 2), Collections.singletonList(A2),
-                createOrderedListStateKey("A", 3), Collections.singletonList(A3),
-                createOrderedListStateKey("A", 4), Collections.singletonList(A4))
-        );
+            ImmutableMap.of(
+                createOrderedListStateKey("A", 1),
+                Collections.singletonList(A1),
+                createOrderedListStateKey("A", 2),
+                Collections.singletonList(A2),
+                createOrderedListStateKey("A", 3),
+                Collections.singletonList(A3),
+                createOrderedListStateKey("A", 4),
+                Collections.singletonList(A4)));
     {
       OrderedListUserState<String> userState =
           new OrderedListUserState<>(
@@ -450,7 +515,8 @@ public class OrderedListUserStateTest {
               createOrderedListStateKey("A"),
               StringUtf8Coder.of());
 
-      assertArrayEquals(Collections.singletonList(A3).toArray(),
+      assertArrayEquals(
+          Collections.singletonList(A3).toArray(),
           Iterables.toArray(userState.read(), TimestampedValue.class));
     }
   }
@@ -460,9 +526,11 @@ public class OrderedListUserStateTest {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
             TimestampedValueCoder.of(StringUtf8Coder.of()),
-            ImmutableMap.of(createOrderedListStateKey("A", 1), Collections.singletonList(A1),
-                createOrderedListStateKey("A", 4), Collections.singletonList(A4))
-        );
+            ImmutableMap.of(
+                createOrderedListStateKey("A", 1),
+                Collections.singletonList(A1),
+                createOrderedListStateKey("A", 4),
+                Collections.singletonList(A4)));
     {
       OrderedListUserState<String> userState =
           new OrderedListUserState<>(
@@ -488,12 +556,13 @@ public class OrderedListUserStateTest {
               createOrderedListStateKey("A"),
               StringUtf8Coder.of());
 
-      assertArrayEquals(Collections.singletonList(A3).toArray(),
+      assertArrayEquals(
+          Collections.singletonList(A3).toArray(),
           Iterables.toArray(userState.read(), TimestampedValue.class));
     }
   }
 
-  private ByteString encode (String...values) throws IOException {
+  private ByteString encode(String... values) throws IOException {
     ByteStringOutputStream out = new ByteStringOutputStream();
     for (String value : values) {
       StringUtf8Coder.of().encode(value, out);
@@ -512,7 +581,7 @@ public class OrderedListUserStateTest {
         .build();
   }
 
-  private StateKey createOrderedListStateKey(String key, long sort_key) throws IOException {
+  private StateKey createOrderedListStateKey(String key, long sortKey) throws IOException {
     return StateKey.newBuilder()
         .setOrderedListUserState(
             StateKey.OrderedListUserState.newBuilder()
@@ -520,7 +589,7 @@ public class OrderedListUserStateTest {
                 .setTransformId(pTransformId)
                 .setUserStateId(stateId)
                 .setKey(encode(key))
-                .setSortKey(sort_key))
+                .setSortKey(sortKey))
         .build();
   }
 }
