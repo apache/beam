@@ -44,6 +44,7 @@ import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.GroupingState;
 import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
@@ -63,12 +64,14 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 
 /** Provides access to side inputs and state via a {@link BeamFnStateClient}. */
 @SuppressWarnings({
@@ -169,6 +172,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public @Nullable <T> T get(PCollectionView<T> view, BoundedWindow window) {
     TupleTag<?> tag = view.getTagInternal();
 
@@ -274,6 +278,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <T> ValueState<T> bindValue(String id, StateSpec<ValueState<T>> spec, Coder<T> coder) {
     return (ValueState<T>)
         stateKeyObjectCache.computeIfAbsent(
@@ -316,6 +321,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <T> BagState<T> bindBag(String id, StateSpec<BagState<T>> spec, Coder<T> elemCoder) {
     return (BagState<T>)
         stateKeyObjectCache.computeIfAbsent(
@@ -367,6 +373,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <T> SetState<T> bindSet(String id, StateSpec<SetState<T>> spec, Coder<T> elemCoder) {
     return (SetState<T>)
         stateKeyObjectCache.computeIfAbsent(
@@ -451,6 +458,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
       String id,
       StateSpec<MapState<KeyT, ValueT>> spec,
@@ -598,13 +606,80 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <T> OrderedListState<T> bindOrderedList(
       String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder) {
-    throw new UnsupportedOperationException(
-        "TODO: Add support for a sorted-list state to the Fn API.");
+    return (OrderedListState<T>)
+        stateKeyObjectCache.computeIfAbsent(
+            createOrderedListUserStateKey(id),
+            new Function<StateKey, Object>() {
+              @Override
+              public Object apply(StateKey key) {
+                return new OrderedListState<T>() {
+                  private final OrderedListUserState<T> impl = createOrderedListUserState(
+                      key, elemCoder);
+
+                  @Override
+                  public void clear() {
+                    clearRange(BoundedWindow.TIMESTAMP_MIN_VALUE,
+                        BoundedWindow.TIMESTAMP_MAX_VALUE);
+                  }
+
+                  @Override
+                  public void add(TimestampedValue<T> value) {
+                    impl.add(value);
+                  }
+
+                  @Override
+                  public ReadableState<Boolean> isEmpty() {
+                    return new ReadableState<Boolean>() {
+                      @Override
+                      public @Nullable Boolean read() {
+                        return !impl.read().iterator().hasNext();
+                      }
+
+                      @Override
+                      public ReadableState<Boolean> readLater() {
+                        return this;
+                      }
+                    };
+                  }
+
+                  @Nullable
+                  @Override
+                  public Iterable<TimestampedValue<T>> read() {
+                    return readRange(BoundedWindow.TIMESTAMP_MIN_VALUE,
+                        BoundedWindow.TIMESTAMP_MAX_VALUE);
+                  }
+
+                  @Override
+                  public GroupingState<TimestampedValue<T>, Iterable<TimestampedValue<T>>> readLater() {
+                    throw new UnsupportedOperationException();
+                  }
+
+                  @Override
+                  public Iterable<TimestampedValue<T>> readRange(Instant minTimestamp,
+                      Instant limitTimestamp) {
+                    return impl.readRange(minTimestamp, limitTimestamp);
+                  }
+
+                  @Override
+                  public void clearRange(Instant minTimestamp, Instant limitTimestamp) {
+                    impl.clearRange(minTimestamp, limitTimestamp);
+                  }
+
+                  @Override
+                  public OrderedListState<T> readRangeLater(Instant minTimestamp,
+                      Instant limitTimestamp) {
+                    throw new UnsupportedOperationException();
+                  }
+                };
+              }
+            });
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <ElementT, AccumT, ResultT> CombiningState<ElementT, AccumT, ResultT> bindCombining(
       String id,
       StateSpec<CombiningState<ElementT, AccumT, ResultT>> spec,
@@ -697,6 +772,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <ElementT, AccumT, ResultT>
       CombiningState<ElementT, AccumT, ResultT> bindCombiningWithContext(
           String id,
@@ -844,6 +920,29 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     builder
         .getMultimapKeysUserStateBuilder()
         .setWindow(encodedCurrentWindowSupplier.get())
+        .setTransformId(ptransformId)
+        .setUserStateId(stateId);
+    return builder.build();
+  }
+
+  private <T> OrderedListUserState<T> createOrderedListUserState(StateKey stateKey, Coder<T> valueCoder) {
+    OrderedListUserState<T> rval =
+        new OrderedListUserState<>(
+            getCacheFor(stateKey),
+            beamFnStateClient,
+            processBundleInstructionId.get(),
+            stateKey,
+            valueCoder);
+    stateFinalizers.add(rval::asyncClose);
+    return rval;
+  }
+
+  private StateKey createOrderedListUserStateKey(String stateId) {
+    StateKey.Builder builder = StateKey.newBuilder();
+    builder
+        .getOrderedListUserStateBuilder()
+        .setWindow(encodedCurrentWindowSupplier.get())
+        .setKey(encodedCurrentKeySupplier.get())
         .setTransformId(ptransformId)
         .setUserStateId(stateId);
     return builder.build();
