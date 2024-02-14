@@ -351,7 +351,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   }
 
   // Override this to implement bundle level lull reporting.
-  public void reportBundleLull(long millisSinceBundleStart) {}
+  protected void reportBundleLull(long millisSinceBundleStart) {}
 
   @SuppressWarnings("NonAtomicVolatileUpdate")
   private void updateMillisSinceBundleStart(long millisSinceLastSample) {

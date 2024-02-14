@@ -30,6 +30,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
@@ -100,7 +101,7 @@ public class DataflowExecutionStateTrackerTest {
   @Test
   public void testReportsElementExecutionTime() throws IOException {
     enableTimePerElementExperiment();
-    ExecutionStateTracker tracker = createTracker();
+    DataflowExecutionStateTracker tracker = createTracker();
 
     try (Closeable c1 = tracker.activate(new Thread())) {
       try (Closeable c2 = tracker.enterState(step1Process)) {}
@@ -117,7 +118,7 @@ public class DataflowExecutionStateTrackerTest {
   @Test
   public void testTakesSampleOnDeactivate() throws IOException {
     enableTimePerElementExperiment();
-    ExecutionStateTracker tracker = createTracker();
+    DataflowExecutionStateTracker tracker = createTracker();
 
     try (Closeable c1 = tracker.activate(new Thread())) {
       try (Closeable c2 = tracker.enterState(step1Process)) {
@@ -156,7 +157,7 @@ public class DataflowExecutionStateTrackerTest {
                 .build()));
   }
 
-  private ExecutionStateTracker createTracker() {
+  private DataflowExecutionStateTracker createTracker() {
     return new DataflowExecutionStateTracker(
         sampler,
         new TestDataflowExecutionState(NameContext.forStage("test-stage"), "other"),
@@ -168,7 +169,7 @@ public class DataflowExecutionStateTrackerTest {
   @Test
   public void testLullReportsRightTrace() throws Exception {
     FixedClock clock = new FixedClock(Clock.SYSTEM.currentTimeMillis());
-    ExecutionStateTracker tracker = createTracker(clock);
+    DataflowExecutionStateTracker tracker = createTracker(clock);
     // Adding test for the full thread dump, but since we can't mock
     // Thread.getAllStackTraces(), we are starting a background thread
     // to verify the full thread dump.
@@ -254,13 +255,14 @@ public class DataflowExecutionStateTrackerTest {
     new FileOutputStream(logFile, false).getChannel().truncate(0).close();
   }
 
-  private ExecutionStateTracker createTracker(Clock clock) {
+  private DataflowExecutionStateTracker createTracker(Clock clock) {
     return new DataflowExecutionStateTracker(
         sampler,
         new TestDataflowExecutionState(NameContext.forStage("test-stage"), "other"),
         counterSet,
         options,
         "test-work-item-id",
-        clock);
+        clock,
+        TimeUnit.MINUTES.toMillis(20));
   }
 }

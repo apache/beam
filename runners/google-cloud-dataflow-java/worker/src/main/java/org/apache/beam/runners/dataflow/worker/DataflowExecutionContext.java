@@ -277,10 +277,12 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     private final Map<String, IntSummaryStatistics> processingTimesByStep = new HashMap<>();
 
     /** Last milliseconds since epoch when a full thread dump was performed at bundle level. */
-    private long lastFullThreadDumpMillisForBundle = 0;
+    private long lastFullThreadDumpMillisForBundleLull = 0;
 
     /** The minimum lull duration to perform a full thread dump. */
     private static final long LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS = 20 * 60 * 1000;
+
+    private long logFullThreadDumpMillisForBundleLull;
 
     private static final Logger LOG = LoggerFactory.getLogger(DataflowExecutionStateTracker.class);
 
@@ -304,7 +306,14 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         CounterFactory counterFactory,
         PipelineOptions options,
         String workItemId) {
-      this(sampler, otherState, counterFactory, options, workItemId, Clock.SYSTEM);
+      this(
+          sampler,
+          otherState,
+          counterFactory,
+          options,
+          workItemId,
+          Clock.SYSTEM,
+          LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS);
     }
 
     public DataflowExecutionStateTracker(
@@ -313,7 +322,8 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         CounterFactory counterFactory,
         PipelineOptions options,
         String workItemId,
-        Clock clock) {
+        Clock clock,
+        long logFullThreadDumpMillisForBundleLull) {
       super(sampler);
       this.elementExecutionTracker =
           DataflowElementExecutionTracker.create(counterFactory, options);
@@ -321,6 +331,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       this.workItemId = workItemId;
       this.contextActivationObserverRegistry = ContextActivationObserverRegistry.createDefault();
       this.clock = clock;
+      this.logFullThreadDumpMillisForBundleLull = logFullThreadDumpMillisForBundleLull;
     }
 
     @Override
@@ -346,12 +357,12 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     }
 
     private boolean shouldLogFullThreadDumpForBundle(Duration lullDuration) {
-      if (lullDuration.getMillis() < LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS) {
+      if (lullDuration.getMillis() < logFullThreadDumpMillisForBundleLull) {
         return false;
       }
       long now = clock.currentTimeMillis();
-      if (lastFullThreadDumpMillisForBundle + LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS < now) {
-        lastFullThreadDumpMillisForBundle = now;
+      if (lastFullThreadDumpMillisForBundleLull + logFullThreadDumpMillisForBundleLull < now) {
+        lastFullThreadDumpMillisForBundleLull = now;
         return true;
       }
       return false;
@@ -391,7 +402,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     }
 
     @Override
-    public void reportBundleLull(long millisElapsedSinceBundleStart) {
+    protected void reportBundleLull(long millisElapsedSinceBundleStart) {
       // If we're not logging warnings, nothing to report.
       if (!LOG.isWarnEnabled()) {
         return;
