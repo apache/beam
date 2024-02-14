@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
+import java.util.NoSuchElementException;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,6 +46,9 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
@@ -211,22 +215,68 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
         break;
 
       case ORDERED_LIST_GET: {
-        ByteString returnBlock = ByteString.EMPTY;
         long start = request.getOrderedListGet().getRange().getStart();
         long end = request.getOrderedListGet().getRange().getEnd();
 
-        // TODO: use continuationToken to split the returned results
-        for (long i : orderedListKeys.getOrDefault(request.getStateKey(), new TreeSet<>())
-            .subSet(start, true, end, false)) {
-          StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
-          keyBuilder.getOrderedListUserStateBuilder().setSortKey(i);
-          List<ByteString> byteStrings =
-              data.getOrDefault(keyBuilder.build(), Collections.singletonList(ByteString.EMPTY));
-          for (ByteString b : byteStrings) {
-            returnBlock = returnBlock.concat(b);
+        KvCoder<Long, Integer> coder = KvCoder.of(VarLongCoder.of(), VarIntCoder.of());
+        long sortKey = start;
+        int index = 0;
+        if (request.getOrderedListGet().getContinuationToken().size() > 0) {
+          try {
+            // The continuation format here is the sort key (long) followed by an index (int)
+            KV<Long, Integer> cursor = coder.decode(request.getOrderedListGet().
+                getContinuationToken().newInput());
+            sortKey = cursor.getKey();
+            index = cursor.getValue();
+          } catch (IOException e) {
+            throw new RuntimeException(e);
           }
         }
-        ByteString continuationToken = ByteString.EMPTY;
+
+        ByteString continuationToken;
+        ByteString returnBlock = ByteString.EMPTY;;
+        try {
+          if (sortKey < start || sortKey >= end) {
+            throw new IndexOutOfBoundsException("sort key out of range");
+          }
+
+          NavigableSet<Long> subset = orderedListKeys
+              .getOrDefault(request.getStateKey(), new TreeSet<>())
+              .subSet(sortKey, true, end, false);
+
+          // get the effective sort key currently, can throw NoSuchElementException
+          Long nextSortKey = subset.first();
+
+          StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
+          keyBuilder.getOrderedListUserStateBuilder().setSortKey(nextSortKey);
+          List<ByteString> byteStrings =
+              data.getOrDefault(keyBuilder.build(),
+                  Collections.singletonList(ByteString.EMPTY));
+
+          // get the block specified in continuation token, can throw IndexOutOfBoundsException
+          returnBlock = byteStrings.get(index);
+
+          if (byteStrings.size() > index + 1) {
+            // more blocks in from this sort key
+            index += 1;
+          } else {
+            // finish navigating the current sort key and need to find the next one,
+            // can throw NoSuchElementException
+            nextSortKey = subset.tailSet(nextSortKey, false).first();
+            index = 0;
+          }
+
+          ByteStringOutputStream outputStream = new ByteStringOutputStream();
+          try {
+            KV<Long, Integer> cursor = KV.of(nextSortKey, index);
+            coder.encode(cursor, outputStream);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+          continuationToken = outputStream.toByteString();
+        } catch (NoSuchElementException|IndexOutOfBoundsException e) {
+          continuationToken = ByteString.EMPTY;
+        }
         response =
             StateResponse.newBuilder()
                 .setOrderedListGet(
