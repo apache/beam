@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.54.0"
-date:   2024-02-14 12:00:00 Z
+date:   2024-02-14 10:00:00 Z
 categories:
   - blog
   - release
