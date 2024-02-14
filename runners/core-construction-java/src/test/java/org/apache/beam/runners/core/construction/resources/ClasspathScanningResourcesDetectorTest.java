@@ -55,7 +55,7 @@ public class ClasspathScanningResourcesDetectorTest {
 
     List<String> result = detector.detect(classLoader);
 
-    assertThat(result, hasItem(containsString(folder.getAbsolutePath())));
+    assertThat(result, hasItem(containsString(folder.getCanonicalPath())));
   }
 
   @Test
@@ -67,7 +67,7 @@ public class ClasspathScanningResourcesDetectorTest {
 
     List<String> result = detector.detect(classLoader);
 
-    assertThat(result, hasItem(containsString(jarFile.getAbsolutePath())));
+    assertThat(result, hasItem(containsString(jarFile.getCanonicalPath())));
   }
 
   @Test
@@ -85,7 +85,7 @@ public class ClasspathScanningResourcesDetectorTest {
     assertThat(
         result,
         containsInRelativeOrder(
-            containsString(file1.getAbsolutePath()), containsString(file2.getAbsolutePath())));
+            containsString(file1.getCanonicalPath()), containsString(file2.getCanonicalPath())));
   }
 
   private File createTestTmpJarFile(String name) throws IOException {
@@ -103,12 +103,12 @@ public class ClasspathScanningResourcesDetectorTest {
 
     List<String> result = detector.detect(classLoader);
 
-    assertThat(result, not(hasItem(containsString(textFile.getAbsolutePath()))));
+    assertThat(result, not(hasItem(containsString(textFile.getCanonicalPath()))));
   }
 
   @Test
   public void shouldDetectClassPathResourceFromJavaClassPathEnvVariable() throws IOException {
-    String path = tmpFolder.newFolder("folder").getAbsolutePath();
+    String path = tmpFolder.newFolder("folder").getCanonicalPath();
     System.setProperty("java.class.path", path);
     ClasspathScanningResourcesDetector detector =
         new ClasspathScanningResourcesDetector(new ClassGraph());
