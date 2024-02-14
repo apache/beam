@@ -18467,7 +18467,7 @@ once and outputs two collections.&lt;/p>
 &lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="n">mixedCollection&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">get&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">startsWithBTag&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(...);&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p>You can use either mechanism to produce multiple output &lt;code>PCollection&lt;/code>s. However, using additional outputs makes more sense if the transform&amp;rsquo;s computation per element is time-consuming.&lt;/p>
+&lt;p>You can use either mechanism to produce multiple output &lt;code>PCollection&lt;/code>s. The first option makes more sense if the processing logic in the &lt;code>ParDo&lt;/code> is logically very distinct. However, using the second option (a single transform that produces multiple outputs) makes more sense if the transform&amp;rsquo;s computation per element is time-consuming, and is more scalable if you plan to add more output types in the future.&lt;/p>
 &lt;h2 id="merging-pcollections">Merging PCollections&lt;/h2>
 &lt;p>Often, after you&amp;rsquo;ve branched your &lt;code>PCollection&lt;/code> into multiple &lt;code>PCollection&lt;/code>s via multiple transforms, you&amp;rsquo;ll want to merge some or all of those resulting &lt;code>PCollection&lt;/code>s back together. You can do so by using one of the following:&lt;/p>
 &lt;ul>
@@ -18659,6 +18659,152 @@ data-height="700px"
 class="button"
 target="_blank"
 href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Distinct"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item><item><title>Documentation: Enrichment</title><link>/documentation/transforms/python/elementwise/enrichment/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/elementwise/enrichment/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="enrichment-transform">Enrichment transform&lt;/h1>
+&lt;script type="text/javascript">
+localStorage.setItem("language", "language-py")
+&lt;/script>
+&lt;table>
+&lt;tr>
+&lt;td>
+&lt;a>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.html#apache_beam.transforms.Enrichment"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;/a>
+&lt;/td>
+&lt;/tr>
+&lt;/table>
+&lt;p>The enrichment transform lets you dynamically enrich data in a pipeline by doing a key-value lookup to a remote service. The transform uses &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.requestresponseio.html#apache_beam.io.requestresponseio.RequestResponseIO">&lt;code>RequestResponeIO&lt;/code>&lt;/a> internally. This feature uses client-side throttling to ensure that the remote service isn&amp;rsquo;t overloaded with requests. If service-side errors occur, like &lt;code>TooManyRequests&lt;/code> and &lt;code>Timeout&lt;/code> exceptions, it retries the requests by using exponential backoff.&lt;/p>
+&lt;p>In Apache Beam 2.54.0 and later versions, the transform includes a built-in enrichment handler for &lt;a href="https://cloud.google.com/bigtable/docs/overview">Bigtable&lt;/a>.&lt;/p>
+&lt;h2 id="use-bigtable-to-enrich-data">Use Bigtable to enrich data&lt;/h2>
+&lt;p>The following example demonstrates how to create a pipeline that use the enrichment transform with &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.bigtable.html#apache_beam.transforms.enrichment_handlers.bigtable.BigTableEnrichmentHandler">&lt;code>BigTableEnrichmentHandler&lt;/code>&lt;/a>.&lt;/p>
+&lt;p>The data stored in the Bigtable cluster uses the following format:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Row key&lt;/th>
+&lt;th style="text-align:center">product:product_id&lt;/th>
+&lt;th style="text-align:center">product:product_name&lt;/th>
+&lt;th style="text-align:center">product:product_stock&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">1&lt;/td>
+&lt;td style="text-align:center">1&lt;/td>
+&lt;td style="text-align:center">pixel 5&lt;/td>
+&lt;td style="text-align:center">2&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">2&lt;/td>
+&lt;td style="text-align:center">2&lt;/td>
+&lt;td style="text-align:center">pixel 6&lt;/td>
+&lt;td style="text-align:center">4&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">3&lt;/td>
+&lt;td style="text-align:center">3&lt;/td>
+&lt;td style="text-align:center">pixel 7&lt;/td>
+&lt;td style="text-align:center">20&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">4&lt;/td>
+&lt;td style="text-align:center">4&lt;/td>
+&lt;td style="text-align:center">pixel 8&lt;/td>
+&lt;td style="text-align:center">10&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.enrichment&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Enrichment&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.enrichment_handlers.bigtable&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">BigTableEnrichmentHandler&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">project_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;apache-beam-testing&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">instance_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;beam-test&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">table_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;bigtable-enrichment-test&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">row_key&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;product_id&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">sale_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">customer_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">product_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">quantity&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">sale_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">customer_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">product_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">quantity&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">sale_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">5&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">customer_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">5&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">product_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">4&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">quantity&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">bigtable_handler&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">BigTableEnrichmentHandler&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">project_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">project_id&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">instance_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">instance_id&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">table_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">table_id&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">row_key&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">row_key&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Create&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">data&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Enrich W/ BigTable&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">Enrichment&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">bigtable_handler&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Print&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code>Row(sale_id=1, customer_id=1, product_id=1, quantity=1, product={&amp;#39;product_id&amp;#39;: &amp;#39;1&amp;#39;, &amp;#39;product_name&amp;#39;: &amp;#39;pixel 5&amp;#39;, &amp;#39;product_stock&amp;#39;: &amp;#39;2&amp;#39;})
+Row(sale_id=3, customer_id=3, product_id=2, quantity=3, product={&amp;#39;product_id&amp;#39;: &amp;#39;2&amp;#39;, &amp;#39;product_name&amp;#39;: &amp;#39;pixel 6&amp;#39;, &amp;#39;product_stock&amp;#39;: &amp;#39;4&amp;#39;})
+Row(sale_id=5, customer_id=5, product_id=4, quantity=2, product={&amp;#39;product_id&amp;#39;: &amp;#39;4&amp;#39;, &amp;#39;product_name&amp;#39;: &amp;#39;pixel 8&amp;#39;, &amp;#39;product_stock&amp;#39;: &amp;#39;10&amp;#39;})&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;h2 id="related-transforms">Related transforms&lt;/h2>
+&lt;p>Not applicable.&lt;/p>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.html#apache_beam.transforms.Enrichment"
 >&lt;img
 src="https://beam.apache.org/images/logos/sdks/python.png"
 width="32px"
@@ -19587,52 +19733,4 @@ data-height="700px"
 &lt;ul>
 &lt;li>&lt;a href="/documentation/transforms/java/elementwise/pardo">ParDo&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/transforms/java/elementwise/partition">Partition&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Documentation: Flatten</title><link>/documentation/transforms/python/other/flatten/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/other/flatten/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="flatten">Flatten&lt;/h1>
-&lt;table align="left">
-&lt;a target="_blank" class="button"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html?highlight=flatten#apache_beam.transforms.core.Flatten">
-&lt;img src="/images/logos/sdks/python.png" width="20px" height="20px"
-alt="Pydoc" />
-Pydoc
-&lt;/a>
-&lt;/table>
-&lt;br>&lt;br>
-&lt;p>Merges multiple &lt;code>PCollection&lt;/code> objects into a single logical
-&lt;code>PCollection&lt;/code>. A transform for &lt;code>PCollection&lt;/code> objects
-that store the same data type.&lt;/p>
-&lt;p>See more information in the &lt;a href="/documentation/programming-guide/#flatten">Beam Programming Guide&lt;/a>.&lt;/p>
-&lt;h2 id="examples">Examples&lt;/h2>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_Flatten"
-data-show="flatten"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_Flatten%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22flatten%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="/documentation/transforms/python/elementwise/flatmap">FlatMap&lt;/a> applies a simple 1-to-many mapping
-function over each element in the collection. This transform might produce zero
-or more outputs.&lt;/li>
 &lt;/ul></description></item></channel></rss>
