@@ -33,10 +33,9 @@ import os
 import sys
 import time
 import re
-from ruamel.yaml import YAML
 import psycopg2
 from psycopg2 import extras
-import random
+from ruamel.yaml import YAML
 from github import GithubIntegration
 
 DB_HOST = os.environ["DB_HOST"]
@@ -49,107 +48,103 @@ GH_APP_INSTALLATION_ID = os.environ["GH_APP_INSTALLATION_ID"]
 GH_PEM_KEY = os.environ["GH_PEM_KEY"]
 GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH = os.environ["GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH"]
 GIT_REPO = "beam"
-GIT_ORG = "apache"
-GIT_BRANCH = "master"
 GIT_PATH = ".github/workflows"
 GIT_FILESYSTEM_PATH = "/tmp/git"
 
 
 class Workflow:
-    def __init__(self, id, name, url, filename):
+    def __init__(self, id, name, filename, url, category=None, threshold=0.5):
         self.id = id
         self.name = name
         self.filename = filename
         self.url = url
         self.runs = []
+        self.category = category
+        self.threshold = threshold
 
 
-def cloneGitRepo(
-    org_name, repo_name, branch="master", git_path="/", filesystem_path="/tmp/git"
-):
+class WorkflowRun:
+    def __init__(self, id, status, url, workflow_id, started_at):
+        self.id = id
+        self.status = status
+        self.url = url
+        self.workflow_id = workflow_id
+        self.started_at = started_at
+
+
+def clone_git_beam_repo(dest_path):
+    filesystem_path = "/tmp/git"
     if not os.path.exists(filesystem_path):
         os.mkdir(filesystem_path)
     os.chdir(filesystem_path)
-    os.system(
-        "git clone --filter=blob:none --sparse https://github.com/"
-        + org_name
-        + "/"
-        + repo_name
-    )
-    os.chdir(repo_name)
+    os.system(f"git clone --filter=blob:none --sparse https://github.com/apache/beam")
+    os.chdir("beam")
     os.system("git sparse-checkout init --cone")
-    os.system("git sparse-checkout  set " + git_path)
+    os.system(f"git sparse-checkout  set {dest_path}")
     os.chdir("/workspace/")
 
 
-def getYaml(file):
-    yamlfile = YAML(typ="safe")
+def get_yaml(file):
+    yaml_file = YAML(typ="safe")
     if not os.path.exists(file):
-        print("File does not exist: " + file)
-        return None
+        raise ValueError(f"Yaml file does not exist: {file}")
     with open(file) as f:
-        data = yamlfile.load(f)
-    return data
+        return yaml_file.load(f)
 
 
-def get_dashboard_category(workflow_name, config_path):
-
-    yaml = YAML(typ="safe")
-    with open(config_path) as f:
-        data = yaml.load(f)
-    for category in data["categories"]:
-        if category["name"] == "misc":
-            misc_threshold = category["groupTreshold"]
-    found = False
-    for category in data["categories"]:
-        if workflow_name in category["tests"]:
-            job_category = category["name"]
-            found = True
-            if "groupTreshold" in category.keys():
-                threshold = category["groupTreshold"]
-            else:
-                threshold = 0.5
+def enhance_workflow(workflow):
+    config = get_yaml("config.yaml")
+    for category in config["categories"]:
+        if workflow.name in category["tests"]:
+            workflow.category = category["name"]
+            if "groupThreshold" in category:
+                workflow.threshold = category["groupThreshold"]
             break
-    if not found:
-        job_category = infer_category_from_name(workflow_name)
-        threshold = misc_threshold
 
-    return job_category, threshold
+    if not workflow.category:
+        print(f"No category found for workflow: {workflow.name}")
+        print("Falling back to rules based assignment")
 
+        workflow_name = workflow.name.lower()
+        if "java" in workflow_name:
+            if "dataflow" in workflow_name:
+                workflow.category = "dataflow_java"
+            elif "spark" in workflow_name or "flink" in workflow_name:
+                workflow.category = "runners_java"
+            elif "performancetest" in workflow_name or "loadtest" in workflow_name:
+                workflow.category = "load_perf_java"
+            else:
+                workflow.category = "core_java"
+        elif "python" in workflow_name:
+            if (
+                "dataflow" in workflow_name
+                or "spark" in workflow_name
+                or "flink" in workflow_name
+            ):
+                workflow.category = "runners_python"
+            elif "performancetest" in workflow_name or "loadtest" in workflow_name:
+                workflow.category = "load_perf_python"
+            else:
+                workflow.category = "core_python"
+        elif "go" in workflow_name:
+            workflow.category = "go"
+        else:
+            workflow.category = "misc"
 
-def infer_category_from_name(workflow_name):
-
-    print(f"No category found for workflow: {workflow_name}")
-    print("Falling back to rules based assignment")
-
-    workflow_name = workflow_name.lower()
-    if "java" in workflow_name:
-        if "dataflow" in workflow_name:
-            return "dataflow_java"
-        if "spark" in workflow_name or "flink" in workflow_name:
-            return "runners_java"
-        if "performancetest" in workflow_name or "loadtest" in workflow_name:
-            return "load_perf_java"
-        return "core_java"
-    elif "python" in workflow_name:
-        if (
-            "dataflow" in workflow_name
-            or "spark" in workflow_name
-            or "flink" in workflow_name
-        ):
-            return "runners_python"
-        if "performancetest" in workflow_name or "loadtest" in workflow_name:
-            return "load_perf_python"
-        return "core_python"
-    elif "go" in workflow_name:
-        return "go"
-
-    return "misc"
+    workflow_filename = workflow.filename.replace("workflows/", "")
+    try:
+        workflow_yaml = get_yaml(
+            f"{GIT_FILESYSTEM_PATH}/{GIT_REPO}/{GIT_PATH}/{workflow_filename}"
+        )
+        if "env" in workflow_yaml:
+            if "ALERT_THRESHOLD" in workflow_yaml["env"]:
+                workflow.threshold = workflow_yaml["env"]["ALERT_THRESHOLD"]
+    except ValueError:
+        print(f"No yaml file found for workflow: {workflow.name}")
 
 
 def github_workflows_dashboard_sync(request):
     # Entry point for cloud function, don't change signature
-    cloneGitRepo(GIT_ORG, GIT_REPO, GIT_BRANCH, GIT_PATH, GIT_FILESYSTEM_PATH)
     return asyncio.run(sync_workflow_runs())
 
 
@@ -165,7 +160,12 @@ async def sync_workflow_runs():
             "The number of workflow runs to fetch is not specified or not an integer"
         )
 
-    database_operations(init_db_connection(), await fetch_workflow_data())
+    clone_git_beam_repo(GIT_PATH)
+    workflows = await fetch_workflow_runs()
+    for workflow in workflows:
+        enhance_workflow(workflow)
+
+    save_workflows(workflows)
 
     print("Done")
     return "Completed"
@@ -174,9 +174,9 @@ async def sync_workflow_runs():
 def init_db_connection():
     """Init connection with the Database"""
     connection = None
-    maxRetries = 3
+    max_retries = 3
     i = 0
-    while connection is None and i < maxRetries:
+    while connection is None and i < max_retries:
         try:
             connection = psycopg2.connect(
                 f"dbname='{DB_NAME}' user='{DB_USER_NAME}' host='{DB_HOST}'"
@@ -187,7 +187,7 @@ def init_db_connection():
             print(e)
             time.sleep(60)
             i = i + 1
-            if i >= maxRetries:
+            if i >= max_retries:
                 print("Number of retries exceded ")
                 sys.exit(1)
     return connection
@@ -221,7 +221,7 @@ async def fetch(url, semaphore, params=None, headers=None, request_id=None):
                 )
 
 
-async def fetch_workflow_data():
+async def fetch_workflow_runs():
     def append_workflow_runs(workflow, runs):
         for run in runs:
             # Getting rid of all runs with a "skipped" status to display
@@ -233,7 +233,13 @@ async def fetch_workflow_data():
                 elif run["status"] != "cancelled":
                     status = run["status"]
                 workflow.runs.append(
-                    (int(run["id"]), status, run["html_url"], run["run_started_at"])
+                    WorkflowRun(
+                        int(run["id"]),
+                        status,
+                        run["html_url"],
+                        workflow.id,
+                        run["run_started_at"],
+                    )
                 )
 
     url = "https://api.github.com/repos/apache/beam/actions/workflows"
@@ -295,7 +301,7 @@ async def fetch_workflow_data():
                 if result:
                     workflow_path = result.group(1)
                 workflow = Workflow(
-                    workflow_id, workflow_name, workflow_url, workflow_path
+                    workflow_id, workflow_name, workflow_path, workflow_url
                 )
 
             append_workflow_runs(workflow, workflow_runs)
@@ -336,7 +342,8 @@ async def fetch_workflow_data():
                     workflow.runs
                 )
                 workflow.runs.extend(
-                    [(0, "None", "None", "None")] * number_of_runs_to_add
+                    [WorkflowRun(0, "None", "None", workflow.id, "None")]
+                    * number_of_runs_to_add
                 )
             if len(workflow.runs) >= int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH):
                 workflow_ids_to_fetch_extra_runs.pop(workflow_id, None)
@@ -345,84 +352,72 @@ async def fetch_workflow_data():
     print("Successfully fetched workflow runs details")
 
     for workflow in list(workflows.values()):
-        runs = sorted(workflow.runs, key=lambda r: r[0], reverse=True)
+        runs = sorted(workflow.runs, key=lambda r: r.id, reverse=True)
         workflow.runs = runs[: int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH)]
 
     return list(workflows.values())
 
 
-def database_operations(connection, workflows):
+def save_workflows(workflows):
+    connection = init_db_connection()
     # Create the table and update it with the latest workflow runs
     if not workflows:
         return
     cursor = connection.cursor()
-    workflows_table_name = "vdjerek_test"
+    workflows_table_name = "github_workflows"
+    workflow_runs_table_name = "github_workflow_runs"
+    cursor.execute(f"DROP TABLE IF EXISTS {workflow_runs_table_name};")
     cursor.execute(f"DROP TABLE IF EXISTS {workflows_table_name};")
-    create_table_query = f"""
-  CREATE TABLE IF NOT EXISTS {workflows_table_name} (
-    run_id text NOT NULL PRIMARY KEY,
-    run_number integer NOT NULL,
-    workflow_url text NOT NULL,
-    workflow_id text NOT NULL,
-    job_name text NOT NULL,
-    job_yml_filename text NOT NULL,
-    dashboard_category text NOT NULL,
-    status text,
-    run_url text,
-    random_threshold real NOT NULL,
-    threshold_percentage real NOT NULL,
-    started_at timestamp with time zone NOT NULL """
-    create_table_query += ")\n"
-    cursor.execute(create_table_query)
-    rand_list = [0.15, 0.25, 0.50, 0.75, 0.30]
-    insert_query = f"INSERT INTO {workflows_table_name} (run_id, run_number, workflow_url, workflow_id, job_name, job_yml_filename, dashboard_category, status, run_url, random_threshold, threshold_percentage, started_at) VALUES %s"
-    insert_values = []
+    create_workflows_table_query = f"""
+    CREATE TABLE IF NOT EXISTS {workflows_table_name} (
+      workflow_id integer NOT NULL PRIMARY KEY,
+      name text NOT NULL,
+      filename text NOT NULL,
+      url text NOT NULL,
+      dashboard_category text NOT NULL,
+      threshold real NOT NULL)\n"""
+    create_workflow_runs_table_query = f"""
+    CREATE TABLE IF NOT EXISTS {workflow_runs_table_name} (
+        run_id text NOT NULL PRIMARY KEY,
+        run_number integer NOT NULL,
+        status text NOT NULL,
+        url text NOT NULL,
+        workflow_id integer NOT NULL,
+        started_at timestamp with time zone NOT NULL,
+        CONSTRAINT fk_workflow FOREIGN KEY(workflow_id) REFERENCES {workflows_table_name}(workflow_id))\n"""
+    cursor.execute(create_workflows_table_query)
+    cursor.execute(create_workflow_runs_table_query)
+    insert_workflows_query = f"""
+    INSERT INTO {workflows_table_name} (workflow_id, name, filename, url,  dashboard_category, threshold)
+    VALUES %s"""
+    insert_workflow_runs_query = f"""
+    INSERT INTO {workflow_runs_table_name} (run_id, run_number, status, url, workflow_id, started_at)
+    VALUES %s"""
+    insert_workflows = []
+    insert_workflow_runs = []
     for workflow in workflows:
-        rand_treshold_percentage = random.choice(rand_list)
-        category, group_threshold = get_dashboard_category(workflow.name, "config.yaml")
-        workflow.filename_clean = workflow.filename.replace("workflows/", "")
-        yamlData = getYaml(
-            GIT_FILESYSTEM_PATH
-            + "/"
-            + GIT_REPO
-            + "/"
-            + GIT_PATH
-            + "/"
-            + workflow.filename_clean
+        insert_workflows.append(
+            (
+                workflow.id,
+                workflow.name,
+                workflow.filename,
+                workflow.url,
+                workflow.category,
+                workflow.threshold,
+            )
         )
-        if not yamlData:
-            print("No yaml file found")
-            threshold = group_threshold
-        else:
-            if "env" in yamlData:
-                if "ALERT_THRESHOLD" in yamlData["env"]:
-                    threshold = yamlData["env"]["ALERT_THRESHOLD"]
-                else:
-                    threshold = group_threshold
-            else:
-                threshold = group_threshold
         run_number = 1
-        for id, status, url, run_started_at in workflow.runs:
-            if id != 0:
-                time = run_started_at.replace("T", " ")
-                insert_values.append(
-                    (
-                        id,
-                        run_number,
-                        workflow.url,
-                        workflow.id,
-                        workflow.name,
-                        workflow.filename,
-                        category,
-                        status,
-                        url,
-                        rand_treshold_percentage,
-                        threshold,
-                        time,
-                    )
+        for run in workflow.runs:
+            if run.id != 0:
+                started_at = run.started_at.replace("T", " ")
+                insert_workflow_runs.append(
+                    (run.id, run_number, run.status, run.url, workflow.id, started_at)
                 )
                 run_number += 1
-    psycopg2.extras.execute_values(cursor, insert_query, insert_values)
+    psycopg2.extras.execute_values(cursor, insert_workflows_query, insert_workflows)
+    psycopg2.extras.execute_values(
+        cursor, insert_workflow_runs_query, insert_workflow_runs
+    )
     cursor.close()
     connection.commit()
     connection.close()

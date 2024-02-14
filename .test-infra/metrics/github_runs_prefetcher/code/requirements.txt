@@ -1,5 +1,0 @@
-aiohttp
-backoff
-psycopg2
-PyGithub
-ruamel.yaml
