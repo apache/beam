@@ -1,6 +1,6 @@
 categories:
   - name: core_java
-    groupTreshold: 0.7
+    groupThreshold: 0.7
     tests:
     - "PreCommit SQL Java17"
     - "PreCommit SQL Java11"
@@ -286,7 +286,7 @@ categories:
     - "pr-bot-pr-updates" 
     - "pr-bot-new-prs" 
   - name: misc
-    groupTreshold: 0.1
+    groupThreshold: 0.1
     tests:
     - "Tour of Beam Go integration tests" 
     - "Tour of Beam Go unittests" 

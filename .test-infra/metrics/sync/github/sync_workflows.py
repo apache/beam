@@ -34,403 +34,111 @@ import sys
 import time
 import re
 import psycopg2
+from psycopg2 import extras
+from ruamel.yaml import YAML
 from github import GithubIntegration
 
-DB_HOST = os.environ['DB_HOST']
-DB_PORT = os.environ['DB_PORT']
-DB_NAME = os.environ['DB_DBNAME']
-DB_USER_NAME = os.environ['DB_DBUSERNAME']
-DB_PASSWORD = os.environ['DB_DBPWD']
-GH_APP_ID = os.environ['GH_APP_ID']
-GH_APP_INSTALLATION_ID = os.environ['GH_APP_INSTALLATION_ID']
-GH_PEM_KEY = os.environ['GH_PEM_KEY']
-GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH =\
-  os.environ['GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH']
+DB_HOST = os.environ["DB_HOST"]
+DB_PORT = os.environ["DB_PORT"]
+DB_NAME = os.environ["DB_DBNAME"]
+DB_USER_NAME = os.environ["DB_DBUSERNAME"]
+DB_PASSWORD = os.environ["DB_DBPWD"]
+GH_APP_ID = os.environ["GH_APP_ID"]
+GH_APP_INSTALLATION_ID = os.environ["GH_APP_INSTALLATION_ID"]
+GH_PEM_KEY = os.environ["GH_PEM_KEY"]
+GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH = os.environ["GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH"]
+GIT_REPO = "beam"
+GIT_PATH = ".github/workflows"
+GIT_FILESYSTEM_PATH = "/tmp/git"
 
-# Maps workflows to dashboard category. Any workflows not in one of these lists
-# will get auto-mapped to misc.
-CORE_JAVA_TESTS = [
-  'PreCommit SQL Java17',
-  'PreCommit SQL Java11',
-  'LoadTests Java GBK Smoke',
-  'PreCommit Java Amazon-Web-Services IO Direct',
-  'PreCommit Java Amqp IO Direct',
-  'PreCommit Java Amazon-Web-Services2 IO Direct',
-  'PreCommit Java',
-  'PreCommit Java Cassandra IO Direct',
-  'PreCommit Java Azure IO Direct',
-  'PreCommit Java Cdap IO Direct',
-  'PreCommit Java Clickhouse IO Direct',
-  'PreCommit Java Csv IO Direct',
-  'Java Tests',
-  'PostCommit Java Avro Versions',
-  'PreCommit Java Debezium IO Direct',
-  'PreCommit Java File-schema-transform IO Direct',
-  'PostCommit Java',
-  'PreCommit Java GCP IO Direct',
-  'PostCommit Java BigQueryEarlyRollout',
-  'PreCommit Java Google-ads IO Direct',
-  'PreCommit Java HBase IO Direct',
-  'PreCommit Java ElasticSearch IO Direct',
-  'PreCommit Java HCatalog IO Direct',
-  'PreCommit Java Hadoop IO Direct',
-  'PreCommit Java IOs Direct',
-  'PostCommit Java Hadoop Versions',
-  'PreCommit Java Jms IO Direct',
-  'PostCommit Java ValidatesRunner Direct JavaVersions',
-  'PreCommit Java Kafka IO Direct',
-  'PostCommit Java Examples Direct',
-  'PreCommit Java JDBC IO Direct',
-  'PostCommit Java ValidatesRunner Samza',
-  'PreCommit Java Mqtt IO Direct',
-  'PreCommit Java Kinesis IO Direct',
-  'PreCommit Java MongoDb IO Direct',
-  'PostCommit Java IO Performance Tests',
-  'PreCommit Java Kudu IO Direct',
-  'PostCommit Java InfluxDbIO Integration Test',
-  'PostCommit Java Jpms Direct Java21',
-  'PostCommit Java ValidatesRunner Twister2',
-  'PreCommit Java Neo4j IO Direct',
-  'PostCommit Java Jpms Direct Java11',
-  'PostCommit Javadoc',
-  'PostCommit Java Jpms Direct Java17',
-  'PreCommit Java Pulsar IO Direct',
-  'PostCommit Java ValidatesRunner ULR',
-  'PreCommit Java Parquet IO Direct',
-  'PreCommit Java Redis IO Direct',
-  'Java JMH',
-  'PreCommit Java RabbitMq IO Direct',
-  'PreCommit Java RequestResponse IO Direct',
-  'PostCommit Java Nexmark Direct',
-  'PreCommit Java Splunk IO Direct',
-  'PreCommit Java Thrift IO Direct',
-  'PreCommit Java Snowflake IO Direct',
-  'PreCommit Java Solr IO Direct',
-  'PostCommit Java PVR Samza',
-  'PreCommit Java Tika IO Direct',
-  'PostCommit Java SingleStoreIO IT',
-  'PostCommit Java Sickbay',
-  'PostCommit Java ValidatesRunner Direct',
-  'PreCommit Java SingleStore IO Direct',
-  'PreCommit Java InfluxDb IO Direct',
-  'PreCommit Spotless',
-  'PreCommit Kotlin Examples'
-]
-
-DATAFLOW_JAVA_TESTS = [
-  'PostCommit XVR GoUsingJava Dataflow',
-  'PostCommit XVR PythonUsingJavaSQL Dataflow',
-  'PostCommit XVR JavaUsingPython Dataflow',
-  'PostCommit XVR PythonUsingJava Dataflow',
-  'PreCommit Java Examples Dataflow Java11',
-  'PreCommit Java Examples Dataflow Java17',
-  'PreCommit Java Examples Dataflow Java21',
-  'PreCommit Java Examples Dataflow',
-  'PostCommit Java ValidatesRunner Dataflow',
-  'PostCommit Java Dataflow V1',
-  'PostCommit Java ValidatesRunner Dataflow Streaming',
-  'PostCommit Java Dataflow V2',
-  'PostCommit Java ValidatesRunner Dataflow V2',
-  'PostCommit Java Examples Dataflow',
-  'PostCommit Java Examples Dataflow ARM',
-  'PostCommit Java ValidatesRunner Dataflow V2 Streaming',
-  'PostCommit Java ValidatesRunner Dataflow JavaVersions',
-  'PostCommit Java Examples Dataflow Java',
-  'PostCommit Java Examples Dataflow V2 Java',
-  'PostCommit Java Jpms Dataflow Java11',
-  'PostCommit Java Jpms Dataflow Java17',
-  'PostCommit Java Nexmark Dataflow',
-  'PostCommit Java Nexmark Dataflow V2',
-  'PostCommit Java Nexmark Dataflow V2 Java',
-  'PostCommit Java Tpcds Dataflow',
-  'PostCommit Java Examples Dataflow V2'
-]
-
-RUNNERS_JAVA_TESTS = [
-  'PostCommit Java PVR Spark3 Streaming',
-  'PostCommit Java ValidatesRunner Spark',
-  'PostCommit Java Examples Spark',
-  'PostCommit Java ValidatesRunner SparkStructuredStreaming',
-  'PostCommit Java ValidatesRunner Spark Java11',
-  'PostCommit Java PVR Spark Batch',
-  'PreCommit Java Spark3 Versions',
-  'PostCommit Java Tpcds Spark',
-  'PostCommit Java Jpms Spark Java11',
-  'PostCommit Java Nexmark Spark',
-  'PostCommit Java Examples Flink',
-  'PostCommit Java Tpcds Flink',
-  'PostCommit Java PVR Flink Streaming',
-  'PostCommit Java Jpms Flink Java11',
-  'PreCommit Java PVR Flink Batch',
-  'PostCommit Java Nexmark Flink',
-  'PreCommit Java PVR Flink Docker',
-  'PreCommit Java Flink Versions',
-  'PostCommit Java ValidatesRunner Flink Java11',
-  'PostCommit Java ValidatesRunner Flink'
-]
-
-LOAD_PERF_JAVA_TESTS = [
-  'LoadTests Java CoGBK Dataflow Batch',
-  'LoadTests Java CoGBK Dataflow V2 Streaming JavaVersions',
-  'LoadTests Java CoGBK Dataflow Streaming',
-  'LoadTests Java Combine Dataflow Batch',
-  'LoadTests Java Combine Dataflow Streaming',
-  'LoadTests Java CoGBK Dataflow V2 Batch JavaVersions',
-  'LoadTests Java GBK Dataflow Batch',
-  'LoadTests Java GBK Dataflow Streaming',
-  'LoadTests Java GBK Dataflow V2 Batch Java11',
-  'LoadTests Java GBK Dataflow V2 Streaming Java11',
-  'LoadTests Java GBK Dataflow V2 Batch Java17',
-  'LoadTests Java GBK Dataflow V2 Streaming Java17',
-  'LoadTests Java ParDo Dataflow Streaming',
-  'LoadTests Java ParDo Dataflow V2 Streaming JavaVersions',
-  'LoadTests Java ParDo Dataflow V2 Batch JavaVersions',
-  'LoadTests Java ParDo Dataflow Batch',
-  'LoadTests Java ParDo SparkStructuredStreaming Batch',
-  'LoadTests Java CoGBK SparkStructuredStreaming Batch',
-  'LoadTests Java Combine SparkStructuredStreaming Batch',
-  'LoadTests Java GBK SparkStructuredStreaming Batch',
-  'PerformanceTests BigQueryIO Batch Java Avro',
-  'PerformanceTests BigQueryIO Streaming Java',
-  'PerformanceTests BigQueryIO Batch Java Json',
-  'PerformanceTests SQLBigQueryIO Batch Java',
-  'PerformanceTests XmlIOIT',
-  'PostCommit XVR Samza',
-  'PerformanceTests ManyFiles TextIOIT',
-  'PerformanceTests XmlIOIT HDFS',
-  'PerformanceTests ParquetIOIT',
-  'PerformanceTests ParquetIOIT HDFS',
-  'PerformanceTests AvroIOIT',
-  'PerformanceTests ManyFiles TextIOIT HDFS',
-  'PerformanceTests TFRecordIOIT',
-  'PerformanceTests Cdap',
-  'PerformanceTests TextIOIT',
-  'PerformanceTests AvroIOIT HDFS',
-  'PerformanceTests SingleStoreIO',
-  'PerformanceTests SparkReceiver IO',
-  'PerformanceTests Compressed TextIOIT',
-  'PerformanceTests TextIOIT HDFS',
-  'PerformanceTests Compressed TextIOIT HDFS',
-  'PerformanceTests HadoopFormat',
-  'PerformanceTests JDBC',
-  'PerformanceTests Kafka IO'
-]
-
-CORE_PYTHON_TESTS = [
-  'Python Dependency Tests',
-  'PreCommit Python Dataframes',
-  'PreCommit Python Examples',
-  'PreCommit Python Integration',
-  'PostCommit Python ValidatesRunner Samza',
-  'LoadTests Python Smoke',
-  'Update Python Depedencies',
-  'PreCommit Python Runners',
-  'PreCommit Python Transforms',
-  'PostCommit Python Xlang Gcp Direct',
-  'Build python source distribution and wheels',
-  'Python tests',
-  'PostCommit Sickbay Python',
-  'PostCommit Python',
-  'PostCommit Python Arm',
-  'PostCommit Python Examples Direct',
-  'PreCommit Portable Python',
-  'PreCommit Python Coverage',
-  'PreCommit Python Docker',
-  'PreCommit Python',
-  'PostCommit Python MongoDBIO IT',
-  'PreCommit Python Docs',
-  'PreCommit Python Formatter',
-  'PostCommit Python Nexmark Direct',
-  'PreCommit Python Lint'
-]
-
-RUNNERS_PYTHON_TESTS = [
-  'PostCommit Python ValidatesRunner Dataflow',
-  'Python ValidatesContainer Dataflow ARM',
-  'PostCommit Python Xlang Gcp Dataflow',
-  'PostCommit Python Xlang IO Dataflow',
-  'PostCommit Python Examples Dataflow',
-  'PostCommit Python ValidatesContainer Dataflow',
-  'PostCommit Python ValidatesContainer Dataflow With RC',
-  'PostCommit Python ValidatesRunner Spark',
-  'PostCommit Python Examples Spark',
-  'PostCommit Python ValidatesRunner Flink',
-  'PreCommit Python PVR Flink',
-  'PostCommit Python Examples Flink'
-]
-
-LOAD_PERF_PYTHON_TESTS = [
-  'PerformanceTests xlang KafkaIO Python',
-  'LoadTests Python FnApiRunner Microbenchmark',
-  'PerformanceTests SpannerIO Write 2GB Python Batch',
-  'PerformanceTests SpannerIO Read 2GB Python',
-  'PerformanceTests BiqQueryIO Read Python',
-  'PerformanceTests BiqQueryIO Write Python Batch',
-  'PerformanceTests TextIOIT Python',
-  'PerformanceTests WordCountIT PythonVersions',
-  'Performance alerting tool on Python load/performance/benchmark tests.',
-  'LoadTests Python SideInput Dataflow Batch',
-  'LoadTests Python CoGBK Dataflow Batch',
-  'LoadTests Python CoGBK Dataflow Streaming',
-  'LoadTests Python Combine Dataflow Batch',
-  'Inference Python Benchmarks Dataflow',
-  'LoadTests Python Combine Dataflow Streaming',
-  'LoadTests Python GBK Dataflow Batch',
-  'LoadTests Python GBK Dataflow Streaming',
-  'LoadTests Python GBK reiterate Dataflow Batch',
-  'LoadTests Python GBK reiterate Dataflow Streaming',
-  'LoadTests Python ParDo Dataflow Streaming',
-  'CloudML Benchmarks Dataflow',
-  'LoadTests Python ParDo Dataflow Batch',
-  'LoadTests Python CoGBK Flink Batch',
-  'LoadTests Python Combine Flink Batch',
-  'LoadTests Python Combine Flink Streaming',
-  'PerformanceTests PubsubIOIT Python Streaming',
-  'LoadTests Python ParDo Flink Batch',
-  'LoadTests Python ParDo Flink Streaming'
-]
-
-GO_TESTS = [
-  'PerformanceTests MongoDBIO IT',
-  'PreCommit Go',
-  'PreCommit GoPortable',
-  'PreCommit GoPrism',
-  'PostCommit Go VR Samza',
-  'Go tests',
-  'PostCommit Go',
-  'PostCommit Go Dataflow ARM',
-  'LoadTests Go CoGBK Dataflow Batch',
-  'LoadTests Go Combine Dataflow Batch',
-  'LoadTests Go GBK Dataflow Batch',
-  'LoadTests Go ParDo Dataflow Batch',
-  'LoadTests Go SideInput Dataflow Batch',
-  'PostCommit Go VR Spark',
-  'PostCommit Go VR Flink',
-  'LoadTests Go CoGBK Flink Batch',
-  'LoadTests Go Combine Flink Batch',
-  'LoadTests Go GBK Flink Batch',
-  'LoadTests Go ParDo Flink Batch',
-  'LoadTests Go SideInput Flink Batch'
-]
-
-CORE_INFRA_TESTS = [
-  'Release Nightly Snapshot Python',
-  'Rotate Metrics Cluster Credentials',
-  'Community Metrics Prober',
-  'Publish Docker Snapshots',
-  'Clean Up GCP Resources',
-  'Clean Up Prebuilt SDK Images',
-  'Rotate IO-Datastores Cluster Credentials',
-  'Release Nightly Snapshot',
-  'Mark issue as triaged when assigned',
-  'PostCommit BeamMetrics Publish',
-  'PreCommit Community Metrics',
-  'Beam Metrics Report',
-  'Build and Version Runner Docker Image',
-  'PreCommit GHA',
-  'PreCommit RAT',
-  'Assign or close an issue',
-  'PostCommit Website Test',
-  'PostCommit Website Publish',
-  'PreCommit Website',
-  'PreCommit Website Stage GCS',
-  'Cleanup Dataproc Resources',
-  'PreCommit Whitespace',
-  'Publish Beam SDK Snapshots',
-  'Cancel Stale Dataflow Jobs',
-  'pr-bot-new-prs',
-  'pr-bot-pr-updates',
-  'pr-bot-prs-needing-attention',
-  'pr-bot-update-reviewers'
-]
-
-MISC_TESTS = [
-  'Tour of Beam Go integration tests',
-  'Tour of Beam Go unittests',
-  'Tour Of Beam Frontend Test',
-  'PostCommit XVR Spark3',
-  'TypeScript Tests',
-  'Playground Frontend Test',
-  'PostCommit PortableJar Flink',
-  'PostCommit SQL',
-  'Cancel',
-  'PostCommit PortableJar Spark',
-  'PreCommit Integration and Load Test Framework',
-  'PostCommit TransformService Direct',
-  'Cut Release Branch',
-  'Generate issue report',
-  'Dask Runner Tests',
-  'PreCommit Typescript',
-  'PostCommit XVR Direct',
-  'Mark and close stale pull requests',
-  'PostCommit XVR Flink',
-  'IssueTagger',
-  'Assign Milestone on issue close',
-  'Local environment tests',
-  'PreCommit SQL',
-  'LabelPrs',
-  'build_release_candidate'
-]
 
 class Workflow:
-  def __init__(self, id, name, filename):
+  def __init__(self, id, name, url, filename, category=None, threshold=0.5):
     self.id = id
     self.name = name
     self.filename = filename
+    self.url = url
     self.runs = []
+    self.category = category
+    self.threshold = threshold
 
-def get_dashboard_category(workflow_name):
-  # If you add or remove categories in this function, make sure to add or
-  # remove the corresponding panels here:
-  # https://github.com/apache/beam/blob/master/.test-infra/metrics/grafana/dashboards/GA-Post-Commits_status_dashboard.json
 
-  if workflow_name in CORE_INFRA_TESTS:
-    return 'core_infra'
-  if workflow_name in CORE_JAVA_TESTS:
-    return 'core_java'
-  if workflow_name in DATAFLOW_JAVA_TESTS:
-    return 'dataflow_java'
-  if workflow_name in RUNNERS_JAVA_TESTS:
-    return 'runners_java'
-  if workflow_name in LOAD_PERF_JAVA_TESTS:
-    return 'load_perf_java'
-  if workflow_name in CORE_PYTHON_TESTS:
-    return 'core_python'
-  if workflow_name in RUNNERS_PYTHON_TESTS:
-    return 'runners_python'
-  if workflow_name in LOAD_PERF_PYTHON_TESTS:
-    return 'load_perf_python'
-  if workflow_name in GO_TESTS:
-    return 'go'
-  if workflow_name in MISC_TESTS:
-    return 'misc'
+class WorkflowRun:
+  def __init__(self, id, status, url, workflow_id, started_at):
+    self.id = id
+    self.status = status
+    self.url = url
+    self.workflow_id = workflow_id
+    self.started_at = started_at
 
-  print(f'No category found for workflow: {workflow_name}')
-  print('Falling back to rules based assignment')
 
-  workflow_name = workflow_name.lower()
-  if 'java' in workflow_name:
-    if 'dataflow' in workflow_name:
-      return 'dataflow_java'
-    if 'spark' in workflow_name or 'flink' in workflow_name:
-      return 'runners_java'
-    if 'performancetest' in workflow_name or 'loadtest' in workflow_name:
-      return 'load_perf_java'
-    return 'core_java'
-  elif 'python' in workflow_name:
-    if 'dataflow' in workflow_name or 'spark' in workflow_name or 'flink' in workflow_name:
-      return 'runners_python'
-    if 'performancetest' in workflow_name or 'loadtest' in workflow_name:
-      return 'load_perf_python'
-    return 'core_python'
-  elif 'go' in workflow_name:
-    return 'go'
+def clone_git_beam_repo(dest_path):
+  filesystem_path = "/tmp/git"
+  if not os.path.exists(filesystem_path):
+    os.mkdir(filesystem_path)
+  os.chdir(filesystem_path)
+  os.system(f"git clone --filter=blob:none --sparse https://github.com/apache/beam")
+  os.chdir("beam")
+  os.system("git sparse-checkout init --cone")
+  os.system(f"git sparse-checkout  set {dest_path}")
+  os.chdir("/workspace/")
 
-  return 'misc'
+
+def get_yaml(file):
+  yaml_file = YAML(typ="safe")
+  if not os.path.exists(file):
+    raise ValueError(f"Yaml file does not exist: {file}")
+  with open(file) as f:
+    return yaml_file.load(f)
+
+
+def enhance_workflow(workflow):
+  config = get_yaml(f"{GIT_FILESYSTEM_PATH}/{GIT_REPO}/.test-infra/metrics/github_runs_prefetcher/code/config.yaml")
+  for category in config["categories"]:
+    if workflow.name in category["tests"]:
+      workflow.category = category["name"]
+      if "groupThreshold" in category:
+        workflow.threshold = category["groupThreshold"]
+      break
+
+  if not workflow.category:
+    print(f'No category found for workflow: {workflow.name}')
+    print('Falling back to rules based assignment')
+
+    workflow_name = workflow.name.lower()
+    if 'java' in workflow_name:
+      if 'dataflow' in workflow_name:
+        workflow.category = 'dataflow_java'
+      elif 'spark' in workflow_name or 'flink' in workflow_name:
+        workflow.category = 'runners_java'
+      elif 'performancetest' in workflow_name or 'loadtest' in workflow_name:
+        workflow.category = 'load_perf_java'
+      else:
+        workflow.category = 'core_java'
+    elif 'python' in workflow_name:
+      if 'dataflow' in workflow_name or 'spark' in workflow_name or 'flink' in workflow_name:
+        workflow.category = 'runners_python'
+      elif 'performancetest' in workflow_name or 'loadtest' in workflow_name:
+        workflow.category = 'load_perf_python'
+      else:
+        workflow.category = 'core_python'
+    elif 'go' in workflow_name:
+      workflow.category = 'go'
+    else:
+      workflow.category = 'misc'
+
+  clone_git_beam_repo(GIT_PATH)
+  workflow_filename = workflow.filename.replace("workflows/", "")
+  workflow_yaml = get_yaml(f"{GIT_FILESYSTEM_PATH}/{GIT_REPO}/{GIT_PATH}/{workflow_filename}")
+  if "env" in workflow_yaml:
+    if "ALERT_THRESHOLD" in workflow_yaml["env"]:
+      workflow.threshold = workflow_yaml["env"]["ALERT_THRESHOLD"]
+
 
 def github_workflows_dashboard_sync(data, context):
   # Entry point for cloud function, don't change signature
   return asyncio.run(sync_workflow_runs())
+
 
 async def sync_workflow_runs():
   print('Started')
@@ -442,35 +150,43 @@ async def sync_workflow_runs():
       'The number of workflow runs to fetch is not specified or not an integer'
     )
 
-  database_operations(init_db_connection(), await fetch_workflow_data())
+  workflows = await fetch_workflow_runs()
+  for workflow in workflows:
+    enhance_workflow(workflow)
+
+  save_workflows(workflows)
 
   print('Done')
   return "Completed"
 
+
 def init_db_connection():
-  '''Init connection with the Database'''
+  """Init connection with the Database"""
   connection = None
-  maxRetries = 3
+  max_retries = 3
   i = 0
-  while connection is None and i < maxRetries:
+  while connection is None and i < max_retries:
     try:
       connection = psycopg2.connect(
         f"dbname='{DB_NAME}' user='{DB_USER_NAME}' host='{DB_HOST}'"
-        f" port='{DB_PORT}' password='{DB_PASSWORD}'")
+        f" port='{DB_PORT}' password='{DB_PASSWORD}'"
+      )
     except Exception as e:
-      print('Failed to connect to DB; retrying in 1 minute')
+      print("Failed to connect to DB; retrying in 1 minute")
       print(e)
       time.sleep(60)
       i = i + 1
-      if i >= maxRetries:
+      if i >= max_retries:
         print("Number of retries exceded ")
         sys.exit(1)
   return connection
+
 
 def get_token():
   git_integration = GithubIntegration(GH_APP_ID, GH_PEM_KEY)
   token = git_integration.get_access_token(GH_APP_INSTALLATION_ID).token
   return f'Bearer {token}'
+
 
 @backoff.on_exception(backoff.constant, aiohttp.ClientResponseError, max_tries=5)
 async def fetch(url, semaphore, params=None, headers=None, request_id=None):
@@ -493,7 +209,8 @@ async def fetch(url, semaphore, params=None, headers=None, request_id=None):
           headers=response.headers
         )
 
-async def fetch_workflow_data():
+
+async def fetch_workflow_runs():
   def append_workflow_runs(workflow, runs):
     for run in runs:
       # Getting rid of all runs with a "skipped" status to display
@@ -504,7 +221,9 @@ async def fetch_workflow_data():
           status = run['conclusion']
         elif run['status'] != 'cancelled':
           status = run['status']
-        workflow.runs.append((int(run['id']), status, run['html_url']))
+        workflow.runs.append(
+          WorkflowRun(int(run["id"]), status, run["html_url"], workflow.id, run["run_started_at"])
+        )
 
   url = "https://api.github.com/repos/apache/beam/actions/workflows"
   headers = {'Authorization': get_token()}
@@ -600,7 +319,9 @@ async def fetch_workflow_data():
       else:
         number_of_runs_to_add =\
           int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH) - len(workflow.runs)
-        workflow.runs.extend([(0, 'None', 'None')] * number_of_runs_to_add)
+        workflow.runs.extend(
+          [WorkflowRun(0, "None", "None", workflow.id, "None")] * number_of_runs_to_add
+        )
       if len(workflow.runs) >= int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH):
           workflow_ids_to_fetch_extra_runs.pop(workflow_id, None)
       print(f"Successfully fetched extra workflow runs for: {workflow.filename}")
@@ -608,44 +329,76 @@ async def fetch_workflow_data():
   print("Successfully fetched workflow runs details")
 
   for workflow in list(workflows.values()):
-    runs = sorted(workflow.runs, key=lambda r: r[0], reverse=True)
+    runs = sorted(workflow.runs, key=lambda r: r.id, reverse=True)
     workflow.runs = runs[:int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH)]
 
   return list(workflows.values())
 
-def database_operations(connection, workflows):
+
+def save_workflows(workflows):
+  connection = init_db_connection()
   # Create the table and update it with the latest workflow runs
   if not workflows:
     return
   cursor = connection.cursor()
   workflows_table_name = "github_workflows"
+  workflow_runs_table_name = "github_workflow_runs"
   cursor.execute(f"DROP TABLE IF EXISTS {workflows_table_name};")
-  create_table_query = f"""
-  CREATE TABLE IF NOT EXISTS {workflows_table_name} (
-    workflow_id integer NOT NULL PRIMARY KEY,
-    job_name text NOT NULL,
-    job_yml_filename text NOT NULL,
-    dashboard_category text NOT NULL"""
-  for i in range(int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH)):
-    create_table_query += f""",
-    run{i+1} text,
-    run{i+1}Id text"""
-  create_table_query += ")\n"
-  cursor.execute(create_table_query)
-  insert_query = f"INSERT INTO {workflows_table_name} VALUES "
+  cursor.execute(f"DROP TABLE IF EXISTS {workflow_runs_table_name};")
+  create_workflows_table_query = f"""
+    CREATE TABLE IF NOT EXISTS {workflows_table_name} (
+      workflow_id integer NOT NULL PRIMARY KEY,
+      name text NOT NULL,
+      filename text NOT NULL,
+      url text NOT NULL,
+      dashboard_category text NOT NULL,
+      threshold real NOT NULL)\n"""
+  create_workflow_runs_table_query = f"""
+    CREATE TABLE IF NOT EXISTS {workflow_runs_table_name} (
+      run_id text NOT NULL PRIMARY KEY,
+      status text NOT NULL,
+      url text NOT NULL,
+      workflow_id integer NOT NULL FOREIGN KEY,
+      started_at timestamp with time zone NOT NULL)\n"""
+  cursor.execute(create_workflows_table_query)
+  cursor.execute(create_workflow_runs_table_query)
+  insert_workflows_query = f"""
+    INSERT INTO {workflows_table_name} (workflow_id, name, filename, url, dashboard_category, threshold)
+    VALUES %s"""
+  insert_workflow_runs_query = f"""
+    INSERT INTO {workflow_runs_table_name} (run_id, status, url, workflow_id, started_at)
+    VALUES %s"""
+  insert_workflows = []
+  insert_workflow_runs = []
   for workflow in workflows:
-    category = get_dashboard_category(workflow.name)
-    row_insert =\
-      f"(\'{workflow.id}\',\'{workflow.name}\',\'{workflow.filename}\',\'{category}\'"
-    for _, status, url in workflow.runs:
-      row_insert += f",\'{status}\',\'{url}\'"
-    insert_query += f"{row_insert}),"
-  insert_query = insert_query[:-1] + ";"
-  print(insert_query)
-  cursor.execute(insert_query)
+    insert_workflows.append(
+      (
+        workflow.id,
+        workflow.name,
+        workflow.filename,
+        workflow.url,
+        workflow.category,
+        workflow.threshold
+      )
+    )
+    for run in workflow.runs:
+      if run.id != 0:
+        started_at = run.started_at.replace("T", " ")
+        insert_workflow_runs.append(
+          (
+            run.id,
+            run.status,
+            run.url,
+            workflow.id,
+            started_at
+          )
+        )
+  psycopg2.extras.execute_values(cursor, insert_workflows_query, insert_workflows)
+  psycopg2.extras.execute_values(cursor, insert_workflow_runs_query, insert_workflow_runs)
   cursor.close()
   connection.commit()
   connection.close()
+
 
 if __name__ == '__main__':
   asyncio.run(github_workflows_dashboard_sync(None, None))
