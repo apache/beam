@@ -44,7 +44,6 @@ public class ExecutionStateSamplerTest {
 
     private long totalMillis = 0;
     private boolean lullReported = false;
-    private boolean bundleLullReported = false;
 
     public TestExecutionState(String stateName) {
       super(stateName);
@@ -80,7 +79,6 @@ public class ExecutionStateSamplerTest {
       sampler.doSampling(300); // no current state
       assertThat(step1act1.totalMillis, equalTo(400L + 200L));
       assertThat(step1act1.lullReported, equalTo(false));
-      assertThat(step1act1.bundleLullReported, equalTo(false));
     }
   }
 
