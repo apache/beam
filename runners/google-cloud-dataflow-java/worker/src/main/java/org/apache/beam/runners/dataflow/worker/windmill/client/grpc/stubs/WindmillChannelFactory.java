@@ -22,12 +22,12 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLException;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.netty.GrpcSslContexts;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.netty.NegotiationType;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.netty.NettyChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.netty.GrpcSslContexts;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.netty.NegotiationType;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.netty.NettyChannelBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 
 /** Utility class used to create different RPC Channels. */
@@ -48,7 +48,7 @@ public final class WindmillChannelFactory {
         .build();
   }
 
-  static Channel remoteChannel(
+  static ManagedChannel remoteChannel(
       WindmillServiceAddress windmillServiceAddress, int windmillServiceRpcChannelTimeoutSec) {
     switch (windmillServiceAddress.getKind()) {
       case IPV6:
@@ -63,7 +63,7 @@ public final class WindmillChannelFactory {
     }
   }
 
-  public static Channel remoteChannel(
+  public static ManagedChannel remoteChannel(
       HostAndPort endpoint, int windmillServiceRpcChannelTimeoutSec) {
     try {
       return createRemoteChannel(
@@ -85,7 +85,7 @@ public final class WindmillChannelFactory {
     }
   }
 
-  public static Channel remoteChannel(
+  public static ManagedChannel remoteChannel(
       Inet6Address directEndpoint, int windmillServiceRpcChannelTimeoutSec) {
     try {
       return createRemoteChannel(
@@ -97,7 +97,7 @@ public final class WindmillChannelFactory {
   }
 
   @SuppressWarnings("nullness")
-  private static Channel createRemoteChannel(
+  private static ManagedChannel createRemoteChannel(
       NettyChannelBuilder channelBuilder, int windmillServiceRpcChannelTimeoutSec)
       throws SSLException {
     if (windmillServiceRpcChannelTimeoutSec > 0) {

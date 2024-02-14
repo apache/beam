@@ -108,6 +108,7 @@ class MutationSizeEstimator {
         return 1;
       case INT64:
       case FLOAT64:
+      case ENUM:
         return 8;
       case DATE:
       case TIMESTAMP:
@@ -116,6 +117,7 @@ class MutationSizeEstimator {
       case PG_NUMERIC:
         return v.isNull() ? 0 : v.getString().length();
       case BYTES:
+      case PROTO:
         return v.isNull() ? 0 : v.getBytes().length();
       case NUMERIC:
         // see
@@ -141,6 +143,7 @@ class MutationSizeEstimator {
       case BOOL:
         return v.getBoolArray().size();
       case INT64:
+      case ENUM:
         return 8L * v.getInt64Array().size();
       case FLOAT64:
         return 8L * v.getFloat64Array().size();
@@ -155,6 +158,7 @@ class MutationSizeEstimator {
         }
         return totalLength;
       case BYTES:
+      case PROTO:
         totalLength = 0;
         for (ByteArray bytes : v.getBytesArray()) {
           if (bytes == null) {

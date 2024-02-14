@@ -32,7 +32,7 @@ import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -323,10 +323,13 @@ public class TextSource extends FileBasedSource<String> {
 
         // Consume any LF after CR if it is the first character of the next buffer
         if (skipLineFeedAtStart && buffer[bufferPosn] == LF) {
-          ++bytesConsumed;
           ++startPosn;
           ++bufferPosn;
           skipLineFeedAtStart = false;
+
+          // Right now, startOfRecord is pointing at the position of LF, but the actual start
+          // position of the new record should be the position after LF.
+          ++startOfRecord;
         }
 
         // Search for the newline

@@ -334,8 +334,8 @@ class FakeModelHandler(ModelHandler):
 
 
 class FakeEmbeddingsManager(base.EmbeddingsManager):
-  def __init__(self, columns):
-    super().__init__(columns=columns)
+  def __init__(self, columns, **kwargs):
+    super().__init__(columns=columns, **kwargs)
 
   def get_model_handler(self) -> ModelHandler:
     FakeModelHandler.__repr__ = lambda x: 'FakeEmbeddingsManager'  # type: ignore[assignment]
@@ -416,7 +416,6 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
       )
 
   def test_handler_on_multiple_columns(self):
-    self.embedding_conig.columns = ['x', 'y']
     data = [
         {
             'x': "Hello world", 'y': "Apache Beam", 'z': 'unchanged'
@@ -443,6 +442,26 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
           equal_to(expected_data),
       )
 
+  def test_handler_on_columns_not_exist_in_input_data(self):
+    data = [
+        {
+            'x': "Hello world", 'y': "Apache Beam"
+        },
+        {
+            'x': "Apache Beam", 'y': "Hello world"
+        },
+    ]
+    self.embedding_conig.columns = ['x', 'y', 'a']
+
+    with self.assertRaises(RuntimeError):
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create(data)
+            | base.MLTransform(
+                write_artifact_location=self.artifact_location).with_transform(
+                    self.embedding_conig))
+
   def test_handler_with_list_data(self):
     data = [{
         'x': ['Hello world', 'Apache Beam'],
@@ -450,6 +469,28 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
         'x': ['Apache Beam', 'Hello world'],
     }]
     with self.assertRaises(TypeError):
+      with beam.Pipeline() as p:
+        _ = (
+            p
+            | beam.Create(data)
+            | base.MLTransform(
+                write_artifact_location=self.artifact_location).with_transform(
+                    self.embedding_conig))
+
+  def test_handler_with_inconsistent_keys(self):
+    data = [
+        {
+            'x': 'foo', 'y': 'bar', 'z': 'baz'
+        },
+        {
+            'x': 'foo2', 'y': 'bar2'
+        },
+        {
+            'x': 'foo3', 'y': 'bar3', 'z': 'baz3'
+        },
+    ]
+    self.embedding_conig.min_batch_size = 2
+    with self.assertRaises(RuntimeError):
       with beam.Pipeline() as p:
         _ = (
             p

@@ -31,6 +31,9 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -146,7 +149,8 @@ public class BigQueryIOTranslationTest {
     Row row = translator.toConfigRow(readTransform);
 
     BigQueryIO.TypedRead<TableRow> readTransformFromRow =
-        (BigQueryIO.TypedRead<TableRow>) translator.fromConfigRow(row);
+        (BigQueryIO.TypedRead<TableRow>)
+            translator.fromConfigRow(row, PipelineOptionsFactory.create());
     assertNotNull(readTransformFromRow.getTable());
     assertEquals("dummyproject", readTransformFromRow.getTable().getProjectId());
     assertEquals("dummydataset", readTransformFromRow.getTable().getDatasetId());
@@ -176,7 +180,8 @@ public class BigQueryIOTranslationTest {
         new BigQueryIOTranslation.BigQueryIOReadTranslator();
     Row row = translator.toConfigRow(readTransform);
 
-    BigQueryIO.TypedRead<?> readTransformFromRow = translator.fromConfigRow(row);
+    BigQueryIO.TypedRead<?> readTransformFromRow =
+        translator.fromConfigRow(row, PipelineOptionsFactory.create());
     assertEquals("dummyquery", readTransformFromRow.getQuery().get());
     assertNotNull(readTransformFromRow.getParseFn());
     assertTrue(readTransformFromRow.getParseFn() instanceof DummyParseFn);
@@ -245,7 +250,10 @@ public class BigQueryIOTranslationTest {
         new BigQueryIOTranslation.BigQueryIOWriteTranslator();
     Row row = translator.toConfigRow(writeTransform);
 
-    BigQueryIO.Write<?> writeTransformFromRow = (BigQueryIO.Write<?>) translator.fromConfigRow(row);
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.54.0");
+    BigQueryIO.Write<?> writeTransformFromRow =
+        (BigQueryIO.Write<?>) translator.fromConfigRow(row, options);
     assertNotNull(writeTransformFromRow.getTable());
     assertEquals("dummyproject", writeTransformFromRow.getTable().get().getProjectId());
     assertEquals("dummydataset", writeTransformFromRow.getTable().get().getDatasetId());

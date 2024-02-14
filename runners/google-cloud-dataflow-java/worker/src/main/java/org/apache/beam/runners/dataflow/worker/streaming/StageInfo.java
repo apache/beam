@@ -21,6 +21,7 @@ import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.THRO
 
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterUpdate;
+import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,15 +39,14 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 /** Contains a few of the stage specific fields. E.g. metrics container registry, counters etc. */
 @AutoValue
 public abstract class StageInfo {
-  public static StageInfo create(
-      String stageName, String systemName, StreamingDataflowWorker worker) {
-    NameContext nameContext = NameContext.create(stageName, null, systemName, null);
+  public static StageInfo create(String stageName, String systemName) {
+    NameContext nameContext = NameContext.newBuilder(stageName).setSystemName(systemName).build();
     CounterSet deltaCounters = new CounterSet();
     return new AutoValue_StageInfo(
         stageName,
         systemName,
         StreamingStepMetricsContainer.createRegistry(),
-        new StreamingModeExecutionStateRegistry(worker),
+        new StreamingModeExecutionStateRegistry(),
         deltaCounters,
         deltaCounters.longSum(
             DataflowSystemMetrics.StreamingPerStageSystemCounterNames.THROTTLED_MSECS.counterName(
@@ -110,5 +110,13 @@ public abstract class StageInfo {
         throttledMsecs().addValue(msecs);
       }
     }
+  }
+
+  public List<PerStepNamespaceMetrics> extractPerWorkerMetricValues() {
+    List<PerStepNamespaceMetrics> metrics = new ArrayList<>();
+    Iterables.addAll(
+        metrics,
+        StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(metricsContainerRegistry()));
+    return metrics;
   }
 }

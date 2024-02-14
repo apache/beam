@@ -36,6 +36,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -68,6 +69,7 @@ public class FlinkUnboundedSourceReader<T>
   // This name is defined in FLIP-33.
   @VisibleForTesting protected static final String PENDING_BYTES_METRIC_NAME = "pendingBytes";
   private static final long SLEEP_ON_IDLE_MS = 50L;
+  private static final long MIN_WATERMARK_EMIT_INTERVAL_MS = 10L;
   private final AtomicReference<CompletableFuture<Void>> dataAvailableFutureRef;
   private final List<ReaderAndOutput> readers;
   private int currentReaderIndex;
@@ -102,22 +104,29 @@ public class FlinkUnboundedSourceReader<T>
     createPendingBytesGauge(context);
     Long watermarkInterval =
         pipelineOptions.as(FlinkPipelineOptions.class).getAutoWatermarkInterval();
-    if (watermarkInterval != null) {
-      scheduleTaskAtFixedRate(
-          () -> {
-            // Set the watermark emission flag first.
-            shouldEmitWatermark = true;
-            // Wake up the main thread if necessary.
-            CompletableFuture<Void> f = dataAvailableFutureRef.get();
-            if (f != DUMMY_FUTURE) {
-              f.complete(null);
-            }
-          },
-          watermarkInterval,
+    if (watermarkInterval == null) {
+      watermarkInterval =
+          (pipelineOptions.as(FlinkPipelineOptions.class).getMaxBundleTimeMills()) / 5L;
+      watermarkInterval =
+          (watermarkInterval > MIN_WATERMARK_EMIT_INTERVAL_MS)
+              ? watermarkInterval
+              : MIN_WATERMARK_EMIT_INTERVAL_MS;
+      LOG.warn(
+          "AutoWatermarkInterval is not set, watermarks will be emitted at a default interval of {} ms",
           watermarkInterval);
-    } else {
-      LOG.warn("AutoWatermarkInterval is not set, watermarks won't be emitted.");
     }
+    scheduleTaskAtFixedRate(
+        () -> {
+          // Set the watermark emission flag first.
+          shouldEmitWatermark = true;
+          // Wake up the main thread if necessary.
+          CompletableFuture<Void> f = dataAvailableFutureRef.get();
+          if (f != DUMMY_FUTURE) {
+            f.complete(null);
+          }
+        },
+        watermarkInterval,
+        watermarkInterval);
   }
 
   @Override
@@ -131,13 +140,21 @@ public class FlinkUnboundedSourceReader<T>
     if (reader != null) {
       emitRecord(reader, output);
       return InputStatus.MORE_AVAILABLE;
-    } else if (noMoreSplits()) {
-      LOG.trace("No more splits.");
+    } else if (noMoreSplits() && isEndOfAllReaders()) {
+      LOG.info("No more splits and no reader available. Terminating consumption.");
       return InputStatus.END_OF_INPUT;
     } else {
       LOG.trace("No data available for now.");
       return InputStatus.NOTHING_AVAILABLE;
     }
+  }
+
+  private boolean isEndOfAllReaders() {
+    return allReaders().values().stream()
+            .mapToLong(r -> asUnbounded(r.reader).getWatermark().getMillis())
+            .min()
+            .orElse(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis())
+        >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
   }
 
   /**

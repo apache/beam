@@ -97,6 +97,7 @@ public class BigtableWriteIT implements Serializable {
         BigtableConfigTranslator.translateWriteToVeneerSettings(
             bigtableConfig,
             BigtableWriteOptions.builder().build(),
+            null,
             PipelineOptionsFactory.create());
 
     BigtableTableAdminSettings adminSettings =
