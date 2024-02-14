@@ -53,7 +53,53 @@ public void processElement(@Element String word, MultiOutputReceiver out) {
      }
 ```
 
-In the Apache Beam Python SDK, you can implement additional outputs by invoking the `with_outputs()` method on the `ParDo` and specifying the expected tags for the multiple outputs. The method returns a `DoOutputsTuple` object, with the specified tags serving as attributes that provide `ParDo` with access to the corresponding output `PCollection`s. For a sample Apache Beam Python pipeline demonstrating a word count example with multiple outputs, refer to the [multiple output `ParDo`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/multiple_output_pardo.py) example in the Apache Beam GitHub repository.
+In the Apache Beam Python SDK, you can implement additional outputs by invoking the `with_outputs()` method on the `ParDo` and specifying the expected tags for the multiple outputs.  
+
+The following Python code demonstrates how to implement additional outputs for a `ParDo` transform that outputs two `PCollection`s of strings and integers in addition to the main output `PCollection` of strings:
+
+```python
+class SplitLinesToWordsFn(beam.DoFn):
+
+  # These tags will be used to tag the outputs of this DoFn.
+  OUTPUT_TAG_SHORT_WORDS = 'tag_short_words'
+  OUTPUT_TAG_CHARACTER_COUNT = 'tag_character_count'
+
+  def process(self, element):
+    # yield a count (integer) to the OUTPUT_TAG_CHARACTER_COUNT tagged collection.
+    yield pvalue.TaggedOutput(self.OUTPUT_TAG_CHARACTER_COUNT, len(element))
+
+    words = re.findall(r'[A-Za-z\']+', element)
+    for word in words:
+      if len(word) <= 3:
+        # yield word as an output to the OUTPUT_TAG_SHORT_WORDS tagged collection.
+        yield pvalue.TaggedOutput(self.OUTPUT_TAG_SHORT_WORDS, word)
+      else:
+        # yield word to add it to the main collection.
+        yield word
+```
+
+The method returns a `DoOutputsTuple` object, with the specified tags serving as attributes that provide `ParDo` with access to the corresponding output `PCollection`s.
+
+```python
+with beam.Pipeline(options=pipeline_options) as p:
+
+    lines = p | ReadFromText(known_args.input)
+
+    # with_outputs allows accessing the explicitly tagged outputs of a DoFn.
+    split_lines_result = (
+        lines
+        | beam.ParDo(SplitLinesToWordsFn()).with_outputs(
+            SplitLinesToWordsFn.OUTPUT_TAG_SHORT_WORDS,
+            SplitLinesToWordsFn.OUTPUT_TAG_CHARACTER_COUNT,
+            main='words'))
+
+    # split_lines_result is an object of type DoOutputsTuple
+    words, _, _ = split_lines_result
+    short_words = split_lines_result[SplitLinesToWordsFn.OUTPUT_TAG_SHORT_WORDS]
+    character_count = split_lines_result.tag_character_count
+```
+
+Refer to the [multiple output `ParDo`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/multiple_output_pardo.py) for the complete example code.
 
 For more information about additional outputs and sample pipelines demonstrating their use, you can refer to the Apache Beam documentation on:
 * [Tagging multiple outputs](https://beam.apache.org/documentation/programming-guide/#output-tags)
