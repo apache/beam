@@ -137,7 +137,7 @@ public class KafkaIOTranslation {
         fieldValues.put("topics", transform.getTopics());
       }
 
-      if (transform.getTopicPartitions() != null) {
+      if (transform.getTopicPartitions() != null && !transform.getTopicPartitions().isEmpty()) {
         List<Row> encodedTopicPartitions = new ArrayList<>();
         for (TopicPartition topicPartition : transform.getTopicPartitions()) {
           encodedTopicPartitions.add(
@@ -245,7 +245,7 @@ public class KafkaIOTranslation {
           transform = transform.withTopics(new ArrayList<>(topics));
         }
         Collection<Row> topicPartitionRows = configRow.getArray("topic_partitions");
-        if (topicPartitionRows != null) {
+        if (topicPartitionRows != null && !topicPartitionRows.isEmpty()) {
           Collection<TopicPartition> topicPartitions =
               topicPartitionRows.stream()
                   .map(

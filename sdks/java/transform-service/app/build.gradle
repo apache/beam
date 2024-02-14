@@ -16,19 +16,28 @@
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
-applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.fn',
-)
+apply plugin: 'org.apache.beam.module'
+apply plugin: 'application'
 
-description = "Apache Beam :: SDKs :: Java :: Fn Execution"
-ext.summary = """Contains code shared across the Beam Java SDK Harness and Java Runners to execute using
-the Beam Portability Framework."""
+applyJavaNature(
+    automaticModuleName: 'org.apache.beam.sdk.transformservice.app',
+    exportJavadoc: false,
+    validateShadowJar: false,
+    shadowClosure: {},
+)
+mainClassName = "org.apache.beam.sdk.transformservice.launcher.TransformServiceLauncher"
+
+description = "Apache Beam :: SDKs :: Java :: Transform Service :: App"
+ext.summary = """Runs a transform service."""
 
 dependencies {
-  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-  testImplementation library.java.junit
-  testImplementation library.java.mockito_core
-  testImplementation library.java.commons_lang3
-  testRuntimeOnly library.java.slf4j_jdk14
+    implementation project(":sdks:java:transform-service:launcher")
+    permitUnusedDeclared project(":sdks:java:transform-service:launcher")
+    runtimeOnly library.java.slf4j_jdk14
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': application.mainClass
+    }
 }
