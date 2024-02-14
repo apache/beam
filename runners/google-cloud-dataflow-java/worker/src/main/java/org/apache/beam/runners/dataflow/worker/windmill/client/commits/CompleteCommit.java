@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.client;
+package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.runners.dataflow.worker.streaming.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;

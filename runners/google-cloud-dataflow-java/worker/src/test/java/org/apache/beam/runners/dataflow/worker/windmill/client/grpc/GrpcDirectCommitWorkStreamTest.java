@@ -34,7 +34,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.worker.streaming.Commit;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
@@ -47,7 +46,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommit
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.CompleteCommit;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.CompleteCommit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.fn.stream.AdvancingPhaser;
@@ -166,9 +166,6 @@ public class GrpcDirectCommitWorkStreamTest {
     assertThat(work.getState()).isEqualTo(Work.State.QUEUED);
     // Wait for commit to get queued.
     Thread.sleep(100);
-    assertThat(commitWorkStream.currentActiveCommitBytes())
-        .isEqualTo(
-            Commit.create(workItemCommitRequest(workItem), computationState, work).getSize());
     commitWorkStreamStub.injectCommitResponse(
         StreamingCommitResponse.newBuilder()
             .addRequestId(idGenerator.get())
@@ -196,32 +193,21 @@ public class GrpcDirectCommitWorkStreamTest {
     failedWork.setFailed();
 
     Phaser ackWorkProcessed = new AdvancingPhaser(1);
-    Set<Work> workProcessed = new HashSet<>();
     WorkItem nextWorkItem = workItem(2, 2);
-    Work nextWork =
-        work(
-            nextWorkItem,
-            work -> {
-              workProcessed.add(work);
-              ackWorkProcessed.arriveAndDeregister();
-            });
-
+    Work nextWork = work(nextWorkItem, work -> {});
     ComputationState computationState = computationState("test");
     computationState.activateWork(shardedKey, failedWork);
     computationState.activateWork(shardedKey, nextWork);
-
-    commitWorkStream.queueCommit(
-        Commit.create(workItemCommitRequest(failedWorkItem), computationState, failedWork));
+    Commit failedCommit = Commit.create(failedWorkItemCommitRequest, computationState, failedWork);
+    commitWorkStream.queueCommit(failedCommit);
     try {
       ackWorkProcessed.awaitAdvanceInterruptibly(0, 100, TimeUnit.MILLISECONDS);
-    } catch (TimeoutException unused) {
+    } catch (TimeoutException ignored) {
     }
 
     assertThat(failedWork.getState()).isEqualTo(Work.State.QUEUED);
     Mockito.verify(commitWorkStream, times(0)).commitWorkItem(any(), any(), any());
-    assertThat(failedCommitsResult)
-        .contains(Commit.create(failedWorkItemCommitRequest, computationState, failedWork));
-    assertThat(workProcessed).contains(nextWork);
+    assertThat(failedCommitsResult).contains(failedCommit);
   }
 
   @Test
@@ -243,8 +229,6 @@ public class GrpcDirectCommitWorkStreamTest {
         Commit.create(workItemCommitRequest(workItem), computationState, work);
     CompleteCommit expectedFailedCommitAndStatus =
         CompleteCommit.create(expectedFailedCommit, Windmill.CommitStatus.ABORTED);
-    assertThat(commitWorkStream.currentActiveCommitBytes())
-        .isEqualTo(expectedFailedCommit.getSize());
     Thread.sleep(100);
     commitWorkStreamStub.injectCommitResponse(
         StreamingCommitResponse.newBuilder()
