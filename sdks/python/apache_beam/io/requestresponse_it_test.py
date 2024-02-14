@@ -140,19 +140,6 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
 
     cls.client = EchoHTTPCaller(http_endpoint_address)
 
-  def setUp(self) -> None:
-    client, options = EchoHTTPCallerTestIT._get_client_and_options()
-
-    req = Request(id=options.should_exceed_quota_id, payload=_PAYLOAD)
-    try:
-      # The following is needed to exceed the API
-      client(req)
-      client(req)
-      client(req)
-    except UserCodeExecutionException as e:
-      if not isinstance(e, UserCodeQuotaException):
-        raise e
-
   @classmethod
   def _get_client_and_options(cls) -> Tuple[EchoHTTPCaller, EchoITOptions]:
     assert cls.options is not None
@@ -173,7 +160,14 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
     client, options = EchoHTTPCallerTestIT._get_client_and_options()
 
     req = Request(id=options.should_exceed_quota_id, payload=_PAYLOAD)
-
+    try:
+      # The following is needed to exceed the API
+      client(req)
+      client(req)
+      client(req)
+    except UserCodeExecutionException as e:
+      if not isinstance(e, UserCodeQuotaException):
+        raise e
     self.assertRaises(UserCodeQuotaException, lambda: client(req))
 
   def test_not_found_should_raise(self):
