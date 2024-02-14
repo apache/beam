@@ -27,6 +27,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListStateGetRespons
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListRange;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListEntry;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -114,11 +116,19 @@ public class OrderedListUserState<T> {
         "OrderedList user state is no longer usable because it is closed for %s",
         request.getStateKey());
 
-    // Convert from {t:[v1, v2],s:[v3,v4]} to [tv1, tv2, sv3, sv4]
-    Iterable<TimestampedValue<T>> valuesInRange = Iterables.concat(
-        Iterables.transform(pendingAdds.subMap(minTimestamp, limitTimestamp).entrySet(),
-            (kv) -> Iterables.transform(kv.getValue(),
-                (v) -> TimestampedValue.of(v, kv.getKey()))));
+    // Store pendingAdds whose sort key is in the query range and values are truncated by the
+    // current size. The values (collections) of pendingAdds are kept, so that they will still be
+    // accessible in pre-existing iterables even after:
+    //   (1) a sort key is added to or removed from pendingAdds, or
+    //   (2) a new value is added to an existing sort key
+    ArrayList<PrefetchableIterable<TimestampedValue<T>>> pendingAddsInRange = new ArrayList<>();
+    for (Entry<Instant, Collection<T>> kv : pendingAdds.subMap(minTimestamp,
+        limitTimestamp).entrySet()) {
+      pendingAddsInRange.add(PrefetchableIterables.limit(
+          Iterables.transform(kv.getValue(), (v) -> TimestampedValue.of(v, kv.getKey())),
+          kv.getValue().size()));
+    }
+    Iterable<TimestampedValue<T>> valuesInRange = Iterables.concat(pendingAddsInRange);
 
     if (!isCleared) {
       StateRequest.Builder getRequestBuilder = this.request.toBuilder();
@@ -127,15 +137,21 @@ public class OrderedListUserState<T> {
           .getRangeBuilder()
           .setStart(minTimestamp.getMillis())
           .setEnd(limitTimestamp.getMillis());
-      CachingStateIterable<TimestampedValue<T>> oldValues =
+
+      // TODO: consider use cache here
+      CachingStateIterable<TimestampedValue<T>> persistentValues =
           StateFetchingIterators.readAllAndDecodeStartingFrom(
               Caches.noop(), this.beamFnStateClient, getRequestBuilder.build(),
               this.timestampedValueCoder);
 
-      Iterable<TimestampedValue<T>> oldValuesAfterRemoval =
-          Iterables.filter(oldValues, v -> !pendingRemoves.contains(v.getTimestamp()));
+      // Make a snapshot of the current pendingRemoves and use them to filter persistent values.
+      // The values of pendingRemoves are kept, so that they will still be accessible in
+      // pre-existing iterables even after a sort key is removed.
+      TreeRangeSet<Instant> pendingRemovesSnapshot = TreeRangeSet.create(pendingRemoves);
+      Iterable<TimestampedValue<T>> persistentValuesAfterRemoval =
+          Iterables.filter(persistentValues, v -> !pendingRemovesSnapshot.contains(v.getTimestamp()));
 
-      return Iterables.mergeSorted(ImmutableList.of(oldValuesAfterRemoval,
+      return Iterables.mergeSorted(ImmutableList.of(persistentValuesAfterRemoval,
           valuesInRange), Comparator.comparing(TimestampedValue::getTimestamp));
     }
 
@@ -159,7 +175,9 @@ public class OrderedListUserState<T> {
         "OrderedList user state is no longer usable because it is closed for %s",
         request.getStateKey());
 
-    // Remove items in the specific range from the list of items to be added
+    // Remove items (in a collection) in the specific range from pendingAdds.
+    // The old values of the removed sub map are kept, so that they will still be accessible in
+    // pre-existing iterables even after the sort key is cleared.
     pendingAdds.subMap(minTimestamp, true, limitTimestamp, false).clear();
     if (!isCleared)
       pendingRemoves.add(Range.range(minTimestamp, BoundType.CLOSED, limitTimestamp, BoundType.OPEN));
@@ -171,8 +189,12 @@ public class OrderedListUserState<T> {
         "OrderedList user state is no longer usable because it is closed for %s",
         request.getStateKey());
     isCleared = true;
+    // Create a new object for pendingRemoves and clear the mappings in pendingAdds.
+    // The entire tree range set of pendingRemoves and the old values in the pendingAdds are kept,
+    // so that they will still be accessible in pre-existing iterables even after the state is
+    // cleared.
+    pendingRemoves = TreeRangeSet.create();
     pendingAdds.clear();
-    pendingRemoves.clear();
   }
 
   // We construct and issue OrderedListStateUpdate requests to runners.

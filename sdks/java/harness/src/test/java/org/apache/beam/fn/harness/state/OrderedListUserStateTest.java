@@ -77,8 +77,7 @@ public class OrderedListUserStateTest {
             TimestampedValueCoder.of(StringUtf8Coder.of()),
             ImmutableMap.of(createOrderedListStateKey("A", 1), asList(A1, B1),
                             createOrderedListStateKey("A", 4), Collections.singletonList(A4),
-                            createOrderedListStateKey("A", 2), asList(A2, B2),
-                            createOrderedListStateKey("A", 3), Collections.singletonList(A3)));
+                            createOrderedListStateKey("A", 2), Collections.singletonList(A2)));
 
     OrderedListUserState<String> userState =
         new OrderedListUserState<>(
@@ -88,9 +87,26 @@ public class OrderedListUserStateTest {
             createOrderedListStateKey("A"),
             StringUtf8Coder.of());
 
-    assertArrayEquals(asList(A2, B2, A3).toArray(),
+    Iterable<TimestampedValue<String>> stateBeforeB2 = userState.readRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4));
+    assertArrayEquals(Collections.singletonList(A2).toArray(),
+        Iterables.toArray(stateBeforeB2, TimestampedValue.class));
+
+    // Add a new value to an existing sort key
+    userState.add(B2);
+    assertArrayEquals(Collections.singletonList(A2).toArray(),
+        Iterables.toArray(stateBeforeB2, TimestampedValue.class));
+    assertArrayEquals(asList(A2, B2).toArray(),
         Iterables.toArray(userState.readRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4)),
              TimestampedValue.class));
+
+    // Add a new value to a new sort key
+    userState.add(A3);
+    assertArrayEquals(Collections.singletonList(A2).toArray(),
+        Iterables.toArray(stateBeforeB2, TimestampedValue.class));
+    assertArrayEquals(asList(A2, B2, A3).toArray(),
+        Iterables.toArray(userState.readRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4)),
+            TimestampedValue.class));
+
     userState.asyncClose();
     assertThrows(IllegalStateException.class, () -> userState.readRange(Instant.ofEpochMilli(1), Instant.ofEpochMilli(2)));
   }
@@ -150,28 +166,41 @@ public class OrderedListUserStateTest {
             createOrderedListStateKey("A"),
             StringUtf8Coder.of());
 
+    Iterable<TimestampedValue<String>> initStateFrom2To3 = userState.readRange(
+        Instant.ofEpochMilli(2), Instant.ofEpochMilli(4));
+
     // clear range below the current timestamp range
     userState.clearRange(Instant.ofEpochMilli(-1), Instant.ofEpochMilli(0));
+    assertArrayEquals(asList(A2, B2, A3).toArray(),
+        Iterables.toArray(initStateFrom2To3, TimestampedValue.class));
     assertArrayEquals(asList(A1, B1, A2, B2, A3, A4).toArray(),
         Iterables.toArray(userState.read(), TimestampedValue.class));
 
     // clear range above the current timestamp range
     userState.clearRange(Instant.ofEpochMilli(5), Instant.ofEpochMilli(10));
+    assertArrayEquals(asList(A2, B2, A3).toArray(),
+        Iterables.toArray(initStateFrom2To3, TimestampedValue.class));
     assertArrayEquals(asList(A1, B1, A2, B2, A3, A4).toArray(),
         Iterables.toArray(userState.read(), TimestampedValue.class));
 
     // clear range that falls inside the current timestamp range
     userState.clearRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4));
+    assertArrayEquals(asList(A2, B2, A3).toArray(),
+        Iterables.toArray(initStateFrom2To3, TimestampedValue.class));
     assertArrayEquals(asList(A1, B1, A4).toArray(),
         Iterables.toArray(userState.read(), TimestampedValue.class));
 
     // clear range that partially covers the current timestamp range
     userState.clearRange(Instant.ofEpochMilli(3), Instant.ofEpochMilli(5));
+    assertArrayEquals(asList(A2, B2, A3).toArray(),
+        Iterables.toArray(initStateFrom2To3, TimestampedValue.class));
     assertArrayEquals(asList(A1, B1).toArray(),
         Iterables.toArray(userState.read(), TimestampedValue.class));
 
     // clear range that fully covers the current timestamp range
     userState.clearRange(Instant.ofEpochMilli(-1), Instant.ofEpochMilli(10));
+    assertArrayEquals(asList(A2, B2, A3).toArray(),
+        Iterables.toArray(initStateFrom2To3, TimestampedValue.class));
     assertThat(userState.read(), is(emptyIterable()));
 
     userState.asyncClose();
@@ -197,7 +226,10 @@ public class OrderedListUserStateTest {
             createOrderedListStateKey("A"),
             StringUtf8Coder.of());
 
+    Iterable<TimestampedValue<String>> stateBeforeClear = userState.read();
     userState.clear();
+    assertArrayEquals(asList(A1, B1, A2, B2, A3, A4).toArray(),
+        Iterables.toArray(stateBeforeClear, TimestampedValue.class));
     assertThat(userState.read(), is(emptyIterable()));
 
     userState.asyncClose();
@@ -222,31 +254,44 @@ public class OrderedListUserStateTest {
             createOrderedListStateKey("A"),
             StringUtf8Coder.of());
 
-    // add to an existing timestamp, clear, and then add
+    // add to a non-existing timestamp, clear, and then add
     userState.add(A2);
+    Iterable<TimestampedValue<String>> stateBeforeFirstClearRange = userState.read();
     userState.clearRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(3));
+    assertArrayEquals(asList(A1, A2, A3, A4).toArray(),
+        Iterables.toArray(stateBeforeFirstClearRange, TimestampedValue.class));
     assertArrayEquals(asList(A1, A3, A4).toArray(),
         Iterables.toArray(userState.read(), TimestampedValue.class));
-    userState.add(A2);
+    userState.add(B2);
     assertArrayEquals(asList(A1, A2, A3, A4).toArray(),
+        Iterables.toArray(stateBeforeFirstClearRange, TimestampedValue.class));
+    assertArrayEquals(asList(A1, B2, A3, A4).toArray(),
         Iterables.toArray(userState.read(), TimestampedValue.class));
 
-    // add to a nonexistent timestamp, clear, and then add
+    // add to an existing timestamp, clear, and then add
     userState.add(B1);
     userState.clearRange(Instant.ofEpochMilli(1), Instant.ofEpochMilli(2));
-    assertArrayEquals(asList(A2, A3, A4).toArray(),
-        Iterables.toArray(userState.read(), TimestampedValue.class));
-    userState.add(A1);
     assertArrayEquals(asList(A1, A2, A3, A4).toArray(),
+        Iterables.toArray(stateBeforeFirstClearRange, TimestampedValue.class));
+    assertArrayEquals(asList(B2, A3, A4).toArray(),
+        Iterables.toArray(userState.read(), TimestampedValue.class));
+    userState.add(B1);
+    assertArrayEquals(asList(A1, A2, A3, A4).toArray(),
+        Iterables.toArray(stateBeforeFirstClearRange, TimestampedValue.class));
+    assertArrayEquals(asList(B1, B2, A3, A4).toArray(),
         Iterables.toArray(userState.read(), TimestampedValue.class));
 
     // add a duplicated value, clear, and then add
     userState.add(A3);
     userState.clearRange(Instant.ofEpochMilli(3), Instant.ofEpochMilli(4));
-    assertArrayEquals(asList(A1, A2, A4).toArray(),
+    assertArrayEquals(asList(A1, A2, A3, A4).toArray(),
+        Iterables.toArray(stateBeforeFirstClearRange, TimestampedValue.class));
+    assertArrayEquals(asList(B1, B2, A4).toArray(),
         Iterables.toArray(userState.read(), TimestampedValue.class));
     userState.add(A3);
     assertArrayEquals(asList(A1, A2, A3, A4).toArray(),
+        Iterables.toArray(stateBeforeFirstClearRange, TimestampedValue.class));
+    assertArrayEquals(asList(B1, B2, A3, A4).toArray(),
         Iterables.toArray(userState.read(), TimestampedValue.class));
   }
 
