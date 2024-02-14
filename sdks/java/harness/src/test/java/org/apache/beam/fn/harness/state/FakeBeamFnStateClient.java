@@ -257,7 +257,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
           returnBlock = byteStrings.get(index);
 
           if (byteStrings.size() > index + 1) {
-            // more blocks in from this sort key
+            // more blocks from this sort key
             index += 1;
           } else {
             // finish navigating the current sort key and need to find the next one,

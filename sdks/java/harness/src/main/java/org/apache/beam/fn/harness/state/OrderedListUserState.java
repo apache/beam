@@ -71,28 +71,16 @@ import org.joda.time.Instant;
  * pressure and its need to flush.
  */
 public class OrderedListUserState<T> {
-  // private final Cache<?, ?> cache;
   private final BeamFnStateClient beamFnStateClient;
   private final StateRequest request;
   private final Coder<T> valueCoder;
   private final TimestampedValueCoder<T> timestampedValueCoder;
-
-  // Values retrieved from persistent storage
-  // private CachingStateIterable<TimestampedValue<T>> oldValues = null;
-
   // Pending updates to persistent storage
   private NavigableMap<Instant, Collection<T>> pendingAdds = Maps.newTreeMap();
   private TreeRangeSet<Instant> pendingRemoves = TreeRangeSet.create();
 
   private boolean isCleared = false;
   private boolean isClosed = false;
-
-  // // When keeping states in SDK, We will assign each TimestampedValue with a unique
-  // // local id in case we have multiple same TimestampedValue.
-  // class TimestampedValueWithId<T> {
-  //   private final TimestampedValue<T> value;
-  //   private final long localId;
-  // }
 
   public OrderedListUserState(
       Cache<?, ?> cache,
@@ -104,7 +92,6 @@ public class OrderedListUserState<T> {
         stateKey.hasOrderedListUserState(),
         "Expected OrderedListUserState StateKey but received %s.",
         stateKey);
-    // this.cache = cache;
     this.beamFnStateClient = beamFnStateClient;
     this.valueCoder = valueCoder;
     this.timestampedValueCoder = TimestampedValueCoder.of(this.valueCoder);
@@ -112,9 +99,6 @@ public class OrderedListUserState<T> {
         StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build();
   }
 
-  // We will have an in-memory data structure to keep tracking any new added
-  // values. While keeping in-memory, the TimestampedValue will be assigned a
-  // unique local id.
   public void add(TimestampedValue<T> value) {
     checkState(
         !isClosed,
@@ -125,8 +109,6 @@ public class OrderedListUserState<T> {
     pendingAdds.get(timestamp).add(value.getValue());
   }
 
-  // An OrderedListStateGetRequest will be issued to runners. Final result should
-  // be a combination of OrderedStateGetResponse and in-memory added values.
   public Iterable<TimestampedValue<T>> readRange(Instant minTimestamp, Instant limitTimestamp) {
     checkState(
         !isClosed,
@@ -184,8 +166,6 @@ public class OrderedListUserState<T> {
     return readRange(Instant.ofEpochMilli(Long.MIN_VALUE), Instant.ofEpochMilli(Long.MAX_VALUE));
   }
 
-  // We will have an in-memory data structure to keep tracking all removed ranges.
-  // New added values will also be removed if the timestamp is within the range.
   public void clearRange(Instant minTimestamp, Instant limitTimestamp) {
     checkState(
         !isClosed,
@@ -214,7 +194,6 @@ public class OrderedListUserState<T> {
     pendingAdds.clear();
   }
 
-  // We construct and issue OrderedListStateUpdate requests to runners.
   public void asyncClose() throws Exception {
     isClosed = true;
 

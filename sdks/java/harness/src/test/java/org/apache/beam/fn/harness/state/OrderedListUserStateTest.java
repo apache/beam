@@ -52,7 +52,6 @@ public class OrderedListUserStateTest {
 
   private final String pTransformId = "pTransformId";
   private final String stateId = "stateId";
-  // private final String encodedKey = "encodedKey";
   private final String encodedWindow = "encodedWindow";
 
   @Test
@@ -524,16 +523,4 @@ public class OrderedListUserStateTest {
                 .setSortKey(sort_key))
         .build();
   }
-
-  // private StateKey createOrderedListStateKey(String key, long start, long end) throws IOException {
-  //   return StateKey.newBuilder()
-  //       .setOrderedListUserState(
-  //           StateKey.OrderedListUserState.newBuilder()
-  //               .setWindow(encode(encodedWindow))
-  //               .setTransformId(pTransformId)
-  //               .setUserStateId(stateId)
-  //               .setKey(encode(key))
-  //               .setRange(OrderedListRange.newBuilder().setStart(start).setEnd(end)))
-  //       .build();
-  // }
 }
