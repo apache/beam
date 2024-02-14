@@ -53,7 +53,6 @@ dependencies {
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation project(path: ":sdks:java:extensions:avro")
   implementation project(path: ":sdks:java:transform-service:launcher")
   implementation library.java.vendored_grpc_1_60_1
   implementation library.java.vendored_guava_32_1_2_jre
@@ -63,7 +62,6 @@ dependencies {
   implementation library.java.joda_time
   implementation library.java.slf4j_api
   implementation library.java.jackson_annotations
-  implementation library.java.avro
   compileOnly library.java.error_prone_annotations
   // Avro 1.8 leaks an older version of parameter that conflicts in runtime with the dependencies
   // of some runners so we need to fix it to a more recent but still compatible version.
