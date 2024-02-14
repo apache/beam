@@ -95,6 +95,7 @@ import io.grpc.Status;
 import io.grpc.Status.Code;
 import io.grpc.protobuf.ProtoUtils;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -131,6 +132,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -937,6 +939,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
       private final List<TableDataInsertAllRequest.Rows> rows;
       private final AtomicLong maxThrottlingMsec;
       private final Sleeper sleeper;
+      private final BigQuerySinkMetrics.StreamingInsertsResults result;
 
       InsertBatchofRowsCallable(
           TableReference ref,
@@ -946,7 +949,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
           FluentBackoff rateLimitBackoffFactory,
           List<TableDataInsertAllRequest.Rows> rows,
           AtomicLong maxThrottlingMsec,
-          Sleeper sleeper) {
+          Sleeper sleeper,
+          BigQuerySinkMetrics.StreamingInsertsResults result) {
         this.ref = ref;
         this.skipInvalidRows = skipInvalidRows;
         this.ignoreUnkownValues = ignoreUnknownValues;
@@ -955,6 +959,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
         this.rows = rows;
         this.maxThrottlingMsec = maxThrottlingMsec;
         this.sleeper = sleeper;
+        this.result = result;
       }
 
       @Override
@@ -975,6 +980,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
         long totalBackoffMillis = 0L;
         while (true) {
           ServiceCallMetric serviceCallMetric = BigQueryUtils.writeCallMetric(ref);
+          Instant start = Instant.now();
           try {
             List<TableDataInsertAllResponse.InsertErrors> response =
                 insert.execute().getInsertErrors();
@@ -987,14 +993,20 @@ public class BigQueryServicesImpl implements BigQueryServices {
                 }
               }
             }
+            result.rpcLatencies.add(java.time.Duration.between(start, Instant.now()));
+            result.rpcStatus.add(BigQuerySinkMetrics.OK);
             return response;
           } catch (IOException e) {
+            result.rpcLatencies.add(java.time.Duration.between(start, Instant.now()));
             GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
             if (errorInfo == null) {
               serviceCallMetric.call(ServiceCallMetric.CANONICAL_STATUS_UNKNOWN);
+              result.rpcStatus.add(BigQuerySinkMetrics.UNKNOWN);
               throw e;
             }
-            serviceCallMetric.call(errorInfo.getReason());
+            String errorReason = errorInfo.getReason();
+            serviceCallMetric.call(errorReason);
+            result.rpcStatus.add(errorReason);
             /**
              * TODO(BEAM-10584): Check for QUOTA_EXCEEDED error will be replaced by
              * ApiErrorExtractor.INSTANCE.quotaExceeded(e) after the next release of
@@ -1031,6 +1043,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
               totalBackoffMillis += nextBackOffMillis;
               final long totalBackoffMillisSoFar = totalBackoffMillis;
               maxThrottlingMsec.getAndUpdate(current -> Math.max(current, totalBackoffMillisSoFar));
+              result.retriedRowsByStatus.add(KV.of(errorReason, rows.size()));
             } catch (InterruptedException interrupted) {
               throw new IOException("Interrupted while waiting before retrying insertAll");
             }
@@ -1067,7 +1080,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
             "If insertIdList is not null it needs to have at least "
                 + "as many elements as rowList");
       }
-
+      BigQuerySinkMetrics.StreamingInsertsResults streamingInsertsResults =
+          new BigQuerySinkMetrics.StreamingInsertsResults();
       final Set<Integer> failedIndices = new HashSet<>();
       long retTotalDataSize = 0;
       List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
@@ -1124,6 +1138,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                           + " pipeline, and the row will be output as a failed insert.",
                       nextRowSize));
             } else {
+              streamingInsertsResults.failedRowsCount.getAndIncrement();
               errorContainer.add(failedInserts, error, ref, rowsToPublish.get(rowIndex));
               failedIndices.add(rowIndex);
               rowIndex++;
@@ -1150,7 +1165,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
                         rateLimitBackoffFactory,
                         rows,
                         maxThrottlingMsec,
-                        sleeper)));
+                        sleeper,
+                        streamingInsertsResults)));
             strideIndices.add(strideIndex);
             retTotalDataSize += dataSize;
             strideIndex = rowIndex;
@@ -1180,7 +1196,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
                       rateLimitBackoffFactory,
                       rows,
                       maxThrottlingMsec,
-                      sleeper)));
+                      sleeper,
+                      streamingInsertsResults)));
           strideIndices.add(strideIndex);
           retTotalDataSize += dataSize;
           rows = new ArrayList<>();
@@ -1209,16 +1226,19 @@ public class BigQueryServicesImpl implements BigQueryServices {
                   retryIds.add(idsToPublish.get(errorIndex));
                 }
               } else {
+                streamingInsertsResults.failedRowsCount.getAndIncrement();
                 errorContainer.add(failedInserts, error, ref, rowsToPublish.get(errorIndex));
               }
             }
           }
+          streamingInsertsResults.internalRetriedRowsCount.getAndAdd(retryRows.size());
           // Accumulate the longest throttled time across all parallel threads
           throttlingMsecs.inc(maxThrottlingMsec.get());
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new IOException("Interrupted while inserting " + rowsToPublish);
         } catch (ExecutionException e) {
+          BigQuerySinkMetrics.updateStreamingInsertsMetrics(streamingInsertsResults, ref);
           throw new RuntimeException(e.getCause());
         }
 
@@ -1258,6 +1278,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
           }
         }
       }
+      streamingInsertsResults.failedRowsCount.getAndAdd(allErrors.size());
+      streamingInsertsResults.successfulRowsCount.set(
+          rowList.size() - streamingInsertsResults.failedRowsCount.get());
+      BigQuerySinkMetrics.updateStreamingInsertsMetrics(streamingInsertsResults, ref);
       if (!allErrors.isEmpty()) {
         throw new IOException("Insert failed: " + allErrors);
       } else {

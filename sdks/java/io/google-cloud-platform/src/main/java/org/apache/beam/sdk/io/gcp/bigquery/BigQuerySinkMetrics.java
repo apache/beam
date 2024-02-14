@@ -17,13 +17,20 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.auto.value.AutoValue;
 import io.grpc.Status;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.Operation.Context;
@@ -33,6 +40,8 @@ import org.apache.beam.sdk.metrics.DelegatingHistogram;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
@@ -49,8 +58,9 @@ public class BigQuerySinkMetrics {
   public static final String METRICS_NAMESPACE = "BigQuerySink";
 
   // Status codes
-  private static final String UNKNOWN = Status.Code.UNKNOWN.toString();
+  public static final String UNKNOWN = Status.Code.UNKNOWN.toString();
   public static final String OK = Status.Code.OK.toString();
+  private static final String INTERNAL = "INTERNAL";
   public static final String PAYLOAD_TOO_LARGE = "PayloadTooLarge";
 
   // Base Metric names
@@ -61,6 +71,7 @@ public class BigQuerySinkMetrics {
 
   // StorageWriteAPI Method names
   enum RpcMethod {
+    STREAMING_INSERTS,
     APPEND_ROWS,
     FLUSH_ROWS,
     FINALIZE_STREAM
@@ -167,8 +178,8 @@ public class BigQuerySinkMetrics {
    *     'RpcRequests-Method:{method}RpcStatus:{status};TableId:{tableId}' TableId label is dropped
    *     if 'supportsMetricsDeletion' is not enabled.
    */
-  private static Counter createRPCRequestCounter(
-      RpcMethod method, String rpcStatus, String tableId) {
+  @VisibleForTesting
+  static Counter createRPCRequestCounter(RpcMethod method, String rpcStatus, String tableId) {
     NavigableMap<String, String> metricLabels = new TreeMap<String, String>();
     metricLabels.put(RPC_STATUS_LABEL, rpcStatus);
     metricLabels.put(RPC_METHOD, method.toString());
@@ -324,6 +335,79 @@ public class BigQuerySinkMetrics {
     String statusCode = throwableToGRPCCodeString(c.getError());
     createRPCRequestCounter(method, statusCode, tableId).inc(1);
     updateRpcLatencyMetric(c, method);
+  }
+
+  public static class StreamingInsertsResults {
+    final ConcurrentLinkedQueue<java.time.Duration> rpcLatencies = new ConcurrentLinkedQueue<>();
+    final ConcurrentLinkedQueue<String> rpcStatus = new ConcurrentLinkedQueue<>();
+    // Represents <Rpc Status, Number of Rows> for rows that are retried because the InesrtAll RPC
+    // returned an error.
+    final ConcurrentLinkedQueue<KV<String, Integer>> retriedRowsByStatus =
+        new ConcurrentLinkedQueue<>();
+    final AtomicInteger successfulRowsCount = new AtomicInteger();
+    final AtomicInteger failedRowsCount = new AtomicInteger();
+    // Rows that were retried due to an internal BigQuery Error even though the InesrtAll RPC
+    // succeeded.
+    final AtomicInteger internalRetriedRowsCount = new AtomicInteger();
+  }
+
+  /**
+   * Update the {@code RpcRequestsCount}, {@code RpcLatency}, and {@code RowsAppendedCount} metrics
+   * based on the results of StreamingInserts RPC calls.
+   *
+   * @param results Result of StreamingInsert RPC calls
+   * @param tableRef BigQuery table that was written to.
+   */
+  public static void updateStreamingInsertsMetrics(
+      StreamingInsertsResults results, TableReference tableRef) {
+    if (results == null || tableRef == null) {
+      return;
+    }
+
+    String shortTableId =
+        String.format("datasets/%s/tables/%s", tableRef.getDatasetId(), tableRef.getTableId());
+    Map<String, Integer> rpcRequetsRpcStatusMap = new HashMap<>();
+    Map<String, Integer> retriedRowsRpcStatusMap = new HashMap<>();
+
+    for (String status : results.rpcStatus) {
+      Integer currentVal = rpcRequetsRpcStatusMap.getOrDefault(status, 0);
+      rpcRequetsRpcStatusMap.put(status, currentVal + 1);
+    }
+
+    for (KV<String, Integer> retryCountByStatus : results.retriedRowsByStatus) {
+      Integer currentVal = retriedRowsRpcStatusMap.getOrDefault(retryCountByStatus.getKey(), 0);
+      retriedRowsRpcStatusMap.put(
+          retryCountByStatus.getKey(), currentVal + retryCountByStatus.getValue());
+    }
+
+    for (Entry<String, Integer> entry : rpcRequetsRpcStatusMap.entrySet()) {
+      createRPCRequestCounter(RpcMethod.STREAMING_INSERTS, entry.getKey(), shortTableId)
+          .inc(entry.getValue());
+    }
+
+    for (Entry<String, Integer> entry : retriedRowsRpcStatusMap.entrySet()) {
+      appendRowsRowStatusCounter(RowStatus.RETRIED, entry.getKey(), shortTableId)
+          .inc(entry.getValue());
+    }
+
+    if (results.internalRetriedRowsCount.get() != 0) {
+      appendRowsRowStatusCounter(RowStatus.RETRIED, INTERNAL, shortTableId)
+          .inc(results.internalRetriedRowsCount.longValue());
+    }
+    if (results.failedRowsCount.get() != 0) {
+      appendRowsRowStatusCounter(RowStatus.FAILED, INTERNAL, shortTableId)
+          .inc(results.failedRowsCount.longValue());
+    }
+    if (results.successfulRowsCount.get() != 0) {
+      appendRowsRowStatusCounter(RowStatus.SUCCESSFUL, OK, shortTableId)
+          .inc(results.successfulRowsCount.longValue());
+    }
+
+    Histogram latencyHistogram =
+        BigQuerySinkMetrics.createRPCLatencyHistogram(RpcMethod.STREAMING_INSERTS);
+    for (Duration duration : results.rpcLatencies) {
+      latencyHistogram.update(duration.toMillis());
+    }
   }
 
   public static void setSupportMetricsDeletion(boolean supportMetricsDeletion) {
