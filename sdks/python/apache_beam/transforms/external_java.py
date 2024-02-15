@@ -122,7 +122,7 @@ class JavaExternalTransformTest(object):
   @staticmethod
   def run_pipeline(pipeline_options, expansion_service, wait_until_finish=True):
     # The actual definitions of these transforms is in
-    # org.apache.beam.runners.core.construction.TestExpansionService.
+    # org.apache.beam.sdk.util.construction.TestExpansionService.
     TEST_COUNT_URN = "beam:transforms:xlang:count"
     TEST_FILTER_URN = "beam:transforms:xlang:filter_less_than_eq"
 
