@@ -238,7 +238,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected abstract void appendSpecificHtml(PrintWriter writer);
 
   @Override
-  public synchronized void close() {
+  public final synchronized void close() {
     // Synchronization of close and onCompleted necessary for correct retry logic in onNewStream.
     clientClosed.set(true);
     requestObserver().onCompleted();
