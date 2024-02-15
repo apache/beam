@@ -50,38 +50,28 @@
 #  destinations:
 #    python: 'apache_beam/io/gcp'
 #  transforms:
-#    'beam:schematransform:org.apache.beam:bigquery_storage_write:v2':
-#      name: 'StorageWriteToBigQuery'
-#    'beam:schematransform:org.apache.beam:bigquery_storage_read:v1':
-#      name: 'StorageReadFromBigQuery'
-#    'beam:schematransform:org.apache.beam:bigquery_fileloads_write:v1':
-#      name: 'FileLoadsToBigQuery'
-#    'beam:schematransform:org.apache.beam:bigquery_export_read:v1':
-#      name: 'ExportReadFromBigQuery'
-#    'beam:schematransform:org.apache.beam:bigtable_write:v1':
-#      name: 'WriteToBigtable'
-#    'beam:schematransform:org.apache.beam:bigtable_read:v1':
-#      name: 'ReadFromBigtable'
-#    'beam:schematransform:org.apache.beam:pubsub_read:v1':
-#      name: 'ReadFromPubSub'
-#    'beam:schematransform:org.apache.beam:pubsub_write:v1':
-#      name: 'WriteToPubSub'
-#    'beam:schematransform:org.apache.beam:pubsublite_read:v1':
-#      name: 'ReadFromPubSubLite'
-#    'beam:schematransform:org.apache.beam:pubsublite_write:v1':
-#      name: 'WriteToPubSubLite'
 #    'beam:schematransform:org.apache.beam:spanner_cdc_read:v1':
 #      name: 'ReadFromSpannerChangeStreams'
-#    'beam:schematransform:org.apache.beam:spanner_write:v1':
-#      name: 'WriteToSpanner'
-#    'beam:schematransform:org.apache.beam:jdbc_write:v1':
-#      name: 'WriteToJdbc'
-#      destinations:
-#        python: 'apache_beam/io'
-#    'beam:schematransform:org.apache.beam:jdbc_read:v1':
-#      name: 'ReadFromJdbc'
-#      destinations:
-#        python: 'apache_beam/io'
 #  skip_transforms:
 #    # generate_sequence is already included in the Java IO expansion service
 #    - 'beam:schematransform:org.apache.beam:generate_sequence:v1'
+#    # Handwritten wrappers exist in apache_beam/io/gcp/pubsublite/
+#    - 'beam:schematransform:org.apache.beam:pubsublite_read:v1'
+#    - 'beam:schematransform:org.apache.beam:pubsublite_write:v1'
+#    # Handwritten wrapper exists in apache_beam/io/gcp/spanner.py
+#    - 'beam:schematransform:org.apache.beam:spanner_write:v1'
+#    # Native IO exists in apache_beam/io/gcp/pubsub.py
+#    - 'beam:schematransform:org.apache.beam:pubsub_read:v1'
+#    - 'beam:schematransform:org.apache.beam:pubsub_write:v1'
+#    # Native IO exists in apache_beam/io/gcp/bigquery.py
+#    - 'beam:schematransform:org.apache.beam:bigquery_fileloads_write:v1'
+#    - 'beam:schematransform:org.apache.beam:bigquery_export_read:v1'
+#    - 'beam:schematransform:org.apache.beam:bigquery_storage_write:v2'
+#    - 'beam:schematransform:org.apache.beam:bigquery_storage_read:v1'
+##    - 'beam:schematransform:org.apache.beam:bigquery_storage_write:v2'
+#    # Handwritten wrappers exists in apache_beam/io/jdbc.py
+#    - 'beam:schematransform:org.apache.beam:jdbc_write:v1'
+#    - 'beam:schematransform:org.apache.beam:jdbc_read:v1'
+#    # Handwritten wrappers exist in apache_beam/io/gcp/bigtableio.py
+#    - 'beam:schematransform:org.apache.beam:bigtable_write:v1'
+#    - 'beam:schematransform:org.apache.beam:bigtable_read:v1'

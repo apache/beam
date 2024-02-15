@@ -109,9 +109,6 @@ class NameAndTypeUtilsTest(unittest.TestCase):
 
 
 @pytest.mark.uses_io_java_expansion_service
-@unittest.skipUnless(
-    os.environ.get('EXPANSION_PORT'),
-    "EXPANSION_PORT environment var is not provided.")
 class ExternalTransformProviderTest(unittest.TestCase):
   def test_generate_sequence_config_schema_and_description(self):
     provider = ExternalTransformProvider(
@@ -144,9 +141,6 @@ class ExternalTransformProviderTest(unittest.TestCase):
 
 
 @pytest.mark.xlang_wrapper_generation
-@unittest.skipUnless(
-    os.environ.get('EXPANSION_PORTS'),
-    "EXPANSION_PORTS environment var is not provided.")
 class AutoGenerationScriptTest(unittest.TestCase):
   """
   This class tests the generation and regeneration operations in

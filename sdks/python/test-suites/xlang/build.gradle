@@ -16,28 +16,8 @@
  * limitations under the License.
  */
 // This is a base file to set up cross language tests for different runners
-import org.apache.beam.gradle.BeamModulePlugin
 import static org.apache.beam.gradle.BeamModulePlugin.CrossLanguageTask
 project.evaluationDependsOn(":sdks:python")
-
-// Set up cross language tests
-def envDir = project.project(":sdks:python").envdir
-def jobPort = BeamModulePlugin.getRandomPort()
-def tmpDir = System.getenv("TMPDIR") ?: System.getenv("WORKSPACE") ?: "/tmp"
-def pidFile = "${tmpDir}/local_job_service_main-${jobPort}.pid"
-
-def setupTask = project.tasks.register("fnApiJobServerSetup", Exec) {
-  dependsOn ':sdks:python:installGcpTest'
-
-  executable 'sh'
-  args '-c', ". ${envDir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --job_port ${jobPort} --pid_file ${pidFile} --background --stdout_file ${tmpDir}/beam-fnapi-job-server.log"
-}
-
-def cleanupTask = project.tasks.register("fnApiJobServerCleanup", Exec) {
-  executable 'sh'
-  args '-c', ". ${envDir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --pid_file ${pidFile} --stop"
-}
-
 
 // ******** Java GCP expansion service ********
 // Note: this only runs cross-language tests that use the Java GCP expansion service
@@ -51,16 +31,12 @@ def gcpXlang = new CrossLanguageTask().tap {
     name = "gcpCrossLanguage"
     expansionProjectPaths = [gcpExpansionPath]
     collectMarker = "uses_gcp_java_expansion_service"
-    startJobServer = setupTask
-    cleanupJobServer = cleanupTask
 }
 
 def ioXlang = new CrossLanguageTask().tap {
     name = "ioCrossLanguage"
     expansionProjectPaths = [ioExpansionPath]
     collectMarker = "uses_io_java_expansion_service"
-    startJobServer = setupTask
-    cleanupJobServer = cleanupTask
     //See .test-infra/kafka/bitnami/README.md for setup instructions
     additionalEnvs = ["KAFKA_BOOTSTRAP_SERVER":project.findProperty('kafkaBootstrapServer')]
 }
@@ -71,8 +47,6 @@ def xlangWrapperValidation = new CrossLanguageTask().tap {
     name = "xlangWrapperValidation"
     expansionProjectPaths = servicesToGenerateFrom
     collectMarker = "xlang_wrapper_generation"
-    startJobServer = setupTask
-    cleanupJobServer = cleanupTask
     // update Jinja2 bounds in pyproject.toml as well
     additionalDeps = ['\"Jinja2>=2.7.1,<4.0.0\"']
 }

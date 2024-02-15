@@ -508,8 +508,6 @@ project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
       name: taskMetadata.name,
       expansionProjectPaths: taskMetadata.expansionProjectPaths,
       collectMarker: taskMetadata.collectMarker,
-      startJobServer: taskMetadata.startJobServer,
-      cleanupJobServer: taskMetadata.cleanupJobServer,
       pythonPipelineOptions: [
         "--runner=TestDataflowRunner",
         "--project=${dataflowProject}",

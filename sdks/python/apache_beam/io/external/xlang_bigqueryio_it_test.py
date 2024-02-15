@@ -20,7 +20,6 @@
 
 import datetime
 import logging
-import os
 import secrets
 import time
 import unittest
@@ -112,10 +111,6 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     _LOGGER.info(
         "Created dataset %s in project %s", self.dataset_id, self.project)
 
-    self.assertTrue(
-        os.environ.get('EXPANSION_PORT'), "Expansion service port not found!")
-    self.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
-
   def tearDown(self):
     try:
       _LOGGER.info(
@@ -162,8 +157,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               table=table_id,
               method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
               schema=schema,
-              use_at_least_once=use_at_least_once,
-              expansion_service=self.expansion_service))
+              use_at_least_once=use_at_least_once))
     hamcrest_assert(p, bq_matcher)
 
   def test_all_types(self):
@@ -243,8 +237,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
       _ = (
           p
           | beam.Create(row_elements)
-          | StorageWriteToBigQuery(
-              table=table_id, expansion_service=self.expansion_service))
+          | StorageWriteToBigQuery(table=table_id))
     hamcrest_assert(p, bq_matcher)
 
   def test_write_to_dynamic_destinations(self):
@@ -268,8 +261,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               table=lambda record: spec_with_project + str(record['int']),
               method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
               schema=self.ALL_TYPES_SCHEMA,
-              use_at_least_once=False,
-              expansion_service=self.expansion_service))
+              use_at_least_once=False))
     hamcrest_assert(p, all_of(*bq_matchers))
 
   def test_write_to_dynamic_destinations_with_beam_rows(self):
@@ -303,8 +295,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           | beam.io.WriteToBigQuery(
               table=lambda record: spec_with_project + str(record.my_int),
               method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
-              use_at_least_once=False,
-              expansion_service=self.expansion_service))
+              use_at_least_once=False))
     hamcrest_assert(p, all_of(*bq_matchers))
 
   def run_streaming(self, table_name, num_streams=0, use_at_least_once=False):
@@ -335,8 +326,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               triggering_frequency=1,
               with_auto_sharding=auto_sharding,
               num_storage_api_streams=num_streams,
-              use_at_least_once=use_at_least_once,
-              expansion_service=self.expansion_service))
+              use_at_least_once=use_at_least_once))
     hamcrest_assert(p, bq_matcher)
 
   def skip_if_not_dataflow_runner(self) -> bool:
