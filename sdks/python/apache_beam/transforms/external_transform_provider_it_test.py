@@ -109,7 +109,7 @@ class NameAndTypeUtilsTest(unittest.TestCase):
 
 
 @pytest.mark.uses_io_java_expansion_service
-class ExternalTransformProviderTest(unittest.TestCase):
+class ExternalTransformProviderIT(unittest.TestCase):
   def test_generate_sequence_config_schema_and_description(self):
     provider = ExternalTransformProvider(
         BeamJarExpansionService(":sdks:java:io:expansion-service:shadowJar"))
@@ -141,7 +141,7 @@ class ExternalTransformProviderTest(unittest.TestCase):
 
 
 @pytest.mark.xlang_wrapper_generation
-class AutoGenerationScriptTest(unittest.TestCase):
+class AutoGenerationScriptIT(unittest.TestCase):
   """
   This class tests the generation and regeneration operations in
   `gen_xlang_wrappers.py`.
