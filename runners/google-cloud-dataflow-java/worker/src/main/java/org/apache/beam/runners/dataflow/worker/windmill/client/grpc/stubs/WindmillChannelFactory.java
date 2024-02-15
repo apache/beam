@@ -48,7 +48,7 @@ public final class WindmillChannelFactory {
         .build();
   }
 
-  static Channel remoteChannel(
+  static ManagedChannel remoteChannel(
       WindmillServiceAddress windmillServiceAddress, int windmillServiceRpcChannelTimeoutSec) {
     switch (windmillServiceAddress.getKind()) {
       case IPV6:
@@ -63,7 +63,7 @@ public final class WindmillChannelFactory {
     }
   }
 
-  public static Channel remoteChannel(
+  public static ManagedChannel remoteChannel(
       HostAndPort endpoint, int windmillServiceRpcChannelTimeoutSec) {
     try {
       return createRemoteChannel(
@@ -85,7 +85,7 @@ public final class WindmillChannelFactory {
     }
   }
 
-  public static Channel remoteChannel(
+  public static ManagedChannel remoteChannel(
       Inet6Address directEndpoint, int windmillServiceRpcChannelTimeoutSec) {
     try {
       return createRemoteChannel(
@@ -97,7 +97,7 @@ public final class WindmillChannelFactory {
   }
 
   @SuppressWarnings("nullness")
-  private static Channel createRemoteChannel(
+  private static ManagedChannel createRemoteChannel(
       NettyChannelBuilder channelBuilder, int windmillServiceRpcChannelTimeoutSec)
       throws SSLException {
     if (windmillServiceRpcChannelTimeoutSec > 0) {

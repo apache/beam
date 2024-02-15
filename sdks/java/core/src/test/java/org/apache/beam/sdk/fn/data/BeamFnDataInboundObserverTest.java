@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -146,10 +147,15 @@ public class BeamFnDataInboundObserverTest {
             Arrays.asList(DataEndpoint.create(TRANSFORM_ID, CODER, (value) -> {})),
             Collections.emptyList());
 
+    AtomicBoolean isReady = new AtomicBoolean(false);
     Future<?> future =
         executor.submit(
             () -> {
               observer.accept(dataWith("ABC"));
+              synchronized (isReady) {
+                isReady.set(true);
+                isReady.notify();
+              }
               assertThrows(
                   BeamFnDataInboundObserver.CloseException.class,
                   () -> {
@@ -165,6 +171,11 @@ public class BeamFnDataInboundObserverTest {
     Future<?> future2 =
         executor.submit(
             () -> {
+              synchronized (isReady) {
+                while (!isReady.get()) {
+                  isReady.wait();
+                }
+              }
               observer.close();
               return null;
             });
