@@ -163,7 +163,7 @@ class TFHubEmbeddingsTest(unittest.TestCase):
 class TFHubEmbeddingsGCSArtifactLocationTest(TFHubEmbeddingsTest):
   def setUp(self):
     self.artifact_location = os.path.join(
-        'gs://temp-storage-for-perf-tests/vertex_ai', uuid.uuid4().hex)
+        'gs://temp-storage-for-perf-tests/tfhub', uuid.uuid4().hex)
 
   def tearDown(self):
     pass
