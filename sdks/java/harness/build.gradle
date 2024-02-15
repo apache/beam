@@ -86,7 +86,7 @@ ext.summary = "This contains the SDK Fn Harness for Beam Java"
 dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   implementation project(path: ":model:fn-execution", configuration: "shadow")
-  implementation project(":runners:core-construction-java")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":runners:core-java")
   permitUnusedDeclared project(path: ":sdks:java:transform-service:launcher")
   testImplementation library.java.junit

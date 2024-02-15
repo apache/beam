@@ -2591,7 +2591,6 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.evaluationDependsOn(":sdks:python")
       project.evaluationDependsOn(config.expansionProjectPath)
-      project.evaluationDependsOn(":runners:core-construction-java")
       project.evaluationDependsOn(":sdks:java:extensions:python")
 
       // Setting up args to launch the expansion service
@@ -2685,7 +2684,6 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.evaluationDependsOn(":sdks:python")
       project.evaluationDependsOn(":sdks:java:testing:expansion-service")
-      project.evaluationDependsOn(":runners:core-construction-java")
       project.evaluationDependsOn(":sdks:java:extensions:python")
       project.evaluationDependsOn(":sdks:go:test")
 
@@ -2750,11 +2748,9 @@ class BeamModulePlugin implements Plugin<Project> {
           systemProperty "expansionPort", port
           systemProperty "semiPersistDir", config.semiPersistDir
           classpath = config.classpath + project.files(
-              project.project(":runners:core-construction-java").sourceSets.test.runtimeClasspath,
               project.project(":sdks:java:extensions:python").sourceSets.test.runtimeClasspath
               )
           testClassesDirs = project.files(
-              project.project(":runners:core-construction-java").sourceSets.test.output.classesDirs,
               project.project(":sdks:java:extensions:python").sourceSets.test.output.classesDirs
               )
           maxParallelForks config.numParallelTests
@@ -2861,7 +2857,6 @@ class BeamModulePlugin implements Plugin<Project> {
       def config = it ? it as TransformServiceConfiguration : new TransformServiceConfiguration()
 
       project.evaluationDependsOn(":sdks:python")
-      project.evaluationDependsOn(":runners:core-construction-java")
       project.evaluationDependsOn(":sdks:java:extensions:python")
       project.evaluationDependsOn(":sdks:java:transform-service:app")
 
