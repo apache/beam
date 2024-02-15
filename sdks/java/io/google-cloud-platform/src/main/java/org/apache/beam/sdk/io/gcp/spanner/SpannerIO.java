@@ -31,6 +31,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.StatusCode.Code;
+import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
@@ -68,6 +69,7 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.MetadataSpannerConfigFactory;
@@ -1687,6 +1689,15 @@ public class SpannerIO {
                         .build())
                 .build();
       }
+      // If credentials are not set in SpannerConfig, check pipeline options for credentials.
+      if (changeStreamSpannerConfig.getCredentials() == null) {
+        final Credentials credentials =
+            input.getPipeline().getOptions().as(GcpOptions.class).getGcpCredential();
+        if (credentials != null) {
+          changeStreamSpannerConfig = changeStreamSpannerConfig.withCredentials(credentials);
+        }
+      }
+
       final SpannerConfig partitionMetadataSpannerConfig =
           MetadataSpannerConfigFactory.create(
               changeStreamSpannerConfig, partitionMetadataInstanceId, partitionMetadataDatabaseId);

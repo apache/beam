@@ -298,30 +298,22 @@ public abstract class SpannerConfig implements Serializable {
     return toBuilder().setPartitionQueryTimeout(partitionQueryTimeout).build();
   }
 
-  /**
-   * Specifies the PartitionRead timeout.
-   */
+  /** Specifies the PartitionRead timeout. */
   public SpannerConfig withPartitionReadTimeout(Duration partitionReadTimeout) {
     return withPartitionReadTimeout(ValueProvider.StaticValueProvider.of(partitionReadTimeout));
   }
 
-  /**
-   * Specifies the PartitionRead timeout.
-   */
+  /** Specifies the PartitionRead timeout. */
   public SpannerConfig withPartitionReadTimeout(ValueProvider<Duration> partitionReadTimeout) {
     return toBuilder().setPartitionReadTimeout(partitionReadTimeout).build();
   }
 
-  /**
-   * Specifies the credentials.
-   */
+  /** Specifies the credentials. */
   public SpannerConfig withCredentials(Credentials credentials) {
     return withCredentials(ValueProvider.StaticValueProvider.of(credentials));
   }
 
-  /**
-   * Specifies the credentials.
-   */
+  /** Specifies the credentials. */
   public SpannerConfig withCredentials(ValueProvider<Credentials> credentials) {
     return toBuilder().setCredentials(credentials).build();
   }

@@ -23,6 +23,7 @@ import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.ServerStreamingCallSettings;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.api.gax.rpc.UnaryCallSettings;
+import com.google.auth.Credentials;
 import com.google.cloud.NoCredentials;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.BatchClient;
@@ -222,8 +223,12 @@ public class SpannerAccessor implements AutoCloseable {
     if (databaseRole != null && databaseRole.get() != null && !databaseRole.get().isEmpty()) {
       builder.setDatabaseRole(databaseRole.get());
     }
-    SpannerOptions options = builder.build();
+    ValueProvider<Credentials> credentials = spannerConfig.getCredentials();
+    if (credentials != null && credentials.get() != null) {
+      builder.setCredentials(credentials.get());
+    }
 
+    SpannerOptions options = builder.build();
     Spanner spanner = options.getService();
     String instanceId = spannerConfig.getInstanceId().get();
     String databaseId = spannerConfig.getDatabaseId().get();
