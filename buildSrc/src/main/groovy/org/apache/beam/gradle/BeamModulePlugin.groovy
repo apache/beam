@@ -2587,7 +2587,6 @@ class BeamModulePlugin implements Plugin<Project> {
       for (path in config.expansionProjectPaths) {
         project.evaluationDependsOn(path)
       }
-      project.evaluationDependsOn(":runners:core-construction-java")
       project.evaluationDependsOn(":sdks:java:extensions:python")
 
       def pythonDir = project.project(":sdks:python").projectDir
