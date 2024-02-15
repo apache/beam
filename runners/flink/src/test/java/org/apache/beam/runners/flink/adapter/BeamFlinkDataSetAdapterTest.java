@@ -51,7 +51,7 @@ public class BeamFlinkDataSetAdapterTest {
   }
 
   @Test
-  public void applySimpleTransform() throws Exception {
+  public void testApplySimpleTransform() throws Exception {
     ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 
     DataSet<String> input = env.fromCollection(ImmutableList.of("a", "b", "c"));
