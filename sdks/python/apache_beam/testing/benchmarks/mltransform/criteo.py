@@ -16,14 +16,14 @@
 #
 # pylint: skip-file
 
-import logging
 import argparse
+import logging
 import numpy as np
 
 import apache_beam as beam
 from apache_beam.ml.transforms.base import MLTransform
-from apache_beam.ml.transforms.tft import ComputeAndApplyVocabulary
 from apache_beam.ml.transforms.tft import Bucketize
+from apache_beam.ml.transforms.tft import ComputeAndApplyVocabulary
 from apache_beam.options.pipeline_options import PipelineOptions
 
 NUM_NUMERIC_FEATURES = 13
