@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.windmill.client;
 
 import java.util.function.Supplier;
@@ -24,7 +23,7 @@ import org.joda.time.Duration;
 /**
  * Closeable {@link WindmillStream} factory that uses a {@link WindmillStreamPool} to create and
  * release streams.
-  */
+ */
 public final class WindmillStreamPoolCloseableStreamFactory<StreamT extends WindmillStream>
     implements Supplier<CloseableStream<StreamT>> {
   private static final int NUM_COMMIT_STREAMS = 1;
