@@ -798,10 +798,8 @@ public class StreamingDataflowWorkerTest {
       Supplier<Instant> clock,
       Function<String, ScheduledExecutorService> executorSupplier) {
     StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
+        StreamingDataflowWorker.forTesting(
             server,
-            new Random().nextLong(),
-            computationMap,
             Collections.singletonList(defaultMapTask(instructions)),
             IntrinsicMapTaskExecutorFactory.defaultFactory(),
             mockWorkUnitClient,
