@@ -37,7 +37,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
+import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataRequest;
@@ -46,6 +46,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
@@ -73,7 +74,6 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class StreamingEngineClientTest {
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final WindmillServiceAddress DEFAULT_WINDMILL_SERVICE_ADDRESS =
       WindmillServiceAddress.create(HostAndPort.fromParts(WindmillChannelFactory.LOCALHOST, 443));
   private static final ImmutableMap<String, WorkerMetadataResponse.Endpoint> DEFAULT =
@@ -95,24 +95,25 @@ public class StreamingEngineClientTest {
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
   private final Set<ManagedChannel> channels = new HashSet<>();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
-
   private final GrpcWindmillStreamFactory streamFactory =
       spy(GrpcWindmillStreamFactory.of(JOB_HEADER).build());
   private final WindmillStubFactory stubFactory =
-      WindmillStubFactory.inProcessStubFactory(
-          "StreamingEngineClientTest",
-          name -> {
+      new FakeWindmillStubFactory(
+          () -> {
             ManagedChannel channel =
-                grpcCleanup.register(WindmillChannelFactory.inProcessChannel(name));
+                grpcCleanup.register(
+                    WindmillChannelFactory.inProcessChannel("StreamingEngineClientTest"));
             channels.add(channel);
             return channel;
           });
   private final GrpcDispatcherClient dispatcherClient =
-      GrpcDispatcherClient.forTesting(stubFactory, new ArrayList<>(), new HashSet<>());
+      GrpcDispatcherClient.forTesting(
+          stubFactory, new ArrayList<>(), new ArrayList<>(), new HashSet<>());
   private final GetWorkBudgetDistributor getWorkBudgetDistributor =
       spy(new TestGetWorkBudgetDistributor());
   private final AtomicReference<StreamingEngineConnectionState> connections =
       new AtomicReference<>(StreamingEngineConnectionState.EMPTY);
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private Server fakeStreamingEngineServer;
   private CountDownLatch getWorkerMetadataReady;
   private GetWorkerMetadataTestStub fakeGetWorkerMetadataStub;
@@ -140,7 +141,7 @@ public class StreamingEngineClientTest {
   }
 
   private static WorkerMetadataResponse.Endpoint metadataResponseEndpoint(String workerToken) {
-    return WorkerMetadataResponse.Endpoint.newBuilder().setWorkerToken(workerToken).build();
+    return WorkerMetadataResponse.Endpoint.newBuilder().setBackendWorkerToken(workerToken).build();
   }
 
   @Before
@@ -269,16 +270,22 @@ public class StreamingEngineClientTest {
         WorkerMetadataResponse.newBuilder()
             .setMetadataVersion(1)
             .addWorkEndpoints(
-                WorkerMetadataResponse.Endpoint.newBuilder().setWorkerToken(workerToken).build())
+                WorkerMetadataResponse.Endpoint.newBuilder()
+                    .setBackendWorkerToken(workerToken)
+                    .build())
             .addWorkEndpoints(
-                WorkerMetadataResponse.Endpoint.newBuilder().setWorkerToken(workerToken2).build())
+                WorkerMetadataResponse.Endpoint.newBuilder()
+                    .setBackendWorkerToken(workerToken2)
+                    .build())
             .putAllGlobalDataEndpoints(DEFAULT)
             .build();
     WorkerMetadataResponse secondWorkerMetadata =
         WorkerMetadataResponse.newBuilder()
             .setMetadataVersion(2)
             .addWorkEndpoints(
-                WorkerMetadataResponse.Endpoint.newBuilder().setWorkerToken(workerToken3).build())
+                WorkerMetadataResponse.Endpoint.newBuilder()
+                    .setBackendWorkerToken(workerToken3)
+                    .build())
             .putAllGlobalDataEndpoints(DEFAULT)
             .build();
 
@@ -315,21 +322,27 @@ public class StreamingEngineClientTest {
         WorkerMetadataResponse.newBuilder()
             .setMetadataVersion(1)
             .addWorkEndpoints(
-                WorkerMetadataResponse.Endpoint.newBuilder().setWorkerToken(workerToken).build())
+                WorkerMetadataResponse.Endpoint.newBuilder()
+                    .setBackendWorkerToken(workerToken)
+                    .build())
             .putAllGlobalDataEndpoints(DEFAULT)
             .build();
     WorkerMetadataResponse secondWorkerMetadata =
         WorkerMetadataResponse.newBuilder()
             .setMetadataVersion(2)
             .addWorkEndpoints(
-                WorkerMetadataResponse.Endpoint.newBuilder().setWorkerToken(workerToken2).build())
+                WorkerMetadataResponse.Endpoint.newBuilder()
+                    .setBackendWorkerToken(workerToken2)
+                    .build())
             .putAllGlobalDataEndpoints(DEFAULT)
             .build();
     WorkerMetadataResponse thirdWorkerMetadata =
         WorkerMetadataResponse.newBuilder()
             .setMetadataVersion(3)
             .addWorkEndpoints(
-                WorkerMetadataResponse.Endpoint.newBuilder().setWorkerToken(workerToken3).build())
+                WorkerMetadataResponse.Endpoint.newBuilder()
+                    .setBackendWorkerToken(workerToken3)
+                    .build())
             .putAllGlobalDataEndpoints(DEFAULT)
             .build();
 
@@ -362,7 +375,8 @@ public class StreamingEngineClientTest {
   }
 
   private static class GetWorkerMetadataTestStub
-      extends CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1ImplBase {
+      extends CloudWindmillMetadataServiceV1Alpha1Grpc
+          .CloudWindmillMetadataServiceV1Alpha1ImplBase {
     private static final WorkerMetadataResponse CLOSE_ALL_STREAMS =
         WorkerMetadataResponse.newBuilder().setMetadataVersion(100).build();
     private final CountDownLatch ready;
@@ -373,7 +387,7 @@ public class StreamingEngineClientTest {
     }
 
     @Override
-    public StreamObserver<WorkerMetadataRequest> getWorkerMetadataStream(
+    public StreamObserver<WorkerMetadataRequest> getWorkerMetadata(
         StreamObserver<WorkerMetadataResponse> responseObserver) {
       if (this.responseObserver == null) {
         ready.countDown();

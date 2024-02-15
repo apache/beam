@@ -101,7 +101,7 @@ avroVersions.each { k, v ->
 
       // only use compileClasspath on purpose to not include generated test files
       // will recompile with the propper generated sources
-      compileClasspath += configurations."avroVersion$k"
+      compileClasspath += sourceSets.main.output + configurations."avroVersion$k"
       runtimeClasspath += configurations."avroVersion$k"
     }
   }
