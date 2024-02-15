@@ -22,7 +22,7 @@ It is used by Grafana (https://metrics.beam.apache.org) to display status dashbo
 
 ## Setup
 
-Initialize the terraform state with 
+Initialize the terraform state with
 ```
 terraform init -backend-config="bucket=beam-arc-state"
 ```
