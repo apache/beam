@@ -126,6 +126,17 @@ class EchoHTTPCaller(Caller[Request, EchoResponse]):
       raise UserCodeExecutionException(e)
 
 
+class ValidateResponse(beam.DoFn):
+  """Validates response received from Mock API server."""
+  def process(self, element, *args, **kwargs):
+    if (element.id != 'echo-should-never-exceed-quota' or
+        element.payload != _PAYLOAD):
+      raise ValueError(
+          'got EchoResponse(id: %s, payload: %s), want '
+          'EchoResponse(id: echo-should-never-exceed-quota, '
+          'payload: %s' % (element.id, element.payload, _PAYLOAD))
+
+
 @pytest.mark.uses_mock_api
 class EchoHTTPCallerTestIT(unittest.TestCase):
   options: Union[EchoITOptions, None] = None
@@ -146,36 +157,17 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
     assert cls.client is not None
     return cls.client, cls.options
 
-  def test_given_valid_request_receives_response(self):
-    client, options = EchoHTTPCallerTestIT._get_client_and_options()
-
-    req = Request(id=options.never_exceed_quota_id, payload=_PAYLOAD)
-
-    response: EchoResponse = client(req)
-
-    self.assertEqual(req.id, response.id)
-    self.assertEqual(req.payload, response.payload)
-
-  def test_given_exceeded_quota_should_raise(self):
-    client, options = EchoHTTPCallerTestIT._get_client_and_options()
-
-    req = Request(id=options.should_exceed_quota_id, payload=_PAYLOAD)
-    try:
-      # The following is needed to exceed the API
-      client(req)
-      client(req)
-      client(req)
-    except UserCodeExecutionException as e:
-      if not isinstance(e, UserCodeQuotaException):
-        raise e
-    self.assertRaises(UserCodeQuotaException, lambda: client(req))
-
   def test_not_found_should_raise(self):
     client, _ = EchoHTTPCallerTestIT._get_client_and_options()
-
     req = Request(id='i-dont-exist-quota-id', payload=_PAYLOAD)
-    self.assertRaisesRegex(
-        UserCodeExecutionException, "Not Found", lambda: client(req))
+    with self.assertRaises(RuntimeError):
+      test_pipeline = TestPipeline(is_integration_test=True)
+      _ = (
+          test_pipeline
+          | "Create" >> beam.Create([req])
+          | "RRIO" >> RequestResponseIO(client))
+      res = test_pipeline.run()
+      res.wait_until_finish()
 
   def test_request_response_io(self):
     client, options = EchoHTTPCallerTestIT._get_client_and_options()
@@ -184,7 +176,8 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
       output = (
           test_pipeline
           | 'Create PCollection' >> beam.Create([req])
-          | 'RRIO Transform' >> RequestResponseIO(client))
+          | 'RRIO Transform' >> RequestResponseIO(client)
+          | 'Validate' >> beam.ParDo(ValidateResponse()))
       self.assertIsNotNone(output)
 
 

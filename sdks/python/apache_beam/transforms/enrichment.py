@@ -88,7 +88,17 @@ class EnrichmentSourceHandler(Caller[InputT, OutputT]):
   Ensure that the implementation of ``__call__`` method returns a tuple
   of `beam.Row`  objects.
   """
-  pass
+  def get_cache_request_key(self, request: InputT):
+    """Returns the request to be cached. This is how the response will be
+    looked up in the cache as well.
+
+    Implement this method to provide the key for the cache.
+    By default, the entire request is stored as the cache key.
+
+    For example, in `BigTableEnrichmentHandler`, the row key for the element
+    is returned here.
+    """
+    return "request: %s" % request
 
 
 class Enrichment(beam.PTransform[beam.PCollection[InputT],
@@ -139,8 +149,8 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
   def expand(self,
              input_row: beam.PCollection[InputT]) -> beam.PCollection[OutputT]:
     # For caching with enrichment transform, enrichment handlers provide a
-    # get_cache_request() method that returns a unique string formatted request
-    # for that row.
+    # get_cache_request_key() method that returns a unique string formatted
+    # request for that row.
     request_coder = coders.StrUtf8Coder()
     if self._cache:
       self._cache.set_request_coder(request_coder)

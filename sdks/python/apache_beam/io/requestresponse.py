@@ -37,6 +37,7 @@ from google.api_core.exceptions import TooManyRequests
 
 import apache_beam as beam
 import redis
+from apache_beam import pvalue
 from apache_beam.coders import coders
 from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
 from apache_beam.metrics import Metrics
@@ -139,14 +140,14 @@ class Caller(contextlib.AbstractContextManager,
   def __exit__(self, exc_type, exc_val, exc_tb):
     return None
 
-  def get_cache_request(self, request: RequestT):
+  def get_cache_request_key(self, request: RequestT):
     """Returns the request to be cached. This is how the
     response will be looked up in the cache as well.
 
     By default, entire request is cached as the key for the cache.
     Implement this method to override the key for the cache.
     For example, in `BigTableEnrichmentHandler`, the row key for the element
-    is returned and cached here.
+    is returned here.
     """
     return None
 
@@ -284,18 +285,14 @@ class DefaultThrottler(PreCallThrottler):
     self.delay_secs = delay_secs
 
 
-class _FilterNoneCacheReadFn(beam.DoFn):
-  """DoFn that returns the responses from cache read that are not `None`."""
-  def process(self, element: Tuple[RequestT, ResponseT], *args, **kwargs):
-    if element[1]:
-      yield element
-
-
-class _FilterCacheRequestsFn(beam.DoFn):
-  """DoFn that returns the requests not fulfilled by the cache read."""
+class _FilterCacheReadFn(beam.DoFn):
+  """A `DoFn` that emits to main output for successful cache read requests or
+  to the tagged output - `inputs` - otherwise."""
   def process(self, element: Tuple[RequestT, ResponseT], *args, **kwargs):
     if not element[1]:
-      yield element[0]
+      yield pvalue.TaggedOutput('inputs', element[0])
+    else:
+      yield element
 
 
 class _Call(beam.PTransform[beam.PCollection[RequestT],
@@ -420,9 +417,8 @@ class Cache(abc.ABC):
     """sets the response coder to use with Cache."""
     pass
 
-  @abc.abstractmethod
   def set_source_caller(self, caller: Caller):
-    """(Internal-only) This method allows
+    """This method allows
     :class:`apache_beam.io.requestresponse.RequestResponseIO` to pull
     cache requests from respective callers."""
     pass
@@ -487,7 +483,7 @@ class RedisCaller(Caller):
 
   def __call__(self, element, *args, **kwargs):
     if self.mode == _RedisMode.READ:
-      cache_request = self.source_caller.get_cache_request(element)
+      cache_request = self.source_caller.get_cache_request_key(element)
       # check if the caller is a enrichment handler. EnrichmentHandler
       # provides the request format for cache.
       if cache_request:
@@ -512,7 +508,7 @@ class RedisCaller(Caller):
         response = self.response_coder.decode(encoded_response)
       return element, response
     else:
-      cache_request = self.source_caller.get_cache_request(element[0])
+      cache_request = self.source_caller.get_cache_request_key(element[0])
       if cache_request:
         encoded_request = self.request_coder.encode(cache_request)
       else:
@@ -520,11 +516,11 @@ class RedisCaller(Caller):
       if self.response_coder is None:
         try:
           encoded_response = json.dumps(element[1]._asdict()).encode('utf-8')
-        except Exception as e:
+        except Exception:
           _LOGGER.warning(
               'cannot encode response %s for %s to store in '
               'redis cache.' % (element[1], element[0]))
-          raise e
+          return element
       else:
         encoded_response = self.response_coder.encode(element[1])
       # Write to cache with TTL. Set nx to True to prevent overwriting for the
@@ -676,38 +672,28 @@ class RedisCache(Cache):
     self._source_caller = None
 
   def get_read(self):
-    """get_read returns a callback that returns a PTransform
-    for reading from the cache."""
+    """get_read returns a PTransform for reading from the cache."""
     ensure_coders_exist(self._request_coder)
-
-    def callback():
-      return ReadFromRedis(
-          self._host,
-          self._port,
-          time_to_live=self._time_to_live,
-          kwargs=self._kwargs,
-          request_coder=self._request_coder,
-          response_coder=self._response_coder,
-          source_caller=self._source_caller)
-
-    return callback
+    return ReadFromRedis(
+        self._host,
+        self._port,
+        time_to_live=self._time_to_live,
+        kwargs=self._kwargs,
+        request_coder=self._request_coder,
+        response_coder=self._response_coder,
+        source_caller=self._source_caller)
 
   def get_write(self):
-    """get_write returns a callback that returns a PTransform
-    for writing to the cache."""
+    """get_write returns a PTransform for writing to the cache."""
     ensure_coders_exist(self._request_coder)
-
-    def callback():
-      return WriteToRedis(
-          self._host,
-          self._port,
-          time_to_live=self._time_to_live,
-          kwargs=self._kwargs,
-          request_coder=self._request_coder,
-          response_coder=self._response_coder,
-          source_caller=self._source_caller)
-
-    return callback
+    return WriteToRedis(
+        self._host,
+        self._port,
+        time_to_live=self._time_to_live,
+        kwargs=self._kwargs,
+        request_coder=self._request_coder,
+        response_coder=self._response_coder,
+        source_caller=self._source_caller)
 
   def has_request_coder(self) -> bool:
     """returns True if the request coder exists."""
@@ -788,12 +774,13 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
 
     if self._cache and self._cache.has_request_coder():
       # read from cache.
-      cache_read_callback = self._cache.get_read()
-      outputs = inputs | cache_read_callback()
+      outputs = inputs | self._cache.get_read()
       # filter responses that are None and send them to the Call transform
       # to fetch a value from external service.
-      cached_responses = outputs | beam.ParDo(_FilterNoneCacheReadFn())
-      inputs = outputs | beam.ParDo(_FilterCacheRequestsFn())
+      cached_responses, inputs = (outputs
+                                  | beam.ParDo(_FilterCacheReadFn()
+                                               ).with_outputs(
+                                    'inputs', main='cached_responses'))
 
     if isinstance(self._throttler, DefaultThrottler):
       # DefaultThrottler applies throttling in the DoFn of
@@ -819,8 +806,7 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
 
     if self._cache and self._cache.has_request_coder():
       # write to cache.
-      cache_write_callback = self._cache.get_write()
-      _ = responses | cache_write_callback()
+      _ = responses | self._cache.get_write()
       return (cached_responses, responses) | beam.Flatten()
 
     return responses
