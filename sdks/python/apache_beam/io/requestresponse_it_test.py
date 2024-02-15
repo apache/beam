@@ -161,7 +161,7 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
     client, _ = EchoHTTPCallerTestIT._get_client_and_options()
     req = Request(id='i-dont-exist-quota-id', payload=_PAYLOAD)
     with self.assertRaises(RuntimeError):
-      test_pipeline = TestPipeline(is_integration_test=True)
+      test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline
           | "Create" >> beam.Create([req])

@@ -417,6 +417,7 @@ class Cache(abc.ABC):
     """sets the response coder to use with Cache."""
     pass
 
+  @abc.abstractmethod
   def set_source_caller(self, caller: Caller):
     """This method allows
     :class:`apache_beam.io.requestresponse.RequestResponseIO` to pull
