@@ -27,21 +27,25 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedBoundedQueue;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Streaming engine implementation of {@link WorkCommitter}. Commits work back to Streaming Engine
  * backend.
  */
 public final class StreamingEngineWorkCommitter implements WorkCommitter {
+  private static final Logger LOG = LoggerFactory.getLogger(StreamingEngineWorkCommitter.class);
   private static final int NUM_COMMIT_STREAMS = 1;
   private static final Duration COMMIT_STREAM_TIMEOUT = Duration.standardMinutes(1);
 
-  private final Supplier<CommitWorkStream> commitWorkStreamFactory;
+  private final Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
   private final WeightedBoundedQueue<Commit> commitQueue;
   private final ExecutorService commitSenders;
   private final AtomicLong activeCommitBytes;
@@ -52,7 +56,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   private final boolean useStreamPool;
 
   private StreamingEngineWorkCommitter(
-      Supplier<CommitWorkStream> commitWorkStreamFactory,
+      Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory,
       int numCommitSenders,
       Supplier<Boolean> shouldCommitWork,
       Consumer<Commit> onFailedCommit,
@@ -79,7 +83,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   }
 
   public static StreamingEngineWorkCommitter create(
-      Supplier<CommitWorkStream> commitWorkStreamFactory,
+      Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory,
       int numCommitSenders,
       Supplier<Boolean> shouldCommitWork,
       Consumer<Commit> onFailedCommit,
@@ -94,24 +98,6 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
             onCommitComplete,
             /* useStreamPool= */ true);
     workCommitter.startCommitSenders(ready);
-    return workCommitter;
-  }
-
-  public static StreamingEngineWorkCommitter createDirect(
-      Supplier<CommitWorkStream> commitWorkStreamFactory,
-      int numCommitSenders,
-      Supplier<Boolean> shouldCommitWork,
-      Consumer<Commit> onFailedCommit,
-      Consumer<CompleteCommit> onCommitComplete) {
-    StreamingEngineWorkCommitter workCommitter =
-        new StreamingEngineWorkCommitter(
-            commitWorkStreamFactory,
-            numCommitSenders,
-            shouldCommitWork,
-            onFailedCommit,
-            onCommitComplete,
-            /* useStreamPool= */ false);
-    workCommitter.startCommitSenders();
     return workCommitter;
   }
 
@@ -160,7 +146,6 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   }
 
   private void streamingCommitLoop() {
-    Optional<WindmillStreamPool<CommitWorkStream>> streamPool = maybeCreateStreamPool();
     Commit initialCommit = null;
     while (shouldCommitWork.get()) {
       if (initialCommit == null) {
@@ -170,26 +155,21 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
           continue;
         }
       }
-      // We initialize the commit stream only after we have a commit to make sure it is fresh.
-      CommitWorkStream commitStream =
-          streamPool.map(WindmillStreamPool::getStream).orElseGet(commitWorkStreamFactory);
-      if (!tryAddToCommitStream(initialCommit, commitStream)) {
-        throw new AssertionError("Initial commit on flushed stream should always be accepted.");
-      }
-      // Batch additional commits to the stream and possibly make an un-batched commit the next
-      // initial commit.
-      initialCommit = batchCommitsToStream(commitStream);
-      commitStream.flush();
-      streamPool.ifPresent(pool -> pool.releaseStream(commitStream));
-    }
-  }
 
-  private Optional<WindmillStreamPool<CommitWorkStream>> maybeCreateStreamPool() {
-    return useStreamPool
-        ? Optional.of(
-            WindmillStreamPool.create(
-                NUM_COMMIT_STREAMS, COMMIT_STREAM_TIMEOUT, commitWorkStreamFactory))
-        : Optional.empty();
+      try (CloseableStream<CommitWorkStream> closeableCommitStream =
+          commitWorkStreamFactory.get()) {
+        CommitWorkStream commitStream = closeableCommitStream.stream().get();
+        if (!tryAddToCommitStream(initialCommit, commitStream)) {
+          throw new AssertionError("Initial commit on flushed stream should always be accepted.");
+        }
+        // Batch additional commits to the stream and possibly make an un-batched commit the next
+        // initial commit.
+        initialCommit = batchCommitsToStream(commitStream);
+        commitStream.flush();
+      } catch (Exception e) {
+        LOG.error("Error occurred fetching a CommitWorkStream.", e);
+      }
+    }
   }
 
   /** Adds the commit to the commitStream if it fits, returning true if it is consumed. */
