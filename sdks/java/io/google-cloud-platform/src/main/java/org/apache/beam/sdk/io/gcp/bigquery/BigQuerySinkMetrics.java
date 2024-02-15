@@ -69,8 +69,8 @@ public class BigQuerySinkMetrics {
   private static final String APPEND_ROWS_ROW_STATUS = "RowsAppendedCount";
   public static final String THROTTLED_TIME = "ThrottledTime";
 
-  // StorageWriteAPI Method names
-  enum RpcMethod {
+  // BigQuery Write Method names
+  public enum RpcMethod {
     STREAMING_INSERTS,
     APPEND_ROWS,
     FLUSH_ROWS,
@@ -337,16 +337,20 @@ public class BigQuerySinkMetrics {
     updateRpcLatencyMetric(c, method);
   }
 
+  /**
+   * Results of a batch of InsertAll RPCs. Used to update metrics with the {@code
+   * updateStreamingInsertsMetrics} method. Member variables should be thread-safe.
+   */
   public static class StreamingInsertsResults {
     final ConcurrentLinkedQueue<java.time.Duration> rpcLatencies = new ConcurrentLinkedQueue<>();
     final ConcurrentLinkedQueue<String> rpcStatus = new ConcurrentLinkedQueue<>();
-    // Represents <Rpc Status, Number of Rows> for rows that are retried because the InesrtAll RPC
-    // returned an error.
+    // Represents <Rpc Status, Number of Rows> for rows that are retried because the InsertAll RPC
+    // failed.
     final ConcurrentLinkedQueue<KV<String, Integer>> retriedRowsByStatus =
         new ConcurrentLinkedQueue<>();
     final AtomicInteger successfulRowsCount = new AtomicInteger();
     final AtomicInteger failedRowsCount = new AtomicInteger();
-    // Rows that were retried due to an internal BigQuery Error even though the InesrtAll RPC
+    // Rows that were retried due to an internal BigQuery Error even though the InsertAll RPC
     // succeeded.
     final AtomicInteger internalRetriedRowsCount = new AtomicInteger();
   }
