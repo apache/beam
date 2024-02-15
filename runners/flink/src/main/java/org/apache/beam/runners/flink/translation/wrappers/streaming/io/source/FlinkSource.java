@@ -21,7 +21,6 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.utils.SerdeUtils;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.bounded.FlinkBoundedSource;
@@ -29,6 +28,7 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.im
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.unbounded.FlinkUnboundedSource;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.util.construction.SerializablePipelineOptions;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
