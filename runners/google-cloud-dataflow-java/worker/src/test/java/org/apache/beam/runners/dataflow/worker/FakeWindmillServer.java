@@ -44,7 +44,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
-import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatProcessor;
+import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationCommitWorkRequest;
@@ -111,7 +111,7 @@ final class FakeWindmillServer extends WindmillServerStub {
     this.errorCollector = errorCollector;
     statsReceived = new ArrayList<>();
     droppedStreamingCommits = new ConcurrentHashMap<>();
-    this.processHeartbeatResponses = new WorkHeartbeatProcessor(computationStateFetcher);
+    this.processHeartbeatResponses = new WorkHeartbeatResponseProcessor(computationStateFetcher);
   }
 
   public void setDropStreamingCommits(boolean dropStreamingCommits) {

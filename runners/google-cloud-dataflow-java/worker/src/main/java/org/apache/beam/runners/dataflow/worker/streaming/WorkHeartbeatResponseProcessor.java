@@ -27,12 +27,17 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 
+/**
+ * Processes {@link ComputationHeartbeatResponse}(s). Marks {@link Work} that is invalid from
+ * Streaming Engine backend so that it gets dropped from streaming worker harness processing.
+ */
 @Internal
-public final class WorkHeartbeatProcessor implements Consumer<List<ComputationHeartbeatResponse>> {
+public final class WorkHeartbeatResponseProcessor
+    implements Consumer<List<ComputationHeartbeatResponse>> {
   /** Fetches a {@link ComputationState} for a computationId. */
   private final Function<String, Optional<ComputationState>> computationStateFetcher;
 
-  public WorkHeartbeatProcessor(
+  public WorkHeartbeatResponseProcessor(
       /* Fetches a {@link ComputationState} for a String computationId. */
       Function<String, Optional<ComputationState>> computationStateFetcher) {
     this.computationStateFetcher = computationStateFetcher;

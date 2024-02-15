@@ -112,8 +112,13 @@ class GrpcDispatcherClient {
     return stubs.get(rand.nextInt(stubs.size()));
   }
 
-  boolean isReady() {
-    return dispatcherStubs.get().isReady();
+  /**
+   * Returns whether the {@link DispatcherStubs} have been set. Once initially set, {@link
+   * #dispatcherStubs} will always have a value as empty updates will trigger an {@link
+   * IllegalStateException}.
+   */
+  boolean hasInitializedEndpoints() {
+    return dispatcherStubs.get().hasInitializedEndpoints();
   }
 
   synchronized void consumeWindmillDispatcherEndpoints(
@@ -206,7 +211,7 @@ class GrpcDispatcherClient {
       return dispatcherEndpoints().size();
     }
 
-    private boolean isReady() {
+    private boolean hasInitializedEndpoints() {
       return size() > 0;
     }
 

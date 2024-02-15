@@ -97,7 +97,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedBoundedQueue;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.Work.State;
-import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatProcessor;
+import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
@@ -559,7 +559,7 @@ public class StreamingDataflowWorker {
         createWindmillServerStub(
             options,
             clientId,
-            new WorkHeartbeatProcessor(
+            new WorkHeartbeatResponseProcessor(
                 computationId -> Optional.ofNullable(computationMap.get(computationId)))),
         clientId,
         computationMap,

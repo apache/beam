@@ -269,7 +269,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
 
   @Override
   public boolean isReady() {
-    return dispatcherClient.isReady();
+    return dispatcherClient.hasInitializedEndpoints();
   }
 
   private synchronized void initializeLocalHost(int port) {
