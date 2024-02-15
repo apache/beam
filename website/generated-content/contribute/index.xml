@@ -1988,7 +1988,7 @@ language it may have been written in to begin with.&lt;/p>
 &lt;p>&lt;strong>Java&lt;/strong>&lt;/p>
 &lt;p>If your runner is Java-based, the tools to interact with pipelines in an
 SDK-agnostic manner are in the &lt;code>beam-runners-core-construction-java&lt;/code>
-artifact, in the &lt;code>org.apache.beam.runners.core.construction&lt;/code> namespace.
+artifact, in the &lt;code>org.apache.beam.sdk.util.construction&lt;/code> namespace.
 The utilities are named consistently, like so:&lt;/p>
 &lt;ul>
 &lt;li>&lt;code>PTransformTranslation&lt;/code> - registry of known transforms and standard URNs&lt;/li>
