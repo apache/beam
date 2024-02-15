@@ -266,7 +266,6 @@ public interface DataflowPipelineDebugOptions
 
   void setWindmillServiceCommitThreads(Integer value);
 
-
   @Description(
       "Frequency at which active work should be reported back to Windmill, in millis. "
           + "The first refresh will occur after at least this much time has passed since "
@@ -275,7 +274,6 @@ public interface DataflowPipelineDebugOptions
   int getActiveWorkRefreshPeriodMillis();
 
   void setActiveWorkRefreshPeriodMillis(int value);
-
 
   @Description(
       "If positive, frequency at which windmill service streaming rpcs will have application "
