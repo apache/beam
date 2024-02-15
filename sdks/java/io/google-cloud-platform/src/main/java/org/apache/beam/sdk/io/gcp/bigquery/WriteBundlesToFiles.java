@@ -248,11 +248,15 @@ class WriteBundlesToFiles<DestinationT extends @NonNull Object, ElementT>
     } catch (BigQueryRowSerializationException e) {
       try {
         badRecordRouter.route(
-            outputReceiver, element, coder, e, "Unable to Write BQ Record to File");
+            outputReceiver,
+            element,
+            coder,
+            e,
+            "Unable to Write BQ Record to File because serialization to TableRow failed");
       } catch (Exception e2) {
         cleanupWriter(writer, e2);
       }
-    } catch (IOException e) {
+    } catch (Exception e) {
       cleanupWriter(writer, e);
     }
   }

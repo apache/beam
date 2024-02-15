@@ -183,8 +183,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
         try {
           tableRow = messageConverter.toTableRow(element.getValue());
         } catch (Exception e) {
-          badRecordRouter.route(
-              o, element, elementCoder, e, "Unable to convert value to StorageWriteApiPayload");
+          badRecordRouter.route(o, element, elementCoder, e, "Unable to convert value to TableRow");
           return;
         }
         o.get(failedWritesTag)

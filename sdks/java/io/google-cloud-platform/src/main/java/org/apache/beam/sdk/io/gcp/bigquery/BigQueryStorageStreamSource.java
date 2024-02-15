@@ -82,6 +82,12 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         readSession, newReadStream, jsonTableSchema, parseFn, outputCoder, bqServices);
   }
 
+  public BigQueryStorageStreamSource<T> fromExisting(
+      SerializableFunction<SchemaAndRecord, T> parseFn) {
+    return new BigQueryStorageStreamSource<>(
+        readSession, readStream, jsonTableSchema, parseFn, outputCoder, bqServices);
+  }
+
   private final ReadSession readSession;
   private final ReadStream readStream;
   private final String jsonTableSchema;

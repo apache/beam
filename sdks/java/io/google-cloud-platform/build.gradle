@@ -210,8 +210,8 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
 
   include '**/*IT.class'
   exclude '**/BigQueryIOReadIT.class'
-  exclude '**/BigQueryIOStorageQueryIT.class'
-  exclude '**/BigQueryIOStorageReadIT.class'
+//  exclude '**/BigQueryIOStorageQueryIT.class'
+//  exclude '**/BigQueryIOStorageReadIT.class'
   exclude '**/BigQueryIOStorageWriteIT.class'
   exclude '**/BigQueryToTableIT.class'
 

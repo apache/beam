@@ -110,6 +110,18 @@ class BigQueryStorageStreamBundleSource<T> extends OffsetBasedSource<T> {
         getMinBundleSize());
   }
 
+  public BigQueryStorageStreamBundleSource<T> fromExisting(
+      SerializableFunction<SchemaAndRecord, T> parseFn) {
+    return new BigQueryStorageStreamBundleSource<>(
+        readSession,
+        streamBundle,
+        jsonTableSchema,
+        parseFn,
+        outputCoder,
+        bqServices,
+        getMinBundleSize());
+  }
+
   private final ReadSession readSession;
   private final List<ReadStream> streamBundle;
   private final String jsonTableSchema;
