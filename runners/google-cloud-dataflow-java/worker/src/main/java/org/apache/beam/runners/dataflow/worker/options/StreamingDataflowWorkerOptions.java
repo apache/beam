@@ -63,15 +63,6 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
 
   void setMaxStackTraceDepthToReport(int value);
 
-  @Description(
-      "Frequency at which active work should be reported back to Windmill, in millis. "
-          + "The first refresh will occur after at least this much time has passed since "
-          + "starting the work item")
-  @Default.Integer(10000)
-  int getActiveWorkRefreshPeriodMillis();
-
-  void setActiveWorkRefreshPeriodMillis(int value);
-
   @Description("Necessary duration for a commit to be considered stuck and invalidated.")
   @Default.Integer(10 * 60 * 1000)
   int getStuckCommitDurationMillis();
@@ -112,42 +103,6 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
   int getWindmillServiceRpcChannelAliveTimeoutSec();
 
   void setWindmillServiceRpcChannelAliveTimeoutSec(int value);
-
-  @Description(
-      "If positive, frequency at which windmill service streaming rpcs will have application "
-          + "level health checks.")
-  @Default.Integer(10000)
-  int getWindmillServiceStreamingRpcHealthCheckPeriodMs();
-
-  void setWindmillServiceStreamingRpcHealthCheckPeriodMs(int value);
-
-  @Description(
-      "If positive, the number of messages to send on streaming rpc before checking isReady."
-          + "Higher values reduce cost of output overhead at the cost of more memory used in grpc "
-          + "buffers.")
-  @Default.Integer(10)
-  int getWindmillMessagesBetweenIsReadyChecks();
-
-  void setWindmillMessagesBetweenIsReadyChecks(int value);
-
-  @Description("If true, a most a single active rpc will be used per channel.")
-  @Default.Boolean(false)
-  boolean getUseWindmillIsolatedChannels();
-
-  void setUseWindmillIsolatedChannels(boolean value);
-
-  @Description(
-      "If true, separate streaming rpcs will be used for heartbeats instead of sharing streams with state reads.")
-  @Default.Boolean(false)
-  boolean getUseSeparateWindmillHeartbeatStreams();
-
-  void setUseSeparateWindmillHeartbeatStreams(boolean value);
-
-  @Description("The number of streams to use for GetData requests.")
-  @Default.Integer(1)
-  int getWindmillGetDataStreamCount();
-
-  void setWindmillGetDataStreamCount(int value);
 
   /**
    * Factory for creating local Windmill address. Reads from system propery 'windmill.hostport' for
