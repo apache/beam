@@ -63,15 +63,6 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
 
   void setMaxStackTraceDepthToReport(int value);
 
-  @Description(
-      "Frequency at which active work should be reported back to Windmill, in millis. "
-          + "The first refresh will occur after at least this much time has passed since "
-          + "starting the work item")
-  @Default.Integer(10000)
-  int getActiveWorkRefreshPeriodMillis();
-
-  void setActiveWorkRefreshPeriodMillis(int value);
-
   @Description("Necessary duration for a commit to be considered stuck and invalidated.")
   @Default.Integer(10 * 60 * 1000)
   int getStuckCommitDurationMillis();

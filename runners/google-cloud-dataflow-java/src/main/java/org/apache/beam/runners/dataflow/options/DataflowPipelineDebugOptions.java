@@ -268,6 +268,16 @@ public interface DataflowPipelineDebugOptions
 
 
   @Description(
+      "Frequency at which active work should be reported back to Windmill, in millis. "
+          + "The first refresh will occur after at least this much time has passed since "
+          + "starting the work item")
+  @Default.Integer(10000)
+  int getActiveWorkRefreshPeriodMillis();
+
+  void setActiveWorkRefreshPeriodMillis(int value);
+
+
+  @Description(
       "If positive, frequency at which windmill service streaming rpcs will have application "
           + "level health checks.")
   @Default.Integer(10000)
