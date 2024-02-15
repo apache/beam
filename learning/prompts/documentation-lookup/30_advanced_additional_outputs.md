@@ -53,7 +53,7 @@ public void processElement(@Element String word, MultiOutputReceiver out) {
      }
 ```
 
-In the Apache Beam Python SDK, you can implement additional outputs by invoking the `with_outputs()` method on the `ParDo` and specifying the expected tags for the multiple outputs.  
+In the Apache Beam Python SDK, you can implement additional outputs by invoking the `with_outputs()` method on the `ParDo` and specifying the expected tags for the multiple outputs.
 
 The following Python code demonstrates how to implement additional outputs for a `ParDo` transform that outputs two `PCollection`s of strings and integers in addition to the main output `PCollection` of strings:
 

@@ -23,7 +23,7 @@ class MultiplyByTen(beam.DoFn):
     yield batch * 10
 ```
 
-In this example, the ‘np.int64’ type represents the individual element. The 'process' method multiplies an element by ten, yielding a single element. The ‘np.ndarray’ type represents the batch. The 'process_batch' method multiplies each element in the batch by ten, yielding a single batch. During pipeline execution, Apache Beam will automatically select the best implementation based on the context. 
+In this example, the ‘np.int64’ type represents the individual element. The 'process' method multiplies an element by ten, yielding a single element. The ‘np.ndarray’ type represents the batch. The 'process_batch' method multiplies each element in the batch by ten, yielding a single batch. During pipeline execution, Apache Beam will automatically select the best implementation based on the context.
 
 By default, Apache Beam implicitly buffers elements and creates batches on the input side, then explodes batches back into individual elements on the output side. However, if batched 'DoFn's with equivalent types are chained together, this batch creation and explosion process is skipped, and the batches are passed through for more efficient processing.
 
