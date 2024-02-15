@@ -30,7 +30,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,8 +39,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class StreamingEngineWorkCommitter implements WorkCommitter {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingEngineWorkCommitter.class);
-  private static final int NUM_COMMIT_STREAMS = 1;
-  private static final Duration COMMIT_STREAM_TIMEOUT = Duration.standardMinutes(1);
+  private static final int COMMIT_BATCH_SIZE = 5;
 
   private final Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
   private final WeightedBoundedQueue<Commit> commitQueue;
@@ -51,15 +49,13 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   private final Consumer<Commit> onFailedCommit;
   private final Consumer<CompleteCommit> onCommitComplete;
   private final int numCommitSenders;
-  private final boolean useStreamPool;
 
   private StreamingEngineWorkCommitter(
       Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory,
       int numCommitSenders,
       Supplier<Boolean> shouldCommitWork,
       Consumer<Commit> onFailedCommit,
-      Consumer<CompleteCommit> onCommitComplete,
-      boolean useStreamPool) {
+      Consumer<CompleteCommit> onCommitComplete) {
     this.commitWorkStreamFactory = commitWorkStreamFactory;
     this.commitQueue =
         WeightedBoundedQueue.create(
@@ -77,7 +73,6 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
     this.onFailedCommit = onFailedCommit;
     this.onCommitComplete = onCommitComplete;
     this.numCommitSenders = numCommitSenders;
-    this.useStreamPool = useStreamPool;
   }
 
   public static StreamingEngineWorkCommitter create(
@@ -93,8 +88,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
             numCommitSenders,
             shouldCommitWork,
             onFailedCommit,
-            onCommitComplete,
-            /* useStreamPool= */ true);
+            onCommitComplete);
     workCommitter.startCommitSenders(ready);
     return workCommitter;
   }
@@ -133,13 +127,6 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
             }
             streamingCommitLoop();
           });
-    }
-  }
-
-  @SuppressWarnings("FutureReturnValueIgnored")
-  private void startCommitSenders() {
-    for (int i = 0; i < numCommitSenders; i++) {
-      commitSenders.submit(this::streamingCommitLoop);
     }
   }
 
@@ -202,7 +189,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
     while (shouldCommitWork.get()) {
       Commit commit;
       try {
-        if (commits < 5) {
+        if (commits < COMMIT_BATCH_SIZE) {
           commit = commitQueue.poll(10 - 2L * commits, TimeUnit.MILLISECONDS);
         } else {
           commit = commitQueue.poll();
