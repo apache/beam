@@ -17,11 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.options;
 
-import java.io.IOException;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
-import org.apache.beam.runners.dataflow.worker.windmill.appliance.JniWindmillApplianceServer;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillServer;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -36,12 +32,6 @@ import org.joda.time.Duration;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOptions {
-  @Description("Stub for communicating with Windmill.")
-  @Default.InstanceFactory(WindmillServerStubFactory.class)
-  WindmillServerStub getWindmillServerStub();
-
-  void setWindmillServerStub(WindmillServerStub value);
-
   @Description("Hostport of a co-located Windmill server.")
   @Default.InstanceFactory(LocalWindmillHostportFactory.class)
   String getLocalWindmillHostport();
@@ -165,29 +155,6 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
     @Override
     public String create(PipelineOptions options) {
       return System.getProperty("windmill.periodic_status_page_directory");
-    }
-  }
-
-  /**
-   * Factory for creating {@link WindmillServerStub} instances. If {@link setLocalWindmillHostport}
-   * is set, returns a stub to a local Windmill server, otherwise returns a remote gRPC stub.
-   */
-  public static class WindmillServerStubFactory implements DefaultValueFactory<WindmillServerStub> {
-    @Override
-    public WindmillServerStub create(PipelineOptions options) {
-      StreamingDataflowWorkerOptions streamingOptions =
-          options.as(StreamingDataflowWorkerOptions.class);
-      if (streamingOptions.getWindmillServiceEndpoint() != null
-          || streamingOptions.isEnableStreamingEngine()
-          || streamingOptions.getLocalWindmillHostport().startsWith("grpc:")) {
-        try {
-          return GrpcWindmillServer.create(streamingOptions);
-        } catch (IOException e) {
-          throw new RuntimeException("Failed to create GrpcWindmillServer: ", e);
-        }
-      } else {
-        return new JniWindmillApplianceServer(streamingOptions.getLocalWindmillHostport());
-      }
     }
   }
 
