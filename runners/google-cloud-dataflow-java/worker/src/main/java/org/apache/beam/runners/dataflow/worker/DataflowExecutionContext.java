@@ -417,7 +417,6 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       logRecord.setLoggerName(DataflowExecutionStateTracker.LOG.getName());
 
       // Publish directly in the context of this specific ExecutionState.
-      DataflowWorkerLoggingInitializer.initialize();
       DataflowWorkerLoggingHandler dataflowLoggingHandler =
           DataflowWorkerLoggingInitializer.getLoggingHandler();
       dataflowLoggingHandler.publish(logRecord);
