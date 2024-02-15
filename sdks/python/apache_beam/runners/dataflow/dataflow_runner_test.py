@@ -16,10 +16,13 @@
 #
 
 """Unit tests for the DataflowRunner class."""
-
 # pytype: skip-file
+import os
+
+import tempfile
 
 import unittest
+from unittest.mock import MagicMock
 
 import mock
 
@@ -96,6 +99,13 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         '--dry_run=True',
         '--sdk_location=container'
     ]
+    self.tmp_dir = tempfile.TemporaryDirectory()
+    self.actual_mkdtemp = tempfile.mkdtemp
+    tempfile.mkdtemp = MagicMock(return_value=self.tmp_dir.name)
+
+  def tearDown(self) -> None:
+    tempfile.mkdtemp = self.actual_mkdtemp
+    self.tmp_dir.cleanup()
 
   @mock.patch('time.sleep', return_value=None)
   def test_wait_until_finish(self, patched_time_sleep):
@@ -205,19 +215,30 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.default_properties.append('--experiments=beam_fn_api')
     self.default_properties.append('--worker_harness_container_image=LEGACY')
     remote_runner = DataflowRunner()
-    with Pipeline(remote_runner,
-                  options=PipelineOptions(self.default_properties)) as p:
+    options = PipelineOptions(self.default_properties)
+    with Pipeline(remote_runner, options=options) as p:
       (  # pylint: disable=expression-not-assigned
           p | ptransform.Create([1, 2, 3])
           | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
           | ptransform.GroupByKey())
-    first = remote_runner.proto_pipeline.components.environments.values()
-    second = beam_runner_api_pb2.Environment(
-        urn=common_urns.environments.DOCKER.urn,
-        payload=beam_runner_api_pb2.DockerPayload(
-            container_image='LEGACY').SerializeToString(),
-        capabilities=environments.python_sdk_docker_capabilities())
-    self.assertTrue(first.__eq__(second))
+
+    # check if the temp path got cleaned after the above
+    # pipeline completion. If it does not exist then create the same
+    # temp directory again to compare artifact information.
+    if not os.path.exists(self.tmp_dir.name):
+      os.makedirs(self.tmp_dir.name)
+
+    self.assertEqual(
+        list(remote_runner.proto_pipeline.components.environments.values()),
+        [
+            beam_runner_api_pb2.Environment(
+                urn=common_urns.environments.DOCKER.urn,
+                payload=beam_runner_api_pb2.DockerPayload(
+                    container_image='LEGACY').SerializeToString(),
+                capabilities=environments.python_sdk_docker_capabilities(),
+                dependencies=environments.python_sdk_dependencies(
+                    PipelineOptions()))
+        ])
 
   def test_environment_override_translation_sdk_container_image(self):
     self.default_properties.append('--experiments=beam_fn_api')
@@ -229,13 +250,24 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
           p | ptransform.Create([1, 2, 3])
           | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
           | ptransform.GroupByKey())
-    first = remote_runner.proto_pipeline.components.environments.values()
-    second = beam_runner_api_pb2.Environment(
-        urn=common_urns.environments.DOCKER.urn,
-        payload=beam_runner_api_pb2.DockerPayload(
-            container_image='FOO').SerializeToString(),
-        capabilities=environments.python_sdk_docker_capabilities())
-    self.assertTrue(first.__eq__(second))
+
+    # check if the temp path got cleaned after the above
+    # pipeline completion. If it does not exist then create the same
+    # temp directory again to compare artifact information.
+    if not os.path.exists(self.tmp_dir.name):
+      os.makedirs(self.tmp_dir.name)
+
+    self.assertEqual(
+        list(remote_runner.proto_pipeline.components.environments.values()),
+        [
+            beam_runner_api_pb2.Environment(
+                urn=common_urns.environments.DOCKER.urn,
+                payload=beam_runner_api_pb2.DockerPayload(
+                    container_image='FOO').SerializeToString(),
+                capabilities=environments.python_sdk_docker_capabilities(),
+                dependencies=environments.python_sdk_dependencies(
+                    PipelineOptions()))
+        ])
 
   def test_remote_runner_translation(self):
     remote_runner = DataflowRunner()
