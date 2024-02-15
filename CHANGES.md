@@ -92,12 +92,13 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.54.0] - Cut,Unreleased
+# [2.54.0] - 2024-02-14
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* [Enrichment Transform](https://s.apache.org/enrichment-transform) along with GCP BigTable handler added to Python SDK ([#30001](https://github.com/apache/beam/pull/30001)).
+* Beam Java Batch pipelines run on Google Cloud Dataflow will default to the Portable (Runner V2)[https://cloud.google.com/dataflow/docs/runner-v2] starting with this version. (All other languages are already on Runner V2.)
+    * This change is still rolling out to the Dataflow service, see (Runner V2 documentation)[https://cloud.google.com/dataflow/docs/runner-v2] for how to enable or disable it intentionally.
 
 ## I/Os
 
@@ -120,14 +121,15 @@
 
 ## Bugfixes
 
-* N/A
+* Fixed a memory leak affecting some Go SDK since 2.46.0. ([#28142](https://github.com/apache/beam/pull/28142))
 
 ## Security Fixes
+
 * N/A
 
 ## Known Issues
 
-* ([#X](https://github.com/apache/beam/issues/X)).
+* N/A
 
 # [2.53.0] - 2024-01-04
 

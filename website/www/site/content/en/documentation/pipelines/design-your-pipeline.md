@@ -146,7 +146,7 @@ mixedCollection.get(startsWithATag).apply(...);
 mixedCollection.get(startsWithBTag).apply(...);
 {{< /highlight >}}
 
-You can use either mechanism to produce multiple output `PCollection`s. However, using additional outputs makes more sense if the transform's computation per element is time-consuming.
+You can use either mechanism to produce multiple output `PCollection`s. The first option makes more sense if the processing logic in the `ParDo` is logically very distinct. However, using the second option (a single transform that produces multiple outputs) makes more sense if the transform's computation per element is time-consuming, and is more scalable if you plan to add more output types in the future.
 
 ## Merging PCollections
 
