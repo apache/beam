@@ -47,7 +47,6 @@ public class LengthPrefixUnknownCoders {
    */
   public static String addLengthPrefixedCoder(
       String coderId, RunnerApi.Components.Builder components, boolean replaceWithByteArrayCoder) {
-    if (true) return coderId;
     String lengthPrefixedByteArrayCoderId = addLengthPrefixByteArrayCoder(components);
     String urn = components.getCodersOrThrow(coderId).getSpec().getUrn();
 
