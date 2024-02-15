@@ -63,7 +63,6 @@ dependencies {
     // Exclude Avro dependencies from "core" since Avro support moved to this extension
     exclude group: "org.apache.avro", module: "avro"
   }
-  implementation(project(path: ":runners:core-construction-java"))
   implementation library.java.error_prone_annotations
   implementation library.java.avro
   implementation library.java.joda_time

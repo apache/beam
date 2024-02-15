@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.expansion.service;
 
-import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
@@ -29,9 +29,6 @@ import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -52,6 +49,9 @@ import org.apache.beam.sdk.transforms.InferableFunction;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.ParDoTranslation;
+import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
