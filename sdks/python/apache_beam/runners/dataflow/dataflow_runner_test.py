@@ -18,9 +18,7 @@
 """Unit tests for the DataflowRunner class."""
 # pytype: skip-file
 import os
-
 import tempfile
-
 import unittest
 from unittest.mock import MagicMock
 
