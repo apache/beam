@@ -14,9 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import shutil
 import tempfile
 import unittest
+import uuid
 
 import apache_beam as beam
 from apache_beam.ml.transforms.base import MLTransform
@@ -156,42 +158,15 @@ class TFHubEmbeddingsTest(unittest.TestCase):
                 write_artifact_location=self.artifact_location).with_transform(
                     embedding_config))
 
-  def test_with_gcs_artifact_location(self):
-    artifact_location = 'gs://apache-beam-ml/testing/tensorflow_hub'
-    with beam.Pipeline() as p:
-      embedding_config = TensorflowHubTextEmbeddings(
-          hub_url=hub_url, columns=[test_query_column])
 
-      with beam.Pipeline() as p:
-        data = (
-            p
-            | "CreateData" >> beam.Create([{
-                test_query_column: test_query
-            }]))
-        _ = self.pipeline_with_configurable_artifact_location(
-            pipeline=data,
-            embedding_config=embedding_config,
-            write_artifact_location=artifact_location)
+@unittest.skipIf(tf is None, 'Tensorflow is not installed.')
+class TFHubEmbeddingsGCSArtifactLocationTest(TFHubEmbeddingsTest):
+  def setUp(self):
+    self.artifact_location = os.path.join(
+        'gs://temp-storage-for-perf-tests/vertex_ai', uuid.uuid4().hex)
 
-      with beam.Pipeline() as p:
-        data = (
-            p
-            | "CreateData" >> beam.Create([{
-                test_query_column: test_query
-            }, {
-                test_query_column: test_query
-            }]))
-        result_pcoll = self.pipeline_with_configurable_artifact_location(
-            pipeline=data, read_artifact_location=artifact_location)
-
-        def assert_element(element):
-          # 0.29836970567703247
-          assert round(element, 2) == 0.3
-
-        _ = (
-            result_pcoll
-            | beam.Map(lambda x: max(x[test_query_column]))
-            | beam.Map(assert_element))
+  def tearDown(self):
+    pass
 
 
 if __name__ == '__main__':
