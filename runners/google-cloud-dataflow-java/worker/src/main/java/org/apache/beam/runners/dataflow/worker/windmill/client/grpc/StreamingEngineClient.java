@@ -102,7 +102,8 @@ public final class StreamingEngineClient {
       WindmillStubFactory stubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
-      long clientId) {
+      long clientId,
+      AtomicBoolean isBudgetRefreshPaused) {
     this.jobHeader = jobHeader;
     this.started = new AtomicBoolean();
     this.streamFactory = streamFactory;
@@ -110,7 +111,7 @@ public final class StreamingEngineClient {
     this.connections = connections;
     this.stubFactory = stubFactory;
     this.dispatcherClient = dispatcherClient;
-    this.isBudgetRefreshPaused = new AtomicBoolean(false);
+    this.isBudgetRefreshPaused = isBudgetRefreshPaused;
     this.getWorkerMetadataThrottleTimer = new ThrottleTimer();
     this.newWorkerMetadataPublisher =
         singleThreadedExecutorServiceOf(PUBLISH_NEW_WORKER_METADATA_THREAD);
@@ -177,10 +178,9 @@ public final class StreamingEngineClient {
             windmillGrpcStubFactory,
             getWorkBudgetDistributor,
             dispatcherClient,
-            new Random().nextLong());
-    streamingEngineClient.startGetWorkerMetadataStream();
-    streamingEngineClient.startWorkerMetadataConsumer();
-    streamingEngineClient.getWorkBudgetRefresher.start();
+            new Random().nextLong(),
+            new AtomicBoolean(false));
+    streamingEngineClient.start();
     return streamingEngineClient;
   }
 
@@ -194,7 +194,8 @@ public final class StreamingEngineClient {
       WindmillStubFactory stubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
-      long clientId) {
+      long clientId,
+      AtomicBoolean isBudgetRefreshPaused) {
     StreamingEngineClient streamingEngineClient =
         new StreamingEngineClient(
             jobHeader,
@@ -205,11 +206,16 @@ public final class StreamingEngineClient {
             stubFactory,
             getWorkBudgetDistributor,
             dispatcherClient,
-            clientId);
-    streamingEngineClient.startGetWorkerMetadataStream();
-    streamingEngineClient.startWorkerMetadataConsumer();
-    streamingEngineClient.getWorkBudgetRefresher.start();
+            clientId,
+            isBudgetRefreshPaused);
+    streamingEngineClient.start();
     return streamingEngineClient;
+  }
+
+  private void start() {
+    startGetWorkerMetadataStream();
+    startWorkerMetadataConsumer();
+    getWorkBudgetRefresher.start();
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
@@ -221,11 +227,6 @@ public final class StreamingEngineClient {
                 .ifPresent(this::consumeWindmillWorkerEndpoints);
           }
         });
-  }
-
-  @VisibleForTesting
-  boolean isWorkerMetadataReady() {
-    return !connections.get().equals(StreamingEngineConnectionState.EMPTY);
   }
 
   @VisibleForTesting
