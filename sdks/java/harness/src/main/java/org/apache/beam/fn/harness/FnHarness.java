@@ -17,12 +17,16 @@
  */
 package org.apache.beam.fn.harness;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -44,7 +48,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.fn.IdGenerator;
@@ -59,6 +62,7 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -107,6 +111,29 @@ public class FnHarness {
     return apiServiceDescriptorBuilder.build();
   }
 
+  public static String removeNestedKey(String jsonString, String keyToRemove) throws Exception {
+    ObjectMapper mapper = new ObjectMapper();
+    JsonNode rootNode = mapper.readTree(jsonString);
+
+    removeKeyRecursively(rootNode, keyToRemove);
+
+    return mapper.writeValueAsString(rootNode);
+  }
+
+  private static void removeKeyRecursively(JsonNode node, String keyToRemove) {
+    if (node.isObject()) {
+      Iterator<Map.Entry<String, JsonNode>> iterator = node.fields();
+      while (iterator.hasNext()) {
+        Map.Entry<String, JsonNode> field = iterator.next();
+        if (field.getKey().equals(keyToRemove)) {
+          iterator.remove(); // Safe removal using Iterator
+        } else {
+          removeKeyRecursively(field.getValue(), keyToRemove);
+        }
+      }
+    }
+  }
+
   public static void main(String[] args) throws Exception {
     main(System::getenv);
   }
@@ -144,6 +171,9 @@ public class FnHarness {
     }
 
     System.out.format("Pipeline options %s%n", pipelineOptionsJson);
+    // TODO: https://github.com/apache/beam/issues/30301
+    pipelineOptionsJson = removeNestedKey(pipelineOptionsJson, "impersonateServiceAccount");
+
     PipelineOptions options = PipelineOptionsTranslation.fromJson(pipelineOptionsJson);
 
     Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor =
