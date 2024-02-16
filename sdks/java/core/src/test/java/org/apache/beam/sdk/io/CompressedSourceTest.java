@@ -796,7 +796,7 @@ public class CompressedSourceTest {
     byte[] input = generateInput(1000);
     File tmpFile = tmpFolder.newFile("test.bz2");
     Files.write(input, tmpFile);
-    thrown.expectMessage("Stream is not in the BZip2 format");
+    thrown.expectMessage("Failed to process ");
     verifyReadContents(input, tmpFile, Compression.BZIP2);
   }
 
@@ -826,7 +826,7 @@ public class CompressedSourceTest {
     byte[] input = generateInput(1000);
     File tmpFile = tmpFolder.newFile("test.lzo");
     Files.write(input, tmpFile);
-    thrown.expectMessage("Not an LZOP file");
+    thrown.expectMessage("Failed to process ");
     verifyReadContents(input, tmpFile, Compression.LZOP);
   }
 
