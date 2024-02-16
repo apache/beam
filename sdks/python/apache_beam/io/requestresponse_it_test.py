@@ -103,7 +103,8 @@ class EchoHTTPCaller(Caller[Request, EchoResponse]):
         or a ``UserCodeQuotaException``.
         """
     try:
-      resp = urllib3.request(
+      http = urllib3.PoolManager()
+      resp = http.request(
           "POST",
           self.url,
           json={
