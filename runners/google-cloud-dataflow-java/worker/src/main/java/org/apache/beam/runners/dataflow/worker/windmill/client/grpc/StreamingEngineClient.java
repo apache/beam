@@ -131,7 +131,7 @@ public final class StreamingEngineClient {
         Suppliers.memoize(
             () ->
                 streamFactory.createGetWorkerMetadataStream(
-                    dispatcherClient.getDispatcherStub(),
+                    dispatcherClient.getWindmillMetadataServiceStub(),
                     getWorkerMetadataThrottleTimer,
                     endpoints ->
                         // Run this on a separate thread than the grpc stream thread.
@@ -267,7 +267,7 @@ public final class StreamingEngineClient {
     getWorkBudgetRefresher.requestBudgetRefresh();
   }
 
-  public final ImmutableList<Long> getAndResetThrottleTimes() {
+  public ImmutableList<Long> getAndResetThrottleTimes() {
     StreamingEngineConnectionState currentConnections = connections.get();
 
     ImmutableList<Long> keyedWorkStreamThrottleTimes =
@@ -375,21 +375,10 @@ public final class StreamingEngineClient {
   }
 
   private CloudWindmillServiceV1Alpha1Stub createWindmillStub(Endpoint endpoint) {
-    switch (stubFactory.getKind()) {
-        // This is only used in tests.
-      case IN_PROCESS:
-        return stubFactory.inProcess().get();
-        // Create stub for direct_endpoint or just default to Dispatcher stub.
-      case REMOTE:
-        return endpoint
-            .directEndpoint()
-            .map(stubFactory.remote())
-            .orElseGet(dispatcherClient::getDispatcherStub);
-        // Should never be called, this switch statement is exhaustive.
-      default:
-        throw new UnsupportedOperationException(
-            "Only remote or in-process stub factories are available.");
-    }
+    return endpoint
+        .directEndpoint()
+        .map(stubFactory::createWindmillServiceStub)
+        .orElseGet(dispatcherClient::getWindmillServiceStub);
   }
 
   private static class StreamingEngineClientException extends IllegalStateException {

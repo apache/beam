@@ -61,9 +61,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
-/**
- * An {@link org.apache.beam.runners.core.construction.expansion.ExpansionService} useful for tests.
- */
+/** An {@link org.apache.beam.sdk.util.construction.expansion.ExpansionService} useful for tests. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })

@@ -21,6 +21,7 @@ limitations under the License.
 
 <table class="table-bordered table-striped">
   <tr><th>Transform</th><th>Description</th></tr>
+  <tr><td><a href="/documentation/transforms/python/elementwise/enrichment">Enrichment</a></td><td>Performs data enrichment with a remote service.</td></tr>
   <tr><td><a href="/documentation/transforms/python/elementwise/filter">Filter</a></td><td>Given a predicate, filter out all elements that don't satisfy the predicate.</td></tr>
   <tr><td><a href="/documentation/transforms/python/elementwise/flatmap">FlatMap</a></td><td>Applies a function that returns a collection to every element in the input and
   outputs all resulting elements.</td></tr>

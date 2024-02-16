@@ -21,6 +21,7 @@ import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.THRO
 
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterUpdate;
+import com.google.api.services.dataflow.model.MetricValue;
 import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
@@ -34,6 +35,7 @@ import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 /** Contains a few of the stage specific fields. E.g. metrics container registry, counters etc. */
@@ -117,6 +119,24 @@ public abstract class StageInfo {
     Iterables.addAll(
         metrics,
         StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(metricsContainerRegistry()));
+    translateKnownPerWorkerCounters(metrics);
     return metrics;
+  }
+
+  private void translateKnownPerWorkerCounters(List<PerStepNamespaceMetrics> metrics) {
+    for (PerStepNamespaceMetrics perStepnamespaceMetrics : metrics) {
+      if (!BigQuerySinkMetrics.METRICS_NAMESPACE.equals(
+          perStepnamespaceMetrics.getMetricsNamespace())) {
+        continue;
+      }
+      for (MetricValue metric : perStepnamespaceMetrics.getMetricValues()) {
+        if (BigQuerySinkMetrics.THROTTLED_TIME.equals(metric.getMetric())) {
+          Long msecs = metric.getValueInt64();
+          if (msecs != null && msecs > 0) {
+            throttledMsecs().addValue(msecs);
+          }
+        }
+      }
+    }
   }
 }
