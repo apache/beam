@@ -20,7 +20,7 @@ apply plugin: 'org.apache.beam.module'
 apply plugin: 'application'
 
 applyJavaNature(
-    automaticModuleName: 'org.apache.beam.sdk.transform.service.app',
+    automaticModuleName: 'org.apache.beam.sdk.transformservice.app',
     exportJavadoc: false,
     validateShadowJar: false,
     shadowClosure: {},

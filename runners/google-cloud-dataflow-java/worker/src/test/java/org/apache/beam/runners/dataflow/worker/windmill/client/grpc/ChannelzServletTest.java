@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 import static org.junit.Assert.*;
 
 import java.io.*;
+import java.util.Optional;
 import org.apache.beam.runners.dataflow.worker.FakeWindmillServer;
 import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -50,12 +51,12 @@ public class ChannelzServletTest {
         };
     StreamingDataflowWorkerOptions options =
         PipelineOptionsFactory.create().as(StreamingDataflowWorkerOptions.class);
-    FakeWindmillServer fakeWindmillServer = new FakeWindmillServer(new ErrorCollector());
+    FakeWindmillServer fakeWindmillServer =
+        new FakeWindmillServer(new ErrorCollector(), s -> Optional.empty());
     fakeWindmillServer.setWindmillServiceEndpoints(
         ImmutableSet.of(HostAndPort.fromHost(windmill1), HostAndPort.fromHost(windmill2)));
-    options.setWindmillServerStub(fakeWindmillServer);
     options.setChannelzShowOnlyWindmillServiceChannels(false);
-    ChannelzServlet channelzServlet = new ChannelzServlet(options);
+    ChannelzServlet channelzServlet = new ChannelzServlet(options, fakeWindmillServer);
     StringWriter stringWriter = new StringWriter();
     PrintWriter writer = new PrintWriter(stringWriter);
     channelzServlet.captureData(writer);
@@ -82,12 +83,12 @@ public class ChannelzServletTest {
         };
     StreamingDataflowWorkerOptions options =
         PipelineOptionsFactory.create().as(StreamingDataflowWorkerOptions.class);
-    FakeWindmillServer fakeWindmillServer = new FakeWindmillServer(new ErrorCollector());
+    FakeWindmillServer fakeWindmillServer =
+        new FakeWindmillServer(new ErrorCollector(), s -> Optional.empty());
     fakeWindmillServer.setWindmillServiceEndpoints(
         ImmutableSet.of(HostAndPort.fromHost(windmill1), HostAndPort.fromHost(windmill2)));
-    options.setWindmillServerStub(fakeWindmillServer);
     options.setChannelzShowOnlyWindmillServiceChannels(true);
-    ChannelzServlet channelzServlet = new ChannelzServlet(options);
+    ChannelzServlet channelzServlet = new ChannelzServlet(options, fakeWindmillServer);
     StringWriter stringWriter = new StringWriter();
     PrintWriter writer = new PrintWriter(stringWriter);
     channelzServlet.captureData(writer);

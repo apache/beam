@@ -49,7 +49,7 @@ public class WorkerStatusPagesTest {
     MockitoAnnotations.initMocks(this);
     DataflowWorkerHarnessOptions options =
         PipelineOptionsFactory.create().as(DataflowWorkerHarnessOptions.class);
-    wsp = new WorkerStatusPages(options, server, mockMemoryMonitor, mockHealthyIndicator);
+    wsp = new WorkerStatusPages(server, mockMemoryMonitor, mockHealthyIndicator);
     server.addConnector(connector);
     wsp.start();
   }
@@ -82,7 +82,7 @@ public class WorkerStatusPagesTest {
         PipelineOptionsFactory.create().as(DataflowWorkerHarnessOptions.class);
     // set up WorkerStatusPages that respond unhealthy status on "healthz"
     wsp.stop();
-    wsp = new WorkerStatusPages(options, server, mockMemoryMonitor, () -> false);
+    wsp = new WorkerStatusPages(server, mockMemoryMonitor, () -> false);
     wsp.start();
 
     String response = getPage("/healthz");

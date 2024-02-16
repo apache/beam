@@ -48,10 +48,11 @@ public class ChannelzServlet extends BaseStatusServlet implements DebugCapture.C
   private final WindmillServerStub windmillServerStub;
   private final boolean showOnlyWindmillServiceChannels;
 
-  public ChannelzServlet(StreamingDataflowWorkerOptions options) {
+  public ChannelzServlet(
+      StreamingDataflowWorkerOptions options, WindmillServerStub windmillServerStub) {
     super(PATH);
     channelzService = ChannelzService.newInstance(MAX_TOP_CHANNELS_TO_RETURN);
-    windmillServerStub = options.getWindmillServerStub();
+    this.windmillServerStub = windmillServerStub;
     showOnlyWindmillServiceChannels = options.getChannelzShowOnlyWindmillServiceChannels();
   }
 

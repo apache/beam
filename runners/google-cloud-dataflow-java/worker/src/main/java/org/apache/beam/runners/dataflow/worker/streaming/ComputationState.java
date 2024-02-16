@@ -19,18 +19,17 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 
 import com.google.api.services.dataflow.model.MapTask;
 import java.io.PrintWriter;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
-import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.FailedTokens;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.joda.time.Instant;
 
 /**
@@ -81,11 +80,14 @@ public class ComputationState implements AutoCloseable {
 
   /**
    * Mark the given {@link ShardedKey} and {@link Work} as active, and schedules execution of {@link
-   * Work} if there is no active {@link Work} for the {@link ShardedKey} already processing.
+   * Work} if there is no active {@link Work} for the {@link ShardedKey} already processing. Returns
+   * whether the {@link Work} will be activated, either immediately or sometime in the future.
    */
   public boolean activateWork(ShardedKey shardedKey, Work work) {
     switch (activeWorkState.activateWorkForKey(shardedKey, work)) {
       case DUPLICATE:
+        // Fall through intentionally. Work was not and will not be activated in these cases.
+      case STALE:
         return false;
       case QUEUED:
         return true;
@@ -100,16 +102,16 @@ public class ComputationState implements AutoCloseable {
     }
   }
 
-  public void failWork(Map<Long, List<FailedTokens>> failedWork) {
+  public void failWork(Multimap<Long, WorkId> failedWork) {
     activeWorkState.failWorkForKey(failedWork);
   }
 
   /**
    * Marks the work for the given shardedKey as complete. Schedules queued work for the key if any.
    */
-  public void completeWorkAndScheduleNextWorkForKey(ShardedKey shardedKey, long workToken) {
+  public void completeWorkAndScheduleNextWorkForKey(ShardedKey shardedKey, WorkId workId) {
     activeWorkState
-        .completeWorkAndGetNextWorkForKey(shardedKey, workToken)
+        .completeWorkAndGetNextWorkForKey(shardedKey, workId)
         .ifPresent(this::forceExecute);
   }
 

@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -42,6 +43,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.concurrent.GuardedBy;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
+import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationCommitWorkRequest;
@@ -87,12 +90,14 @@ public class FakeWindmillServer extends WindmillServerStub {
   private final List<Windmill.GetDataRequest> getDataRequests = new ArrayList<>();
   private boolean isReady = true;
   private boolean dropStreamingCommits = false;
-  private Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses;
+  private final Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses;
 
   @GuardedBy("this")
   private ImmutableSet<HostAndPort> dispatcherEndpoints;
 
-  public FakeWindmillServer(ErrorCollector errorCollector) {
+  public FakeWindmillServer(
+      ErrorCollector errorCollector,
+      Function<String, Optional<ComputationState>> computationStateFetcher) {
     workToOffer =
         new ResponseQueue<Windmill.GetWorkRequest, Windmill.GetWorkResponse>()
             .returnByDefault(Windmill.GetWorkResponse.getDefaultInstance());
@@ -110,13 +115,7 @@ public class FakeWindmillServer extends WindmillServerStub {
     this.errorCollector = errorCollector;
     statsReceived = new ArrayList<>();
     droppedStreamingCommits = new ConcurrentHashMap<>();
-    processHeartbeatResponses = (responses) -> {};
-  }
-
-  @Override
-  public void setProcessHeartbeatResponses(
-      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
-    this.processHeartbeatResponses = processHeartbeatResponses;
+    this.processHeartbeatResponses = new WorkHeartbeatResponseProcessor(computationStateFetcher);
   }
 
   public void setDropStreamingCommits(boolean dropStreamingCommits) {
