@@ -493,7 +493,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
 
         startReading(channel);
       } catch (IOException e) {
-        LOG.error(String.format("Failed to process %s.", resourceId), e);
+        throw new RuntimeException(String.format("Failed to process %s.", resourceId), e);
       }
 
       // Advance once to load the first record.
