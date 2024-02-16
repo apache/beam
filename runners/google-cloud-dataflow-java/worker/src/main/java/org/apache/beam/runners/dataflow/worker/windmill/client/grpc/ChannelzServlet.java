@@ -87,6 +87,10 @@ public class ChannelzServlet extends BaseStatusServlet implements DebugCapture.C
 
   private void appendTopChannels(PrintWriter writer) {
     SettableFuture<GetTopChannelsResponse> future = SettableFuture.create();
+    // IDEA: If there are more than MAX_TOP_CHANNELS_TO_RETURN top channels
+    // in the worker, we might not return all the windmill channels. If we run into
+    // such situations, this logic can be modified to loop till we see an empty
+    // GetTopChannelsResponse response with the end bit set.
     channelzService.getTopChannels(
         GetTopChannelsRequest.newBuilder().build(), getStreamObserver(future));
     GetTopChannelsResponse topChannelsResponse;
