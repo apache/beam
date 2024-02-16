@@ -27,6 +27,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import apache_beam as beam
+from apache_beam.coders import coders
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import BeamAssertException
 
@@ -175,6 +176,7 @@ class TestBigTableEnrichment(unittest.TestCase):
         self.container.start()
         self.host = self.container.get_container_host_ip()
         self.port = self.container.get_exposed_port(6379)
+        self.client = self.container.get_client()
         break
       except Exception as e:
         if i == self.retries - 1:
@@ -396,6 +398,14 @@ class TestBigTableEnrichment(unittest.TestCase):
                   len(expected_fields),
                   expected_fields,
                   expected_enriched_fields)))
+
+    # manually check cache entry
+    c = coders.StrUtf8Coder()
+    for req in self.req:
+      key = bigtable.get_cache_key(req)
+      response = self.client.get(c.encode(key))
+      if not response:
+        raise ValueError("No cache entry found for %s" % key)
 
     actual = BigTableEnrichmentHandler.__call__
     BigTableEnrichmentHandler.__call__ = MagicMock(

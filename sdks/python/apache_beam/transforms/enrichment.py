@@ -25,7 +25,7 @@ from typing import Union
 
 import apache_beam as beam
 from apache_beam.coders import coders
-from apache_beam.io.requestresponse import DEFAULT_TIME_TO_LIVE_SECS
+from apache_beam.io.requestresponse import DEFAULT_CACHE_ENTRY_TTL_SEC
 from apache_beam.io.requestresponse import DEFAULT_TIMEOUT_SECS
 from apache_beam.io.requestresponse import Caller
 from apache_beam.io.requestresponse import DefaultThrottler
@@ -57,7 +57,7 @@ def has_valid_redis_address(host: str, port: int) -> bool:
 
 
 def cross_join(left: Dict[str, Any], right: Dict[str, Any]) -> beam.Row:
-  """cross_join performs a cross join on two `dict` objects.
+  """performs a cross join on two `dict` objects.
 
     Joins the columns of the right row onto the left row.
 
@@ -83,12 +83,12 @@ def cross_join(left: Dict[str, Any], right: Dict[str, Any]) -> beam.Row:
 
 
 class EnrichmentSourceHandler(Caller[InputT, OutputT]):
-  """Wrapper class for :class:`apache_beam.io.requestresponse.Caller`.
+  """Wrapper class for `apache_beam.io.requestresponse.Caller`.
 
   Ensure that the implementation of ``__call__`` method returns a tuple
   of `beam.Row`  objects.
   """
-  def get_cache_request_key(self, request: InputT):
+  def get_cache_key(self, request: InputT) -> str:
     """Returns the request to be cached. This is how the response will be
     looked up in the cache as well.
 
@@ -121,12 +121,11 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
     join_fn: A lambda function to join original element with lookup metadata.
       Defaults to `CROSS_JOIN`.
     timeout: (Optional) timeout for source requests. Defaults to 30 seconds.
-    repeater (~apache_beam.io.requestresponse.Repeater): provides method to
-      repeat failed requests to API due to service errors. Defaults to
+    repeater: provides method to repeat failed requests to API due to service
+      errors. Defaults to
       :class:`apache_beam.io.requestresponse.ExponentialBackOffRepeater` to
       repeat requests with exponential backoff.
-    throttler (~apache_beam.io.requestresponse.PreCallThrottler):
-      provides methods to pre-throttle a request. Defaults to
+    throttler: provides methods to pre-throttle a request. Defaults to
       :class:`apache_beam.io.requestresponse.DefaultThrottler` for
       client-side adaptive throttling using
       :class:`apache_beam.io.components.adaptive_throttler.AdaptiveThrottler`.
@@ -148,7 +147,7 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
   def expand(self,
              input_row: beam.PCollection[InputT]) -> beam.PCollection[OutputT]:
     # For caching with enrichment transform, enrichment handlers provide a
-    # get_cache_request_key() method that returns a unique string formatted
+    # get_cache_key() method that returns a unique string formatted
     # request for that row.
     request_coder = coders.StrUtf8Coder()
     if self._cache:
@@ -169,11 +168,11 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
       self,
       host: str,
       port: int,
-      time_to_live: Union[int, timedelta] = DEFAULT_TIME_TO_LIVE_SECS,
+      time_to_live: Union[int, timedelta] = DEFAULT_CACHE_ENTRY_TTL_SEC,
       *,
       request_coder: Optional[coders.Coder] = None,
       response_coder: Optional[coders.Coder] = None,
-      kwargs: Optional[Dict[str, Any]] = None,
+      **kwargs,
   ):
     """Configure the Redis cache to use with enrichment transform.
 
@@ -187,15 +186,15 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
         in Redis.
       response_coder: (Optional[`coders.Coder`]) coder for decoding responses
         received from Redis.
-      kwargs: Optional(Dict[str, Any]) additional keyword arguments that
+      kwargs: Optional additional keyword arguments that
         are required to connect to your redis server. Same as `redis.Redis()`.
     """
     if has_valid_redis_address(host, port):
       self._cache = RedisCache(  # type: ignore[assignment]
-          host,
-          port,
-          time_to_live,
-          request_coder,
-          response_coder,
-          kwargs=kwargs)
+          host=host,
+          port=port,
+          time_to_live=time_to_live,
+          request_coder=request_coder,
+          response_coder=response_coder,
+          **kwargs)
     return self

@@ -51,8 +51,9 @@ ResponseT = TypeVar('ResponseT')
 # with external source.
 DEFAULT_TIMEOUT_SECS = 30
 
-# DEFAULT_TIME_TO_LIVE_SECS represents the total time to live for cache record.
-DEFAULT_TIME_TO_LIVE_SECS = 24 * 60 * 60
+# DEFAULT_CACHE_ENTRY_TTL_SEC represents the total time-to-live
+# for cache record.
+DEFAULT_CACHE_ENTRY_TTL_SEC = 24 * 60 * 60
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,16 +63,6 @@ __all__ = [
     'DefaultThrottler',
     'NoOpsRepeater',
     'RedisCache',
-    'ReadFromRedis',
-    'WriteToRedis',
-    'RedisCaller',
-    'DEFAULT_TIMEOUT_SECS',
-    'DEFAULT_TIME_TO_LIVE_SECS',
-    'Caller',
-    'PreCallThrottler',
-    'Repeater',
-    'Cache',
-    'ShouldBackOff',
 ]
 
 
@@ -123,6 +114,7 @@ class Caller(contextlib.AbstractContextManager,
              abc.ABC,
              Generic[RequestT, ResponseT]):
   """Interface for user custom code intended for API calls.
+
   For setup and teardown of clients when applicable, implement the
   ``__enter__`` and ``__exit__`` methods respectively."""
   @abc.abstractmethod
@@ -140,27 +132,27 @@ class Caller(contextlib.AbstractContextManager,
   def __exit__(self, exc_type, exc_val, exc_tb):
     return None
 
-  def get_cache_request_key(self, request: RequestT):
-    """Returns the request to be cached. This is how the
-    response will be looked up in the cache as well.
+  def get_cache_key(self, request: RequestT) -> str:
+    """Returns the request to be cached.
 
+    This is how the response will be looked up in the cache as well.
     By default, entire request is cached as the key for the cache.
     Implement this method to override the key for the cache.
     For example, in `BigTableEnrichmentHandler`, the row key for the element
     is returned here.
     """
-    return None
+    return ""
 
 
 class ShouldBackOff(abc.ABC):
   """
-  ShouldBackOff provides mechanism to apply adaptive throttling.
+  Provides mechanism to apply adaptive throttling.
   """
   pass
 
 
 class Repeater(abc.ABC):
-  """Repeater provides mechanism to repeat requests for a
+  """Provides mechanism to repeat requests for a
   configurable condition."""
   @abc.abstractmethod
   def repeat(
@@ -169,17 +161,17 @@ class Repeater(abc.ABC):
       request: RequestT,
       timeout: float,
       metrics_collector: Optional[_MetricsCollector]) -> ResponseT:
-    """repeat method is called from the RequestResponseIO when
-    a repeater is enabled.
+    """Implements a repeater strategy for RequestResponseIO when a repeater
+    is enabled.
 
     Args:
-      caller: a :class:`apache_beam.io.requestresponse.Caller` object that
+      caller: a `~apache_beam.io.requestresponse.Caller` object that
         calls the API.
       request: input request to repeat.
       timeout: time to wait for the request to complete.
       metrics_collector: (Optional) a
-        ``:class:`apache_beam.io.requestresponse._MetricsCollector``` object to
-        collect the metrics for RequestResponseIO.
+        `~apache_beam.io.requestresponse._MetricsCollector` object
+        to collect the metrics for RequestResponseIO.
     """
     pass
 
@@ -211,9 +203,10 @@ def _execute_request(
 
 
 class ExponentialBackOffRepeater(Repeater):
-  """Exponential BackOff Repeater uses exponential backoff retry strategy for
-  exceptions due to the remote service such as TooManyRequests (HTTP 429),
-  UserCodeTimeoutException, UserCodeQuotaException.
+  """Configure exponential backoff retry strategy.
+
+  It retries for exceptions due to the remote service such as
+  TooManyRequests (HTTP 429), UserCodeTimeoutException, UserCodeQuotaException.
 
   It utilizes the decorator
   :func:`apache_beam.utils.retry.with_exponential_backoff`.
@@ -233,20 +226,19 @@ class ExponentialBackOffRepeater(Repeater):
     a repeater is enabled.
 
     Args:
-      caller: :class:`apache_beam.io.requestresponse.Caller` object that
+      caller: a `~apache_beam.io.requestresponse.Caller` object that
         calls the API.
       request: input request to repeat.
       timeout: time to wait for the request to complete.
       metrics_collector: (Optional) a
-        ``:class:`apache_beam.io.requestresponse._MetricsCollector``` object to
+        `~apache_beam.io.requestresponse._MetricsCollector` object to
         collect the metrics for RequestResponseIO.
     """
     return _execute_request(caller, request, timeout, metrics_collector)
 
 
 class NoOpsRepeater(Repeater):
-  """
-  NoOpsRepeater executes a request just once irrespective of any exception.
+  """Executes a request just once irrespective of any exception.
   """
   def repeat(
       self,
@@ -258,7 +250,7 @@ class NoOpsRepeater(Repeater):
 
 
 class PreCallThrottler(abc.ABC):
-  """PreCallThrottler provides a throttle mechanism before sending request."""
+  """Provides a throttle mechanism before sending request."""
   pass
 
 
@@ -286,11 +278,13 @@ class DefaultThrottler(PreCallThrottler):
 
 
 class _FilterCacheReadFn(beam.DoFn):
-  """A `DoFn` that emits to main output for successful cache read requests or
-  to the tagged output - `inputs` - otherwise."""
+  """A `DoFn` that partitions cache reads.
+
+  It emits to main output for successful cache read requests or
+  to the tagged output - `cache_misses` - otherwise."""
   def process(self, element: Tuple[RequestT, ResponseT], *args, **kwargs):
     if not element[1]:
-      yield pvalue.TaggedOutput('inputs', element[0])
+      yield pvalue.TaggedOutput('cache_misses', element[0])
     else:
       yield element
 
@@ -306,15 +300,11 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
   regulate the duration of each call, defaults to 30 seconds.
 
   Args:
-      caller (:class:`apache_beam.io.requestresponse.Caller`): a callable
-        object that invokes API call.
+      caller: a `Caller` object that invokes API call.
       timeout (float): timeout value in seconds to wait for response from API.
-      should_backoff (~apache_beam.io.requestresponse.ShouldBackOff):
-        (Optional) provides methods for backoff.
-      repeater (~apache_beam.io.requestresponse.Repeater): (Optional) provides
-        methods to repeat requests to API.
-      throttler (~apache_beam.io.requestresponse.PreCallThrottler):
-        (Optional) provides methods to pre-throttle a request.
+      should_backoff: (Optional) provides methods for backoff.
+      repeater: (Optional) provides methods to repeat requests to API.
+      throttler: (Optional) provides methods to pre-throttle a request.
   """
   def __init__(
       self,
@@ -394,12 +384,12 @@ class Cache(abc.ABC):
   """
   @abc.abstractmethod
   def get_read(self):
-    """get_read returns a PTransform that reads from the cache."""
+    """returns a PTransform that reads from the cache."""
     pass
 
   @abc.abstractmethod
   def get_write(self):
-    """get_write returns a PTransform that writes to the cache."""
+    """returns a PTransform that writes to the cache."""
     pass
 
   @abc.abstractmethod
@@ -428,15 +418,15 @@ class Cache(abc.ABC):
 class _RedisMode(enum.Enum):
   """
   Mode of operation for redis cache when using
-  :class:`apache_beam.io.requestresponse.RedisCaller`.
+  `~apache_beam.io.requestresponse._RedisCaller`.
   """
   READ = 0
   WRITE = 1
 
 
-class RedisCaller(Caller):
-  """`RedisCaller` is an implementation of
-  :class:`apache_beam.io.requestresponse.Caller` for Redis client.
+class _RedisCaller(Caller):
+  """An implementation of
+  `~apache_beam.io.requestresponse.Caller` for Redis client.
 
   It provides the functionality for making requests to Redis server using
   :class:`apache_beam.io.requestresponse.RequestResponseIO`.
@@ -469,7 +459,7 @@ class RedisCaller(Caller):
       source_caller: (Optional[`Caller`]): The source caller using this Redis
         cache in case of fetching the cache request to store in Redis.
       mode: `_RedisMode` An enum type specifying the operational mode of
-        the `RedisCaller`.
+        the `_RedisCaller`.
     """
     self.host, self.port = host, port
     self.time_to_live = time_to_live
@@ -484,7 +474,7 @@ class RedisCaller(Caller):
 
   def __call__(self, element, *args, **kwargs):
     if self.mode == _RedisMode.READ:
-      cache_request = self.source_caller.get_cache_request_key(element)
+      cache_request = self.source_caller.get_cache_key(element)
       # check if the caller is a enrichment handler. EnrichmentHandler
       # provides the request format for cache.
       if cache_request:
@@ -509,7 +499,7 @@ class RedisCaller(Caller):
         response = self.response_coder.decode(encoded_response)
       return element, response
     else:
-      cache_request = self.source_caller.get_cache_request_key(element[0])
+      cache_request = self.source_caller.get_cache_key(element[0])
       if cache_request:
         encoded_request = self.request_coder.encode(cache_request)
       else:
@@ -534,9 +524,9 @@ class RedisCaller(Caller):
     self.client.close()
 
 
-class ReadFromRedis(beam.PTransform[beam.PCollection[RequestT],
-                                    beam.PCollection[ResponseT]]):
-  """ReadFromRedis is a `PTransform` that performs Redis cache read."""
+class _ReadFromRedis(beam.PTransform[beam.PCollection[RequestT],
+                                     beam.PCollection[ResponseT]]):
+  """A `PTransform` that performs Redis cache read."""
   def __init__(
       self,
       host: str,
@@ -566,7 +556,7 @@ class ReadFromRedis(beam.PTransform[beam.PCollection[RequestT],
     """
     self.request_coder = request_coder
     self.response_coder = response_coder
-    self.redis_caller = RedisCaller(
+    self.redis_caller = _RedisCaller(
         host,
         port,
         time_to_live,
@@ -582,9 +572,10 @@ class ReadFromRedis(beam.PTransform[beam.PCollection[RequestT],
     return requests | RequestResponseIO(self.redis_caller)
 
 
-class WriteToRedis(beam.PTransform[beam.PCollection[Tuple[RequestT, ResponseT]],
-                                   beam.PCollection[ResponseT]]):
-  """WriteToRedis is a `PTransfrom` that performs write to Redis cache."""
+class _WriteToRedis(beam.PTransform[beam.PCollection[Tuple[RequestT,
+                                                           ResponseT]],
+                                    beam.PCollection[ResponseT]]):
+  """A `PTransfrom` that performs write to Redis cache."""
   def __init__(
       self,
       host: str,
@@ -614,7 +605,7 @@ class WriteToRedis(beam.PTransform[beam.PCollection[Tuple[RequestT, ResponseT]],
       """
     self.request_coder = request_coder
     self.response_coder = response_coder
-    self.redis_caller = RedisCaller(
+    self.redis_caller = _RedisCaller(
         host,
         port,
         time_to_live,
@@ -639,17 +630,17 @@ def ensure_coders_exist(request_coder):
 
 
 class RedisCache(Cache):
-  """RedisCache to configure cache using Redis for
+  """Configure cache using Redis for
   :class:`apache_beam.io.requestresponse.RequestResponseIO`."""
   def __init__(
       self,
       host: str,
       port: int,
-      time_to_live: Union[int, timedelta] = DEFAULT_TIME_TO_LIVE_SECS,
+      time_to_live: Union[int, timedelta] = DEFAULT_CACHE_ENTRY_TTL_SEC,
+      *,
       request_coder: Optional[coders.Coder] = None,
       response_coder: Optional[coders.Coder] = None,
-      *,
-      kwargs: Optional[Dict[str, Any]] = None,
+      **kwargs,
   ):
     """
     Args:
@@ -661,7 +652,7 @@ class RedisCache(Cache):
       request_coder: (Optional[`coders.Coder`]) coder for encoding requests.
       response_coder: (Optional[`coders.Coder`]) coder for decoding responses
         received from Redis.
-      kwargs: Optional(Dict[str, Any]) additional keyword arguments that
+      kwargs: Optional additional keyword arguments that
         are required to connect to your redis server. Same as `redis.Redis()`.
     """
     self._host = host
@@ -675,7 +666,7 @@ class RedisCache(Cache):
   def get_read(self):
     """get_read returns a PTransform for reading from the cache."""
     ensure_coders_exist(self._request_coder)
-    return ReadFromRedis(
+    return _ReadFromRedis(
         self._host,
         self._port,
         time_to_live=self._time_to_live,
@@ -685,9 +676,9 @@ class RedisCache(Cache):
         source_caller=self._source_caller)
 
   def get_write(self):
-    """get_write returns a PTransform for writing to the cache."""
+    """returns a PTransform for writing to the cache."""
     ensure_coders_exist(self._request_coder)
-    return WriteToRedis(
+    return _WriteToRedis(
         self._host,
         self._port,
         time_to_live=self._time_to_live,
@@ -720,7 +711,7 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
   """A :class:`RequestResponseIO` transform to read and write to APIs.
 
   Processes an input :class:`~apache_beam.pvalue.PCollection` of requests
-  by making a call to the API as defined in :class:`Caller`'s `__call__`
+  by making a call to the API as defined in `Caller`'s `__call__` method
   and returns a :class:`~apache_beam.pvalue.PCollection` of responses.
   """
   def __init__(
@@ -736,19 +727,17 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
     Instantiates a RequestResponseIO transform.
 
     Args:
-      caller (~apache_beam.io.requestresponse.Caller): an implementation of
+      caller: an implementation of
         `Caller` object that makes call to the API.
       timeout (float): timeout value in seconds to wait for response from API.
-      should_backoff (~apache_beam.io.requestresponse.ShouldBackOff):
-        (Optional) provides methods for backoff.
-      repeater (~apache_beam.io.requestresponse.Repeater): provides method to
-        repeat failed requests to API due to service errors. Defaults to
+      should_backoff: (Optional) provides methods for backoff.
+      repeater: provides method to repeat failed requests to API due to service
+        errors. Defaults to
         :class:`apache_beam.io.requestresponse.ExponentialBackOffRepeater` to
         repeat requests with exponential backoff.
-      cache: (Optional) a :class:`apache_beam.io.requestresponse.Cache` object
+      cache: (Optional) a `~apache_beam.io.requestresponse.Cache` object
         to use the appropriate cache.
-      throttler (~apache_beam.io.requestresponse.PreCallThrottler):
-        provides methods to pre-throttle a request. Defaults to
+      throttler: provides methods to pre-throttle a request. Defaults to
         :class:`apache_beam.io.requestresponse.DefaultThrottler` for
         client-side adaptive throttling using
         :class:`apache_beam.io.components.adaptive_throttler.AdaptiveThrottler`
@@ -781,7 +770,7 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
       cached_responses, inputs = (outputs
                                   | beam.ParDo(_FilterCacheReadFn()
                                                ).with_outputs(
-                                    'inputs', main='cached_responses'))
+                                    'cache_misses', main='cached_responses'))
 
     if isinstance(self._throttler, DefaultThrottler):
       # DefaultThrottler applies throttling in the DoFn of

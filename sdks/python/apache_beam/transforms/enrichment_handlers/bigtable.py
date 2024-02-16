@@ -53,9 +53,8 @@ class ExceptionLevel(Enum):
 
 
 class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
-  """BigTableEnrichmentHandler is a handler for
-  :class:`apache_beam.transforms.enrichment.Enrichment` transform to interact
-  with GCP BigTable.
+  """A handler for :class:`apache_beam.transforms.enrichment.Enrichment`
+  transform to interact with GCP BigTable.
 
   Args:
     project_id (str): GCP project-id of the BigTable cluster.
@@ -162,7 +161,7 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     self.instance = None
     self._table = None
 
-  def get_cache_request_key(self, request: beam.Row):
-    """return a string formatted with row key since it is unique to
+  def get_cache_key(self, request: beam.Row) -> str:
+    """Returns a string formatted with row key since it is unique to
     a request made to `Bigtable`."""
     return "%s: %s" % (self._row_key, request._asdict()[self._row_key])
