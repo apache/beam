@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import importlib.util
+import importlib
 import logging
 import os
 import secrets
@@ -22,8 +22,6 @@ import shutil
 import time
 import typing
 import unittest
-from importlib import import_module
-from importlib.util import spec_from_file_location
 from os.path import dirname
 
 import numpy
@@ -147,10 +145,10 @@ class ExternalTransformProviderIT(unittest.TestCase):
 
 
 @pytest.mark.xlang_wrapper_generation
-# @unittest.skipUnless(
-#     os.environ.get('EXPANSION_JARS'),
-#     "EXPANSION_JARS environment var is not provided, "
-#     "indicating that jars have not been built")
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_JARS'),
+    "EXPANSION_JARS environment var is not provided, "
+    "indicating that jars have not been built")
 class AutoGenerationScriptIT(unittest.TestCase):
   """
   This class tests the generation and regeneration operations in
@@ -254,7 +252,7 @@ class AutoGenerationScriptIT(unittest.TestCase):
   def get_module(self, dest):
     module_name = dest.replace('apache_beam/', '').replace('/', '_')
     module = 'apache_beam.transforms.%s.%s' % (self.test_dir_name, module_name)
-    return import_module(module)
+    return importlib.import_module(module)
 
   def write_wrappers_to_destinations_and_validate(
       self, destinations: typing.List[str]):
