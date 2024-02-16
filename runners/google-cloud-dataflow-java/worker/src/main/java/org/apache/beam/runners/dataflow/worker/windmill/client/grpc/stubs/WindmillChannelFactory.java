@@ -37,6 +37,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPor
 public final class WindmillChannelFactory {
   public static final String LOCALHOST = "localhost";
   private static final int DEFAULT_GRPC_PORT = 443;
+  private static final int MAX_REMOTE_TRACE_EVENTS = 100;
 
   private WindmillChannelFactory() {}
 
@@ -139,6 +140,7 @@ public final class WindmillChannelFactory {
 
     return channelBuilder
         .maxInboundMessageSize(Integer.MAX_VALUE)
+        .maxTraceEvents(MAX_REMOTE_TRACE_EVENTS)
         .maxInboundMetadataSize(1024 * 1024);
   }
 
