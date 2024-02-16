@@ -19,17 +19,26 @@ package org.apache.beam.it.gcp.pubsub;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.cloud.Timestamp;
+import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.SubscriptionName;
 import com.google.pubsub.v1.TopicName;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.text.ParseException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
@@ -46,6 +55,9 @@ import org.apache.beam.sdk.io.synthetic.SyntheticUnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
@@ -62,8 +74,8 @@ import org.junit.Test;
 /** PubSubIO performance tests. */
 public class PubSubIOLT extends IOLoadTestBase {
 
-  private static final int numberOfBundlesForLocal = 10;
-  private static final int numberOfBundlesForMediumAndLarge = 20;
+  private static final int NUMBER_OF_BUNDLES_FOR_LOCAL = 10;
+  private static final int NUMBER_OF_BUNDLES_FOR_MEDIUM_AND_LARGE = 20;
   private static final String READ_ELEMENT_METRIC_NAME = "read_count";
   private static final String MAP_RECORDS_STEP_NAME = "Map records";
   private static final String WRITE_TO_PUBSUB_STEP_NAME = "Write to PubSub";
@@ -71,6 +83,7 @@ public class PubSubIOLT extends IOLoadTestBase {
   private static TopicName topicName;
   private static Configuration configuration;
   private static SubscriptionName subscription;
+  private static InfluxDBSettings influxDBSettings;
   private static PubsubResourceManager resourceManager;
 
   @Rule public transient TestPipeline writePipeline = TestPipeline.create();
@@ -82,15 +95,15 @@ public class PubSubIOLT extends IOLoadTestBase {
           ImmutableMap.of(
               "local",
               PubSubIOLT.Configuration.fromJsonString(
-                  "{\"numRecords\":200,\"valueSizeBytes\":1000,\"pipelineTimeout\":7,\"runner\":\"DirectRunner\"}",
+                  "{\"numRecords\":200,\"valueSizeBytes\":1000,\"pipelineTimeout\":7,\"runner\":\"DirectRunner\",\"numWorkers\":1}",
                   PubSubIOLT.Configuration.class), // 0.2 MB
               "medium",
               PubSubIOLT.Configuration.fromJsonString(
-                  "{\"numRecords\":10000000,\"valueSizeBytes\":1000,\"pipelineTimeout\":20,\"runner\":\"DataflowRunner\"}",
+                  "{\"numRecords\":10000000,\"valueSizeBytes\":1000,\"pipelineTimeout\":20,\"runner\":\"DataflowRunner\",\"numWorkers\":10}",
                   PubSubIOLT.Configuration.class), // 10 GB
               "large",
               PubSubIOLT.Configuration.fromJsonString(
-                  "{\"numRecords\":100000000,\"valueSizeBytes\":1000,\"pipelineTimeout\":80,\"runner\":\"DataflowRunner\"}",
+                  "{\"numRecords\":100000000,\"valueSizeBytes\":1000,\"pipelineTimeout\":50,\"runner\":\"DataflowRunner\",\"numWorkers\":20}",
                   PubSubIOLT.Configuration.class) // 100 GB
               );
     } catch (IOException e) {
@@ -127,7 +140,18 @@ public class PubSubIOLT extends IOLoadTestBase {
     // implementation where
     // number of lost data in streaming pipeline equals to number of initial bundles.
     configuration.forceNumInitialBundles =
-        testConfig.equals("local") ? numberOfBundlesForLocal : numberOfBundlesForMediumAndLarge;
+        testConfig.equals("local")
+            ? NUMBER_OF_BUNDLES_FOR_LOCAL
+            : NUMBER_OF_BUNDLES_FOR_MEDIUM_AND_LARGE;
+
+    if (configuration.exportMetricsToInfluxDB) {
+      influxDBSettings =
+          InfluxDBSettings.builder()
+              .withHost(configuration.influxHost)
+              .withDatabase(configuration.influxDatabase)
+              .withMeasurement(configuration.influxMeasurement)
+              .get();
+    }
 
     // tempLocation needs to be set for DataflowRunner
     if (!Strings.isNullOrEmpty(tempBucketName)) {
@@ -176,7 +200,6 @@ public class PubSubIOLT extends IOLoadTestBase {
     WriteAndReadFormat format = WriteAndReadFormat.valueOf(configuration.writeAndReadFormat);
     PipelineLauncher.LaunchInfo writeLaunchInfo = testWrite(format);
     PipelineLauncher.LaunchInfo readLaunchInfo = testRead(format);
-
     try {
       PipelineOperator.Result readResult =
           pipelineOperator.waitUntilDone(
@@ -197,7 +220,29 @@ public class PubSubIOLT extends IOLoadTestBase {
               region,
               readLaunchInfo.jobId(),
               getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
-      assertEquals(configuration.numRecords, numRecords, configuration.forceNumInitialBundles);
+
+      // Assert that actual data equals or greater than expected data number since there might be
+      // duplicates when testing big amount of data
+      long expectedDataNum = configuration.numRecords - configuration.forceNumInitialBundles;
+      assertTrue(numRecords >= expectedDataNum);
+
+      // export metrics
+      MetricsConfiguration writeMetricsConfig =
+          MetricsConfiguration.builder()
+              .setInputPCollection("Map records.out0")
+              .setInputPCollectionV2("Map records/ParMultiDo(MapKVToV).out0")
+              .build();
+
+      MetricsConfiguration readMetricsConfig =
+          MetricsConfiguration.builder()
+              .setOutputPCollection("Counting element.out0")
+              .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
+              .build();
+
+      exportMetrics(writeLaunchInfo, writeMetricsConfig);
+      exportMetrics(readLaunchInfo, readMetricsConfig);
+    } catch (ParseException | InterruptedException e) {
+      throw new RuntimeException(e);
     } finally {
       cancelJobIfRunning(writeLaunchInfo);
       cancelJobIfRunning(readLaunchInfo);
@@ -242,7 +287,7 @@ public class PubSubIOLT extends IOLoadTestBase {
             .setPipeline(writePipeline)
             .addParameter("runner", configuration.runner)
             .addParameter("streaming", "true")
-            .addParameter("experiments", "use_runner_v2")
+            .addParameter("numWorkers", String.valueOf(configuration.numWorkers))
             .build();
 
     return pipelineLauncher.launch(project, region, writeOptions);
@@ -250,6 +295,7 @@ public class PubSubIOLT extends IOLoadTestBase {
 
   private PipelineLauncher.LaunchInfo testRead(WriteAndReadFormat format) throws IOException {
     PubsubIO.Read<?> read = null;
+
     switch (format) {
       case STRING:
         read = PubsubIO.readStrings().fromSubscription(subscription.toString());
@@ -275,7 +321,7 @@ public class PubSubIOLT extends IOLoadTestBase {
             .setPipeline(readPipeline)
             .addParameter("runner", configuration.runner)
             .addParameter("streaming", "true")
-            .addParameter("experiments", "use_runner_v2")
+            .addParameter("numWorkers", String.valueOf(configuration.numWorkers))
             .build();
 
     return pipelineLauncher.launch(project, region, readOptions);
@@ -289,12 +335,33 @@ public class PubSubIOLT extends IOLoadTestBase {
     }
   }
 
+  private void exportMetrics(
+      PipelineLauncher.LaunchInfo launchInfo, MetricsConfiguration metricsConfig)
+      throws IOException, ParseException, InterruptedException {
+
+    Map<String, Double> metrics = getMetrics(launchInfo, metricsConfig);
+    String testId = UUID.randomUUID().toString();
+    String testTimestamp = Timestamp.now().toString();
+
+    if (configuration.exportMetricsToInfluxDB) {
+      Collection<NamedTestResult> namedTestResults = new ArrayList<>();
+      for (Map.Entry<String, Double> entry : metrics.entrySet()) {
+        NamedTestResult metricResult =
+            NamedTestResult.create(testId, testTimestamp, entry.getKey(), entry.getValue());
+        namedTestResults.add(metricResult);
+      }
+      IOITMetrics.publishToInflux(testId, testTimestamp, namedTestResults, influxDBSettings);
+    } else {
+      exportMetricsToBigQuery(launchInfo, metrics);
+    }
+  }
+
   /** Mapper class to convert data from KV<byte[], byte[]> to String. */
   private static class MapKVtoString extends DoFn<KV<byte[], byte[]>, String> {
     @ProcessElement
     public void process(ProcessContext context) {
-      context.output(
-          new String(Objects.requireNonNull(context.element()).getValue(), StandardCharsets.UTF_8));
+      byte[] byteValue = Objects.requireNonNull(context.element()).getValue();
+      context.output(ByteString.copyFrom(byteValue).toString(StandardCharsets.UTF_8));
     }
   }
 
@@ -303,8 +370,7 @@ public class PubSubIOLT extends IOLoadTestBase {
     @ProcessElement
     public void process(ProcessContext context) {
       byte[] byteValue = Objects.requireNonNull(context.element()).getValue();
-      int intValue = ByteBuffer.wrap(byteValue).getInt();
-      GenericClass pojo = new GenericClass(intValue, "data_" + intValue);
+      GenericClass pojo = new GenericClass(byteValue);
       context.output(pojo);
     }
   }
@@ -314,12 +380,10 @@ public class PubSubIOLT extends IOLoadTestBase {
     @ProcessElement
     public void process(ProcessContext context) {
       byte[] byteValue = Objects.requireNonNull(context.element()).getValue();
-      int intValue = ByteBuffer.wrap(byteValue).getInt();
-      String stringValue = "data_" + intValue;
       Primitive proto =
           Primitive.newBuilder()
-              .setPrimitiveInt32(intValue)
-              .setPrimitiveString(stringValue)
+              .setPrimitiveBytes(ByteString.copyFrom(byteValue))
+              .setPrimitiveInt32(ByteBuffer.wrap(byteValue).getInt())
               .build();
       context.output(proto);
     }
@@ -330,36 +394,29 @@ public class PubSubIOLT extends IOLoadTestBase {
     @ProcessElement
     public void process(ProcessContext context) {
       byte[] byteValue = Objects.requireNonNull(context.element()).getValue();
-      int intValue = ByteBuffer.wrap(byteValue).getInt();
-      Map<String, String> attributes = ImmutableMap.of("someValue", "value_" + intValue);
-      PubsubMessage pubsubMessage = new PubsubMessage(byteValue, attributes);
+      PubsubMessage pubsubMessage = new PubsubMessage(byteValue, Collections.emptyMap());
       context.output(pubsubMessage);
     }
   }
 
   /** Example of Generic class to test PubSubIO.writeAvros()/readAvros methods. */
   static class GenericClass implements Serializable {
-    int intField;
-    String stringField;
+    byte[] byteField;
 
     public GenericClass() {}
 
-    public GenericClass(int intField, String stringField) {
-      this.intField = intField;
-      this.stringField = stringField;
+    public GenericClass(byte[] byteField) {
+      this.byteField = byteField;
     }
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(getClass())
-          .add("intField", intField)
-          .add("stringField", stringField)
-          .toString();
+      return MoreObjects.toStringHelper(getClass()).add("byteField", byteField).toString();
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(intField, stringField);
+      return Objects.hash(Arrays.hashCode(byteField));
     }
 
     @Override
@@ -368,7 +425,7 @@ public class PubSubIOLT extends IOLoadTestBase {
         return false;
       }
       GenericClass o = (GenericClass) other;
-      return intField == o.intField && Objects.equals(stringField, o.stringField);
+      return Arrays.equals(byteField, o.byteField);
     }
   }
 
@@ -389,5 +446,24 @@ public class PubSubIOLT extends IOLoadTestBase {
 
     /** PubSub write and read format: STRING/AVRO/PROTO/PUBSUB_MESSAGE. */
     @JsonProperty public String writeAndReadFormat = "STRING";
+
+    /** Number of workers for the pipeline. */
+    @JsonProperty public int numWorkers = 20;
+
+    /**
+     * Determines the destination for exporting metrics. If set to true, metrics will be exported to
+     * InfluxDB and displayed using Grafana. If set to false, metrics will be exported to BigQuery
+     * and displayed with Looker Studio.
+     */
+    @JsonProperty public boolean exportMetricsToInfluxDB = false;
+
+    /** InfluxDB measurement to publish results to. * */
+    @JsonProperty public String influxMeasurement;
+
+    /** InfluxDB host to publish metrics. * */
+    @JsonProperty public String influxHost;
+
+    /** InfluxDB database to publish metrics. * */
+    @JsonProperty public String influxDatabase;
   }
 }
