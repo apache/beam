@@ -330,41 +330,70 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 					em.refreshCond.L.Lock()
 				}
 			}
-			if len(em.inprogressBundles) == 0 && len(em.watermarkRefreshes) == 0 {
-				nextEvent := em.testStreamHandler.NextEvent()
-				if nextEvent == nil {
-					v := em.livePending.Load()
-					slog.Debug("Bundles: nothing in progress and no refreshes", slog.Int64("pendingElementCount", v))
-					if v > 0 {
-						var stageState []string
-						ids := maps.Keys(em.stages)
-						sort.Strings(ids)
-						for _, id := range ids {
-							ss := em.stages[id]
-							inW := ss.InputWatermark()
-							outW := ss.OutputWatermark()
-							upPCol, upW := ss.UpstreamWatermark()
-							upS := em.pcolParents[upPCol]
-							stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHoldHeap, "holdCounts", ss.watermarkHoldsCounts))
-						}
-						panic(fmt.Sprintf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, strings.Join(stageState, "")))
-					}
-				} else {
-					nextEvent.Execute(em)
-					em.addPending(-1) // Decrement for the event being processed.
-				}
-			} else if len(em.inprogressBundles) == 0 {
-				v := em.livePending.Load()
-				slog.Debug("Bundles: nothing in progress after advance",
-					slog.Any("advanced", advanced),
-					slog.Int("refreshCount", len(em.watermarkRefreshes)),
-					slog.Int64("pendingElementCount", v),
-				)
-			}
-			em.refreshCond.L.Unlock()
+			em.checkForQuiescence(advanced)
 		}
 	}()
 	return runStageCh
+}
+
+// checkForQuiescence sees if this element manager is no longer able to do any pending work or make progress.
+//
+// Quiescense can happen if there are no inprogress bundles, and there are no further watermark refreshes, which
+// are the only way to access new pending elements. If there are no pending elements, then the pipeline will
+// terminate successfully.
+//
+// Otherwise, produce information for debugging why the pipeline is stuck and take appropriate action, such as
+// executing off the next TestStream event.
+//
+// Must be called while holding em.refreshCond.L.
+func (em *ElementManager) checkForQuiescence(advanced set[string]) {
+	defer em.refreshCond.L.Unlock()
+	if len(em.inprogressBundles) > 0 {
+		// If there are bundles in progress, then there may be watermark refreshes when they terminate.
+		return
+	}
+	if len(em.watermarkRefreshes) > 0 {
+		// If there are watermarks to refresh, we aren't yet stuck.
+		v := em.livePending.Load()
+		slog.Debug("Bundles: nothing in progress after advance",
+			slog.Any("advanced", advanced),
+			slog.Int("refreshCount", len(em.watermarkRefreshes)),
+			slog.Int64("pendingElementCount", v),
+		)
+		return
+	}
+	// The job has quiesced!
+
+	// There are no further incoming watermark changes, see if there are test stream events for this job.
+	nextEvent := em.testStreamHandler.NextEvent()
+	if nextEvent != nil {
+		nextEvent.Execute(em)
+		// Decrement pending for the event being processed.
+		em.addPending(-1)
+		return
+	}
+
+	v := em.livePending.Load()
+	if v == 0 {
+		// Since there are no further pending elements, the job will be terminating successfully.
+		return
+	}
+	// The job is officially stuck. Fail fast and produce debugging information.
+	// Jobs must never get stuck so this indicates a bug in prism to be investigated.
+
+	slog.Debug("Bundles: nothing in progress and no refreshes", slog.Int64("pendingElementCount", v))
+	var stageState []string
+	ids := maps.Keys(em.stages)
+	sort.Strings(ids)
+	for _, id := range ids {
+		ss := em.stages[id]
+		inW := ss.InputWatermark()
+		outW := ss.OutputWatermark()
+		upPCol, upW := ss.UpstreamWatermark()
+		upS := em.pcolParents[upPCol]
+		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHoldHeap, "holdCounts", ss.watermarkHoldsCounts))
+	}
+	panic(fmt.Sprintf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, strings.Join(stageState, "")))
 }
 
 // InputForBundle returns pre-allocated data for the given bundle, encoding the elements using
