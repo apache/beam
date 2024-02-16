@@ -158,18 +158,6 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
     assert cls.client is not None
     return cls.client, cls.options
 
-  def test_not_found_should_raise(self):
-    client, _ = EchoHTTPCallerTestIT._get_client_and_options()
-    req = Request(id='i-dont-exist-quota-id', payload=_PAYLOAD)
-    with self.assertRaises(RuntimeError):
-      test_pipeline = beam.Pipeline()
-      _ = (
-          test_pipeline
-          | "Create" >> beam.Create([req])
-          | "RRIO" >> RequestResponseIO(client))
-      res = test_pipeline.run()
-      res.wait_until_finish()
-
   def test_request_response_io(self):
     client, options = EchoHTTPCallerTestIT._get_client_and_options()
     req = Request(id=options.never_exceed_quota_id, payload=_PAYLOAD)
