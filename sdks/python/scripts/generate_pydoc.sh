@@ -204,6 +204,10 @@ ignore_identifiers = [
   'apache_beam.typehints.typehints.validate_composite_type_param()',
   'apache_beam.utils.windowed_value._IntervalWindowBase',
   'apache_beam.coders.coder_impl.StreamCoderImpl',
+  'apache_beam.io.requestresponse.Caller',
+  'apache_beam.io.requestresponse.Repeater',
+  'apache_beam.io.requestresponse.PreCallThrottler',
+  'apache_beam.io.requestresponse.Cache',
 
   # Private classes which are used within the same module
   'apache_beam.transforms.external_test.PayloadBase',
