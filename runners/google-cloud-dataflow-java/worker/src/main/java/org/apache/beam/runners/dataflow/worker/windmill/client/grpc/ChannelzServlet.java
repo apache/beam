@@ -32,6 +32,7 @@ import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOp
 import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.channelz.v1.*;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.protobuf.services.ChannelzService;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
@@ -40,6 +41,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPor
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.SettableFuture;
 
 /** Respond to /path with the GRPC channelz data. */
+@Internal
 public class ChannelzServlet extends BaseStatusServlet implements DebugCapture.Capturable {
 
   private static final int MAX_TOP_CHANNELS_TO_RETURN = 500;
