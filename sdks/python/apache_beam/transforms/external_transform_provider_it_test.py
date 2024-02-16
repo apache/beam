@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+import importlib.util
 import logging
 import os
 import secrets
@@ -147,10 +147,10 @@ class ExternalTransformProviderIT(unittest.TestCase):
 
 
 @pytest.mark.xlang_wrapper_generation
-@unittest.skipUnless(
-    os.environ.get('EXPANSION_JARS'),
-    "EXPANSION_JARS environment var is not provided, "
-    "indicating that jars have not been built")
+# @unittest.skipUnless(
+#     os.environ.get('EXPANSION_JARS'),
+#     "EXPANSION_JARS environment var is not provided, "
+#     "indicating that jars have not been built")
 class AutoGenerationScriptIT(unittest.TestCase):
   """
   This class tests the generation and regeneration operations in
@@ -164,9 +164,11 @@ class AutoGenerationScriptIT(unittest.TestCase):
   def setUp(self):
     # import script from top-level sdks/python directory
     self.sdk_dir = os.path.abspath(dirname(dirname(dirname(__file__))))
-    self.script = spec_from_file_location(
+    spec = importlib.util.spec_from_file_location(
         'gen_xlang_wrappers',
         os.path.join(self.sdk_dir, 'gen_xlang_wrappers.py'))
+    self.script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(self.script)
     args = TestPipeline(is_integration_test=True).get_full_options_as_args()
     runner = PipelineOptions(args).get_all_options()['runner']
     if runner and "direct" not in runner.lower():
