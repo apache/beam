@@ -122,6 +122,10 @@ class TensorflowHubTextEmbeddings(EmbeddingsManager):
     )
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
+    """
+    Returns a RunInference object that is used to run inference on the text 
+    input using _TextEmbeddingHandler.
+    """
     return (
         RunInference(
             model_handler=_TextEmbeddingHandler(self),
