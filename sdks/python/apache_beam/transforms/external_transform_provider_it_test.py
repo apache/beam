@@ -22,6 +22,7 @@ import shutil
 import time
 import typing
 import unittest
+from importlib import import_module
 from importlib.util import spec_from_file_location
 from os.path import dirname
 
@@ -109,15 +110,15 @@ class NameAndTypeUtilsTest(unittest.TestCase):
       self.assertEqual(case[2], infer_name_from_identifier(case[1], case[0]))
 
 
-def get_expansion_service(target):
-  return BeamJarExpansionService(target)
-
-
 @pytest.mark.uses_io_java_expansion_service
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_JARS'),
+    "EXPANSION_JARS environment var is not provided, "
+    "indicating that jars have not been built")
 class ExternalTransformProviderIT(unittest.TestCase):
   def test_generate_sequence_config_schema_and_description(self):
     provider = ExternalTransformProvider(
-        get_expansion_service(":sdks:java:io:expansion-service:shadowJar"))
+        BeamJarExpansionService(":sdks:java:io:expansion-service:shadowJar"))
 
     self.assertTrue((
         'GenerateSequence',
@@ -136,7 +137,7 @@ class ExternalTransformProviderIT(unittest.TestCase):
 
   def test_run_generate_sequence(self):
     provider = ExternalTransformProvider(
-        get_expansion_service(":sdks:java:io:expansion-service:shadowJar"))
+        BeamJarExpansionService(":sdks:java:io:expansion-service:shadowJar"))
 
     with beam.Pipeline() as p:
       numbers = p | provider.GenerateSequence(
@@ -146,6 +147,10 @@ class ExternalTransformProviderIT(unittest.TestCase):
 
 
 @pytest.mark.xlang_wrapper_generation
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_JARS'),
+    "EXPANSION_JARS environment var is not provided, "
+    "indicating that jars have not been built")
 class AutoGenerationScriptIT(unittest.TestCase):
   """
   This class tests the generation and regeneration operations in

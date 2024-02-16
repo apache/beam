@@ -18,6 +18,7 @@
 """Integration tests for BigTable service."""
 
 import logging
+import os
 import secrets
 import time
 import unittest
@@ -58,6 +59,10 @@ def instance_prefix(instance):
 @pytest.mark.uses_gcp_java_expansion_service
 @pytest.mark.uses_transform_service
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_JARS'),
+    "EXPANSION_JARS environment var is not provided, "
+    "indicating that jars have not been built")
 class TestReadFromBigTableIT(unittest.TestCase):
   INSTANCE = "bt-read-tests"
   TABLE_ID = "test-table"
@@ -145,6 +150,10 @@ class TestReadFromBigTableIT(unittest.TestCase):
 @pytest.mark.uses_gcp_java_expansion_service
 @pytest.mark.uses_transform_service
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_JARS'),
+    "EXPANSION_JARS environment var is not provided, "
+    "indicating that jars have not been built")
 class TestWriteToBigtableXlangIT(unittest.TestCase):
   # These are integration tests for the cross-language write transform.
   INSTANCE = "bt-write-xlang"

@@ -2621,9 +2621,11 @@ class BeamModulePlugin implements Plugin<Project> {
           def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
 
           project.exec {
+            // environment variable to indicate that jars have been built
+            environment "EXPANSION_JARS", config.expansionProjectPaths
             String additionalDependencyCmd = ""
             if (config.additionalDeps != null && !config.additionalDeps.isEmpty()){
-              additionalDependencyCmd = "&& pip install ${config.additionalDeps.join(' ')}"
+              additionalDependencyCmd = "&& pip install ${config.additionalDeps.join(' ')} "
             }
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate " +
