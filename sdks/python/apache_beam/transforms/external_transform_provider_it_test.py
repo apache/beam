@@ -22,7 +22,8 @@ import shutil
 import time
 import typing
 import unittest
-from importlib import import_module
+from importlib.util import spec_from_file_location
+from os.path import dirname
 
 import numpy
 import pytest
@@ -108,11 +109,15 @@ class NameAndTypeUtilsTest(unittest.TestCase):
       self.assertEqual(case[2], infer_name_from_identifier(case[1], case[0]))
 
 
+def get_expansion_service(target):
+  return BeamJarExpansionService(target)
+
+
 @pytest.mark.uses_io_java_expansion_service
 class ExternalTransformProviderIT(unittest.TestCase):
   def test_generate_sequence_config_schema_and_description(self):
     provider = ExternalTransformProvider(
-        BeamJarExpansionService(":sdks:java:io:expansion-service:shadowJar"))
+        get_expansion_service(":sdks:java:io:expansion-service:shadowJar"))
 
     self.assertTrue((
         'GenerateSequence',
@@ -131,7 +136,7 @@ class ExternalTransformProviderIT(unittest.TestCase):
 
   def test_run_generate_sequence(self):
     provider = ExternalTransformProvider(
-        BeamJarExpansionService(":sdks:java:io:expansion-service:shadowJar"))
+        get_expansion_service(":sdks:java:io:expansion-service:shadowJar"))
 
     with beam.Pipeline() as p:
       numbers = p | provider.GenerateSequence(
@@ -153,7 +158,10 @@ class AutoGenerationScriptIT(unittest.TestCase):
 
   def setUp(self):
     # import script from top-level sdks/python directory
-    self.script = import_module('gen_xlang_wrappers')
+    self.sdk_dir = os.path.abspath(dirname(dirname(dirname(__file__))))
+    self.script = spec_from_file_location(
+        'gen_xlang_wrappers',
+        os.path.join(self.sdk_dir, 'gen_xlang_wrappers.py'))
     args = TestPipeline(is_integration_test=True).get_full_options_as_args()
     runner = PipelineOptions(args).get_all_options()['runner']
     if runner and "direct" not in runner.lower():
@@ -164,7 +172,7 @@ class AutoGenerationScriptIT(unittest.TestCase):
     self.test_dir_name = 'test_gen_script_%d_%s' % (
         int(time.time()), secrets.token_hex(3))
     self.test_dir = os.path.join(
-        os.path.abspath(os.path.dirname(__file__)), self.test_dir_name)
+        os.path.abspath(dirname(__file__)), self.test_dir_name)
     self.service_config_path = os.path.join(
         self.test_dir, "test_expansion_service_config.yaml")
     self.transform_config_path = os.path.join(
@@ -376,15 +384,13 @@ class AutoGenerationScriptIT(unittest.TestCase):
     Fix by running `./gradlew generateExternalTransformWrappers` and
     committing the changes.
     """
-    project_root = import_module('gen_protos').PROJECT_ROOT
+    sdks_dir = os.path.abspath(dirname(self.sdk_dir))
     self.script.generate_transforms_config(
-        os.path.join(project_root, 'sdks', 'standard_expansion_services.yaml'),
+        os.path.join(sdks_dir, 'standard_expansion_services.yaml'),
         self.transform_config_path)
     with open(self.transform_config_path) as f:
       test_config = yaml.safe_load(f)
-    with open(os.path.join(project_root,
-                           'sdks',
-                           'standard_external_transforms.yaml'),
+    with open(os.path.join(sdks_dir, 'standard_external_transforms.yaml'),
               'r') as f:
       standard_config = yaml.safe_load(f)
 
