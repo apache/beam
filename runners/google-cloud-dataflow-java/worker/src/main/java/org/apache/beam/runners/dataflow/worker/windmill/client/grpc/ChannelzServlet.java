@@ -39,18 +39,18 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.SettableFuture;
 
-/** Respond to /channelz with the GRPC channelz data. */
+/** Respond to /path with the GRPC channelz data. */
 public class ChannelzServlet extends BaseStatusServlet implements DebugCapture.Capturable {
-  private static final String PATH = "/channelz";
-  private static final int MAX_TOP_CHANNELS_TO_RETURN = 100;
+
+  private static final int MAX_TOP_CHANNELS_TO_RETURN = 500;
 
   private final ChannelzService channelzService;
   private final WindmillServerStub windmillServerStub;
   private final boolean showOnlyWindmillServiceChannels;
 
   public ChannelzServlet(
-      StreamingDataflowWorkerOptions options, WindmillServerStub windmillServerStub) {
-    super(PATH);
+      String path, StreamingDataflowWorkerOptions options, WindmillServerStub windmillServerStub) {
+    super(path);
     channelzService = ChannelzService.newInstance(MAX_TOP_CHANNELS_TO_RETURN);
     this.windmillServerStub = windmillServerStub;
     showOnlyWindmillServiceChannels = options.getChannelzShowOnlyWindmillServiceChannels();
@@ -66,7 +66,7 @@ public class ChannelzServlet extends BaseStatusServlet implements DebugCapture.C
 
   @Override
   public String pageName() {
-    return PATH;
+    return getPath();
   }
 
   @Override
@@ -80,6 +80,7 @@ public class ChannelzServlet extends BaseStatusServlet implements DebugCapture.C
   // channelz proto says there won't be cycles in the ref graph.
   // we track visited ids to be defensive and prevent any accidental cycles.
   static class VisitedSets {
+
     Set<Long> channels = new HashSet<>();
     Set<Long> subchannels = new HashSet<>();
   }
