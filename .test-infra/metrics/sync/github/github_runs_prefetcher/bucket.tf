@@ -14,7 +14,7 @@
 # limitations under the License.
 
 resource "google_storage_bucket" "bucket" {
-  name     = "vdjerek-temp-bucket"
+  name     = "github_workflow_prefetcher_function"
   location = "US"
   
 }
