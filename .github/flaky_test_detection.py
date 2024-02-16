@@ -1,13 +1,28 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
 import re
 import requests
 from github import Github
 from github import Auth
 
-# TODO: remove
-GIT_ORG = "volatilemolotov"
+
+GIT_ORG = "apache"
 GIT_REPO = "beam"
-GRAFANA_URL = "https://tempgrafana.volatilemolotov.com"
+GRAFANA_URL = "http://beam.metrics.apache.org"
 #
 ALERT_NAME = "flaky_test"
 READ_ONLY = os.environ.get("READ_ONLY", "false")
@@ -37,7 +52,7 @@ def create_github_issue(repo, alert):
     failing_runs_url = f"https://github.com/{GIT_ORG}/beam/actions/{alert.workflow_file_name}?query=is%3Afailure+branch%3Amaster"
     title = f"The {alert.workflow_name} job is flaky"
     body = f"The {alert.workflow_name } is constantly failing.\nPlease visit {failing_runs_url} to see the logs."
-    labels = ["flaky_test", f"workflow_id: {alert.workflow_id}"]
+    labels = ["flaky_test", f"workflow_id: {alert.workflow_id}", "bug", "P1"]
     print("___")
     print(f"Title: {title}")
     print(f"Body: {body}")
@@ -55,8 +70,9 @@ def get_grafana_alerts():
     response = requests.get(url)
     if response.status_code != 200:
         raise RuntimeError(
-            "Request to %s failed with status %d: %s" %
-            (url, response.status_code, response.text))
+            "Request to %s failed with status %d: %s"
+            % (url, response.status_code, response.text)
+        )
     alerts = []
     if response.text:
         for alert in response.json():
