@@ -79,7 +79,7 @@ public class ChannelzServlet extends BaseStatusServlet implements DebugCapture.C
 
   // channelz proto says there won't be cycles in the ref graph.
   // we track visited ids to be defensive and prevent any accidental cycles.
-  static class VisitedSets {
+  private static class VisitedSets {
 
     Set<Long> channels = new HashSet<>();
     Set<Long> subchannels = new HashSet<>();
