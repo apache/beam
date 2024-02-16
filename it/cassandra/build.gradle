@@ -19,6 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.it.cassandra',
+        exportJavadoc: false,
 )
 
 description = "Apache Beam :: IT :: Cassandra"
