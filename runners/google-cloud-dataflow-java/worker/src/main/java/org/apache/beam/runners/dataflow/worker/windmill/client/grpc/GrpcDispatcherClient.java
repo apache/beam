@@ -97,7 +97,7 @@ class GrpcDispatcherClient {
         : randomlySelectNextStub(windmillServiceStubs));
   }
 
-  synchronized ImmutableSet<HostAndPort> getDispatcherEndpoints() {
+  ImmutableSet<HostAndPort> getDispatcherEndpoints() {
     return dispatcherStubs.get().dispatcherEndpoints();
   }
 

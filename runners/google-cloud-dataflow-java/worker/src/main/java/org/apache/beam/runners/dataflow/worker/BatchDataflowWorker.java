@@ -146,7 +146,7 @@ public class BatchDataflowWorker implements Closeable {
 
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
     this.statusPages =
-        WorkerStatusPages.create(options, DEFAULT_STATUS_PORT, this.memoryMonitor, () -> true);
+        WorkerStatusPages.create(DEFAULT_STATUS_PORT, this.memoryMonitor, () -> true);
 
     if (!DataflowRunner.hasExperiment(options, "disable_debug_capture")) {
       this.debugCaptureManager =

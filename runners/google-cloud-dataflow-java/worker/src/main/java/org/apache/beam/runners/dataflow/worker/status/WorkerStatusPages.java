@@ -25,7 +25,6 @@ import java.util.function.BooleanSupplier;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture.Capturable;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.sdk.util.construction.Environments;
@@ -58,7 +57,6 @@ public class WorkerStatusPages {
 
     // Install the default servlets (threadz, healthz, heapz, jfrz, statusz)
     addServlet(threadzServlet);
-
     addServlet(new HealthzServlet(healthyIndicator));
     addServlet(new HeapzServlet(memoryMonitor));
     if (Environments.getJavaVersion() != Environments.JavaVersion.java8) {
@@ -74,10 +72,7 @@ public class WorkerStatusPages {
   }
 
   public static WorkerStatusPages create(
-      DataflowWorkerHarnessOptions options,
-      int defaultStatusPort,
-      MemoryMonitor memoryMonitor,
-      BooleanSupplier healthyIndicator) {
+      int defaultStatusPort, MemoryMonitor memoryMonitor, BooleanSupplier healthyIndicator) {
     int statusPort = defaultStatusPort;
     if (System.getProperties().containsKey("status_port")) {
       statusPort = Integer.parseInt(System.getProperty("status_port"));
