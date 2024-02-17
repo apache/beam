@@ -77,7 +77,6 @@ dependencies {
     testImplementation library.java.mockito_inline
     testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
-    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadowTest")
     testRuntimeOnly library.java.slf4j_simple
 }
 
