@@ -268,6 +268,11 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   }
 
   @Override
+  public ImmutableSet<HostAndPort> getWindmillServiceEndpoints() {
+    return dispatcherClient.getDispatcherEndpoints();
+  }
+
+  @Override
   public boolean isReady() {
     return dispatcherClient.hasInitializedEndpoints();
   }

@@ -114,6 +114,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.appliance.JniWindmillApp
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.ChannelzServlet;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
@@ -211,6 +212,7 @@ public class StreamingDataflowWorker {
 
   private static final Duration MAX_LOCAL_PROCESSING_RETRY_DURATION = Duration.standardMinutes(5);
   private static final Random clientIdGenerator = new Random();
+  private static final String CHANNELZ_PATH = "/channelz";
   final WindmillStateCache stateCache;
   // Maps from computation ids to per-computation state.
   private final ConcurrentMap<String, ComputationState> computationMap;
@@ -735,6 +737,13 @@ public class StreamingDataflowWorker {
     if (debugCaptureManager != null) {
       debugCaptureManager.start();
     }
+
+    if (windmillServiceEnabled) {
+      ChannelzServlet channelzServlet = new ChannelzServlet(CHANNELZ_PATH, options, windmillServer);
+      statusPages.addServlet(channelzServlet);
+      statusPages.addCapturePage(channelzServlet);
+    }
+
     statusPages.addServlet(stateCache.statusServlet());
     statusPages.addServlet(new SpecsServlet());
 
@@ -2081,6 +2090,7 @@ public class StreamingDataflowWorker {
   }
 
   private class MetricsDataProvider implements StatusDataProvider {
+
     @Override
     public void appendSummaryHtml(PrintWriter writer) {
       writer.println(workUnitExecutor.summaryHtml());
