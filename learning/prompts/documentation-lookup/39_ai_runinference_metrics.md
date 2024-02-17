@@ -13,7 +13,7 @@ RunInference API provides has built-in support for monitoring the performance of
 - `inference_request_batch_size`: number of examples in the batch
 - `failed_batches_counter`: number of failed batches
 
-You can derive additoinal metrics from listed above as follows:
+You can derive additional metrics from listed above as follows:
 `Total time taken for inference` =` num_inferences` x `inference_batch_latency_micro_secs_MEAN`
 
 Below is the simplistic example of how to use the `RunInference` API to inference on a LM model:
