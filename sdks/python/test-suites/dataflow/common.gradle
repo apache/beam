@@ -475,7 +475,7 @@ task tftTests {
     def argMap = [
         "test_opts": testOpts,
         "suite": "TFTransformTests-df${pythonVersionSuffix}",
-        "collect": "uses_tft",
+        "collect": "uses_tft and not it_postcommit",
         "requirements_file": "apache_beam/testing/benchmarks/cloudml/requirements.txt",
         "pipeline_opts": opts,
     ]
@@ -487,14 +487,32 @@ task tftTests {
   }
 }
 
+task MLTransformITTest {
+  dependsOn "installTFTRequirements"
+  doLast {
+    def opts = project.findProperty('opts')
+    opts += " --sdk_location=${project.ext.sdkLocation}"
+    def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
+    def argMap = [
+        "test_opts": testOpts,
+        "suite": "MLTransformITTest-df${pythonVersionSuffix}",
+        // Add MLTransform IT tests pytest markers.
+        "collect": "uses_tft and it_postcommit",
+        "requirements_file": "apache_beam/testing/benchmarks/cloudml/requirements.txt",
+        "pipeline_opts": opts,
+    ]
+  }
+}
+
 // add all RunInference E2E tests that run on DataflowRunner
 // As of now, this test suite is enable in py38 suite as the base NVIDIA image used for Tensor RT
 // contains Python 3.8.
 // TODO: https://github.com/apache/beam/issues/22651
-project.tasks.register("inferencePostCommitIT") {
+project.tasks.register("BeamMLPostCommitIT") {
   dependsOn = [
   'tensorRTtests',
   'vertexAIInferenceTest',
+  'MLTransformITTest'
   ]
 }
 
