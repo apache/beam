@@ -2181,7 +2181,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
               logging.warn(
                 "Found JSON type in TableSchema for 'File_LOADS' write method. "
                 "Make sure the TableSchema field is a parsed JSON to ensure "
-                "the read as a JSON type."
+                "the read as a JSON type. Otherwise it will read as a raw (escaped) string."
               )
             elif field['type'] == 'STRUCT':
               find_in_nested_dict(field)
