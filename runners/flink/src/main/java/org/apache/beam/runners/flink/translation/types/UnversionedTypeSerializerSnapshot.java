@@ -15,25 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.types.compat;
+package org.apache.beam.runners.flink.translation.types;
 
 import java.io.IOException;
-import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 
 /** A legacy snapshot which does not care about schema compatibility. */
 @SuppressWarnings("allcheckers")
 public class UnversionedTypeSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 
-  private CoderTypeSerializer<T> serializer = null;
+  private @Nullable CoderTypeSerializer<T> serializer;
 
   /** Needs to be public to work with {@link VersionedIOReadableWritable}. */
-  public UnversionedTypeSerializerSnapshot() {}
+  public UnversionedTypeSerializerSnapshot() {
+    this(null);
+  }
 
   @SuppressWarnings("initialization")
   public UnversionedTypeSerializerSnapshot(CoderTypeSerializer<T> serializer) {
@@ -42,29 +46,30 @@ public class UnversionedTypeSerializerSnapshot<T> implements TypeSerializerSnaps
 
   @Override
   public int getCurrentVersion() {
-    // We always return the same version
     return 1;
   }
 
   @Override
   public void writeSnapshot(DataOutputView dataOutputView) throws IOException {
     byte[] bytes = SerializableUtils.serializeToByteArray(serializer);
-    dataOutputView.writeInt(getCurrentVersion());
     dataOutputView.writeInt(bytes.length);
     dataOutputView.write(bytes);
   }
 
+  @SuppressWarnings("unchecked")
   @Override
-  public void readSnapshot(int i, DataInputView dataInputView, ClassLoader classLoader)
+  public void readSnapshot(int version, DataInputView dataInputView, ClassLoader classLoader)
       throws IOException {
-    // discard version
-    dataInputView.readInt();
-    int length = dataInputView.readInt();
-    byte[] bytes = new byte[length];
-    dataInputView.readFully(bytes);
-    this.serializer =
-        (CoderTypeSerializer<T>)
-            SerializableUtils.deserializeFromByteArray(bytes, "CoderTypeSerializer");
+
+    try (TemporaryClassLoaderContext context = TemporaryClassLoaderContext.of(classLoader)) {
+      int length = dataInputView.readInt();
+      byte[] bytes = new byte[length];
+      dataInputView.readFully(bytes);
+      this.serializer =
+          (CoderTypeSerializer<T>)
+              SerializableUtils.deserializeFromByteArray(
+                  bytes, CoderTypeSerializer.class.getName());
+    }
   }
 
   @Override
@@ -75,7 +80,7 @@ public class UnversionedTypeSerializerSnapshot<T> implements TypeSerializerSnaps
   @Override
   public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
       TypeSerializer<T> newSerializer) {
-    // We assume compatibility because we don't have a way of checking schema compatibility
+
     return TypeSerializerSchemaCompatibility.compatibleAsIs();
   }
 }

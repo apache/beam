@@ -20,7 +20,6 @@ package org.apache.beam.runners.flink.translation.types;
 import java.io.EOFException;
 import java.io.IOException;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
-import org.apache.beam.runners.flink.translation.types.compat.UnversionedTypeSerializerSnapshot;
 import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
 import org.apache.beam.runners.flink.translation.wrappers.DataOutputViewWrapper;
 import org.apache.beam.sdk.coders.Coder;
