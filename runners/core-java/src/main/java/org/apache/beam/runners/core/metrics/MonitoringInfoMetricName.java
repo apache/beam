@@ -40,7 +40,6 @@ public class MonitoringInfoMetricName extends MetricName {
   private MonitoringInfoMetricName(String urn, Map<String, String> labels) {
     checkArgument(!Strings.isNullOrEmpty(urn), "MonitoringInfoMetricName urn must be non-empty");
     checkArgument(labels != null, "MonitoringInfoMetricName labels must be non-null");
-    // TODO(ajamato): Move SimpleMonitoringInfoBuilder to :runners:core-construction-java
     // and ensure all necessary labels are set for the specific URN.
     this.urn = urn;
     this.labels = ImmutableMap.copyOf(labels);

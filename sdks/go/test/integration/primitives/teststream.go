@@ -31,18 +31,22 @@ func TestStreamStrings(s beam.Scope) {
 	col := teststream.Create(s, con)
 
 	passert.Count(s, col, "teststream strings", 3)
+	passert.Equals(s, col, "a", "b", "c")
 }
 
 // TestStreamByteSliceSequence tests the TestStream primitive by inserting byte slice elements
 // then advancing the watermark to infinity and comparing the output..
 func TestStreamByteSliceSequence(s beam.Scope) {
 	con := teststream.NewConfig()
-	b := []byte{91, 92, 93}
-	con.AddElements(1, b)
+
+	a := []byte{91, 92, 93}
+	b := []byte{94, 95, 96}
+	c := []byte{97, 98, 99}
+	con.AddElements(1, a, b, c)
 	con.AdvanceWatermarkToInfinity()
 	col := teststream.Create(s, con)
-	passert.Count(s, col, "teststream byte", 1)
-	passert.Equals(s, col, append([]byte{3}, b...))
+	passert.Count(s, col, "teststream byte", 3)
+	passert.Equals(s, col, a, b, c)
 }
 
 // TestStreamInt64Sequence tests the TestStream primitive by inserting int64 elements
@@ -136,4 +140,35 @@ func TestStreamTwoBoolSequences(s beam.Scope) {
 
 	passert.Count(s, col, "teststream bool", 6)
 	passert.EqualsList(s, col, append(eo, et...))
+}
+
+// TestStreamTwoUserTypeSequences tests the TestStream primitive by inserting two sets of
+// boolean elements that arrive on-time into the TestStream
+func TestStreamTwoUserTypeSequences(s beam.Scope) {
+	con := teststream.NewConfig()
+	eo := []stringPair{{"a", "b"}, {"b", "c"}, {"c", "a"}}
+	et := []stringPair{{"b", "a"}, {"c", "b"}, {"a", "c"}}
+	con.AddElementList(100, eo)
+	con.AdvanceWatermark(110)
+	con.AddElementList(120, et)
+	con.AdvanceWatermark(130)
+
+	col := teststream.Create(s, con)
+
+	passert.Count(s, col, "teststream usertype", 6)
+	passert.EqualsList(s, col, append(eo, et...))
+}
+
+// TestStreamInt16Sequence validates that a non-beam standard coder
+// works with test stream.
+func TestStreamInt16Sequence(s beam.Scope) {
+	con := teststream.NewConfig()
+	ele := []int16{91, 92, 93}
+	con.AddElementList(100, ele)
+	con.AdvanceWatermarkToInfinity()
+
+	col := teststream.Create(s, con)
+
+	passert.Count(s, col, "teststream int15", 3)
+	passert.EqualsList(s, col, ele)
 }

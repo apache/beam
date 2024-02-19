@@ -19,10 +19,10 @@ package org.apache.beam.runners.samza.translation;
 
 import java.util.Collections;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.construction.graph.PipelineNode;
 
 /** Generates config for a BEAM PTransform (regular java api or portable api). */
 public interface TransformConfigGenerator<T extends PTransform<?, ?>> {

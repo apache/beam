@@ -26,7 +26,6 @@ import java.io.Serializable;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.External;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -38,6 +37,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.construction.External;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
@@ -164,7 +164,7 @@ public class ExternalTest implements Serializable {
     private final TupleTag<Integer> odd = new TupleTag<Integer>("odd") {};
 
     @Override
-    public Map<String, ExpansionService.TransformProvider> knownTransforms() {
+    public Map<String, TransformProvider> knownTransforms() {
       return ImmutableMap.of(
           TEST_URN_SIMPLE,
           (spec, options) -> MapElements.into(TypeDescriptors.strings()).via((String x) -> x + x),

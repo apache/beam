@@ -40,7 +40,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
@@ -54,6 +53,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.Timer;
 import org.joda.time.Instant;
 
 /**

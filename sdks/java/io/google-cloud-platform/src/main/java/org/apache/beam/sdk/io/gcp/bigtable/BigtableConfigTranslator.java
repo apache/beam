@@ -321,7 +321,12 @@ class BigtableConfigTranslator {
         .setRpcTimeoutMultiplier(1)
         .setTotalTimeout(Duration.ofMillis(Math.max(initialRpcTimeout, totalTimeout)));
 
-    settings.stubSettings().readRowsSettings().setWaitTimeout(Duration.ofMillis(waitTimeout));
+    settings
+        .stubSettings()
+        .readRowsSettings()
+        .setWaitTimeout(Duration.ofMillis(waitTimeout))
+        // Temporarily doubles the idle timeout to work around a bug in gax watchdog
+        .setIdleTimeout(Duration.ofMinutes(10));
 
     settings.stubSettings().readRowsSettings().setRetrySettings(retrySettings.build());
 

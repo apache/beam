@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 
 /**
  * A factory that has all job-scoped information, and can be combined with stage-scoped information

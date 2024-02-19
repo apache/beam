@@ -67,15 +67,6 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
-import org.apache.beam.runners.core.construction.CoderTranslation;
-import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
-import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
-import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
@@ -136,6 +127,15 @@ import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.CoderTranslation;
+import org.apache.beam.sdk.util.construction.CoderTranslation.TranslationContext;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.ParDoTranslation;
+import org.apache.beam.sdk.util.construction.PipelineTranslation;
+import org.apache.beam.sdk.util.construction.RehydratedComponents;
+import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.sdk.util.construction.graph.ProtoOverrides;
+import org.apache.beam.sdk.util.construction.graph.SplittableParDoExpander;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -854,7 +854,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     private class TestBeamFnDataOutboundAggregator extends BeamFnDataOutboundAggregator {
-      private Map<LogicalEndpoint, List<org.apache.beam.runners.core.construction.Timer<?>>> timers;
+      private Map<LogicalEndpoint, List<org.apache.beam.sdk.util.construction.Timer<?>>> timers;
       private Map<LogicalEndpoint, List<WindowedValue<String>>> dataOutput;
       private Supplier<String> processBundleRequestIdSupplier;
 
@@ -865,7 +865,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         this.processBundleRequestIdSupplier = bundleIdSupplier;
       }
 
-      public Map<LogicalEndpoint, List<org.apache.beam.runners.core.construction.Timer<?>>>
+      public Map<LogicalEndpoint, List<org.apache.beam.sdk.util.construction.Timer<?>>>
           getOutputTimers() {
         return timers;
       }
@@ -893,7 +893,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                     LogicalEndpoint.timer(
                         processBundleRequestIdSupplier.get(), pTransformId, timerFamilyId),
                     e -> new ArrayList<>())
-                .add((org.apache.beam.runners.core.construction.Timer<?>) data);
+                .add((org.apache.beam.sdk.util.construction.Timer<?>) data);
       }
     }
 
@@ -1123,25 +1123,25 @@ public class FnApiDoFnRunnerTest implements Serializable {
           fakeStateClient.getData());
     }
 
-    private <K> org.apache.beam.runners.core.construction.Timer<K> timerInGlobalWindow(
+    private <K> org.apache.beam.sdk.util.construction.Timer<K> timerInGlobalWindow(
         K userKey, Instant holdTimestamp, Instant fireTimestamp) {
       return dynamicTimerInGlobalWindow(userKey, "", holdTimestamp, fireTimestamp);
     }
 
-    private <K> org.apache.beam.runners.core.construction.Timer<K> clearedTimerInGlobalWindow(
+    private <K> org.apache.beam.sdk.util.construction.Timer<K> clearedTimerInGlobalWindow(
         K userKey) {
       return clearedTimerInGlobalWindow(userKey, "");
     }
 
-    private <K> org.apache.beam.runners.core.construction.Timer<K> clearedTimerInGlobalWindow(
+    private <K> org.apache.beam.sdk.util.construction.Timer<K> clearedTimerInGlobalWindow(
         K userKey, String dynamicTimerTag) {
-      return org.apache.beam.runners.core.construction.Timer.cleared(
+      return org.apache.beam.sdk.util.construction.Timer.cleared(
           userKey, dynamicTimerTag, Collections.singletonList(GlobalWindow.INSTANCE));
     }
 
-    private <K> org.apache.beam.runners.core.construction.Timer<K> dynamicTimerInGlobalWindow(
+    private <K> org.apache.beam.sdk.util.construction.Timer<K> dynamicTimerInGlobalWindow(
         K userKey, String dynamicTimerTag, Instant holdTimestamp, Instant fireTimestamp) {
-      return org.apache.beam.runners.core.construction.Timer.of(
+      return org.apache.beam.sdk.util.construction.Timer.of(
           userKey,
           dynamicTimerTag,
           Collections.singletonList(GlobalWindow.INSTANCE),

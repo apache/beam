@@ -169,3 +169,50 @@ func TestElementManagerCoverage(t *testing.T) {
 		})
 	}
 }
+
+func TestTestStream(t *testing.T) {
+	initRunner(t)
+
+	tests := []struct {
+		pipeline func(s beam.Scope)
+	}{
+		{pipeline: primitives.TestStreamBoolSequence},
+		{pipeline: primitives.TestStreamByteSliceSequence},
+		{pipeline: primitives.TestStreamFloat64Sequence},
+		{pipeline: primitives.TestStreamInt64Sequence},
+		{pipeline: primitives.TestStreamInt16Sequence},
+		{pipeline: primitives.TestStreamStrings},
+		{pipeline: primitives.TestStreamTwoBoolSequences},
+		{pipeline: primitives.TestStreamTwoFloat64Sequences},
+		{pipeline: primitives.TestStreamTwoInt64Sequences},
+		{pipeline: primitives.TestStreamTwoUserTypeSequences},
+	}
+
+	configs := []struct {
+		name                              string
+		OneElementPerKey, OneKeyPerBundle bool
+	}{
+		{"Greedy", false, false},
+		{"AllElementsPerKey", false, true},
+		{"OneElementPerKey", true, false},
+		{"OneElementPerBundle", true, true},
+	}
+	for _, config := range configs {
+		for _, test := range tests {
+			t.Run(initTestName(test.pipeline)+"_"+config.name, func(t *testing.T) {
+				t.Cleanup(func() {
+					engine.OneElementPerKey = false
+					engine.OneKeyPerBundle = false
+				})
+				engine.OneElementPerKey = config.OneElementPerKey
+				engine.OneKeyPerBundle = config.OneKeyPerBundle
+				p, s := beam.NewPipelineWithRoot()
+				test.pipeline(s)
+				_, err := executeWithT(context.Background(), t, p)
+				if err != nil {
+					t.Fatalf("pipeline failed, but feature should be implemented in Prism: %v", err)
+				}
+			})
+		}
+	}
+}

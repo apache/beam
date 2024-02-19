@@ -328,7 +328,6 @@ CORE_INFRA_TESTS = [
   'Beam Metrics Report',
   'Build and Version Runner Docker Image',
   'PreCommit GHA',
-  'pr-bot-prs-needing-attention',
   'PreCommit RAT',
   'Assign or close an issue',
   'PostCommit Website Test',
@@ -339,8 +338,10 @@ CORE_INFRA_TESTS = [
   'PreCommit Whitespace',
   'Publish Beam SDK Snapshots',
   'Cancel Stale Dataflow Jobs',
+  'pr-bot-new-prs',
   'pr-bot-pr-updates',
-  'pr-bot-new-prs'
+  'pr-bot-prs-needing-attention',
+  'pr-bot-update-reviewers'
 ]
 
 MISC_TESTS = [
@@ -355,7 +356,6 @@ MISC_TESTS = [
   'Cancel',
   'PostCommit PortableJar Spark',
   'PreCommit Integration and Load Test Framework',
-  'pr-bot-update-reviewers',
   'PostCommit TransformService Direct',
   'Cut Release Branch',
   'Generate issue report',
@@ -404,7 +404,7 @@ def get_dashboard_category(workflow_name):
     return 'go'
   if workflow_name in MISC_TESTS:
     return 'misc'
-  
+
   print(f'No category found for workflow: {workflow_name}')
   print('Falling back to rules based assignment')
 
@@ -471,7 +471,7 @@ def get_token():
   git_integration = GithubIntegration(GH_APP_ID, GH_PEM_KEY)
   token = git_integration.get_access_token(GH_APP_INSTALLATION_ID).token
   return f'Bearer {token}'
-  
+
 @backoff.on_exception(backoff.constant, aiohttp.ClientResponseError, max_tries=5)
 async def fetch(url, semaphore, params=None, headers=None, request_id=None):
   async with semaphore:
@@ -574,7 +574,7 @@ async def fetch_workflow_data():
       else:
         workflow_ids_to_fetch_extra_runs.pop(workflow_id, None)
       print(f"Successfully fetched details for: {workflow.filename}")
-  
+
   page = math.ceil(
     int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH) / number_of_entries_per_page
   ) + 1

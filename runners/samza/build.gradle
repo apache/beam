@@ -46,7 +46,6 @@ dependencies {
   implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":runners:core-java")
-  implementation project(":runners:core-construction-java")
   implementation project(":runners:java-fn-execution")
   implementation project(":runners:java-job-service")
   implementation library.java.jackson_annotations

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.fn.data;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
@@ -38,6 +37,8 @@ import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.hamcrest.MatcherAssert;
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -89,7 +90,7 @@ public class BeamFnDataGrpcMultiplexerTest {
             OutboundObserverFactory.clientDirect(),
             inboundObserver -> TestStreams.withOnNext(values::add).build());
     multiplexer.getOutboundObserver().onNext(ELEMENTS);
-    assertThat(values, contains(ELEMENTS));
+    MatcherAssert.assertThat(values, Matchers.contains(ELEMENTS));
   }
 
   @Test
@@ -159,14 +160,14 @@ public class BeamFnDataGrpcMultiplexerTest {
     assertFalse(multiplexer.hasConsumer(TIMER_INSTRUCTION_ID));
 
     // Assert that normal and terminal Elements are passed to the consumer
-    assertThat(
+    MatcherAssert.assertThat(
         dataInboundValues,
-        contains(
+        Matchers.contains(
             ELEMENTS.toBuilder().clearTimers().build(),
             TERMINAL_ELEMENTS.toBuilder().clearTimers().build()));
-    assertThat(
+    MatcherAssert.assertThat(
         timerInboundValues,
-        contains(
+        Matchers.contains(
             ELEMENTS.toBuilder().clearData().build(),
             TERMINAL_ELEMENTS.toBuilder().clearData().build()));
   }
@@ -222,14 +223,14 @@ public class BeamFnDataGrpcMultiplexerTest {
     multiplexer.getInboundObserver().onNext(TERMINAL_ELEMENTS);
 
     // Assert that elements are partitioned based upon the instruction id.
-    assertThat(
+    MatcherAssert.assertThat(
         dataInboundValues,
-        contains(
+        Matchers.contains(
             ELEMENTS.toBuilder().clearTimers().build(),
             TERMINAL_ELEMENTS.toBuilder().clearTimers().build()));
-    assertThat(
+    MatcherAssert.assertThat(
         timerInboundValues,
-        contains(
+        Matchers.contains(
             ELEMENTS.toBuilder().clearData().build(),
             TERMINAL_ELEMENTS.toBuilder().clearData().build()));
   }
@@ -315,9 +316,9 @@ public class BeamFnDataGrpcMultiplexerTest {
         .onNext(BeamFnApi.Elements.newBuilder().addData(data.setTransformId("C").build()).build());
 
     // Assert that we ignored the other two elements
-    assertThat(
+    MatcherAssert.assertThat(
         dataInboundValues,
-        contains(
+        Matchers.contains(
             BeamFnApi.Elements.newBuilder().addData(data.setTransformId("A").build()).build()));
   }
 

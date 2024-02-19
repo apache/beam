@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
+import static org.apache.beam.sdk.util.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 
 import java.util.List;
 import java.util.Map;
@@ -26,13 +26,6 @@ import java.util.UUID;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
-import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
-import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
-import org.apache.beam.runners.core.construction.graph.TrivialNativeTransformExpander;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.PortablePipelineJarUtils;
@@ -44,6 +37,13 @@ import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
+import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
+import org.apache.beam.sdk.util.construction.graph.GreedyPipelineFuser;
+import org.apache.beam.sdk.util.construction.graph.ProtoOverrides;
+import org.apache.beam.sdk.util.construction.graph.SplittableParDoExpander;
+import org.apache.beam.sdk.util.construction.graph.TrivialNativeTransformExpander;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;

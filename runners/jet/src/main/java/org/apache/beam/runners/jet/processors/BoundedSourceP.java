@@ -31,12 +31,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.jet.Utils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.SerializablePipelineOptions;
 
 /**
  * Jet {@link com.hazelcast.jet.core.Processor} implementation for reading from a bounded Beam

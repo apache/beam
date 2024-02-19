@@ -19,10 +19,10 @@ package org.apache.beam.runners.dataflow.util;
 
 import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
-import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
+import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.util.JsonFormat;
 
 /** Translator for row coders. */

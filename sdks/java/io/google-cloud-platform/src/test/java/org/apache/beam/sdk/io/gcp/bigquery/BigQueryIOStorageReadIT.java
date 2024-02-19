@@ -168,8 +168,8 @@ public class BigQueryIOStorageReadIT {
 
   /**
    * Tests a pipeline where {@link
-   * org.apache.beam.runners.core.construction.graph.ProjectionPushdownOptimizer} may do
-   * optimizations, depending on the runner. The pipeline should run successfully either way.
+   * org.apache.beam.sdk.util.construction.graph.ProjectionPushdownOptimizer} may do optimizations,
+   * depending on the runner. The pipeline should run successfully either way.
    */
   @Test
   public void testBigQueryStorageReadProjectionPushdown() throws Exception {

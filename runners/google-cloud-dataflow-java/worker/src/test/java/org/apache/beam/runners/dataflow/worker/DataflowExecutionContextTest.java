@@ -131,8 +131,7 @@ public class DataflowExecutionContextTest {
             NameContextsForTests.nameContextForTest(),
             PROCESS_STATE_NAME,
             null,
-            NoopProfileScope.NOOP,
-            null);
+            NoopProfileScope.NOOP);
 
     Closeable closure = tracker.enterState(state);
 
@@ -162,8 +161,7 @@ public class DataflowExecutionContextTest {
             NameContextsForTests.nameContextForTest(),
             PROCESS_STATE_NAME,
             null,
-            NoopProfileScope.NOOP,
-            null);
+            NoopProfileScope.NOOP);
     tracker.enterState(state);
     // Enter a new processing state
     StreamingModeExecutionState newState =
@@ -171,8 +169,7 @@ public class DataflowExecutionContextTest {
             NameContextsForTests.nameContextForTest(),
             PROCESS_STATE_NAME,
             null,
-            NoopProfileScope.NOOP,
-            null);
+            NoopProfileScope.NOOP);
     tracker.enterState(newState);
 
     // The first completed state should be recorded and the new state should be active.

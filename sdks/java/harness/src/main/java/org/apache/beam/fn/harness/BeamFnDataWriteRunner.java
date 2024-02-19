@@ -28,11 +28,11 @@ import org.apache.beam.fn.harness.state.StateBackedIterable.StateBackedIterableT
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.runners.core.construction.CoderTranslation;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.CoderTranslation;
+import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**

@@ -49,11 +49,11 @@ public final class DataflowWorkerHarnessHelper {
   private static final String ROOT_LOGGER_NAME = "";
   private static final String PIPELINE_PATH = "PIPELINE_PATH";
 
-  public static DataflowWorkerHarnessOptions initializeGlobalStateAndPipelineOptions(
-      Class<?> workerHarnessClass) throws Exception {
+  public static <T extends DataflowWorkerHarnessOptions> T initializeGlobalStateAndPipelineOptions(
+      Class<?> workerHarnessClass, Class<T> harnessOptionsClass) throws Exception {
     /* Extract pipeline options. */
-    DataflowWorkerHarnessOptions pipelineOptions =
-        WorkerPipelineOptionsFactory.createFromSystemProperties();
+    T pipelineOptions =
+        WorkerPipelineOptionsFactory.createFromSystemProperties(harnessOptionsClass);
     pipelineOptions.setAppName(workerHarnessClass.getSimpleName());
 
     /* Configure logging with job-specific properties. */

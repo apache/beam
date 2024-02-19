@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.runners.core.construction.PTransformTranslation.WRITE_FILES_TRANSFORM_URN;
+import static org.apache.beam.sdk.util.construction.PTransformTranslation.WRITE_FILES_TRANSFORM_URN;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -28,11 +28,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.core.construction.PTransformReplacements;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.ReplacementOutputs;
-import org.apache.beam.runners.core.construction.UnconsumedReads;
-import org.apache.beam.runners.core.construction.WriteFilesTranslation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkKeyUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -49,6 +44,11 @@ import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.construction.PTransformReplacements;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.ReplacementOutputs;
+import org.apache.beam.sdk.util.construction.UnconsumedReads;
+import org.apache.beam.sdk.util.construction.WriteFilesTranslation;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;

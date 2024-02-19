@@ -19,10 +19,10 @@ package org.apache.beam.runners.spark.io;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.util.construction.SerializablePipelineOptions;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.rdd.RDD;
 import org.apache.spark.streaming.StreamingContext;

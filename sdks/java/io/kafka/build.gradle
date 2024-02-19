@@ -52,7 +52,6 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:extensions:avro")
   implementation project(":sdks:java:extensions:protobuf")
-  implementation project(":runners:core-construction-java")
   implementation project(":sdks:java:expansion-service")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   implementation library.java.avro
@@ -93,7 +92,6 @@ dependencies {
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
   // For testing Cross-language transforms
-  testImplementation project(":runners:core-construction-java")
   testImplementation library.java.avro
   testImplementation library.java.junit
   testImplementation library.java.powermock

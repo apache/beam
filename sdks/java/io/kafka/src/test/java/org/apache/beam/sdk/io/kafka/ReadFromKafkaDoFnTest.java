@@ -50,8 +50,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.DefaultErrorHandler;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -340,15 +338,6 @@ public class ReadFromKafkaDoFnTest {
     public void outputWithTimestamp(
         T output, @UnknownKeyFor @NonNull @Initialized Instant timestamp) {
       records.add(output);
-    }
-
-    @Override
-    public void outputWindowedValue(
-        T output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo) {
-      throw new UnsupportedOperationException("Not expecting outputWindowedValue");
     }
 
     public List<T> getOutputs() {

@@ -25,6 +25,9 @@
 - title: Scala
   image_url: /images/logos/sdks/scala_pipeline.png
   url: /documentation/sdks/scala/
+- title: YAML
+  image_url: /images/logos/sdks/yaml.png
+  url: /documentation/sdks/yaml/
 - title: SQL
   image_url: /images/logos/sdks/sql_pipelines.png
   url: /documentation/dsls/sql/overview/

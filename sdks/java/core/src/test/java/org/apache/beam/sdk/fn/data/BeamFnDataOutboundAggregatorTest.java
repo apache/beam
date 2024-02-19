@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.fn.data;
 
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -42,7 +41,9 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -85,11 +86,11 @@ public class BeamFnDataOutboundAggregatorTest {
     FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
     aggregator.start();
     dataReceiver.accept(new byte[BeamFnDataOutboundAggregator.DEFAULT_BUFFER_LIMIT_BYTES - 50]);
-    assertThat(values, empty());
+    MatcherAssert.assertThat(values, empty());
 
     // Test that when we cross the buffer, we emit.
     dataReceiver.accept(new byte[50]);
-    assertEquals(
+    Assert.assertEquals(
         messageWithData(
             new byte[BeamFnDataOutboundAggregator.DEFAULT_BUFFER_LIMIT_BYTES - 50], new byte[50]),
         values.get(0));
@@ -100,18 +101,18 @@ public class BeamFnDataOutboundAggregatorTest {
 
     // Test that when we cross the buffer, we emit.
     dataReceiver.accept(new byte[50]);
-    assertEquals(
+    Assert.assertEquals(
         messageWithData(
             new byte[BeamFnDataOutboundAggregator.DEFAULT_BUFFER_LIMIT_BYTES - 50], new byte[50]),
         values.get(1));
 
     // Test that when we close with an empty buffer we only have one end of stream
     aggregator.sendOrCollectBufferedDataAndFinishOutboundStreams();
-    assertEquals(endMessage(), values.get(2));
+    Assert.assertEquals(endMessage(), values.get(2));
 
     // Test that we can close twice.
     aggregator.sendOrCollectBufferedDataAndFinishOutboundStreams();
-    assertEquals(endMessage(), values.get(2));
+    Assert.assertEquals(endMessage(), values.get(2));
   }
 
   @Test
@@ -134,11 +135,11 @@ public class BeamFnDataOutboundAggregatorTest {
     FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
     aggregator.start();
     dataReceiver.accept(new byte[51]);
-    assertThat(values, empty());
+    MatcherAssert.assertThat(values, empty());
 
     // Test that when we cross the buffer, we emit.
     dataReceiver.accept(new byte[49]);
-    assertEquals(messageWithData(new byte[51], new byte[49]), values.get(0));
+    Assert.assertEquals(messageWithData(new byte[51], new byte[49]), values.get(0));
     Receiver<?> receiver;
     if (endpoint.isTimer()) {
       receiver = Iterables.getOnlyElement(aggregator.outputTimersReceivers.values());
@@ -174,7 +175,7 @@ public class BeamFnDataOutboundAggregatorTest {
               .setTransformId(endpoint.getTransformId())
               .setIsLast(true));
     }
-    assertEquals(builder.build(), values.get(1));
+    Assert.assertEquals(builder.build(), values.get(1));
   }
 
   @Test
@@ -203,7 +204,7 @@ public class BeamFnDataOutboundAggregatorTest {
     aggregator.start();
     dataReceiver.accept(new byte[1]);
     waitForFlush.await(); // wait the flush thread to flush the buffer
-    assertEquals(messageWithData(new byte[1]), values.get(0));
+    Assert.assertEquals(messageWithData(new byte[1]), values.get(0));
   }
 
   @Test
@@ -294,7 +295,7 @@ public class BeamFnDataOutboundAggregatorTest {
         registerOutputLocation(aggregator, additionalEndpoint, CODER);
     aggregator.start();
     dataReceiver.accept(new byte[51]);
-    assertThat(values, empty());
+    MatcherAssert.assertThat(values, empty());
 
     // Test that when we cross the buffer, we emit.
     additionalDataReceiver.accept(new byte[49]);
@@ -333,8 +334,9 @@ public class BeamFnDataOutboundAggregatorTest {
   }
 
   private void checkEqualInAnyOrder(Elements first, Elements second) {
-    assertThat(first.getDataList(), Matchers.containsInAnyOrder(second.getDataList().toArray()));
-    assertThat(
+    MatcherAssert.assertThat(
+        first.getDataList(), Matchers.containsInAnyOrder(second.getDataList().toArray()));
+    MatcherAssert.assertThat(
         first.getTimersList(), Matchers.containsInAnyOrder(second.getTimersList().toArray()));
   }
 

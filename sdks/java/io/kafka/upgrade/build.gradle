@@ -31,7 +31,6 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
 
     implementation library.java.vendored_guava_32_1_2_jre
-    implementation project(":runners:core-construction-java")
     implementation project(":sdks:java:expansion-service")
     permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
     permitUnusedDeclared project(":model:pipeline")

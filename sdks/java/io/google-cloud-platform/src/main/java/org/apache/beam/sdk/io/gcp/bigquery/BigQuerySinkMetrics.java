@@ -57,10 +57,10 @@ public class BigQuerySinkMetrics {
   private static final String RPC_REQUESTS = "RpcRequestsCount";
   private static final String RPC_LATENCY = "RpcLatency";
   private static final String APPEND_ROWS_ROW_STATUS = "RowsAppendedCount";
-  private static final String THROTTLED_TIME = "ThrottledTime";
+  public static final String THROTTLED_TIME = "ThrottledTime";
 
   // StorageWriteAPI Method names
-  enum RpcMethod {
+  public enum RpcMethod {
     APPEND_ROWS,
     FLUSH_ROWS,
     FINALIZE_STREAM

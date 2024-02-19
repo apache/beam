@@ -139,8 +139,6 @@ var portableFilters = []string{
 var prismFilters = []string{
 	// The prism runner does not yet support Java's CoGBK.
 	"TestXLang_CoGroupBy",
-	// The prism runner does not support the TestStream primitive
-	"TestTestStream.*",
 	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
 	"TestPanes",
@@ -182,6 +180,11 @@ var flinkFilters = []string{
 	"TestMapStateClear",
 	"TestSetStateClear",
 	"TestSetState",
+
+	// With TestStream Flink adds extra length prefixs some data types, causing SDK side failures.
+	"TestTestStreamStrings",
+	"TestTestStreamByteSliceSequence",
+	"TestTestStreamTwoUserTypeSequences",
 
 	"TestTimers_EventTime_Unbounded", // (failure when comparing on side inputs (NPE on window lookup))
 }

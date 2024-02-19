@@ -37,7 +37,6 @@ dependencies {
         exclude group: 'com.esotericsoftware.kryo', module: 'kryo'
     }
     implementation project(path: ":model:pipeline", configuration: "shadow")
-    implementation project(path: ":runners:core-construction-java")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.jackson_annotations
     implementation library.java.joda_time

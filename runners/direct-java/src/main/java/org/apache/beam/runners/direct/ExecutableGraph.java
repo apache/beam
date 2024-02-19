@@ -18,7 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import java.util.Collection;
-import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
+import org.apache.beam.sdk.util.construction.graph.QueryablePipeline;
 
 /**
  * The interface that enables querying of a graph of independently executable stages and the inputs

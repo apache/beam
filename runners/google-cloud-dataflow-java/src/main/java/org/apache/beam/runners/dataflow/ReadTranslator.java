@@ -24,11 +24,11 @@ import static org.apache.beam.runners.dataflow.util.Structs.addLong;
 import com.google.api.services.dataflow.model.SourceMetadata;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.dataflow.internal.CustomSources;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.PCollection;
 
 /** Translator for the {@code Read} {@code PTransform} for the Dataflow back-end. */

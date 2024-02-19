@@ -26,7 +26,6 @@ import com.google.zetasql.PreparedExpression;
 import com.google.zetasql.Value;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayDeque;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +48,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -362,16 +360,6 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       @Override
       public void outputWithTimestamp(Row output, Instant timestamp) {
         c.output(tag, output, timestamp, w);
-      }
-
-      @Override
-      public void outputWindowedValue(
-          Row output,
-          Instant timestamp,
-          Collection<? extends BoundedWindow> windows,
-          PaneInfo paneInfo) {
-        throw new UnsupportedOperationException(
-            "outputWindowedValue not supported in finish bundle here");
       }
     }
 

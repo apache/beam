@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.expansion.service;
 
-import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -28,7 +28,6 @@ import org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPaylo
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.expansion.service.ExpansionService.TransformProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;

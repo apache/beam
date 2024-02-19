@@ -37,6 +37,11 @@ func TestTestStreamInt64Sequence(t *testing.T) {
 	ptest.BuildAndRun(t, TestStreamInt64Sequence)
 }
 
+func TestTestStreamInt16Sequence(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, TestStreamInt16Sequence)
+}
+
 func TestTestStreamTwoInt64Sequences(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.BuildAndRun(t, TestStreamTwoInt64Sequences)
@@ -60,4 +65,9 @@ func TestTestStreamBoolSequence(t *testing.T) {
 func TestTestStreamTwoBoolSequences(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.BuildAndRun(t, TestStreamTwoBoolSequences)
+}
+
+func TestTestStreamTwoUserTypeSequences(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, TestStreamTwoUserTypeSequences)
 }

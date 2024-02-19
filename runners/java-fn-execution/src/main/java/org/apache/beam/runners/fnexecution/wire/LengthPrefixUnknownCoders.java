@@ -22,9 +22,9 @@ import java.util.function.Predicate;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.util.construction.ModelCoders;
 
 /** Utilities for replacing or wrapping unknown coders with {@link LengthPrefixCoder}. */
 public class LengthPrefixUnknownCoders {

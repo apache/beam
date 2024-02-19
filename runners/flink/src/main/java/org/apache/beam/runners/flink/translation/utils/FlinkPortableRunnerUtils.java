@@ -18,7 +18,7 @@
 package org.apache.beam.runners.flink.translation.utils;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 
 /**

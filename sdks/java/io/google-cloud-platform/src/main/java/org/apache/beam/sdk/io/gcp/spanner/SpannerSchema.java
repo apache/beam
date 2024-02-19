@@ -35,6 +35,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class SpannerSchema implements Serializable {
+
   abstract ImmutableList<String> tables();
 
   abstract Dialect dialect();
@@ -161,6 +162,7 @@ public abstract class SpannerSchema implements Serializable {
     public abstract Type getType();
 
     private static Type parseSpannerType(String spannerType, Dialect dialect) {
+      String originalSpannerType = spannerType;
       spannerType = spannerType.toUpperCase();
       switch (dialect) {
         case GOOGLE_STANDARD_SQL:
@@ -193,9 +195,22 @@ public abstract class SpannerSchema implements Serializable {
           }
           if (spannerType.startsWith("ARRAY")) {
             // Substring "ARRAY<xxx>"
-            String spannerArrayType = spannerType.substring(6, spannerType.length() - 1);
+            String spannerArrayType =
+                originalSpannerType.substring(6, originalSpannerType.length() - 1);
             Type itemType = parseSpannerType(spannerArrayType, dialect);
             return Type.array(itemType);
+          }
+          if (spannerType.startsWith("PROTO")) {
+            // Substring "PROTO<xxx>"
+            String spannerProtoType =
+                originalSpannerType.substring(6, originalSpannerType.length() - 1);
+            return Type.proto(spannerProtoType);
+          }
+          if (spannerType.startsWith("ENUM")) {
+            // Substring "ENUM<xxx>"
+            String spannerEnumType =
+                originalSpannerType.substring(5, originalSpannerType.length() - 1);
+            return Type.protoEnum(spannerEnumType);
           }
           throw new IllegalArgumentException("Unknown spanner type " + spannerType);
         case POSTGRESQL:

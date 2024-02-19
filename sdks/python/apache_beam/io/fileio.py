@@ -521,8 +521,6 @@ class WriteToFiles(beam.PTransform):
   **Note:** For unbounded ``PCollection``\s, this transform does not support
   multiple firings per Window (due to the fact that files are named only by
   their destination, and window, at the moment).
-
-  WriteToFiles is experimental.  No backwards-compatibility guarantees.
   """
 
   # We allow up to 20 different destinations to be written in a single bundle.

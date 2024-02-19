@@ -847,6 +847,11 @@ message JobHeader {
   optional string project_id = 2;
   // Worker id is meant for logging only. Do not rely on it for other decisions.
   optional string worker_id = 3;
+  optional fixed64 client_id = 4;
+  optional string region_id = 5;
+  // Used by the user worker to communicate to a specific windmill worker. This
+  // is initially passed to the user worker via GetWorkerMetadata.
+  optional string backend_worker_token = 6;
 }
 
 message StreamingCommitRequestChunk {
@@ -902,13 +907,18 @@ message WorkerMetadataResponse {
   message Endpoint {
     // IPv6 address of a streaming engine windmill worker.
     optional string direct_endpoint = 1;
-    optional string worker_token = 2;
+    optional string backend_worker_token = 2;
+    optional int64 port = 3;
   }
+
   repeated Endpoint work_endpoints = 2;
 
   // Maps from GlobalData tag to the endpoint that should be used for GetData
   // calls to retrieve that global data.
   map<string, Endpoint> global_data_endpoints = 3;
+
+  // Used to set gRPC authority.
+  optional string external_endpoint = 5;
 
   reserved 4;
 }

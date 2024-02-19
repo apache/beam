@@ -395,11 +395,14 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
 
     void outputWithTimestamp(T output, Instant timestamp);
 
-    void outputWindowedValue(
+    default void outputWindowedValue(
         T output,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo);
+        PaneInfo paneInfo) {
+      throw new UnsupportedOperationException(
+          String.format("Not implemented: %s.outputWindowedValue", this.getClass().getName()));
+    }
   }
 
   /** Receives tagged output for a multi-output function. */

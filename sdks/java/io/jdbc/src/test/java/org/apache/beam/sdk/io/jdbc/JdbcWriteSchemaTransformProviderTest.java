@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static org.apache.beam.sdk.io.jdbc.JdbcUtil.JDBC_DRIVER_MAP;
+import static org.apache.beam.sdk.io.jdbc.JdbcUtil.registerJdbcDriver;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
@@ -32,6 +35,8 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,7 +50,7 @@ public class JdbcWriteSchemaTransformProviderTest {
       JdbcIO.DataSourceConfiguration.create(
           "org.apache.derby.jdbc.EmbeddedDriver", "jdbc:derby:memory:testDB;create=true");
   private static final DataSource DATA_SOURCE = DATA_SOURCE_CONFIGURATION.buildDatasource();
-  private static final String WRITE_TABLE_NAME = DatabaseTestHelper.getTestTableName("UT_WRITE");
+  private String writeTableName;
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
@@ -56,7 +61,15 @@ public class JdbcWriteSchemaTransformProviderTest {
     System.setProperty("derby.locks.waitTimeout", "2");
     System.setProperty("derby.stream.error.file", "build/derby.log");
 
-    DatabaseTestHelper.createTable(DATA_SOURCE, WRITE_TABLE_NAME);
+    registerJdbcDriver(
+        ImmutableMap.of(
+            "derby", Objects.requireNonNull(DATA_SOURCE_CONFIGURATION.getDriverClassName()).get()));
+  }
+
+  @Before
+  public void before() throws SQLException {
+    writeTableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
+    DatabaseTestHelper.createTable(DATA_SOURCE, writeTableName);
   }
 
   @Test
@@ -90,10 +103,52 @@ public class JdbcWriteSchemaTransformProviderTest {
               .build()
               .validate();
         });
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
+              .setJdbcUrl("JdbcUrl")
+              .setLocation("Location")
+              .setJdbcType("invalidType")
+              .build()
+              .validate();
+        });
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
+              .setJdbcUrl("JdbcUrl")
+              .setLocation("Location")
+              .build()
+              .validate();
+        });
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
+              .setJdbcUrl("JdbcUrl")
+              .setLocation("Location")
+              .setDriverClassName("ClassName")
+              .setJdbcType((String) JDBC_DRIVER_MAP.keySet().toArray()[0])
+              .build()
+              .validate();
+        });
   }
 
   @Test
-  public void testReadWriteToTable() throws SQLException {
+  public void testValidWriteSchemaOptions() {
+    for (String jdbcType : JDBC_DRIVER_MAP.keySet()) {
+      JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
+          .setJdbcUrl("JdbcUrl")
+          .setLocation("Location")
+          .setJdbcType(jdbcType)
+          .build()
+          .validate();
+    }
+  }
+
+  @Test
+  public void testWriteToTable() throws SQLException {
     JdbcWriteSchemaTransformProvider provider = null;
     for (SchemaTransformProvider p : ServiceLoader.load(SchemaTransformProvider.class)) {
       if (p instanceof JdbcWriteSchemaTransformProvider) {
@@ -119,9 +174,42 @@ public class JdbcWriteSchemaTransformProviderTest {
                 JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
                     .setDriverClassName(DATA_SOURCE_CONFIGURATION.getDriverClassName().get())
                     .setJdbcUrl(DATA_SOURCE_CONFIGURATION.getUrl().get())
-                    .setLocation(WRITE_TABLE_NAME)
+                    .setLocation(writeTableName)
                     .build()));
     pipeline.run();
-    DatabaseTestHelper.assertRowCount(DATA_SOURCE, WRITE_TABLE_NAME, 2);
+    DatabaseTestHelper.assertRowCount(DATA_SOURCE, writeTableName, 2);
+  }
+
+  @Test
+  public void testWriteToTableWithJdbcTypeSpecified() throws SQLException {
+    JdbcWriteSchemaTransformProvider provider = null;
+    for (SchemaTransformProvider p : ServiceLoader.load(SchemaTransformProvider.class)) {
+      if (p instanceof JdbcWriteSchemaTransformProvider) {
+        provider = (JdbcWriteSchemaTransformProvider) p;
+        break;
+      }
+    }
+    assertNotNull(provider);
+
+    Schema schema =
+        Schema.of(
+            Schema.Field.of("id", Schema.FieldType.INT64),
+            Schema.Field.of("name", Schema.FieldType.STRING));
+
+    List<Row> rows =
+        ImmutableList.of(
+            Row.withSchema(schema).attachValues(1L, "name1"),
+            Row.withSchema(schema).attachValues(2L, "name2"));
+
+    PCollectionRowTuple.of("input", pipeline.apply(Create.of(rows).withRowSchema(schema)))
+        .apply(
+            provider.from(
+                JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
+                    .setJdbcUrl(DATA_SOURCE_CONFIGURATION.getUrl().get())
+                    .setJdbcType("derby")
+                    .setLocation(writeTableName)
+                    .build()));
+    pipeline.run();
+    DatabaseTestHelper.assertRowCount(DATA_SOURCE, writeTableName, 2);
   }
 }

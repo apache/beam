@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark;
 
-import org.apache.beam.runners.core.construction.resources.PipelineResources;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
@@ -27,6 +26,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.FileStagingOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.util.construction.resources.PipelineResources;
 
 /**
  * Spark runner {@link PipelineOptions} handles Spark execution-related configurations, such as the
