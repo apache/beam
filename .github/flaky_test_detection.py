@@ -22,7 +22,7 @@ from github import Auth
 
 GIT_ORG = "apache"
 GIT_REPO = "beam"
-GRAFANA_URL = "http://beam.metrics.apache.org"
+GRAFANA_URL = "http://metrics.beam.apache.org"
 #
 ALERT_NAME = "flaky_test"
 READ_ONLY = os.environ.get("READ_ONLY", "false")
@@ -79,8 +79,8 @@ def get_grafana_alerts():
             alerts.append(
                 Alert(
                     alert["labels"]["workflow_id"],
-                    alert["labels"]["url"],
-                    alert["labels"]["name"],
+                    alert["labels"]["workflow_url"],
+                    alert["labels"]["alertname"],
                     alert["labels"]["filename"],
                 )
             )
