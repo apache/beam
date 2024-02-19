@@ -56,7 +56,7 @@ For the Apache Beam Java SDK, in your terminal, run the following command (from 
     --region=REGION
    ```
 
-For the Apache Beam Python SDK, in your terminal, run the following command: 
+For the Apache Beam Python SDK, in your terminal, run the following command:
 
 ```python
 python -m apache_beam.examples.wordcount \
