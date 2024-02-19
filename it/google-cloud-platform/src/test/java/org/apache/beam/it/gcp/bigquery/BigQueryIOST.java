@@ -106,6 +106,7 @@ public final class BigQueryIOST extends IOLoadTestBase {
 
   private Configuration configuration;
   private String tempLocation;
+  private String testConfigName;
   private TableSchema schema;
 
   @Rule public TestPipeline writePipeline = TestPipeline.create();
@@ -130,18 +131,18 @@ public final class BigQueryIOST extends IOLoadTestBase {
         String.format("%s:%s.%s", project, resourceManager.getDatasetId(), sourceTableName);
 
     // parse configuration
-    String testConfig =
-        TestProperties.getProperty("configuration", "local", TestProperties.Type.PROPERTY);
-    configuration = TEST_CONFIGS_PRESET.get(testConfig);
+    testConfigName =
+        TestProperties.getProperty("configuration", "medium", TestProperties.Type.PROPERTY);
+    configuration = TEST_CONFIGS_PRESET.get(testConfigName);
     if (configuration == null) {
       try {
-        configuration = Configuration.fromJsonString(testConfig, Configuration.class);
+        configuration = Configuration.fromJsonString(testConfigName, Configuration.class);
       } catch (IOException e) {
         throw new IllegalArgumentException(
             String.format(
                 "Unknown test configuration: [%s]. Pass to a valid configuration json, or use"
                     + " config presets: %s",
-                testConfig, TEST_CONFIGS_PRESET.keySet()));
+                testConfigName, TEST_CONFIGS_PRESET.keySet()));
       }
     }
 
@@ -233,7 +234,10 @@ public final class BigQueryIOST extends IOLoadTestBase {
               .withMeasurement(
                   configuration.influxMeasurement
                       + "_"
+                      + testConfigName
+                      + "_"
                       + configuration.writeFormat
+                      + "_"
                       + configuration.writeMethod)
               .get();
     }
