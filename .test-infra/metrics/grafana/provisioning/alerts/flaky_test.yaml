@@ -38,7 +38,7 @@
                     intervalMs: 1000
                     maxDataPoints: 43200
                     rawQuery: true
-                    rawSql: SELECT COUNT(run_id), CAST (github_workflows.workflow_id AS TEXT), name, filename , dashboard_category , github_workflows.url AS workflow_url FROM github_workflow_runs INNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id WHERE status = 'failure' GROUP BY github_workflows.workflow_id, name, filename
+                    rawSql: SELECT COUNT(run_id), CAST (github_workflows.workflow_id AS TEXT), name AS workflow_name , filename , dashboard_category , github_workflows.url AS workflow_url FROM github_workflow_runs INNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id WHERE status = 'failure' GROUP BY github_workflows.workflow_id, workflow_name, filename
                     refId: A
                     sql:
                         columns:
