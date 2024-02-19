@@ -80,7 +80,7 @@ def get_grafana_alerts():
                 Alert(
                     alert["labels"]["workflow_id"],
                     alert["labels"]["workflow_url"],
-                    alert["labels"]["name"],
+                    alert["labels"]["workflow_name"],
                     alert["labels"]["filename"],
                 )
             )
