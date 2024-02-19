@@ -74,13 +74,18 @@ import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
 /**
  * BigQueryIO stress tests. The test is designed to assess the performance of BigQueryIO under
  * various conditions.
+ *
+ * <p>Usage: <br>
+ * - To run medium-scale stress tests: {@code gradle
+ * :it:google-cloud-platform:BigQueryStressTestMedium} <br>
+ * - To run large-scale stress tests: {@code gradle
+ * :it:google-cloud-platform:BigQueryStressTestLarge}
  */
 public final class BigQueryIOST extends IOLoadTestBase {
 
@@ -153,14 +158,6 @@ public final class BigQueryIOST extends IOLoadTestBase {
       writePipeline.getOptions().as(TestPipelineOptions.class).setTempRoot(tempLocation);
       writePipeline.getOptions().setTempLocation(tempLocation);
     }
-    if (configuration.exportMetricsToInfluxDB) {
-      influxDBSettings =
-          InfluxDBSettings.builder()
-              .withHost(configuration.influxHost)
-              .withDatabase(configuration.influxDatabase)
-              .withMeasurement(configuration.influxMeasurement)
-              .get();
-    }
   }
 
   @AfterClass
@@ -188,7 +185,6 @@ public final class BigQueryIOST extends IOLoadTestBase {
   }
 
   @Test
-  @Ignore
   public void testJsonStreamingWriteThenRead() throws IOException {
     configuration.writeFormat = "JSON";
     configuration.writeMethod = "STREAMING_INSERTS";
@@ -196,7 +192,6 @@ public final class BigQueryIOST extends IOLoadTestBase {
   }
 
   @Test
-  @Ignore
   public void testAvroStorageAPIWrite() throws IOException {
     configuration.writeFormat = "AVRO";
     configuration.writeMethod = "STORAGE_WRITE_API";
@@ -211,7 +206,6 @@ public final class BigQueryIOST extends IOLoadTestBase {
   }
 
   @Test
-  @Ignore
   public void testAvroStorageAPIWriteAtLeastOnce() throws IOException {
     configuration.writeFormat = "AVRO";
     configuration.writeMethod = "STORAGE_API_AT_LEAST_ONCE";
@@ -219,7 +213,6 @@ public final class BigQueryIOST extends IOLoadTestBase {
   }
 
   @Test
-  @Ignore
   public void testJsonStorageAPIWriteAtLeastOnce() throws IOException {
     configuration.writeFormat = "JSON";
     configuration.writeMethod = "STORAGE_API_AT_LEAST_ONCE";
@@ -232,6 +225,18 @@ public final class BigQueryIOST extends IOLoadTestBase {
    * instance accordingly, and then executing data generation and read/write operations on BigQuery.
    */
   private void runTest() throws IOException {
+    if (configuration.exportMetricsToInfluxDB) {
+      influxDBSettings =
+          InfluxDBSettings.builder()
+              .withHost(configuration.influxHost)
+              .withDatabase(configuration.influxDatabase)
+              .withMeasurement(
+                  configuration.influxMeasurement
+                      + "_"
+                      + configuration.writeFormat
+                      + configuration.writeMethod)
+              .get();
+    }
     WriteFormat writeFormat = WriteFormat.valueOf(configuration.writeFormat);
     BigQueryIO.Write<byte[]> writeIO = null;
     switch (writeFormat) {
@@ -556,7 +561,7 @@ public final class BigQueryIOST extends IOLoadTestBase {
     @JsonProperty public boolean exportMetricsToInfluxDB = false;
 
     /** InfluxDB measurement to publish results to. * */
-    @JsonProperty public String influxMeasurement;
+    @JsonProperty public String influxMeasurement = BigQueryIOST.class.getName();
 
     /** InfluxDB host to publish metrics. * */
     @JsonProperty public String influxHost;
