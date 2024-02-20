@@ -47,21 +47,22 @@ public class BeamFlinkDataSetAdapter extends BeamFlinkAbstractAdapter<DataSet<?>
   }
 
   @SuppressWarnings("nullness")
-  public <T, O, CT extends PCollection<? extends T>> DataSet<O> applyBeamPTransform(
-      DataSet<T> input, PTransform<CT, PCollection<O>> transform) {
+  public <InputT, OutputT, CollectionT extends PCollection<? extends InputT>>
+      DataSet<OutputT> applyBeamPTransform(
+          DataSet<InputT> input, PTransform<CollectionT, PCollection<OutputT>> transform) {
     return (DataSet)
-        this.<CT, PCollection<O>>applyBeamPTransformInternal(
+        this.<CollectionT, PCollection<OutputT>>applyBeamPTransformInternal(
                 ImmutableMap.of("input", input),
-                (pipeline, map) -> (CT) map.get("input"),
+                (pipeline, map) -> (CollectionT) map.get("input"),
                 (output) -> ImmutableMap.of("output", output),
                 transform)
             .get("output");
   }
 
   @SuppressWarnings("nullness")
-  public <O> DataSet<O> applyBeamPTransform(
+  public <OutputT> DataSet<OutputT> applyBeamPTransform(
       Map<String, ? extends DataSet<?>> inputs,
-      PTransform<PCollectionTuple, PCollection<O>> transform) {
+      PTransform<PCollectionTuple, PCollection<OutputT>> transform) {
     return (DataSet)
         applyBeamPTransformInternal(
                 inputs,
@@ -72,7 +73,8 @@ public class BeamFlinkDataSetAdapter extends BeamFlinkAbstractAdapter<DataSet<?>
   }
 
   @SuppressWarnings("nullness")
-  public <O> DataSet<O> applyBeamPTransform(PTransform<PBegin, PCollection<O>> transform) {
+  public <OutputT> DataSet<OutputT> applyBeamPTransform(
+      PTransform<PBegin, PCollection<OutputT>> transform) {
     return (DataSet)
         applyBeamPTransformInternal(
                 ImmutableMap.<String, DataSet<?>>of(),
@@ -83,12 +85,12 @@ public class BeamFlinkDataSetAdapter extends BeamFlinkAbstractAdapter<DataSet<?>
   }
 
   @SuppressWarnings("nullness")
-  public <T, CT extends PCollection<? extends T>>
+  public <InputT, CollectionT extends PCollection<? extends InputT>>
       Map<String, DataSet<?>> applyMultiOutputBeamPTransform(
-          DataSet<T> input, PTransform<CT, PCollectionTuple> transform) {
+          DataSet<InputT> input, PTransform<CollectionT, PCollectionTuple> transform) {
     return applyBeamPTransformInternal(
         ImmutableMap.of("input", input),
-        (pipeline, map) -> (CT) map.get("input"),
+        (pipeline, map) -> (CollectionT) map.get("input"),
         BeamAdapterUtils::tupleToMap,
         transform);
   }
@@ -110,11 +112,12 @@ public class BeamFlinkDataSetAdapter extends BeamFlinkAbstractAdapter<DataSet<?>
   }
 
   @SuppressWarnings("nullness")
-  public <T, CT extends PCollection<? extends T>> void applyNoOutputBeamPTransform(
-      DataSet<T> input, PTransform<CT, PDone> transform) {
+  public <InputT, CollectionT extends PCollection<? extends InputT>>
+      void applyNoOutputBeamPTransform(
+          DataSet<InputT> input, PTransform<CollectionT, PDone> transform) {
     applyBeamPTransformInternal(
         ImmutableMap.of("input", input),
-        (pipeline, map) -> (CT) map.get("input"),
+        (pipeline, map) -> (CollectionT) map.get("input"),
         pDone -> ImmutableMap.of(),
         transform);
   }
@@ -156,7 +159,7 @@ public class BeamFlinkDataSetAdapter extends BeamFlinkAbstractAdapter<DataSet<?>
             executionEnvironment));
   }
 
-  private <T> FlinkBatchPortablePipelineTranslator.PTransformTranslator flinkInputTranslator(
+  private <InputT> FlinkBatchPortablePipelineTranslator.PTransformTranslator flinkInputTranslator(
       Map<String, ? extends DataSet<?>> inputMap) {
     return (PipelineNode.PTransformNode t,
         RunnerApi.Pipeline p,
@@ -164,14 +167,16 @@ public class BeamFlinkDataSetAdapter extends BeamFlinkAbstractAdapter<DataSet<?>
       // When we run into a FlinkInput operator, it "produces" the corresponding input as its
       // "computed result."
       String inputId = t.getTransform().getSpec().getPayload().toStringUtf8();
-      DataSet<T> flinkInput = (DataSet<T>) inputMap.get(inputId);
+      DataSet<InputT> flinkInput = (DataSet<InputT>) inputMap.get(inputId);
       // To make the nullness checker happy...
-      if (flinkInput == null) throw new IllegalStateException("Missing input: " + inputId);
+      if (flinkInput == null) {
+        throw new IllegalStateException("Missing input: " + inputId);
+      }
       context.addDataSet(
           Iterables.getOnlyElement(t.getTransform().getOutputsMap().values()),
           // new MapOperator(...) rather than .map to manually designate the type information.
           // Note that MapOperator is a subclass of DataSet.
-          new MapOperator<T, WindowedValue<T>>(
+          new MapOperator<InputT, WindowedValue<InputT>>(
               flinkInput,
               BeamAdapterUtils.coderTotoTypeInformation(
                   WindowedValue.getValueOnlyCoder(
@@ -182,24 +187,24 @@ public class BeamFlinkDataSetAdapter extends BeamFlinkAbstractAdapter<DataSet<?>
     };
   }
 
-  private <T> FlinkBatchPortablePipelineTranslator.PTransformTranslator flinkOutputTranslator(
+  private <InputT> FlinkBatchPortablePipelineTranslator.PTransformTranslator flinkOutputTranslator(
       Map<String, DataSet<?>> outputMap) {
     return (PipelineNode.PTransformNode t,
         RunnerApi.Pipeline p,
         FlinkBatchPortablePipelineTranslator.BatchTranslationContext context) -> {
-      DataSet<WindowedValue<T>> inputDataSet =
+      DataSet<WindowedValue<InputT>> inputDataSet =
           context.getDataSetOrThrow(
               Iterables.getOnlyElement(t.getTransform().getInputsMap().values()));
       // When we run into a FlinkOutput operator, we cache the computed PCollection to return to the
       // user.
       String outputId = t.getTransform().getSpec().getPayload().toStringUtf8();
-      Coder<T> outputCoder =
+      Coder<InputT> outputCoder =
           BeamAdapterUtils.lookupCoder(
               p, Iterables.getOnlyElement(t.getTransform().getInputsMap().values()));
       // TODO(robertwb): Also handle or disable length prefix coding (for embedded mode at least).
       outputMap.put(
           outputId,
-          new MapOperator<WindowedValue<T>, T>(
+          new MapOperator<WindowedValue<InputT>, InputT>(
               inputDataSet,
               BeamAdapterUtils.coderTotoTypeInformation(outputCoder, pipelineOptions),
               w -> w.getValue(),

@@ -52,7 +52,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
-public abstract class BeamFlinkAbstractAdapter<DataSetOrStream> {
+public abstract class BeamFlinkAbstractAdapter<DataSetOrStreamT> {
   protected final PipelineOptions pipelineOptions;
   protected final ExecutionEnvironment executionEnvironment;
   protected final CoderRegistry coderRegistry = CoderRegistry.createDefault();
@@ -63,15 +63,15 @@ public abstract class BeamFlinkAbstractAdapter<DataSetOrStream> {
     this.executionEnvironment = executionEnvironment;
   }
 
-  protected abstract TypeInformation<?> getTypeInformation(DataSetOrStream dataSetOrStream);
+  protected abstract TypeInformation<?> getTypeInformation(DataSetOrStreamT dataSetOrStream);
 
   @SuppressWarnings({"nullness", "rawtypes"})
-  protected <BeamInputType extends PInput, BeamOutputType extends POutput>
-      Map<String, DataSetOrStream> applyBeamPTransformInternal(
-          Map<String, ? extends DataSetOrStream> inputs,
-          BiFunction<Pipeline, Map<String, PCollection<?>>, BeamInputType> toBeamInput,
-          Function<BeamOutputType, Map<String, PCollection<?>>> fromBeamOutput,
-          PTransform<? super BeamInputType, BeamOutputType> transform) {
+  protected <BeamInputT extends PInput, BeamOutputT extends POutput>
+      Map<String, DataSetOrStreamT> applyBeamPTransformInternal(
+          Map<String, ? extends DataSetOrStreamT> inputs,
+          BiFunction<Pipeline, Map<String, PCollection<?>>, BeamInputT> toBeamInput,
+          Function<BeamOutputT, Map<String, PCollection<?>>> fromBeamOutput,
+          PTransform<? super BeamInputT, BeamOutputT> transform) {
     Pipeline pipeline = Pipeline.create();
 
     // Construct beam inputs corresponding to each Flink input.
@@ -111,14 +111,14 @@ public abstract class BeamFlinkAbstractAdapter<DataSetOrStream> {
     SdkComponents components = SdkComponents.create(pipelineOptions);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, components);
 
-    Map<String, DataSetOrStream> outputs = new HashMap<>();
+    Map<String, DataSetOrStreamT> outputs = new HashMap<>();
     FlinkTranslatorAndContext<?> translatorAndContext = createTranslatorAndContext(inputs, outputs);
     applyFlinkTranslator(pipelineProto, translatorAndContext);
     return outputs;
   }
 
   protected abstract FlinkTranslatorAndContext<?> createTranslatorAndContext(
-      Map<String, ? extends DataSetOrStream> inputs, Map<String, DataSetOrStream> outputs);
+      Map<String, ? extends DataSetOrStreamT> inputs, Map<String, DataSetOrStreamT> outputs);
 
   static class FlinkTranslatorAndContext<
       T extends FlinkPortablePipelineTranslator.TranslationContext> {
@@ -259,15 +259,15 @@ public abstract class BeamFlinkAbstractAdapter<DataSetOrStream> {
    * This is required as there is no apply() method on the base PInput type due to the inability to
    * declare type parameters as self types.
    */
-  private static <BeamInputType extends PInput, BeamOutputType extends POutput>
-      BeamOutputType applyTransform(
-          BeamInputType beamInput, PTransform<? super BeamInputType, BeamOutputType> transform) {
+  private static <BeamInputT extends PInput, BeamOutputT extends POutput>
+      BeamOutputT applyTransform(
+          BeamInputT beamInput, PTransform<? super BeamInputT, BeamOutputT> transform) {
     if (beamInput instanceof PCollection) {
-      return (BeamOutputType) ((PCollection) beamInput).apply(transform);
+      return (BeamOutputT) ((PCollection) beamInput).apply(transform);
     } else if (beamInput instanceof PCollectionTuple) {
-      return (BeamOutputType) ((PCollectionTuple) beamInput).apply((PTransform) transform);
+      return (BeamOutputT) ((PCollectionTuple) beamInput).apply((PTransform) transform);
     } else if (beamInput instanceof PBegin) {
-      return (BeamOutputType) ((PBegin) beamInput).apply((PTransform) transform);
+      return (BeamOutputT) ((PBegin) beamInput).apply((PTransform) transform);
     } else {
       // We should never get here as we control the creation of all Beam types above.
       // If new types of transform inputs are supported, this enumeration may need to be updated.
