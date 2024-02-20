@@ -97,6 +97,7 @@ class TensorflowHubTextEmbeddings(EmbeddingsManager):
     Embedding config for tensorflow hub models. This config can be used with
     MLTransform to embed text data. Models are loaded using the RunInference
     PTransform with the help of a ModelHandler.
+
     Args:
       columns: The columns containing the text to be embedded.
       hub_url: The url of the tensorflow hub model.
