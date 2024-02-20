@@ -375,7 +375,7 @@ public class StreamingEngineClientTest {
 
     // Make sure we are injecting the metadata from smallest to largest.
     workerMetadataResponses.stream()
-        .sorted(Comparator.comparingLong(WorkerMetadataResponse::getMetadataVersion).reversed())
+        .sorted(Comparator.comparingLong(WorkerMetadataResponse::getMetadataVersion))
         .forEach(fakeGetWorkerMetadataStub::injectWorkerMetadata);
 
     waitForWorkerMetadataToBeConsumed(getWorkBudgetDistributor);
@@ -386,9 +386,7 @@ public class StreamingEngineClientTest {
   private void waitForWorkerMetadataToBeConsumed(
       TestGetWorkBudgetDistributor getWorkBudgetDistributor) throws InterruptedException {
     getWorkBudgetDistributor.waitForBudgetDistribution();
-    while (isBudgetRefreshPaused.get()) {
-      // wait for budget refresh til budget refresh is unpaused.
-    }
+    Thread.sleep(100);
   }
 
   private static class GetWorkerMetadataTestStub
