@@ -1494,7 +1494,18 @@ public class BigQueryIO {
                   getProjectionPushdownApplied());
           List<? extends BoundedSource<T>> sources;
           try {
-            sources = source.split(0, input.getPipeline().getOptions());
+            //This splitting logic taken from the SDF implementation of Read
+            long estimatedSize = source.getEstimatedSizeBytes(bqOptions);
+            // Split into pieces as close to the default desired bundle size but if that would cause too
+            // few splits then prefer to split up to the default desired number of splits.
+            long desiredChunkSize;
+            if (estimatedSize <= 0) {
+              desiredChunkSize = 64 << 20; // 64mb
+            } else {
+              // 1mb --> 1 shard; 1gb --> 32 shards; 1tb --> 1000 shards, 1pb --> 32k shards
+              desiredChunkSize = Math.max(1 << 20, (long) (1000 * Math.sqrt(estimatedSize)));
+            }
+            sources = source.split(desiredChunkSize, bqOptions);
           } catch (Exception e) {
             throw new RuntimeException("Unable to split TableSource", e);
           }

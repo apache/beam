@@ -147,7 +147,9 @@ public class BigQueryIOStorageQueryIT {
 
     errorHandler.close();
 
+    //When 1/50 elements fail sequentially, this is the expected success count
     PAssert.thatSingleton(count).isEqualTo(10381L);
+    //this is the total elements, less the successful elements
     PAssert.thatSingleton(errorHandler.getOutput()).isEqualTo(10592L - 10381L);
     p.run().waitUntilFinish();
   }
