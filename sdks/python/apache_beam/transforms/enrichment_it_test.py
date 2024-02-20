@@ -109,7 +109,7 @@ class ValidateFields(beam.DoFn):
         raise BeamAssertException(f"Expected a not None field: {field}")
 
 
-@pytest.mark.it_postcommit
+@pytest.mark.uses_mock_api
 class TestEnrichment(unittest.TestCase):
   options: Union[EchoITOptions, None] = None
   client: Union[SampleHTTPEnrichment, None] = None

@@ -553,7 +553,7 @@ language it may have been written in to begin with.
 
 If your runner is Java-based, the tools to interact with pipelines in an
 SDK-agnostic manner are in the `beam-runners-core-construction-java`
-artifact, in the `org.apache.beam.runners.core.construction` namespace.
+artifact, in the `org.apache.beam.sdk.util.construction` namespace.
 The utilities are named consistently, like so:
 
  * `PTransformTranslation` - registry of known transforms and standard URNs

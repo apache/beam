@@ -35,7 +35,6 @@ import com.google.api.services.dataflow.model.DataflowHistogramValue;
 import com.google.api.services.dataflow.model.DistributionUpdate;
 import com.google.api.services.dataflow.model.Linear;
 import com.google.api.services.dataflow.model.MetricValue;
-import com.google.api.services.dataflow.model.OutlierStats;
 import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
 import java.time.Clock;
 import java.time.Duration;
@@ -252,18 +251,11 @@ public class StreamingStepMetricsContainerTest {
     Linear linearOptions = new Linear().setNumberOfBuckets(10).setWidth(10.0).setStart(0.0);
     BucketOptions bucketOptions = new BucketOptions().setLinear(linearOptions);
 
-    OutlierStats outlierStats =
-        new OutlierStats()
-            .setUnderflowCount(0L)
-            .setUnderflowMean(0.0)
-            .setOverflowCount(0L)
-            .setOverflowMean(0.0);
     DataflowHistogramValue linearHistogram =
         new DataflowHistogramValue()
             .setCount(1L)
             .setBucketOptions(bucketOptions)
-            .setBucketCounts(bucketCounts)
-            .setOutlierStats(outlierStats);
+            .setBucketCounts(bucketCounts);
 
     MetricValue expectedHistogram =
         new MetricValue()
