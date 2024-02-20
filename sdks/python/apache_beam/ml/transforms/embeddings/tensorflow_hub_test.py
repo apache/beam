@@ -29,20 +29,20 @@ test_query = 'This is a test query'
 
 # pylint: disable=ungrouped-imports
 try:
-  import tensorflow as tf  # disable=unused-import
   from apache_beam.ml.transforms.embeddings.tensorflow_hub import TensorflowHubTextEmbeddings
 except ImportError:
-  tf = None
+  TensorflowHubTextEmbeddings = None  # type: ignore
 
 # pylint: disable=ungrouped-imports
 try:
   import tensorflow_transform as tft
   from apache_beam.ml.transforms.tft import ScaleTo01
 except ImportError:
-  tft = None
+  tft = None  # type: ignore
 
 
-@unittest.skipIf(tf is None, 'Tensorflow is not installed.')
+@unittest.skipIf(
+    TensorflowHubTextEmbeddings is None, 'Tensorflow is not installed.')
 class TFHubEmbeddingsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
@@ -161,7 +161,8 @@ class TFHubEmbeddingsTest(unittest.TestCase):
                     embedding_config))
 
 
-@unittest.skipIf(tf is None, 'Tensorflow is not installed.')
+@unittest.skipIf(
+    TensorflowHubTextEmbeddings is None, 'Tensorflow is not installed.')
 class TFHubEmbeddingsGCSArtifactLocationTest(TFHubEmbeddingsTest):
   def setUp(self):
     self.artifact_location = os.path.join(
