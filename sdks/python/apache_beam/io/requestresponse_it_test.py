@@ -274,6 +274,19 @@ class TestRedisCache(unittest.TestCase):
           | RequestResponseIO(caller, cache=cache)
           | beam.ParDo(ValidateCallerResponses()))
 
+  def test_rrio_no_coder_exception(self):
+    caller = FakeCallerForCache()
+    requests = ['beam', 'flink', 'spark']
+    cache = RedisCache(self.host, self.port)
+    with self.assertRaises(ValueError):
+      test_pipeline = beam.Pipeline()
+      _ = (
+          test_pipeline
+          | beam.Create(requests)
+          | RequestResponseIO(caller, cache=cache))
+      res = test_pipeline.run()
+      res.wait_until_finish()
+
   def tearDown(self) -> None:
     self.container.stop()
 

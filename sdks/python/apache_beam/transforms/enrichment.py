@@ -151,7 +151,7 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
     # request for that row.
     request_coder = coders.StrUtf8Coder()
     if self._cache:
-      self._cache.set_request_coder(request_coder)
+      self._cache.request_coder = request_coder
 
     fetched_data = input_row | RequestResponseIO(
         caller=self._source_handler,
