@@ -101,7 +101,7 @@ public class SpannerAccessor implements AutoCloseable {
     }
   }
 
-  private static SpannerAccessor createAndConnect(SpannerConfig spannerConfig) {
+  public static SpannerOptions buildSpannerOptions(SpannerConfig spannerConfig) {
     SpannerOptions.Builder builder = SpannerOptions.newBuilder();
 
     Set<Code> retryableCodes = new HashSet<>();
@@ -228,7 +228,11 @@ public class SpannerAccessor implements AutoCloseable {
       builder.setCredentials(credentials.get());
     }
 
-    SpannerOptions options = builder.build();
+    return builder.build();
+  }
+
+  private static SpannerAccessor createAndConnect(SpannerConfig spannerConfig) {
+    SpannerOptions options = buildSpannerOptions(spannerConfig);
     Spanner spanner = options.getService();
     String instanceId = spannerConfig.getInstanceId().get();
     String databaseId = spannerConfig.getDatabaseId().get();

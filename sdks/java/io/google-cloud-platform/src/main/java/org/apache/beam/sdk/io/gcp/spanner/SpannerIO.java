@@ -88,6 +88,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
@@ -1669,35 +1670,9 @@ public class SpannerIO {
               getSpannerConfig().getProjectId().get(),
               partitionMetadataInstanceId,
               partitionMetadataDatabaseId);
-      SpannerConfig changeStreamSpannerConfig = getSpannerConfig();
-      // Set default retryable errors for ReadChangeStream
-      if (changeStreamSpannerConfig.getRetryableCodes() == null) {
-        ImmutableSet<Code> defaultRetryableCodes = ImmutableSet.of(Code.UNAVAILABLE, Code.ABORTED);
-        changeStreamSpannerConfig =
-            changeStreamSpannerConfig.toBuilder().setRetryableCodes(defaultRetryableCodes).build();
-      }
-      // Set default retry timeouts for ReadChangeStream
-      if (changeStreamSpannerConfig.getExecuteStreamingSqlRetrySettings() == null) {
-        changeStreamSpannerConfig =
-            changeStreamSpannerConfig
-                .toBuilder()
-                .setExecuteStreamingSqlRetrySettings(
-                    RetrySettings.newBuilder()
-                        .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(5))
-                        .setInitialRpcTimeout(org.threeten.bp.Duration.ofMinutes(1))
-                        .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(1))
-                        .build())
-                .build();
-      }
-      // If credentials are not set in SpannerConfig, check pipeline options for credentials.
-      if (changeStreamSpannerConfig.getCredentials() == null) {
-        final Credentials credentials =
-            input.getPipeline().getOptions().as(GcpOptions.class).getGcpCredential();
-        if (credentials != null) {
-          changeStreamSpannerConfig = changeStreamSpannerConfig.withCredentials(credentials);
-        }
-      }
 
+      final SpannerConfig changeStreamSpannerConfig =
+          buildChangeStreamSpannerConfig(input.getPipeline().getOptions());
       final SpannerConfig partitionMetadataSpannerConfig =
           MetadataSpannerConfigFactory.create(
               changeStreamSpannerConfig, partitionMetadataInstanceId, partitionMetadataDatabaseId);
@@ -1783,6 +1758,37 @@ public class SpannerIO {
           .apply(Wait.on(dataChangeRecordsOut))
           .apply(ParDo.of(new CleanUpReadChangeStreamDoFn(daoFactory)));
       return dataChangeRecordsOut;
+    }
+
+    public SpannerConfig buildChangeStreamSpannerConfig(PipelineOptions pipelineOptions) {
+      SpannerConfig changeStreamSpannerConfig = getSpannerConfig();
+      // Set default retryable errors for ReadChangeStream
+      if (changeStreamSpannerConfig.getRetryableCodes() == null) {
+        ImmutableSet<Code> defaultRetryableCodes = ImmutableSet.of(Code.UNAVAILABLE, Code.ABORTED);
+        changeStreamSpannerConfig =
+            changeStreamSpannerConfig.toBuilder().setRetryableCodes(defaultRetryableCodes).build();
+      }
+      // Set default retry timeouts for ReadChangeStream
+      if (changeStreamSpannerConfig.getExecuteStreamingSqlRetrySettings() == null) {
+        changeStreamSpannerConfig =
+            changeStreamSpannerConfig
+                .toBuilder()
+                .setExecuteStreamingSqlRetrySettings(
+                    RetrySettings.newBuilder()
+                        .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(5))
+                        .setInitialRpcTimeout(org.threeten.bp.Duration.ofMinutes(1))
+                        .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(1))
+                        .build())
+                .build();
+      }
+      // If credentials are not set in SpannerConfig, check pipeline options for credentials.
+      if (changeStreamSpannerConfig.getCredentials() == null) {
+        final Credentials credentials = pipelineOptions.as(GcpOptions.class).getGcpCredential();
+        if (credentials != null) {
+          changeStreamSpannerConfig = changeStreamSpannerConfig.withCredentials(credentials);
+        }
+      }
+      return changeStreamSpannerConfig;
     }
   }
 
