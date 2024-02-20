@@ -1494,10 +1494,10 @@ public class BigQueryIO {
                   getProjectionPushdownApplied());
           List<? extends BoundedSource<T>> sources;
           try {
-            //This splitting logic taken from the SDF implementation of Read
+            // This splitting logic taken from the SDF implementation of Read
             long estimatedSize = source.getEstimatedSizeBytes(bqOptions);
-            // Split into pieces as close to the default desired bundle size but if that would cause too
-            // few splits then prefer to split up to the default desired number of splits.
+            // Split into pieces as close to the default desired bundle size but if that would cause
+            // too few splits then prefer to split up to the default desired number of splits.
             long desiredChunkSize;
             if (estimatedSize <= 0) {
               desiredChunkSize = 64 << 20; // 64mb
