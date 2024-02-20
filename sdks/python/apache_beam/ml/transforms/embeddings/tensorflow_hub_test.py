@@ -34,10 +34,12 @@ try:
 except ImportError:
   tf = None
 
+# pylint: disable=ungrouped-imports
 try:
+  import tensorflow_transform as tft
   from apache_beam.ml.transforms.tft import ScaleTo01
 except ImportError:
-  ScaleTo01 = None  # type: ignore
+  tft = None
 
 
 @unittest.skipIf(tf is None, 'Tensorflow is not installed.')
@@ -66,7 +68,7 @@ class TFHubEmbeddingsTest(unittest.TestCase):
 
       _ = (transformed_pcoll | beam.Map(assert_element))
 
-  @unittest.skipIf(ScaleTo01 is None, 'Tensorflow Transform is not installed.')
+  @unittest.skipIf(tft is None, 'Tensorflow Transform is not installed.')
   def test_embeddings_with_scale_to_0_1(self):
     embedding_config = TensorflowHubTextEmbeddings(
         hub_url=hub_url,
