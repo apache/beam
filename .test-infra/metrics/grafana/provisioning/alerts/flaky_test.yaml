@@ -12,201 +12,138 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-    apiVersion: 1
-    groups:
-        - orgId: 1
-          name: flaky-test
-          folder: General Alerting
-          interval: 1m
-          rules:
-            - uid: d197a27a-cad8-4f60-855e-32f7e6e44104
-              title: flaky_test
-              condition: E
-              data:
-                - refId: A
-                  relativeTimeRange:
-                    from: 600
-                    to: 0
-                  datasourceUid: beampsql
-                  model:
-                    datasource:
-                        type: postgres
-                        uid: "beampsql"
-                    editorMode: code
-                    format: table
-                    hide: false
-                    intervalMs: 1000
-                    maxDataPoints: 43200
-                    rawQuery: true
-                    rawSql: SELECT COUNT(run_id), CAST (github_workflows.workflow_id AS TEXT), name AS workflow_name , filename , dashboard_category , github_workflows.url AS workflow_url FROM github_workflow_runs INNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id WHERE status = 'failure' GROUP BY github_workflows.workflow_id, workflow_name, filename
-                    refId: A
-                    sql:
-                        columns:
-                            - name: COUNT
-                              parameters:
-                                - name: run_id
-                                  type: functionParameter
-                              type: function
-                            - parameters:
-                                - name: workflow_id
-                                  type: functionParameter
-                              type: function
-                            - parameters:
-                                - name: workflow_url
-                                  type: functionParameter
-                              type: function
-                        groupBy:
-                            - property:
-                                name: workflow_id
-                                type: string
-                              type: groupBy
-                            - property:
-                                name: workflow_url
-                                type: string
-                              type: groupBy
-                        limit: 50
-                        whereJsonTree:
-                            children1:
-                                - id: abbbbbba-89ab-4cde-b012-318d5f0b5084
-                                  properties:
-                                    field: status
-                                    operator: equal
-                                    value:
-                                        - failure
-                                    valueSrc:
-                                        - value
-                                    valueType:
-                                        - text
-                                  type: rule
-                            id: 9baaa8aa-89ab-4cde-b012-318d5f0aa2f8
-                            type: group
-                        whereString: status = 'failure'
-                    table: github_workflows
-                - refId: B
-                  relativeTimeRange:
-                    from: 600
-                    to: 0
-                  datasourceUid: "beampsql"
-                  model:
-                    datasource:
-                        type: postgres
-                        uid: beampsql
-                    editorMode: code
-                    format: table
-                    hide: false
-                    intervalMs: 1000
-                    maxDataPoints: 43200
-                    rawQuery: true
-                    rawSql: SELECT MAX(threshold), CAST(workflow_id AS TEXT) FROM github_workflows GROUP BY workflow_id
-                    refId: B
-                    sql:
-                        columns:
-                            - name: MAX
-                              parameters:
-                                - name: threshold_percentage
-                                  type: functionParameter
-                              type: function
-                            - parameters:
-                                - name: workflow_id
-                                  type: functionParameter
-                              type: function
-                        groupBy:
-                            - property:
-                                name: workflow_id
-                                type: string
-                              type: groupBy
-                        limit: 50
-                    table: github_workflows
-                - refId: C
-                  relativeTimeRange:
-                    from: 600
-                    to: 0
-                  datasourceUid: __expr__
-                  model:
-                    conditions:
-                        - evaluator:
-                            params:
-                                - 0
-                                - 0
-                            type: gt
-                          operator:
-                            type: and
-                          query:
-                            params: []
-                          reducer:
-                            params: []
-                            type: avg
-                          type: query
-                    datasource:
-                        name: Expression
-                        type: __expr__
-                        uid: __expr__
-                    expression: '30 * $B '
-                    hide: false
-                    intervalMs: 1000
-                    maxDataPoints: 43200
-                    refId: C
-                    type: math
-                - refId: D
-                  relativeTimeRange:
-                    from: 600
-                    to: 0
-                  datasourceUid: __expr__
-                  model:
-                    conditions:
-                        - evaluator:
-                            params:
-                                - 0
-                                - 0
-                            type: gt
-                          operator:
-                            type: and
-                          query:
-                            params: []
-                          reducer:
-                            params: []
-                            type: avg
-                          type: query
-                    datasource:
-                        name: Expression
-                        type: __expr__
-                        uid: __expr__
-                    expression: $C - $A
-                    hide: false
-                    intervalMs: 1000
-                    maxDataPoints: 43200
-                    refId: D
-                    type: math
-                - refId: E
-                  relativeTimeRange:
-                    from: 600
-                    to: 0
-                  datasourceUid: __expr__
-                  model:
-                    conditions:
-                        - evaluator:
-                            params:
-                                - 0
-                                - 0
-                            type: lt
-                          operator:
-                            type: and
-                          query:
-                            params: []
-                          reducer:
-                            params: []
-                            type: avg
-                          type: query
-                    datasource:
-                        name: Expression
-                        type: __expr__
-                        uid: __expr__
-                    expression: D
-                    intervalMs: 1000
-                    maxDataPoints: 43200
-                    refId: E
-                    type: threshold
-              noDataState: OK
-              execErrState: Error
-              for: 1m
-              isPaused: false
+apiVersion: 1
+groups:
+    - orgId: 1
+      name: flaky-test
+      folder: General Alerting
+      interval: 1m
+      rules:
+        - uid: flaky_test
+          title: flaky_test
+          condition: E
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: beampsql
+              model:
+                editorMode: code
+                format: table
+                hide: false
+                intervalMs: 1000
+                maxDataPoints: 43200
+                rawQuery: true
+                rawSql: "SELECT COUNT(run_id), CAST (github_workflows_test.workflow_id AS TEXT), name AS workflow_name , filename AS workflow_filename , dashboard_category , github_workflows_test.url AS workflow_url \nFROM github_workflow_runs_test INNER JOIN github_workflows_test\nON github_workflow_runs_test.workflow_id = github_workflows_test.workflow_id \nWHERE status = 'failure' \nGROUP BY github_workflows_test.workflow_id, workflow_name, workflow_filename"
+                refId: A
+            - refId: B
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: beampsql
+              model:
+                datasource:
+                    type: postgres
+                    uid: beampsql
+                editorMode: code
+                format: table
+                hide: false
+                intervalMs: 1000
+                maxDataPoints: 43200
+                rawQuery: true
+                rawSql: SELECT MAX(threshold), CAST(workflow_id AS TEXT) FROM github_workflows_test GROUP BY workflow_id
+                refId: B
+            - refId: C
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: 30 * $B
+                hide: false
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: C
+                type: math
+            - refId: D
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: $C - $A
+                hide: false
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: D
+                type: math
+            - refId: E
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                            - 0
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: D
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: E
+                type: threshold
+          noDataState: NoData
+          execErrState: Error
+          for: 1m
+          isPaused: false
