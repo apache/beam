@@ -26,8 +26,8 @@ output = (
     | "Map from bytes" >> Map(map_from_bytes)
     | "Log Data" >> Map(logging.info)
 )
-
 ```
+
 Response:
 This code uses the Apache Beam [TFRecordIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.tfrecordio.html) to read data from a TensorFlow [TFRecord file](https://www.tensorflow.org/api_docs/python/tf/data/TFRecordDataset) matched with `file_pattern`. The `file_pattern` parameter is provided as a command-line argument.
 
@@ -56,8 +56,4 @@ output = (
 )
 ```
 
-The [ReadFromTFRecord transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.tfrecordio.html#apache_beam.io.tfrecordio.ReadFromTFRecord) reads from a `TFRecord` source. By default, TFRecordIO transforms use `coders.BytesCoder()`. The `Map` transform applies the `map_from_bytes` function to deserialize bytes to a Python object. The deserialized object is logged to the console.
-
-
-
-
+The [ReadFromTFRecord transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.tfrecordio.html#apache_beam.io.tfrecordio.ReadFromTFRecord) reads from a `TFRecord` source. By default, TFRecordIO transforms use `coders.BytesCoder()`. The `Map` transform applies the `map_from_bytes` function to deserialize bytes to a Python object. The Apache Beam pipeline then logs the resulting deserialized object to the console.
