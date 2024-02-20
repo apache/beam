@@ -29,12 +29,12 @@ import java.util.List;
 import org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics;
 import org.apache.beam.runners.dataflow.worker.MetricsContainerRegistry;
 import org.apache.beam.runners.dataflow.worker.StreamingDataflowWorker;
-import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionStateRegistry;
 import org.apache.beam.runners.dataflow.worker.StreamingStepMetricsContainer;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.StreamingModeExecutionStateRegistry;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 

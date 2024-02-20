@@ -36,6 +36,7 @@ import org.apache.beam.runners.core.TimerInternals.TimerDataCoderV2;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.StreamingModeStepContext;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -58,8 +59,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 /** A class that handles streaming side inputs in a {@link DoFnRunner}. */
 @SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
-  private StreamingModeExecutionContext.StreamingModeStepContext stepContext;
-  private Map<String, PCollectionView<?>> sideInputViews;
+  private final StreamingModeStepContext stepContext;
+  private final Map<String, PCollectionView<?>> sideInputViews;
 
   private final StateTag<BagState<WindowedValue<InputT>>> elementsAddr;
   private final StateTag<BagState<TimerData>> timersAddr;
@@ -75,7 +76,7 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
       Iterable<PCollectionView<?>> views,
       Coder<InputT> inputCoder,
       WindowingStrategy<?, W> windowingStrategy,
-      StreamingModeExecutionContext.StreamingModeStepContext stepContext) {
+      StreamingModeStepContext stepContext) {
     this.stepContext = stepContext;
 
     this.mainWindowCoder = windowingStrategy.getWindowFn().windowCoder();

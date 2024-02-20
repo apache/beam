@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class ReaderCache {
+public class ReaderCache {
 
   private static final Logger LOG = LoggerFactory.getLogger(ReaderCache.class);
   private final Executor invalidationExecutor;
@@ -67,7 +67,7 @@ class ReaderCache {
   private final Cache<WindmillComputationKey, CacheEntry> cache;
 
   /** Cache reader for {@code cacheDuration}. Readers will be closed on {@code executor}. */
-  ReaderCache(Duration cacheDuration, Executor invalidationExecutor) {
+  public ReaderCache(Duration cacheDuration, Executor invalidationExecutor) {
     this.invalidationExecutor = invalidationExecutor;
     this.cache =
         CacheBuilder.newBuilder()
@@ -105,7 +105,7 @@ class ReaderCache {
    * cached, it is assumed that the cached reader (if any) is no longer relevant and will be closed.
    * Return null in case of a cache miss.
    */
-  UnboundedSource.UnboundedReader<?> acquireReader(
+  public UnboundedSource.UnboundedReader<?> acquireReader(
       WindmillComputationKey computationKey, long cacheToken, long workToken) {
     CacheEntry entry = cache.asMap().remove(computationKey);
 
@@ -125,7 +125,7 @@ class ReaderCache {
   }
 
   /** Cache the reader for a minute. It will be closed if it is not acquired with in a minute. */
-  void cacheReader(
+  public void cacheReader(
       WindmillComputationKey computationKey,
       long cacheToken,
       long workToken,
@@ -137,7 +137,7 @@ class ReaderCache {
   }
 
   /** If a reader is cached for this key, remove and close it. */
-  void invalidateReader(WindmillComputationKey computationKey) {
+  public void invalidateReader(WindmillComputationKey computationKey) {
     // use an invalid cache token that will trigger close.
     acquireReader(computationKey, -1L, -1);
   }

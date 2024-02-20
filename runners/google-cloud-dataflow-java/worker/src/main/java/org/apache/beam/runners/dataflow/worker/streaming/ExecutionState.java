@@ -21,7 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.util.Optional;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.DataflowWorkExecutor;
-import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.StreamingModeExecutionContext;
 import org.apache.beam.sdk.coders.Coder;
 
 @AutoValue

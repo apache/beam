@@ -23,6 +23,7 @@ import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.StreamingModeStepContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
@@ -77,7 +78,7 @@ class SimpleDoFnRunnerFactory<InputT, OutputT> implements DoFnRunnerFactory<Inpu
               sideInputViews,
               inputCoder,
               windowingStrategy,
-              (StreamingModeExecutionContext.StreamingModeStepContext) userStepContext));
+              (StreamingModeStepContext) userStepContext));
     }
     return fnRunner;
   }

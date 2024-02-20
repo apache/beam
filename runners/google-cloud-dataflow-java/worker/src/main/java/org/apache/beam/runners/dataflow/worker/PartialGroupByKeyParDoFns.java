@@ -35,6 +35,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.GroupingTables
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.SimplePartialGroupByKeyParDoFn;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.StreamingModeStepContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -140,7 +141,7 @@ public class PartialGroupByKeyParDoFns {
                 combineFn.getSideInputViews(),
                 combineFn.getKvCoder(),
                 combineFn.getWindowingStrategy(),
-                (StreamingModeExecutionContext.StreamingModeStepContext) stepContext);
+                (StreamingModeStepContext) stepContext);
         return new StreamingSideInputPGBKParDoFn<>(groupingTable, receiver, sideInputFetcher);
       } else {
         return new BatchSideInputPGBKParDoFn<>(groupingTable, receiver);

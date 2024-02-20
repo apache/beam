@@ -41,6 +41,7 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.StreamingModeStepContext;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -201,7 +202,7 @@ class SplittableProcessFnFactory {
                     sideInputViews,
                     kwiCoder.getElementCoder(),
                     processFn.getInputWindowingStrategy(),
-                    (StreamingModeExecutionContext.StreamingModeStepContext) userStepContext),
+                    (StreamingModeStepContext) userStepContext),
                 userStepContext);
       }
       return fnRunner;

@@ -31,6 +31,7 @@ import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.StreamingModeStepContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
@@ -209,7 +210,7 @@ public class GroupAlsoByWindowsParDoFn<InputT, K, V, W extends BoundedWindow> im
                 sideInputViews,
                 keyedWorkItemCoder.getElementCoder(),
                 windowingStrategy,
-                (StreamingModeExecutionContext.StreamingModeStepContext) stepContext);
+                (StreamingModeStepContext) stepContext);
 
         streamingGABWRunner =
             new StreamingKeyedWorkItemSideInputDoFnRunner<>(
@@ -229,7 +230,7 @@ public class GroupAlsoByWindowsParDoFn<InputT, K, V, W extends BoundedWindow> im
                 sideInputViews,
                 inputCoder,
                 windowingStrategy,
-                (StreamingModeExecutionContext.StreamingModeStepContext) stepContext));
+                (StreamingModeStepContext) stepContext));
       } else {
         return basicRunner;
       }

@@ -64,24 +64,16 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.core.metrics.MetricsLogger;
 import org.apache.beam.runners.dataflow.DataflowRunner;
-import org.apache.beam.runners.dataflow.internal.CustomSources;
-import org.apache.beam.runners.dataflow.util.CloudObject;
-import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames;
 import org.apache.beam.runners.dataflow.worker.apiary.FixMultiOutputInfosOnParDoInstructions;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
-import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
 import org.apache.beam.runners.dataflow.worker.graph.MapTaskToNetworkFunction;
-import org.apache.beam.runners.dataflow.worker.graph.Networks;
-import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
-import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOptions;
-import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture.Capturable;
@@ -104,7 +96,6 @@ import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
@@ -118,8 +109,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmill
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.StreamingExecutionStateFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.StreamingModeExecutionContext;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
@@ -133,7 +125,6 @@ import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -280,7 +271,6 @@ public class StreamingDataflowWorker {
   private final SinkRegistry sinkRegistry = SinkRegistry.defaultRegistry();
   private final Supplier<Instant> clock;
   private final Function<String, ScheduledExecutorService> executorSupplier;
-  private final DataflowMapTaskExecutorFactory mapTaskExecutorFactory;
   private final HotKeyLogger hotKeyLogger;
   // Periodic sender of debug information to the debug capture service.
   private final DebugCapture.@Nullable Manager debugCaptureManager;
@@ -293,6 +283,7 @@ public class StreamingDataflowWorker {
   private int maxWorkItemCommitBytes = Integer.MAX_VALUE;
 
   private final DataflowExecutionStateSampler sampler = DataflowExecutionStateSampler.instance();
+  private final StreamingExecutionStateFactory streamingExecutionStateFactory;
 
   @VisibleForTesting
   StreamingDataflowWorker(
@@ -313,7 +304,6 @@ public class StreamingDataflowWorker {
             Duration.standardSeconds(options.getReaderCacheTimeoutSec()),
             Executors.newCachedThreadPool());
     this.computationMap = computationMap;
-    this.mapTaskExecutorFactory = mapTaskExecutorFactory;
     this.workUnitClient = workUnitClient;
     this.options = options;
     this.hotKeyLogger = hotKeyLogger;
@@ -460,6 +450,21 @@ public class StreamingDataflowWorker {
     LOG.debug("WindmillServicePort: {}", options.getWindmillServicePort());
     LOG.debug("LocalWindmillHostport: {}", options.getLocalWindmillHostport());
     LOG.debug("maxWorkItemCommitBytes: {}", maxWorkItemCommitBytes);
+
+    this.streamingExecutionStateFactory =
+        new StreamingExecutionStateFactory(
+            mapTaskExecutorFactory,
+            mapTaskToNetwork,
+            stateNameMap,
+            stateCache::forComputation,
+            readerCache,
+            pendingDeltaCounters,
+            sampler,
+            idGenerator,
+            readerRegistry,
+            sinkRegistry,
+            options,
+            maxSinkBytes);
   }
 
   private static WindmillServerStub createWindmillServerStub(
@@ -954,32 +959,6 @@ public class StreamingDataflowWorker {
         ShardedKey.create(workItem.getKey(), workItem.getShardingKey()), scheduledWork);
   }
 
-  /**
-   * Extracts the userland key coder, if any, from the coder used in the initial read step of a
-   * stage. This encodes many assumptions about how the streaming execution context works.
-   */
-  private @Nullable Coder<?> extractKeyCoder(Coder<?> readCoder) {
-    if (!(readCoder instanceof WindowedValueCoder)) {
-      throw new RuntimeException(
-          String.format(
-              "Expected coder for streaming read to be %s, but received %s",
-              WindowedValueCoder.class.getSimpleName(), readCoder));
-    }
-
-    // Note that TimerOrElementCoder is a backwards-compatibility class
-    // that is really a FakeKeyedWorkItemCoder
-    Coder<?> valueCoder = ((WindowedValueCoder<?>) readCoder).getValueCoder();
-
-    if (valueCoder instanceof KvCoder<?, ?>) {
-      return ((KvCoder<?, ?>) valueCoder).getKeyCoder();
-    }
-    if (!(valueCoder instanceof WindmillKeyedWorkItem.FakeKeyedWorkItemCoder<?, ?>)) {
-      return null;
-    }
-
-    return ((WindmillKeyedWorkItem.FakeKeyedWorkItemCoder<?, ?>) valueCoder).getKeyCoder();
-  }
-
   private void callFinalizeCallbacks(Windmill.WorkItem work) {
     for (Long callbackId : work.getSourceState().getFinalizeIdsList()) {
       final Runnable callback = commitCallbacks.getIfPresent(callbackId);
@@ -1053,106 +1032,10 @@ public class StreamingDataflowWorker {
       if (work.isFailed()) {
         throw new WorkItemCancelledException(workItem.getShardingKey());
       }
-      executionState = computationState.getExecutionStateQueue().poll();
-      if (executionState == null) {
-        MutableNetwork<Node, Edge> mapTaskNetwork = mapTaskToNetwork.apply(mapTask);
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Network as Graphviz .dot: {}", Networks.toDot(mapTaskNetwork));
-        }
-        ParallelInstructionNode readNode =
-            (ParallelInstructionNode)
-                Iterables.find(
-                    mapTaskNetwork.nodes(),
-                    node ->
-                        node instanceof ParallelInstructionNode
-                            && ((ParallelInstructionNode) node).getParallelInstruction().getRead()
-                                != null);
-        InstructionOutputNode readOutputNode =
-            (InstructionOutputNode) Iterables.getOnlyElement(mapTaskNetwork.successors(readNode));
-        DataflowExecutionContext.DataflowExecutionStateTracker executionStateTracker =
-            new DataflowExecutionContext.DataflowExecutionStateTracker(
-                sampler,
-                stageInfo
-                    .executionStateRegistry()
-                    .getState(
-                        NameContext.forStage(mapTask.getStageName()),
-                        "other",
-                        null,
-                        ScopedProfiler.INSTANCE.emptyScope()),
-                stageInfo.deltaCounters(),
-                options,
-                work.getLatencyTrackingId());
-        StreamingModeExecutionContext context =
-            new StreamingModeExecutionContext(
-                pendingDeltaCounters,
-                computationId,
-                readerCache,
-                !computationState.getTransformUserNameToStateFamily().isEmpty()
-                    ? computationState.getTransformUserNameToStateFamily()
-                    : stateNameMap,
-                stateCache.forComputation(computationId),
-                stageInfo.metricsContainerRegistry(),
-                executionStateTracker,
-                stageInfo.executionStateRegistry(),
-                maxSinkBytes);
-        DataflowMapTaskExecutor mapTaskExecutor =
-            mapTaskExecutorFactory.create(
-                mapTaskNetwork,
-                options,
-                mapTask.getStageName(),
-                readerRegistry,
-                sinkRegistry,
-                context,
-                pendingDeltaCounters,
-                idGenerator);
-        ReadOperation readOperation = mapTaskExecutor.getReadOperation();
-        // Disable progress updates since its results are unused  for streaming
-        // and involves starting a thread.
-        readOperation.setProgressUpdatePeriodMs(ReadOperation.DONT_UPDATE_PERIODICALLY);
-        Preconditions.checkState(
-            mapTaskExecutor.supportsRestart(),
-            "Streaming runner requires all operations support restart.");
 
-        Coder<?> readCoder;
-        readCoder =
-            CloudObjects.coderFromCloudObject(
-                CloudObject.fromSpec(readOutputNode.getInstructionOutput().getCodec()));
-        Coder<?> keyCoder = extractKeyCoder(readCoder);
-
-        // If using a custom source, count bytes read for autoscaling.
-        if (CustomSources.class
-            .getName()
-            .equals(
-                readNode.getParallelInstruction().getRead().getSource().getSpec().get("@type"))) {
-          NameContext nameContext =
-              NameContext.create(
-                  mapTask.getStageName(),
-                  readNode.getParallelInstruction().getOriginalName(),
-                  readNode.getParallelInstruction().getSystemName(),
-                  readNode.getParallelInstruction().getName());
-          readOperation.receivers[0].addOutputCounter(
-              counterName,
-              new OutputObjectAndByteCounter(
-                      new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
-                          readCoder),
-                      mapTaskExecutor.getOutputCounters(),
-                      nameContext)
-                  .setSamplingPeriod(100)
-                  .countBytes(counterName));
-        }
-
-        ExecutionState.Builder executionStateBuilder =
-            ExecutionState.builder()
-                .setWorkExecutor(mapTaskExecutor)
-                .setContext(context)
-                .setExecutionStateTracker(executionStateTracker);
-
-        if (keyCoder != null) {
-          executionStateBuilder.setKeyCoder(keyCoder);
-        }
-
-        executionState = executionStateBuilder.build();
-      }
+      executionState =
+          streamingExecutionStateFactory.getOrCreateExecutionState(
+              mapTask, stageInfo, computationState, work, counterName);
 
       WindmillStateReader stateReader =
           new WindmillStateReader(
