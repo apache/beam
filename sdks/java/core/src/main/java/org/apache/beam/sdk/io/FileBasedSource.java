@@ -494,8 +494,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
         startReading(channel);
       } catch (IOException e) {
         LOG.error(
-                "Failed to process {}, which could be corrupted or have a wrong format.",
-                resourceId);
+            "Failed to process {}, which could be corrupted or have a wrong format.", resourceId);
         throw new IOException(e);
       }
 
