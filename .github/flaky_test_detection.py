@@ -29,11 +29,11 @@ READ_ONLY = os.environ.get("READ_ONLY", "false")
 
 
 class Alert:
-    def __init__(self, id, url, name, file_name):
-        self.workflow_id = id
-        self.workflow_url = url
-        self.workflow_name = name
-        self.workflow_file_name = file_name
+    def __init__(self, workflow_id, workflow_url, workflow_name, workflow_filename):
+        self.workflow_id = workflow_id
+        self.workflow_url = workflow_url
+        self.workflow_name = workflow_name
+        self.workflow_file_name = workflow_filename
 
 
 def extract_workflow_id_from_issue_label(issues):
