@@ -20,9 +20,9 @@ from github import Github
 from github import Auth
 
 
-GIT_ORG = "volatilemolotov"
+GIT_ORG = "apache"
 GIT_REPO = "beam"
-GRAFANA_URL = "https://tempgrafana.volatilemolotov.com"
+GRAFANA_URL = "http://metrics.beam.apaache.org"
 #
 ALERT_NAME = "flaky_test"
 READ_ONLY = os.environ.get("READ_ONLY", "false")
