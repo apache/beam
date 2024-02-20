@@ -16,7 +16,6 @@
 #
 
 import logging
-import os
 import unittest
 
 import apache_beam as beam
@@ -404,3 +403,8 @@ class ProgrammingGuideTest(unittest.TestCase):
                   return raw.astimezone(datetime.timezone.utc)
           # [END setting_timestamp]
           ''')
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
