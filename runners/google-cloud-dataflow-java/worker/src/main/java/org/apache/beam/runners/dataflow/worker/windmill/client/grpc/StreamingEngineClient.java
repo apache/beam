@@ -102,8 +102,7 @@ public final class StreamingEngineClient {
       WindmillStubFactory stubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
-      long clientId,
-      AtomicBoolean isBudgetRefreshPaused) {
+      long clientId) {
     this.jobHeader = jobHeader;
     this.started = new AtomicBoolean();
     this.streamFactory = streamFactory;
@@ -111,7 +110,7 @@ public final class StreamingEngineClient {
     this.connections = connections;
     this.stubFactory = stubFactory;
     this.dispatcherClient = dispatcherClient;
-    this.isBudgetRefreshPaused = isBudgetRefreshPaused;
+    this.isBudgetRefreshPaused = new AtomicBoolean(false);
     this.getWorkerMetadataThrottleTimer = new ThrottleTimer();
     this.newWorkerMetadataPublisher =
         singleThreadedExecutorServiceOf(PUBLISH_NEW_WORKER_METADATA_THREAD);
@@ -178,8 +177,7 @@ public final class StreamingEngineClient {
             windmillGrpcStubFactory,
             getWorkBudgetDistributor,
             dispatcherClient,
-            new Random().nextLong(),
-            new AtomicBoolean(false));
+            new Random().nextLong());
     streamingEngineClient.start();
     return streamingEngineClient;
   }
@@ -194,8 +192,7 @@ public final class StreamingEngineClient {
       WindmillStubFactory stubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
-      long clientId,
-      AtomicBoolean isBudgetRefreshPaused) {
+      long clientId) {
     StreamingEngineClient streamingEngineClient =
         new StreamingEngineClient(
             jobHeader,
@@ -206,8 +203,7 @@ public final class StreamingEngineClient {
             stubFactory,
             getWorkBudgetDistributor,
             dispatcherClient,
-            clientId,
-            isBudgetRefreshPaused);
+            clientId);
     streamingEngineClient.start();
     return streamingEngineClient;
   }

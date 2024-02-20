@@ -95,7 +95,10 @@ public class StreamingEngineClientTest {
           .setProjectId(PROJECT_ID)
           .setWorkerId(WORKER_ID)
           .build();
+
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
   private final Set<ManagedChannel> channels = new HashSet<>();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   private final GrpcWindmillStreamFactory streamFactory =
@@ -114,8 +117,6 @@ public class StreamingEngineClientTest {
           stubFactory, new ArrayList<>(), new ArrayList<>(), new HashSet<>());
   private final AtomicReference<StreamingEngineConnectionState> connections =
       new AtomicReference<>(StreamingEngineConnectionState.EMPTY);
-  private final AtomicBoolean isBudgetRefreshPaused = new AtomicBoolean(false);
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private Server fakeStreamingEngineServer;
   private CountDownLatch getWorkerMetadataReady;
   private GetWorkerMetadataTestStub fakeGetWorkerMetadataStub;
@@ -188,8 +189,7 @@ public class StreamingEngineClientTest {
         stubFactory,
         getWorkBudgetDistributor,
         dispatcherClient,
-        CLIENT_ID,
-        isBudgetRefreshPaused);
+        CLIENT_ID);
   }
 
   @Test
@@ -386,14 +386,13 @@ public class StreamingEngineClientTest {
   private void waitForWorkerMetadataToBeConsumed(
       TestGetWorkBudgetDistributor getWorkBudgetDistributor) throws InterruptedException {
     getWorkBudgetDistributor.waitForBudgetDistribution();
-    Thread.sleep(100);
   }
 
   private static class GetWorkerMetadataTestStub
       extends CloudWindmillMetadataServiceV1Alpha1Grpc
           .CloudWindmillMetadataServiceV1Alpha1ImplBase {
     private static final WorkerMetadataResponse CLOSE_ALL_STREAMS =
-        WorkerMetadataResponse.newBuilder().setMetadataVersion(100).build();
+        WorkerMetadataResponse.newBuilder().setMetadataVersion(Long.MAX_VALUE).build();
     private final CountDownLatch ready;
     private @Nullable StreamObserver<WorkerMetadataResponse> responseObserver;
 
