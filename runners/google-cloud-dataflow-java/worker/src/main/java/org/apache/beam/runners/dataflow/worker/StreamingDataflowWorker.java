@@ -292,7 +292,6 @@ public class StreamingDataflowWorker {
 
   private final DataflowExecutionStateSampler sampler = DataflowExecutionStateSampler.instance();
 
-
   private StreamingDataflowWorker(
       WindmillServerStub windmillServer,
       long clientId,
