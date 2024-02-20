@@ -33,6 +33,8 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOptions;
+import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
+import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc.CloudWindmillMetadataServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -53,6 +55,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.RemoteWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.StreamingEngineThrottleTimers;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
@@ -84,14 +87,14 @@ import org.slf4j.LoggerFactory;
 })
 @SuppressWarnings("nullness") // TODO(https://github.com/apache/beam/issues/20497
 public final class GrpcWindmillServer extends WindmillServerStub {
+  public static final Duration LOCALHOST_MAX_BACKOFF = Duration.millis(500);
+  public static final Duration MAX_BACKOFF = Duration.standardSeconds(30);
+  private static final Duration MIN_BACKOFF = Duration.millis(1);
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServer.class);
   private static final int DEFAULT_LOG_EVERY_N_FAILURES = 20;
-  private static final Duration MIN_BACKOFF = Duration.millis(1);
-  private static final Duration MAX_BACKOFF = Duration.standardSeconds(30);
   private static final int NO_HEALTH_CHECK = -1;
   private static final String GRPC_LOCALHOST = "grpc:localhost";
 
-  private final GrpcWindmillStreamFactory windmillStreamFactory;
   private final GrpcDispatcherClient dispatcherClient;
   private final StreamingDataflowWorkerOptions options;
   private final StreamingEngineThrottleTimers throttleTimers;
@@ -100,44 +103,26 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   // If true, then active work refreshes will be sent as KeyedGetDataRequests. Otherwise, use the
   // newer ComputationHeartbeatRequests.
   private final boolean sendKeyedGetDataRequests;
-  private Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
+  private final Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
+  private final GrpcWindmillStreamFactory windmillStreamFactory;
 
   private GrpcWindmillServer(
-      StreamingDataflowWorkerOptions options, GrpcDispatcherClient grpcDispatcherClient) {
+      StreamingDataflowWorkerOptions options,
+      GrpcWindmillStreamFactory grpcWindmillStreamFactory,
+      GrpcDispatcherClient grpcDispatcherClient,
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     this.options = options;
     this.throttleTimers = StreamingEngineThrottleTimers.create();
     this.maxBackoff = MAX_BACKOFF;
-    this.windmillStreamFactory =
-        GrpcWindmillStreamFactory.of(
-                JobHeader.newBuilder()
-                    .setJobId(options.getJobId())
-                    .setProjectId(options.getProject())
-                    .setWorkerId(options.getWorkerId())
-                    .build())
-            .setWindmillMessagesBetweenIsReadyChecks(
-                options.getWindmillMessagesBetweenIsReadyChecks())
-            .setMaxBackOffSupplier(() -> maxBackoff)
-            .setLogEveryNStreamFailures(
-                options.getWindmillServiceStreamingLogEveryNStreamFailures())
-            .setStreamingRpcBatchLimit(options.getWindmillServiceStreamingRpcBatchLimit())
-            .build();
-    windmillStreamFactory.scheduleHealthChecks(
-        options.getWindmillServiceStreamingRpcHealthCheckPeriodMs());
-
     this.dispatcherClient = grpcDispatcherClient;
     this.syncApplianceStub = null;
     this.sendKeyedGetDataRequests =
         !options.isEnableStreamingEngine()
             || !DataflowRunner.hasExperiment(
                 options, "streaming_engine_send_new_heartbeat_requests");
-    this.processHeartbeatResponses = (responses) -> {};
-  }
-
-  @Override
-  public void setProcessHeartbeatResponses(
-      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     this.processHeartbeatResponses = processHeartbeatResponses;
-  };
+    this.windmillStreamFactory = grpcWindmillStreamFactory;
+  }
 
   private static StreamingDataflowWorkerOptions testOptions(
       boolean enableStreamingEngine, List<String> additionalExperiments) {
@@ -162,17 +147,22 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   }
 
   /** Create new instance of {@link GrpcWindmillServer}. */
-  public static GrpcWindmillServer create(StreamingDataflowWorkerOptions workerOptions)
+  public static GrpcWindmillServer create(
+      StreamingDataflowWorkerOptions workerOptions,
+      GrpcWindmillStreamFactory grpcWindmillStreamFactory,
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses)
       throws IOException {
 
     GrpcWindmillServer grpcWindmillServer =
         new GrpcWindmillServer(
             workerOptions,
+            grpcWindmillStreamFactory,
             GrpcDispatcherClient.create(
-                WindmillStubFactory.remoteStubFactory(
+                new RemoteWindmillStubFactory(
                     workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
                     workerOptions.getGcpCredential(),
-                    workerOptions.getUseWindmillIsolatedChannels())));
+                    workerOptions.getUseWindmillIsolatedChannels())),
+            processHeartbeatResponses);
     if (workerOptions.getWindmillServiceEndpoint() != null) {
       grpcWindmillServer.configureWindmillServiceEndpoints();
     } else if (!workerOptions.isEnableStreamingEngine()
@@ -184,30 +174,60 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   }
 
   @VisibleForTesting
-  static GrpcWindmillServer newTestInstance(String name, List<String> experiments) {
+  static GrpcWindmillServer newTestInstance(
+      String name,
+      List<String> experiments,
+      long clientId,
+      WindmillStubFactory windmillStubFactory) {
     ManagedChannel inProcessChannel = inProcessChannel(name);
     CloudWindmillServiceV1Alpha1Stub stub =
         CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel);
-    List<CloudWindmillServiceV1Alpha1Stub> dispatcherStubs = Lists.newArrayList(stub);
+    CloudWindmillMetadataServiceV1Alpha1Stub metadataStub =
+        CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(inProcessChannel);
+    List<CloudWindmillServiceV1Alpha1Stub> windmillServiceStubs = Lists.newArrayList(stub);
+    List<CloudWindmillMetadataServiceV1Alpha1Stub> windmillMetadataServiceStubs =
+        Lists.newArrayList(metadataStub);
+
     Set<HostAndPort> dispatcherEndpoints = Sets.newHashSet(HostAndPort.fromHost(name));
     GrpcDispatcherClient dispatcherClient =
         GrpcDispatcherClient.forTesting(
-            WindmillStubFactory.inProcessStubFactory(name, unused -> inProcessChannel),
-            dispatcherStubs,
+            windmillStubFactory,
+            windmillServiceStubs,
+            windmillMetadataServiceStubs,
             dispatcherEndpoints);
-    return new GrpcWindmillServer(
-        testOptions(/* enableStreamingEngine= */ true, experiments), dispatcherClient);
+
+    StreamingDataflowWorkerOptions testOptions =
+        testOptions(/* enableStreamingEngine= */ true, experiments);
+    GrpcWindmillStreamFactory windmillStreamFactory =
+        GrpcWindmillStreamFactory.of(createJobHeader(testOptions, clientId)).build();
+    windmillStreamFactory.scheduleHealthChecks(
+        testOptions.getWindmillServiceStreamingRpcHealthCheckPeriodMs());
+    return new GrpcWindmillServer(testOptions, windmillStreamFactory, dispatcherClient, noop -> {});
   }
 
   @VisibleForTesting
-  static GrpcWindmillServer newApplianceTestInstance(Channel channel) {
+  static GrpcWindmillServer newApplianceTestInstance(
+      Channel channel, WindmillStubFactory windmillStubFactory) {
+    StreamingDataflowWorkerOptions options =
+        testOptions(/* enableStreamingEngine= */ false, new ArrayList<>());
     GrpcWindmillServer testServer =
         new GrpcWindmillServer(
-            testOptions(/* enableStreamingEngine= */ false, new ArrayList<>()),
+            options,
+            GrpcWindmillStreamFactory.of(createJobHeader(options, 1)).build(),
             // No-op, Appliance does not use Dispatcher to call Streaming Engine.
-            GrpcDispatcherClient.create(WindmillStubFactory.inProcessStubFactory("test")));
+            GrpcDispatcherClient.create(windmillStubFactory),
+            noop -> {});
     testServer.syncApplianceStub = createWindmillApplianceStubWithDeadlineInterceptor(channel);
     return testServer;
+  }
+
+  private static JobHeader createJobHeader(StreamingDataflowWorkerOptions options, long clientId) {
+    return Windmill.JobHeader.newBuilder()
+        .setJobId(options.getJobId())
+        .setProjectId(options.getProject())
+        .setWorkerId(options.getWorkerId())
+        .setClientId(clientId)
+        .build();
   }
 
   private static WindmillApplianceGrpc.WindmillApplianceBlockingStub
@@ -248,8 +268,13 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   }
 
   @Override
+  public ImmutableSet<HostAndPort> getWindmillServiceEndpoints() {
+    return dispatcherClient.getDispatcherEndpoints();
+  }
+
+  @Override
   public boolean isReady() {
-    return dispatcherClient.isReady();
+    return dispatcherClient.hasInitializedEndpoints();
   }
 
   private synchronized void initializeLocalHost(int port) {
@@ -329,7 +354,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   @Override
   public GetWorkStream getWorkStream(GetWorkRequest request, WorkItemReceiver receiver) {
     return windmillStreamFactory.createGetWorkStream(
-        dispatcherClient.getDispatcherStub(),
+        dispatcherClient.getWindmillServiceStub(),
         GetWorkRequest.newBuilder(request)
             .setJobId(options.getJobId())
             .setProjectId(options.getProject())
@@ -342,7 +367,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   @Override
   public GetDataStream getDataStream() {
     return windmillStreamFactory.createGetDataStream(
-        dispatcherClient.getDispatcherStub(),
+        dispatcherClient.getWindmillServiceStub(),
         throttleTimers.getDataThrottleTimer(),
         sendKeyedGetDataRequests,
         this.processHeartbeatResponses);
@@ -351,7 +376,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   @Override
   public CommitWorkStream commitWorkStream() {
     return windmillStreamFactory.createCommitWorkStream(
-        dispatcherClient.getDispatcherStub(), throttleTimers.commitWorkThrottleTimer());
+        dispatcherClient.getWindmillServiceStub(), throttleTimers.commitWorkThrottleTimer());
   }
 
   @Override
