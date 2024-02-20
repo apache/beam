@@ -17,7 +17,7 @@
     under the License.
 -->
 
-# Using PyTransform form YAML
+# Using PyTransform from YAML
 
 Beam YAML provides the ability to easily invoke Python transforms via the
 `PyTransform` type, simply referencing them by fully qualified name.
@@ -35,7 +35,7 @@ For example,
 will invoke the transform `apache_beam.pkg.mod.SomeTransform(1, 'foo', baz=3)`.
 This fully qualified name can be any PTransform class or other callable that
 returns a PTransform. Note, however, that PTransforms that do not accept or
-return schema'd data may not be as useable to use from YAML.
+return schema'd data may not be as usable within YAML.
 Restoring the schema-ness after a non-schema returning transform can be done
 by using the `callable` option on `MapToFields` which takes the entire element
 as an input, e.g.
@@ -155,7 +155,7 @@ In this case one can simply write
 
 # External transforms
 
-One can also invoke PTransforms define elsewhere via a `python` provider,
+One can also invoke PTransforms defined elsewhere via a `python` provider,
 for example
 
 ```
@@ -186,7 +186,8 @@ pipeline:
     - type: ToCase
       input: ...
       config:
-        upper: True
+        case: 
+          callable: str.upper
 
 providers:
   - type: python
@@ -194,9 +195,6 @@ providers:
     transforms:
       'ToCase': |
         @beam.ptransform_fn
-        def ToCase(pcoll, upper):
-          if upper:
-            return pcoll | beam.Map(lambda x: str(x).upper())
-          else:
-            return pcoll | beam.Map(lambda x: str(x).lower())
+        def ToCase(pcoll, case):
+          return pcoll | beam.Map(lambda x: case(x.col1))
 ```

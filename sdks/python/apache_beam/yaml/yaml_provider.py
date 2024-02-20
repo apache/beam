@@ -36,6 +36,7 @@ from typing import Dict
 from typing import Iterable
 from typing import Mapping
 from typing import Optional
+from typing import Union
 
 import docstring_parser
 import yaml
@@ -49,7 +50,8 @@ from apache_beam.portability.api import schema_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.transforms import external
 from apache_beam.transforms import window
-from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
+from apache_beam.transforms.fully_qualified_named_transform import \
+  FullyQualifiedNamedTransform
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.schemas import named_tuple_to_schema
@@ -138,6 +140,25 @@ def as_provider_list(name, lst):
   if not isinstance(lst, list):
     return as_provider_list(name, [lst])
   return [as_provider(name, x) for x in lst]
+
+
+def parse_callable_args(spec: Optional[Union[Mapping[str, Any], Iterable]]):
+  def _parse_callable_args_rec(args, top_level=False):
+    if isinstance(args, dict):
+      if len(args) == 1 and next(iter(
+          args.keys())) == '__callable__' and not top_level:
+        load = python_callable.PythonCallableWithSource.load_from_source
+        return load(next(iter(args.values())))
+      elif '__callable__' not in args.keys():
+        return {k: _parse_callable_args_rec(v) for (k, v) in args.items()}
+      else:
+        raise ValueError('__callable__ cannot be specified as top-level kwarg.')
+    elif isinstance(args, list):
+      return [_parse_callable_args_rec(e) for e in args]
+    else:
+      return args
+
+  return _parse_callable_args_rec(spec, True)
 
 
 class ExternalProvider(Provider):
@@ -334,7 +355,8 @@ def python(urns, packages=()):
         name:
         python_callable.PythonCallableWithSource.load_from_source(constructor)
         for (name, constructor) in urns.items()
-    })
+    },
+                          custom_provider=True)
 
 
 @ExternalProvider.register_provider_type('pythonPackage')
@@ -347,6 +369,10 @@ class ExternalPythonProvider(ExternalProvider):
 
   def cache_artifacts(self):
     return [self._service._venv()]
+
+  def create_transform(self, type, args, yaml_create_transform):
+    super().create_transform(
+        type, parse_callable_args(args), yaml_create_transform)
 
   def create_external_transform(self, urn, args):
     # Python transforms are "registered" by fully qualified name.
@@ -408,9 +434,11 @@ def fix_pycallable():
 
 
 class InlineProvider(Provider):
-  def __init__(self, transform_factories, no_input_transforms=()):
+  def __init__(
+      self, transform_factories, no_input_transforms=(), custom_provider=False):
     self._transform_factories = transform_factories
     self._no_input_transforms = set(no_input_transforms)
+    self._custom_provider = custom_provider
 
   def available(self):
     return True
@@ -472,6 +500,8 @@ class InlineProvider(Provider):
         docstring, docstring_parser.DocstringStyle.GOOGLE)
 
   def create_transform(self, type, args, yaml_create_transform):
+    if self._custom_provider:
+      args = parse_callable_args(args)
     return self._transform_factories[type](**args)
 
   def to_json(self):
@@ -627,6 +657,19 @@ class YamlProviders:
     can be used to access the transform
     `apache_beam.pkg.mod.SomeClass(1, 'foo', baz=3)`.
 
+    For transforms that accept python callable objects as parameters, the
+    kwargs values can be tagged as `__callable__`.
+
+    For example::
+
+        type: PyTransform
+        config:
+           constructor: apache_beam.pkg.mod.SomeClass
+           args: ['foo', 'bar']
+           kwargs:
+             fn:
+               __callable__: str.upper
+
     Args:
         constructor: Fully qualified name of a callable used to construct the
             transform.  Often this is a class such as
@@ -639,7 +682,7 @@ class YamlProviders:
     """
     with FullyQualifiedNamedTransform.with_filter('*'):
       return constructor >> FullyQualifiedNamedTransform(
-          constructor, args, kwargs)
+          constructor, parse_callable_args(args), parse_callable_args(kwargs))
 
   # This intermediate is needed because there is no way to specify a tuple of
   # exactly zero or one PCollection in yaml (as they would be interpreted as
