@@ -298,7 +298,7 @@ public class DataflowStreamingModeStepContext extends DataflowStepContext
 
   @Override
   public DataflowStepContext namespacedToUser() {
-    return new UserStepContext(this);
+    return new UserStreamingModeStepContext(this);
   }
 
   @Override

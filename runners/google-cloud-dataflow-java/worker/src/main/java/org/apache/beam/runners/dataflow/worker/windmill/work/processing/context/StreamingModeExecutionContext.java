@@ -188,9 +188,9 @@ public class StreamingModeExecutionContext
         operationContext,
         getStateFamily(operationContext.nameContext()),
         new ScopedReadStateSupplier(operationContext, getExecutionStateTracker()),
-        () -> work.getTimers().getTimersList(),
-        () -> outputBuilder,
-        () -> work.getGlobalDataIdNotificationsList(),
+        () -> Preconditions.checkNotNull(work).getTimers().getTimersList(),
+        () -> Preconditions.checkNotNull(outputBuilder),
+        () -> Preconditions.checkNotNull(work).getGlobalDataIdNotificationsList(),
         this::fetchSideInput,
         this::canWritePCollectionViewData);
   }
@@ -390,15 +390,15 @@ public class StreamingModeExecutionContext
         backlogBytes = activeReader.getTotalBacklogBytes();
       }
       outputBuilder.setSourceBacklogBytes(backlogBytes);
-
       readerCache.cacheReader(
           getComputationKey(), getWork().getCacheToken(), getWork().getWorkToken(), activeReader);
       activeReader = null;
     }
+
     return callbacks;
   }
 
-  String getStateFamily(NameContext nameContext) {
+  private @Nullable String getStateFamily(NameContext nameContext) {
     return nameContext.userName() == null ? null : stateNameMap.get(nameContext.userName());
   }
 }

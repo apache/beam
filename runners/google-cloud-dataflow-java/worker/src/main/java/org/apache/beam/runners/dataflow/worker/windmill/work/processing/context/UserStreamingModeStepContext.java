@@ -32,12 +32,12 @@ import org.joda.time.Instant;
  * A specialized {@link DataflowStreamingModeStepContext} that uses provided {@link StateInternals}
  * and {@link TimerInternals} for user state and timers.
  */
-class UserStepContext extends DataflowExecutionContext.DataflowStepContext
+class UserStreamingModeStepContext extends DataflowExecutionContext.DataflowStepContext
     implements StreamingModeStepContext {
 
   private final DataflowStreamingModeStepContext wrapped;
 
-  UserStepContext(DataflowStreamingModeStepContext wrapped) {
+  UserStreamingModeStepContext(DataflowStreamingModeStepContext wrapped) {
     super(wrapped.getNameContext());
     this.wrapped = wrapped;
   }

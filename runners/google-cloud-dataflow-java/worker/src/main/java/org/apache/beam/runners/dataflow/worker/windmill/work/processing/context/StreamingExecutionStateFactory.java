@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.processing.context
 
 import com.google.api.services.dataflow.model.MapTask;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.internal.CustomSources;
 import org.apache.beam.runners.dataflow.util.CloudObject;
@@ -58,8 +57,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Generates a new {@link ExecutionState} object for user processing. */
-public class StreamingExecutionStateFactory {
+/** Factory for generating new {@link ExecutionState} objects for user processing. */
+public final class StreamingExecutionStateFactory {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingExecutionStateFactory.class);
   // Per-key cache of active Reader objects in use by this process.
   private final DataflowMapTaskExecutorFactory mapTaskExecutorFactory;
@@ -238,19 +237,11 @@ public class StreamingExecutionStateFactory {
               .countBytes(counterName));
     }
 
-    ExecutionState.Builder executionStateBuilder =
-        ExecutionState.builder()
-            .setWorkExecutor(mapTaskExecutor)
-            .setContext(context)
-            .setExecutionStateTracker(executionStateTracker);
-    Optional.ofNullable(extractKeyCoder(readCoder)).ifPresent(executionStateBuilder::setKeyCoder);
-
-    return executionStateBuilder.build();
-  }
-
-  private static class StreamingExecutionStateCreationException extends RuntimeException {
-    private StreamingExecutionStateCreationException(Throwable e) {
-      super("Error occurred while creating streaming execution state", e);
-    }
+    return ExecutionState.builder()
+        .setWorkExecutor(mapTaskExecutor)
+        .setContext(context)
+        .setExecutionStateTracker(executionStateTracker)
+        .setKeyCoder(extractKeyCoder(readCoder))
+        .build();
   }
 }
