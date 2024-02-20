@@ -12,7 +12,7 @@ Resource hints can be nested, allowing hints to be specified on sub-transforms (
 * For `accelerator`, the innermost value takes precedence.
 *Example: if an inner transform's accelerator hint differs from a parent transform's, the inner transform's hint is used.*
 
-***Specifying Resource Hints for a Pipeline:***
+***Specify Resource Hints for a Pipeline:***
 
 In Apache Beam's Java SDK, you can specify hints via the [`resourceHints`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/resourcehints/ResourceHintsOptions.html) pipeline option. Example:
 
@@ -33,7 +33,7 @@ python my_pipeline.py \
     --resource_hints accelerator="hint"
 ```
 
-***Specifying Resource Hints for a Transform:***
+***Specify Resource Hints for a Transform:***
 
 In Apache Beam’s Java SDK, you can specify resource hints programmatically on pipeline steps (transforms) using the [`setResourceHints`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/PTransform.html#setResourceHints-org.apache.beam.sdk.transforms.resourcehints.ResourceHints-) method. Example:
 
