@@ -154,12 +154,19 @@ public class StreamingExecutionStateFactory {
       StageInfo stageInfo,
       ComputationState computationState,
       Work work,
-      String counterName)
-      throws Exception {
-    ExecutionState executionState = computationState.getExecutionStateQueue().poll();
-    if (executionState != null) {
-      return executionState;
-    }
+      String counterName) {
+    return computationState
+        .getExecutionState()
+        .orElseGet(
+            () -> createExecutionState(mapTask, stageInfo, computationState, work, counterName));
+  }
+
+  private ExecutionState createExecutionState(
+      MapTask mapTask,
+      StageInfo stageInfo,
+      ComputationState computationState,
+      Work work,
+      String counterName) {
     MutableNetwork<Nodes.Node, Edges.Edge> mapTaskNetwork = mapTaskToNetwork.apply(mapTask);
     if (LOG.isDebugEnabled()) {
       LOG.debug("Network as Graphviz .dot: {}", Networks.toDot(mapTaskNetwork));
@@ -239,5 +246,11 @@ public class StreamingExecutionStateFactory {
     Optional.ofNullable(extractKeyCoder(readCoder)).ifPresent(executionStateBuilder::setKeyCoder);
 
     return executionStateBuilder.build();
+  }
+
+  private static class StreamingExecutionStateCreationException extends RuntimeException {
+    private StreamingExecutionStateCreationException(Throwable e) {
+      super("Error occurred while creating streaming execution state", e);
+    }
   }
 }

@@ -174,6 +174,8 @@ public class StreamingDataflowWorker {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorker.class);
   /** The idGenerator to generate unique id globally. */
   private static final IdGenerator idGenerator = IdGenerators.decrementingLongs();
+
+  private static String COUNTER_NAME_PREFIX = "dataflow_source_bytes_processed-";
   /**
    * Fix up MapTask representation because MultiOutputInfos are missing from system generated
    * ParDoInstructions.
@@ -990,6 +992,10 @@ public class StreamingDataflowWorker {
         .setCacheToken(workItem.getCacheToken());
   }
 
+  private String createCounterName(MapTask mapTask) {
+    return COUNTER_NAME_PREFIX + mapTask.getSystemName();
+  }
+
   private void process(
       final ComputationState computationState,
       final Instant inputDataWatermark,
@@ -1026,7 +1032,7 @@ public class StreamingDataflowWorker {
             mapTask.getStageName(), s -> StageInfo.create(s, mapTask.getSystemName()));
 
     ExecutionState executionState = null;
-    String counterName = "dataflow_source_bytes_processed-" + mapTask.getSystemName();
+    String counterName = createCounterName(mapTask);
 
     try {
       if (work.isFailed()) {
@@ -1046,12 +1052,7 @@ public class StreamingDataflowWorker {
               workItem.getWorkToken(),
               () -> {
                 work.setState(State.READING);
-                return new AutoCloseable() {
-                  @Override
-                  public void close() {
-                    work.setState(State.PROCESSING);
-                  }
-                };
+                return (AutoCloseable) () -> work.setState(State.PROCESSING);
               },
               work::isFailed);
       SideInputStateFetcher localSideInputStateFetcher = sideInputStateFetcher.byteTrackingView();
@@ -1123,7 +1124,7 @@ public class StreamingDataflowWorker {
       commitCallbacks.putAll(executionState.context().flushState());
 
       // Release the execution state for another thread to use.
-      computationState.getExecutionStateQueue().offer(executionState);
+      computationState.queueExecutionState(executionState);
       executionState = null;
 
       // Add the output to the commit queue.

@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 import com.google.api.services.dataflow.model.MapTask;
 import java.io.PrintWriter;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
@@ -76,6 +77,14 @@ public class ComputationState implements AutoCloseable {
 
   public ConcurrentLinkedQueue<ExecutionState> getExecutionStateQueue() {
     return executionStateQueue;
+  }
+
+  public void queueExecutionState(ExecutionState executionState) {
+    executionStateQueue.add(executionState);
+  }
+
+  public Optional<ExecutionState> getExecutionState() {
+    return Optional.ofNullable(executionStateQueue.poll());
   }
 
   /**
