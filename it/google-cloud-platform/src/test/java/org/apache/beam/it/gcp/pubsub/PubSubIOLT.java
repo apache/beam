@@ -81,6 +81,7 @@ public class PubSubIOLT extends IOLoadTestBase {
   private static final String WRITE_TO_PUBSUB_STEP_NAME = "Write to PubSub";
   private static final Map<String, Configuration> TEST_CONFIGS_PRESET;
   private static TopicName topicName;
+  private static String testConfigName;
   private static Configuration configuration;
   private static SubscriptionName subscription;
   private static InfluxDBSettings influxDBSettings;
@@ -120,19 +121,19 @@ public class PubSubIOLT extends IOLoadTestBase {
     PipelineOptionsFactory.register(TestPipelineOptions.class);
 
     // parse configuration
-    String testConfig =
+    testConfigName =
         TestProperties.getProperty("configuration", "local", TestProperties.Type.PROPERTY);
-    configuration = TEST_CONFIGS_PRESET.get(testConfig);
+    configuration = TEST_CONFIGS_PRESET.get(testConfigName);
     if (configuration == null) {
       try {
         configuration =
-            PubSubIOLT.Configuration.fromJsonString(testConfig, PubSubIOLT.Configuration.class);
+            PubSubIOLT.Configuration.fromJsonString(testConfigName, PubSubIOLT.Configuration.class);
       } catch (IOException e) {
         throw new IllegalArgumentException(
             String.format(
                 "Unknown test configuration: [%s]. Pass to a valid configuration json, or use"
                     + " config presets: %s",
-                testConfig, TEST_CONFIGS_PRESET.keySet()));
+                    testConfigName, TEST_CONFIGS_PRESET.keySet()));
       }
     }
 
@@ -140,7 +141,7 @@ public class PubSubIOLT extends IOLoadTestBase {
     // implementation where
     // number of lost data in streaming pipeline equals to number of initial bundles.
     configuration.forceNumInitialBundles =
-        testConfig.equals("local")
+            testConfigName.equals("local")
             ? NUMBER_OF_BUNDLES_FOR_LOCAL
             : NUMBER_OF_BUNDLES_FOR_MEDIUM_AND_LARGE;
 
@@ -197,6 +198,20 @@ public class PubSubIOLT extends IOLoadTestBase {
   }
 
   public void testWriteAndRead() throws IOException {
+    if (configuration.exportMetricsToInfluxDB) {
+      influxDBSettings =
+              InfluxDBSettings.builder()
+                      .withHost(configuration.influxHost)
+                      .withDatabase(configuration.influxDatabase)
+                      .withMeasurement(
+                              configuration.influxMeasurement
+                                      + "_"
+                                      + testConfigName
+                                      + "_"
+                                      + configuration.writeAndReadFormat)
+                      .get();
+    }
+
     WriteAndReadFormat format = WriteAndReadFormat.valueOf(configuration.writeAndReadFormat);
     PipelineLauncher.LaunchInfo writeLaunchInfo = testWrite(format);
     PipelineLauncher.LaunchInfo readLaunchInfo = testRead(format);
