@@ -97,6 +97,10 @@ class GrpcDispatcherClient {
         : randomlySelectNextStub(windmillServiceStubs));
   }
 
+  ImmutableSet<HostAndPort> getDispatcherEndpoints() {
+    return dispatcherStubs.get().dispatcherEndpoints();
+  }
+
   CloudWindmillMetadataServiceV1Alpha1Stub getWindmillMetadataServiceStub() {
     ImmutableList<CloudWindmillMetadataServiceV1Alpha1Stub> windmillMetadataServiceStubs =
         dispatcherStubs.get().windmillMetadataServiceStubs();

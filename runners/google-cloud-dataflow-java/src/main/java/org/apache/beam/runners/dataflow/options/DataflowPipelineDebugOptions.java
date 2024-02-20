@@ -311,6 +311,12 @@ public interface DataflowPipelineDebugOptions
 
   void setWindmillGetDataStreamCount(int value);
 
+  @Description("If true, will only show windmill service channels on /channelz")
+  @Default.Boolean(true)
+  boolean getChannelzShowOnlyWindmillServiceChannels();
+
+  void setChannelzShowOnlyWindmillServiceChannels(boolean value);
+
   /**
    * The amount of time before UnboundedReaders are considered idle and closed during streaming
    * execution.
