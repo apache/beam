@@ -19,11 +19,11 @@ package org.apache.beam.runners.jet;
 
 import com.hazelcast.jet.core.DAG;
 import java.util.function.Function;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.values.PValue;
 
 /** Logic that specifies how to apply translations when traversing the nodes of a Beam pipeline. */
