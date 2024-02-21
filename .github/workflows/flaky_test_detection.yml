@@ -40,4 +40,4 @@ jobs:
         with: 
           python-version: 3.11
       - run: pip install PyGithub
-      - run: python .github/flaky_test_detection.py
+      - run: python .test-infra/tools/flaky_test_detection.py
