@@ -151,5 +151,3 @@ if [ -n "$FAILED_IMAGES" ]; then
     exit 1
   fi
 fi
-  exit 1
-fi
