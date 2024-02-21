@@ -2178,13 +2178,11 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         def find_in_nested_dict(schema):
           for field in schema['fields']:
             if field['type'] == 'JSON':
-              raise ValueError(
-                  'Found JSON type in table schema. JSON data '
-                  'insertion is currently not supported with '
-                  'FILE_LOADS write method. This is supported with '
-                  'STREAMING_INSERTS. For more information: '
-                  'https://cloud.google.com/bigquery/docs/reference/'
-                  'standard-sql/json-data#ingest_json_data')
+              logging.warning(
+                  'Found JSON type in TableSchema for "File_LOADS" write '
+                  'method. Make sure the TableSchema field is a parsed '
+                  'JSON to ensure the read as a JSON type. Otherwise it '
+                  'will read as a raw (escaped) string.')
             elif field['type'] == 'STRUCT':
               find_in_nested_dict(field)
 

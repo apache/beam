@@ -2646,6 +2646,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.evaluationDependsOn(":sdks:python")
       project.evaluationDependsOn(":sdks:java:testing:expansion-service")
+      project.evaluationDependsOn(":sdks:java:core")
       project.evaluationDependsOn(":sdks:java:extensions:python")
       project.evaluationDependsOn(":sdks:go:test")
 
@@ -2710,9 +2711,11 @@ class BeamModulePlugin implements Plugin<Project> {
           systemProperty "expansionPort", port
           systemProperty "semiPersistDir", config.semiPersistDir
           classpath = config.classpath + project.files(
+              project.project(":sdks:java:core").sourceSets.test.runtimeClasspath,
               project.project(":sdks:java:extensions:python").sourceSets.test.runtimeClasspath
               )
           testClassesDirs = project.files(
+              project.project(":sdks:java:core").sourceSets.test.output.classesDirs,
               project.project(":sdks:java:extensions:python").sourceSets.test.output.classesDirs
               )
           maxParallelForks config.numParallelTests

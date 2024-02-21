@@ -178,9 +178,7 @@ public final class StreamingEngineClient {
             getWorkBudgetDistributor,
             dispatcherClient,
             new Random().nextLong());
-    streamingEngineClient.startGetWorkerMetadataStream();
-    streamingEngineClient.startWorkerMetadataConsumer();
-    streamingEngineClient.getWorkBudgetRefresher.start();
+    streamingEngineClient.start();
     return streamingEngineClient;
   }
 
@@ -206,10 +204,14 @@ public final class StreamingEngineClient {
             getWorkBudgetDistributor,
             dispatcherClient,
             clientId);
-    streamingEngineClient.startGetWorkerMetadataStream();
-    streamingEngineClient.startWorkerMetadataConsumer();
-    streamingEngineClient.getWorkBudgetRefresher.start();
+    streamingEngineClient.start();
     return streamingEngineClient;
+  }
+
+  private void start() {
+    startGetWorkerMetadataStream();
+    startWorkerMetadataConsumer();
+    getWorkBudgetRefresher.start();
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
@@ -221,11 +223,6 @@ public final class StreamingEngineClient {
                 .ifPresent(this::consumeWindmillWorkerEndpoints);
           }
         });
-  }
-
-  @VisibleForTesting
-  boolean isWorkerMetadataReady() {
-    return !connections.get().equals(StreamingEngineConnectionState.EMPTY);
   }
 
   @VisibleForTesting
