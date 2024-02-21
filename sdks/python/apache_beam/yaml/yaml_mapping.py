@@ -556,7 +556,7 @@ def _Split(
     pcoll,
     outputs: List[str],
     split_fn: Union[str, Dict[str, str]],
-    unknown_output: str = None,
+    unknown_output: Optional[str] = None,
     error_handling: Optional[Mapping[str, Any]] = None,
     language: Optional[str] = 'generic'):
   split_fn = _as_callable_for_pcoll(pcoll, split_fn, 'split_fn', language)
@@ -573,7 +573,7 @@ def _Split(
       if unknown_output:
         tag = unknown_output
       else:
-        raise ValueError(f'Unknown output value "{tag}"')
+        raise ValueError(f'Unknown output name "{tag}"')
     return beam.pvalue.TaggedOutput(tag, element)
 
   output_set = set(outputs)
