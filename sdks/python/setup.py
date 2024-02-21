@@ -17,7 +17,9 @@
 
 """Apache Beam SDK for Python setup file."""
 
+import glob
 import os
+import shutil
 import subprocess
 import sys
 import warnings
@@ -148,11 +150,11 @@ elif sys.platform == 'win32' or sys.platform == 'cygwin':
   # not called even though S3 was initialized.  This could lead to a
   # segmentation fault at exit. Keep pyarrow<13 until this is resolved.
   pyarrow_dependency = [
-        'pyarrow>=3.0.0,<12.0.0',
-        # NOTE: We can remove this once Beam increases the pyarrow lower bound
-        # to a version that fixes CVE.
-        'pyarrow-hotfix<1'
-    ]
+      'pyarrow>=3.0.0,<12.0.0',
+      # NOTE: We can remove this once Beam increases the pyarrow lower bound
+      # to a version that fixes CVE.
+      'pyarrow-hotfix<1'
+  ]
 else:
   pyarrow_dependency = [
       'pyarrow>=3.0.0,<15.0.0',
@@ -161,7 +163,6 @@ else:
       'pyarrow-hotfix<1'
   ]
 
-
 # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
 # Exclude 1.5.0 and 1.5.1 because of
 # https://github.com/pandas-dev/pandas/issues/45725
@@ -169,11 +170,13 @@ dataframe_dependency = [
     'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.1;python_version>="3.8"',
 ]
 
+
 def find_by_ext(root_dir, ext):
   for root, _, files in os.walk(root_dir):
     for file in files:
       if file.endswith(ext):
         yield os.path.realpath(os.path.join(root, file))
+
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first():
@@ -186,23 +189,42 @@ def generate_protos_first():
     # skip proto generation in that case.
     if not os.path.exists(os.path.join(cwd, 'gen_protos.py')):
       # make sure we already generated protos
-      pb2_files = list(find_by_ext(os.path.join(
-          cwd, 'apache_beam', 'portability', 'api'), '_pb2.py'))
+      pb2_files = list(
+          find_by_ext(
+              os.path.join(cwd, 'apache_beam', 'portability', 'api'),
+              '_pb2.py'))
       if not pb2_files:
-        raise RuntimeError('protobuf files are not generated. '
-                           'Please generate pb2 files')
+        raise RuntimeError(
+            'protobuf files are not generated. '
+            'Please generate pb2 files')
 
       warnings.warn('Skipping proto generation as they are already generated.')
       return
-    out = subprocess.run([
-      sys.executable,
-      os.path.join(cwd, 'gen_protos.py'),
-      '--no-force'
-    ], capture_output=True, check=True)
+    out = subprocess.run(
+        [sys.executable, os.path.join(cwd, 'gen_protos.py'), '--no-force'],
+        capture_output=True,
+        check=True)
     print(out.stdout)
   except subprocess.CalledProcessError as err:
-    raise RuntimeError('Could not generate protos due to error: %s',
-                       err.stderr)
+    raise RuntimeError('Could not generate protos due to error: %s', err.stderr)
+
+
+def copy_tests_from_docs():
+  python_root = os.path.abspath(os.path.dirname(__file__))
+  docs_src = os.path.normpath(
+      os.path.join(
+          python_root, '../../website/www/site/content/en/documentation/sdks'))
+  docs_dest = os.path.normpath(
+      os.path.join(python_root, 'apache_beam/yaml/docs'))
+  if os.path.exists(docs_src):
+    shutil.rmtree(docs_dest, ignore_errors=True)
+    os.mkdir(docs_dest)
+    for path in glob.glob(os.path.join(docs_src, 'yaml*.md')):
+      shutil.copy(path, docs_dest)
+  else:
+    if not os.path.exists(docs_dest):
+      raise RuntimeError(
+          f'Could not locate yaml docs in {docs_src} or {docs_dest}.')
 
 
 def get_portability_package_data():
@@ -231,24 +253,27 @@ if __name__ == '__main__':
   # executes below.
   generate_protos_first()
 
+  # These data files live elsewhere in the full Beam repository.
+  copy_tests_from_docs()
+
   # generate cythonize extensions only if we are building a wheel or
   # building an extension or running in editable mode.
   cythonize_cmds = ('bdist_wheel', 'build_ext', 'editable_wheel')
   if any(cmd in sys.argv for cmd in cythonize_cmds):
     extensions = cythonize([
-            'apache_beam/**/*.pyx',
-            'apache_beam/coders/coder_impl.py',
-            'apache_beam/metrics/cells.py',
-            'apache_beam/metrics/execution.py',
-            'apache_beam/runners/common.py',
-            'apache_beam/runners/worker/logger.py',
-            'apache_beam/runners/worker/opcounters.py',
-            'apache_beam/runners/worker/operations.py',
-            'apache_beam/transforms/cy_combiners.py',
-            'apache_beam/transforms/stats.py',
-            'apache_beam/utils/counters.py',
-            'apache_beam/utils/windowed_value.py',
-        ])
+        'apache_beam/**/*.pyx',
+        'apache_beam/coders/coder_impl.py',
+        'apache_beam/metrics/cells.py',
+        'apache_beam/metrics/execution.py',
+        'apache_beam/runners/common.py',
+        'apache_beam/runners/worker/logger.py',
+        'apache_beam/runners/worker/opcounters.py',
+        'apache_beam/runners/worker/operations.py',
+        'apache_beam/transforms/cy_combiners.py',
+        'apache_beam/transforms/stats.py',
+        'apache_beam/utils/counters.py',
+        'apache_beam/utils/windowed_value.py',
+    ])
   else:
     extensions = []
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
@@ -273,6 +298,7 @@ if __name__ == '__main__':
               '*/*/*.h',
               'testing/data/*.yaml',
               'yaml/*.yaml',
+              'yaml/docs/*.md',
               *get_portability_package_data()
           ]
       },

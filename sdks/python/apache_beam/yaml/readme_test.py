@@ -287,19 +287,24 @@ class _Fakes:
       return pcoll
 
 
+# These are copied from $ROOT/website/www/site/content/en/documentation/sdks
+# at build time.
+YAML_DOCS_DIR = os.path.join(os.path.join(os.path.dirname(__file__), 'docs'))
+
 ReadMeTest = createTestSuite(
-    'ReadMeTest', os.path.join(os.path.dirname(__file__), 'README.md'))
+    'ReadMeTest', os.path.join(YAML_DOCS_DIR, 'yaml.md'))
 
 ErrorHandlingTest = createTestSuite(
-    'ErrorHandlingTest',
-    os.path.join(os.path.dirname(__file__), 'yaml_errors.md'))
+    'ErrorHandlingTest', os.path.join(YAML_DOCS_DIR, 'yaml-errors.md'))
+
+MappingTest = createTestSuite(
+    'MappingTest', os.path.join(YAML_DOCS_DIR, 'yaml-udf.md'))
 
 CombineTest = createTestSuite(
-    'CombineTest', os.path.join(os.path.dirname(__file__), 'yaml_combine.md'))
+    'CombineTest', os.path.join(YAML_DOCS_DIR, 'yaml-combine.md'))
 
 InlinePythonTest = createTestSuite(
-    'InlinePythonTest',
-    os.path.join(os.path.dirname(__file__), 'inline_python.md'))
+    'InlinePythonTest', os.path.join(YAML_DOCS_DIR, 'yaml-inline-python.md'))
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
