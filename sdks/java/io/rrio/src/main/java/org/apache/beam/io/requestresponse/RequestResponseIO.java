@@ -92,10 +92,11 @@ import org.joda.time.Duration;
  * RequestResponseIO} as shown by example below. See {@link Throttle} for more details.
  *
  * <pre>{@code
- * Rate rate = Rate.of(10, Duration.standardSeconds(1L));
+ * int numElements = 10;
+ * Duration interval = Duration.standardSeconds(1L);
  * PCollection<RequestT> original ...
- * PCollection<RequestT> throttled = original.apply(Throttle.of(rate));
- * Result result = requests.apply(RequestResponseIO.of(new MyCaller(), responseCoder));
+ * PCollection<RequestT> throttled = original.apply(Throttle.of(numElements, interval));
+ * Result result = throttled.apply(RequestResponseIO.of(new MyCaller(), responseCoder));
  * }</pre>
  *
  * <h3>Caching</h3>

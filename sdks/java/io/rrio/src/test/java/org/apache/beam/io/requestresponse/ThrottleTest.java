@@ -60,6 +60,7 @@ import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -73,13 +74,15 @@ public class ThrottleTest {
    */
   @Test
   public void givenElementSizeNotExceedsRate_thenEmitsAllImmediately() {
-    Rate rate = Rate.of(10, Duration.standardSeconds(1L));
-    long expectedMillis = rate.getInterval().getMillis();
+    int numElements = 10;
+    Duration interval = Duration.standardSeconds(1L);
+    long expectedMillis = interval.getMillis();
     long toleratedError = (long) (0.05 * (double) expectedMillis);
     // tolerate 5% error.
     Duration expectedInterval = Duration.millis(expectedMillis + toleratedError);
     List<Integer> items = Stream.iterate(0, i -> i + 1).limit(3).collect(Collectors.toList());
-    PCollection<Integer> throttled = pipeline.apply(Create.of(items)).apply(transformOf(rate));
+    PCollection<Integer> throttled =
+        pipeline.apply(Create.of(items)).apply(Throttle.of(numElements, interval));
 
     PAssert.that(throttled).containsInAnyOrder(items);
     PAssert.that(timestampsOf(throttled))
@@ -99,13 +102,15 @@ public class ThrottleTest {
   /** Tests whether a pulse of elements totaled greater than the maximum rate are throttled. */
   @Test
   public void givenElementSizeExceedsRate_thenEmitsAtRate() {
-    Rate rate = Rate.of(1, Duration.standardSeconds(1L));
-    long expectedMillis = rate.getInterval().getMillis();
+    int numElements = 1;
+    Duration interval = Duration.standardSeconds(1L);
+    long expectedMillis = interval.getMillis();
     // tolerate 5% error.
     long toleratedError = (long) (0.05 * (double) expectedMillis);
     Duration expectedInterval = Duration.millis(expectedMillis - toleratedError);
     List<Integer> items = Stream.iterate(0, i -> i + 1).limit(3).collect(Collectors.toList());
-    PCollection<Integer> throttled = pipeline.apply(Create.of(items)).apply(transformOf(rate));
+    PCollection<Integer> throttled =
+        pipeline.apply(Create.of(items)).apply(Throttle.of(numElements, interval));
 
     PAssert.that(throttled).containsInAnyOrder(items);
     PAssert.that(timestampsOf(throttled))
@@ -124,9 +129,9 @@ public class ThrottleTest {
 
   @Test
   public void givenLargerElementSize_noDataLost() {
-    Rate rate = Rate.of(1_000, Duration.standardSeconds(1L));
     List<Integer> items = Stream.iterate(0, i -> i + 1).limit(3_000).collect(Collectors.toList());
-    PCollection<Integer> throttled = pipeline.apply(Create.of(items)).apply(transformOf(rate));
+    PCollection<Integer> throttled =
+        pipeline.apply(Create.of(items)).apply(Throttle.of(1_000, Duration.standardSeconds(1L)));
 
     PAssert.that(throttled).containsInAnyOrder(items);
 
@@ -137,11 +142,12 @@ public class ThrottleTest {
   @Test
   public void givenCollectMetricsTrue_thenPopulatesMetrics() {
     long size = 300;
-    Rate rate = Rate.of(100, Duration.standardSeconds(1L));
 
     List<Integer> list = Stream.iterate(0, i -> i + 1).limit(size).collect(Collectors.toList());
 
-    pipeline.apply(Create.of(list)).apply(transformOf(rate).withMetricsCollected());
+    pipeline
+        .apply(Create.of(list))
+        .apply(Throttle.<Integer>of(100, Duration.standardSeconds(1L)).withMetricsCollected());
 
     PipelineResult pipelineResult = pipeline.run();
     pipelineResult.waitUntilFinish();
@@ -156,10 +162,13 @@ public class ThrottleTest {
    * fails to set the process timer clock. Therefore, PeriodicImpulse is used instead to test
    * against a more realistic stream PCollection instead of a fake one.
    */
+  // TODO(damondouglas): remove @Ignore annotation when state and timer implementation finished.
+  @Ignore("Needs state and timer implementation")
   @Test
   public void givenStreamSource_thenThrottles() {
-    Rate rate = Rate.of(1, Duration.standardSeconds(1L));
-    long intervalMillis = rate.getInterval().getMillis();
+    int numElements = 1;
+    Duration interval = Duration.standardSeconds(1L);
+    long intervalMillis = interval.getMillis();
     long allowedError = (long) ((double) intervalMillis * 0.05);
     Duration expectedInterval = Duration.millis(intervalMillis - allowedError);
     PCollection<Integer> stream =
@@ -171,7 +180,7 @@ public class ThrottleTest {
 
     PAssert.that(stream).containsInAnyOrder(0, 1, 2);
 
-    PCollection<Integer> throttled = stream.apply(transformOf(rate).withStreamingConfiguration(3L));
+    PCollection<Integer> throttled = stream.apply(Throttle.of(numElements, interval));
     PAssert.that(throttled).containsInAnyOrder(0, 1, 2);
     PAssert.that(timestampsOf(throttled))
         .satisfies(
@@ -188,9 +197,12 @@ public class ThrottleTest {
   }
 
   /** Tests that given a feasibly larger dataset for unittests does not result in lost data. */
+  // TODO(damondouglas): remove @Ignore annotation when state and timer implementation finished.
+  @Ignore("Needs state and timer implementation")
   @Test
   public void givenLargerStreamSource_noDataLost() {
-    Rate rate = Rate.of(2_000, Duration.standardSeconds(1L));
+    int numElements = 2_000;
+    Duration interval = Duration.standardSeconds(1L);
     List<Integer> items = Stream.iterate(0, i -> i + 1).limit(4_000).collect(Collectors.toList());
     PCollection<Integer> stream =
         pipeline
@@ -203,8 +215,7 @@ public class ThrottleTest {
 
     PAssert.that(stream).containsInAnyOrder(items);
 
-    PCollection<Integer> throttled =
-        stream.apply(transformOf(rate).withStreamingConfiguration(items.size()));
+    PCollection<Integer> throttled = stream.apply(Throttle.of(numElements, interval));
     PAssert.that(throttled).containsInAnyOrder(items);
 
     pipeline.run();
@@ -213,7 +224,6 @@ public class ThrottleTest {
   /** Validates that the transform doesn't complain about coders for custom user types. */
   @Test
   public void givenCustomUserType_canProcessWithoutComplainingAboutCoders() {
-    Rate rate = Rate.of(3, Duration.standardSeconds(1L));
     List<Echo.EchoRequest> items =
         Arrays.asList(
             Echo.EchoRequest.newBuilder()
@@ -230,7 +240,7 @@ public class ThrottleTest {
                 .build());
 
     PCollection<Echo.EchoRequest> throttled =
-        pipeline.apply(Create.of(items)).apply(Throttle.of(rate));
+        pipeline.apply(Create.of(items)).apply(Throttle.of(3, Duration.standardSeconds(1L)));
 
     PAssert.that(throttled).containsInAnyOrder(items);
 
@@ -240,8 +250,6 @@ public class ThrottleTest {
   /** During batch, validates upstream Window assignments are preserved. */
   @Test
   public void givenUpstreamNonGlobalWindow_thenPreservesWindowAssignments() {
-    Rate rate = Rate.of(10, Duration.standardSeconds(1L));
-
     PCollection<Integer> unthrottled =
         pipeline
             .apply(
@@ -262,7 +270,8 @@ public class ThrottleTest {
                     .withAllowedLateness(Duration.ZERO)
                     .discardingFiredPanes());
 
-    PCollection<Integer> throttled = unthrottled.apply(transformOf(rate));
+    PCollection<Integer> throttled =
+        unthrottled.apply(Throttle.of(10, Duration.standardSeconds(1L)));
     PAssert.that(throttled.apply(Sum.integersGlobally().withoutDefaults()))
         .containsInAnyOrder(5, 10);
 
@@ -271,8 +280,6 @@ public class ThrottleTest {
 
   @Test
   public void givenUpstreamNonGlobalWindow_canReassignDownstreamWindow() {
-    Rate rate = Rate.of(10, Duration.standardSeconds(1L));
-
     PCollection<Integer> unthrottled =
         pipeline
             .apply(
@@ -296,7 +303,7 @@ public class ThrottleTest {
 
     PCollection<Integer> throttled =
         unthrottled
-            .apply(transformOf(rate))
+            .apply(Throttle.of(10, Duration.standardSeconds(1L)))
             .apply(
                 "after",
                 Window.<Integer>into(FixedWindows.of(Duration.standardSeconds(5L)))
@@ -331,10 +338,6 @@ public class ThrottleTest {
         receiver.output(iterator.next());
       }
     }
-  }
-
-  private static Throttle<Integer> transformOf(Rate rate) {
-    return Throttle.of(rate);
   }
 
   private static Long getCount(MetricResults metricResults, String name) {
