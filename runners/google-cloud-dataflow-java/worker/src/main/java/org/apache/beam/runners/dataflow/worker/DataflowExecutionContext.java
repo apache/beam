@@ -332,6 +332,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       this.contextActivationObserverRegistry = ContextActivationObserverRegistry.createDefault();
       this.clock = clock;
       this.logFullThreadDumpMillisForBundleLull = logFullThreadDumpMillisForBundleLull;
+      DataflowWorkerLoggingInitializer.initialize();
     }
 
     @Override

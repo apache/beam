@@ -31,7 +31,6 @@ import java.util.Map;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionState;
-import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.After;
@@ -45,18 +44,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class DataflowExecutionContextTest {
 
-  @Before
-  public void setUp() throws IOException {
-    // We need to reset *first* because some other test may have already initialized the
-    // logging initializer.
-    DataflowWorkerLoggingInitializer.reset();
-    DataflowWorkerLoggingInitializer.initialize();
-  }
-
-  @After
-  public void tearDown() {
-    DataflowWorkerLoggingInitializer.reset();
-  }
 
   /** This type is used for testing the automatic registration mechanism. */
   private static class AutoRegistrationClass implements ContextActivationObserver {
