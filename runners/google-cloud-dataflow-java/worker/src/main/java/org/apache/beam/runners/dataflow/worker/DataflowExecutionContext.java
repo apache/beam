@@ -279,7 +279,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     /** Last milliseconds since epoch when a full thread dump was performed at bundle level. */
     private long lastFullThreadDumpMillisForBundleLull = 0;
 
-    /** The minimum lull duration to perform a full thread dump. */
+    /** The minimum lull duration in milliseconds to perform a full thread dump. */
     private static final long LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS = 20 * 60 * 1000;
 
     private long logFullThreadDumpMillisForBundleLull;
