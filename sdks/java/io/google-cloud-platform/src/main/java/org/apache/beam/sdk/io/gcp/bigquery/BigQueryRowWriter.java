@@ -63,7 +63,7 @@ abstract class BigQueryRowWriter<T> implements AutoCloseable {
     return out;
   }
 
-  abstract void write(T value) throws Exception;
+  abstract void write(T value) throws IOException, BigQueryRowSerializationException;
 
   long getByteSize() {
     return out.getCount();
@@ -79,5 +79,12 @@ abstract class BigQueryRowWriter<T> implements AutoCloseable {
   Result getResult() {
     checkState(isClosed, "Not yet closed");
     return new Result(resourceId, out.getCount());
+  }
+
+  public static class BigQueryRowSerializationException extends Exception {
+
+    public BigQueryRowSerializationException(Exception e) {
+      super(e);
+    }
   }
 }
