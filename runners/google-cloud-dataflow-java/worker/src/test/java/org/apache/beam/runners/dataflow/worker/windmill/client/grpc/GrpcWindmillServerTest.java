@@ -73,6 +73,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillApplianceGrpc;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.CallOptions;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Channel;
@@ -87,6 +89,7 @@ import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.StatusRuntimeException;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.testing.GrpcCleanupRule;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.util.MutableHandlerRegistry;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
@@ -109,10 +112,13 @@ import org.slf4j.LoggerFactory;
 })
 public class GrpcWindmillServerTest {
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+  @Rule public GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
+  @Rule public ErrorCollector errorCollector = new ErrorCollector();
+
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServerTest.class);
   private static final int STREAM_CHUNK_SIZE = 2 << 20;
+  private final long clientId = 10L;
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
-  @Rule public ErrorCollector errorCollector = new ErrorCollector();
   private Server server;
   private GrpcWindmillServer client;
   private int remainingErrors = 20;
@@ -128,7 +134,13 @@ public class GrpcWindmillServerTest {
             .build()
             .start();
 
-    this.client = GrpcWindmillServer.newTestInstance(name, new ArrayList<>());
+    this.client =
+        GrpcWindmillServer.newTestInstance(
+            name,
+            new ArrayList<>(),
+            clientId,
+            new FakeWindmillStubFactory(
+                () -> grpcCleanup.register(WindmillChannelFactory.inProcessChannel(name))));
   }
 
   @After
@@ -197,7 +209,9 @@ public class GrpcWindmillServerTest {
                 .build(),
             testInterceptor);
 
-    this.client = GrpcWindmillServer.newApplianceTestInstance(inprocessChannel);
+    this.client =
+        GrpcWindmillServer.newApplianceTestInstance(
+            inprocessChannel, new FakeWindmillStubFactory(() -> inprocessChannel));
 
     Windmill.GetWorkResponse response1 = client.getWork(GetWorkRequest.getDefaultInstance());
     Windmill.GetWorkResponse response2 = client.getWork(GetWorkRequest.getDefaultInstance());
@@ -346,6 +360,7 @@ public class GrpcWindmillServerTest {
                                 .setJobId("job")
                                 .setProjectId("project")
                                 .setWorkerId("worker")
+                                .setClientId(clientId)
                                 .build()));
                     sawHeader = true;
                   } else {
@@ -555,6 +570,7 @@ public class GrpcWindmillServerTest {
                       .setJobId("job")
                       .setProjectId("project")
                       .setWorkerId("worker")
+                      .setClientId(clientId)
                       .build()));
           sawHeader = true;
           LOG.info("Received header");
@@ -839,6 +855,7 @@ public class GrpcWindmillServerTest {
                                 .setJobId("job")
                                 .setProjectId("project")
                                 .setWorkerId("worker")
+                                .setClientId(clientId)
                                 .build()));
                     sawHeader = true;
                   } else {
@@ -921,7 +938,10 @@ public class GrpcWindmillServerTest {
     this.client =
         GrpcWindmillServer.newTestInstance(
             "TestServer",
-            Collections.singletonList("streaming_engine_send_new_heartbeat_requests"));
+            Collections.singletonList("streaming_engine_send_new_heartbeat_requests"),
+            clientId,
+            new FakeWindmillStubFactory(
+                () -> WindmillChannelFactory.inProcessChannel("TestServer")));
     // This server records the heartbeats observed but doesn't respond.
     final List<ComputationHeartbeatRequest> receivedHeartbeats = new ArrayList<>();
 
@@ -945,6 +965,7 @@ public class GrpcWindmillServerTest {
                                 .setJobId("job")
                                 .setProjectId("project")
                                 .setWorkerId("worker")
+                                .setClientId(clientId)
                                 .build()));
                     sawHeader = true;
                   } else {

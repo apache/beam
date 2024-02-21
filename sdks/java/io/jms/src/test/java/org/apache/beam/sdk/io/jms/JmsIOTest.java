@@ -51,6 +51,7 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Proxy;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -58,7 +59,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -270,6 +273,40 @@ public class JmsIOTest {
     MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
     Message msg = consumer.receiveNoWait();
     assertNull(msg);
+  }
+
+  @Test
+  public void testRequiresDedup() throws Exception {
+    // produce message
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageProducer producer = session.createProducer(session.createQueue(QUEUE));
+    for (int i = 0; i < 10; i++) {
+      producer.send(session.createTextMessage("test " + i));
+    }
+    producer.close();
+    session.close();
+    connection.close();
+
+    JmsIO.Read spec =
+        JmsIO.read()
+            .withConnectionFactory(connectionFactoryWithSyncAcksAndWithoutPrefetch)
+            .withUsername(USERNAME)
+            .withPassword(PASSWORD)
+            .withQueue(QUEUE);
+    JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
+    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+
+    // start the reader and move to the first record
+    assertTrue(reader.start());
+    Set<ByteBuffer> uniqueIds = new HashSet<>();
+    uniqueIds.add(ByteBuffer.wrap(reader.getCurrentRecordId()));
+
+    for (int i = 0; i < 10; i++) {
+      if (reader.advance()) {
+        assertTrue(uniqueIds.add(ByteBuffer.wrap(reader.getCurrentRecordId())));
+      }
+    }
   }
 
   @Test

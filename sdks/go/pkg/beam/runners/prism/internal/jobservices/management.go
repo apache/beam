@@ -117,6 +117,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 	// Inspect Transforms for unsupported features.
 	bypassedWindowingStrategies := map[string]bool{}
 	ts := job.Pipeline.GetComponents().GetTransforms()
+	var testStreamIds []string
 	for tid, t := range ts {
 		urn := t.GetSpec().GetUrn()
 		switch urn {
@@ -170,9 +171,26 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 				continue
 			}
 			fallthrough
+		case urns.TransformTestStream:
+			var testStream pipepb.TestStreamPayload
+			if err := proto.Unmarshal(t.GetSpec().GetPayload(), &testStream); err != nil {
+				return nil, fmt.Errorf("unable to unmarshal TestStreamPayload for %v - %q: %w", tid, t.GetUniqueName(), err)
+			}
+			for _, ev := range testStream.GetEvents() {
+				if ev.GetProcessingTimeEvent() != nil {
+					check("TestStream.Event - ProcessingTimeEvents unsupported.", ev.GetProcessingTimeEvent())
+				}
+			}
+
+			t.EnvironmentId = "" // Unset the environment, to ensure it's handled prism side.
+			testStreamIds = append(testStreamIds, tid)
 		default:
 			check("PTransform.Spec.Urn", urn+" "+t.GetUniqueName(), "<doesn't exist>")
 		}
+	}
+	// At most one test stream per pipeline.
+	if len(testStreamIds) > 1 {
+		check("Multiple TestStream Transforms in Pipeline", testStreamIds)
 	}
 
 	// Inspect Windowing strategies for unsupported features.
