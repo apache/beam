@@ -22,6 +22,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -44,13 +46,14 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -159,6 +162,29 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
     return data;
   }
 
+  static class EncodeOnlyByteStringCoder extends AtomicCoder<ByteString> {
+    public static EncodeOnlyByteStringCoder of() {
+      return INSTANCE;
+    }
+
+    private static final EncodeOnlyByteStringCoder INSTANCE = new EncodeOnlyByteStringCoder();
+
+    private EncodeOnlyByteStringCoder() {}
+
+    @Override
+    public void encode(ByteString value, OutputStream os) throws IOException {
+      // Unlike normal ByteStringCoder, we don't write the length before the content.
+      // The stream receiver should use a coder that can decode the data without knowing
+      // the length.
+      value.writeTo(os);
+    }
+
+    @Override
+    public ByteString decode(InputStream is) throws IOException {
+      throw new RuntimeException("decode is not supported in EncodeOnlyByteStringCoder");
+    }
+  }
+
   @Override
   public CompletableFuture<StateResponse> handle(StateRequest.Builder requestBuilder) {
     // The id should never be filled out
@@ -237,7 +263,6 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
 
           ByteString continuationToken;
           ByteString returnBlock = ByteString.EMPTY;
-          ;
           try {
             if (sortKey < start || sortKey >= end) {
               throw new IndexOutOfBoundsException("sort key out of range");
@@ -310,15 +335,14 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
           keyBuilder.getOrderedListUserStateBuilder().setSortKey(e.getSortKey());
 
           ByteStringOutputStream outStream = new ByteStringOutputStream();
-
+          TimestampedValue<ByteString> tv =
+              TimestampedValue.of(e.getData(), Instant.ofEpochMilli(e.getSortKey()));
           try {
-            InstantCoder.of().encode(Instant.ofEpochMilli(e.getSortKey()), outStream);
+            TimestampedValueCoder.of(EncodeOnlyByteStringCoder.of()).encode(tv, outStream);
           } catch (IOException ex) {
             throw new RuntimeException(ex);
           }
-          // In the response, the value encoded bytes are placed before the timestamp encoded bytes.
-          // This is also consistent with TimestampedValueCoder
-          ByteString output = e.getData().concat(outStream.toByteString());
+          ByteString output = outStream.toByteString();
 
           List<ByteString> previousValues =
               data.computeIfAbsent(keyBuilder.build(), (unused) -> new ArrayList<>());
