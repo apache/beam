@@ -52,7 +52,7 @@ When running pipelines in a Spark Standalone mode, ensure that your self-contain
 </dependency>
 ```
 
-Additionally, shade the application JAR using the [Maven shade plugin](https://maven.apache.org/plugins/maven-shade-plugin/) and make sure the shaded JAR file is visible in the target directory.
+Shade the application JAR using the [Maven shade plugin](https://maven.apache.org/plugins/maven-shade-plugin/) and make sure the shaded JAR file is visible in the target directory by running `is target`.
 
 To run pipelines in a Spark Standalone mode using the legacy RDD/DStream-based Spark Runner, use the following command:
 
