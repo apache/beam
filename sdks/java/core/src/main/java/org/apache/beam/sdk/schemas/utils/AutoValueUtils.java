@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.Constructor;
@@ -36,7 +37,6 @@ import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
@@ -244,7 +244,9 @@ public class AutoValueUtils {
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
-          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(
+              ReflectHelpers.findClassLoader(),
+              getClassLoadingStrategy(SchemaUserTypeCreator.class))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
