@@ -20,8 +20,9 @@ package org.apache.beam.sdk.testing;
 import org.apache.beam.sdk.annotations.Internal;
 
 /**
- * Category tag for tests which use the expansion service in Python. Tests tagged with {@link
- * UsesPythonExpansionService} should be run for runners which support cross-language transforms.
+ * Category tag for tests which relies on a pre-defined port, such as expansion service or transform
+ * service. Tests tagged with {@link UsesExternalService} should initialize such port before the
+ * test execution.
  */
 @Internal
-public interface UsesPythonExpansionService extends UsesExternalService {}
+public interface UsesExternalService {}
