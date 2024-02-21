@@ -133,7 +133,7 @@ public class PubSubIOLT extends IOLoadTestBase {
             String.format(
                 "Unknown test configuration: [%s]. Pass to a valid configuration json, or use"
                     + " config presets: %s",
-                    testConfigName, TEST_CONFIGS_PRESET.keySet()));
+                testConfigName, TEST_CONFIGS_PRESET.keySet()));
       }
     }
 
@@ -141,18 +141,9 @@ public class PubSubIOLT extends IOLoadTestBase {
     // implementation where
     // number of lost data in streaming pipeline equals to number of initial bundles.
     configuration.forceNumInitialBundles =
-            testConfigName.equals("local")
+        testConfigName.equals("local")
             ? NUMBER_OF_BUNDLES_FOR_LOCAL
             : NUMBER_OF_BUNDLES_FOR_MEDIUM_AND_LARGE;
-
-    if (configuration.exportMetricsToInfluxDB) {
-      influxDBSettings =
-          InfluxDBSettings.builder()
-              .withHost(configuration.influxHost)
-              .withDatabase(configuration.influxDatabase)
-              .withMeasurement(configuration.influxMeasurement)
-              .get();
-    }
 
     // tempLocation needs to be set for DataflowRunner
     if (!Strings.isNullOrEmpty(tempBucketName)) {
@@ -200,16 +191,16 @@ public class PubSubIOLT extends IOLoadTestBase {
   public void testWriteAndRead() throws IOException {
     if (configuration.exportMetricsToInfluxDB) {
       influxDBSettings =
-              InfluxDBSettings.builder()
-                      .withHost(configuration.influxHost)
-                      .withDatabase(configuration.influxDatabase)
-                      .withMeasurement(
-                              configuration.influxMeasurement
-                                      + "_"
-                                      + testConfigName
-                                      + "_"
-                                      + configuration.writeAndReadFormat)
-                      .get();
+          InfluxDBSettings.builder()
+              .withHost(configuration.influxHost)
+              .withDatabase(configuration.influxDatabase)
+              .withMeasurement(
+                  configuration.influxMeasurement
+                      + "_"
+                      + testConfigName
+                      + "_"
+                      + configuration.writeAndReadFormat)
+              .get();
     }
 
     WriteAndReadFormat format = WriteAndReadFormat.valueOf(configuration.writeAndReadFormat);

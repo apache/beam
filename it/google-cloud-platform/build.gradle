@@ -41,7 +41,7 @@ dependencies {
     implementation 'org.apache.parquet:parquet-avro:1.12.0'
     implementation 'org.apache.parquet:parquet-common:1.12.0'
     implementation 'org.apache.parquet:parquet-hadoop:1.12.0'
-    implementation 'org.apache.commons:commons-lang3:3.9@jar'
+    implementation 'org.apache.commons:commons-lang3:3.9'
     implementation library.java.gax
     implementation library.java.google_api_common
     implementation library.java.protobuf_java_util
@@ -78,7 +78,6 @@ dependencies {
     testImplementation library.java.mockito_inline
     testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
-    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadowTest")
     testRuntimeOnly library.java.slf4j_simple
 }
 
