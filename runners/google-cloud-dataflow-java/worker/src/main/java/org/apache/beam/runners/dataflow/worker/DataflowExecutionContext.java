@@ -54,6 +54,7 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closer;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -276,13 +277,11 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     @GuardedBy("this")
     private final Map<String, IntSummaryStatistics> processingTimesByStep = new HashMap<>();
 
-    /** Last milliseconds since epoch when a full thread dump was performed at bundle level. */
-    private long lastFullThreadDumpMillisForBundleLull = 0;
+    /** Last milliseconds since epoch when a full thread dump was performed. */
+    private long lastFullThreadDumpMillis = 0;
 
     /** The minimum lull duration in milliseconds to perform a full thread dump. */
     private static final long LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS = 20 * 60 * 1000;
-
-    private long logFullThreadDumpMillisForBundleLull;
 
     private static final Logger LOG = LoggerFactory.getLogger(DataflowExecutionStateTracker.class);
 
@@ -306,24 +305,17 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         CounterFactory counterFactory,
         PipelineOptions options,
         String workItemId) {
-      this(
-          sampler,
-          otherState,
-          counterFactory,
-          options,
-          workItemId,
-          Clock.SYSTEM,
-          LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS);
+      this(sampler, otherState, counterFactory, options, workItemId, Clock.SYSTEM);
     }
 
+    @VisibleForTesting
     public DataflowExecutionStateTracker(
         ExecutionStateSampler sampler,
         DataflowOperationContext.DataflowExecutionState otherState,
         CounterFactory counterFactory,
         PipelineOptions options,
         String workItemId,
-        Clock clock,
-        long logFullThreadDumpMillisForBundleLull) {
+        Clock clock) {
       super(sampler);
       this.elementExecutionTracker =
           DataflowElementExecutionTracker.create(counterFactory, options);
@@ -331,7 +323,6 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       this.workItemId = workItemId;
       this.contextActivationObserverRegistry = ContextActivationObserverRegistry.createDefault();
       this.clock = clock;
-      this.logFullThreadDumpMillisForBundleLull = logFullThreadDumpMillisForBundleLull;
       DataflowWorkerLoggingInitializer.initialize();
     }
 
@@ -358,12 +349,12 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     }
 
     private boolean shouldLogFullThreadDumpForBundle(Duration lullDuration) {
-      if (lullDuration.getMillis() < logFullThreadDumpMillisForBundleLull) {
+      if (lullDuration.getMillis() < LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS) {
         return false;
       }
       long now = clock.currentTimeMillis();
-      if (lastFullThreadDumpMillisForBundleLull + logFullThreadDumpMillisForBundleLull < now) {
-        lastFullThreadDumpMillisForBundleLull = now;
+      if (lastFullThreadDumpMillis + LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS < now) {
+        lastFullThreadDumpMillis = now;
         return true;
       }
       return false;

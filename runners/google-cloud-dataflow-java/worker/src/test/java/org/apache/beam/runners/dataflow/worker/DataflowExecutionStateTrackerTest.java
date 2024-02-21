@@ -30,7 +30,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
@@ -239,6 +238,10 @@ public class DataflowExecutionStateTrackerTest {
     if (hasFullThreadDump) {
       assertThat(
           infoLines,
+          Matchers.allOf(
+              Matchers.containsString("org.apache.beam.runners.dataflow.worker.StackTraceUtil")));
+      assertThat(
+          infoLines,
           Matchers.anyOf(
               Matchers.containsString("Thread[backgroundThread,"),
               Matchers.containsString("org.apache.beam.runners.dataflow.worker.StackTraceUtil")));
@@ -262,7 +265,6 @@ public class DataflowExecutionStateTrackerTest {
         counterSet,
         options,
         "test-work-item-id",
-        clock,
-        TimeUnit.MINUTES.toMillis(20));
+        clock);
   }
 }
