@@ -114,7 +114,6 @@ applyJavaNature(
             relocate("org.apache.beam.model.fnexecution.v1", getWorkerRelocatedPath("org.apache.beam.model.fnexecution.v1"))
 
             dependencies {
-                include(project(":runners:core-construction-java"))
                 include(project(":runners:core-java"))
             }
             relocate("org.apache.beam.runners.core", getWorkerRelocatedPath("org.apache.beam.runners.core"))
@@ -187,7 +186,6 @@ dependencies {
     implementation project(path: ":model:fn-execution", configuration: "shadow")
     implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation project(":runners:core-construction-java")
     implementation project(":runners:core-java")
     implementation project(":runners:java-fn-execution")
     implementation project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")

@@ -233,7 +233,6 @@ class GcsIO(object):
         resp = current_batch._responses[i]
         if resp.status_code >= 400 and resp.status_code != 404:
           error_code = resp.status_code
-          break
         final_results.append((path, error_code))
 
       s += MAX_BATCH_OPERATION_SIZE
@@ -296,7 +295,6 @@ class GcsIO(object):
         resp = current_batch._responses[i]
         if resp.status_code >= 400:
           error_code = resp.status_code
-          break
         final_results.append((pair[0], pair[1], error_code))
 
       s += MAX_BATCH_OPERATION_SIZE

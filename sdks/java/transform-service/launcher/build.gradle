@@ -22,8 +22,7 @@ applyJavaNature(
 )
 
 description = "Apache Beam :: SDKs :: Java :: Transform Service :: Launcher"
-ext.summary = """Contains code that can be used to run an transform service."""
-
+ext.summary = """Builds uber jar for running transform service launcher"""
 
 // Exclude tests that need a runner
 test {
