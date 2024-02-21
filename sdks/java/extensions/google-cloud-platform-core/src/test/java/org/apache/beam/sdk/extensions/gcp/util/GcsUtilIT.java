@@ -35,7 +35,10 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.CreateOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.testing.UsesKms;
@@ -87,8 +90,17 @@ public class GcsUtilIT {
     gcsUtil.remove(Lists.newArrayList(dstFilename));
   }
 
+  // TODO: once the gRPC feature is in public GA, we will have to refactor this test.
+  // As gRPC will be automatically enabled in each bucket by then, we will no longer need to check
+  // the failed case. The interface of GcsGrpcOptions can also be removed.
   @Test
   public void testWriteAndReadGcsWithGrpc() throws IOException {
+    final String outputPattern =
+        "%s/GcsUtilIT-%tF-%<tH-%<tM-%<tS-%<tL.testWriteAndReadGcsWithGrpc.txt";
+    final String testContent = "This is a test string.";
+
+    PipelineOptionsFactory.register(GcsGrpcOptions.class);
+
     TestPipelineOptions options =
         TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
 
@@ -100,31 +112,33 @@ public class GcsUtilIT {
     GcsUtil gcsUtil = gcsOptions.getGcsUtil();
     assertNotNull(gcsUtil);
 
-    String testContent = "This is a test string.";
-
     // Write a test file in a bucket without gRPC enabled.
     // This assumes that GCS gRPC feature is not enabled in every bucket by default.
-    // If the following assertion fails, we can revisit the GA status of this feature and check
-    // whether we can remove the assertion.
-    String tempLocationWithoutGrpc = "gs://temp-storage-for-end-to-end-tests-cmek/temp";
-    String wrongFilename =
-        String.format(
-            "%s/GcsUtilIT-%tF-%<tH-%<tM-%<tS-%<tL.testWriteAndReadGcsWithGrpc.txt",
-            tempLocationWithoutGrpc, new Date());
+    assertNotNull(options.getTempRoot());
+    String tempLocationWithoutGrpc = options.getTempRoot() + "/temp";
+    String wrongFilename = String.format(outputPattern, tempLocationWithoutGrpc, new Date());
     assertThrows(IOException.class, () -> writeGcsTextFile(gcsUtil, wrongFilename, testContent));
 
     // Write a test file in a bucket with gRPC enabled.
-    String tempLocationWithGrpc = "gs://gcs-grpc-team-apache-beam-testing/temp";
-    String filename =
-        String.format(
-            "%s/GcsUtilIT-%tF-%<tH-%<tM-%<tS-%<tL.testWriteAndReadGcsWithGrpc.txt",
-            tempLocationWithGrpc, new Date());
+    GcsGrpcOptions grpcOptions = options.as(GcsGrpcOptions.class);
+    assertNotNull(grpcOptions.getGrpcTempRoot());
+    String tempLocationWithGrpc = grpcOptions.getGrpcTempRoot() + "/temp";
+    String filename = String.format(outputPattern, tempLocationWithGrpc, new Date());
     writeGcsTextFile(gcsUtil, filename, testContent);
 
     // Read the test file back and verify
-    assertEquals(readGcsTextFile(gcsUtil, filename), testContent);
+    assertEquals(testContent, readGcsTextFile(gcsUtil, filename));
 
     gcsUtil.remove(Collections.singletonList(filename));
+  }
+
+  public interface GcsGrpcOptions extends PipelineOptions {
+    /** Get tempRoot in a gRPC-enabled bucket. */
+    @Description("TempRoot in a gRPC-enabled bucket")
+    String getGrpcTempRoot();
+
+    /** Set the tempRoot in a gRPC-enabled bucket. */
+    void setGrpcTempRoot(String grpcTempRoot);
   }
 
   void writeGcsTextFile(GcsUtil gcsUtil, String filename, String content) throws IOException {
