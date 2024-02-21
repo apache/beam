@@ -62,6 +62,9 @@
 ## I/Os
 
 * Added support for handling bad records to BigQueryIO ([#30081](https://github.com/apache/beam/pull/30081)).
+  * Full Support for Storage Read and Write APIs
+  * Partial Support for File Loads (Failures writing to files supported, failures loading files to BQ unsupported)
+  * No Support for Extract or Streaming Inserts
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## New Features / Improvements
