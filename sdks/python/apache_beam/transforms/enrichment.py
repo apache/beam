@@ -15,18 +15,23 @@
 # limitations under the License.
 #
 import logging
+from datetime import timedelta
 from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Optional
 from typing import TypeVar
+from typing import Union
 
 import apache_beam as beam
+from apache_beam.coders import coders
+from apache_beam.io.requestresponse import DEFAULT_CACHE_ENTRY_TTL_SEC
 from apache_beam.io.requestresponse import DEFAULT_TIMEOUT_SECS
 from apache_beam.io.requestresponse import Caller
 from apache_beam.io.requestresponse import DefaultThrottler
 from apache_beam.io.requestresponse import ExponentialBackOffRepeater
 from apache_beam.io.requestresponse import PreCallThrottler
+from apache_beam.io.requestresponse import RedisCache
 from apache_beam.io.requestresponse import Repeater
 from apache_beam.io.requestresponse import RequestResponseIO
 
@@ -44,8 +49,15 @@ JoinFn = Callable[[Dict[str, Any], Dict[str, Any]], beam.Row]
 _LOGGER = logging.getLogger(__name__)
 
 
+def has_valid_redis_address(host: str, port: int) -> bool:
+  """returns `True` if both host and port are not `None`."""
+  if host and port:
+    return True
+  return False
+
+
 def cross_join(left: Dict[str, Any], right: Dict[str, Any]) -> beam.Row:
-  """cross_join performs a cross join on two `dict` objects.
+  """performs a cross join on two `dict` objects.
 
     Joins the columns of the right row onto the left row.
 
@@ -71,20 +83,29 @@ def cross_join(left: Dict[str, Any], right: Dict[str, Any]) -> beam.Row:
 
 
 class EnrichmentSourceHandler(Caller[InputT, OutputT]):
-  """Wrapper class for :class:`apache_beam.io.requestresponse.Caller`.
+  """Wrapper class for `apache_beam.io.requestresponse.Caller`.
 
   Ensure that the implementation of ``__call__`` method returns a tuple
   of `beam.Row`  objects.
   """
-  pass
+  def get_cache_key(self, request: InputT) -> str:
+    """Returns the request to be cached. This is how the response will be
+    looked up in the cache as well.
+
+    Implement this method to provide the key for the cache.
+    By default, the entire request is stored as the cache key.
+
+    For example, in `BigTableEnrichmentHandler`, the row key for the element
+    is returned here.
+    """
+    return "request: %s" % request
 
 
 class Enrichment(beam.PTransform[beam.PCollection[InputT],
                                  beam.PCollection[OutputT]]):
   """A :class:`apache_beam.transforms.enrichment.Enrichment` transform to
   enrich elements in a PCollection.
-  **NOTE:** This transform and its implementation are under development and
-  do not provide backward compatibility guarantees.
+
   Uses the :class:`apache_beam.transforms.enrichment.EnrichmentSourceHandler`
   to enrich elements by joining the metadata from external source.
 
@@ -100,12 +121,11 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
     join_fn: A lambda function to join original element with lookup metadata.
       Defaults to `CROSS_JOIN`.
     timeout: (Optional) timeout for source requests. Defaults to 30 seconds.
-    repeater (~apache_beam.io.requestresponse.Repeater): provides method to
-      repeat failed requests to API due to service errors. Defaults to
+    repeater: provides method to repeat failed requests to API due to service
+      errors. Defaults to
       :class:`apache_beam.io.requestresponse.ExponentialBackOffRepeater` to
       repeat requests with exponential backoff.
-    throttler (~apache_beam.io.requestresponse.PreCallThrottler):
-      provides methods to pre-throttle a request. Defaults to
+    throttler: provides methods to pre-throttle a request. Defaults to
       :class:`apache_beam.io.requestresponse.DefaultThrottler` for
       client-side adaptive throttling using
       :class:`apache_beam.io.components.adaptive_throttler.AdaptiveThrottler`.
@@ -116,8 +136,8 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
       join_fn: JoinFn = cross_join,
       timeout: Optional[float] = DEFAULT_TIMEOUT_SECS,
       repeater: Repeater = ExponentialBackOffRepeater(),
-      throttler: PreCallThrottler = DefaultThrottler(),
-  ):
+      throttler: PreCallThrottler = DefaultThrottler()):
+    self._cache = None
     self._source_handler = source_handler
     self._join_fn = join_fn
     self._timeout = timeout
@@ -126,12 +146,55 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
 
   def expand(self,
              input_row: beam.PCollection[InputT]) -> beam.PCollection[OutputT]:
+    # For caching with enrichment transform, enrichment handlers provide a
+    # get_cache_key() method that returns a unique string formatted
+    # request for that row.
+    request_coder = coders.StrUtf8Coder()
+    if self._cache:
+      self._cache.request_coder = request_coder
+
     fetched_data = input_row | RequestResponseIO(
         caller=self._source_handler,
         timeout=self._timeout,
         repeater=self._repeater,
+        cache=self._cache,
         throttler=self._throttler)
 
     # EnrichmentSourceHandler returns a tuple of (request,response).
     return fetched_data | beam.Map(
         lambda x: self._join_fn(x[0]._asdict(), x[1]._asdict()))
+
+  def with_redis_cache(
+      self,
+      host: str,
+      port: int,
+      time_to_live: Union[int, timedelta] = DEFAULT_CACHE_ENTRY_TTL_SEC,
+      *,
+      request_coder: Optional[coders.Coder] = None,
+      response_coder: Optional[coders.Coder] = None,
+      **kwargs,
+  ):
+    """Configure the Redis cache to use with enrichment transform.
+
+    Args:
+      host (str): The hostname or IP address of the Redis server.
+      port (int): The port number of the Redis server.
+      time_to_live: `(Union[int, timedelta])` The time-to-live (TTL) for
+        records stored in Redis. Provide an integer (in seconds) or a
+        `datetime.timedelta` object.
+      request_coder: (Optional[`coders.Coder`]) coder for requests stored
+        in Redis.
+      response_coder: (Optional[`coders.Coder`]) coder for decoding responses
+        received from Redis.
+      kwargs: Optional additional keyword arguments that
+        are required to connect to your redis server. Same as `redis.Redis()`.
+    """
+    if has_valid_redis_address(host, port):
+      self._cache = RedisCache(  # type: ignore[assignment]
+          host=host,
+          port=port,
+          time_to_live=time_to_live,
+          request_coder=request_coder,
+          response_coder=response_coder,
+          **kwargs)
+    return self

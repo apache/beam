@@ -16,13 +16,11 @@
 #
 
 import logging
-import os
 import unittest
 
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.yaml.readme_test import createTestSuite
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 DATA = [
@@ -153,10 +151,6 @@ class YamlMappingTest(unittest.TestCase):
             ''')
         self.assertEqual(result.element_type._fields[0][1], str)
 
-
-YamlMappingDocTest = createTestSuite(
-    'YamlMappingDocTest',
-    os.path.join(os.path.dirname(__file__), 'yaml_mapping.md'))
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
