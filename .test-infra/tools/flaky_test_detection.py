@@ -22,7 +22,7 @@ from github import Auth
 
 GIT_ORG = "apache"
 GIT_REPO = "beam"
-GRAFANA_URL = "http://metrics.beam.apache.org/"
+GRAFANA_URL = "https://metrics.beam.apache.org"
 ALERT_NAME = "flaky_test"
 READ_ONLY = os.environ.get("READ_ONLY", "false")
 
@@ -40,7 +40,7 @@ class Alert:
         self.workflow_url = workflow_url
         self.workflow_name = workflow_name
         self.workflow_file_name = workflow_filename
-        self.workflow_threshold = workflow_threshold
+        self.workflow_threshold = round(float(workflow_threshold), 2)
 
 
 def extract_workflow_id_from_issue_label(issues):
@@ -58,7 +58,7 @@ def extract_workflow_id_from_issue_label(issues):
 def create_github_issue(repo, alert):
     failing_runs_url = f"https://github.com/{GIT_ORG}/beam/actions/{alert.workflow_file_name}?query=is%3Afailure+branch%3Amaster"
     title = f"The {alert.workflow_name} job is flaky"
-    body = f"The {alert.workflow_name } is failing over {alert.workflow_threshold * 100}% of the time \nPlease visit {failing_runs_url} to see the logs."
+    body = f"The {alert.workflow_name } is failing over {int(alert.workflow_threshold * 100)}% of the time \nPlease visit {failing_runs_url} to see the logs."
     labels = ["flaky_test", f"workflow_id: {alert.workflow_id}", "bug", "P1"]
     print("___")
     print(f"Title: {title}")
