@@ -61,6 +61,7 @@
 
 ## I/Os
 
+* Added support for handling bad records to BigQueryIO ([#30081](https://github.com/apache/beam/pull/30081)).
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## New Features / Improvements
