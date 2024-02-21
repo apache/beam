@@ -38,7 +38,7 @@ try:
   import tensorflow_transform as tft
   from apache_beam.ml.transforms.tft import ScaleTo01
 except ImportError:
-  tft = None  # type: ignore
+  tft = None
 
 
 @unittest.skipIf(
