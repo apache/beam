@@ -582,10 +582,3 @@ providers:
 * [Example pipelines](https://gist.github.com/robertwb/2cb26973f1b1203e8f5f8f88c5764da0)
 * [More examples](https://github.com/Polber/beam/tree/jkinard/bug-bash/sdks/python/apache_beam/yaml/examples)
 * [Transform glossary](https://gist.github.com/robertwb/64e2f51ff88320eeb6ffd96634202df7)
-
-Additional documentation in this directory
-
-* [Mapping](yaml_mapping.md)
-* [Aggregation](yaml_combine.md)
-* [Error handling](yaml_errors.md)
-* [Inlining Python](inline_python.md)
