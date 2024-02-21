@@ -64,14 +64,4 @@ For Java SDK, run your Java JAR file using the `java -jar` command:
 java -jar your-project.jar
 ```
 
-***Considerations:***
-
-1. The Direct Runner is not intended for production pipelines as it prioritizes correctness over performance.
-2. The Direct Runner must fit all user data in memory, unlike other runners that can spill data to disk. Run it with small datasets that can fit within available memory.
-3. For unbounded data sources or sinks, set the `streaming` option to `true`. Streaming support for Python Direct Runner is limited. For the list of known issues, refer to [the GitHub issue #24528](https://github.com/apache/beam/issues/24528) in the Apache Beam repository.
-4. The ​​Python [`FnApiRunner`](https://beam.apache.org/contribute/runner-guide/#the-fn-api) supports multi-threading and multi-processing modes.
-5. You can control the number of threads or subprocesses by setting the `targetParallelism` option for Java or the `direct_num_workers` option for Python.
-
-For testing Apache Beam pipelines with the Direct Runner, refer to:
-[Testing Unbounded Pipelines in Apache Beam](https://beam.apache.org/blog/2016/10/20/test-stream.html) discusses using Java classes [`PAssert`](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/testing/PAssert.html) and [`TestStream`](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/testing/TestStream.html).
-The [Apache Beam WordCount Walkthrough](https://beam.apache.org/get-started/wordcount-example/#testing-your-pipeline-with-asserts) contains an example of logging and testing a pipeline with [`PAssert`](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/testing/PAssert.html) (Java) and [`assert_that`](https://beam.apache.org/releases/pydoc/current/apache_beam.testing.util.html#apache_beam.testing.util.assert_that) (Python).
+For additional information and considerations, refer to the [Direct Runner](https://beam.apache.org/documentation/runners/direct/) section in the Apache Beam documentation.
