@@ -33,9 +33,7 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionState;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -43,7 +41,6 @@ import org.junit.runners.JUnit4;
 /** Tests for ContextActivationObserverRegistry. */
 @RunWith(JUnit4.class)
 public class DataflowExecutionContextTest {
-
 
   /** This type is used for testing the automatic registration mechanism. */
   private static class AutoRegistrationClass implements ContextActivationObserver {
