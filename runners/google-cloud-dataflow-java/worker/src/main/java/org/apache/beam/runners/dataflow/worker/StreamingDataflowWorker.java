@@ -118,9 +118,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmill
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPoolCloseableStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.CompleteCommit;
-import org.apache.beam.runners.dataflow.worker.windmill.client.commits.StreamingApplianceWorkCommitter;
-import org.apache.beam.runners.dataflow.worker.windmill.client.commits.StreamingEngineWorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitters;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.ActiveWorkRefresher;
@@ -425,14 +424,14 @@ public class StreamingDataflowWorker {
     this.started = new CountDownLatch(1);
     this.workCommitter =
         windmillServiceEnabled
-            ? StreamingEngineWorkCommitter.create(
+            ? WorkCommitters.createStreamingEngineWorkCommitter(
                 new WindmillStreamPoolCloseableStreamFactory<>(windmillServer::commitWorkStream),
                 numCommitThreads,
                 running::get,
                 this::onStreamingCommitFailed,
                 this::onStreamingCommitComplete,
                 started)
-            : StreamingApplianceWorkCommitter.create(
+            : WorkCommitters.createApplianceWorkCommitter(
                 windmillServer::commitWork, numCommitThreads, running::get, started);
 
     // Register standard file systems.

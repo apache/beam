@@ -25,6 +25,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedBoundedQueue;
@@ -37,7 +38,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Streaming appliance implementation of {@link WorkCommitter}. */
-public final class StreamingApplianceWorkCommitter implements WorkCommitter {
+@ThreadSafe
+final class StreamingApplianceWorkCommitter implements WorkCommitter {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingApplianceWorkCommitter.class);
   private static final long TARGET_COMMIT_BUNDLE_BYTES = 32 << 20;
 
@@ -69,7 +71,7 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
     this.numCommitWorkers = numCommitWorkers;
   }
 
-  public static StreamingApplianceWorkCommitter create(
+  static StreamingApplianceWorkCommitter create(
       Consumer<CommitWorkRequest> commitWork,
       int numCommitWorkers,
       Supplier<Boolean> shouldCommitWork,

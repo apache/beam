@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedBoundedQueue;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
@@ -37,7 +38,8 @@ import org.slf4j.LoggerFactory;
  * Streaming engine implementation of {@link WorkCommitter}. Commits work back to Streaming Engine
  * backend.
  */
-public final class StreamingEngineWorkCommitter implements WorkCommitter {
+@ThreadSafe
+final class StreamingEngineWorkCommitter implements WorkCommitter {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingEngineWorkCommitter.class);
   private static final int COMMIT_BATCH_SIZE = 5;
 
@@ -75,7 +77,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
     this.numCommitSenders = numCommitSenders;
   }
 
-  public static StreamingEngineWorkCommitter create(
+  static StreamingEngineWorkCommitter create(
       Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory,
       int numCommitSenders,
       Supplier<Boolean> shouldCommitWork,

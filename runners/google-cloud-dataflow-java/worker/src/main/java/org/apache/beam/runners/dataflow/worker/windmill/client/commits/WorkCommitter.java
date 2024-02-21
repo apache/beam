@@ -20,8 +20,8 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 import org.apache.beam.sdk.annotations.Internal;
 
 /**
- * Commits {@link org.apache.beam.runners.dataflow.worker.streaming.Work} that has been processed
- * back to persistence layer.
+ * Commits {@link org.apache.beam.runners.dataflow.worker.streaming.Work} that has completed user
+ * processing back to persistence layer.
  */
 @Internal
 public interface WorkCommitter {

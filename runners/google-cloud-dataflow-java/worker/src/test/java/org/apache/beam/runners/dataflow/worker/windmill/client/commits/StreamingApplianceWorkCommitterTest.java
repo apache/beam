@@ -17,4 +17,120 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
-public class StreamingApplianceWorkCommitterTest {}
+import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertNotNull;
+
+import com.google.api.services.dataflow.model.MapTask;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.function.Consumer;
+import org.apache.beam.runners.dataflow.worker.FakeWindmillServer;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.joda.time.Instant;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ErrorCollector;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
+
+@RunWith(JUnit4.class)
+public class StreamingApplianceWorkCommitterTest {
+  @Rule public ErrorCollector errorCollector = new ErrorCollector();
+  private FakeWindmillServer fakeWindmillServer;
+  private boolean shouldCommitWork;
+  private StreamingApplianceWorkCommitter workCommitter;
+
+  private static Work createMockWork(long workToken, Consumer<Work> processWorkFn) {
+    return Work.create(
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setWorkToken(workToken)
+            .setShardingKey(workToken)
+            .setCacheToken(workToken)
+            .build(),
+        Instant::now,
+        Collections.emptyList(),
+        processWorkFn);
+  }
+
+  private static ComputationState createComputationState(String computationId) {
+    return new ComputationState(
+        computationId,
+        new MapTask().setSystemName("system").setStageName("stage"),
+        Mockito.mock(BoundedQueueExecutor.class),
+        ImmutableMap.of(),
+        null);
+  }
+
+  private StreamingApplianceWorkCommitter createWorkCommitter(
+      int numCommitWorkers, CountDownLatch ready) {
+    return StreamingApplianceWorkCommitter.create(
+        fakeWindmillServer::commitWork, numCommitWorkers, () -> shouldCommitWork, ready);
+  }
+
+  @Before
+  public void setUp() {
+    fakeWindmillServer =
+        new FakeWindmillServer(
+            errorCollector, ignored -> Optional.of(Mockito.mock(ComputationState.class)));
+    shouldCommitWork = true;
+  }
+
+  @After
+  public void cleanUp() {
+    shouldCommitWork = false;
+    workCommitter.stop();
+  }
+
+  @Test
+  public void testParallelism() {
+    int numCommitWorkers = 10;
+    CountDownLatch ready = new CountDownLatch(1);
+    workCommitter = createWorkCommitter(numCommitWorkers, ready);
+    ready.countDown();
+    assertThat(workCommitter.parallelism()).isEqualTo(numCommitWorkers);
+  }
+
+  @Test
+  public void testCommit() {
+    CountDownLatch started = new CountDownLatch(1);
+    workCommitter = createWorkCommitter(1, started);
+    List<Commit> commits = new ArrayList<>();
+    for (int i = 1; i <= 5; i++) {
+      Work work = createMockWork(i, ignored -> {});
+      Windmill.WorkItemCommitRequest commitRequest =
+          Windmill.WorkItemCommitRequest.newBuilder()
+              .setKey(work.getWorkItem().getKey())
+              .setShardingKey(work.getWorkItem().getShardingKey())
+              .setWorkToken(work.getWorkItem().getWorkToken())
+              .setCacheToken(work.getWorkItem().getCacheToken())
+              .build();
+      commits.add(Commit.create(commitRequest, createComputationState("computationId-" + i), work));
+    }
+
+    started.countDown();
+    commits.forEach(workCommitter::commit);
+
+    Map<Long, Windmill.WorkItemCommitRequest> committed =
+        fakeWindmillServer.waitForAndGetCommits(commits.size());
+
+    for (Commit commit : commits) {
+      Windmill.WorkItemCommitRequest request =
+          committed.get(commit.work().getWorkItem().getWorkToken());
+      assertNotNull(request);
+      assertThat(request).isEqualTo(commit.request());
+    }
+  }
+}
