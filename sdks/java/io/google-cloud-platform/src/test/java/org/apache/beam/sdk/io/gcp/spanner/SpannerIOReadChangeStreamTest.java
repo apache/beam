@@ -24,7 +24,6 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Options.RpcPriority;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.MetadataSpannerConfigFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.junit.Before;
@@ -77,7 +76,7 @@ public class SpannerIOReadChangeStreamTest {
   public void testSetPipelineCredential() {
     TestCredential testCredential = new TestCredential();
     // Set the credential in the pipeline options.
-    testPipeline.getOptions().as(GcsOptions.class).setGcpCredential(testCredential);
+    testPipeline.getOptions().as(GcpOptions.class).setGcpCredential(testCredential);
     SpannerConfig changeStreamSpannerConfig =
         readChangeStream.buildChangeStreamSpannerConfig(testPipeline.getOptions());
     SpannerConfig metadataSpannerConfig =
