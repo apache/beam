@@ -42,6 +42,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.ReleaseInfo;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,7 +102,8 @@ public class SpannerAccessor implements AutoCloseable {
     }
   }
 
-  public static SpannerOptions buildSpannerOptions(SpannerConfig spannerConfig) {
+  @VisibleForTesting
+  static SpannerOptions buildSpannerOptions(SpannerConfig spannerConfig) {
     SpannerOptions.Builder builder = SpannerOptions.newBuilder();
 
     Set<Code> retryableCodes = new HashSet<>();
