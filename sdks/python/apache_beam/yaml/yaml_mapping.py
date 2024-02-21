@@ -24,6 +24,7 @@ from typing import Any
 from typing import Callable
 from typing import Collection
 from typing import Dict
+from typing import List
 from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
@@ -551,6 +552,50 @@ def _SqlMapToFieldsTransform(pcoll, sql_transform_constructor, **mapping_args):
 
 
 @beam.ptransform.ptransform_fn
+def _Split(
+    pcoll,
+    outputs: List[str],
+    split_fn: Union[str, Dict[str, str]],
+    unknown_output: str = None,
+    error_handling: Optional[Mapping[str, Any]] = None,
+    language: Optional[str] = 'generic'):
+  split_fn = _as_callable_for_pcoll(pcoll, split_fn, 'split_fn', language)
+  error_output = error_handling['output'] if error_handling else None
+  if error_output in outputs:
+    raise ValueError(
+        f'Error handling output "{error_output}" '
+        f'cannot be among the listed outputs {outputs}')
+  T = TypeVar('T')
+
+  def split(element):
+    tag = split_fn(element)
+    if tag not in outputs:
+      if unknown_output:
+        tag = unknown_output
+      else:
+        raise ValueError(f'Unknown output value "{tag}"')
+    return beam.pvalue.TaggedOutput(tag, element)
+
+  output_set = set(outputs)
+  if unknown_output:
+    output_set.add(unknown_output)
+  if error_output:
+    output_set.add(error_output)
+  mapping_transform = beam.Map(split)
+  if error_output:
+    mapping_transform = mapping_transform.with_exception_handling(
+        **exception_handling_args(error_handling))
+  else:
+    mapping_transform = mapping_transform.with_outputs(*output_set)
+  splits = pcoll | mapping_transform.with_input_types(T).with_output_types(T)
+  result = {out: getattr(splits, out) for out in output_set}
+  if error_output:
+    result[
+        error_output] = result[error_output] | _map_errors_to_standard_format()
+  return result
+
+
+@beam.ptransform.ptransform_fn
 def _AssignTimestamps(
     pcoll,
     timestamp: Union[str, Dict[str, str]],
@@ -576,6 +621,9 @@ def create_mapping_providers():
           'MapToFields-python': _PyJsMapToFields,
           'MapToFields-javascript': _PyJsMapToFields,
           'MapToFields-generic': _PyJsMapToFields,
+          'Split-python': _Split,
+          'Split-javascript': _Split,
+          'Split-generic': _Split,
       }),
       yaml_provider.SqlBackedProvider({
           'Filter-sql': _SqlFilterTransform,

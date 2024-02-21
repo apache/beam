@@ -153,6 +153,211 @@ class YamlMappingTest(unittest.TestCase):
             ''')
         self.assertEqual(result.element_type._fields[0][1], str)
 
+  def test_split(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create([
+          beam.Row(element='apple'),
+          beam.Row(element='banana'),
+          beam.Row(element='orange'),
+      ])
+      result = elements | YamlTransform(
+          '''
+          type: Split
+          input: input
+          config:
+            language: python
+            outputs: [even, odd]
+            split_fn: "'even' if len(element) % 2 == 0 else 'odd'"
+          ''')
+      assert_that(
+          result['even'] | beam.Map(lambda x: x.element),
+          equal_to(['banana', 'orange']),
+          label='Even')
+      assert_that(
+          result['odd'] | beam.Map(lambda x: x.element),
+          equal_to(['apple']),
+          label='Odd')
+
+  def test_split_with_unknown(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create([
+          beam.Row(element='apple'),
+          beam.Row(element='banana'),
+          beam.Row(element='orange'),
+      ])
+      result = elements | YamlTransform(
+          '''
+          type: Split
+          input: input
+          config:
+            language: python
+            outputs: [a, b, c]
+            unknown_output: other
+            split_fn: "element.lower()[0]"
+          ''')
+      assert_that(
+          result['a'] | beam.Map(lambda x: x.element),
+          equal_to(['apple']),
+          label='A')
+      assert_that(
+          result['b'] | beam.Map(lambda x: x.element),
+          equal_to(['banana']),
+          label='B')
+      assert_that(
+          result['c'] | beam.Map(lambda x: x.element), equal_to([]), label='C')
+      assert_that(
+          result['other'] | beam.Map(lambda x: x.element),
+          equal_to(['orange']),
+          label='Other')
+
+  def test_split_without_unknown(self):
+    with self.assertRaisesRegex(ValueError, r'.*Unknown output value "o".*'):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        elements = p | beam.Create([
+            beam.Row(element='apple'),
+            beam.Row(element='banana'),
+            beam.Row(element='orange'),
+        ])
+        result = elements | YamlTransform(
+            '''
+            type: Split
+            input: input
+            config:
+              language: python
+              outputs: [a, b, c]
+              split_fn: "element.lower()[0]"
+            ''')
+
+  def test_split_without_unknown_with_error(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create([
+          beam.Row(element='apple'),
+          beam.Row(element='banana'),
+          beam.Row(element='orange'),
+      ])
+      result = elements | YamlTransform(
+          '''
+          type: Split
+          input: input
+          config:
+            language: python
+            outputs: [a, b, c]
+            split_fn: "element.lower()[0]"
+            error_handling:
+              output: unknown
+          ''')
+      assert_that(
+          result['a'] | beam.Map(lambda x: x.element),
+          equal_to(['apple']),
+          label='A')
+      assert_that(
+          result['b'] | beam.Map(lambda x: x.element),
+          equal_to(['banana']),
+          label='B')
+      assert_that(
+          result['c'] | beam.Map(lambda x: x.element), equal_to([]), label='C')
+      assert_that(
+          result['unknown'] | beam.Map(lambda x: x.element.element),
+          equal_to(['orange']),
+          label='Errors')
+
+  def test_split_without_unknown_with_error(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create([
+          beam.Row(element='apple'),
+          beam.Row(element='banana'),
+          beam.Row(element='orange'),
+      ])
+      result = elements | YamlTransform(
+          '''
+          type: Split
+          input: input
+          config:
+            language: python
+            outputs: [a, b, c]
+            split_fn: "element.lower()[0]"
+            error_handling:
+              output: unknown
+          ''')
+      assert_that(
+          result['a'] | beam.Map(lambda x: x.element),
+          equal_to(['apple']),
+          label='A')
+      assert_that(
+          result['b'] | beam.Map(lambda x: x.element),
+          equal_to(['banana']),
+          label='B')
+      assert_that(
+          result['c'] | beam.Map(lambda x: x.element), equal_to([]), label='C')
+      assert_that(
+          result['unknown'] | beam.Map(lambda x: x.element.element),
+          equal_to(['orange']),
+          label='Errors')
+
+  def test_split_with_actual_error(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create([
+          beam.Row(element='apple'),
+          beam.Row(element='banana'),
+          beam.Row(element='orange'),
+      ])
+      result = elements | YamlTransform(
+          '''
+          type: Split
+          input: input
+          config:
+            language: python
+            outputs: [a, b, c]
+            split_fn: "element.lower()[5]"
+            unknown_output: other
+            error_handling:
+              output: errors
+          ''')
+      assert_that(
+          result['a'] | beam.Map(lambda x: x.element),
+          equal_to(['banana']),
+          label='B')
+      assert_that(
+          result['other'] | beam.Map(lambda x: x.element),
+          equal_to(['orange']),
+          label='Other')
+      # Apple only has 5 letters, resulting in an index error.
+      assert_that(
+          result['errors'] | beam.Map(lambda x: x.element.element),
+          equal_to(['apple']),
+          label='Errors')
+
+  def test_split_no_language(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create([
+          beam.Row(element='apple', texture='smooth'),
+          beam.Row(element='banana', texture='smooth'),
+          beam.Row(element='orange', texture='bumpy'),
+      ])
+      result = elements | YamlTransform(
+          '''
+          type: Split
+          input: input
+          config:
+            outputs: [bumpy, smooth]
+            split_fn: texture
+          ''')
+      assert_that(
+          result['bumpy'] | beam.Map(lambda x: x.element),
+          equal_to(['orange']),
+          label='Bumpy')
+      assert_that(
+          result['smooth'] | beam.Map(lambda x: x.element),
+          equal_to(['apple', 'banana']),
+          label='Smooth')
+
 
 YamlMappingDocTest = createTestSuite(
     'YamlMappingDocTest',
