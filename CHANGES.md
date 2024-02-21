@@ -77,6 +77,7 @@
 * Go SDK users who build custom worker containers may run into issues with the move to distroless containers as a base (see Security Fixes).
   * The issue stems from distroless containers lacking additional tools, which current custom container processes may rely on.
   * See https://beam.apache.org/documentation/runtime/environments/#from-scratch-go for instructions on building and using a custom container.
+* Python SDK has changed the default value for the `--max_cache_memory_usage_mb` pipeline option from 100 to 0. This option was first introduced in 2.52.0 SDK. This change restores the behavior of 2.51.0 SDK, which does not use the state cache. If your pipeline uses iterable side inputs views, consider increasing the cache size by setting the option manually. ([#30360](https://github.com/apache/beam/issues/30360)).
 
 ## Deprecations
 
