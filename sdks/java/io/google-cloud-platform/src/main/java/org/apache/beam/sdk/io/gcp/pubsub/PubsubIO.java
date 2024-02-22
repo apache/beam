@@ -980,8 +980,7 @@ public class PubsubIO {
      * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format of the
      * {@code deadLetterTopic} string.
      *
-     * <p>This functionality is mutually exclusive with {@link
-     * Read#withErrorHandler(ErrorHandler)}
+     * <p>This functionality is mutually exclusive with {@link Read#withErrorHandler(ErrorHandler)}
      */
     public Read<T> withDeadLetterTopic(String deadLetterTopic) {
       return withDeadLetterTopic(StaticValueProvider.of(deadLetterTopic));
@@ -1428,8 +1427,8 @@ public class PubsubIO {
     /**
      * Writes any serialization failures out to the Error Handler. See {@link ErrorHandler} for
      * details on how to configure an Error Handler. Error Handlers are not well supported when
-     * writing to topics with schemas, and it is not recommended to configure an error handler
-     * if the target topic has a schema.
+     * writing to topics with schemas, and it is not recommended to configure an error handler if
+     * the target topic has a schema.
      */
     public Write<T> withErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
       return toBuilder()
