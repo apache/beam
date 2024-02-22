@@ -85,9 +85,9 @@ python -m apache_beam.yaml.main --yaml_pipeline_file=/path/to/pipeline.yaml --ru
 
 (This requires [Graphviz](https://graphviz.org/download/) to be installed to render the pipeline.)
 
-A yaml pipeline can also be directly submitted Dataflow via
-[gcloud](https://cloud.google.com/sdk/gcloud/reference/beta/dataflow/yaml/run),
-no local installation of the Beam SDKs required.
+You can also submit a YAML pipeline directly by using the Dataflow CLI command
+[`gcloud beta dataflow yaml run`](https://cloud.google.com/sdk/gcloud/reference/beta/dataflow/yaml/run).
+When you use the `gcloud` CLI, you don't need to install the Beam SDKs locally.
 
 ```
 gcloud beta dataflow yaml run job_name --yaml-pipeline-file=/path/to/pipeline.yaml --region=europe-west1
