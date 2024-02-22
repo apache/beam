@@ -386,7 +386,7 @@ class AutoGenerationScriptIT(unittest.TestCase):
     `sdks/standard_external_transforms.yaml`. Fails if the two configs don't
      match.
 
-    Fix by running `./gradlew generateExternalTransformWrappers` and
+    Fix by running `./gradlew generateExternalTransformsConfig` and
     committing the changes.
     """
     sdks_dir = os.path.abspath(dirname(self.sdk_dir))
@@ -404,7 +404,7 @@ class AutoGenerationScriptIT(unittest.TestCase):
         standard_config,
         "The standard xlang transforms config file "
         "\"standard_external_transforms.yaml\" is out of sync! Please update"
-        "by running './gradlew generateExternalTransformWrappers'"
+        "by running './gradlew generateExternalTransformsConfig'"
         "and committing the changes.")
 
 

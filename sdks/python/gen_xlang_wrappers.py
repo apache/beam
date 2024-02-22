@@ -63,7 +63,7 @@ def generate_transforms_config(input_services, output_file):
 
   Importing generated transforms to an existing package
   -----------------------------------------------------
-  When running the script on this config, a new module will be created at
+  When running the script on the config above, a new module will be created at
   `apache_beam/transforms/xlang/io.py`. This contains all
   generated wrappers that are set to destination 'apache_beam/io'. Finally,
   to make these available to the `apache_beam.io` package (or any package
