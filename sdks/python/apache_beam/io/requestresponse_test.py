@@ -23,7 +23,8 @@ from apache_beam.testing.test_pipeline import TestPipeline
 # pylint: disable=ungrouped-imports
 try:
   from google.api_core.exceptions import TooManyRequests
-  from apache_beam.io.requestresponse import Caller, DefaultThrottler
+  from apache_beam.io.requestresponse import Caller
+  from apache_beam.io.requestresponse import DefaultThrottler
   from apache_beam.io.requestresponse import RequestResponseIO
   from apache_beam.io.requestresponse import UserCodeExecutionException
   from apache_beam.io.requestresponse import UserCodeTimeoutException

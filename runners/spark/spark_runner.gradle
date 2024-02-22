@@ -159,7 +159,6 @@ spark.components = [
 dependencies {
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation project(":runners:core-construction-java")
   implementation project(":runners:core-java")
   implementation project(":runners:java-fn-execution")
   implementation project(":runners:java-job-service")
@@ -275,8 +274,7 @@ def applyBatchValidatesRunnerSetup = { Test it ->
     // SDF
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
-    excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     // Ordering
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
@@ -350,8 +348,7 @@ def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) 
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
     // Portability
-    excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     // Ordering
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
@@ -406,8 +403,7 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
     // SDF
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
-    excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
   }
@@ -423,8 +419,6 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
     excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenMultipleCoders'
     // SDF
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testLifecycleMethodsBounded'
-    // https://github.com/apache/beam/issues/29972
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$CombineWithContextTests.testHotKeyCombineWithSideInputs'
   }
 }
 

@@ -71,6 +71,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -83,6 +84,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.StreamSupport;
+import org.apache.avro.Schema.Field;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -92,6 +94,7 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Encoder;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -142,6 +145,10 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.EchoErrorTransform;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.ErrorSinkTransform;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -175,6 +182,7 @@ import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -904,6 +912,124 @@ public class BigQueryIOWriteTest implements Serializable {
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
   }
 
+  private static final SerializableFunction<Integer, TableRow> failingIntegerToTableRow =
+      new SerializableFunction<Integer, TableRow>() {
+        @Override
+        public TableRow apply(Integer input) {
+          if (input == 15) {
+            throw new RuntimeException("Expected Exception");
+          }
+          return new TableRow().set("number", input);
+        }
+      };
+
+  @Test
+  public void testBatchLoadsWithTableRowErrorHandling() throws Exception {
+    assumeTrue(!useStreaming);
+    assumeTrue(!useStorageApi);
+    List<Integer> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add(i);
+    }
+
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        p.registerBadRecordErrorHandler(new ErrorSinkTransform());
+
+    WriteResult result =
+        p.apply(Create.of(elements).withCoder(BigEndianIntegerCoder.of()))
+            .apply(
+                BigQueryIO.<Integer>write()
+                    .to("dataset-id.table-id")
+                    .withFormatFunction(failingIntegerToTableRow)
+                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                    .withSchema(
+                        new TableSchema()
+                            .setFields(
+                                ImmutableList.of(
+                                    new TableFieldSchema().setName("name").setType("STRING"),
+                                    new TableFieldSchema().setName("number").setType("INTEGER"))))
+                    .withTestServices(fakeBqServices)
+                    .withErrorHandler(errorHandler)
+                    .withoutValidation());
+
+    errorHandler.close();
+
+    PAssert.that(result.getSuccessfulTableLoads())
+        .containsInAnyOrder(new TableDestination("project-id:dataset-id.table-id", null));
+    PAssert.thatSingleton(errorHandler.getOutput()).isEqualTo(1L);
+    p.run();
+
+    elements.remove(15);
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id").stream()
+            .map(tr -> ((Integer) tr.get("number")))
+            .collect(Collectors.toList()),
+        containsInAnyOrder(Iterables.toArray(elements, Integer.class)));
+  }
+
+  private static final org.apache.avro.Schema avroSchema =
+      org.apache.avro.Schema.createRecord(
+          ImmutableList.of(
+              new Field(
+                  "number",
+                  org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG),
+                  "nodoc",
+                  0)));
+  private static final SerializableFunction<AvroWriteRequest<Long>, GenericRecord>
+      failingLongToAvro =
+          new SerializableFunction<AvroWriteRequest<Long>, GenericRecord>() {
+            @Override
+            public GenericRecord apply(AvroWriteRequest<Long> input) {
+              if (input.getElement() == 15) {
+                throw new RuntimeException("Expected Exception");
+              }
+              return new GenericRecordBuilder(avroSchema).set("number", input.getElement()).build();
+            }
+          };
+
+  @Test
+  public void testBatchLoadsWithAvroErrorHandling() throws Exception {
+    assumeTrue(!useStreaming);
+    assumeTrue(!useStorageApi);
+    List<Long> elements = Lists.newArrayList();
+    for (long i = 0L; i < 30L; ++i) {
+      elements.add(i);
+    }
+
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        p.registerBadRecordErrorHandler(new ErrorSinkTransform());
+
+    WriteResult result =
+        p.apply(Create.of(elements).withCoder(VarLongCoder.of()))
+            .apply(
+                BigQueryIO.<Long>write()
+                    .to("dataset-id.table-id")
+                    .withAvroFormatFunction(failingLongToAvro)
+                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                    .withSchema(
+                        new TableSchema()
+                            .setFields(
+                                ImmutableList.of(
+                                    new TableFieldSchema().setName("number").setType("INTEGER"))))
+                    .withTestServices(fakeBqServices)
+                    .withErrorHandler(errorHandler)
+                    .withoutValidation());
+
+    errorHandler.close();
+
+    PAssert.that(result.getSuccessfulTableLoads())
+        .containsInAnyOrder(new TableDestination("project-id:dataset-id.table-id", null));
+    PAssert.thatSingleton(errorHandler.getOutput()).isEqualTo(1L);
+    p.run();
+
+    elements.remove(15);
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id").stream()
+            .map(tr -> Long.valueOf((String) tr.get("number")))
+            .collect(Collectors.toList()),
+        containsInAnyOrder(Iterables.toArray(elements, Long.class)));
+  }
+
   @Test
   public void testStreamingInsertsFailuresNoRetryPolicy() throws Exception {
     assumeTrue(!useStorageApi);
@@ -1335,6 +1461,120 @@ public class BigQueryIOWriteTest implements Serializable {
     assumeTrue(useStreaming);
     assumeTrue(!useStorageApiApproximate);
     storageWrite(true);
+  }
+
+  // There are two failure scenarios in storage write.
+  // first is in conversion, which is triggered by using a bad format function
+  // second is in actually sending to BQ, which is triggered by telling te dataset service
+  // to fail a row
+  private void storageWriteWithErrorHandling(boolean autoSharding) throws Exception {
+    assumeTrue(useStorageApi);
+    if (autoSharding) {
+      assumeTrue(!useStorageApiApproximate);
+      assumeTrue(useStreaming);
+    }
+    List<Integer> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add(i);
+    }
+
+    Function<TableRow, Boolean> shouldFailRow =
+        (Function<TableRow, Boolean> & Serializable)
+            tr ->
+                tr.containsKey("number")
+                    && (tr.get("number").equals("27") || tr.get("number").equals("3"));
+    fakeDatasetService.setShouldFailRow(shouldFailRow);
+
+    TestStream<Integer> testStream =
+        TestStream.create(BigEndianIntegerCoder.of())
+            .addElements(elements.get(0), Iterables.toArray(elements.subList(1, 10), Integer.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), Integer.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 30), Integer.class))
+            .advanceWatermarkToInfinity();
+
+    ErrorHandler<BadRecord, PCollection<BadRecord>> errorHandler =
+        p.registerBadRecordErrorHandler(new EchoErrorTransform());
+
+    BigQueryIO.Write<Integer> write =
+        BigQueryIO.<Integer>write()
+            .to("project-id:dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withFormatFunction(failingIntegerToTableRow)
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .withTestServices(fakeBqServices)
+            .withErrorHandler(errorHandler)
+            .withoutValidation();
+
+    if (useStreaming) {
+      if (!useStorageApiApproximate) {
+        write =
+            write
+                .withTriggeringFrequency(Duration.standardSeconds(30))
+                .withNumStorageWriteApiStreams(2);
+      }
+      if (autoSharding) {
+        write = write.withAutoSharding();
+      }
+    }
+
+    PTransform<PBegin, PCollection<Integer>> source =
+        useStreaming ? testStream : Create.of(elements).withCoder(BigEndianIntegerCoder.of());
+
+    p.apply(source).apply("WriteToBQ", write);
+
+    errorHandler.close();
+
+    PAssert.that(errorHandler.getOutput())
+        .satisfies(
+            badRecords -> {
+              int count = 0;
+              Iterator<BadRecord> iterator = badRecords.iterator();
+              while (iterator.hasNext()) {
+                count++;
+                iterator.next();
+              }
+              Assert.assertEquals("Wrong number of bad records", 3, count);
+              return null;
+            });
+
+    p.run().waitUntilFinish();
+
+    // remove the "bad" elements from the expected elements written
+    elements.remove(27);
+    elements.remove(15);
+    elements.remove(3);
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id").stream()
+            .map(tr -> Integer.valueOf((String) tr.get("number")))
+            .collect(Collectors.toList()),
+        containsInAnyOrder(Iterables.toArray(elements, Integer.class)));
+  }
+
+  @Test
+  public void testBatchStorageApiWriteWithErrorHandling() throws Exception {
+    assumeTrue(!useStreaming);
+    storageWriteWithErrorHandling(false);
+  }
+
+  @Test
+  public void testStreamingStorageApiWriteWithErrorHandling() throws Exception {
+    assumeTrue(useStreaming);
+    storageWriteWithErrorHandling(false);
+  }
+
+  @Test
+  public void testStreamingStorageApiWriteWithAutoShardingWithErrorHandling() throws Exception {
+    assumeTrue(useStreaming);
+    assumeTrue(!useStorageApiApproximate);
+    storageWriteWithErrorHandling(true);
   }
 
   @DefaultSchema(JavaFieldSchema.class)

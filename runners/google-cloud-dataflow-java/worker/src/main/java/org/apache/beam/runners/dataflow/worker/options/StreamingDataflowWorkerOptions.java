@@ -17,11 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.options;
 
-import java.io.IOException;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
-import org.apache.beam.runners.dataflow.worker.windmill.appliance.JniWindmillApplianceServer;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillServer;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -36,12 +32,6 @@ import org.joda.time.Duration;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOptions {
-  @Description("Stub for communicating with Windmill.")
-  @Default.InstanceFactory(WindmillServerStubFactory.class)
-  WindmillServerStub getWindmillServerStub();
-
-  void setWindmillServerStub(WindmillServerStub value);
-
   @Description("Hostport of a co-located Windmill server.")
   @Default.InstanceFactory(LocalWindmillHostportFactory.class)
   String getLocalWindmillHostport();
@@ -62,15 +52,6 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
   int getMaxStackTraceDepthToReport();
 
   void setMaxStackTraceDepthToReport(int value);
-
-  @Description(
-      "Frequency at which active work should be reported back to Windmill, in millis. "
-          + "The first refresh will occur after at least this much time has passed since "
-          + "starting the work item")
-  @Default.Integer(10000)
-  int getActiveWorkRefreshPeriodMillis();
-
-  void setActiveWorkRefreshPeriodMillis(int value);
 
   @Description("Necessary duration for a commit to be considered stuck and invalidated.")
   @Default.Integer(10 * 60 * 1000)
@@ -112,42 +93,6 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
   int getWindmillServiceRpcChannelAliveTimeoutSec();
 
   void setWindmillServiceRpcChannelAliveTimeoutSec(int value);
-
-  @Description(
-      "If positive, frequency at which windmill service streaming rpcs will have application "
-          + "level health checks.")
-  @Default.Integer(10000)
-  int getWindmillServiceStreamingRpcHealthCheckPeriodMs();
-
-  void setWindmillServiceStreamingRpcHealthCheckPeriodMs(int value);
-
-  @Description(
-      "If positive, the number of messages to send on streaming rpc before checking isReady."
-          + "Higher values reduce cost of output overhead at the cost of more memory used in grpc "
-          + "buffers.")
-  @Default.Integer(10)
-  int getWindmillMessagesBetweenIsReadyChecks();
-
-  void setWindmillMessagesBetweenIsReadyChecks(int value);
-
-  @Description("If true, a most a single active rpc will be used per channel.")
-  @Default.Boolean(false)
-  boolean getUseWindmillIsolatedChannels();
-
-  void setUseWindmillIsolatedChannels(boolean value);
-
-  @Description(
-      "If true, separate streaming rpcs will be used for heartbeats instead of sharing streams with state reads.")
-  @Default.Boolean(false)
-  boolean getUseSeparateWindmillHeartbeatStreams();
-
-  void setUseSeparateWindmillHeartbeatStreams(boolean value);
-
-  @Description("The number of streams to use for GetData requests.")
-  @Default.Integer(1)
-  int getWindmillGetDataStreamCount();
-
-  void setWindmillGetDataStreamCount(int value);
 
   /**
    * Factory for creating local Windmill address. Reads from system propery 'windmill.hostport' for
@@ -210,29 +155,6 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
     @Override
     public String create(PipelineOptions options) {
       return System.getProperty("windmill.periodic_status_page_directory");
-    }
-  }
-
-  /**
-   * Factory for creating {@link WindmillServerStub} instances. If {@link setLocalWindmillHostport}
-   * is set, returns a stub to a local Windmill server, otherwise returns a remote gRPC stub.
-   */
-  public static class WindmillServerStubFactory implements DefaultValueFactory<WindmillServerStub> {
-    @Override
-    public WindmillServerStub create(PipelineOptions options) {
-      StreamingDataflowWorkerOptions streamingOptions =
-          options.as(StreamingDataflowWorkerOptions.class);
-      if (streamingOptions.getWindmillServiceEndpoint() != null
-          || streamingOptions.isEnableStreamingEngine()
-          || streamingOptions.getLocalWindmillHostport().startsWith("grpc:")) {
-        try {
-          return GrpcWindmillServer.create(streamingOptions);
-        } catch (IOException e) {
-          throw new RuntimeException("Failed to create GrpcWindmillServer: ", e);
-        }
-      } else {
-        return new JniWindmillApplianceServer(streamingOptions.getLocalWindmillHostport());
-      }
     }
   }
 

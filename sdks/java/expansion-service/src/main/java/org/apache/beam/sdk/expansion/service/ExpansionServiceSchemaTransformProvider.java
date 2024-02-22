@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.expansion.service;
 
-import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import java.io.IOException;
 import java.util.HashMap;
