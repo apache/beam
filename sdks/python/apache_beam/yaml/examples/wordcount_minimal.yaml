@@ -41,7 +41,6 @@ pipeline:
               import re
               def my_mapping(row):
                 return re.findall(r"[A-Za-z\']+", row.line.lower())
-          count: "1"
     - type: Explode
       config:
         fields: word
@@ -50,7 +49,9 @@ pipeline:
         language: python
         group_by: word
         combine:
-          count: sum
+          count:
+            value: word
+            fn: count
     - type: MapToFields
       config:
         language: python

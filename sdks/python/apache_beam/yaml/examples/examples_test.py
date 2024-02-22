@@ -20,12 +20,17 @@ import glob
 import logging
 import os
 import unittest
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
 from unittest import mock
 
 from hamcrest.core import assert_that as hamcrest_assert
 from hamcrest.library.collection import has_items
 
 import apache_beam as beam
+from apache_beam import PCollection
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -33,8 +38,8 @@ from apache_beam.yaml import cache_provider_artifacts
 from apache_beam.yaml import main
 
 
-def check_output(expected, matcher):
-  def _check_inner(actual):
+def check_output(expected: List[str], matcher: Callable[..., None]):
+  def _check_inner(actual: PCollection[str]):
     formatted_actual = actual | beam.Map(
         lambda row: str(beam.Row(**row._asdict())))
     matcher(formatted_actual, expected)
@@ -42,7 +47,9 @@ def check_output(expected, matcher):
   return _check_inner
 
 
-def create_test_method(pipeline_spec_file, custom_matcher=None):
+def create_test_method(
+    pipeline_spec_file: str,
+    custom_matcher: Optional[Callable[..., None]] = None):
   @mock.patch('apache_beam.Pipeline', TestPipeline)
   def test_yaml_example(self):
     with open(pipeline_spec_file) as f:
@@ -66,17 +73,17 @@ def create_test_method(pipeline_spec_file, custom_matcher=None):
 
 
 class YamlExamplesTestSuite:
-  _custom_matchers = {}
+  _custom_matchers: Dict[str, Callable[..., None]] = {}
 
-  def __init__(self, name, path):
+  def __init__(self, name: str, path: str):
     self._test_suite = self.create_test_suite(name, path)
 
   def run(self):
     return self._test_suite
 
   @classmethod
-  def parse_test_methods(cls, path):
-    files = glob.glob(os.path.join(path, r'*.yaml'))
+  def parse_test_methods(cls, path: str):
+    files = glob.glob(path)
     if not files and os.path.exists(path) and os.path.isfile(path):
       files = [path]
     for file in files:
@@ -85,7 +92,7 @@ class YamlExamplesTestSuite:
       yield test_name, create_test_method(file, custom_matcher)
 
   @classmethod
-  def create_test_suite(cls, name, path):
+  def create_test_suite(cls, name: str, path: str):
     return type(name, (unittest.TestCase, ), dict(cls.parse_test_methods(path)))
 
   @classmethod
@@ -98,20 +105,20 @@ class YamlExamplesTestSuite:
 
 
 @YamlExamplesTestSuite.register_custom_matcher('./wordcount_minimal.yaml')
-def _at_least_matcher(actual, expected):
+def _at_least_matcher(actual: PCollection[str], expected: List[str]):
   def _matches(value):
     hamcrest_assert(value, has_items(*expected))
 
   return assert_that(actual, _matches)
 
 
-ExamplesTest = YamlExamplesTestSuite('ExamplesTest', './').run()
+ExamplesTest = YamlExamplesTestSuite('ExamplesTest', r'./*.yaml').run()
 
 ElementWiseTest = YamlExamplesTestSuite(
-    'ElementwiseExamplesTest', 'transforms/elementwise/').run()
+    'ElementwiseExamplesTest', r'transforms/elementwise/*.yaml').run()
 
 AggregationTest = YamlExamplesTestSuite(
-    'AggregationExamplesTest', 'transforms/aggregation/').run()
+    'AggregationExamplesTest', r'transforms/aggregation/*.yaml').run()
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
