@@ -981,7 +981,7 @@ public class PubsubIO {
      * {@code deadLetterTopic} string.
      *
      * <p>This functionality is mutually exclusive with {@link
-     * Read#withBadRecordErrorHandler(ErrorHandler)}
+     * Read#withErrorHandler(ErrorHandler)}
      */
     public Read<T> withDeadLetterTopic(String deadLetterTopic) {
       return withDeadLetterTopic(StaticValueProvider.of(deadLetterTopic));
@@ -1074,7 +1074,7 @@ public class PubsubIO {
      * error handler. See {@link ErrorHandler} for more details on configuring an Error Handler.
      * This functionality is mutually exclusive with {@link Read#withDeadLetterTopic(String)}.
      */
-    public Read<T> withBadRecordErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
+    public Read<T> withErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
       return toBuilder()
           .setBadRecordErrorHandler(badRecordErrorHandler)
           .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER)
@@ -1427,9 +1427,11 @@ public class PubsubIO {
 
     /**
      * Writes any serialization failures out to the Error Handler. See {@link ErrorHandler} for
-     * details on how to configure an Error Handler.
+     * details on how to configure an Error Handler. Error Handlers are not well supported when
+     * writing to topics with schemas, and it is not recommended to configure an error handler
+     * if the target topic has a schema.
      */
-    public Write<T> withBadRecordErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
+    public Write<T> withErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
       return toBuilder()
           .setBadRecordErrorHandler(badRecordErrorHandler)
           .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER)

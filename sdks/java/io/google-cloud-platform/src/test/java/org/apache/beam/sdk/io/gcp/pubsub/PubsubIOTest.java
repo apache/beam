@@ -509,7 +509,7 @@ public class PubsubIOTest {
         pipeline.apply(
             PubsubIO.readStrings()
                 .fromSubscription(SUBSCRIPTION.getPath())
-                .withBadRecordErrorHandler(errorHandler)
+                .withErrorHandler(errorHandler)
                 .withClock(CLOCK)
                 .withClientFactory(clientFactory)
                 .withCoderAndParseFn(
@@ -699,7 +699,7 @@ public class PubsubIOTest {
   }
 
   @Test
-  public void testWriteMalformedMessages() throws Exception {
+  public void testWriteMalformedMessagesWithErrorHandler() throws Exception {
     OutgoingMessage msg =
         OutgoingMessage.of(
             com.google.pubsub.v1.PubsubMessage.newBuilder()
@@ -751,7 +751,7 @@ public class PubsubIOTest {
               .build()
               .to("projects/project/topics/topic1")
               .withClientFactory(factory)
-              .withBadRecordErrorHandler(badRecordErrorHandler));
+              .withErrorHandler(badRecordErrorHandler));
       badRecordErrorHandler.close();
       PAssert.thatSingleton(badRecordErrorHandler.getOutput()).isEqualTo(1L);
       pipeline.run();
