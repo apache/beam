@@ -3,8 +3,8 @@ How can I orchestrate Apache Beam pipelines with TFX?
 Response:
 Apache Beam is an open source, unified programming model for defining both batch and streaming data-parallel processing pipelines.Each Apache Beam pipeline is a Directed Acyclic Graph (DAG) of data processing operations constructed using Apache Beam SDK in one of the [supported languages](https://beam.apache.org/documentation/sdks/java/).
 To run a pipeline you need to deploy it to one of the supported [Beam runners](https://beam.apache.org/documentation/runners/capability-matrix/).
-You can use Apache Beam as an integral part of a machine learning project for data ingestion, validation, preprocessing, model validation, and inference.
-A full ML workflow also contains other steps such as data exploration, feature engineering, model training, and model deployment. Furthermore, ML workflow needs to track metadata and artifacts for reproducibility and auditability. Popular tools for building and managing ML workflows include [KubeFlow](https://www.kubeflow.org/), [TFX](https://www.tensorflow.org/tfx), and [Apache Airflow](https://airflow.apache.org/).
+You can use Apache Beam for various tasks within your machine learning project, including data validation, preprocessing, model validation, and model deployment and inference.
+However, a comprehensive ML workflow also involves additional steps like data exploration, feature engineering, and model training. Additionally, ML workflows require metadata and artifact tracking for reproducibility and auditability. Popular tools for building and managing ML workflows include [KubeFlow](https://www.kubeflow.org/), [TFX](https://www.tensorflow.org/tfx), and [Apache Airflow](https://airflow.apache.org/).
 
 TFX is an end-to-end platform for deploying production ML pipelines. TFX pipelines are a sequence of components that implement an ML pipeline. TFX pipeline DAG needs an orchestrator of it's own. Natively supported orchestrators include [Kubeflow Pipelines](https://www.kubeflow.org/docs/components/pipelines/), [Airflow](https://airflow.apache.org/), and Apache Beam itself.
 
