@@ -5,6 +5,9 @@ import static org.apache.iceberg.types.Types.NestedField.required;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import java.util.ArrayList;
+import org.apache.beam.io.iceberg.util.SchemaHelper;
+import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
@@ -69,5 +72,16 @@ public class TestFixtures {
       genericRecord.copy(ImmutableMap.of("id",27L,"data","overview")),
       genericRecord.copy(ImmutableMap.of("id",28L,"data","tender"))
   );
+
+  public static final ImmutableList<Row> asRows(Iterable<Record> records) {
+    ArrayList<Row> rows = new ArrayList<>();
+    for(Record record : records) {
+      rows.add(Row.withSchema(SchemaHelper.convert(SCHEMA))
+          .withFieldValue("id",record.getField("id"))
+          .withFieldValue("data",record.getField("data"))
+          .build());
+    }
+    return ImmutableList.copyOf(rows);
+  }
 
 }

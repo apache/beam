@@ -21,6 +21,12 @@ public class Iceberg {
     BATCH
   }
 
+  public enum WriteFormat {
+    AVRO,
+    PARQUET,
+    ORC
+  }
+
   public static Catalog catalog(String name) {
     return Catalog.builder()
         .name(name)

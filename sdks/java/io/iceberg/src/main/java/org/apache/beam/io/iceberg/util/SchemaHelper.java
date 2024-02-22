@@ -7,6 +7,9 @@ import org.apache.iceberg.types.Types;
 
 @SuppressWarnings({"dereference.of.nullable"})
 public class SchemaHelper {
+
+    private SchemaHelper() { }
+
     public static String ICEBERG_TYPE_OPTION_NAME = "icebergTypeID";
 
     public static Schema.FieldType fieldTypeForType(final Type type) {
