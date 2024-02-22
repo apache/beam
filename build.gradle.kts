@@ -647,6 +647,11 @@ tasks.register("checkSetup") {
   dependsOn(":examples:java:wordCount")
 }
 
+// Generates external transform config
+project.tasks.register("generateExternalTransformsConfig") {
+  dependsOn(":sdks:python:generateExternalTransformsConfig")
+}
+
 // Configure the release plugin to do only local work; the release manager determines what, if
 // anything, to push. On failure, the release manager can reset the branch without pushing.
 release {
