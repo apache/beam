@@ -368,7 +368,7 @@ task transformersInferenceTest {
 task enrichmentRedisTest {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
-  def requirementsFile = "${rootDir}/sdks/python/apache_beam/io/requestresponse_tests_requirements.txt"
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/transforms/enrichment_handlers/vertex_ai_feature_store_tests_requirement.txt"
   doFirst {
       exec {
         executable 'sh'
@@ -381,7 +381,8 @@ task enrichmentRedisTest {
           "test_opts": testOpts,
           "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
           "collect": "uses_redis",
-          "runner": "TestDirectRunner"
+          "runner": "TestDirectRunner",
+          "region": "us-central1",
       ]
       def cmdArgs = mapToArgString(argMap)
       exec {
