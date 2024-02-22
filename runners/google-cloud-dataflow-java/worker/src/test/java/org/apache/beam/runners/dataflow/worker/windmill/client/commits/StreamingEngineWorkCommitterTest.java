@@ -86,7 +86,9 @@ public class StreamingEngineWorkCommitterTest {
   @Before
   public void setUp() {
     shouldCommitWork = true;
-    fakeWindmillServer = new FakeWindmillServer(errorCollector, ignored -> Optional.of(Mockito.mock(ComputationState.class)));
+    fakeWindmillServer =
+        new FakeWindmillServer(
+            errorCollector, ignored -> Optional.of(Mockito.mock(ComputationState.class)));
     commitWorkStreamFactory =
         new WindmillStreamPoolCloseableStreamFactory<>(fakeWindmillServer::commitWorkStream);
   }
