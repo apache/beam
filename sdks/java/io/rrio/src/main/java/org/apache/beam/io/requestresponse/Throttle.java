@@ -122,7 +122,8 @@ import org.joda.time.Instant;
  * DoFn.ProcessContinuation#withResumeDelay} of {@link Configuration#getInterval()} when
  * to-be-emitted elements remain.
  */
-public class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PCollection<RequestT>> {
+// TODO(damondouglas): Modify to public when https://github.com/apache/beam/issues/28930 resolves.
+class Throttle<RequestT> extends PTransform<PCollection<RequestT>, PCollection<RequestT>> {
   static final String INPUT_ELEMENTS_COUNTER_NAME = "input_elements_count";
   static final String OUTPUT_ELEMENTS_COUNTER_NAME = "output_elements_count";
 

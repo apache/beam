@@ -88,16 +88,7 @@ import org.joda.time.Duration;
  *
  * <h3>Throttling</h3>
  *
- * Users may wish to throttle the {@link RequestT} {@link PCollection} before applying {@link
- * RequestResponseIO} as shown by example below. See {@link Throttle} for more details.
- *
- * <pre>{@code
- * int numElements = 10;
- * Duration interval = Duration.standardSeconds(1L);
- * PCollection<RequestT> original ...
- * PCollection<RequestT> throttled = original.apply(Throttle.of(numElements, interval));
- * Result result = throttled.apply(RequestResponseIO.of(new MyCaller(), responseCoder));
- * }</pre>
+ * See <a href="https://github.com/apache/beam/issues/28930">GitHub issue.</a>
  *
  * <h3>Caching</h3>
  *
