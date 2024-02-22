@@ -32,7 +32,7 @@ charset-normalizer==3.3.2
 click==8.1.7
 cloudpickle==2.2.1
 crcmod==1.7
-cryptography==42.0.3
+cryptography==42.0.4
 Cython==0.29.37
 Deprecated==1.2.14
 deprecation==2.1.0
