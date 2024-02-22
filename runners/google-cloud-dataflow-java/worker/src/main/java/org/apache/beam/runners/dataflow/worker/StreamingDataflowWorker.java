@@ -120,6 +120,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.CompleteCommit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitters;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillServer;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.ActiveWorkRefresher;
