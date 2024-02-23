@@ -87,8 +87,8 @@ class YamlExamplesTestSuite:
     if not files and os.path.exists(path) and os.path.isfile(path):
       files = [path]
     for file in files:
-      custom_matcher = cls._custom_matchers.get(file, None)
       test_name = f'test_{file.split("/")[-1].replace(".", "_")}'
+      custom_matcher = cls._custom_matchers.get(test_name, None)
       yield test_name, create_test_method(file, custom_matcher)
 
   @classmethod
@@ -96,15 +96,15 @@ class YamlExamplesTestSuite:
     return type(name, (unittest.TestCase, ), dict(cls.parse_test_methods(path)))
 
   @classmethod
-  def register_custom_matcher(cls, yaml_file: str):
+  def register_custom_matcher(cls, test_name: str):
     def apply(matcher):
-      cls._custom_matchers[yaml_file] = matcher
+      cls._custom_matchers[test_name] = matcher
       return matcher
 
     return apply
 
 
-@YamlExamplesTestSuite.register_custom_matcher('./wordcount_minimal.yaml')
+@YamlExamplesTestSuite.register_custom_matcher('test_wordcount_minimal_yaml')
 def _at_least_matcher(actual: PCollection[str], expected: List[str]):
   def _matches(value):
     hamcrest_assert(value, has_items(*expected))
@@ -112,13 +112,14 @@ def _at_least_matcher(actual: PCollection[str], expected: List[str]):
   return assert_that(actual, _matches)
 
 
-ExamplesTest = YamlExamplesTestSuite('ExamplesTest', r'./*.yaml').run()
+YAML_DOCS_DIR = os.path.join(os.path.join(os.path.dirname(__file__), 'docs'))
+ExamplesTest = YamlExamplesTestSuite('ExamplesTest', r'examples/*.yaml').run()
 
 ElementWiseTest = YamlExamplesTestSuite(
-    'ElementwiseExamplesTest', r'transforms/elementwise/*.yaml').run()
+    'ElementwiseExamplesTest', r'examples/transforms/elementwise/*.yaml').run()
 
 AggregationTest = YamlExamplesTestSuite(
-    'AggregationExamplesTest', r'transforms/aggregation/*.yaml').run()
+    'AggregationExamplesTest', r'examples/transforms/aggregation/*.yaml').run()
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
