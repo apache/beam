@@ -76,10 +76,4 @@ To learn more about running pipelines on Cloud Dataflow, visit the [Cloud Datafl
 
 Monitor the job's progress, view execution details, and receive updates on the pipeline's results using the [Dataflow Monitoring Interface](https://cloud.google.com/dataflow/pipelines/dataflow-monitoring-intf) or the [Dataflow Command-line Interface](https://cloud.google.com/dataflow/pipelines/dataflow-command-line-intf).
 
-***6. Block Execution or Cancel The Job:***
-
-To block execution, use the [`waitUntilFinish`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/PipelineResult.html#waitUntilFinish–) method for Java or the [`wait_until_finish`](https://beam.apache.org/releases/pydoc/current/apache_beam.runners.runner.html#apache_beam.runners.runner.PipelineResult.wait_until_finish) method for Python. The methods wait until the pipeline finishes and return its final status. The Cloud Dataflow Runner prints job status updates and console messages while waiting for the pipeline to finish.
-
-To cancel the job, you can use the [Dataflow Monitoring Interface](https://cloud.google.com/dataflow/pipelines/dataflow-monitoring-intf) or the [Dataflow Command-line Interface](https://cloud.google.com/dataflow/pipelines/dataflow-command-line-intf).
-
 For more information on the supported capabilities of the Cloud Dataflow Runner, refer to the [Beam Capability Matrix](https://beam.apache.org/documentation/runners/capability-matrix/) in the Apache Beam documentation.
