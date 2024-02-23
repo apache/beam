@@ -34,6 +34,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.AsmVisitorWrapper;
+import net.bytebuddy.asm.AsmVisitorWrapper.ForDeclaredMethods;
 import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
@@ -227,7 +228,7 @@ public class AutoValueUtils {
 
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
 
-  static SchemaUserTypeCreator createBuilderCreator(
+  private static SchemaUserTypeCreator createBuilderCreator(
       Class<?> builderClass,
       List<FieldValueTypeInformation> setterMethods,
       Method buildMethod,
@@ -242,11 +243,11 @@ public class AutoValueUtils {
               .intercept(
                   new BuilderCreateInstruction(types, setterMethods, builderClass, buildMethod));
       return builder
-          .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
+          .visit(new ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
           .load(
               ReflectHelpers.findClassLoader(),
-              getClassLoadingStrategy(SchemaUserTypeCreator.class))
+              getClassLoadingStrategy(builderClass))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
