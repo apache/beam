@@ -29,7 +29,7 @@ YAML framework.
 ### Element-wise
 These examples leverage the built-in mapping transforms including `MapToFields`,
 `Filter` and `Explode`. More information can be found about mapping transforms
-[here](../docs/yaml_mapping.md).
+[here](https://beam.apache.org/documentation/sdks/yaml-udf/).
 
 ### Aggregation
 These examples leverage the built-in `Combine` transform for performing simple 
@@ -45,4 +45,4 @@ python -m apache_beam.yaml.main \
   --yaml_experimental_features=Combine
 ```
 More information can be found about aggregation transforms
-[here](../docs/yaml_combine.md).
+[here](https://beam.apache.org/documentation/sdks/yaml-combine/).

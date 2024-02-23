@@ -4,13 +4,13 @@
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
 # The ASF licenses this file to You under the Apache License, Version 2.0
-# (the#  Row(output='License'); you may not use this file except in compliance with
+# (the#  Row(word='License'); you may not use this file except in compliance with
 # the License.  You may obtain a copy of the License at
 #
 #    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an#  Row(output='AS IS' BASIS,
+# distributed under the License is distributed on an#  Row(word='AS IS' BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
@@ -24,26 +24,41 @@
 # see https://cloud.google.com/docs/authentication/external/set-up-adc for more
 # information
 #
-# This pipeline reads in a text file, maps all words to a value of "1", sums
-# the value of all unique word keys, then logs a formatted word, count pair.
+# This pipeline reads in a text file, counts distinct words found in the text, 
+# then logs a row containing each word and its count.
 pipeline:
   type: chain
   transforms:
+
+    # Read text file into a collection of rows, each with one field, "line"
     - type: ReadFromText
       config:
         path: gs://dataflow-samples/shakespeare/kinglear.txt
+
+    # Split line field in each row into list of words
     - type: MapToFields
       config:
         language: python
         fields:
-          word:
+          words:
             callable: |
               import re
               def my_mapping(row):
                 return re.findall(r"[A-Za-z\']+", row.line.lower())
+
+    # Explode each list of words into separate rows
     - type: Explode
       config:
-        fields: word
+        fields: words
+
+    # Since each word is now distinct row, rename field to "word"
+    - type: MapToFields
+      config:
+        fields:
+          word: words
+
+    # Group by distinct words in the collection and add field "count" that
+    # contains number of instances, or count, for each word in the collection.
     - type: Combine
       config:
         language: python
@@ -52,24 +67,21 @@ pipeline:
           count:
             value: word
             fn: count
-    - type: MapToFields
-      config:
-        language: python
-        fields:
-          output: "'%s: %s' % (word, count)"
+
+    # Log out results
     - type: LogForTesting
         
 options:
   yaml_experimental_features: Combine
   
 # Expected:
-#  Row(output='king: 311')
-#  Row(output='lear: 253')
-#  Row(output='dramatis: 1')
-#  Row(output='personae: 1')
-#  Row(output='of: 483')
-#  Row(output='britain: 2')
-#  Row(output='france: 32')
-#  Row(output='duke: 26')
-#  Row(output='burgundy: 20')
-#  Row(output='cornwall: 75')
+#  Row(word='king', count=311)
+#  Row(word='lear', count=253)
+#  Row(word='dramatis', count=1)
+#  Row(word='personae', count=1)
+#  Row(word='of', count=483)
+#  Row(word='britain', count=2)
+#  Row(word='france', count=32)
+#  Row(word='duke', count=26)
+#  Row(word='burgundy', count=20)
+#  Row(word='cornwall', count=75)
