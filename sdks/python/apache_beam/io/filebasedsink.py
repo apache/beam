@@ -220,10 +220,6 @@ class FileBasedSink(iobase.Sink):
 
   def pre_finalize(self, init_result, writer_results):
     num_shards = len(list(writer_results))
-
-    if self.skip_if_empty and num_shards == 0:
-      return
-
     dst_glob = self._get_final_name_glob(num_shards)
     dst_glob_files = [
         file_metadata.path for mr in FileSystems.match([dst_glob])
