@@ -124,10 +124,6 @@ public class Work implements Runnable {
     return workIdBuilder.toString();
   }
 
-  public WorkId id() {
-    return id;
-  }
-
   private void recordGetWorkStreamLatencies(
       Collection<Windmill.LatencyAttribution> getWorkStreamLatencies) {
     for (Windmill.LatencyAttribution latency : getWorkStreamLatencies) {
