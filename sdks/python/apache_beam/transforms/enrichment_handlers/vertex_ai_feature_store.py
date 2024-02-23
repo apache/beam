@@ -88,7 +88,7 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
         to set the level when an empty row is returned from the BigTable query.
         Defaults to `ExceptionLevel.WARN`.
       kwargs: Optional keyword arguments to configure the
-        :class:`aiplatform.gapic.FeatureOnlineStoreServiceClient`. When using
+        `aiplatform.gapic.FeatureOnlineStoreServiceClient`. When using
         `kwargs`, the `api_endpoint` param will be overridden with this config
         if multiple values are found for `client_options`.
     """
@@ -196,7 +196,7 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
         to set the level when an empty row is returned from the BigTable query.
         Defaults to `ExceptionLevel.WARN`.
       kwargs: Optional keyword arguments to configure the
-        :class:`aiplatform.gapic.FeatureOnlineStoreServiceClient`. When using
+        `aiplatform.gapic.FeaturestoreOnlineServingServiceClient`. When using
         `kwargs`, the `api_endpoint` param will be overridden with this config
         if multiple values are found for `client_options`.
     """

@@ -64,7 +64,7 @@ class ValidateResponse(beam.DoFn):
 @pytest.mark.uses_redis
 class TestVertexAIFeatureStoreHandler(unittest.TestCase):
   def setUp(self) -> None:
-    self.project = 'google.com:clouddfe'
+    self.project = 'apache-beam-testing'
     self.location = 'us-central1'
     self.feature_store_name = "the_look_demo_unique"
     self.feature_view_name = "registry_product"
