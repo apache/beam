@@ -166,7 +166,7 @@ class YamlMappingTest(unittest.TestCase):
           config:
             language: python
             outputs: [even, odd]
-            split_fn: "'even' if len(element) % 2 == 0 else 'odd'"
+            destination: "'even' if len(element) % 2 == 0 else 'odd'"
           ''')
       assert_that(
           result['even'] | beam.Map(lambda x: x.element),
@@ -193,7 +193,7 @@ class YamlMappingTest(unittest.TestCase):
             language: python
             outputs: [a, b, c]
             unknown_output: other
-            split_fn: "element.lower()[0]"
+            destination: "element.lower()[0]"
           ''')
       assert_that(
           result['a'] | beam.Map(lambda x: x.element),
@@ -211,7 +211,7 @@ class YamlMappingTest(unittest.TestCase):
           label='Other')
 
   def test_split_without_unknown(self):
-    with self.assertRaisesRegex(ValueError, r'.*Unknown output name "o".*'):
+    with self.assertRaisesRegex(ValueError, r'.*Unknown output name.*"o".*'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
         elements = p | beam.Create([
@@ -226,7 +226,7 @@ class YamlMappingTest(unittest.TestCase):
             config:
               language: python
               outputs: [a, b, c]
-              split_fn: "element.lower()[0]"
+              destination: "element.lower()[0]"
             ''')
 
   def test_split_without_unknown_with_error(self):
@@ -244,7 +244,7 @@ class YamlMappingTest(unittest.TestCase):
           config:
             language: python
             outputs: [a, b, c]
-            split_fn: "element.lower()[0]"
+            destination: "element.lower()[0]"
             error_handling:
               output: unknown
           ''')
@@ -278,7 +278,7 @@ class YamlMappingTest(unittest.TestCase):
           config:
             language: python
             outputs: [a, b, c]
-            split_fn: "element.lower()[5]"
+            destination: "element.lower()[5]"
             unknown_output: other
             error_handling:
               output: errors
@@ -311,7 +311,7 @@ class YamlMappingTest(unittest.TestCase):
           input: input
           config:
             outputs: [bumpy, smooth]
-            split_fn: texture
+            destination: texture
           ''')
       assert_that(
           result['bumpy'] | beam.Map(lambda x: x.element),

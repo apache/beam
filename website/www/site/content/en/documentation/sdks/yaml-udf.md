@@ -207,6 +207,73 @@ criteria. This can be accomplished with a `Filter` transform, e.g.
     keep: "col2 > 0"
 ```
 
+## Splitting
+
+It can also be useful to send different elements to different places
+(similar to what is done with side outputs in other SDKs).
+While this can be done with a set of `Filter` operations, if every
+element has a single destination it can be more natural to use a `Split`
+transform instead which send every element to a unique output.
+For example, this will send all elements where `col1` is equal to `"a"` to the
+output `Split.a`.
+
+```
+- type: Split
+  input: input
+  config:
+    destination: col1
+    outputs: ['a', 'b', 'c']
+
+- type: SomeTransform
+  input: Split.a
+  config:
+    param: ...
+
+- type: AnotherTransform
+  input: Split.b
+  config:
+    param: ...
+```
+
+One can also specify the destination as a function, e.g.
+
+```
+- type: Split
+  input: input
+  config:
+    language: python
+    destination: "'even' if col2 % 2 == 0 else 'odd'"
+    outputs: ['even', 'odd']
+```
+
+One can optionally provide a catch-all output which will capture all elements
+that are not in the named outputs (which would otherwise be an error):
+
+```
+- type: Split
+  input: input
+  config:
+    destination: col1
+    outputs: ['a', 'b', 'c']
+    unknown_output: 'other'
+```
+
+To send elements to multiple (or no) outputs, one could use an iterable column
+and proceed the `Split` with an `Explode`.
+
+```
+- type: Explode
+  input: input
+  config:
+    fields: col1
+
+- type: Split
+  input: Explode
+  config:
+    destination: col1
+    outputs: ['a', 'b', 'c']
+```
+
 ## Types
 
 Beam will try to infer the types involved in the mappings, but sometimes this

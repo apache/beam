@@ -128,12 +128,25 @@ class FakeAggregation(beam.PTransform):
         lambda _: 1, sum, 'count')
 
 
+class _Fakes:
+  fn = str
+
+  class SomeTransform(beam.PTransform):
+    def __init__(*args, **kwargs):
+      pass
+
+    def expand(self, pcoll):
+      return pcoll
+
+
 RENDER_DIR = None
 TEST_TRANSFORMS = {
     'Sql': FakeSql,
     'ReadFromPubSub': FakeReadFromPubSub,
     'WriteToPubSub': FakeWriteToPubSub,
     'SomeGroupingTransform': FakeAggregation,
+    'SomeTransform': _Fakes.SomeTransform,
+    'AnotherTransform': _Fakes.SomeTransform,
 }
 
 
@@ -155,7 +168,7 @@ class TestEnvironment:
     return path
 
   def input_csv(self):
-    return self.input_file('input.csv', 'col1,col2,col3\nabc,1,2.5\n')
+    return self.input_file('input.csv', 'col1,col2,col3\na,1,2.5\n')
 
   def input_tsv(self):
     return self.input_file('input.tsv', 'col1\tcol2\tcol3\nabc\t1\t2.5\n')
@@ -248,13 +261,15 @@ def parse_test_methods(markdown_lines):
       else:
         if code_lines:
           if code_lines[0].startswith('- type:'):
+            is_chain = not any('input:' in line for line in code_lines)
             # Treat this as a fragment of a larger pipeline.
             # pylint: disable=not-an-iterable
             code_lines = [
                 'pipeline:',
-                '  type: chain',
+                '  type: chain' if is_chain else '',
                 '  transforms:',
                 '    - type: ReadFromCsv',
+                '      name: input',
                 '      config:',
                 '        path: whatever',
             ] + ['    ' + line for line in code_lines]
@@ -274,17 +289,6 @@ def parse_test_methods(markdown_lines):
 def createTestSuite(name, path):
   with open(path) as readme:
     return type(name, (unittest.TestCase, ), dict(parse_test_methods(readme)))
-
-
-class _Fakes:
-  fn = str
-
-  class SomeTransform(beam.PTransform):
-    def __init__(*args, **kwargs):
-      pass
-
-    def expand(self, pcoll):
-      return pcoll
 
 
 # These are copied from $ROOT/website/www/site/content/en/documentation/sdks

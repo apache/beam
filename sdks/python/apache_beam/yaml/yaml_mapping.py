@@ -555,11 +555,11 @@ def _SqlMapToFieldsTransform(pcoll, sql_transform_constructor, **mapping_args):
 def _Split(
     pcoll,
     outputs: List[str],
-    split_fn: Union[str, Dict[str, str]],
+    destination: Union[str, Dict[str, str]],
     unknown_output: Optional[str] = None,
     error_handling: Optional[Mapping[str, Any]] = None,
     language: Optional[str] = 'generic'):
-  split_fn = _as_callable_for_pcoll(pcoll, split_fn, 'split_fn', language)
+  split_fn = _as_callable_for_pcoll(pcoll, destination, 'destination', language)
   error_output = error_handling['output'] if error_handling else None
   if error_output in outputs:
     raise ValueError(
@@ -573,7 +573,7 @@ def _Split(
       if unknown_output:
         tag = unknown_output
       else:
-        raise ValueError(f'Unknown output name "{tag}"')
+        raise ValueError(f'Unknown output name for destination "{tag}"')
     return beam.pvalue.TaggedOutput(tag, element)
 
   output_set = set(outputs)
