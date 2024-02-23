@@ -28,11 +28,12 @@ import java.util.List;
 import java.util.Set;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.SideInputReader;
-import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.StreamingModeExecutionContext;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.StreamingModeStepContext;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -72,7 +73,7 @@ public class StreamingSideInputFetcherTest {
 
   static TupleTag<String> mainOutputTag = new TupleTag<>();
   @Mock StreamingModeExecutionContext execContext;
-  @Mock StreamingModeExecutionContext.StepContext stepContext;
+  @Mock StreamingModeStepContext stepContext;
   @Mock SideInputReader mockSideInputReader;
 
   private final InMemoryStateInternals<String> state = InMemoryStateInternals.forKey("dummyKey");
@@ -87,7 +88,7 @@ public class StreamingSideInputFetcherTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    when(stepContext.stateInternals()).thenReturn((StateInternals) state);
+    when(stepContext.stateInternals()).thenReturn(state);
   }
 
   @Test

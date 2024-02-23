@@ -37,6 +37,7 @@ import org.apache.beam.runners.dataflow.worker.util.ListOutputManager;
 import org.apache.beam.runners.dataflow.worker.util.ValueInEmptyWindows;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.DataflowStreamingModeStepContext;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -74,7 +75,7 @@ public class StreamingKeyedWorkItemSideInputDoFnRunnerTest {
 
   private final InMemoryStateInternals<String> state = InMemoryStateInternals.forKey("dummyKey");
 
-  @Mock private StreamingModeExecutionContext.StepContext stepContext;
+  @Mock private DataflowStreamingModeStepContext stepContext;
   @Mock private StreamingSideInputFetcher<Integer, IntervalWindow> sideInputFetcher;
   @Mock private SideInputReader mockSideInputReader;
   @Mock private TimerInternals mockTimerInternals;

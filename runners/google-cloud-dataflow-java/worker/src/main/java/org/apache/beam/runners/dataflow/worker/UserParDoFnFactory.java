@@ -30,6 +30,7 @@ import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.StreamingModeStepContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -134,12 +135,12 @@ class UserParDoFnFactory implements ParDoFnFactory {
       // to simply having an indicator string.
 
       checkArgument(
-          stepContext instanceof StreamingModeExecutionContext.StreamingModeStepContext,
+          stepContext instanceof StreamingModeStepContext,
           "stepContext must be a StreamingModeStepContext to use StreamingPCollectionViewWriterFn");
       DataflowRunner.StreamingPCollectionViewWriterFn<Object> writerFn =
           (StreamingPCollectionViewWriterFn<Object>) doFnInfo.getDoFn();
       return new StreamingPCollectionViewWriterParDoFn(
-          (StreamingModeExecutionContext.StreamingModeStepContext) stepContext,
+          (StreamingModeStepContext) stepContext,
           writerFn.getView().getTagInternal(),
           writerFn.getDataCoder(),
           (Coder<BoundedWindow>) doFnInfo.getWindowingStrategy().getWindowFn().windowCoder());

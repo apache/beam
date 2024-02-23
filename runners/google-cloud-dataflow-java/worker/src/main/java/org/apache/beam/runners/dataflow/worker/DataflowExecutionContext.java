@@ -62,7 +62,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
 
   private final CounterFactory counterFactory;
   private final MetricsContainerRegistry<?> metricsContainerRegistry;
-  private final ExecutionStateTracker executionStateTracker;
+  private final @Nullable ExecutionStateTracker executionStateTracker;
   protected final DataflowExecutionStateRegistry executionStateRegistry;
   // Desired limit on amount of data sinked. Cumulative
   // across all the sinks, when there are more than one sinks.
@@ -128,7 +128,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
    * the sinks are 'full'. This is polled by readers to stop consuming more records, when they can.
    * Currently the hint is set only by the sinks in streaming.
    */
-  boolean isSinkFullHintSet() {
+  protected boolean isSinkFullHintSet() {
     return bytesSinked >= sinkByteLimit;
     // In addition to hint from the sinks, we could consider other factors likes global memory
     // pressure.

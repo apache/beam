@@ -27,6 +27,7 @@ import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.DataflowStreamingModeStepContext;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -46,8 +47,7 @@ public class StreamingPCollectionViewWriterDoFnFactoryTest {
   public void testConstruction() throws Exception {
     DataflowOperationContext mockOperationContext = Mockito.mock(DataflowOperationContext.class);
     DataflowExecutionContext mockExecutionContext = Mockito.mock(DataflowExecutionContext.class);
-    DataflowStepContext mockStepContext =
-        Mockito.mock(StreamingModeExecutionContext.StepContext.class);
+    DataflowStepContext mockStepContext = Mockito.mock(DataflowStreamingModeStepContext.class);
     when(mockExecutionContext.getStepContext(mockOperationContext)).thenReturn(mockStepContext);
 
     CloudObject coder =

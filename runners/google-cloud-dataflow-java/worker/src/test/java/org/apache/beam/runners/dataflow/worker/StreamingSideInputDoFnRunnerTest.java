@@ -43,6 +43,8 @@ import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStat
 import org.apache.beam.runners.dataflow.worker.util.ListOutputManager;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.DataflowStreamingModeStepContext;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.StreamingModeExecutionContext;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.ValueState;
@@ -86,7 +88,7 @@ public class StreamingSideInputDoFnRunnerTest {
 
   static TupleTag<String> mainOutputTag = new TupleTag<>();
   @Mock StreamingModeExecutionContext execContext;
-  @Mock StreamingModeExecutionContext.StepContext stepContext;
+  @Mock DataflowStreamingModeStepContext stepContext;
   @Mock SideInputReader mockSideInputReader;
 
   private final InMemoryStateInternals<String> state = InMemoryStateInternals.forKey("dummyKey");
@@ -396,8 +398,7 @@ public class StreamingSideInputDoFnRunnerTest {
       WindowFn<?, ?> windowFn,
       DoFnRunners.OutputManager outputManager,
       List<PCollectionView<String>> views,
-      StreamingSideInputFetcher<String, IntervalWindow> sideInputFetcher)
-      throws Exception {
+      StreamingSideInputFetcher<String, IntervalWindow> sideInputFetcher) {
     DoFnRunner<String, String> simpleDoFnRunner =
         DoFnRunners.simpleRunner(
             PipelineOptionsFactory.create(),

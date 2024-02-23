@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.StreamingModeStepContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -30,18 +31,18 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 
 /**
  * A {@link ParDoFn} that writes side input data using {@link
- * StreamingModeExecutionContext.StreamingModeStepContext#writePCollectionViewData}.
+ * StreamingModeStepContext#writePCollectionViewData}.
  */
 @SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class StreamingPCollectionViewWriterParDoFn implements ParDoFn {
 
-  private final StreamingModeExecutionContext.StreamingModeStepContext stepContext;
+  private final StreamingModeStepContext stepContext;
   private final TupleTag<?> viewTag;
   private final Coder<Object> elemCoder;
   private final Coder<BoundedWindow> windowCoder;
 
   public StreamingPCollectionViewWriterParDoFn(
-      StreamingModeExecutionContext.StreamingModeStepContext stepContext,
+      StreamingModeStepContext stepContext,
       TupleTag<?> viewTag,
       Coder<Object> elemCoder,
       Coder<BoundedWindow> windowCoder) {

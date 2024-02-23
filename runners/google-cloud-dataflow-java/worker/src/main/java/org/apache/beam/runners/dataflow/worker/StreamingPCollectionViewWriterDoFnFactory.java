@@ -30,6 +30,7 @@ import org.apache.beam.runners.dataflow.util.Structs;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.StreamingModeStepContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
@@ -55,7 +56,7 @@ public class StreamingPCollectionViewWriterDoFnFactory implements ParDoFnFactory
       throws Exception {
     DataflowStepContext stepContext = executionContext.getStepContext(operationContext);
     checkArgument(
-        stepContext instanceof StreamingModeExecutionContext.StreamingModeStepContext,
+        stepContext instanceof StreamingModeStepContext,
         "stepContext must be a StreamingModeStepContext to use StreamingPCollectionViewWriterFn");
 
     Coder<?> coder =
@@ -68,7 +69,7 @@ public class StreamingPCollectionViewWriterDoFnFactory implements ParDoFnFactory
         coder);
     FullWindowedValueCoder<?> windowedValueCoder = (FullWindowedValueCoder<?>) coder;
     return new StreamingPCollectionViewWriterParDoFn(
-        (StreamingModeExecutionContext.StreamingModeStepContext) stepContext,
+        (StreamingModeStepContext) stepContext,
         new TupleTag<>(Structs.getString(cloudUserFn, WorkerPropertyNames.SIDE_INPUT_ID)),
         (Coder) windowedValueCoder.getValueCoder(),
         (Coder) windowedValueCoder.getWindowCoder());

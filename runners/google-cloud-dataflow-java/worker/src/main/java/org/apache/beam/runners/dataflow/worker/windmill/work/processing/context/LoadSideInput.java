@@ -15,31 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker;
+package org.apache.beam.runners.dataflow.worker.windmill.work.processing.context;
 
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import java.io.Closeable;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInput;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * A prefix for a Windmill state or timer tag to separate user state and timers from system state
- * and timers.
- */
-public enum WindmillNamespacePrefix {
-  USER_NAMESPACE_PREFIX {
-    @Override
-    ByteString byteString() {
-      return USER_NAMESPACE_BYTESTRING;
-    }
-  },
-
-  SYSTEM_NAMESPACE_PREFIX {
-    @Override
-    ByteString byteString() {
-      return SYSTEM_NAMESPACE_BYTESTRING;
-    }
-  };
-
-  abstract ByteString byteString();
-
-  private static final ByteString USER_NAMESPACE_BYTESTRING = ByteString.copyFromUtf8("/u");
-  private static final ByteString SYSTEM_NAMESPACE_BYTESTRING = ByteString.copyFromUtf8("/s");
+@FunctionalInterface
+public interface LoadSideInput {
+  <T> SideInput<T> load(
+      PCollectionView<T> view,
+      BoundedWindow sideInputWindow,
+      @Nullable String stateFamily,
+      SideInputState state,
+      @Nullable Supplier<Closeable> scopedReadStateSupplier);
 }

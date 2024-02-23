@@ -51,6 +51,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.GroupingTables
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.SimplePartialGroupByKeyParDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.TestOutputReceiver;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.DataflowStreamingModeStepContext;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -94,7 +95,7 @@ public class PartialGroupByKeyParDoFnsTest {
   @Mock private StreamingSideInputFetcher<KV<String, Integer>, BoundedWindow> mockSideInputFetcher;
   @Mock private BagState<WindowedValue<KV<String, Integer>>> elemsBag;
   @Mock private SideInputReader mockSideInputReader;
-  @Mock private StreamingModeExecutionContext.StepContext mockStreamingStepContext;
+  @Mock private DataflowStreamingModeStepContext mockStreamingStepContext;
   @Mock private StateInternals mockStateInternals;
   @Mock private ValueState mockState;
   @Mock private Coder<String> mockCoder;

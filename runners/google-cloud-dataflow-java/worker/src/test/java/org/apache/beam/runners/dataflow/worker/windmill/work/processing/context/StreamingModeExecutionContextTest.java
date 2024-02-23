@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker;
+package org.apache.beam.runners.dataflow.worker.windmill.work.processing.context;
 
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.longToSplitInt;
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.splitIntToLong;
@@ -48,9 +48,11 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
+import org.apache.beam.runners.dataflow.worker.DataflowOperationContext;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
-import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionState;
-import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionStateRegistry;
+import org.apache.beam.runners.dataflow.worker.NameContextsForTests;
+import org.apache.beam.runners.dataflow.worker.ReaderCache;
+import org.apache.beam.runners.dataflow.worker.StreamingStepMetricsContainer;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
@@ -82,7 +84,10 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
-/** Tests for {@link StreamingModeExecutionContext}. */
+/**
+ * Tests for {@link
+ * org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.StreamingModeExecutionContext}.
+ */
 @RunWith(JUnit4.class)
 public class StreamingModeExecutionContextTest {
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
@@ -127,7 +132,7 @@ public class StreamingModeExecutionContextTest {
     NameContext nameContext = NameContextsForTests.nameContextForTest();
     DataflowOperationContext operationContext =
         executionContext.createOperationContext(nameContext);
-    StreamingModeExecutionContext.StepContext stepContext =
+    DataflowStreamingModeStepContext stepContext =
         executionContext.getStepContext(operationContext);
     executionContext.start(
         "key",
@@ -164,7 +169,7 @@ public class StreamingModeExecutionContextTest {
     NameContext nameContext = NameContextsForTests.nameContextForTest();
     DataflowOperationContext operationContext =
         executionContext.createOperationContext(nameContext);
-    StreamingModeExecutionContext.StepContext stepContext =
+    DataflowStreamingModeStepContext stepContext =
         executionContext.getStepContext(operationContext);
     Windmill.WorkItem.Builder workItemBuilder =
         Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L);
@@ -195,7 +200,8 @@ public class StreamingModeExecutionContextTest {
   }
 
   /**
-   * Tests that the {@link SideInputReader} returned by the {@link StreamingModeExecutionContext}
+   * Tests that the {@link SideInputReader} returned by the {@link
+   * org.apache.beam.runners.dataflow.worker.windmill.work.processing.context.StreamingModeExecutionContext}
    * contains the expected views when they are deserialized, as occurs on the service.
    */
   @Test
@@ -227,26 +233,26 @@ public class StreamingModeExecutionContextTest {
     MetricsContainer metricsContainer = Mockito.mock(MetricsContainer.class);
     ProfileScope profileScope = Mockito.mock(ProfileScope.class);
     ExecutionState start1 =
-        executionContext.executionStateRegistry.getState(
+        executionStateRegistry.getState(
             NameContext.create("stage", "original-1", "system-1", "user-1"),
             ExecutionStateTracker.START_STATE_NAME,
             metricsContainer,
             profileScope);
     ExecutionState process1 =
-        executionContext.executionStateRegistry.getState(
+        executionStateRegistry.getState(
             NameContext.create("stage", "original-1", "system-1", "user-1"),
             ExecutionStateTracker.PROCESS_STATE_NAME,
             metricsContainer,
             profileScope);
     ExecutionState start2 =
-        executionContext.executionStateRegistry.getState(
+        executionStateRegistry.getState(
             NameContext.create("stage", "original-2", "system-2", "user-2"),
             ExecutionStateTracker.START_STATE_NAME,
             metricsContainer,
             profileScope);
 
     ExecutionState other =
-        executionContext.executionStateRegistry.getState(
+        executionStateRegistry.getState(
             NameContext.forStage("stage"), "other", null, NoopProfileScope.NOOP);
 
     other.takeSample(120);

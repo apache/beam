@@ -52,7 +52,7 @@ import org.joda.time.Instant;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class WindmillTimerInternals implements TimerInternals {
+public class WindmillTimerInternals implements TimerInternals {
   private static final Instant OUTPUT_TIMESTAMP_MAX_WINDMILL_VALUE =
       GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(1));
 
