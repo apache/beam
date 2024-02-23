@@ -88,6 +88,8 @@ dependencies {
   implementation library.java.slf4j_api
   implementation library.java.commons_io
   implementation library.java.commons_csv
+  implementation library.java.commons_math3
+  implementation 'org.knowm.xchart:xchart:3.8.7'
   runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   implementation library.java.vendored_grpc_1_60_1
   implementation library.java.vendored_guava_32_1_2_jre

@@ -18,7 +18,6 @@
 package org.apache.beam.examples.snippets.transforms.io.webapis;
 
 import java.util.List;
-
 import org.apache.beam.io.requestresponse.ApiIOError;
 import org.apache.beam.io.requestresponse.RequestResponseIO;
 import org.apache.beam.io.requestresponse.Result;
@@ -51,30 +50,37 @@ public class UsingHttpClientExample {
         .apply(
             "buildRequests",
             MapElements.into(TypeDescriptor.of(ImageRequest.class)).via(ImageRequest::of))
-        .apply("executeRequests", RequestResponseIO.of(HttpImageClient.of(), ImageResponseCoder.of()));
+        .apply(
+            "executeRequests", RequestResponseIO.of(HttpImageClient.of(), ImageResponseCoder.of()));
   }
   // [END webapis_read_from_get_endpoint]
 
   // [START webapis_handle_result]
 
   public static void handleResult(Result<ImageResponse> result) {
-    result.getResponses().apply("responses", ParDo.of(new DoFn<ImageResponse, Void>() {
-      @ProcessElement
-      public void process(
-              @Element ImageResponse response
-      ) {
-        // Do something with response
-      }
-    }));
+    result
+        .getResponses()
+        .apply(
+            "responses",
+            ParDo.of(
+                new DoFn<ImageResponse, Void>() {
+                  @ProcessElement
+                  public void process(@Element ImageResponse response) {
+                    // Do something with response
+                  }
+                }));
 
-    result.getFailures().apply("errors", ParDo.of(new DoFn<ApiIOError, Void>() {
-      @ProcessElement
-      public void process(
-              @Element ApiIOError error
-      ) {
-        // Do something with error
-      }
-    }));
+    result
+        .getFailures()
+        .apply(
+            "errors",
+            ParDo.of(
+                new DoFn<ApiIOError, Void>() {
+                  @ProcessElement
+                  public void process(@Element ApiIOError error) {
+                    // Do something with error
+                  }
+                }));
   }
 
   // [END webapis_handle_result]

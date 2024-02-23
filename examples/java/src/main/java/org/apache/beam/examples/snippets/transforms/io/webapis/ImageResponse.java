@@ -18,10 +18,10 @@
 package org.apache.beam.examples.snippets.transforms.io.webapis;
 
 import com.google.auto.value.AutoValue;
+import com.google.protobuf.ByteString;
 import java.io.Serializable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 
 // [START webapis_image_response]
 

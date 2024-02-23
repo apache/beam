@@ -24,6 +24,7 @@ import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestFactory;
 import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.InputStream;
 import org.apache.beam.io.requestresponse.Caller;
@@ -31,7 +32,6 @@ import org.apache.beam.io.requestresponse.UserCodeExecutionException;
 import org.apache.beam.io.requestresponse.UserCodeQuotaException;
 import org.apache.beam.io.requestresponse.UserCodeRemoteSystemException;
 import org.apache.beam.io.requestresponse.UserCodeTimeoutException;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 
 // [START webapis_image_caller]
