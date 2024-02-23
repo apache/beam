@@ -38,4 +38,6 @@ dependencies {
     runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
+    testImplementation library.java.hamcrest
+    testImplementation library.java.junit
 }

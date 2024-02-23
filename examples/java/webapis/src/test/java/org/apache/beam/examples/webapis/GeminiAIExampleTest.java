@@ -18,7 +18,6 @@
 package org.apache.beam.examples.webapis;
 
 import com.google.common.collect.ImmutableList;
-
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;

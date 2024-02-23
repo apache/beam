@@ -28,7 +28,6 @@ import com.google.cloud.vertexai.api.Content;
 import com.google.cloud.vertexai.api.GenerateContentRequest;
 import com.google.cloud.vertexai.api.GenerateContentResponse;
 import com.google.cloud.vertexai.api.Part;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -153,8 +152,14 @@ public class GeminiAIExample {
     }
     XYChart chart = QuickChart.getChart("_", "_", "_", "_", x, y);
     byte[] data = BitmapEncoder.getBitmapBytes(chart, BitmapEncoder.BitmapFormat.PNG);
-    pipeline.apply("data", Create.of(data))
-            .apply("save", FileIO.<byte[]>write().to("/tmp/chart").via(new ImageSink()));
+    pipeline
+        .apply("data", Create.of(data))
+        .apply("save", FileIO.<byte[]>write().to("/tmp/chart").via(new ImageSink()));
+
+    //    GeminiAIClient client = GeminiAIClient.builder()
+    //            .setLocation(options.getLocation())
+    //            .setProjectId(options.getProjectId())
+    //            .build();
 
     pipeline.run();
   }
@@ -176,8 +181,7 @@ public class GeminiAIExample {
     }
 
     @Override
-    public void flush() throws IOException {
-    }
+    public void flush() throws IOException {}
   }
 
   // [END webapis_gemini_stats]
