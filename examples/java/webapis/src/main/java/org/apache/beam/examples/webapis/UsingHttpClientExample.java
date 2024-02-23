@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.snippets.transforms.io.webapis;
+package org.apache.beam.examples.webapis;
 
 import java.util.List;
 import org.apache.beam.io.requestresponse.ApiIOError;

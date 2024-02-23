@@ -15,28 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.snippets.transforms.io.webapis;
+package org.apache.beam.examples.webapis;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.io.requestresponse.Result;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Count;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link GeminiAIExample}. */
+/** Tests for {@link UsingHttpClientExample}. */
 @RunWith(JUnit4.class)
-public class GeminiAIExampleTest {
-  private static final GeminiAIOptions OPTIONS =
-      PipelineOptionsFactory.create().as(GeminiAIOptions.class);
-
-  static {
-    OPTIONS.setLocation("us-central1");
-    OPTIONS.setProjectId("apache-beam-testing");
-  }
+public class UsingHttpClientExampleTest {
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   @Test
-  public void testWhatIsThisImage() {
+  public void testReadFromGetEndpointExample() {
     List<String> urls =
         ImmutableList.of(
             "https://storage.googleapis.com/generativeai-downloads/images/cake.jpg",
@@ -45,11 +47,20 @@ public class GeminiAIExampleTest {
             "https://storage.googleapis.com/generativeai-downloads/images/dog_form.jpg",
             "https://storage.googleapis.com/generativeai-downloads/images/factory.png",
             "https://storage.googleapis.com/generativeai-downloads/images/scones.jpg");
-    GeminiAIExample.whatIsThisImage(urls, OPTIONS);
-  }
+    Result<ImageResponse> result =
+        UsingHttpClientExample.readFromGetEndpointExample(urls, pipeline);
+    PAssert.that(result.getFailures()).empty();
+    PAssert.thatSingleton(result.getResponses().apply(Count.globally())).notEqualTo(0L);
+    PAssert.that(result.getResponses())
+        .satisfies(
+            itr -> {
+              for (ImageResponse response : itr) {
+                MatcherAssert.assertThat(response, Matchers.notNullValue());
+                MatcherAssert.assertThat(response.getData().isEmpty(), Matchers.is(false));
+              }
+              return null;
+            });
 
-  @Test
-  public void testIdentifyStats() {
-    GeminiAIExample.identifyStats(OPTIONS);
+    pipeline.run();
   }
 }

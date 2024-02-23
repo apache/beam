@@ -15,18 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.snippets.transforms.io.webapis;
+package org.apache.beam.examples.webapis;
 
 // [START webapis_using_client_code]
 
-import static org.apache.beam.examples.snippets.transforms.io.webapis.GeminiAIClient.MODEL_GEMINI_PRO_VISION;
+import static org.apache.beam.examples.webapis.GeminiAIClient.MODEL_GEMINI_PRO_VISION;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.vertexai.api.Blob;
 import com.google.cloud.vertexai.api.Content;
 import com.google.cloud.vertexai.api.GenerateContentRequest;
 import com.google.cloud.vertexai.api.GenerateContentResponse;
 import com.google.cloud.vertexai.api.Part;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,12 +39,15 @@ import org.apache.beam.io.requestresponse.RequestResponseIO;
 import org.apache.beam.io.requestresponse.Result;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.commons.math3.distribution.NormalDistribution;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.knowm.xchart.BitmapEncoder;
 import org.knowm.xchart.QuickChart;
 import org.knowm.xchart.XYChart;
 import org.slf4j.Logger;
@@ -127,7 +135,7 @@ public class GeminiAIExample {
 
   // [START webapis_gemini_stats]
 
-  public static void identifyStats(GeminiAIOptions options) {
+  public static void identifyStats(GeminiAIOptions options) throws IOException {
     //        GeminiAIOptions options = PipelineOptionsFactory.create().as(GeminiAIOptions.class);
     //        options.setLocation("us-central1");
     //        options.setProjectId("your-google-cloud-project-id");
@@ -143,9 +151,33 @@ public class GeminiAIExample {
       x.add(i);
       y.add(normalDistribution.density(i));
     }
-    XYChart chart = QuickChart.getChart("", "", "", "", x, y);
+    XYChart chart = QuickChart.getChart("_", "_", "_", "_", x, y);
+    byte[] data = BitmapEncoder.getBitmapBytes(chart, BitmapEncoder.BitmapFormat.PNG);
+    pipeline.apply("data", Create.of(data))
+            .apply("save", FileIO.<byte[]>write().to("/tmp/chart").via(new ImageSink()));
 
     pipeline.run();
+  }
+
+  private static class ImageSink implements FileIO.Sink<byte[]> {
+
+    private @MonotonicNonNull WritableByteChannel channel;
+
+    @Override
+    public void open(WritableByteChannel channel) throws IOException {
+      this.channel = channel;
+    }
+
+    @Override
+    public void write(byte[] element) throws IOException {
+      WritableByteChannel safeChannel = checkStateNotNull(channel);
+      checkState(safeChannel.isOpen());
+      safeChannel.write(ByteBuffer.wrap(element));
+    }
+
+    @Override
+    public void flush() throws IOException {
+    }
   }
 
   // [END webapis_gemini_stats]

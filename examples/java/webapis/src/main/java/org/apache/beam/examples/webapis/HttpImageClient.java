@@ -15,9 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.snippets.transforms.io.webapis;
-
-import static com.google.common.base.Preconditions.checkArgument;
+package org.apache.beam.examples.webapis;
 
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpRequest;
@@ -32,6 +30,7 @@ import org.apache.beam.io.requestresponse.UserCodeExecutionException;
 import org.apache.beam.io.requestresponse.UserCodeQuotaException;
 import org.apache.beam.io.requestresponse.UserCodeRemoteSystemException;
 import org.apache.beam.io.requestresponse.UserCodeTimeoutException;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 
 // [START webapis_image_caller]
@@ -54,7 +53,7 @@ public class HttpImageClient implements Caller<ImageRequest, ImageResponse> {
    */
   @Override
   public ImageResponse call(ImageRequest request) throws UserCodeExecutionException {
-    checkArgument(request != null);
+    Preconditions.checkArgument(request != null);
     GenericUrl url = new GenericUrl(request.getImageUrl());
     try {
       HttpRequest imageRequest = REQUEST_FACTORY.buildGetRequest(url);
