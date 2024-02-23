@@ -17,8 +17,8 @@
  */
 
 project.ext {
-  flink_major = '1.13'
-  flink_version = '1.13.5'
+  flink_major = '1.17'
+  flink_version = '1.17.0'
 }
 
 // Load the main build script which contains all build logic.

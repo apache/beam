@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
+def basePath = '../../job-server-container'
+
 project.ext {
-  flink_major = '1.13'
-  flink_version = '1.13.5'
+  resource_path = basePath
 }
 
 // Load the main build script which contains all build logic.
-apply from: "../flink_runner.gradle"
+apply from: "$basePath/flink_job_server_container.gradle"
