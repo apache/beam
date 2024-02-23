@@ -239,10 +239,6 @@ public class DataflowExecutionStateTrackerTest {
       assertThat(
           infoLines,
           Matchers.allOf(
-              Matchers.containsString("org.apache.beam.runners.dataflow.worker.StackTraceUtil")));
-      assertThat(
-          infoLines,
-          Matchers.anyOf(
               Matchers.containsString("Thread[backgroundThread,"),
               Matchers.containsString("org.apache.beam.runners.dataflow.worker.StackTraceUtil")));
     } else {
