@@ -15,23 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
-
-import com.google.common.collect.ImmutableMap;
-import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.joda.time.Duration;
-import org.joda.time.Instant;
 
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 final class DispatchedActiveWorkRefresher extends ActiveWorkRefresher {
 
@@ -43,14 +40,21 @@ final class DispatchedActiveWorkRefresher extends ActiveWorkRefresher {
       int stuckCommitDurationMillis,
       Supplier<Collection<ComputationState>> computations,
       DataflowExecutionStateSampler sampler,
-      Consumer<Map<String, List<Windmill.HeartbeatRequest>>> activeWorkRefresherFn) {
-    super(clock, activeWorkRefreshPeriodMillis, stuckCommitDurationMillis, computations, sampler);
+      Consumer<Map<String, List<Windmill.HeartbeatRequest>>> activeWorkRefresherFn,
+      ScheduledExecutorService scheduledExecutorService) {
+    super(
+        clock,
+        activeWorkRefreshPeriodMillis,
+        stuckCommitDurationMillis,
+        computations,
+        sampler,
+        scheduledExecutorService);
     this.activeWorkRefresherFn = activeWorkRefresherFn;
   }
 
   @Override
   protected void refreshActiveWork() {
-    Map<String, ImmutableList<Windmill.HeartbeatRequest>> heartbeats = new HashMap<>();
+    Map<String, List<Windmill.HeartbeatRequest>> heartbeats = new HashMap<>();
     Instant refreshDeadline = clock.get().minus(Duration.millis(activeWorkRefreshPeriodMillis));
 
     for (ComputationState computationState : computations.get()) {
@@ -59,6 +63,6 @@ final class DispatchedActiveWorkRefresher extends ActiveWorkRefresher {
           computationState.getKeyHeartbeats(refreshDeadline, sampler));
     }
 
-    activeWorkRefresherFn.accept(ImmutableMap.copyOf(heartbeats));
+    activeWorkRefresherFn.accept(heartbeats);
   }
 }

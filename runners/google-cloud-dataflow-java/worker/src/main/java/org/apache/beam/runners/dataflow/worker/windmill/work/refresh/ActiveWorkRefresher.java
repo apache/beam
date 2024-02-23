@@ -15,24 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
-import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import java.util.Collection;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.concurrent.ThreadSafe;
-import java.util.Collection;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 
 /**
  * Asynchronously GetData requests to Streaming Engine for all sufficiently old active work and
@@ -57,15 +52,14 @@ public abstract class ActiveWorkRefresher {
       int activeWorkRefreshPeriodMillis,
       int stuckCommitDurationMillis,
       Supplier<Collection<ComputationState>> computations,
-      DataflowExecutionStateSampler sampler) {
+      DataflowExecutionStateSampler sampler,
+      ScheduledExecutorService activeWorkRefreshExecutor) {
     this.clock = clock;
     this.activeWorkRefreshPeriodMillis = activeWorkRefreshPeriodMillis;
     this.stuckCommitDurationMillis = stuckCommitDurationMillis;
     this.computations = computations;
     this.sampler = sampler;
-    this.activeWorkRefreshExecutor =
-        Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder().setNameFormat("RefreshWork").build());
+    this.activeWorkRefreshExecutor = activeWorkRefreshExecutor;
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")

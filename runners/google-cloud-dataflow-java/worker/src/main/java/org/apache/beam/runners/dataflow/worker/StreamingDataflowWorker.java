@@ -469,7 +469,8 @@ public class StreamingDataflowWorker {
             stuckCommitDurationMillis,
             () -> Collections.unmodifiableCollection(computationMap.values()),
             sampler,
-            metricTrackingWindmillServer::refreshActiveWork);
+            metricTrackingWindmillServer::refreshActiveWork,
+            executorSupplier.apply("RefreshWork"));
 
     LOG.debug("windmillServiceEnabled: {}", windmillServiceEnabled);
     LOG.debug("WindmillServiceEndpoint: {}", options.getWindmillServiceEndpoint());
@@ -681,7 +682,6 @@ public class StreamingDataflowWorker {
     }
 
     activeWorkRefresher.start();
-
 
     if (options.getPeriodicStatusPageOutputDirectory() != null) {
       ScheduledExecutorService statusPageTimer = executorSupplier.apply("DumpStatusPages");
