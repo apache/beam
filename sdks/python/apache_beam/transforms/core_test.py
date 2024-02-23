@@ -159,6 +159,16 @@ class FlattenTest(unittest.TestCase):
       out = (source1, source2, source3) | "flatten" >> beam.Flatten()
       assert_that(out, equal_to([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
 
+  def test_flatten_mismatched_windows(self):
+    with beam.testing.test_pipeline.TestPipeline() as p:
+      source1 = p | "c1" >> beam.Create(
+          [1, 2, 3, 4, 5]) | "w1" >> beam.WindowInto(FixedWindows(25))
+      source2 = p | "c2" >> beam.Create([6, 7, 8]) | "w2" >> beam.WindowInto(
+          FixedWindows(100))
+      source3 = p | "c3" >> beam.Create([9, 10]) | "w3" >> beam.WindowInto(
+          FixedWindows(100))
+      _ = (source1, source2, source3) | "flatten" >> beam.Flatten()
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

@@ -3688,9 +3688,11 @@ class Flatten(PTransform):
       self._check_pcollection(pcoll)
       if pcoll.windowing != windowing:
         _LOGGER.warning(
-            f'All input pcollections must have the same window. Windowing for '
-            f'flatten set to {windowing}, windowing of pcoll {pcoll} set to '
-            f'{pcoll.windowing}')
+            'All input pcollections must have the same window. Windowing for '
+            'flatten set to %s, windowing of pcoll %s set to %s',
+            windowing,
+            pcoll,
+            pcoll.windowing)
     is_bounded = all(pcoll.is_bounded for pcoll in pcolls)
     return pvalue.PCollection(self.pipeline, is_bounded=is_bounded)
 
