@@ -3687,7 +3687,7 @@ class Flatten(PTransform):
     for pcoll in pcolls:
       self._check_pcollection(pcoll)
       if pcoll.windowing != windowing:
-        raise ValueError(
+        _LOGGER.warning(
             f'All input pcollections must have the same window. Windowing for '
             f'flatten set to {windowing}, windowing of pcoll {pcoll} set to '
             f'{pcoll.windowing}')
