@@ -3683,8 +3683,14 @@ class Flatten(PTransform):
     return pvalueish, pvalueish
 
   def expand(self, pcolls):
+    windowing = self.get_windowing(pcolls)
     for pcoll in pcolls:
       self._check_pcollection(pcoll)
+      if pcoll.windowing != windowing:
+        raise ValueError(
+            f'All input pcollections must have the same window. Windowing for '
+            f'flatten set to {windowing}, windowing of pcoll {pcoll} set to '
+            f'{pcoll.windowing}')
     is_bounded = all(pcoll.is_bounded for pcoll in pcolls)
     return pvalue.PCollection(self.pipeline, is_bounded=is_bounded)
 
