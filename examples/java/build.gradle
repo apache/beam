@@ -66,6 +66,7 @@ dependencies {
   implementation project(":sdks:java:extensions:python")
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation project(":sdks:java:io:kafka")
+  implementation project(":sdks:java:io:rrio")
   implementation project(":sdks:java:extensions:ml")
   implementation library.java.avro
   implementation library.java.bigdataoss_util
@@ -75,6 +76,7 @@ dependencies {
   implementation library.java.google_auth_library_credentials
   implementation library.java.google_auth_library_oauth2_http
   implementation library.java.google_cloud_datastore_v1_proto_client
+  implementation library.java.google_cloud_vertexai
   implementation library.java.google_code_gson
   implementation library.java.google_http_client
   implementation library.java.google_oauth_client

@@ -1,0 +1,87 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.examples.snippets.transforms.io.webapis;
+
+import static com.google.common.base.Preconditions.checkArgument;
+
+import com.google.api.client.http.GenericUrl;
+import com.google.api.client.http.HttpRequest;
+import com.google.api.client.http.HttpRequestFactory;
+import com.google.api.client.http.HttpResponse;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import java.io.IOException;
+import java.io.InputStream;
+import org.apache.beam.io.requestresponse.Caller;
+import org.apache.beam.io.requestresponse.UserCodeExecutionException;
+import org.apache.beam.io.requestresponse.UserCodeQuotaException;
+import org.apache.beam.io.requestresponse.UserCodeRemoteSystemException;
+import org.apache.beam.io.requestresponse.UserCodeTimeoutException;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
+
+// [START webapis_image_caller]
+
+/** Processes {@link ImageRequest}s into {@link ImageResponse}s. */
+public class HttpImageClient implements Caller<ImageRequest, ImageResponse> {
+
+  private static final int STATUS_TOO_MANY_REQUESTS = 429;
+  private static final int STATUS_TIMEOUT = 408;
+  private static final HttpRequestFactory REQUEST_FACTORY =
+      new NetHttpTransport().createRequestFactory();
+
+  public static HttpImageClient of() {
+    return new HttpImageClient();
+  }
+
+  /**
+   * Invokes an HTTP Get request from {@param request}, returning an {@link ImageResponse}
+   * containing the image data.
+   */
+  @Override
+  public ImageResponse call(ImageRequest request) throws UserCodeExecutionException {
+    checkArgument(request != null);
+    GenericUrl url = new GenericUrl(request.getImageUrl());
+    try {
+      HttpRequest imageRequest = REQUEST_FACTORY.buildGetRequest(url);
+      HttpResponse response = imageRequest.execute();
+      if (response.getStatusCode() >= 500) {
+        throw new UserCodeRemoteSystemException(response.getStatusMessage());
+      }
+      if (response.getStatusCode() >= 400) {
+        switch (response.getStatusCode()) {
+          case STATUS_TOO_MANY_REQUESTS:
+            throw new UserCodeQuotaException(response.getStatusMessage());
+          case STATUS_TIMEOUT:
+            throw new UserCodeTimeoutException(response.getStatusMessage());
+          default:
+            throw new UserCodeExecutionException(response.getStatusMessage());
+        }
+      }
+      InputStream is = response.getContent();
+      byte[] bytes = ByteStreams.toByteArray(is);
+      return ImageResponse.builder()
+          .setMimeType(request.getMimeType())
+          .setData(ByteString.copyFrom(bytes))
+          .build();
+    } catch (IOException e) {
+      throw new UserCodeExecutionException(e);
+    }
+  }
+}
+
+// [END webapis_image_caller]
