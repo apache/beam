@@ -2706,9 +2706,8 @@ class ReadFromBigQuery(PTransform):
       representations,
       see: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
       To learn more about type conversions between BigQuery and Avro, see:
-      https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro\#avro_conversions
-    temp_dataset (``apache_beam.io.gcp.internal.clients.bigquery.\
-        DatasetReference``):
+      https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions
+    temp_dataset (``apache_beam.io.gcp.internal.clients.bigquery.DatasetReference``):
         Temporary dataset reference to use when reading from BigQuery using a
         query. When reading using a query, BigQuery source will create a
         temporary dataset and a temporary table to store the results of the
