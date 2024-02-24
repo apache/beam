@@ -32,6 +32,7 @@ dependencies {
     implementation library.java.google_cloud_vertexai
 
     implementation library.java.slf4j_api
+    implementation library.java.slf4j_simple
     implementation library.java.commons_math3
     implementation 'org.knowm.xchart:xchart:3.8.7'
 

@@ -34,16 +34,21 @@ import java.nio.channels.WritableByteChannel;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.google.protobuf.ByteString;
 import org.apache.beam.io.requestresponse.RequestResponseIO;
 import org.apache.beam.io.requestresponse.Result;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.math3.distribution.NormalDistribution;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.knowm.xchart.BitmapEncoder;
@@ -85,7 +90,7 @@ public class GeminiAIExample {
         pipeline
             .apply("createUrls", Create.of(urls))
             .apply(
-                "buildRequests",
+                ImageRequest.class.getSimpleName(),
                 MapElements.into(TypeDescriptor.of(ImageRequest.class)).via(ImageRequest::of))
             .apply(
                 "executeRequests",
@@ -93,39 +98,24 @@ public class GeminiAIExample {
 
     imageResults.getFailures().apply("imageGetErrors", logErrorOf());
 
-    Result<GenerateContentResponse> result =
-        imageResults
-            .getResponses()
-            .apply(
-                "buildRequests",
-                MapElements.into(TypeDescriptor.of(GenerateContentRequest.class))
-                    .via(
-                        imageResponse -> {
-                          ImageResponse safeResponse = checkStateNotNull(imageResponse);
-                          return GenerateContentRequest.newBuilder()
-                              .addContents(
-                                  Content.newBuilder()
-                                      .setRole("USER")
-                                      .addParts(Part.newBuilder().setText("What is this picture?"))
-                                      .addParts(
-                                          Part.newBuilder()
-                                              .setInlineData(
-                                                  Blob.newBuilder()
-                                                      .setData(safeResponse.getData())
-                                                      .setMimeType(safeResponse.getMimeType())
-                                                      .build())
-                                              .build())
-                                      .build())
-                              .build();
-                        }))
-            .apply(
-                "Ask Gemini AI",
-                RequestResponseIO.ofCallerAndSetupTeardown(
-                    client, SerializableCoder.of(GenerateContentResponse.class)));
-
-    result.getFailures().apply("logErrors", logErrorOf());
-
-    result.getResponses().apply("logResponses", logInfoOf());
+//    Result<KV<GenerateContentRequest, GenerateContentResponse>> result =
+//        imageResults
+//            .getResponses()
+//            .apply(
+//                    GenerateContentRequest.class.getSimpleName(),
+//                MapElements.into(TypeDescriptor.of(GenerateContentRequest.class))
+//                    .via(
+//                        imageResponse -> {
+//                          ImageResponse safeResponse = checkStateNotNull(imageResponse);
+//                          return buildRequest("What is this image?", safeResponse.getData(), safeResponse.getMimeType());
+//                        }))
+//            .apply(
+//                "Ask Gemini AI",
+//                RequestResponseIO.ofCallerAndSetupTeardown(client, KvCoder.of(GenerateContentRequestCoder.of(), GenerateContentResponseCoder.of())));
+//
+//    result.getFailures().apply("logErrors", logErrorOf());
+//
+//    result.getResponses().apply("logResponses", logInfoOf());
 
     pipeline.run();
   }
@@ -186,9 +176,9 @@ public class GeminiAIExample {
 
   // [END webapis_gemini_stats]
 
-  private static <T> ParDo.SingleOutput<T, T> logErrorOf() {
-    return ParDo.of(new LogErrorFn<>());
-  }
+//  private static <T> ParDo.SingleOutput<T, T> logErrorOf() {
+//    return ParDo.of(new LogErrorFn<>());
+//  }
 
   private static <T> ParDo.SingleOutput<T, T> logInfoOf() {
     return ParDo.of(new LogInfoFn<>());
@@ -208,6 +198,24 @@ public class GeminiAIExample {
       LOG.info("{}: {}", Instant.now(), element);
       receiver.output(element);
     }
+  }
+
+  private static GenerateContentRequest buildRequest(String prompt, ByteString data, String mimeType) {
+    return GenerateContentRequest.newBuilder()
+            .addContents(
+                    Content.newBuilder()
+                            .setRole("USER")
+                            .addParts(Part.newBuilder().setText(prompt))
+                            .addParts(
+                                    Part.newBuilder()
+                                            .setInlineData(
+                                                    Blob.newBuilder()
+                                                            .setData(data)
+                                                            .setMimeType(mimeType)
+                                                            .build())
+                                            .build())
+                            .build())
+            .build();
   }
 }
 

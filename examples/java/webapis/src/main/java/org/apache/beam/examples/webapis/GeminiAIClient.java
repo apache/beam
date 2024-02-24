@@ -29,13 +29,15 @@ import java.util.Optional;
 import org.apache.beam.io.requestresponse.Caller;
 import org.apache.beam.io.requestresponse.SetupTeardown;
 import org.apache.beam.io.requestresponse.UserCodeExecutionException;
+import org.apache.beam.sdk.values.KV;
+import org.apache.commons.lang3.tuple.Pair;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 // [START webapis_gemini_ai_client]
 
 @AutoValue
 public abstract class GeminiAIClient
-    implements Caller<GenerateContentRequest, GenerateContentResponse>, SetupTeardown {
+    implements Caller<GenerateContentRequest, KV<GenerateContentRequest, GenerateContentResponse>>, SetupTeardown {
 
   public static Builder builder() {
     return new AutoValue_GeminiAIClient.Builder();
@@ -48,7 +50,7 @@ public abstract class GeminiAIClient
   private transient @MonotonicNonNull GenerativeModel client;
 
   @Override
-  public GenerateContentResponse call(GenerateContentRequest request)
+  public KV<GenerateContentRequest, GenerateContentResponse> call(GenerateContentRequest request)
       throws UserCodeExecutionException {
     if (request == null) {
       throw new UserCodeExecutionException("request is empty");
@@ -57,7 +59,8 @@ public abstract class GeminiAIClient
       throw new UserCodeExecutionException("contentsList is empty");
     }
     try {
-      return checkStateNotNull(client).generateContent(request.getContentsList());
+      GenerateContentResponse response = checkStateNotNull(client).generateContent(request.getContentsList());
+      return KV.of(request, response);
     } catch (IOException e) {
       throw new UserCodeExecutionException(e);
     }
