@@ -472,6 +472,7 @@ public class StreamingDataflowWorker {
 
   @VisibleForTesting
   static StreamingDataflowWorker forTesting(
+      ConcurrentMap<String, ComputationState> computationMap,
       WindmillServerStub windmillServer,
       List<MapTask> mapTasks,
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
@@ -483,12 +484,12 @@ public class StreamingDataflowWorker {
       Function<String, ScheduledExecutorService> executorSupplier) {
     BoundedQueueExecutor boundedQueueExecutor = createWorkUnitExecutor(options);
     WindmillStateCache stateCache = new WindmillStateCache(options.getWorkerCacheMb());
-    ConcurrentMap<String, ComputationState> computations =
-        createComputationMapForTesting(mapTasks, boundedQueueExecutor, stateCache::forComputation);
+    computationMap.putAll(
+        createComputationMapForTesting(mapTasks, boundedQueueExecutor, stateCache::forComputation));
     return new StreamingDataflowWorker(
         windmillServer,
         1L,
-        computations,
+        computationMap,
         stateCache,
         boundedQueueExecutor,
         mapTaskExecutorFactory,

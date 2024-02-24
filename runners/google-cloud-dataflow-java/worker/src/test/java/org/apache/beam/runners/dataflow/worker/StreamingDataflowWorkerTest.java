@@ -798,6 +798,7 @@ public class StreamingDataflowWorkerTest {
       Function<String, ScheduledExecutorService> executorSupplier) {
     StreamingDataflowWorker worker =
         StreamingDataflowWorker.forTesting(
+            computationMap,
             server,
             Collections.singletonList(defaultMapTask(instructions)),
             IntrinsicMapTaskExecutorFactory.defaultFactory(),
