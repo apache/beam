@@ -10,8 +10,11 @@ import org.apache.beam.sdk.io.DynamicFileDestinations;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.transforms.SerializableBiConsumer;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
+import org.apache.iceberg.DataFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.avro.Avro;
@@ -24,6 +27,7 @@ import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.io.PositionOutputStream;
+import org.apache.iceberg.io.SeekableInputStream;
 import org.apache.iceberg.orc.ORC;
 import org.apache.iceberg.parquet.Parquet;
 import org.apache.log4j.Logger;
@@ -37,6 +41,8 @@ public class IcebergSink extends FileBasedSink<Row,Void,Row> {
   String tableId;
 
   Iceberg.WriteFormat format;
+
+  SerializableBiConsumer<String,KV<DataFile,ResourceId>> metadataFn;
 
   private static ValueProvider<ResourceId> constantResourceId(String value) {
     final ResourceId resource = FileBasedSink.convertToFileResourceIfPossible(value);
@@ -53,21 +59,28 @@ public class IcebergSink extends FileBasedSink<Row,Void,Row> {
     };
   }
 
+  private static String tableLocation(Iceberg.Catalog catalog,String tableId) {
+    return catalog.catalog().loadTable(TableIdentifier.parse(tableId)).location();
+  }
+
 
   public IcebergSink(
       Iceberg.Catalog catalog,
       String tableId,
-      Iceberg.WriteFormat format) {
+      Iceberg.WriteFormat format,
+      SerializableBiConsumer<String, KV<DataFile,ResourceId>> metadataFn) {
+
     super(
-        constantResourceId(catalog.getWarehouseLocation()),
+        constantResourceId(tableLocation(catalog,tableId)),
         DynamicFileDestinations.constant(DefaultFilenamePolicy.fromStandardParameters(
-            constantResourceId(tableId),
+            constantResourceId(tableLocation(catalog,tableId)),
             DefaultFilenamePolicy.DEFAULT_WINDOWED_SHARD_TEMPLATE,
             "",false)
         ));
     this.catalog = catalog;
     this.tableId = tableId;
     this.format = format;
+    this.metadataFn = metadataFn;
   }
 
   public Table getTable() {
@@ -126,20 +139,20 @@ public class IcebergSink extends FileBasedSink<Row,Void,Row> {
       baseRecord = GenericRecord.create(t.schema());
       switch(((IcebergWriteOperation)getWriteOperation()).getFormat()) {
         case AVRO:
-          appender = Avro.writeData(new IcebergOutputFile(channel))
+          appender = Avro.writeData(new IcebergOutputFile(getOutputFile(),channel))
               .schema(t.schema())
               .withSpec(PartitionSpec.unpartitioned())
               .overwrite().build();
           break;
         case PARQUET:
-          appender = Parquet.writeData(new IcebergOutputFile(channel))
+          appender = Parquet.writeData(new IcebergOutputFile(getOutputFile(),channel))
               .createWriterFunc(GenericParquetWriter::buildWriter)
               .schema(t.schema())
               .withSpec(PartitionSpec.unpartitioned())
               .overwrite().build();
           break;
         case ORC:
-          appender = ORC.writeData(new IcebergOutputFile(channel))
+          appender = ORC.writeData(new IcebergOutputFile(getOutputFile(),channel))
               .createWriterFunc(GenericOrcWriter::buildWriter)
               .schema(t.schema())
               .withSpec(PartitionSpec.unpartitioned())
@@ -170,12 +183,43 @@ public class IcebergSink extends FileBasedSink<Row,Void,Row> {
     }
   }
 
+
+
+  private static class IcebergDummyInputfile implements InputFile {
+
+    IcebergOutputFile source;
+    public IcebergDummyInputfile(IcebergOutputFile source) {
+      this.source = source;
+    }
+
+    @Override
+    public long getLength() {
+      return 0;
+    }
+
+    @Override
+    public SeekableInputStream newStream() {
+      return null;
+    }
+
+    @Override
+    public String location() {
+      return source.location();
+    }
+
+    @Override
+    public boolean exists() {
+      return true;
+    }
+  }
+
   private static class IcebergOutputFile implements OutputFile {
 
     WritableByteChannel channel;
     ResourceId location;
 
-    private IcebergOutputFile(WritableByteChannel channel) {
+    private IcebergOutputFile(ResourceId location,WritableByteChannel channel) {
+      this.location = location;
       this.channel = channel;
     }
 
@@ -211,12 +255,12 @@ public class IcebergSink extends FileBasedSink<Row,Void,Row> {
 
     @Override
     public String location() {
-      return "";
+      return location.toString();
     }
 
     @Override
     public InputFile toInputFile() {
-      return null;
+      return new IcebergDummyInputfile(this);
     }
   }
 

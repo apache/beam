@@ -3,9 +3,15 @@ package org.apache.beam.io.iceberg;
 import org.apache.beam.io.iceberg.Iceberg.WriteFormat;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.WriteFilesResult;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Impulse;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.DataFile;
 import org.apache.iceberg.Table;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -33,6 +39,10 @@ public class SinkTests {
   public void testSimpleAppend() throws Exception {
     //Create a table and add records to it.
     Table table = warehouse.createTable(TestFixtures.SCHEMA);
+    TupleTag<KV<DataFile, ResourceId>> metadataTag = new TupleTag<>();
+
+
+
     LOG.info("Table created. Making pipeline");
     WriteFilesResult<Void> output = testPipeline
         .apply("Records To Add",
