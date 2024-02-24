@@ -14,7 +14,7 @@ Apache Beam lets you efficiently inference on local and remote ML models in your
 
 To import models you need to configure the a `ModelHandler` object that wraps the underlying model. The `ModelHandler` allows you to set environment variables needed for inference.
 
-Following is an example importing a model handler to use in your pipeline:
+Following is an example importing a `Pytorch` model handler to use in your pipeline:
 
 ```python
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor

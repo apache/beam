@@ -1,5 +1,5 @@
 Prompt:
-How can I use remote inference calls in my Apache Beam pipeline?
+How can I use custom remote inference calls in my Apache Beam pipeline?
 
 Response:
 The preferred way to run inference in an Apache Beam pipeline is to use the [RunInference API](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.html#apache_beam.ml.inference.RunInference) provided by the Apache Beam SDK. It enables you to run models as part of your pipeline or perform remote inference calls.
