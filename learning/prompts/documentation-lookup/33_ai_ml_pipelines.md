@@ -2,7 +2,10 @@ Prompt:
 How can I use Apache Beam in my AI/ML pipeline?
 
 Response:
-You can use Apache Beam for data ingestion, validation, preprocessing, and inference.
+Apache Beam is an open source, unified programming model for defining both batch and streaming data-parallel processing pipelines.Each Apache Beam pipeline is a Directed Acyclic Graph (DAG) of data processing operations constructed using Apache Beam SDK in one of the [supported languages](https://beam.apache.org/documentation/sdks/java/).
+To run a pipeline you need to deploy it to one of the supported [Beam runners](https://beam.apache.org/documentation/runners/capability-matrix/).
+
+You can use Apache Beam for various tasks within your AI/ML pipeline, including data validation, preprocessing, model validation, and model deployment and inference.
 
 Apache Beam offers a rich set of [I/O connectors](https://beam.apache.org/documentation/io/connectors/) and [transforms](https://beam.apache.org/documentation/transforms/python/) that allow for reading and writing data from and to various data sources and sinks, as well as performing data validation.
 
