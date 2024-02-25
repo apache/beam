@@ -22,31 +22,34 @@ import com.google.protobuf.ByteString;
 import java.io.Serializable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 // [START webapis_image_response]
 
 /** An HTTP response of an image request. */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-public abstract class ImageResponse implements Serializable {
+abstract class ImageResponse implements Serializable {
 
-  public static Builder builder() {
+  static TypeDescriptor<ImageResponse> TYPE = TypeDescriptor.of(ImageResponse.class);
+
+  static Builder builder() {
     return new AutoValue_ImageResponse.Builder();
   }
 
   /** The MIME type of the response payload. */
-  public abstract String getMimeType();
+  abstract String getMimeType();
 
   /** The payload of the response containing the image data. */
-  public abstract ByteString getData();
+  abstract ByteString getData();
 
   @AutoValue.Builder
-  public abstract static class Builder {
-    public abstract Builder setMimeType(String value);
+  abstract static class Builder {
+    abstract Builder setMimeType(String value);
 
-    public abstract Builder setData(ByteString value);
+    abstract Builder setData(ByteString value);
 
-    public abstract ImageResponse build();
+    abstract ImageResponse build();
   }
 }
 

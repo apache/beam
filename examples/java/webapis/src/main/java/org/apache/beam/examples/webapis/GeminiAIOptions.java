@@ -17,24 +17,18 @@
  */
 package org.apache.beam.examples.webapis;
 
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;
 
 /**
  * Options for use with the {@link GeminiAIClient} to make API calls to Google Cloud Vertex AI using
  * {@link com.google.cloud.vertexai.generativeai.GenerativeModel}.
  */
-public interface GeminiAIOptions extends PipelineOptions {
+public interface GeminiAIOptions extends GcpOptions {
   @Description("Location of model")
   @Validation.Required
   String getLocation();
 
   void setLocation(String value);
-
-  @Description("ProjectId of model")
-  @Validation.Required
-  String getProjectId();
-
-  void setProjectId(String value);
 }

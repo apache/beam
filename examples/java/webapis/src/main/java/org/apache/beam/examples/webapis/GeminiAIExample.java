@@ -17,52 +17,34 @@
  */
 package org.apache.beam.examples.webapis;
 
-// [START webapis_using_client_code]
-
 import static org.apache.beam.examples.webapis.GeminiAIClient.MODEL_GEMINI_PRO_VISION;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.vertexai.api.Blob;
 import com.google.cloud.vertexai.api.Content;
 import com.google.cloud.vertexai.api.GenerateContentRequest;
 import com.google.cloud.vertexai.api.GenerateContentResponse;
 import com.google.cloud.vertexai.api.Part;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.WritableByteChannel;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Struct;
+import java.util.List;
 import org.apache.beam.io.requestresponse.RequestResponseIO;
 import org.apache.beam.io.requestresponse.Result;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.io.FileIO;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.math3.distribution.NormalDistribution;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
-import org.knowm.xchart.BitmapEncoder;
-import org.knowm.xchart.QuickChart;
-import org.knowm.xchart.XYChart;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
-public class GeminiAIExample {
+@SuppressWarnings({"unused"})
+class GeminiAIExample {
 
-  private static final Logger LOG = LoggerFactory.getLogger(GeminiAIExample.class);
+//  [START webapis_identify_image]
 
-  // [START webapis_gemini_id_image]
-  public static void whatIsThisImage(List<String> urls, GeminiAIOptions options) {
+  static void whatIsThisImage(List<String> urls, GeminiAIOptions options) {
     //        GeminiAIOptions options = PipelineOptionsFactory.create().as(GeminiAIOptions.class);
     //        options.setLocation("us-central1");
     //        options.setProjectId("your-google-cloud-project-id");
@@ -79,144 +61,113 @@ public class GeminiAIExample {
 
     GeminiAIClient client =
         GeminiAIClient.builder()
-            .setProjectId(options.getProjectId())
+            .setProjectId(options.getProject())
             .setLocation(options.getLocation())
             .setModelName(MODEL_GEMINI_PRO_VISION)
             .build();
 
     Pipeline pipeline = Pipeline.create(options);
 
-    Result<ImageResponse> imageResults =
-        pipeline
-            .apply("createUrls", Create.of(urls))
-            .apply(
-                ImageRequest.class.getSimpleName(),
-                MapElements.into(TypeDescriptor.of(ImageRequest.class)).via(ImageRequest::of))
-            .apply(
-                "executeRequests",
-                RequestResponseIO.of(HttpImageClient.of(), ImageResponseCoder.of()));
+    Result<KV<Struct, ImageResponse>> getImagesResult = Images.imagesOf(urls, pipeline);
 
-    imageResults.getFailures().apply("imageGetErrors", logErrorOf());
+    getImagesResult.getFailures().apply("Log get images errors", Log.errorOf());
 
-//    Result<KV<GenerateContentRequest, GenerateContentResponse>> result =
-//        imageResults
-//            .getResponses()
-//            .apply(
-//                    GenerateContentRequest.class.getSimpleName(),
-//                MapElements.into(TypeDescriptor.of(GenerateContentRequest.class))
-//                    .via(
-//                        imageResponse -> {
-//                          ImageResponse safeResponse = checkStateNotNull(imageResponse);
-//                          return buildRequest("What is this image?", safeResponse.getData(), safeResponse.getMimeType());
-//                        }))
-//            .apply(
-//                "Ask Gemini AI",
-//                RequestResponseIO.ofCallerAndSetupTeardown(client, KvCoder.of(GenerateContentRequestCoder.of(), GenerateContentResponseCoder.of())));
-//
-//    result.getFailures().apply("logErrors", logErrorOf());
-//
-//    result.getResponses().apply("logResponses", logInfoOf());
+    PCollection<KV<Struct, GenerateContentRequest>> requests =
+        buildAIRequests("Identify Image", "What is this picture?", getImagesResult.getResponses());
+
+    Result<KV<Struct, GenerateContentResponse>> responses = askAI(client, requests);
+
+    responses.getFailures().apply("Log AI errors", Log.errorOf());
+
+    responses.getResponses().apply("Log AI answers", Log.infoOf());
 
     pipeline.run();
   }
 
-  // [END webapis_gemini_id_image]
+  //  [END webapis_identify_image]
 
-  // [START webapis_gemini_stats]
+  private static Result<KV<Struct, GenerateContentResponse>> askAI(
+      GeminiAIClient client, PCollection<KV<Struct, GenerateContentRequest>> requestKV) {
 
-  public static void identifyStats(GeminiAIOptions options) throws IOException {
-    //        GeminiAIOptions options = PipelineOptionsFactory.create().as(GeminiAIOptions.class);
-    //        options.setLocation("us-central1");
-    //        options.setProjectId("your-google-cloud-project-id");
+    KvCoder<Struct, GenerateContentRequest> requestCoder =
+        (KvCoder<Struct, GenerateContentRequest>) requestKV.getCoder();
 
-    Pipeline pipeline = Pipeline.create(options);
+    StructCoder keyCoder = (StructCoder) requestCoder.getKeyCoder();
 
-    NormalDistribution normalDistribution = new NormalDistribution(10.0, 1.0);
+    KvCoder<Struct, GenerateContentResponse> responseCoder =
+        KvCoder.of(keyCoder, GenerateContentResponseCoder.of());
 
-    List<Double> x = new ArrayList<>();
-    List<Double> y = new ArrayList<>();
+    // [START webapis_ask_ai]
 
-    for (double i = 0; i <= 20; i++) {
-      x.add(i);
-      y.add(normalDistribution.density(i));
-    }
-    XYChart chart = QuickChart.getChart("_", "_", "_", "_", x, y);
-    byte[] data = BitmapEncoder.getBitmapBytes(chart, BitmapEncoder.BitmapFormat.PNG);
-    pipeline
-        .apply("data", Create.of(data))
-        .apply("save", FileIO.<byte[]>write().to("/tmp/chart").via(new ImageSink()));
+//    PCollection<KV<Struct, GenerateContentRequest>> requestKV = ...
+//    GeminiAIClient client =
+//            GeminiAIClient.builder()
+//                    .setProjectId(options.getProject())
+//                    .setLocation(options.getLocation())
+//                    .setModelName(MODEL_GEMINI_PRO_VISION)
+//                    .build();
 
-    //    GeminiAIClient client = GeminiAIClient.builder()
-    //            .setLocation(options.getLocation())
-    //            .setProjectId(options.getProjectId())
-    //            .build();
+    return requestKV.apply(
+        "Ask Gemini AI", RequestResponseIO.ofCallerAndSetupTeardown(client, responseCoder));
 
-    pipeline.run();
+    // [END webapis_ask_ai]
   }
 
-  private static class ImageSink implements FileIO.Sink<byte[]> {
 
-    private @MonotonicNonNull WritableByteChannel channel;
 
-    @Override
-    public void open(WritableByteChannel channel) throws IOException {
-      this.channel = channel;
-    }
+  private static PCollection<KV<Struct, GenerateContentRequest>> buildAIRequests(
+      String stepName, String prompt, PCollection<KV<Struct, ImageResponse>> imagesKV) {
 
-    @Override
-    public void write(byte[] element) throws IOException {
-      WritableByteChannel safeChannel = checkStateNotNull(channel);
-      checkState(safeChannel.isOpen());
-      safeChannel.write(ByteBuffer.wrap(element));
-    }
+    KvCoder<Struct, ImageResponse> imagesKVCoder =
+        (KvCoder<Struct, ImageResponse>) imagesKV.getCoder();
 
-    @Override
-    public void flush() throws IOException {}
+    StructCoder keyCoder = (StructCoder) imagesKVCoder.getKeyCoder();
+
+    Coder<KV<Struct, GenerateContentRequest>> kvCoder =
+        KvCoder.of(keyCoder, GenerateContentRequestCoder.of());
+
+    TypeDescriptor<Struct> structType = TypeDescriptor.of(Struct.class);
+    TypeDescriptor<GenerateContentRequest> requestType =
+        TypeDescriptor.of(GenerateContentRequest.class);
+
+    TypeDescriptor<KV<Struct, GenerateContentRequest>> requestKVType =
+        TypeDescriptors.kvs(structType, requestType);
+
+    // [START webapis_build_ai_requests]
+
+    // PCollection<KV<Struct, ImageResponse>> imagesKV = ...
+
+    return imagesKV
+        .apply(
+            stepName,
+            MapElements.into(requestKVType)
+                .via(
+                    kv -> {
+                      Struct key = kv.getKey();
+                      ImageResponse safeResponse = checkStateNotNull(kv.getValue());
+                      return buildAIRequest(
+                          key, prompt, safeResponse.getData(), safeResponse.getMimeType());
+                    }))
+        .setCoder(kvCoder);
+
+    // [END webapis_build_ai_requests]
   }
 
-  // [END webapis_gemini_stats]
-
-//  private static <T> ParDo.SingleOutput<T, T> logErrorOf() {
-//    return ParDo.of(new LogErrorFn<>());
-//  }
-
-  private static <T> ParDo.SingleOutput<T, T> logInfoOf() {
-    return ParDo.of(new LogInfoFn<>());
-  }
-
-  private static class LogErrorFn<T> extends DoFn<T, T> {
-    @ProcessElement
-    public void process(@Element T element, OutputReceiver<T> receiver) {
-      LOG.error("{}: {}", Instant.now(), element);
-      receiver.output(element);
-    }
-  }
-
-  private static class LogInfoFn<T> extends DoFn<T, T> {
-    @ProcessElement
-    public void process(@Element T element, OutputReceiver<T> receiver) {
-      LOG.info("{}: {}", Instant.now(), element);
-      receiver.output(element);
-    }
-  }
-
-  private static GenerateContentRequest buildRequest(String prompt, ByteString data, String mimeType) {
-    return GenerateContentRequest.newBuilder()
+  private static KV<Struct, GenerateContentRequest> buildAIRequest(
+      Struct key, String prompt, ByteString data, String mimeType) {
+    return KV.of(
+        key,
+        GenerateContentRequest.newBuilder()
             .addContents(
-                    Content.newBuilder()
-                            .setRole("USER")
-                            .addParts(Part.newBuilder().setText(prompt))
-                            .addParts(
-                                    Part.newBuilder()
-                                            .setInlineData(
-                                                    Blob.newBuilder()
-                                                            .setData(data)
-                                                            .setMimeType(mimeType)
-                                                            .build())
-                                            .build())
+                Content.newBuilder()
+                    .setRole("USER")
+                    .addParts(Part.newBuilder().setText(prompt))
+                    .addParts(
+                        Part.newBuilder()
+                            .setInlineData(
+                                Blob.newBuilder().setData(data).setMimeType(mimeType).build())
                             .build())
-            .build();
+                    .build())
+            .build());
   }
 }
-
-// [END webapis_using_client_code]

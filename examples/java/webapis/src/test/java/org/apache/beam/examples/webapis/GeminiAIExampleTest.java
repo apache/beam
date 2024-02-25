@@ -18,7 +18,6 @@
 package org.apache.beam.examples.webapis;
 
 import com.google.common.collect.ImmutableList;
-import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
@@ -33,7 +32,9 @@ public class GeminiAIExampleTest {
 
   static {
     OPTIONS.setLocation("us-central1");
-    OPTIONS.setProjectId("apache-beam-testing");
+    if (OPTIONS.getProject() == null || OPTIONS.getProject().isEmpty()) {
+      OPTIONS.setProject("apache-beam-testing");
+    }
   }
 
   @Test
@@ -47,10 +48,5 @@ public class GeminiAIExampleTest {
             "https://storage.googleapis.com/generativeai-downloads/images/factory.png",
             "https://storage.googleapis.com/generativeai-downloads/images/scones.jpg");
     GeminiAIExample.whatIsThisImage(urls, OPTIONS);
-  }
-
-  @Test
-  public void testIdentifyStats() throws IOException {
-    GeminiAIExample.identifyStats(OPTIONS);
   }
 }

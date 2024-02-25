@@ -27,7 +27,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
-public class ImageResponseCoder extends CustomCoder<ImageResponse> {
+class ImageResponseCoder extends CustomCoder<ImageResponse> {
   public static ImageResponseCoder of() {
     return new ImageResponseCoder();
   }

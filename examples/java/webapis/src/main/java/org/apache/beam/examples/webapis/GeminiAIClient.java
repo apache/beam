@@ -24,43 +24,50 @@ import com.google.cloud.vertexai.VertexAI;
 import com.google.cloud.vertexai.api.GenerateContentRequest;
 import com.google.cloud.vertexai.api.GenerateContentResponse;
 import com.google.cloud.vertexai.generativeai.GenerativeModel;
+import com.google.protobuf.Struct;
 import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.io.requestresponse.Caller;
 import org.apache.beam.io.requestresponse.SetupTeardown;
 import org.apache.beam.io.requestresponse.UserCodeExecutionException;
 import org.apache.beam.sdk.values.KV;
-import org.apache.commons.lang3.tuple.Pair;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 // [START webapis_gemini_ai_client]
 
 @AutoValue
-public abstract class GeminiAIClient
-    implements Caller<GenerateContentRequest, KV<GenerateContentRequest, GenerateContentResponse>>, SetupTeardown {
+abstract class GeminiAIClient
+    implements Caller<KV<Struct, GenerateContentRequest>, KV<Struct, GenerateContentResponse>>,
+        SetupTeardown {
 
-  public static Builder builder() {
+  static Builder builder() {
     return new AutoValue_GeminiAIClient.Builder();
   }
 
-  public static final String MODEL_GEMINI_PRO = "gemini-pro";
-  public static final String MODEL_GEMINI_PRO_VISION = "gemini-pro-vision";
+  static final String MODEL_GEMINI_PRO = "gemini-pro";
+  static final String MODEL_GEMINI_PRO_VISION = "gemini-pro-vision";
 
   private transient @MonotonicNonNull VertexAI vertexAI;
   private transient @MonotonicNonNull GenerativeModel client;
 
   @Override
-  public KV<GenerateContentRequest, GenerateContentResponse> call(GenerateContentRequest request)
+  public KV<Struct, GenerateContentResponse> call(KV<Struct, GenerateContentRequest> requestKV)
       throws UserCodeExecutionException {
+
+    Struct key = requestKV.getKey();
+    GenerateContentRequest request = requestKV.getValue();
+
     if (request == null) {
       throw new UserCodeExecutionException("request is empty");
     }
+
     if (request.getContentsList().isEmpty()) {
       throw new UserCodeExecutionException("contentsList is empty");
     }
     try {
-      GenerateContentResponse response = checkStateNotNull(client).generateContent(request.getContentsList());
-      return KV.of(request, response);
+      GenerateContentResponse response =
+          checkStateNotNull(client).generateContent(request.getContentsList());
+      return KV.of(key, response);
     } catch (IOException e) {
       throw new UserCodeExecutionException(e);
     }
@@ -79,26 +86,26 @@ public abstract class GeminiAIClient
     }
   }
 
-  public abstract String getModelName();
+  abstract String getModelName();
 
-  public abstract String getProjectId();
+  abstract String getProjectId();
 
-  public abstract String getLocation();
+  abstract String getLocation();
 
   @AutoValue.Builder
-  public abstract static class Builder {
+  abstract static class Builder {
 
-    public abstract Builder setModelName(String name);
+    abstract Builder setModelName(String name);
 
     abstract Optional<String> getModelName();
 
-    public abstract Builder setProjectId(String value);
+    abstract Builder setProjectId(String value);
 
-    public abstract Builder setLocation(String value);
+    abstract Builder setLocation(String value);
 
     abstract GeminiAIClient autoBuild();
 
-    public final GeminiAIClient build() {
+    final GeminiAIClient build() {
       if (!getModelName().isPresent()) {
         setModelName(MODEL_GEMINI_PRO);
       }

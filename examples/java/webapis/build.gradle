@@ -26,6 +26,7 @@ ext.summary = "Examples how to read from and write to Web APIs"
 
 dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(":sdks:java:extensions:google-cloud-platform-core")
     implementation project(":sdks:java:io:rrio")
 
     implementation platform(library.java.google_cloud_platform_libraries_bom)
@@ -33,8 +34,6 @@ dependencies {
 
     implementation library.java.slf4j_api
     implementation library.java.slf4j_simple
-    implementation library.java.commons_math3
-    implementation 'org.knowm.xchart:xchart:3.8.7'
 
     runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 

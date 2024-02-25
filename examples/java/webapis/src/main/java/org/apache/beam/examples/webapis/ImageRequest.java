@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.compress.utils.FileNameUtils;
 
@@ -30,7 +31,8 @@ import org.apache.commons.compress.utils.FileNameUtils;
 /** An HTTP request for an image. */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-public abstract class ImageRequest implements Serializable {
+abstract class ImageRequest implements Serializable {
+  static TypeDescriptor<ImageRequest> TYPE = TypeDescriptor.of(ImageRequest.class);
   private static final Map<String, String> EXT_MIMETYPE_MAP =
       ImmutableMap.of(
           "jpg", "image/jpeg",
@@ -47,28 +49,28 @@ public abstract class ImageRequest implements Serializable {
     return EXT_MIMETYPE_MAP.get(ext);
   }
 
-  public static Builder builder() {
+  static Builder builder() {
     return new AutoValue_ImageRequest.Builder();
   }
 
   /** Build an {@link ImageRequest} from a {@param url}. */
-  public static ImageRequest of(String url) {
+  static ImageRequest of(String url) {
     return builder().setImageUrl(url).setMimeType(mimeTypeOf(url)).build();
   }
 
   /** The URL of the image request. */
-  public abstract String getImageUrl();
+  abstract String getImageUrl();
 
   /** The MIME type of the image request. */
-  public abstract String getMimeType();
+  abstract String getMimeType();
 
   @AutoValue.Builder
-  public abstract static class Builder {
-    public abstract Builder setImageUrl(String value);
+  abstract static class Builder {
+    abstract Builder setImageUrl(String value);
 
-    public abstract Builder setMimeType(String value);
+    abstract Builder setMimeType(String value);
 
-    public abstract ImageRequest build();
+    abstract ImageRequest build();
   }
 }
 

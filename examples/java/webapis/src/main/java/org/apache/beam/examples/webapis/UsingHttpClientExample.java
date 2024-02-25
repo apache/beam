@@ -17,24 +17,21 @@
  */
 package org.apache.beam.examples.webapis;
 
+import com.google.protobuf.Struct;
 import java.util.List;
-import org.apache.beam.io.requestresponse.ApiIOError;
 import org.apache.beam.io.requestresponse.RequestResponseIO;
 import org.apache.beam.io.requestresponse.Result;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 
 /** Example demonstrating reading from Web APIs GET endpoint using {@link RequestResponseIO}. */
-public class UsingHttpClientExample {
+class UsingHttpClientExample {
 
-  // [START webapis_read_from_get_endpoint]
+  // [START webapis_http_get]
 
-  public static Result<ImageResponse> readFromGetEndpointExample(
-      List<String> urls, Pipeline pipeline) {
+  static void readFromGetEndpointExample(List<String> urls, Pipeline pipeline) {
     //        Pipeline pipeline = Pipeline.create();
     //        List<String> urls = ImmutableList.of(
     //                "https://storage.googleapis.com/generativeai-downloads/images/cake.jpg",
@@ -45,43 +42,20 @@ public class UsingHttpClientExample {
     //                "https://storage.googleapis.com/generativeai-downloads/images/scones.jpg"
     //        );
 
-    return pipeline
-        .apply("createUrls", Create.of(urls))
-        .apply(
-            "buildRequests",
-            MapElements.into(TypeDescriptor.of(ImageRequest.class)).via(ImageRequest::of))
-        .apply(
-            "executeRequests", RequestResponseIO.of(HttpImageClient.of(), ImageResponseCoder.of()));
-  }
-  // [END webapis_read_from_get_endpoint]
+    PCollection<KV<Struct, ImageRequest>> requests = Images.requestsOf(urls, pipeline);
 
-  // [START webapis_handle_result]
+    KvCoder<Struct, ImageResponse> responseCoder =
+        KvCoder.of(Images.URL_STRUCT_CODER, ImageResponseCoder.of());
 
-  public static void handleResult(Result<ImageResponse> result) {
-    result
-        .getResponses()
-        .apply(
-            "responses",
-            ParDo.of(
-                new DoFn<ImageResponse, Void>() {
-                  @ProcessElement
-                  public void process(@Element ImageResponse response) {
-                    // Do something with response
-                  }
-                }));
+    Result<KV<Struct, ImageResponse>> result =
+        requests.apply(
+            ImageResponse.class.getSimpleName(),
+            RequestResponseIO.of(HttpImageClient.of(), responseCoder));
 
-    result
-        .getFailures()
-        .apply(
-            "errors",
-            ParDo.of(
-                new DoFn<ApiIOError, Void>() {
-                  @ProcessElement
-                  public void process(@Element ApiIOError error) {
-                    // Do something with error
-                  }
-                }));
+    result.getFailures().apply("logErrors", Log.errorOf());
+
+    Images.displayOf(result.getResponses()).apply("logResponses", Log.infoOf());
   }
 
-  // [END webapis_handle_result]
+  // [END webapis_http_get]
 }

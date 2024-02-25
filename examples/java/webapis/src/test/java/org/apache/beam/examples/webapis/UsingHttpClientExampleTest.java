@@ -19,13 +19,7 @@ package org.apache.beam.examples.webapis;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
-import org.apache.beam.io.requestresponse.Result;
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Count;
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.Matchers;
-import org.junit.Rule;
+import org.apache.beam.sdk.Pipeline;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -33,10 +27,10 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link UsingHttpClientExample}. */
 @RunWith(JUnit4.class)
 public class UsingHttpClientExampleTest {
-  @Rule public final TestPipeline pipeline = TestPipeline.create();
-
   @Test
   public void testReadFromGetEndpointExample() {
+    Pipeline pipeline = Pipeline.create();
+
     List<String> urls =
         ImmutableList.of(
             "https://storage.googleapis.com/generativeai-downloads/images/cake.jpg",
@@ -45,19 +39,7 @@ public class UsingHttpClientExampleTest {
             "https://storage.googleapis.com/generativeai-downloads/images/dog_form.jpg",
             "https://storage.googleapis.com/generativeai-downloads/images/factory.png",
             "https://storage.googleapis.com/generativeai-downloads/images/scones.jpg");
-    Result<ImageResponse> result =
-        UsingHttpClientExample.readFromGetEndpointExample(urls, pipeline);
-    PAssert.that(result.getFailures()).empty();
-    PAssert.thatSingleton(result.getResponses().apply(Count.globally())).notEqualTo(0L);
-    PAssert.that(result.getResponses())
-        .satisfies(
-            itr -> {
-              for (ImageResponse response : itr) {
-                MatcherAssert.assertThat(response, Matchers.notNullValue());
-                MatcherAssert.assertThat(response.getData().isEmpty(), Matchers.is(false));
-              }
-              return null;
-            });
+    UsingHttpClientExample.readFromGetEndpointExample(urls, pipeline);
 
     pipeline.run();
   }

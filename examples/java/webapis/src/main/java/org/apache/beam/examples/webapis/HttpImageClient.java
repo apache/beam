@@ -23,6 +23,7 @@ import com.google.api.client.http.HttpRequestFactory;
 import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Struct;
 import java.io.IOException;
 import java.io.InputStream;
 import org.apache.beam.io.requestresponse.Caller;
@@ -30,20 +31,21 @@ import org.apache.beam.io.requestresponse.UserCodeExecutionException;
 import org.apache.beam.io.requestresponse.UserCodeQuotaException;
 import org.apache.beam.io.requestresponse.UserCodeRemoteSystemException;
 import org.apache.beam.io.requestresponse.UserCodeTimeoutException;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 
 // [START webapis_image_caller]
 
 /** Processes {@link ImageRequest}s into {@link ImageResponse}s. */
-public class HttpImageClient implements Caller<ImageRequest, ImageResponse> {
+class HttpImageClient implements Caller<KV<Struct, ImageRequest>, KV<Struct, ImageResponse>> {
 
   private static final int STATUS_TOO_MANY_REQUESTS = 429;
   private static final int STATUS_TIMEOUT = 408;
   private static final HttpRequestFactory REQUEST_FACTORY =
       new NetHttpTransport().createRequestFactory();
 
-  public static HttpImageClient of() {
+  static HttpImageClient of() {
     return new HttpImageClient();
   }
 
@@ -52,7 +54,10 @@ public class HttpImageClient implements Caller<ImageRequest, ImageResponse> {
    * containing the image data.
    */
   @Override
-  public ImageResponse call(ImageRequest request) throws UserCodeExecutionException {
+  public KV<Struct, ImageResponse> call(KV<Struct, ImageRequest> requestKV)
+      throws UserCodeExecutionException {
+    Struct key = requestKV.getKey();
+    ImageRequest request = requestKV.getValue();
     Preconditions.checkArgument(request != null);
     GenericUrl url = new GenericUrl(request.getImageUrl());
     try {
@@ -73,10 +78,12 @@ public class HttpImageClient implements Caller<ImageRequest, ImageResponse> {
       }
       InputStream is = response.getContent();
       byte[] bytes = ByteStreams.toByteArray(is);
-      return ImageResponse.builder()
-          .setMimeType(request.getMimeType())
-          .setData(ByteString.copyFrom(bytes))
-          .build();
+      return KV.of(
+          key,
+          ImageResponse.builder()
+              .setMimeType(request.getMimeType())
+              .setData(ByteString.copyFrom(bytes))
+              .build());
     } catch (IOException e) {
       throw new UserCodeExecutionException(e);
     }

@@ -17,31 +17,31 @@
  */
 package org.apache.beam.examples.webapis;
 
-import com.google.cloud.vertexai.api.GenerateContentRequest;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 
-// [START webapis_custom_coder]
+class ImageRequestCoder extends CustomCoder<ImageRequest> {
+  private static final StringUtf8Coder STRING_UTF_8_CODER = StringUtf8Coder.of();
 
-class GenerateContentRequestCoder extends CustomCoder<GenerateContentRequest> {
-
-  static GenerateContentRequestCoder of() {
-    return new GenerateContentRequestCoder();
+  static ImageRequestCoder of() {
+    return new ImageRequestCoder();
   }
 
   @Override
-  public void encode(GenerateContentRequest value, OutputStream outStream)
+  public void encode(ImageRequest value, OutputStream outStream)
       throws CoderException, IOException {
-    value.writeTo(outStream);
+    STRING_UTF_8_CODER.encode(value.getImageUrl(), outStream);
+    STRING_UTF_8_CODER.encode(value.getMimeType(), outStream);
   }
 
   @Override
-  public GenerateContentRequest decode(InputStream inStream) throws CoderException, IOException {
-    return GenerateContentRequest.parseFrom(inStream);
+  public ImageRequest decode(InputStream inStream) throws CoderException, IOException {
+    String imageUrl = STRING_UTF_8_CODER.decode(inStream);
+    String mimeType = STRING_UTF_8_CODER.decode(inStream);
+    return ImageRequest.builder().setImageUrl(imageUrl).setMimeType(mimeType).build();
   }
 }
-
-// [END webapis_custom_coder]
