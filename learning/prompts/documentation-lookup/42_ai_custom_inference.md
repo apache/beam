@@ -15,7 +15,7 @@ You will need to create a `beam.DoFn` in the form of custom model handler in ord
 ```python
 class CustomModelHandler(ModelHandler):
   """DoFn that accepts a batch of inputs and sends that batch to the remote API for inference"""
-  
+
   def load_model(self):
     """Initiate the Custom remote API client."""
     client = ... # Initialize the client
