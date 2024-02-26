@@ -64,6 +64,7 @@ Pipeline p = Pipeline.create(options);
 CoderRegistry cr = p.getCoderRegistry();
 cr.registerCoder(Integer.class, BigEndianIntegerCoder.class);
 ```
+
 In this example, you use the method ‘CoderRegistry.registerCoder’ to register ‘BigEndianIntegerCoder’ for the target 'integer' type.
 
 For custom or complex nested data types, you can implement a custom coder for your pipeline. For this, the ‘Coder’ class exposes the following key methods:
