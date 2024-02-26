@@ -58,7 +58,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     run()
 ```
-The `ReadFromBigtable` transform returns a `PCollection` of `PartialRowData` objects, each representing a Bigtable row. For more information about this row object, see [PartialRowData (row_key)](https://cloud.google.com/python/docs/reference/bigtable/latest/row#class-googlecloudbigtablerowpartialrowdatarowkey)
+The `ReadFromBigtable` transform returns a `PCollection` of `PartialRowData` objects, each representing a Bigtable row. For more information about this row object, see [PartialRowData (row_key)](https://cloud.google.com/python/docs/reference/bigtable/latest/row#class-googlecloudbigtablerowpartialrowdatarowkey).
 
 For more information, see the [BigTable I/O connector documentation](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html).
 
