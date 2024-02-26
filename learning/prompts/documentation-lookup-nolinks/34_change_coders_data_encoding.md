@@ -13,7 +13,7 @@ The following examples demonstrate how to get, set, and create a new `Coder` in 
 In the Python SDK, you can use the following methods:
 * `coders.registry`: retrieves the pipeline’s `CoderRegistry` object.
 * `CoderRegistry.get_coder`: retrieves the default `Coder` for a type.
-* ‘CoderRegistry.register_coder’: sets a new `Coder` for the target type.
+* `CoderRegistry.register_coder`: sets a new `Coder` for the target type.
 
 Here is an example illustrating how to set the default `Coder` in the Python SDK:
 
@@ -68,11 +68,11 @@ cr.registerCoder(Integer.class, BigEndianIntegerCoder.class);
 In this example, you use the method `CoderRegistry.registerCoder` to register `BigEndianIntegerCoder` for the target `integer` type.
 
 For custom or complex nested data types, you can implement a custom coder for your pipeline. For this, the `Coder` class exposes the following key methods:
-* The ‘encode’ method takes input values and encodes them into byte strings.
-* The ‘decode’ method decodes the encoded byte string into its corresponding object.
-* The ‘verifyDeterministic’ method (optional) specifies whether this coder produces deterministic encodings. A deterministic coder produces the same encoded representation of a given object every time, even if it is called on different workers at different moments. The method will return 'NonDeterministicException' if a coder is not deterministic.
+* `encode`: takes input values and encodes them into byte strings.
+* `decode`: decodes the encoded byte string into its corresponding object.
+* `verifyDeterministic`: specifies whether this coder produces deterministic encodings. A deterministic coder produces the same encoded representation of a given object every time, even if it is called on different workers at different moments. The method will return `NonDeterministicException` if a coder is not deterministic.
 
-Here’s an example of a custom ‘Coder’ implementation in the Java SDK:
+Here’s an example of a custom `Coder` implementation in the Java SDK:
 
 ```java
 import org.apache.beam.sdk.coders.Coder;
@@ -101,15 +101,7 @@ public class CustomCoder extends StructuredCoder<YourType> {
         // Specify whether this coder produces deterministic encodings
         // Throw NonDeterministicException if not deterministic
     }
-
-    @Override
-    public boolean isRegisterByteSizeObserverCheap(YourType value, Context context) {
-        // Optional: Specify whether registering a ByteSizeObserver is cheap for 'value'
-        return true;  // or false based on your implementation
-    }
 }
 ```
 
-Replace 'YourType' with the actual type for which you want to create a new 'Coder', and implement the necessary methods based on your encoding/decoding logic.
-
-For more details about working with coders, you can refer to the [Apache Beam documentation on data encoding and type safety](https://beam.apache.org/documentation/programming-guide/#data-encoding-and-type-safety).
+Replace `YourType` with the actual type for which you want to create a new `Coder`, and implement the necessary methods based on your encoding/decoding logic.
