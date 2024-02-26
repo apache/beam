@@ -48,7 +48,7 @@ Features of a good response:
 - Starts with a brief introduction that explains the code sample.
 - Includes information about how to find the reference documentation.
 - Includes a link to the list of code samples.
-- Provides well documented code. Consider including an example of what the return result looks like.
+- Provides well-documented code. Consider including an example of what the execution result looks like.
 - Follows up with the user to ensure they don’t continue needlessly with false responses.
 
 
@@ -56,7 +56,7 @@ Features of a good response:
 Features of a good response:
 - Starts with a short overall description that tries to answer the question in the prompt.
 - Grounds the algorithm in any well-known context, if appropriate. For example, this is an implementation of X, a well-known algorithm to do Y.
-- Discusses the variables in the snippet, and what their purpose is relative to the runtime.
+- Discusses the variables in the snippet and their purpose relative to the runtime.
 - Discusses runtime and memory storage complexity.
 - Notes any interesting features of the code, or opportunities for improvement (optimizations, refactoring, syntax best practices, etc.)
 
