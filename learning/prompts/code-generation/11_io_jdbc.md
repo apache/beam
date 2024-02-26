@@ -73,4 +73,4 @@ if __name__ == "__main__":
 
 The `JdbcOptions` class is a custom class that extends the `PipelineOptions` object. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command line arguments.
 
-The code creates an Apache Beam pipeline using the `JdbcOptions` class to set the JDBC connection information and the [`ReadFromJdbc` transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.jdbc.html#apache_beam.io.jdbc.ReadFromJdbc) transform to read data from the database via JDBC.
+The code creates an Apache Beam pipeline using the `JdbcOptions` class to set the JDBC connection information and the [`ReadFromJdbc` transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.jdbc.html#apache_beam.io.jdbc.ReadFromJdbc) to read data from the database via JDBC.
