@@ -538,7 +538,7 @@ class ProtoByteBuddyUtils {
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
-          .load(ReflectHelpers.findClassLoader(), getClassLoadingStrategy(FieldValueGetter.class))
+          .load(ReflectHelpers.findClassLoader(), getClassLoadingStrategy(protoClass))
           .getLoaded()
           .getDeclaredConstructor(List.class, OneOfType.class)
           .newInstance(getters, oneOfType);
@@ -589,7 +589,7 @@ class ProtoByteBuddyUtils {
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
-          .load(ReflectHelpers.findClassLoader(), getClassLoadingStrategy(FieldValueSetter.class))
+          .load(ReflectHelpers.findClassLoader(), getClassLoadingStrategy(protoBuilderClass))
           .getLoaded()
           .getDeclaredConstructor(List.class)
           .newInstance(setters);
@@ -1067,7 +1067,7 @@ class ProtoByteBuddyUtils {
                   new AsmVisitorWrapper.ForDeclaredMethods()
                       .writerFlags(ClassWriter.COMPUTE_FRAMES))
               .make()
-              .load(ReflectHelpers.findClassLoader(), getClassLoadingStrategy(Supplier.class))
+              .load(ReflectHelpers.findClassLoader(), getClassLoadingStrategy(builderClass))
               .getLoaded()
               .getDeclaredConstructor()
               .newInstance();

@@ -254,7 +254,7 @@ public class POJOUtils {
           .make()
           .load(
               ReflectHelpers.findClassLoader(),
-              getClassLoadingStrategy(SchemaUserTypeCreator.class))
+              getClassLoadingStrategy(clazz))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
