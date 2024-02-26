@@ -20,6 +20,9 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.remoteChannel;
 
 import com.google.auth.Credentials;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
@@ -35,23 +38,26 @@ import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.auth.MoreCallCredentials;
 /** Creates remote stubs to talk to Streaming Engine. */
 @Internal
 @ThreadSafe
-public final class RemoteWindmillStubFactory implements WindmillStubFactory {
+public final class RemoteWindmillStubFactory
+    implements WindmillStubFactory, Function<WindmillServiceAddress, ManagedChannel> {
   private final int rpcChannelTimeoutSec;
   private final Credentials gcpCredentials;
   private final boolean useIsolatedChannels;
+  private final ConcurrentMap<WindmillServiceAddress, ManagedChannel> channelCache;
 
   public RemoteWindmillStubFactory(
       int rpcChannelTimeoutSec, Credentials gcpCredentials, boolean useIsolatedChannels) {
     this.rpcChannelTimeoutSec = rpcChannelTimeoutSec;
     this.gcpCredentials = gcpCredentials;
     this.useIsolatedChannels = useIsolatedChannels;
+    this.channelCache = new ConcurrentHashMap<>();
   }
 
   @Override
   public CloudWindmillServiceV1Alpha1Stub createWindmillServiceStub(
       WindmillServiceAddress serviceAddress) {
     CloudWindmillServiceV1Alpha1Stub windmillServiceStub =
-        CloudWindmillServiceV1Alpha1Grpc.newStub(createChannel(serviceAddress));
+        CloudWindmillServiceV1Alpha1Grpc.newStub(apply(serviceAddress));
     return serviceAddress.getKind() != WindmillServiceAddress.Kind.AUTHENTICATED_GCP_SERVICE_ADDRESS
         ? windmillServiceStub.withCallCredentials(
             MoreCallCredentials.from(new VendoredCredentialsAdapter(gcpCredentials)))
@@ -61,9 +67,18 @@ public final class RemoteWindmillStubFactory implements WindmillStubFactory {
   @Override
   public CloudWindmillMetadataServiceV1Alpha1Stub createWindmillMetadataServiceStub(
       WindmillServiceAddress serviceAddress) {
-    return CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(createChannel(serviceAddress))
+    return CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(apply(serviceAddress))
         .withCallCredentials(
             MoreCallCredentials.from(new VendoredCredentialsAdapter(gcpCredentials)));
+  }
+
+  @Override
+  public ManagedChannel apply(WindmillServiceAddress serviceAddress) {
+    return channelCache.computeIfAbsent(serviceAddress, this::createChannel);
+  }
+
+  public Function<WindmillServiceAddress, ManagedChannel> asChannelCache() {
+    return this;
   }
 
   private ManagedChannel createChannel(WindmillServiceAddress serviceAddress) {

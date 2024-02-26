@@ -101,6 +101,7 @@ public class WindmillStreamSenderTest {
     verify(streamFactory)
         .createDirectGetWorkStream(
             eq(stub),
+            eq(inProcessChannel),
             eq(
                 GET_WORK_REQUEST
                     .toBuilder()
@@ -132,6 +133,7 @@ public class WindmillStreamSenderTest {
     verify(streamFactory, times(1))
         .createDirectGetWorkStream(
             eq(stub),
+            eq(inProcessChannel),
             eq(
                 GET_WORK_REQUEST
                     .toBuilder()
@@ -166,6 +168,7 @@ public class WindmillStreamSenderTest {
     verify(streamFactory, times(1))
         .createDirectGetWorkStream(
             eq(stub),
+            eq(inProcessChannel),
             eq(
                 GET_WORK_REQUEST
                     .toBuilder()
@@ -204,6 +207,7 @@ public class WindmillStreamSenderTest {
 
     when(mockStreamFactory.createDirectGetWorkStream(
             eq(stub),
+            eq(inProcessChannel),
             eq(getWorkRequestWithBudget),
             any(ThrottleTimer.class),
             any(),
@@ -236,6 +240,6 @@ public class WindmillStreamSenderTest {
   private WindmillStreamSender newWindmillStreamSender(
       GetWorkBudget budget, GrpcWindmillStreamFactory streamFactory) {
     return WindmillStreamSender.create(
-        stub, GET_WORK_REQUEST, budget, streamFactory, workItemProcessor);
+        stub, inProcessChannel, GET_WORK_REQUEST, budget, streamFactory, workItemProcessor);
   }
 }
