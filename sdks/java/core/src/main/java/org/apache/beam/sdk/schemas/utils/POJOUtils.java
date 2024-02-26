@@ -252,9 +252,7 @@ public class POJOUtils {
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
-          .load(
-              ReflectHelpers.findClassLoader(),
-              getClassLoadingStrategy(clazz))
+          .load(ReflectHelpers.findClassLoader(), getClassLoadingStrategy(clazz))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
