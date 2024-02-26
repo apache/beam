@@ -1,9 +1,10 @@
 Prompt:
-Write the python code to read messages from a Pub/Sub subscription.
-Response:
-You can read messages from a Pub/Sub subscription or topic using the `ReadFromPubSub` transform. Pub/Sub is only supported in streaming pipelines.
+Write the Python code to read messages from a Pub/Sub subscription.
 
-The following Python code reads messages from a Pub/Sub subscription. The subscription is provided as a command line argument. The messages are logged to the console:
+Response:
+Your Apache Beam pipeline can read messages from a Pub/Sub subscription or topic using the `ReadFromPubSub` transform. Pub/Sub is only supported in streaming pipelines.
+
+The following Python code reads messages from a Pub/Sub subscription and logs the data to the console. The subscription is provided as a command line argument:
 
 ```python
 import logging
@@ -48,4 +49,4 @@ The messages could be returned as a byte string or as `PubsubMessage` objects. T
 
 For more information, see the [Pub/Sub I/O transform documentation](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.pubsub.html).
 
-For a common pattern for configuring pipeline options see the [Pipeline option pattern](https://beam.apache.org/documentation/patterns/pipeline-options/).
+For a common pattern for configuring pipeline options, see [Pipeline option patterns](https://beam.apache.org/documentation/patterns/pipeline-options/).
