@@ -38,4 +38,4 @@ if __name__ == "__main__":
 
 The `ReadParquetOptions` class is used to define the command-line argument `--path`, which specifies the path to the Parquet file. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) for the required `path` argument.
 
-The code creates an Apache Beam pipeline using the `ReadParquetOptions` class to set the Parquet file path and the [`ReadFromParquet` transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.parquetio.html#apache_beam.io.parquetio.ReadFromParquet) transform to read data from the file.
+The code creates an Apache Beam pipeline using the `ReadParquetOptions` class to set the Parquet file path and the [`ReadFromParquet` transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.parquetio.html#apache_beam.io.parquetio.ReadFromParquet) to read data from the file.
