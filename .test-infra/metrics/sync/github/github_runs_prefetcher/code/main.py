@@ -16,13 +16,11 @@
 """
 This module queries GitHub API to collect Beam-related workflows metrics and
 put them in PostgreSQL.
-This script is running every 3 hours as a cloud function
-"github_actions_workflows_dashboard_sync" in apache-beam-testing project:
-https://console.cloud.google.com/functions/details/us-central1/github_actions_workflows_dashboard_sync?env=gen1&project=apache-beam-testing
-This cloud function is triggered by a pubsub topic:
-https://console.cloud.google.com/cloudpubsub/topic/detail/github_actions_workflows_sync?project=apache-beam-testing
-Cron Job:
-https://console.cloud.google.com/cloudscheduler/jobs/edit/us-central1/github_actions_workflows_dashboard_sync?project=apache-beam-testing
+This script is running every 3 hours as a http cloud function
+"github_workflow_prefetcher" in apache-beam-testing project:
+https://console.cloud.google.com/functions/details/us-central1/github_workflow_prefetcher?env=gen1&project=apache-beam-testing
+This cloud function is triggered by a scheduler:
+https://console.cloud.google.com/cloudscheduler/jobs/edit/us-central1/github_workflow_prefetcher-scheduler?project=apache-beam-testing
 """
 
 import asyncio
@@ -34,9 +32,11 @@ import sys
 import time
 import re
 import psycopg2
+import uuid
 from psycopg2 import extras
 from ruamel.yaml import YAML
 from github import GithubIntegration
+from datetime import datetime
 
 DB_HOST = os.environ["DB_HOST"]
 DB_PORT = os.environ["DB_PORT"]
@@ -47,20 +47,21 @@ GH_APP_ID = os.environ["GH_APP_ID"]
 GH_APP_INSTALLATION_ID = os.environ["GH_APP_INSTALLATION_ID"]
 GH_PEM_KEY = os.environ["GH_PEM_KEY"]
 GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH = os.environ["GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH"]
-GIT_REPO = "beam"
+GIT_ORG = "apache"
 GIT_PATH = ".github/workflows"
 GIT_FILESYSTEM_PATH = "/tmp/git"
 
 
 class Workflow:
-    def __init__(self, id, name, filename, url, category=None, threshold=0.5):
+    def __init__(self, id, name, filename, url, category=None, threshold=0.5, is_flaky=False):
         self.id = id
         self.name = name
         self.filename = filename
         self.url = url
-        self.runs = []
         self.category = category
         self.threshold = threshold
+        self.is_flaky = is_flaky
+        self.runs = []
 
 
 class WorkflowRun:
@@ -77,7 +78,7 @@ def clone_git_beam_repo(dest_path):
     if not os.path.exists(filesystem_path):
         os.mkdir(filesystem_path)
     os.chdir(filesystem_path)
-    os.system(f"git clone --filter=blob:none --sparse https://github.com/apache/beam")
+    os.system(f"git clone --filter=blob:none --sparse https://github.com/{GIT_ORG}/beam")
     os.chdir("beam")
     os.system("git sparse-checkout init --cone")
     os.system(f"git sparse-checkout  set {dest_path}")
@@ -134,13 +135,48 @@ def enhance_workflow(workflow):
     workflow_filename = workflow.filename.replace("workflows/", "")
     try:
         workflow_yaml = get_yaml(
-            f"{GIT_FILESYSTEM_PATH}/{GIT_REPO}/{GIT_PATH}/{workflow_filename}"
+            f"{GIT_FILESYSTEM_PATH}/beam/{GIT_PATH}/{workflow_filename}"
         )
         if "env" in workflow_yaml:
             if "ALERT_THRESHOLD" in workflow_yaml["env"]:
                 workflow.threshold = workflow_yaml["env"]["ALERT_THRESHOLD"]
     except ValueError:
         print(f"No yaml file found for workflow: {workflow.name}")
+
+
+async def check_workflow_flakiness(workflow):
+    def filter_workflow_runs(run, issue):
+        started_at = datetime.strptime(run.started_at, "%Y-%m-%dT%H:%M:%SZ")
+        closed_at = datetime.strptime(issue["closed_at"], "%Y-%m-%dT%H:%M:%SZ")
+        if started_at > closed_at:
+            return True
+        return False
+
+    if not len(workflow.runs):
+        return False
+
+    url = f"https://api.github.com/repos/{GIT_ORG}/beam/issues"
+    headers = {"Authorization": get_token()}
+    semaphore = asyncio.Semaphore(5)
+    workflow_runs = workflow.runs
+    params = {
+        "state": "closed",
+        "labels": f"flaky_test,workflow_id: {workflow.id}",
+    }
+    response = await fetch(url, semaphore, params, headers)
+    if len(response):
+        print(f"Found a recently closed issue for the {workflow.name} workflow")
+        workflow_runs = [run for run in workflow_runs if filter_workflow_runs(run, response[0])]
+
+    print(f"Number of workflow runs to consider: {len(workflow_runs)}")
+    success_rate = 1.0
+    if len(workflow_runs):
+        failed_runs = list(filter(lambda r: r.status == "failure", workflow_runs))
+        print(f"Number of failed workflow runs: {len(failed_runs)}")
+        success_rate -= (len(failed_runs) / len(workflow_runs))
+
+    print(f"Success rate: {success_rate}")
+    return True if success_rate < workflow.threshold else False
 
 
 def github_workflows_dashboard_sync(request):
@@ -164,6 +200,13 @@ async def sync_workflow_runs():
     workflows = await fetch_workflow_runs()
     for workflow in workflows:
         enhance_workflow(workflow)
+
+    for workflow in workflows:
+        print(f"Checking if the {workflow.name} workflow is flaky...")
+        is_flaky = await check_workflow_flakiness(workflow)
+        if is_flaky:
+            workflow.is_flaky = True
+            print(f"Workflow {workflow.name} is flaky!")
 
     save_workflows(workflows)
 
@@ -242,7 +285,7 @@ async def fetch_workflow_runs():
                     )
                 )
 
-    url = "https://api.github.com/repos/apache/beam/actions/workflows"
+    url = f"https://api.github.com/repos/{GIT_ORG}/beam/actions/workflows"
     headers = {"Authorization": get_token()}
     page = 1
     number_of_entries_per_page = 100  # The number of results per page (max 100)
@@ -341,10 +384,16 @@ async def fetch_workflow_runs():
                 number_of_runs_to_add = int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH) - len(
                     workflow.runs
                 )
-                workflow.runs.extend(
-                    [WorkflowRun(0, "None", "None", workflow.id, "None")]
-                    * number_of_runs_to_add
-                )
+                for _ in range(number_of_runs_to_add):
+                    workflow.runs.append(
+                        WorkflowRun(
+                            uuid.uuid4().int,
+                            "None",
+                            "None",
+                            workflow.id,
+                            "0001-01-01T00:00:00Z"
+                        )
+                    )
             if len(workflow.runs) >= int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH):
                 workflow_ids_to_fetch_extra_runs.pop(workflow_id, None)
             print(f"Successfully fetched extra workflow runs for: {workflow.filename}")
@@ -353,7 +402,7 @@ async def fetch_workflow_runs():
 
     for workflow in list(workflows.values()):
         runs = sorted(workflow.runs, key=lambda r: r.id, reverse=True)
-        workflow.runs = runs[: int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH)]
+        workflow.runs = runs[:int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH)]
 
     return list(workflows.values())
 
@@ -370,28 +419,28 @@ def save_workflows(workflows):
     cursor.execute(f"DROP TABLE IF EXISTS {workflows_table_name};")
     create_workflows_table_query = f"""
     CREATE TABLE IF NOT EXISTS {workflows_table_name} (
-      workflow_id integer NOT NULL PRIMARY KEY,
+      workflow_id text NOT NULL PRIMARY KEY,
       name text NOT NULL,
       filename text NOT NULL,
       url text NOT NULL,
       dashboard_category text NOT NULL,
-      threshold real NOT NULL)\n"""
+      threshold real NOT NULL,
+      is_flaky boolean NOT NULL)\n"""
     create_workflow_runs_table_query = f"""
     CREATE TABLE IF NOT EXISTS {workflow_runs_table_name} (
         run_id text NOT NULL PRIMARY KEY,
-        run_number integer NOT NULL,
         status text NOT NULL,
         url text NOT NULL,
-        workflow_id integer NOT NULL,
+        workflow_id text NOT NULL,
         started_at timestamp with time zone NOT NULL,
         CONSTRAINT fk_workflow FOREIGN KEY(workflow_id) REFERENCES {workflows_table_name}(workflow_id))\n"""
     cursor.execute(create_workflows_table_query)
     cursor.execute(create_workflow_runs_table_query)
     insert_workflows_query = f"""
-    INSERT INTO {workflows_table_name} (workflow_id, name, filename, url,  dashboard_category, threshold)
+    INSERT INTO {workflows_table_name} (workflow_id, name, filename, url,  dashboard_category, threshold, is_flaky)
     VALUES %s"""
     insert_workflow_runs_query = f"""
-    INSERT INTO {workflow_runs_table_name} (run_id, run_number, status, url, workflow_id, started_at)
+    INSERT INTO {workflow_runs_table_name} (run_id, status, url, workflow_id, started_at)
     VALUES %s"""
     insert_workflows = []
     insert_workflow_runs = []
@@ -404,16 +453,11 @@ def save_workflows(workflows):
                 workflow.url,
                 workflow.category,
                 workflow.threshold,
+                workflow.is_flaky,
             )
         )
-        run_number = 1
         for run in workflow.runs:
-            if run.id != 0:
-                started_at = run.started_at.replace("T", " ")
-                insert_workflow_runs.append(
-                    (run.id, run_number, run.status, run.url, workflow.id, started_at)
-                )
-                run_number += 1
+            insert_workflow_runs.append((run.id, run.status, run.url, run.workflow_id, run.started_at))
     psycopg2.extras.execute_values(cursor, insert_workflows_query, insert_workflows)
     psycopg2.extras.execute_values(
         cursor, insert_workflow_runs_query, insert_workflow_runs
