@@ -44,4 +44,4 @@ if __name__ == "__main__":
 
 The `CsvOptions` class is a custom class that extends the `PipelineOptions` object. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command-line arguments.
 
-The [ReadFromCsv transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html#apache_beam.io.textio.ReadFromCsv) is a built-in Apache Beam transform that reads data from a CSV file.
+The [`ReadFromCsv` transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html#apache_beam.io.textio.ReadFromCsv) is a built-in Apache Beam transform that reads data from a CSV file.
