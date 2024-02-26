@@ -33,7 +33,6 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.asm.AsmVisitorWrapper.ForDeclaredMethods;
 import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
@@ -245,9 +244,7 @@ public class AutoValueUtils {
       return builder
           .visit(new ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
-          .load(
-              ReflectHelpers.findClassLoader(),
-              getClassLoadingStrategy(builderClass))
+          .load(ReflectHelpers.findClassLoader(), getClassLoadingStrategy(builderClass))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
