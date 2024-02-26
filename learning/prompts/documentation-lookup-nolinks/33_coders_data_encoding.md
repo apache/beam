@@ -2,17 +2,17 @@ Prompt:
 What is a coder in Apache Beam?
 
 Response:
-In Apache Beam, a `Coder` is an object responsible for specifying how elements in a given `PCollection` are encoded and decoded into byte strings. These objects provide type consistency and safety during distributed processing between workers, ensuring the correct interpretation of data based on its original types.
+In Apache Beam, a `Coder` is an object responsible for specifying how elements in a given `PCollection` are encoded and decoded into byte strings. The `Coder` objects provide type consistency and safety during distributed processing between workers, ensuring the correct interpretation of data based on its original types.
 
-Every 'PCollection' in a Beam pipeline requires a corresponding 'Coder'. While the Beam SDKs can automatically infer a 'Coder' for a 'PCollection' based on its element type or the producing transform, there are cases where explicit specification or custom 'Coder' development is necessary. It is important to note that multiple 'Coder's can exist for a single data type.
+Every `PCollection` in an Apache Beam pipeline requires a corresponding `Coder`. While the Apache Beam SDKs can automatically infer a `Coder` for a `PCollection` based on its element type or the producing transform, there are cases where explicit specification or custom `Coder` development is necessary. It is important to note that multiple `Coder` objects can exist for a single data type.
 
-The Beam SDKs use various mechanisms to automatically infer the 'Coder' for a 'PCollection'. Each pipeline object contains a 'CoderRegistry' object representing a mapping of language types to the default coder for those types.
+The Apache Beam SDKs use various mechanisms to automatically infer the `Coder` for a `PCollection`. Each pipeline object contains a `CoderRegistry` object representing a mapping of language types to the default coder for those types.
 
-In the Apache Beam SDKs for Python and Java, the 'Coder' type provides the necessary methods for encoding and decoding data. The SDKs offer various 'Coder' subclasses working with standard Python and Java types, available in the [‘apache_beam.coders’](https://beam.apache.org/releases/pydoc/current/apache_beam.coders.coders.html) package for Python and the [‘Coder’](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/coders/package-summary.html) package for Java.
+In the Apache Beam SDKs for Python and Java, the `Coder` type provides the necessary methods for encoding and decoding data. The SDKs offer various `Coder` subclasses working with standard Python and Java types, available in the `apache_beam.coders` package for Python and the `Coder` package for Java.
 
-By default, the Beam SDKs use the typehints (Python) or the type parameters (Java) from the transform's function object (such as 'DoFn’) to infer the 'Coder' for elements in a 'PCollection'. For example, in Apache Beam Python SDK, a 'ParDo' annotated with the typehints '@beam.typehints.with_input_types(int)' and '@beam.typehints.with_output_types(str)' indicates that it accepts 'int' inputs and produces 'str' outputs. The Python SDK automatically infers the default 'Coder' for the output 'PCollection', in this case, 'BytesCoder' (based on the default 'CoderRegistry').
+By default, the Beam SDKs use the typehints (Python) or the type parameters (Java) from the transform's function object (such as `DoFn`) to infer the `Coder` for elements in a `PCollection`. For example, in Apache Beam Python SDK, a `ParDo` annotated with the typehints `@beam.typehints.with_input_types(int)` and `@beam.typehints.with_output_types(str)` indicates that it accepts `int` inputs and produces `str` outputs. The Python SDK automatically infers the default `Coder` for the output `PCollection`, in this case, `BytesCoder` (based on the default `CoderRegistry`).
 
-You can use the 'CoderRegistry' to look up the default coder for a given type or register a new default coder. The following tables show the default mappings of coders to standard types for any pipeline created using the Beam SDK for Java and Python:
+You can use the `CoderRegistry` to look up the default coder for a given type or register a new default coder. The following tables show the default mappings of coders to standard types for any pipeline created using the Beam SDK for Java and Python:
 
 | **Java Type** | **Default Coder** |
 |---------------|-------------------|
@@ -33,5 +33,3 @@ You can use the 'CoderRegistry' to look up the default coder for a given type or
 | str             | BytesCoder        |
 | bytes           | StrUtf8Coder      |
 | Tuple           | TupleCoder        |
-
-For more details on working with coders, you can refer to the [Apache Beam documentation on data encoding and type safety](https://beam.apache.org/documentation/programming-guide/#data-encoding-and-type-safety).
