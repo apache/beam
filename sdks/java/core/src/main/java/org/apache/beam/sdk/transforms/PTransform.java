@@ -143,6 +143,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
     implements Serializable /* See the note above */, HasDisplayData {
+
+  private static final long serialVersionUID = 3383862966597863311L;
+
   /**
    * Override this method to specify how this {@code PTransform} should be expanded on the given
    * {@code InputT}.
