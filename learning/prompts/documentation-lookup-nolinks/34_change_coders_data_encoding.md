@@ -2,33 +2,33 @@ Prompt:
 How to get, set, and create new coders for my Apache Beam pipeline?
 
 Response:
-Every ['PCollection'](https://beam.apache.org/documentation/basics/#pcollection) in an Apache Beam pipeline requires a corresponding ['Coder’](https://beam.apache.org/documentation/programming-guide/#specifying-coders). In most cases, Beam SDKs can automatically infer a 'Coder' for a 'PCollection' based on its element type or the producing transform. However, in some instances, you may need to explicitly set a ‘Coder’ or create a custom 'Coder'.
+Every `PCollection` in an Apache Beam pipeline requires a corresponding `Coder`. In most cases, the Apache Beam SDKs can automatically infer a `Coder` for a `PCollection` based on its element type or the producing transform. However, in some instances, you may need to explicitly set a `Coder` or create a custom `Coder`.
 
-In the Apache Beam SDKs for Python and Java, the 'Coder' type provides the necessary methods for encoding and decoding data. To get, set, or register a coder for a particular pipeline, you can access and modify the pipeline’s ‘CoderRegistry’ object.
+In the Apache Beam SDKs for Python and Java, the `Coder` type provides the necessary methods for encoding and decoding data. To get, set, or register a coder for a particular pipeline, you can access and modify the pipeline’s `CoderRegistry` object.
 
-The examples below demonstrate how to get, set, and create new ‘Coders’ in Apache Beam pipelines using the Python and Java SDKs.
+The following examples demonstrate how to get, set, and create a new `Coder` in an Apache Beam pipeline using the Python and Java SDKs.
 
 **Python SDK:**
 
 In the Python SDK, you can use the following methods:
-* To retrieve the pipeline’s ‘CoderRegistry’ object - ‘coders.registry’.
-* To get the default ‘Coder’ for a type - ‘CoderRegistry.get_coder’.
-* To set a new ‘Coder’ for the target type - ‘CoderRegistry.register_coder’.
+* `coders.registry`: retrieves the pipeline’s `CoderRegistry` object.
+* `CoderRegistry.get_coder`: retrieves the default `Coder` for a type.
+* ‘CoderRegistry.register_coder’: sets a new `Coder` for the target type.
 
-Here is an example illustrating how to set the default ‘Coder’ in the Python SDK:
+Here is an example illustrating how to set the default `Coder` in the Python SDK:
 
 ```python
 apache_beam.coders.registry.register_coder(int, BigEndianIntegerCoder)
 ```
 
-This example sets a default ‘Coder’, specifically ‘BigEndianIntegerCoder’, for 'int' values in the pipeline.
+The provided example sets a default `Coder`, specifically `BigEndianIntegerCoder`, for `int` values in the pipeline.
 
-For custom or complex nested data types, you can implement a custom coder for your pipeline. To create a new ‘Coder’, you need to define a class that inherits from ‘Coder’ and implement the required methods:
-* The ‘encode’ method takes input values and encodes them into byte strings.
-* The ‘decode’ method decodes the encoded byte string into its corresponding object.
-* The ‘is_deterministic’ method (optional) specifies whether this coder encodes values deterministically or not. A deterministic coder produces the same encoded representation of a given object every time, even if it is called on different workers at different moments. The method returns ‘True’ or ‘False’ based on your implementation.
+For custom or complex nested data types, you can implement a custom coder for your pipeline. To create a new `Coder`, you need to define a class that inherits from `Coder` and implement the required methods:
+* `encode`: takes input values and encodes them into byte strings.
+* `decode`: decodes the encoded byte string into its corresponding object.
+* `is_deterministic`: specifies whether this coder encodes values deterministically or not. A deterministic coder produces the same encoded representation of a given object every time, even if it is called on different workers at different moments. The method returns `True` or `False` based on your implementation.
 
-Here’s an example of a custom ‘Coder’ implementation in the Python SDK:
+Here is an example of a custom `Coder` implementation in the Python SDK:
 
 ```python
 from apache_beam.coders import Coder
@@ -50,10 +50,10 @@ class CustomCoder(Coder):
 **Java SDK:**
 
 In the Java SDK, you can use the following methods:
-* To retrieve the pipeline’s ‘CoderRegistry’ object - ‘Pipeline.getCoderRegistry’.
-* To get the coder for an existing ‘PCollection’ - ‘getCoder’.
-* To get the default ‘Coder’ for a type - ‘CoderRegistry.getCoder’.
-* To set a new default ‘Coder’ for the target type - ‘CoderRegistry.registerCoder’.
+* `Pipeline.getCoderRegistry`: retrieves the pipeline’s `CoderRegistry` object.
+* `getCoder`: retrieves the coder for an existing `PCollection`.
+* `CoderRegistry.getCoder`: retrieves the default `Coder` for a type.
+* `CoderRegistry.registerCoder`: sets a new default `Coder` for the target type.
 
 Here is an example of how you can set the default ‘Coder’ in the Java SDK:
 
@@ -65,9 +65,9 @@ CoderRegistry cr = p.getCoderRegistry();
 cr.registerCoder(Integer.class, BigEndianIntegerCoder.class);
 ```
 
-In this example, you use the method ‘CoderRegistry.registerCoder’ to register ‘BigEndianIntegerCoder’ for the target 'integer' type.
+In this example, you use the method `CoderRegistry.registerCoder` to register `BigEndianIntegerCoder` for the target `integer` type.
 
-For custom or complex nested data types, you can implement a custom coder for your pipeline. For this, the ‘Coder’ class exposes the following key methods:
+For custom or complex nested data types, you can implement a custom coder for your pipeline. For this, the `Coder` class exposes the following key methods:
 * The ‘encode’ method takes input values and encodes them into byte strings.
 * The ‘decode’ method decodes the encoded byte string into its corresponding object.
 * The ‘verifyDeterministic’ method (optional) specifies whether this coder produces deterministic encodings. A deterministic coder produces the same encoded representation of a given object every time, even if it is called on different workers at different moments. The method will return 'NonDeterministicException' if a coder is not deterministic.
