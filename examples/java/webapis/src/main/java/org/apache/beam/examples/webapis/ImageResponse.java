@@ -18,20 +18,16 @@
 package org.apache.beam.examples.webapis;
 
 import com.google.auto.value.AutoValue;
-import com.google.protobuf.ByteString;
 import java.io.Serializable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.values.TypeDescriptor;
 
-// [START webapis_image_response]
+// [START webapis_java_image_response]
 
 /** An HTTP response of an image request. */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 abstract class ImageResponse implements Serializable {
-
-  static TypeDescriptor<ImageResponse> TYPE = TypeDescriptor.of(ImageResponse.class);
 
   static Builder builder() {
     return new AutoValue_ImageResponse.Builder();
@@ -41,16 +37,20 @@ abstract class ImageResponse implements Serializable {
   abstract String getMimeType();
 
   /** The payload of the response containing the image data. */
-  abstract ByteString getData();
+  // Needs non vendor gRPC to provide input into an external proto library.
+  @SuppressWarnings({"ForbidNonVendoredGrpcProtobuf"})
+  abstract com.google.protobuf.ByteString getData();
 
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setMimeType(String value);
 
-    abstract Builder setData(ByteString value);
+    // Needs non vendor gRPC to provide input into an external proto library.
+    @SuppressWarnings({"ForbidNonVendoredGrpcProtobuf"})
+    abstract Builder setData(com.google.protobuf.ByteString value);
 
     abstract ImageResponse build();
   }
 }
 
-// [END webapis_image_response]
+// [END webapis_java_image_response]

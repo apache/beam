@@ -19,14 +19,13 @@ package org.apache.beam.examples.webapis;
 
 import static org.apache.beam.examples.webapis.GeminiAIClient.MODEL_GEMINI_PRO_VISION;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
 import com.google.cloud.vertexai.api.Blob;
 import com.google.cloud.vertexai.api.Content;
 import com.google.cloud.vertexai.api.GenerateContentRequest;
 import com.google.cloud.vertexai.api.GenerateContentResponse;
 import com.google.cloud.vertexai.api.Part;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.Struct;
 import java.util.List;
 import org.apache.beam.io.requestresponse.RequestResponseIO;
 import org.apache.beam.io.requestresponse.Result;
@@ -39,11 +38,15 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 
-@SuppressWarnings({"unused"})
+/**
+ * Example using {@link RequestResponseIO} to process Gemini AI {@link GenerateContentRequest}s into
+ * {@link GenerateContentResponse}s.
+ */
 class GeminiAIExample {
 
-//  [START webapis_identify_image]
+  //  [START webapis_java_identify_image]
 
+  /** Demonstrates using Gemini AI to identify a images, acquired from their URLs. */
   static void whatIsThisImage(List<String> urls, GeminiAIOptions options) {
     //        GeminiAIOptions options = PipelineOptionsFactory.create().as(GeminiAIOptions.class);
     //        options.setLocation("us-central1");
@@ -59,6 +62,7 @@ class GeminiAIExample {
     //                "https://storage.googleapis.com/generativeai-downloads/images/scones.jpg"
     //        );
 
+    // Step 1: Instantiate GeminiAIClient, the Caller and SetupTeardown implementation.
     GeminiAIClient client =
         GeminiAIClient.builder()
             .setProjectId(options.getProject())
@@ -68,72 +72,79 @@ class GeminiAIExample {
 
     Pipeline pipeline = Pipeline.create(options);
 
-    Result<KV<Struct, ImageResponse>> getImagesResult = Images.imagesOf(urls, pipeline);
+    // Step 2: Download the images from the list of urls.
+    Result<KV<String, ImageResponse>> getImagesResult = Images.imagesOf(urls, pipeline);
 
+    // Step 3: Log any image download errors.
     getImagesResult.getFailures().apply("Log get images errors", Log.errorOf());
 
-    PCollection<KV<Struct, GenerateContentRequest>> requests =
+    // Step 4: Build Gemini AI requests from the download image data with the prompt 'What is this
+    // picture?'.
+    PCollection<KV<String, GenerateContentRequest>> requests =
         buildAIRequests("Identify Image", "What is this picture?", getImagesResult.getResponses());
 
-    Result<KV<Struct, GenerateContentResponse>> responses = askAI(client, requests);
+    // Step 5: Using RequestResponseIO, ask Gemini AI 'What is this picture?' for each downloaded
+    // image.
+    Result<KV<String, GenerateContentResponse>> responses = askAI(client, requests);
 
+    // Step 6: Log any Gemini AI errors.
     responses.getFailures().apply("Log AI errors", Log.errorOf());
 
+    // Step 7: Log the result of Gemini AI's image recognition.
     responses.getResponses().apply("Log AI answers", Log.infoOf());
 
     pipeline.run();
   }
 
-  //  [END webapis_identify_image]
+  //  [END webapis_java_identify_image]
 
-  private static Result<KV<Struct, GenerateContentResponse>> askAI(
-      GeminiAIClient client, PCollection<KV<Struct, GenerateContentRequest>> requestKV) {
+  private static Result<KV<String, GenerateContentResponse>> askAI(
+      GeminiAIClient client, PCollection<KV<String, GenerateContentRequest>> requestKV) {
 
-    KvCoder<Struct, GenerateContentRequest> requestCoder =
-        (KvCoder<Struct, GenerateContentRequest>) requestKV.getCoder();
+    KvCoder<String, GenerateContentRequest> requestCoder =
+        (KvCoder<String, GenerateContentRequest>) requestKV.getCoder();
 
-    StructCoder keyCoder = (StructCoder) requestCoder.getKeyCoder();
+    Coder<String> keyCoder = requestCoder.getKeyCoder();
 
-    KvCoder<Struct, GenerateContentResponse> responseCoder =
+    KvCoder<String, GenerateContentResponse> responseCoder =
         KvCoder.of(keyCoder, GenerateContentResponseCoder.of());
 
-    // [START webapis_ask_ai]
+    // [START webapis_java_ask_ai]
 
-//    PCollection<KV<Struct, GenerateContentRequest>> requestKV = ...
-//    GeminiAIClient client =
-//            GeminiAIClient.builder()
-//                    .setProjectId(options.getProject())
-//                    .setLocation(options.getLocation())
-//                    .setModelName(MODEL_GEMINI_PRO_VISION)
-//                    .build();
+    //    PCollection<KV<Struct, GenerateContentRequest>> requestKV = ...
+    //    GeminiAIClient client =
+    //            GeminiAIClient.builder()
+    //                    .setProjectId(options.getProject())
+    //                    .setLocation(options.getLocation())
+    //                    .setModelName(MODEL_GEMINI_PRO_VISION)
+    //                    .build();
 
     return requestKV.apply(
         "Ask Gemini AI", RequestResponseIO.ofCallerAndSetupTeardown(client, responseCoder));
 
-    // [END webapis_ask_ai]
+    // [END webapis_java_ask_ai]
   }
 
+  // Needs non vendor gRPC to provide input into an external proto library.
+  @SuppressWarnings({"ForbidNonVendoredGrpcProtobuf"})
+  private static PCollection<KV<String, GenerateContentRequest>> buildAIRequests(
+      String stepName, String prompt, PCollection<KV<String, ImageResponse>> imagesKV) {
 
+    KvCoder<String, ImageResponse> imagesKVCoder =
+        (KvCoder<String, ImageResponse>) imagesKV.getCoder();
 
-  private static PCollection<KV<Struct, GenerateContentRequest>> buildAIRequests(
-      String stepName, String prompt, PCollection<KV<Struct, ImageResponse>> imagesKV) {
+    Coder<String> keyCoder = imagesKVCoder.getKeyCoder();
 
-    KvCoder<Struct, ImageResponse> imagesKVCoder =
-        (KvCoder<Struct, ImageResponse>) imagesKV.getCoder();
-
-    StructCoder keyCoder = (StructCoder) imagesKVCoder.getKeyCoder();
-
-    Coder<KV<Struct, GenerateContentRequest>> kvCoder =
+    Coder<KV<String, GenerateContentRequest>> kvCoder =
         KvCoder.of(keyCoder, GenerateContentRequestCoder.of());
 
-    TypeDescriptor<Struct> structType = TypeDescriptor.of(Struct.class);
     TypeDescriptor<GenerateContentRequest> requestType =
         TypeDescriptor.of(GenerateContentRequest.class);
 
-    TypeDescriptor<KV<Struct, GenerateContentRequest>> requestKVType =
-        TypeDescriptors.kvs(structType, requestType);
+    TypeDescriptor<KV<String, GenerateContentRequest>> requestKVType =
+        TypeDescriptors.kvs(strings(), requestType);
 
-    // [START webapis_build_ai_requests]
+    // [START webapis_java_build_ai_requests]
 
     // PCollection<KV<Struct, ImageResponse>> imagesKV = ...
 
@@ -143,18 +154,20 @@ class GeminiAIExample {
             MapElements.into(requestKVType)
                 .via(
                     kv -> {
-                      Struct key = kv.getKey();
+                      String key = kv.getKey();
                       ImageResponse safeResponse = checkStateNotNull(kv.getValue());
-                      return buildAIRequest(
-                          key, prompt, safeResponse.getData(), safeResponse.getMimeType());
+                      com.google.protobuf.ByteString data = safeResponse.getData();
+                      return buildAIRequest(key, prompt, data, safeResponse.getMimeType());
                     }))
         .setCoder(kvCoder);
 
-    // [END webapis_build_ai_requests]
+    // [END webapis_java_build_ai_requests]
   }
 
-  private static KV<Struct, GenerateContentRequest> buildAIRequest(
-      Struct key, String prompt, ByteString data, String mimeType) {
+  // Needs non vendor gRPC to provide input into an external proto library.
+  @SuppressWarnings({"ForbidNonVendoredGrpcProtobuf"})
+  private static KV<String, GenerateContentRequest> buildAIRequest(
+      String key, String prompt, com.google.protobuf.ByteString data, String mimeType) {
     return KV.of(
         key,
         GenerateContentRequest.newBuilder()

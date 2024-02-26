@@ -24,8 +24,9 @@ import java.io.OutputStream;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 
-// [START webapis_custom_coder]
+// [START webapis_java_custom_coder]
 
+/** A {@link CustomCoder} of a {@link GenerateContentRequest}. */
 class GenerateContentRequestCoder extends CustomCoder<GenerateContentRequest> {
 
   static GenerateContentRequestCoder of() {
@@ -44,4 +45,4 @@ class GenerateContentRequestCoder extends CustomCoder<GenerateContentRequest> {
   }
 }
 
-// [END webapis_custom_coder]
+// [END webapis_java_custom_coder]

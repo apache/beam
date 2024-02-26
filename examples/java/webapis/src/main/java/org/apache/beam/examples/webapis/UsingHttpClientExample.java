@@ -17,20 +17,21 @@
  */
 package org.apache.beam.examples.webapis;
 
-import com.google.protobuf.Struct;
 import java.util.List;
 import org.apache.beam.io.requestresponse.RequestResponseIO;
 import org.apache.beam.io.requestresponse.Result;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /** Example demonstrating reading from Web APIs GET endpoint using {@link RequestResponseIO}. */
 class UsingHttpClientExample {
 
-  // [START webapis_http_get]
+  // [START webapis_java_http_get]
 
+  /** Example demonstrating downloading a list of image URLs using {@link RequestResponseIO}. */
   static void readFromGetEndpointExample(List<String> urls, Pipeline pipeline) {
     //        Pipeline pipeline = Pipeline.create();
     //        List<String> urls = ImmutableList.of(
@@ -42,20 +43,27 @@ class UsingHttpClientExample {
     //                "https://storage.googleapis.com/generativeai-downloads/images/scones.jpg"
     //        );
 
-    PCollection<KV<Struct, ImageRequest>> requests = Images.requestsOf(urls, pipeline);
+    // Step 1: Convert the list of URLs to a PCollection of ImageRequests.
+    PCollection<KV<String, ImageRequest>> requests = Images.requestsOf(urls, pipeline);
 
-    KvCoder<Struct, ImageResponse> responseCoder =
-        KvCoder.of(Images.URL_STRUCT_CODER, ImageResponseCoder.of());
+    // Step 2: RequestResponseIO requires a Coder as its second parameter.
+    KvCoder<String, ImageResponse> responseCoder =
+        KvCoder.of(StringUtf8Coder.of(), ImageResponseCoder.of());
 
-    Result<KV<Struct, ImageResponse>> result =
+    // Step 3: Process ImageRequests using RequestResponseIO instantiated from the Caller
+    // implementation and the
+    // expected PCollection response Coder.
+    Result<KV<String, ImageResponse>> result =
         requests.apply(
             ImageResponse.class.getSimpleName(),
             RequestResponseIO.of(HttpImageClient.of(), responseCoder));
 
+    // Step 4: Log any failures to stderr.
     result.getFailures().apply("logErrors", Log.errorOf());
 
+    // Step 5: Log output to stdout.
     Images.displayOf(result.getResponses()).apply("logResponses", Log.infoOf());
   }
 
-  // [END webapis_http_get]
+  // [END webapis_java_http_get]
 }

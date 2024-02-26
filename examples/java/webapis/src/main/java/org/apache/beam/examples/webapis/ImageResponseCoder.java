@@ -17,7 +17,6 @@
  */
 package org.apache.beam.examples.webapis;
 
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -27,6 +26,9 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
+// [START webapis_java_image_response_coder]
+
+/** A {@link CustomCoder} of an {@link ImageResponse}. */
 class ImageResponseCoder extends CustomCoder<ImageResponse> {
   public static ImageResponseCoder of() {
     return new ImageResponseCoder();
@@ -42,10 +44,17 @@ class ImageResponseCoder extends CustomCoder<ImageResponse> {
     STRING_CODER.encode(value.getMimeType(), outStream);
   }
 
+  // Needs non vendor gRPC to provide input into an external proto library.
+  @SuppressWarnings({"ForbidNonVendoredGrpcProtobuf"})
   @Override
   public ImageResponse decode(InputStream inStream) throws CoderException, IOException {
     byte[] data = BYTE_ARRAY_CODER.decode(inStream);
     String mimeType = STRING_CODER.decode(inStream);
-    return ImageResponse.builder().setData(ByteString.copyFrom(data)).setMimeType(mimeType).build();
+    return ImageResponse.builder()
+        .setData(com.google.protobuf.ByteString.copyFrom(data))
+        .setMimeType(mimeType)
+        .build();
   }
 }
+
+// [END webapis_java_image_response_coder]

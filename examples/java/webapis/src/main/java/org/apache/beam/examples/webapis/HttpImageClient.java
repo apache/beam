@@ -23,7 +23,6 @@ import com.google.api.client.http.HttpRequestFactory;
 import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.Struct;
 import java.io.IOException;
 import java.io.InputStream;
 import org.apache.beam.io.requestresponse.Caller;
@@ -35,10 +34,13 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 
-// [START webapis_image_caller]
+// [START webapis_java_image_caller]
 
-/** Processes {@link ImageRequest}s into {@link ImageResponse}s. */
-class HttpImageClient implements Caller<KV<Struct, ImageRequest>, KV<Struct, ImageResponse>> {
+/**
+ * Implements {@link Caller} to process an {@link ImageRequest} into a {@link ImageResponse} by
+ * invoking the HTTP request.
+ */
+class HttpImageClient implements Caller<KV<String, ImageRequest>, KV<String, ImageResponse>> {
 
   private static final int STATUS_TOO_MANY_REQUESTS = 429;
   private static final int STATUS_TIMEOUT = 408;
@@ -54,9 +56,9 @@ class HttpImageClient implements Caller<KV<Struct, ImageRequest>, KV<Struct, Ima
    * containing the image data.
    */
   @Override
-  public KV<Struct, ImageResponse> call(KV<Struct, ImageRequest> requestKV)
+  public KV<String, ImageResponse> call(KV<String, ImageRequest> requestKV)
       throws UserCodeExecutionException {
-    Struct key = requestKV.getKey();
+    String key = requestKV.getKey();
     ImageRequest request = requestKV.getValue();
     Preconditions.checkArgument(request != null);
     GenericUrl url = new GenericUrl(request.getImageUrl());
@@ -90,4 +92,4 @@ class HttpImageClient implements Caller<KV<Struct, ImageRequest>, KV<Struct, Ima
   }
 }
 
-// [END webapis_image_caller]
+// [END webapis_java_image_caller]

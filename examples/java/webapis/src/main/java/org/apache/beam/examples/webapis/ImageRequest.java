@@ -26,13 +26,14 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.compress.utils.FileNameUtils;
 
-// [START webapis_image_request]
+// [START webapis_java_image_request]
 
 /** An HTTP request for an image. */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 abstract class ImageRequest implements Serializable {
-  static TypeDescriptor<ImageRequest> TYPE = TypeDescriptor.of(ImageRequest.class);
+
+  static final TypeDescriptor<ImageRequest> TYPE = TypeDescriptor.of(ImageRequest.class);
   private static final Map<String, String> EXT_MIMETYPE_MAP =
       ImmutableMap.of(
           "jpg", "image/jpeg",
@@ -74,4 +75,4 @@ abstract class ImageRequest implements Serializable {
   }
 }
 
-// [END webapis_image_request]
+// [END webapis_java_image_request]

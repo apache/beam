@@ -17,8 +17,8 @@
  */
 package org.apache.beam.examples.webapis;
 
-import com.google.protobuf.Struct;
-import com.google.protobuf.Value;
+import static org.apache.beam.sdk.values.TypeDescriptors.strings;
+
 import java.util.List;
 import org.apache.beam.io.requestresponse.RequestResponseIO;
 import org.apache.beam.io.requestresponse.Result;
@@ -33,32 +33,38 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 
+/** Various helper methods to handle image data. */
 class Images {
-  private static final TypeDescriptor<Struct> STRUCT_TYPE = TypeDescriptor.of(Struct.class);
-  private static final String URL_FIELD = "url";
-  static final StructCoder URL_STRUCT_CODER = StructCoder.of(URL_FIELD);
+  private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
 
-  static PCollection<KV<Struct, ImageRequest>> requestsOf(List<String> urls, Pipeline pipeline) {
-    TypeDescriptor<KV<Struct, ImageRequest>> imageRequestType =
-        TypeDescriptors.kvs(STRUCT_TYPE, ImageRequest.TYPE);
+  /**
+   * Converts a raw image URL list into a {@link ImageRequest} {@link PCollection}. It assigns the
+   * {@link KV#getKey} to the original raw URL. This is to forward the URL along the pipeline to
+   * comparing results to the original reference.
+   */
+  static PCollection<KV<String, ImageRequest>> requestsOf(List<String> urls, Pipeline pipeline) {
+    TypeDescriptor<KV<String, ImageRequest>> imageRequestType =
+        TypeDescriptors.kvs(strings(), ImageRequest.TYPE);
 
-    Coder<KV<Struct, ImageRequest>> kvCoder = KvCoder.of(URL_STRUCT_CODER, ImageRequestCoder.of());
+    Coder<KV<String, ImageRequest>> kvCoder = KvCoder.of(STRING_CODER, ImageRequestCoder.of());
 
     return pipeline
         .apply("urls", Create.of(urls))
         .apply(
             ImageRequest.class.getSimpleName(),
-            MapElements.into(imageRequestType)
-                .via(url -> KV.of(buildLabel(url), ImageRequest.of(url))))
+            MapElements.into(imageRequestType).via(url -> KV.of(url, ImageRequest.of(url))))
         .setCoder(kvCoder);
   }
 
-  // [START webapis_get_images]
+  // [START webapis_java_get_images]
 
-  static Result<KV<Struct, ImageResponse>> imagesOf(List<String> urls, Pipeline pipeline) {
+  /**
+   * Processes a list of raw image URLs into a {@link ImageResponse} {@link PCollection} using
+   * {@link RequestResponseIO}. The resulting {@link KV#getKey} is the original image URL.
+   */
+  static Result<KV<String, ImageResponse>> imagesOf(List<String> urls, Pipeline pipeline) {
 
-    Coder<KV<Struct, ImageResponse>> kvCoder =
-        KvCoder.of(URL_STRUCT_CODER, ImageResponseCoder.of());
+    Coder<KV<String, ImageResponse>> kvCoder = KvCoder.of(STRING_CODER, ImageResponseCoder.of());
 
     return requestsOf(urls, pipeline)
         .apply(
@@ -66,28 +72,25 @@ class Images {
             RequestResponseIO.of(HttpImageClient.of(), kvCoder));
   }
 
-  // [END webapis_get_images]
+  // [END webapis_java_get_images]
 
-  static PCollection<KV<Struct, String>> displayOf(PCollection<KV<Struct, ImageResponse>> result) {
-    TypeDescriptor<KV<Struct, String>> dataUrlType =
-        TypeDescriptors.kvs(STRUCT_TYPE, TypeDescriptors.strings());
+  /**
+   * Converts a {@link KV} {@link ImageResponse} {@link PCollection} into a string {@link
+   * PCollection} for convenient display of the results.
+   */
+  static PCollection<KV<String, String>> displayOf(PCollection<KV<String, ImageResponse>> result) {
+    TypeDescriptor<KV<String, String>> displayType = TypeDescriptors.kvs(strings(), strings());
 
-    Coder<KV<Struct, String>> kvCoder = KvCoder.of(URL_STRUCT_CODER, StringUtf8Coder.of());
+    Coder<KV<String, String>> kvCoder = KvCoder.of(STRING_CODER, STRING_CODER);
 
     return result
         .apply(
             "Display summary",
-            MapElements.into(dataUrlType).via(kv -> KV.of(kv.getKey(), displayOf(kv.getValue()))))
+            MapElements.into(displayType).via(kv -> KV.of(kv.getKey(), displayOf(kv.getValue()))))
         .setCoder(kvCoder);
   }
 
   private static String displayOf(ImageResponse response) {
     return String.format("mimeType=%s, size=%s", response.getMimeType(), response.getData().size());
-  }
-
-  private static Struct buildLabel(String url) {
-    return Struct.newBuilder()
-        .putFields(URL_FIELD, Value.newBuilder().setStringValue(url).build())
-        .build();
   }
 }

@@ -24,20 +24,25 @@ import com.google.cloud.vertexai.VertexAI;
 import com.google.cloud.vertexai.api.GenerateContentRequest;
 import com.google.cloud.vertexai.api.GenerateContentResponse;
 import com.google.cloud.vertexai.generativeai.GenerativeModel;
-import com.google.protobuf.Struct;
 import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.io.requestresponse.Caller;
+import org.apache.beam.io.requestresponse.RequestResponseIO;
 import org.apache.beam.io.requestresponse.SetupTeardown;
 import org.apache.beam.io.requestresponse.UserCodeExecutionException;
 import org.apache.beam.sdk.values.KV;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
-// [START webapis_gemini_ai_client]
+// [START webapis_java_gemini_ai_client]
 
+/**
+ * Example {@link Caller} and {@link SetupTeardown} implementation for use with {@link
+ * RequestResponseIO} to process Gemini AI {@link GenerateContentRequest}s into {@link
+ * GenerateContentResponse}s.
+ */
 @AutoValue
 abstract class GeminiAIClient
-    implements Caller<KV<Struct, GenerateContentRequest>, KV<Struct, GenerateContentResponse>>,
+    implements Caller<KV<String, GenerateContentRequest>, KV<String, GenerateContentResponse>>,
         SetupTeardown {
 
   static Builder builder() {
@@ -51,10 +56,10 @@ abstract class GeminiAIClient
   private transient @MonotonicNonNull GenerativeModel client;
 
   @Override
-  public KV<Struct, GenerateContentResponse> call(KV<Struct, GenerateContentRequest> requestKV)
+  public KV<String, GenerateContentResponse> call(KV<String, GenerateContentRequest> requestKV)
       throws UserCodeExecutionException {
 
-    Struct key = requestKV.getKey();
+    String key = requestKV.getKey();
     GenerateContentRequest request = requestKV.getValue();
 
     if (request == null) {
@@ -113,5 +118,5 @@ abstract class GeminiAIClient
     }
   }
 
-  // [END webapis_gemini_ai_client]
+  // [END webapis_java_gemini_ai_client]
 }

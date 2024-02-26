@@ -23,13 +23,16 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** {@link Log} has convenience {@link DoFn}s for logging output. */
 class Log {
   private static final Logger LOG = LoggerFactory.getLogger(Log.class);
 
+  /** Logs output to stderr. */
   static <T> ParDo.SingleOutput<T, T> errorOf() {
     return ParDo.of(new LogErrorFn<>());
   }
 
+  /** Logs output to stdout. */
   static <T> ParDo.SingleOutput<T, T> infoOf() {
     return ParDo.of(new LogInfoFn<>());
   }

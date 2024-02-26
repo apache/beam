@@ -24,6 +24,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
+/** A {@link CustomCoder} of an {@link ImageRequest}. */
 class ImageRequestCoder extends CustomCoder<ImageRequest> {
   private static final StringUtf8Coder STRING_UTF_8_CODER = StringUtf8Coder.of();
 

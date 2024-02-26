@@ -24,6 +24,7 @@ import java.io.OutputStream;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 
+/** A {@link CustomCoder} of a {@link GenerateContentResponse}. */
 class GenerateContentResponseCoder extends CustomCoder<GenerateContentResponse> {
 
   static GenerateContentResponseCoder of() {
