@@ -42,7 +42,8 @@ if __name__ == '__main__':
   read_subscription()
 
 ```
-Reading messages directly from a topic is also supported. A temporary subscription will be created automatically.
+
+Apache Beam also supports reading messages directly from a topic. A temporary subscription will be created automatically.
 
 The messages could be returned as a byte string or as `PubsubMessage` objects. This behavior is controlled by the `with_attributes` parameter.
 
