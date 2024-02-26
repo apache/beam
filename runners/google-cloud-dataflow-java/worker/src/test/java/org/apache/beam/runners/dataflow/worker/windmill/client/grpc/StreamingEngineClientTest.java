@@ -96,8 +96,6 @@ public class StreamingEngineClientTest {
           .build();
 
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
-
   private final Set<ManagedChannel> channels = new HashSet<>();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   private final GrpcWindmillStreamFactory streamFactory =
@@ -116,6 +114,7 @@ public class StreamingEngineClientTest {
           stubFactory, new ArrayList<>(), new ArrayList<>(), new HashSet<>());
   private final AtomicReference<StreamingEngineConnectionState> connections =
       new AtomicReference<>(StreamingEngineConnectionState.EMPTY);
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private Server fakeStreamingEngineServer;
   private CountDownLatch getWorkerMetadataReady;
   private GetWorkerMetadataTestStub fakeGetWorkerMetadataStub;
@@ -241,7 +240,13 @@ public class StreamingEngineClientTest {
 
     verify(streamFactory, times(2))
         .createDirectGetWorkStream(
-            any(), eq(getWorkRequest(0, 0)), any(), any(), any(), eq(noOpProcessWorkItemFn()));
+            any(),
+            any(),
+            eq(getWorkRequest(0, 0)),
+            any(),
+            any(),
+            any(),
+            eq(noOpProcessWorkItemFn()));
 
     verify(streamFactory, times(2)).createGetDataStream(any(), any());
     verify(streamFactory, times(2)).createCommitWorkStream(any(), any());
