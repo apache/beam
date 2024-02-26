@@ -429,6 +429,7 @@ def save_workflows(workflows):
     create_workflow_runs_table_query = f"""
     CREATE TABLE IF NOT EXISTS {workflow_runs_table_name} (
         run_id text NOT NULL PRIMARY KEY,
+        run_number integer NOT NULL,
         status text NOT NULL,
         url text NOT NULL,
         workflow_id text NOT NULL,
@@ -440,7 +441,7 @@ def save_workflows(workflows):
     INSERT INTO {workflows_table_name} (workflow_id, name, filename, url,  dashboard_category, threshold, is_flaky)
     VALUES %s"""
     insert_workflow_runs_query = f"""
-    INSERT INTO {workflow_runs_table_name} (run_id, status, url, workflow_id, started_at)
+    INSERT INTO {workflow_runs_table_name} (run_id, run_number, status, url, workflow_id, started_at)
     VALUES %s"""
     insert_workflows = []
     insert_workflow_runs = []
@@ -456,8 +457,8 @@ def save_workflows(workflows):
                 workflow.is_flaky,
             )
         )
-        for run in workflow.runs:
-            insert_workflow_runs.append((run.id, run.status, run.url, run.workflow_id, run.started_at))
+        for idx, run in enumerate(workflow.runs):
+            insert_workflow_runs.append((run.id, idx+1, run.status, run.url, run.workflow_id, run.started_at))
     psycopg2.extras.execute_values(cursor, insert_workflows_query, insert_workflows)
     psycopg2.extras.execute_values(
         cursor, insert_workflow_runs_query, insert_workflow_runs
