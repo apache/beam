@@ -40,10 +40,10 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoint;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkerMetadataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
@@ -51,7 +51,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudge
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetRefresher;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
@@ -94,7 +93,7 @@ public final class StreamingEngineClient {
   /** Writes are guarded by synchronization, reads are lock free. */
   private final AtomicReference<StreamingEngineConnectionState> connections;
 
-  private final Function<WindmillServiceAddress, ManagedChannel> channelCache;
+  private final ChannelCache channelCache;
 
   @SuppressWarnings("FutureReturnValueIgnored")
   private StreamingEngineClient(
@@ -107,7 +106,7 @@ public final class StreamingEngineClient {
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
       long clientId,
-      Function<WindmillServiceAddress, ManagedChannel> channelCache) {
+      ChannelCache channelCache) {
     this.jobHeader = jobHeader;
     this.started = new AtomicBoolean();
     this.streamFactory = streamFactory;
@@ -173,7 +172,7 @@ public final class StreamingEngineClient {
       WindmillStubFactory windmillGrpcStubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
-      Function<WindmillServiceAddress, ManagedChannel> channelCache) {
+      ChannelCache channelCache) {
     StreamingEngineClient streamingEngineClient =
         new StreamingEngineClient(
             jobHeader,
@@ -201,7 +200,7 @@ public final class StreamingEngineClient {
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
       long clientId,
-      Function<WindmillServiceAddress, ManagedChannel> channelCache) {
+      ChannelCache channelCache) {
     StreamingEngineClient streamingEngineClient =
         new StreamingEngineClient(
             jobHeader,
@@ -320,6 +319,7 @@ public final class StreamingEngineClient {
     currentStreams.entrySet().stream()
         .filter(
             connectionAndStream -> !newWindmillConnections.contains(connectionAndStream.getKey()))
+        .peek(entry -> entry.getKey().directEndpoint().ifPresent(channelCache::remove))
         .map(Entry::getValue)
         .forEach(WindmillStreamSender::closeAllStreams);
 
@@ -368,7 +368,8 @@ public final class StreamingEngineClient {
     WindmillStreamSender windmillStreamSender =
         WindmillStreamSender.create(
             connection.stub(),
-            channelCache.apply(connection.directEndpoint().orElse(null)),
+            channelCache.get(
+                connection.directEndpoint().orElseGet(dispatcherClient::getWindmillServiceAddress)),
             GetWorkRequest.newBuilder()
                 .setClientId(clientId)
                 .setJobId(jobHeader.getJobId())

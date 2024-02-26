@@ -97,6 +97,14 @@ class GrpcDispatcherClient {
         : randomlySelectNextStub(windmillServiceStubs));
   }
 
+  WindmillServiceAddress getWindmillServiceAddress() {
+    ImmutableList<HostAndPort> endpoints =
+        ImmutableList.copyOf(dispatcherStubs.get().dispatcherEndpoints());
+
+    return WindmillServiceAddress.create(
+        endpoints.size() == 1 ? endpoints.get(0) : randomlySelectNextStub(endpoints));
+  }
+
   ImmutableSet<HostAndPort> getDispatcherEndpoints() {
     return dispatcherStubs.get().dispatcherEndpoints();
   }
