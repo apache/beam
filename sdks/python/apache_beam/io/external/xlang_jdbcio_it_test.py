@@ -25,7 +25,7 @@ import unittest
 from decimal import Decimal
 from typing import Callable
 from typing import Union
-
+from apache_beam import DoFn, ParDo
 from parameterized import parameterized
 
 import apache_beam as beam
@@ -197,8 +197,6 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
       p.not_use_test_runner_api = True
       result = (
           p
-          # TODO(https://github.com/apache/beam/issues/20446) Add test with
-          # overridden read_query
           | 'Read from jdbc' >> ReadFromJdbc(
               table_name=table_name,
               driver_class_name=self.driver_class_name,
@@ -208,6 +206,26 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
               classpath=classpath))
 
       assert_that(result, equal_to(expected_row))
+
+    with TestPipeline() as p:
+      p.not_use_test_runner_api = True
+
+      class ExtractCount(DoFn):
+        def process(self, element):
+          yield element[0]
+
+      result = (
+          p
+          | 'Read from jdbc override query' >> ReadFromJdbc(
+              table_name=table_name,
+              query=f'select count(*) from {table_name}',
+              driver_class_name=self.driver_class_name,
+              jdbc_url=self.jdbc_url,
+              username=self.username,
+              password=self.password,
+              classpath=classpath)
+          | 'ExtractCount' >> ParDo(ExtractCount()))
+      assert_that(result, equal_to([ROW_COUNT]))
 
     # Try the same read using the partitioned reader code path.
     # Outputs should be the same.
