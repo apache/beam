@@ -19,9 +19,9 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.google.api.services.dataflow.model.MapTask;
@@ -44,12 +44,13 @@ import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.direct.Clock;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -117,7 +118,7 @@ public class DispatchedActiveWorkRefresherTest {
   }
 
   @Test
-  public void testActiveWorkRefresh() {
+  public void testActiveWorkRefresh() throws InterruptedException {
     int activeWorkRefreshPeriodMillis = 100;
 
     // Block work processing to queue up the work.
@@ -146,19 +147,23 @@ public class DispatchedActiveWorkRefresherTest {
     }
 
     Map<String, List<HeartbeatRequest>> expectedHeartbeats = new HashMap<>();
+    CountDownLatch heartbeatsSent = new CountDownLatch(1);
+    TestClock fakeClock = new TestClock(Instant.now());
 
     ActiveWorkRefresher activeWorkRefresher =
         createActiveWorkRefresher(
-            Instant::now,
+            fakeClock::now,
             activeWorkRefreshPeriodMillis,
             0,
             () -> computations,
-            expectedHeartbeats::putAll);
+            heartbeats -> {
+              expectedHeartbeats.putAll(heartbeats);
+              heartbeatsSent.countDown();
+            });
 
     activeWorkRefresher.start();
-    Uninterruptibles.sleepUninterruptibly(
-        (long) (activeWorkRefreshPeriodMillis + (0.5 * activeWorkRefreshPeriodMillis)),
-        TimeUnit.MILLISECONDS);
+    fakeClock.advance(Duration.millis(activeWorkRefreshPeriodMillis * 2));
+    heartbeatsSent.await();
     activeWorkRefresher.stop();
 
     assertThat(computationsAndWork.size()).isEqualTo(expectedHeartbeats.size());
@@ -180,6 +185,7 @@ public class DispatchedActiveWorkRefresherTest {
           .containsExactlyElementsIn(work);
     }
 
+    activeWorkRefresher.stop();
     // Free the work processing threads.
     workIsProcessed.countDown();
   }
@@ -201,30 +207,48 @@ public class DispatchedActiveWorkRefresherTest {
       computations.put(computationState, fakeWork, perComputationStateCache);
     }
 
+    TestClock fakeClock = new TestClock(Instant.now());
+
     ActiveWorkRefresher activeWorkRefresher =
         createActiveWorkRefresher(
-            Instant::now,
+            fakeClock::now,
             0,
             stuckCommitDurationMillis,
             computations.rowMap()::keySet,
             ignored -> {});
 
     activeWorkRefresher.start();
-    Uninterruptibles.sleepUninterruptibly(
-        (long) (stuckCommitDurationMillis * (0.5 * stuckCommitDurationMillis)),
-        TimeUnit.MILLISECONDS);
-    activeWorkRefresher.stop();
+    fakeClock.advance(Duration.millis(stuckCommitDurationMillis));
 
     for (Table.Cell<ComputationState, Work, WindmillStateCache.ForComputation> cell :
         computations.cellSet()) {
       ComputationState computation = cell.getRowKey();
       Work work = cell.getColumnKey();
       WindmillStateCache.ForComputation perComputationStateCache = cell.getValue();
-      verify(perComputationStateCache, times(1))
+      verify(perComputationStateCache, after((long) (stuckCommitDurationMillis * 1.5)).times(1))
           .invalidate(eq(key), eq(work.getWorkItem().getShardingKey()));
-      verify(computation, times(1))
+      verify(computation, after((long) (stuckCommitDurationMillis * 1.5)).times(1))
           .completeWorkAndScheduleNextWorkForKey(
               eq(ShardedKey.create(key, work.getWorkItem().getShardingKey())), eq(work.id()));
+    }
+
+    activeWorkRefresher.stop();
+  }
+
+  static class TestClock implements Clock {
+    private Instant time;
+
+    private TestClock(Instant startTime) {
+      this.time = startTime;
+    }
+
+    private synchronized void advance(Duration amount) {
+      time = time.plus(amount);
+    }
+
+    @Override
+    public synchronized Instant now() {
+      return time;
     }
   }
 }
