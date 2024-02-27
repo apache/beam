@@ -112,13 +112,12 @@ def main():
     for alert in alerts:
         if alert.workflow_id in workflow_closed_issues.keys():
             issue = workflow_closed_issues[alert.workflow_id]
-            if issue:
-                if READ_ONLY == "true":
-                    print("READ_ONLY is true, not reopening issue")
-                else:
-                    issue.edit(state="open")
-                    issue.create_comment(body="Reopening since the workflow is still flaky")
-                    print(f"The issue for the workflow {alert.workflow_id} has been reopened")
+            if READ_ONLY == "true":
+                print("READ_ONLY is true, not reopening issue")
+            else:
+                issue.edit(state="open")
+                issue.create_comment(body="Reopening since the workflow is still flaky")
+                print(f"The issue for the workflow {alert.workflow_id} has been reopened")
         elif alert.workflow_id not in workflow_open_issues.keys():
             create_github_issue(repo, alert)
         else:
