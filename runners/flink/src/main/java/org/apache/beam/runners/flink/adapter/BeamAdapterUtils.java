@@ -17,68 +17,97 @@
  */
 package org.apache.beam.runners.flink.adapter;
 
-import java.io.IOException;
 import java.util.Map;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.sdk.util.construction.CoderTranslation;
-import org.apache.beam.sdk.util.construction.RehydratedComponents;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.PipelineTranslation;
+import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.ExecutionEnvironment;
 
-public class BeamAdapterUtils {
+class BeamAdapterUtils {
   private BeamAdapterUtils() {}
 
-  static <T> Coder<T> typeInformationToCoder(
-      TypeInformation<T> typeInfo, CoderRegistry coderRegistry) {
-    Class<T> clazz = typeInfo.getTypeClass();
-    if (typeInfo instanceof CoderTypeInformation) {
-      return ((CoderTypeInformation) typeInfo).getCoder();
-    } else if (clazz.getTypeParameters().length == 0) {
-      try {
-        return coderRegistry.getCoder(clazz);
-      } catch (CannotProvideCoderException exn) {
-        throw new RuntimeException(exn);
-      }
-    } else if (Iterable.class.isAssignableFrom(clazz)) {
-      TypeInformation<?> elementType =
-          Preconditions.checkArgumentNotNull(typeInfo.getGenericParameters().get("T"));
-      return (Coder) IterableCoder.of(typeInformationToCoder(elementType, coderRegistry));
-    } else if (Map.class.isAssignableFrom(clazz)) {
-      TypeInformation<?> keyType =
-          Preconditions.checkArgumentNotNull(typeInfo.getGenericParameters().get("K"));
-      TypeInformation<?> valueType =
-          Preconditions.checkArgumentNotNull(typeInfo.getGenericParameters().get("V"));
-      return (Coder)
-          MapCoder.of(
-              typeInformationToCoder(keyType, coderRegistry),
-              typeInformationToCoder(valueType, coderRegistry));
-    } else {
-      throw new RuntimeException("Coder translation for " + typeInfo + " not yet supported.");
-    }
+  interface PipelineFragmentTranslator<DataSetOrStreamT> {
+    Map<String, DataSetOrStreamT> translate(
+        Map<String, ? extends DataSetOrStreamT> inputs,
+        RunnerApi.Pipeline pipelineProto,
+        ExecutionEnvironment executionEnvironment);
   }
 
-  static <T> TypeInformation<T> coderToTypeInformation(Coder<T> coder, PipelineOptions options) {
-    // TODO(robertwb): Consider mapping some common types.
-    return new CoderTypeInformation<>(coder, options);
+  @SuppressWarnings({"nullness", "rawtypes"})
+  static <DataSetOrStreamT, BeamInputT extends PInput, BeamOutputT extends POutput>
+      Map<String, DataSetOrStreamT> applyBeamPTransformInternal(
+          Map<String, ? extends DataSetOrStreamT> inputs,
+          BiFunction<Pipeline, Map<String, PCollection<?>>, BeamInputT> toBeamInput,
+          Function<BeamOutputT, Map<String, PCollection<?>>> fromBeamOutput,
+          PTransform<? super BeamInputT, BeamOutputT> transform,
+          ExecutionEnvironment executionEnvironment,
+          Function<DataSetOrStreamT, TypeInformation<?>> getTypeInformation,
+          PipelineOptions pipelineOptions,
+          CoderRegistry coderRegistry,
+          PipelineFragmentTranslator<DataSetOrStreamT> translator) {
+    Pipeline pipeline = Pipeline.create();
+
+    // Construct beam inputs corresponding to each Flink input.
+    Map<String, PCollection<?>> beamInputs =
+        // Copy as transformEntries lazy recomputes entries.
+        ImmutableMap.copyOf(
+            Maps.transformEntries(
+                inputs,
+                (key, flinkInput) ->
+                    pipeline.apply(
+                        new FlinkInput<>(
+                            key,
+                            BeamAdapterCoderUtils.typeInformationToCoder(
+                                getTypeInformation.apply(flinkInput), coderRegistry)))));
+
+    // Actually apply the transform to create Beam outputs.
+    Map<String, PCollection<?>> beamOutputs =
+        fromBeamOutput.apply(applyTransform(toBeamInput.apply(pipeline, beamInputs), transform));
+
+    // This attaches PTransforms to each output which will be used to populate the Flink outputs
+    // during translation.
+    beamOutputs.entrySet().stream()
+        .forEach(
+            e -> {
+              ((PCollection<Object>) e.getValue()).apply(new FlinkOutput<Object>(e.getKey()));
+            });
+
+    // This "environment" executes the SDK harness in the parent worker process.
+    // TODO(robertwb): Support other modes.
+    // TODO(robertwb): In embedded mode, consider an optimized data (and state) channel rather than
+    // serializing everything over grpc protos.
+    pipelineOptions
+        .as(PortablePipelineOptions.class)
+        .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
+
+    // Extract the pipeline definition so that we can apply or Flink translation logic.
+    SdkComponents components = SdkComponents.create(pipelineOptions);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, components);
+    return translator.translate(inputs, pipelineProto, executionEnvironment);
   }
 
-  public static Map<String, PCollection<?>> tupleToMap(PCollectionTuple tuple) {
+  static Map<String, PCollection<?>> tupleToMap(PCollectionTuple tuple) {
     return tuple.getAll().entrySet().stream()
         .collect(Collectors.toMap(e -> e.getKey().getId(), e -> e.getValue()));
   }
 
-  public static PCollectionTuple mapToTuple(Pipeline p, Map<String, PCollection<?>> map) {
+  static PCollectionTuple mapToTuple(Pipeline p, Map<String, PCollection<?>> map) {
     PCollectionTuple tuple = PCollectionTuple.empty(p);
     for (Map.Entry<String, PCollection<?>> entry : map.entrySet()) {
       tuple = tuple.and(entry.getKey(), entry.getValue());
@@ -86,17 +115,24 @@ public class BeamAdapterUtils {
     return tuple;
   }
 
-  static <T> Coder<T> lookupCoder(RunnerApi.Pipeline p, String pCollectionId) {
-    try {
-      return (Coder<T>)
-          CoderTranslation.fromProto(
-              p.getComponents()
-                  .getCodersOrThrow(
-                      p.getComponents().getPcollectionsOrThrow(pCollectionId).getCoderId()),
-              RehydratedComponents.forComponents(p.getComponents()),
-              CoderTranslation.TranslationContext.DEFAULT);
-    } catch (IOException exn) {
-      throw new RuntimeException(exn);
+  /**
+   * This is required as there is no apply() method on the base PInput type due to the inability to
+   * declare type parameters as self types.
+   */
+  private static <BeamInputT extends PInput, BeamOutputT extends POutput>
+      BeamOutputT applyTransform(
+          BeamInputT beamInput, PTransform<? super BeamInputT, BeamOutputT> transform) {
+    if (beamInput instanceof PCollection) {
+      return (BeamOutputT) ((PCollection) beamInput).apply(transform);
+    } else if (beamInput instanceof PCollectionTuple) {
+      return (BeamOutputT) ((PCollectionTuple) beamInput).apply((PTransform) transform);
+    } else if (beamInput instanceof PBegin) {
+      return (BeamOutputT) ((PBegin) beamInput).apply((PTransform) transform);
+    } else {
+      // We should never get here as we control the creation of all Beam types above.
+      // If new types of transform inputs are supported, this enumeration may need to be updated.
+      throw new IllegalArgumentException(
+          "Unknown Beam input type " + beamInput.getClass().getTypeName() + " for " + beamInput);
     }
   }
 }
