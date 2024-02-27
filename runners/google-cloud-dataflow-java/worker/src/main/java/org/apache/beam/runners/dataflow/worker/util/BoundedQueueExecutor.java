@@ -38,6 +38,7 @@ public class BoundedQueueExecutor {
   private int elementsOutstanding = 0;
   private long bytesOutstanding = 0;
   private final AtomicInteger activeCount = new AtomicInteger();
+  private final AtomicInteger maximumThreadCount = new AtomicInteger();
   private long startTimeMaxActiveThreadsUsed;
   private long totalTimeMaxActiveThreadsUsed;
 
@@ -48,6 +49,7 @@ public class BoundedQueueExecutor {
       int maximumElementsOutstanding,
       long maximumBytesOutstanding,
       ThreadFactory threadFactory) {
+    this.maximumThreadCount.set(maximumPoolSize);
     executor =
         new ThreadPoolExecutor(
             maximumPoolSize,
@@ -60,7 +62,7 @@ public class BoundedQueueExecutor {
           protected void beforeExecute(Thread t, Runnable r) {
             super.beforeExecute(t, r);
             synchronized (this) {
-              if (activeCount.getAndIncrement() >= maximumPoolSize - 1) {
+              if (activeCount.getAndIncrement() >= maximumThreadCount.get() - 1) {
                 startTimeMaxActiveThreadsUsed = System.currentTimeMillis();
               }
             }
@@ -70,7 +72,7 @@ public class BoundedQueueExecutor {
           protected void afterExecute(Runnable r, Throwable t) {
             super.afterExecute(r, t);
             synchronized (this) {
-              if (activeCount.getAndDecrement() == maximumPoolSize) {
+              if (activeCount.getAndDecrement() == maximumThreadCount.get()) {
                 totalTimeMaxActiveThreadsUsed +=
                     (System.currentTimeMillis() - startTimeMaxActiveThreadsUsed);
                 startTimeMaxActiveThreadsUsed = 0;
@@ -104,6 +106,20 @@ public class BoundedQueueExecutor {
     executeLockHeld(work, workBytes);
   }
 
+  // Set the maximum/core pool size of the executor.
+  public void setMaximumPoolSize(int maximumPoolSize) {
+    // For ThreadPoolExecutor, the maximum pool size should always greater than or equal to core
+    // pool size.
+    if (maximumPoolSize > executor.getCorePoolSize()) {
+      executor.setMaximumPoolSize(maximumPoolSize);
+      executor.setCorePoolSize(maximumPoolSize);
+    } else {
+      executor.setCorePoolSize(maximumPoolSize);
+      executor.setMaximumPoolSize(maximumPoolSize);
+    }
+    maximumThreadCount.set(maximumPoolSize);
+  }
+
   public void shutdown() throws InterruptedException {
     executor.shutdown();
     if (!executor.awaitTermination(5, TimeUnit.MINUTES)) {
@@ -121,6 +137,10 @@ public class BoundedQueueExecutor {
 
   public int activeCount() {
     return activeCount.intValue();
+  }
+
+  public int maximumThreadCount() {
+    return maximumThreadCount.intValue();
   }
 
   public long bytesOutstanding() {
@@ -147,6 +167,10 @@ public class BoundedQueueExecutor {
       builder.append(executor.getPoolSize());
       builder.append("/");
       builder.append(executor.getMaximumPoolSize());
+      builder.append("<br>/n");
+
+      builder.append("Maximum Threads: ");
+      builder.append(maximumThreadCount());
       builder.append("<br>/n");
 
       builder.append("Active Threads: ");

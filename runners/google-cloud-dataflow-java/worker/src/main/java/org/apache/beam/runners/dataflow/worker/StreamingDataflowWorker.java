@@ -33,6 +33,7 @@ import com.google.api.services.dataflow.model.StreamingScalingReport;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.api.services.dataflow.model.WorkerMessage;
+import com.google.api.services.dataflow.model.WorkerMessageResponse;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
@@ -55,6 +56,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -233,6 +235,7 @@ public class StreamingDataflowWorker {
   private final WindmillServerStub windmillServer;
   private final Thread dispatchThread;
   private final AtomicLong previousTimeAtMaxThreads = new AtomicLong();
+  private final AtomicInteger maxThreadCountOverride = new AtomicInteger();
   private final AtomicBoolean running = new AtomicBoolean();
   private final SideInputStateFetcher sideInputStateFetcher;
   private final DataflowWorkerHarnessOptions options;
@@ -641,6 +644,9 @@ public class StreamingDataflowWorker {
   }
 
   private int chooseMaximumNumberOfThreads() {
+    if (maxThreadCountOverride.get() != 0) {
+      return maxThreadCountOverride.get();
+    }
     if (options.getNumberOfWorkerHarnessThreads() != 0) {
       return options.getNumberOfWorkerHarnessThreads();
     }
@@ -1764,6 +1770,26 @@ public class StreamingDataflowWorker {
     return Optional.of(workUnitClient.createWorkerMessageFromPerWorkerMetrics(perWorkerMetrics));
   }
 
+  private void readAndSaveWorkerMessageResponseForStreamingScalingReportResponse(
+      List<WorkerMessageResponse> responses) {
+    for (WorkerMessageResponse response : responses) {
+      if (response.getStreamingScalingReportResponse() != null) {
+        int oldMaximumThreadCount = chooseMaximumNumberOfThreads();
+        maxThreadCountOverride.set(
+            response.getStreamingScalingReportResponse().getMaximumThreadCount());
+        int newMaximumThreadCount = chooseMaximumNumberOfThreads();
+
+        if (newMaximumThreadCount != oldMaximumThreadCount) {
+          LOG.info(
+              "Setting maximum thread count to {}, old value is {}",
+              newMaximumThreadCount,
+              oldMaximumThreadCount);
+          workUnitExecutor.setMaximumPoolSize(newMaximumThreadCount);
+        }
+      }
+    }
+  }
+
   private void sendWorkerMessage() throws IOException {
     List<WorkerMessage> workerMessages = new ArrayList<WorkerMessage>(2);
     workerMessages.add(createWorkerMessageForStreamingScalingReport());
@@ -1775,7 +1801,9 @@ public class StreamingDataflowWorker {
       }
     }
 
-    workUnitClient.reportWorkerMessage(workerMessages);
+    List<WorkerMessageResponse> workerMessageResponses =
+        workUnitClient.reportWorkerMessage(workerMessages);
+    readAndSaveWorkerMessageResponseForStreamingScalingReportResponse(workerMessageResponses);
   }
 
   @VisibleForTesting
