@@ -19,6 +19,8 @@ package org.apache.beam.examples.webapis;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+
+import com.google.protobuf.ByteString;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
@@ -37,17 +39,13 @@ abstract class ImageResponse implements Serializable {
   abstract String getMimeType();
 
   /** The payload of the response containing the image data. */
-  // Needs non vendor gRPC to provide input into an external proto library.
-  @SuppressWarnings({"ForbidNonVendoredGrpcProtobuf"})
-  abstract com.google.protobuf.ByteString getData();
+  abstract ByteString getData();
 
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setMimeType(String value);
 
-    // Needs non vendor gRPC to provide input into an external proto library.
-    @SuppressWarnings({"ForbidNonVendoredGrpcProtobuf"})
-    abstract Builder setData(com.google.protobuf.ByteString value);
+    abstract Builder setData(ByteString value);
 
     abstract ImageResponse build();
   }

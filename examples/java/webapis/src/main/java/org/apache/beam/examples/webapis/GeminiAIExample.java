@@ -27,6 +27,8 @@ import com.google.cloud.vertexai.api.GenerateContentRequest;
 import com.google.cloud.vertexai.api.GenerateContentResponse;
 import com.google.cloud.vertexai.api.Part;
 import java.util.List;
+
+import com.google.protobuf.ByteString;
 import org.apache.beam.io.requestresponse.RequestResponseIO;
 import org.apache.beam.io.requestresponse.Result;
 import org.apache.beam.sdk.Pipeline;
@@ -125,8 +127,6 @@ class GeminiAIExample {
     // [END webapis_java_ask_ai]
   }
 
-  // Needs non vendor gRPC to provide input into an external proto library.
-  @SuppressWarnings({"ForbidNonVendoredGrpcProtobuf"})
   private static PCollection<KV<String, GenerateContentRequest>> buildAIRequests(
       String stepName, String prompt, PCollection<KV<String, ImageResponse>> imagesKV) {
 
@@ -156,7 +156,7 @@ class GeminiAIExample {
                     kv -> {
                       String key = kv.getKey();
                       ImageResponse safeResponse = checkStateNotNull(kv.getValue());
-                      com.google.protobuf.ByteString data = safeResponse.getData();
+                      ByteString data = safeResponse.getData();
                       return buildAIRequest(key, prompt, data, safeResponse.getMimeType());
                     }))
         .setCoder(kvCoder);
@@ -164,10 +164,8 @@ class GeminiAIExample {
     // [END webapis_java_build_ai_requests]
   }
 
-  // Needs non vendor gRPC to provide input into an external proto library.
-  @SuppressWarnings({"ForbidNonVendoredGrpcProtobuf"})
   private static KV<String, GenerateContentRequest> buildAIRequest(
-      String key, String prompt, com.google.protobuf.ByteString data, String mimeType) {
+      String key, String prompt, ByteString data, String mimeType) {
     return KV.of(
         key,
         GenerateContentRequest.newBuilder()
