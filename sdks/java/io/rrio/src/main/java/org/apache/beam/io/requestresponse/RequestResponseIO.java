@@ -107,8 +107,6 @@ public class RequestResponseIO<RequestT, ResponseT>
 
   private static final String CACHE_WRITE_NAME = "CacheWrite";
 
-  private static final String THROTTLE_NAME = "Throttle";
-
   private final TupleTag<ResponseT> responseTag = new TupleTag<ResponseT>() {};
   private final TupleTag<ApiIOError> failureTag = new TupleTag<ApiIOError>() {};
 
@@ -261,18 +259,6 @@ public class RequestResponseIO<RequestT, ResponseT>
         rrioConfiguration, callConfiguration.toBuilder().setMonitoringConfiguration(value).build());
   }
 
-  /**
-   * Configures {@link RequestResponseIO} with a {@link PTransform} that holds back {@link
-   * RequestT}s to prevent quota errors such as HTTP 429 or gRPC RESOURCE_EXHAUSTION errors.
-   */
-  // TODO(damondouglas): Until https://github.com/apache/beam/issues/28930 there is no provided
-  //  solution for this, however this method allows users to provide their own at this time.
-  public RequestResponseIO<RequestT, ResponseT> withPreventiveThrottle(
-      PTransform<PCollection<RequestT>, Result<RequestT>> throttle) {
-    return new RequestResponseIO<>(
-        rrioConfiguration.toBuilder().setThrottle(throttle).build(), callConfiguration);
-  }
-
   /** Exposes the transform's {@link Call.Configuration} for testing. */
   @VisibleForTesting
   Call.Configuration<RequestT, ResponseT> getCallConfiguration() {
@@ -308,9 +294,6 @@ public class RequestResponseIO<RequestT, ResponseT>
             PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>>
         getCacheWrite();
 
-    /** Throttles a {@link RequestT} {@link PCollection}. */
-    abstract @Nullable PTransform<PCollection<RequestT>, Result<RequestT>> getThrottle();
-
     abstract Builder<RequestT, ResponseT> toBuilder();
 
     @AutoValue.Builder
@@ -326,10 +309,6 @@ public class RequestResponseIO<RequestT, ResponseT>
       /** See {@link #getCacheWrite}. */
       abstract Builder<RequestT, ResponseT> setCacheWrite(
           PTransform<PCollection<KV<RequestT, ResponseT>>, Result<KV<RequestT, ResponseT>>> value);
-
-      /** See {@link #getThrottle}. */
-      abstract Builder<RequestT, ResponseT> setThrottle(
-          PTransform<PCollection<RequestT>, Result<RequestT>> value);
 
       abstract Configuration<RequestT, ResponseT> build();
     }
@@ -348,12 +327,6 @@ public class RequestResponseIO<RequestT, ResponseT>
     input = cacheRead.getLeft();
     responseList = cacheRead.getMiddle();
     failureList = cacheRead.getRight();
-
-    // Throttle the RequestT input PCollection.
-    Pair<PCollection<RequestT>, PCollectionList<ApiIOError>> throttle =
-        expandThrottle(input, failureList);
-    input = throttle.getLeft();
-    failureList = throttle.getRight();
 
     // Invoke the Caller for each RequestT input and write associated RequestT and ResponseT to
     // the cache, if available.
@@ -421,32 +394,6 @@ public class RequestResponseIO<RequestT, ResponseT>
     failureList = failureList.and(cacheReadResult.getFailures());
 
     return Triple.of(input, responseList, failureList);
-  }
-
-  /**
-   * Expands with {@link Configuration#getThrottle}, if available. Otherwise, returns a {@link Pair}
-   * of original arguments.
-   *
-   * <pre>Algorithm is as follows:
-   * <ol>
-   *   <li>Applies throttle transform to {@link RequestT} {@link PCollection} input.</li>
-   *   <li>Returns throttled {@link PCollection} of {@link RequestT} elements.</li>
-   *   <li>Returns appended {@link PCollection} of {@link ApiIOError}s to the failureList.</li>
-   * </ol></pre>
-   */
-  // TODO(damondouglas): See https://github.com/apache/beam/issues/28930; currently there is no
-  //  provided solution for this, though users could provide their own via withThrottle.
-  Pair<PCollection<RequestT>, PCollectionList<ApiIOError>> expandThrottle(
-      PCollection<RequestT> input, PCollectionList<ApiIOError> failureList) {
-
-    if (rrioConfiguration.getThrottle() == null) {
-      return Pair.of(input, failureList);
-    }
-
-    Result<RequestT> throttleResult =
-        input.apply(THROTTLE_NAME, checkStateNotNull(rrioConfiguration.getThrottle()));
-
-    return Pair.of(throttleResult.getResponses(), failureList.and(throttleResult.getFailures()));
   }
 
   /**
