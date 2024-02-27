@@ -51,8 +51,7 @@ class UsingHttpClientExample {
         KvCoder.of(StringUtf8Coder.of(), ImageResponseCoder.of());
 
     // Step 3: Process ImageRequests using RequestResponseIO instantiated from the Caller
-    // implementation and the
-    // expected PCollection response Coder.
+    // implementation and the expected PCollection response Coder.
     Result<KV<String, ImageResponse>> result =
         requests.apply(
             ImageResponse.class.getSimpleName(),

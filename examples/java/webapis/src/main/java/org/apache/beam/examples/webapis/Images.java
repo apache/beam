@@ -38,8 +38,8 @@ class Images {
   private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
 
   /**
-   * Converts a raw image URL list into a {@link ImageRequest} {@link PCollection}. It assigns the
-   * {@link KV#getKey} to the original raw URL. This is to forward the URL along the pipeline to
+   * Converts a raw image URL list into an {@link ImageRequest} {@link PCollection}. It assigns the
+   * {@link KV#getKey} to the original raw URL. This is to forward the URL along the pipeline for
    * comparing results to the original reference.
    */
   static PCollection<KV<String, ImageRequest>> requestsOf(List<String> urls, Pipeline pipeline) {

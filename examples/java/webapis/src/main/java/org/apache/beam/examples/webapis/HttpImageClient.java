@@ -37,7 +37,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams
 // [START webapis_java_image_caller]
 
 /**
- * Implements {@link Caller} to process an {@link ImageRequest} into a {@link ImageResponse} by
+ * Implements {@link Caller} to process an {@link ImageRequest} into an {@link ImageResponse} by
  * invoking the HTTP request.
  */
 class HttpImageClient implements Caller<KV<String, ImageRequest>, KV<String, ImageResponse>> {
@@ -52,7 +52,7 @@ class HttpImageClient implements Caller<KV<String, ImageRequest>, KV<String, Ima
   }
 
   /**
-   * Invokes an HTTP Get request from {@param request}, returning an {@link ImageResponse}
+   * Invokes an HTTP Get request from the {@param request}, returning an {@link ImageResponse}
    * containing the image data.
    */
   @Override
