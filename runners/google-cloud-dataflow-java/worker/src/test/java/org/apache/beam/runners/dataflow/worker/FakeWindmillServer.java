@@ -27,7 +27,6 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -43,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -64,6 +64,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Duration;
@@ -73,7 +74,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** An in-memory Windmill server that offers provided work and data. */
-final class FakeWindmillServer extends WindmillServerStub {
+public class FakeWindmillServer extends WindmillServerStub {
   private static final Logger LOG = LoggerFactory.getLogger(FakeWindmillServer.class);
   private final ResponseQueue<Windmill.GetWorkRequest, Windmill.GetWorkResponse> workToOffer;
   private final ResponseQueue<GetDataRequest, GetDataResponse> dataToOffer;
@@ -90,6 +91,9 @@ final class FakeWindmillServer extends WindmillServerStub {
   private boolean isReady = true;
   private boolean dropStreamingCommits = false;
   private final Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses;
+
+  @GuardedBy("this")
+  private ImmutableSet<HostAndPort> dispatcherEndpoints;
 
   public FakeWindmillServer(
       ErrorCollector errorCollector,
@@ -475,8 +479,18 @@ final class FakeWindmillServer extends WindmillServerStub {
   }
 
   @Override
-  public void setWindmillServiceEndpoints(Set<HostAndPort> endpoints) throws IOException {
-    isReady = true;
+  public void setWindmillServiceEndpoints(Set<HostAndPort> endpoints) {
+    synchronized (this) {
+      this.dispatcherEndpoints = ImmutableSet.copyOf(endpoints);
+      isReady = true;
+    }
+  }
+
+  @Override
+  public ImmutableSet<HostAndPort> getWindmillServiceEndpoints() {
+    synchronized (this) {
+      return dispatcherEndpoints;
+    }
   }
 
   @Override
