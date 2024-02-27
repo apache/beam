@@ -39,7 +39,7 @@ public class ReadAllViaFileBasedSource<T, K> extends ReadAllViaFileBasedSourceTr
 
   private final SerializableFunction<OutputContextFromFile<T>, K> outputFn;
 
-  protected ReadAllViaFileBasedSource(
+  public ReadAllViaFileBasedSource(
       long desiredBundleSizeBytes,
       SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
       Coder<K> coder,
@@ -53,7 +53,7 @@ public class ReadAllViaFileBasedSource<T, K> extends ReadAllViaFileBasedSourceTr
     this.outputFn = outputFn;
   }
 
-  protected ReadAllViaFileBasedSource(
+  public ReadAllViaFileBasedSource(
       long desiredBundleSizeBytes,
       SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
       Coder<K> coder,
