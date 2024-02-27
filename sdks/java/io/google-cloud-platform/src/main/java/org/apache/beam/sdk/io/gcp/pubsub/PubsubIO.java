@@ -1137,7 +1137,7 @@ public class PubsubIO {
           && (getBadRecordRouter() instanceof ThrowingBadRecordRouter)) {
         read = preParse.apply(MapElements.into(typeDescriptor).via(getParseFn()));
       } else {
-        // parse PubSub messages, separating out execptions
+        // parse PubSub messages, separating out exceptions
         Result<PCollection<T>, KV<PubsubMessage, EncodableThrowable>> result =
             preParse.apply(
                 "PubsubIO.Read/Map/Parse-Incoming-Messages",

@@ -173,7 +173,7 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
           element,
           inputCoder,
           new IllegalArgumentException(e),
-          "PubSub message size limit exceeded");
+          "PubSub message limit exceeded, see exception for details");
       return;
     }
     o.get(outputTag).output(message);
