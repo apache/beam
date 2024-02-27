@@ -66,6 +66,7 @@
   * Full Support for Storage Read and Write APIs
   * Partial Support for File Loads (Failures writing to files supported, failures loading files to BQ unsupported)
   * No Support for Extract or Streaming Inserts
+* `--enableBundling` pipeline option for BigQueryIO DIRECT_READ is replaced by `--enableStorageReadApiV2`. Both were considered experimental and may subject to change (Java) ([#26354](https://github.com/apache/beam/issues/26354)).
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## New Features / Improvements
