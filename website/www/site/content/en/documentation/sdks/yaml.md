@@ -565,7 +565,8 @@ pipeline:
 
 providers:
   - type: javaJar
-    jar: /path/or/url/to/myExpansionService.jar
+    config:
+       jar: /path/or/url/to/myExpansionService.jar
     transforms:
        MyCustomTransform: "urn:registered:in:expansion:service"
 ```
@@ -575,9 +576,10 @@ Arbitrary Python transforms can be provided as well, using the syntax
 ```
 providers:
   - type: pythonPackage
-    packages:
-        - my_pypi_package>=version
-        - /path/to/local/package.zip
+    config:
+       packages:
+           - my_pypi_package>=version
+           - /path/to/local/package.zip
     transforms:
        MyCustomTransform: "pkg.subpkg.PTransformClassOrCallable"
 ```
