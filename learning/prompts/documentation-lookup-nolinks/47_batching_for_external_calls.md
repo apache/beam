@@ -3,7 +3,7 @@ Prompt: How to reduce payload when calling external services from my Apache Beam
 Response:
 To reduce payload when calling external services from your Apache Beam pipeline, you can employ batching techniques by using the `GroupIntoBatches` transform. Batching involves aggregating multiple elements into a single payload, reducing the number of requests sent to the external service and minimizing overhead.
 
-Under the hood, the `GroupIntoBatches` transform utilizes [state and timers](https://beam.apache.org/documentation/programming-guide/#state-and-timers) to grant users precise control over batch size and buffering duration parameters, while abstracting away the implementation details. Key parameters include:
+Under the hood, the `GroupIntoBatches` transform utilizes state and timers to grant users precise control over batch size and buffering duration parameters, while abstracting away the implementation details. Key parameters include:
 * `maxBufferDuration`: controls the maximum waiting time for a batch to be emitted.
 * `batchSize`: determines the maximum number of elements in each batch. Elements are buffered until the specified number is reached, then emitted as a batch.
 * `batchSizeBytes` (Java only): limits the byte size of a single batch, determined by the input coder.
@@ -80,4 +80,4 @@ When grouping elements into batches, keep in mind the following considerations:
 * Batches retain elements from the same window, preserving windowing logic.
 * A batch might encompass elements from more than one bundle.
 
-For more examples, refer to the Apache Beam documentation for the [Python `GroupIntoBatches`](https://beam.apache.org/documentation/transforms/python/aggregation/groupintobatches/) and the [Java `GroupIntoBatches`](https://beam.apache.org/documentation/transforms/java/aggregation/groupintobatches/) transforms.
+For more examples, refer to the Apache Beam documentation for the Python and Java `GroupIntoBatches` transforms.
