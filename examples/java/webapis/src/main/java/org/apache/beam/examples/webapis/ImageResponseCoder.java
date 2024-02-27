@@ -17,11 +17,10 @@
  */
 package org.apache.beam.examples.webapis;
 
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-
-import com.google.protobuf.ByteString;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -50,10 +49,7 @@ class ImageResponseCoder extends CustomCoder<ImageResponse> {
   public ImageResponse decode(InputStream inStream) throws CoderException, IOException {
     byte[] data = BYTE_ARRAY_CODER.decode(inStream);
     String mimeType = STRING_CODER.decode(inStream);
-    return ImageResponse.builder()
-        .setData(ByteString.copyFrom(data))
-        .setMimeType(mimeType)
-        .build();
+    return ImageResponse.builder().setData(ByteString.copyFrom(data)).setMimeType(mimeType).build();
   }
 }
 

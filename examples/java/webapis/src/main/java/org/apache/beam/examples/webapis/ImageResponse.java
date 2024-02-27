@@ -18,9 +18,8 @@
 package org.apache.beam.examples.webapis;
 
 import com.google.auto.value.AutoValue;
-import java.io.Serializable;
-
 import com.google.protobuf.ByteString;
+import java.io.Serializable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
