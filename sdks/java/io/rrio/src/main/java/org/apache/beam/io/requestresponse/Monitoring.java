@@ -306,7 +306,7 @@ public abstract class Monitoring implements Serializable {
 
     abstract Monitoring autoBuild();
 
-    final Monitoring build() {
+    public final Monitoring build() {
       if (!getCountRequests().isPresent()) {
         setCountRequests(false);
       }

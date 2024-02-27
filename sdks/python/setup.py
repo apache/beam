@@ -16,8 +16,8 @@
 #
 
 """Apache Beam SDK for Python setup file."""
-
 import glob
+import logging
 import os
 import shutil
 import subprocess
@@ -227,6 +227,50 @@ def copy_tests_from_docs():
           f'Could not locate yaml docs in {docs_src} or {docs_dest}.')
 
 
+def generate_external_transform_wrappers():
+  try:
+    sdk_dir = os.path.abspath(os.path.dirname(__file__))
+    script_exists = os.path.exists(
+        os.path.join(sdk_dir, 'gen_xlang_wrappers.py'))
+    config_exists = os.path.exists(
+        os.path.join(os.path.dirname(sdk_dir),
+                     'standard_external_transforms.yaml'))
+    # we need both the script and the standard transforms config file.
+    # at build time, we don't have access to apache_beam to discover and
+    # retrieve external transforms, so the config file has to already exist
+    if not script_exists or not config_exists:
+      generated_transforms_dir = os.path.join(
+        sdk_dir, 'apache_beam', 'transforms', 'xlang')
+
+      # if exists, this directory will have at least its __init__.py file
+      if (not os.path.exists(generated_transforms_dir) or
+              len(os.listdir(generated_transforms_dir)) <= 1):
+        message = 'External transform wrappers have not been generated '
+        if not script_exists:
+          message += 'and the generation script `gen_xlang_wrappers.py`'
+        if not config_exists:
+          message += 'and the standard external transforms config'
+        message += ' could not be found'
+        raise RuntimeError(message)
+      else:
+        logging.info(
+            'Skipping external transform wrapper generation as they '
+            'are already generated.')
+      return
+    subprocess.run([
+        sys.executable,
+        os.path.join(sdk_dir, 'gen_xlang_wrappers.py'),
+        '--cleanup',
+        '--transforms-config-source',
+        os.path.join(os.path.dirname(sdk_dir),
+                     'standard_external_transforms.yaml')
+    ], capture_output=True, check=True)
+  except subprocess.CalledProcessError as err:
+    raise RuntimeError(
+        'Could not generate external transform wrappers due to '
+        'error: %s', err.stderr)
+
+
 def get_portability_package_data():
   files = []
   portability_dir = Path(__file__).parent / 'apache_beam' / \
@@ -252,6 +296,8 @@ if __name__ == '__main__':
   # structure must exist before the call to setuptools.find_packages()
   # executes below.
   generate_protos_first()
+
+  generate_external_transform_wrappers()
 
   # These data files live elsewhere in the full Beam repository.
   copy_tests_from_docs()
@@ -385,7 +431,6 @@ if __name__ == '__main__':
               'testcontainers[mysql]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<=7.0.0',
-              'pyyaml>=3.12,<7.0.0',
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',

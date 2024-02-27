@@ -70,7 +70,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.PriorityQueue;
-import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -798,10 +797,9 @@ public class StreamingDataflowWorkerTest {
       Supplier<Instant> clock,
       Function<String, ScheduledExecutorService> executorSupplier) {
     StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(
-            server,
-            new Random().nextLong(),
+        StreamingDataflowWorker.forTesting(
             computationMap,
+            server,
             Collections.singletonList(defaultMapTask(instructions)),
             IntrinsicMapTaskExecutorFactory.defaultFactory(),
             mockWorkUnitClient,

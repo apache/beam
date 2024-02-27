@@ -536,10 +536,8 @@ def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
 project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
     createCrossLanguageUsingJavaExpansionTask(
       name: taskMetadata.name,
-      expansionProjectPath: taskMetadata.expansionProjectPath,
+      expansionProjectPaths: taskMetadata.expansionProjectPaths,
       collectMarker: taskMetadata.collectMarker,
-      startJobServer: taskMetadata.startJobServer,
-      cleanupJobServer: taskMetadata.cleanupJobServer,
       pythonPipelineOptions: [
         "--runner=TestDataflowRunner",
         "--project=${dataflowProject}",
@@ -548,6 +546,7 @@ project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
         "--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java8_sdk:latest"
       ],
       pytestOptions: basicPytestOpts,
+      additionalDeps: taskMetadata.additionalDeps,
       additionalEnvs: taskMetadata.additionalEnvs
     )
 }
