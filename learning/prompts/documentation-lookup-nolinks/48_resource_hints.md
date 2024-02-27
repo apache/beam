@@ -14,7 +14,7 @@ Resource hints can be nested, allowing hints to be specified on sub-transforms (
 
 ***Specify Resource Hints for a Pipeline:***
 
-In Apache Beam's Java SDK, you can specify hints via the [`resourceHints`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/resourcehints/ResourceHintsOptions.html) pipeline option. Example:
+In Apache Beam's Java SDK, you can specify hints via the `resourceHints` pipeline option. Example:
 
 ```java
 mvn compile exec:java -Dexec.mainClass=com.example.MyPipeline \
@@ -24,7 +24,7 @@ mvn compile exec:java -Dexec.mainClass=com.example.MyPipeline \
     -Pdirect-runner
 ```
 
-In the Python SDK, you can specify hints via the [`resource_hints`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.resources.html#apache_beam.transforms.resources.ResourceHint) pipeline option. Example:
+In the Python SDK, you can specify hints via the `resource_hints` pipeline option. Example:
 
 ```python
 python my_pipeline.py \
@@ -35,7 +35,7 @@ python my_pipeline.py \
 
 ***Specify Resource Hints for a Transform:***
 
-In Apache Beam’s Java SDK, you can specify resource hints programmatically on pipeline steps (transforms) using the [`setResourceHints`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/PTransform.html#setResourceHints-org.apache.beam.sdk.transforms.resourcehints.ResourceHints-) method. Example:
+In Apache Beam’s Java SDK, you can specify resource hints programmatically on pipeline steps (transforms) using the `setResourceHints` method. Example:
 
 ```java
 pcoll.apply(MyCompositeTransform.of(...)
@@ -49,7 +49,7 @@ pcoll.apply(ParDo.of(new BigMemFn())
         ResourceHints.create().withMinRam("30GB")))
 ```
 
-In the Python SDK, you can specify resource hints programmatically on pipeline steps (transforms) using the [`PTransforms.with_resource_hints`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform.with_resource_hints) method. Example:
+In the Python SDK, you can specify resource hints programmatically on pipeline steps (transforms) using the `PTransforms.with_resource_hints` method. Example:
 
 ```python
 pcoll | MyPTransform().with_resource_hints(
@@ -60,4 +60,4 @@ pcoll | beam.ParDo(BigMemFn()).with_resource_hints(
     min_ram="30GB")
 ```
 
-The interpretation and actuation of resource hints can vary between runners. For an example implementation, refer to the [Available Resource Hints](https://cloud.google.com/dataflow/docs/guides/right-fitting#available_resource_hints) in the Cloud Dataflow documentation.
+The interpretation and actuation of resource hints can vary between runners.
