@@ -1,10 +1,10 @@
 Prompt: Can I create Apache Beam pipelines using YAML?
 
-Response: The Beam YAML API simplifies pipeline authoring, making it easier to create basic Apache Beam pipelines using YAML syntax. This intuitive, declarative syntax eliminates the need for coding experience or SDK familiarity; you can edit it with any text editor. Compared to working directly with Beam protos, manipulating and understanding YAML semantics is simpler. The readability and ease of authorship also make YAML a suitable intermediate representation for tools like pipeline authoring GUIs or lineage analysis tools.
+Response: The Beam YAML API enables the creation of basic Apache Beam pipelines using YAML syntax, which can be edited with any text editor. This intuitive, declarative syntax simplifies pipeline authoring by eliminating the need for coding experience or SDK familiarity. Manipulating and understanding YAML semantics is easier compared to working directly with Beam protos. Additionally, YAML's readability and ease of authorship make it a suitable intermediate representation for tools such as pipeline authoring GUIs or lineage analysis tools.
 
 The Beam YAML parser is currently integrated into the Apache Beam Python SDK.
 
-The Beam YAML SDK offers a wide range of built-in transforms and allows the creation of custom transforms through Providers that leverage expansion services and schema transforms, or by integrating Python packages into your pipeline. You can give names to transforms to help you monitor, debug, and disambiguate identical transforms, enhancing readability.
+The Beam YAML SDK offers a wide range of built-in transforms and allows the creation of custom transforms through the notion of `providers` that leverage expansion services and schema transforms, or by integrating Python packages into your pipeline. You can give names to transforms to help you monitor, debug, and disambiguate identical transforms, enhancing readability.
 
 Beam YAML enables authoring both linear and non-linear pipelines. For linear pipelines, Beam YAML allows the inputs to be implicit by specifying the pipeline as a `chain` type. Additionally, you can denote the first and last transforms as `source` and `sink`, respectively. For non-linear pipelines, inputs must be explicitly named, although `chains` can be nested within them.
 
@@ -38,7 +38,7 @@ pipeline:
 
 With Beam YAML, you can define both streaming and batch pipelines. Beam YAML also supports Apache Beam’s windowing and triggering, allowing windowing to be declared using the standard `WindowInto` transform or by tagging a transform with specified windowing. The latter applies the windowing to its inputs and the transform itself.
 
-The following example demonstrates a streaming Beam YAML pipeline with a chain of transforms: it reads from a Pub/Sub topic, applies a grouping transform with sliding windowing, and then writes the output to another Pub/Sub topic:
+The following example demonstrates a streaming Beam YAML pipeline with a chain of transforms. It reads from a Pub/Sub topic, applies a grouping transform with sliding windowing, and then writes the output to another Pub/Sub topic:
 
 ```yaml
 pipeline:
@@ -62,4 +62,4 @@ pipeline:
         format: json
 ```
 
-You can execute a pipeline defined in a YAML file using the standard python -m command.
+You can execute a pipeline defined in a YAML file using the standard `python -m` command.
