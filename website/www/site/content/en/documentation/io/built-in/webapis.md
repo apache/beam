@@ -235,7 +235,7 @@ Any failures, accessible from the `Result`'s `getFailures` getter, is outputted 
 write failures to a database or filesystem. These failures are a `PCollection` of
 [ApiIOError](https://beam.apache.org/releases/javadoc/current/org/apache/beam/io/requestresponse/ApiIOError.html).
 {{< /paragraph >}}
-The pipeline outputs a summary of the downloaded image, its mimetype and size. 
+The pipeline outputs a summary of the downloaded image, its mimetype and size.
 
 {{< highlight java >}}
 {{< code_sample "examples/java/webapis/src/main/java/org/apache/beam/examples/webapis/UsingHttpClientExample.java" webapis_java_http_get >}}
