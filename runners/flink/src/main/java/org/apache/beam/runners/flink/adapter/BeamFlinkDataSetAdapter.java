@@ -17,12 +17,19 @@
  */
 package org.apache.beam.runners.flink.adapter;
 
+import java.util.HashMap;
 import java.util.Map;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.flink.FlinkBatchPortablePipelineTranslator;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
@@ -31,19 +38,25 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.MapOperator;
 
 /** An adapter class that allows one to apply Apache Beam PTransforms directly to Flink DataSets. */
-public class BeamFlinkDataSetAdapter extends BeamFlinkAbstractAdapter<DataSet<?>> {
+public class BeamFlinkDataSetAdapter {
+  private final PipelineOptions pipelineOptions;
+  private final CoderRegistry coderRegistry = CoderRegistry.createDefault();
 
-  public BeamFlinkDataSetAdapter(
-      PipelineOptions pipelineOptions, ExecutionEnvironment executionEnvironment) {
-    super(pipelineOptions, executionEnvironment);
+  public BeamFlinkDataSetAdapter() {
+    this(PipelineOptionsFactory.create());
+  }
+
+  public BeamFlinkDataSetAdapter(PipelineOptions pipelineOptions) {
+    this.pipelineOptions = pipelineOptions;
   }
 
   @SuppressWarnings("nullness")
@@ -55,7 +68,8 @@ public class BeamFlinkDataSetAdapter extends BeamFlinkAbstractAdapter<DataSet<?>
                 ImmutableMap.of("input", input),
                 (pipeline, map) -> (CollectionT) map.get("input"),
                 (output) -> ImmutableMap.of("output", output),
-                transform)
+                transform,
+                input.getExecutionEnvironment())
             .get("output");
   }
 
@@ -68,19 +82,22 @@ public class BeamFlinkDataSetAdapter extends BeamFlinkAbstractAdapter<DataSet<?>
                 inputs,
                 BeamAdapterUtils::mapToTuple,
                 (output) -> ImmutableMap.of("output", output),
-                transform)
+                transform,
+                inputs.values().stream().findAny().get().getExecutionEnvironment())
             .get("output");
   }
 
   @SuppressWarnings("nullness")
   public <OutputT> DataSet<OutputT> applyBeamPTransform(
+      ExecutionEnvironment executionEnvironment,
       PTransform<PBegin, PCollection<OutputT>> transform) {
     return (DataSet)
         applyBeamPTransformInternal(
                 ImmutableMap.<String, DataSet<?>>of(),
                 (pipeline, map) -> PBegin.in(pipeline),
                 (output) -> ImmutableMap.of("output", output),
-                transform)
+                transform,
+                executionEnvironment)
             .get("output");
   }
 
@@ -92,23 +109,29 @@ public class BeamFlinkDataSetAdapter extends BeamFlinkAbstractAdapter<DataSet<?>
         ImmutableMap.of("input", input),
         (pipeline, map) -> (CollectionT) map.get("input"),
         BeamAdapterUtils::tupleToMap,
-        transform);
+        transform,
+        input.getExecutionEnvironment());
   }
 
   public Map<String, DataSet<?>> applyMultiOutputBeamPTransform(
       Map<String, ? extends DataSet<?>> inputs,
       PTransform<PCollectionTuple, PCollectionTuple> transform) {
     return applyBeamPTransformInternal(
-        inputs, BeamAdapterUtils::mapToTuple, BeamAdapterUtils::tupleToMap, transform);
+        inputs,
+        BeamAdapterUtils::mapToTuple,
+        BeamAdapterUtils::tupleToMap,
+        transform,
+        inputs.values().stream().findAny().get().getExecutionEnvironment());
   }
 
   public Map<String, DataSet<?>> applyMultiOutputBeamPTransform(
-      PTransform<PBegin, PCollectionTuple> transform) {
+      ExecutionEnvironment executionEnvironment, PTransform<PBegin, PCollectionTuple> transform) {
     return applyBeamPTransformInternal(
         ImmutableMap.of(),
         (pipeline, map) -> PBegin.in(pipeline),
         BeamAdapterUtils::tupleToMap,
-        transform);
+        transform,
+        executionEnvironment);
   }
 
   @SuppressWarnings("nullness")
@@ -119,44 +142,73 @@ public class BeamFlinkDataSetAdapter extends BeamFlinkAbstractAdapter<DataSet<?>
         ImmutableMap.of("input", input),
         (pipeline, map) -> (CollectionT) map.get("input"),
         pDone -> ImmutableMap.of(),
-        transform);
+        transform,
+        input.getExecutionEnvironment());
   }
 
   public void applyNoOutputBeamPTransform(
       Map<String, ? extends DataSet<?>> inputs, PTransform<PCollectionTuple, PDone> transform) {
     applyBeamPTransformInternal(
-        inputs, BeamAdapterUtils::mapToTuple, pDone -> ImmutableMap.of(), transform);
+        inputs,
+        BeamAdapterUtils::mapToTuple,
+        pDone -> ImmutableMap.of(),
+        transform,
+        inputs.values().stream().findAny().get().getExecutionEnvironment());
   }
 
-  public void applyNoOutputBeamPTransform(PTransform<PBegin, PDone> transform) {
+  public void applyNoOutputBeamPTransform(
+      ExecutionEnvironment executionEnvironment, PTransform<PBegin, PDone> transform) {
     applyBeamPTransformInternal(
         ImmutableMap.of(),
         (pipeline, map) -> PBegin.in(pipeline),
         pDone -> ImmutableMap.of(),
-        transform);
+        transform,
+        executionEnvironment);
   }
 
-  @Override
-  protected TypeInformation<?> getTypeInformation(DataSet<?> dataSet) {
-    return dataSet.getType();
-  }
-
-  @Override
-  protected BeamFlinkAbstractAdapter.FlinkTranslatorAndContext<?> createTranslatorAndContext(
-      Map<String, ? extends DataSet<?>> inputs, Map<String, DataSet<?>> outputs) {
-    return new FlinkTranslatorAndContext<>(
-        FlinkBatchPortablePipelineTranslator.createTranslator(
-            ImmutableMap.of(
-                FlinkInput.URN, flinkInputTranslator(inputs),
-                FlinkOutput.URN, flinkOutputTranslator(outputs))),
-        FlinkBatchPortablePipelineTranslator.createTranslationContext(
-            org.apache.beam.runners.fnexecution.provisioning.JobInfo.create(
-                "unusedJobId",
-                "unusedJobName",
-                "unusedRetrievalToken",
-                PipelineOptionsTranslation.toProto(pipelineOptions)),
-            pipelineOptions.as(FlinkPipelineOptions.class),
-            executionEnvironment));
+  private <BeamInputT extends PInput, BeamOutputT extends POutput>
+      Map<String, DataSet<?>> applyBeamPTransformInternal(
+          Map<String, ? extends DataSet<?>> inputs,
+          BiFunction<Pipeline, Map<String, PCollection<?>>, BeamInputT> toBeamInput,
+          Function<BeamOutputT, Map<String, PCollection<?>>> fromBeamOutput,
+          PTransform<? super BeamInputT, BeamOutputT> transform,
+          ExecutionEnvironment executionEnvironment) {
+    return BeamFlinkAbstractAdapter
+        .<DataSet<?>, BeamInputT, BeamOutputT>applyBeamPTransformInternal(
+            inputs,
+            toBeamInput,
+            fromBeamOutput,
+            transform,
+            pipelineOptions,
+            executionEnvironment,
+            coderRegistry,
+            dataSet -> dataSet.getType(),
+            new BeamFlinkAbstractAdapter.PipelineFragmentTranslator<DataSet<?>>() {
+              @Override
+              public Map<String, DataSet<?>> translate(
+                  Map<String, ? extends DataSet<?>> inputs,
+                  RunnerApi.Pipeline pipelineProto,
+                  ExecutionEnvironment executionEnvironment) {
+                Map<String, DataSet<?>> outputs = new HashMap<>();
+                FlinkBatchPortablePipelineTranslator translator =
+                    FlinkBatchPortablePipelineTranslator.createTranslator(
+                        ImmutableMap.of(
+                            BeamFlinkAbstractAdapter.FlinkInput.URN, flinkInputTranslator(inputs),
+                            BeamFlinkAbstractAdapter.FlinkOutput.URN,
+                                flinkOutputTranslator(outputs)));
+                FlinkBatchPortablePipelineTranslator.BatchTranslationContext context =
+                    FlinkBatchPortablePipelineTranslator.createTranslationContext(
+                        JobInfo.create(
+                            "unusedJobId",
+                            "unusedJobName",
+                            "unusedRetrievalToken",
+                            PipelineOptionsTranslation.toProto(pipelineOptions)),
+                        pipelineOptions.as(FlinkPipelineOptions.class),
+                        executionEnvironment);
+                translator.translate(context, translator.prepareForTranslation(pipelineProto));
+                return outputs;
+              }
+            });
   }
 
   private <InputT> FlinkBatchPortablePipelineTranslator.PTransformTranslator flinkInputTranslator(
@@ -178,7 +230,7 @@ public class BeamFlinkDataSetAdapter extends BeamFlinkAbstractAdapter<DataSet<?>
           // Note that MapOperator is a subclass of DataSet.
           new MapOperator<InputT, WindowedValue<InputT>>(
               flinkInput,
-              BeamAdapterUtils.coderTotoTypeInformation(
+              BeamAdapterUtils.coderToTypeInformation(
                   WindowedValue.getValueOnlyCoder(
                       BeamAdapterUtils.typeInformationToCoder(flinkInput.getType(), coderRegistry)),
                   pipelineOptions),
@@ -206,7 +258,7 @@ public class BeamFlinkDataSetAdapter extends BeamFlinkAbstractAdapter<DataSet<?>
           outputId,
           new MapOperator<WindowedValue<InputT>, InputT>(
               inputDataSet,
-              BeamAdapterUtils.coderTotoTypeInformation(outputCoder, pipelineOptions),
+              BeamAdapterUtils.coderToTypeInformation(outputCoder, pipelineOptions),
               w -> w.getValue(),
               "StripWindows"));
     };

@@ -21,7 +21,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
 import java.util.Map;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -56,8 +55,7 @@ public class BeamFlinkDataSetAdapterTest {
 
     DataSet<String> input = env.fromCollection(ImmutableList.of("a", "b", "c"));
     DataSet<String> result =
-        new BeamFlinkDataSetAdapter(PipelineOptionsFactory.create(), env)
-            .applyBeamPTransform(input, withPrefix("x"));
+        new BeamFlinkDataSetAdapter().applyBeamPTransform(input, withPrefix("x"));
 
     assertThat(result.collect(), containsInAnyOrder("xa", "xb", "xc"));
   }
@@ -68,7 +66,7 @@ public class BeamFlinkDataSetAdapterTest {
 
     DataSet<String> input = env.fromCollection(ImmutableList.of("a", "b", "c"));
     DataSet<String> result =
-        new BeamFlinkDataSetAdapter(PipelineOptionsFactory.create(), env)
+        new BeamFlinkDataSetAdapter()
             .applyBeamPTransform(
                 input,
                 new PTransform<PCollection<String>, PCollection<String>>() {
@@ -88,7 +86,7 @@ public class BeamFlinkDataSetAdapterTest {
     DataSet<String> input1 = env.fromCollection(ImmutableList.of("a", "b", "c"));
     DataSet<String> input2 = env.fromCollection(ImmutableList.of("d", "e", "f"));
     DataSet<String> result =
-        new BeamFlinkDataSetAdapter(PipelineOptionsFactory.create(), env)
+        new BeamFlinkDataSetAdapter()
             .applyBeamPTransform(
                 ImmutableMap.of("x", input1, "y", input2),
                 new PTransform<PCollectionTuple, PCollection<String>>() {
@@ -109,7 +107,7 @@ public class BeamFlinkDataSetAdapterTest {
 
     DataSet<String> input = env.fromCollection(ImmutableList.of("a", "b", "c"));
     Map<String, DataSet<?>> result =
-        new BeamFlinkDataSetAdapter(PipelineOptionsFactory.create(), env)
+        new BeamFlinkDataSetAdapter()
             .applyMultiOutputBeamPTransform(
                 input,
                 new PTransform<PCollection<String>, PCollectionTuple>() {
@@ -130,8 +128,7 @@ public class BeamFlinkDataSetAdapterTest {
 
     DataSet<String> input = env.fromCollection(ImmutableList.of("a", "a", "b"));
     DataSet<KV<String, Long>> result =
-        new BeamFlinkDataSetAdapter(PipelineOptionsFactory.create(), env)
-            .applyBeamPTransform(input, Count.perElement());
+        new BeamFlinkDataSetAdapter().applyBeamPTransform(input, Count.perElement());
 
     assertThat(result.collect(), containsInAnyOrder(KV.of("a", 2L), KV.of("b", 1L)));
   }

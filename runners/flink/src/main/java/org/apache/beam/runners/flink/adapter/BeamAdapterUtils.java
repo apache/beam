@@ -29,6 +29,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.values.PCollection;
@@ -38,7 +39,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 public class BeamAdapterUtils {
   private BeamAdapterUtils() {}
 
-  @SuppressWarnings("nullness")
   static <T> Coder<T> typeInformationToCoder(
       TypeInformation<T> typeInfo, CoderRegistry coderRegistry) {
     Class<T> clazz = typeInfo.getTypeClass();
@@ -51,20 +51,24 @@ public class BeamAdapterUtils {
         throw new RuntimeException(exn);
       }
     } else if (Iterable.class.isAssignableFrom(clazz)) {
-      return (Coder)
-          IterableCoder.of(
-              typeInformationToCoder(typeInfo.getGenericParameters().get("T"), coderRegistry));
+      TypeInformation<?> elementType =
+          Preconditions.checkArgumentNotNull(typeInfo.getGenericParameters().get("T"));
+      return (Coder) IterableCoder.of(typeInformationToCoder(elementType, coderRegistry));
     } else if (Map.class.isAssignableFrom(clazz)) {
+      TypeInformation<?> keyType =
+          Preconditions.checkArgumentNotNull(typeInfo.getGenericParameters().get("K"));
+      TypeInformation<?> valueType =
+          Preconditions.checkArgumentNotNull(typeInfo.getGenericParameters().get("V"));
       return (Coder)
           MapCoder.of(
-              typeInformationToCoder(typeInfo.getGenericParameters().get("K"), coderRegistry),
-              typeInformationToCoder(typeInfo.getGenericParameters().get("V"), coderRegistry));
+              typeInformationToCoder(keyType, coderRegistry),
+              typeInformationToCoder(valueType, coderRegistry));
     } else {
       throw new RuntimeException("Coder translation for " + typeInfo + " not yet supported.");
     }
   }
 
-  static <T> TypeInformation<T> coderTotoTypeInformation(Coder<T> coder, PipelineOptions options) {
+  static <T> TypeInformation<T> coderToTypeInformation(Coder<T> coder, PipelineOptions options) {
     // TODO(robertwb): Consider mapping some common types.
     return new CoderTypeInformation<>(coder, options);
   }

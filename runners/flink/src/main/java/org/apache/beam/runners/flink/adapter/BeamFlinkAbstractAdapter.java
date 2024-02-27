@@ -20,7 +20,6 @@ package org.apache.beam.runners.flink.adapter;
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -52,26 +51,26 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
-public abstract class BeamFlinkAbstractAdapter<DataSetOrStreamT> {
-  protected final PipelineOptions pipelineOptions;
-  protected final ExecutionEnvironment executionEnvironment;
-  protected final CoderRegistry coderRegistry = CoderRegistry.createDefault();
-
-  protected BeamFlinkAbstractAdapter(
-      PipelineOptions pipelineOptions, ExecutionEnvironment executionEnvironment) {
-    this.pipelineOptions = pipelineOptions;
-    this.executionEnvironment = executionEnvironment;
+public abstract class BeamFlinkAbstractAdapter {
+  public interface PipelineFragmentTranslator<DataSetOrStreamT> {
+    Map<String, DataSetOrStreamT> translate(
+        Map<String, ? extends DataSetOrStreamT> inputs,
+        RunnerApi.Pipeline pipelineProto,
+        ExecutionEnvironment executionEnvironment);
   }
 
-  protected abstract TypeInformation<?> getTypeInformation(DataSetOrStreamT dataSetOrStream);
-
   @SuppressWarnings({"nullness", "rawtypes"})
-  protected <BeamInputT extends PInput, BeamOutputT extends POutput>
+  protected static <DataSetOrStreamT, BeamInputT extends PInput, BeamOutputT extends POutput>
       Map<String, DataSetOrStreamT> applyBeamPTransformInternal(
           Map<String, ? extends DataSetOrStreamT> inputs,
           BiFunction<Pipeline, Map<String, PCollection<?>>, BeamInputT> toBeamInput,
           Function<BeamOutputT, Map<String, PCollection<?>>> fromBeamOutput,
-          PTransform<? super BeamInputT, BeamOutputT> transform) {
+          PTransform<? super BeamInputT, BeamOutputT> transform,
+          PipelineOptions pipelineOptions,
+          ExecutionEnvironment executionEnvironment,
+          CoderRegistry coderRegistry,
+          Function<DataSetOrStreamT, TypeInformation<?>> getTypeInformation,
+          PipelineFragmentTranslator<DataSetOrStreamT> translator) {
     Pipeline pipeline = Pipeline.create();
 
     // Construct beam inputs corresponding to each Flink input.
@@ -85,7 +84,7 @@ public abstract class BeamFlinkAbstractAdapter<DataSetOrStreamT> {
                         new FlinkInput<>(
                             key,
                             BeamAdapterUtils.typeInformationToCoder(
-                                getTypeInformation(flinkInput), coderRegistry)))));
+                                getTypeInformation.apply(flinkInput), coderRegistry)))));
 
     // Actually apply the transform to create Beam outputs.
     Map<String, PCollection<?>> beamOutputs =
@@ -110,15 +109,8 @@ public abstract class BeamFlinkAbstractAdapter<DataSetOrStreamT> {
     // Extract the pipeline definition so that we can apply or Flink translation logic.
     SdkComponents components = SdkComponents.create(pipelineOptions);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, components);
-
-    Map<String, DataSetOrStreamT> outputs = new HashMap<>();
-    FlinkTranslatorAndContext<?> translatorAndContext = createTranslatorAndContext(inputs, outputs);
-    applyFlinkTranslator(pipelineProto, translatorAndContext);
-    return outputs;
+    return translator.translate(inputs, pipelineProto, executionEnvironment);
   }
-
-  protected abstract FlinkTranslatorAndContext<?> createTranslatorAndContext(
-      Map<String, ? extends DataSetOrStreamT> inputs, Map<String, DataSetOrStreamT> outputs);
 
   static class FlinkTranslatorAndContext<
       T extends FlinkPortablePipelineTranslator.TranslationContext> {
@@ -131,22 +123,7 @@ public abstract class BeamFlinkAbstractAdapter<DataSetOrStreamT> {
     }
   }
 
-  private static <T extends FlinkPortablePipelineTranslator.TranslationContext>
-      void applyFlinkTranslator(
-          RunnerApi.Pipeline pipelineProto, FlinkTranslatorAndContext<T> translatorAndContext) {
-    applyFlinkTranslator(
-        pipelineProto, translatorAndContext.translator, translatorAndContext.translationContext);
-  }
-
-  private static <T extends FlinkPortablePipelineTranslator.TranslationContext>
-      void applyFlinkTranslator(
-          RunnerApi.Pipeline pipelineProto,
-          FlinkPortablePipelineTranslator<T> translator,
-          T translationContext) {
-    translator.translate(translationContext, translator.prepareForTranslation(pipelineProto));
-  }
-
-  static class FlinkInput<T> extends PTransform<PBegin, PCollection<T>> {
+  /*package private*/ static class FlinkInput<T> extends PTransform<PBegin, PCollection<T>> {
     public static final String URN = "beam:flink:internal:translation_input";
 
     private final String identifier;
@@ -199,7 +176,7 @@ public abstract class BeamFlinkAbstractAdapter<DataSetOrStreamT> {
     }
   }
 
-  static class FlinkOutput<T> extends PTransform<PCollection<T>, PDone> {
+  /*package private*/ static class FlinkOutput<T> extends PTransform<PCollection<T>, PDone> {
 
     public static final String URN = "beam:flink:internal:translation_output";
 
