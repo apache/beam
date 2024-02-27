@@ -20,9 +20,10 @@ from github import Github
 from github import Auth
 
 
+ALERT_NAME = "flaky_test"
 GIT_ORG = "apache"
 GRAFANA_URL = "https://metrics.beam.apache.org"
-ALERT_NAME = "flaky_test"
+READ_ONLY = os.environ.get("READ_ONLY", "false")
 
 
 class Alert:
@@ -63,7 +64,11 @@ def create_github_issue(repo, alert):
     print(f"Body: {body}")
     print(f"Labels: {labels}")
     print("___")
-    repo.create_issue(title=title, body=body, labels=labels)
+
+    if READ_ONLY == "true":
+        print("READ_ONLY is true, not creating issue")
+    else:
+        repo.create_issue(title=title, body=body, labels=labels)
 
 
 def get_grafana_alerts():
@@ -108,8 +113,12 @@ def main():
         if alert.workflow_id in workflow_closed_issues.keys():
             issue = workflow_closed_issues[alert.workflow_id]
             if issue:
-                issue.edit(state="open")
-                print(f"The issue for the workflow {alert.workflow_id} has been reopened")
+                if READ_ONLY == "true":
+                    print("READ_ONLY is true, not reopening issue")
+                else:
+                    issue.edit(state="open")
+                    issue.create_comment(body="Reopening since the workflow is still flaky")
+                    print(f"The issue for the workflow {alert.workflow_id} has been reopened")
         elif alert.workflow_id not in workflow_open_issues.keys():
             create_github_issue(repo, alert)
         else:
