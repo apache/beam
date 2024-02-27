@@ -70,12 +70,9 @@ class BigQueryJsonIT(unittest.TestCase):
       client = bigquery.Client(project=PROJECT)
       for ref in cls.created_tables:
         try:
-          # dataset:table
-          # client.delete_table(ref[len(PROJECT)+1:])
-          pass
+          client.delete_table(ref[len(PROJECT) + 1:])  # need dataset:table
         except gexc.NotFound:
-          # skip
-          pass
+          pass  # just skip
 
   def run_test_write(self, options):
     json_table_schema = self.generate_schema()
