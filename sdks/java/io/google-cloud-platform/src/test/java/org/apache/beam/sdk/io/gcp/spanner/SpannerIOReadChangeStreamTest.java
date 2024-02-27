@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import com.google.auth.Credentials;
 import com.google.cloud.Timestamp;
@@ -77,14 +78,21 @@ public class SpannerIOReadChangeStreamTest {
     TestCredential testCredential = new TestCredential();
     // Set the credential in the pipeline options.
     testPipeline.getOptions().as(GcpOptions.class).setGcpCredential(testCredential);
-    SpannerConfig changeStreamSpannerConfig =
-        readChangeStream.buildChangeStreamSpannerConfig(testPipeline.getOptions());
+    SpannerConfig changeStreamSpannerConfig = readChangeStream.buildChangeStreamSpannerConfig();
     SpannerConfig metadataSpannerConfig =
         MetadataSpannerConfigFactory.create(
             changeStreamSpannerConfig, TEST_METADATA_INSTANCE, TEST_METADATA_DATABASE);
-    // Verify that the credential is propagated in ReadChangeStream.
-    assertEquals(testCredential, changeStreamSpannerConfig.getCredentials().get());
-    assertEquals(testCredential, metadataSpannerConfig.getCredentials().get());
+    assertNull(changeStreamSpannerConfig.getCredentials());
+    assertNull(metadataSpannerConfig.getCredentials());
+
+    SpannerConfig changeStreamSpannerConfigWithCredential =
+        SpannerIO.buildSpannerConfigWithCredential(
+            changeStreamSpannerConfig, testPipeline.getOptions());
+    SpannerConfig metadataSpannerConfigWithCredential =
+        SpannerIO.buildSpannerConfigWithCredential(
+            metadataSpannerConfig, testPipeline.getOptions());
+    assertEquals(testCredential, changeStreamSpannerConfigWithCredential.getCredentials().get());
+    assertEquals(testCredential, metadataSpannerConfigWithCredential.getCredentials().get());
   }
 
   @Test
@@ -93,14 +101,21 @@ public class SpannerIOReadChangeStreamTest {
     // Set the credential in the SpannerConfig.
     spannerConfig = spannerConfig.withCredentials(testCredential);
     readChangeStream = readChangeStream.withSpannerConfig(spannerConfig);
-    SpannerConfig changeStreamSpannerConfig =
-        readChangeStream.buildChangeStreamSpannerConfig(testPipeline.getOptions());
+    SpannerConfig changeStreamSpannerConfig = readChangeStream.buildChangeStreamSpannerConfig();
     SpannerConfig metadataSpannerConfig =
         MetadataSpannerConfigFactory.create(
             changeStreamSpannerConfig, TEST_METADATA_INSTANCE, TEST_METADATA_DATABASE);
-    // Verify that the credential is propagated in ReadChangeStream.
     assertEquals(testCredential, changeStreamSpannerConfig.getCredentials().get());
     assertEquals(testCredential, metadataSpannerConfig.getCredentials().get());
+
+    SpannerConfig changeStreamSpannerConfigWithCredential =
+        SpannerIO.buildSpannerConfigWithCredential(
+            changeStreamSpannerConfig, testPipeline.getOptions());
+    SpannerConfig metadataSpannerConfigWithCredential =
+        SpannerIO.buildSpannerConfigWithCredential(
+            metadataSpannerConfig, testPipeline.getOptions());
+    assertEquals(testCredential, changeStreamSpannerConfigWithCredential.getCredentials().get());
+    assertEquals(testCredential, metadataSpannerConfigWithCredential.getCredentials().get());
   }
 
   @Test
@@ -109,13 +124,20 @@ public class SpannerIOReadChangeStreamTest {
     // SpannerConfig.
     Credentials defaultCredential =
         testPipeline.getOptions().as(GcpOptions.class).getGcpCredential();
-    SpannerConfig changeStreamSpannerConfig =
-        readChangeStream.buildChangeStreamSpannerConfig(testPipeline.getOptions());
+    SpannerConfig changeStreamSpannerConfig = readChangeStream.buildChangeStreamSpannerConfig();
     SpannerConfig metadataSpannerConfig =
         MetadataSpannerConfigFactory.create(
             changeStreamSpannerConfig, TEST_METADATA_INSTANCE, TEST_METADATA_DATABASE);
-    // Verify that the default credential will be used in ReadChangeStream.
-    assertEquals(defaultCredential, changeStreamSpannerConfig.getCredentials().get());
-    assertEquals(defaultCredential, metadataSpannerConfig.getCredentials().get());
+    assertNull(changeStreamSpannerConfig.getCredentials());
+    assertNull(metadataSpannerConfig.getCredentials());
+
+    SpannerConfig changeStreamSpannerConfigWithCredential =
+        SpannerIO.buildSpannerConfigWithCredential(
+            changeStreamSpannerConfig, testPipeline.getOptions());
+    SpannerConfig metadataSpannerConfigWithCredential =
+        SpannerIO.buildSpannerConfigWithCredential(
+            metadataSpannerConfig, testPipeline.getOptions());
+    assertEquals(defaultCredential, changeStreamSpannerConfigWithCredential.getCredentials().get());
+    assertEquals(defaultCredential, metadataSpannerConfigWithCredential.getCredentials().get());
   }
 }

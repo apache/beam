@@ -1671,13 +1671,14 @@ public class SpannerIO {
               partitionMetadataInstanceId,
               partitionMetadataDatabaseId);
 
-      final SpannerConfig changeStreamSpannerConfig =
-          buildChangeStreamSpannerConfig(input.getPipeline().getOptions());
+      final SpannerConfig changeStreamSpannerConfig = buildChangeStreamSpannerConfig();
       final SpannerConfig partitionMetadataSpannerConfig =
           MetadataSpannerConfigFactory.create(
               changeStreamSpannerConfig, partitionMetadataInstanceId, partitionMetadataDatabaseId);
-      Dialect changeStreamDatabaseDialect = getDialect(changeStreamSpannerConfig);
-      Dialect metadataDatabaseDialect = getDialect(partitionMetadataSpannerConfig);
+      final Dialect changeStreamDatabaseDialect =
+          getDialect(changeStreamSpannerConfig, input.getPipeline().getOptions());
+      final Dialect metadataDatabaseDialect =
+          getDialect(partitionMetadataSpannerConfig, input.getPipeline().getOptions());
       LOG.info(
           "The Spanner database "
               + changeStreamDatabaseId
@@ -1760,7 +1761,8 @@ public class SpannerIO {
       return dataChangeRecordsOut;
     }
 
-    public SpannerConfig buildChangeStreamSpannerConfig(PipelineOptions pipelineOptions) {
+    @VisibleForTesting
+    SpannerConfig buildChangeStreamSpannerConfig() {
       SpannerConfig changeStreamSpannerConfig = getSpannerConfig();
       // Set default retryable errors for ReadChangeStream
       if (changeStreamSpannerConfig.getRetryableCodes() == null) {
@@ -1781,19 +1783,29 @@ public class SpannerIO {
                         .build())
                 .build();
       }
-      // If credentials are not set in SpannerConfig, check pipeline options for credentials.
-      if (changeStreamSpannerConfig.getCredentials() == null) {
-        final Credentials credentials = pipelineOptions.as(GcpOptions.class).getGcpCredential();
-        if (credentials != null) {
-          changeStreamSpannerConfig = changeStreamSpannerConfig.withCredentials(credentials);
-        }
-      }
       return changeStreamSpannerConfig;
     }
   }
 
-  private static Dialect getDialect(SpannerConfig spannerConfig) {
-    DatabaseClient databaseClient = SpannerAccessor.getOrCreate(spannerConfig).getDatabaseClient();
+  /** If credentials are not set in spannerConfig, uses the credentials from pipeline options. */
+  @VisibleForTesting
+  static SpannerConfig buildSpannerConfigWithCredential(
+      SpannerConfig spannerConfig, PipelineOptions pipelineOptions) {
+    if (spannerConfig.getCredentials() == null && pipelineOptions != null) {
+      final Credentials credentials = pipelineOptions.as(GcpOptions.class).getGcpCredential();
+      if (credentials != null) {
+        spannerConfig = spannerConfig.withCredentials(credentials);
+      }
+    }
+    return spannerConfig;
+  }
+
+  private static Dialect getDialect(SpannerConfig spannerConfig, PipelineOptions pipelineOptions) {
+    // Allow passing the credential from pipeline options to the getDialect() call.
+    SpannerConfig spannerConfigWithCredential =
+        buildSpannerConfigWithCredential(spannerConfig, pipelineOptions);
+    DatabaseClient databaseClient =
+        SpannerAccessor.getOrCreate(spannerConfigWithCredential).getDatabaseClient();
     return databaseClient.getDialect();
   }
 
