@@ -258,8 +258,9 @@ that are not in the named outputs (which would otherwise be an error):
     unknown_output: 'other'
 ```
 
-To send elements to multiple (or no) outputs, one could use an iterable column
-and proceed the `Split` with an `Explode`.
+Sometimes one wants to split a PCollection into multiple PCollections
+that aren't necessarily disjoint.  To send elements to multiple (or no) outputs,
+one could use an iterable column and precede the `Split` with an `Explode`.
 
 ```
 - type: Explode

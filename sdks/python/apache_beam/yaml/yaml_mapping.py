@@ -43,6 +43,7 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import row_type
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
+from apache_beam.typehints import typehints
 from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.utils import python_callable
 from apache_beam.yaml import json_utils
@@ -560,6 +561,17 @@ def _Split(
     error_handling: Optional[Mapping[str, Any]] = None,
     language: Optional[str] = 'generic'):
   split_fn = _as_callable_for_pcoll(pcoll, destination, 'destination', language)
+  try:
+    split_fn_output_type = trivial_inference.infer_return_type(
+        split_fn, [pcoll.element_type])
+  except (TypeError, ValueError):
+    pass
+  else:
+    if not typehints.is_consistent_with(split_fn_output_type, str):
+      raise ValueError(
+          f'Split function "{destination}" must return a string type '
+          f'not {split_fn_output_type}'
+      )
   error_output = error_handling['output'] if error_handling else None
   if error_output in outputs:
     raise ValueError(
@@ -569,11 +581,16 @@ def _Split(
 
   def split(element):
     tag = split_fn(element)
+    if not isinstance(tag, str):
+      raise ValueError(
+          f'Returned output name "{tag}" of type {type(tag)} '
+          f'from "{destination}" must be a string.'
+      )
     if tag not in outputs:
       if unknown_output:
         tag = unknown_output
       else:
-        raise ValueError(f'Unknown output name for destination "{tag}"')
+        raise ValueError(f'Unknown output name "{tag}" from {destination}')
     return beam.pvalue.TaggedOutput(tag, element)
 
   output_set = set(outputs)

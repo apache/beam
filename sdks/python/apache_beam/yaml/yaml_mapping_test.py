@@ -177,6 +177,34 @@ class YamlMappingTest(unittest.TestCase):
           equal_to(['apple']),
           label='Odd')
 
+  def test_split_callable(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create([
+          beam.Row(element='apple'),
+          beam.Row(element='banana'),
+          beam.Row(element='orange'),
+      ])
+      result = elements | YamlTransform(
+          '''
+          type: Split
+          input: input
+          config:
+            language: python
+            outputs: [even, odd]
+            destination:
+              callable:
+                "lambda row: 'even' if len(row.element) % 2 == 0 else 'odd'"
+          ''')
+      assert_that(
+          result['even'] | beam.Map(lambda x: x.element),
+          equal_to(['banana', 'orange']),
+          label='Even')
+      assert_that(
+          result['odd'] | beam.Map(lambda x: x.element),
+          equal_to(['apple']),
+          label='Odd')
+
   def test_split_with_unknown(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
@@ -321,6 +349,46 @@ class YamlMappingTest(unittest.TestCase):
           result['smooth'] | beam.Map(lambda x: x.element),
           equal_to(['apple', 'banana']),
           label='Smooth')
+
+  def test_split_bad_static_type(self):
+    with self.assertRaisesRegex(ValueError,
+                                r'.*Split function .*must return a string.*'):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        elements = p | beam.Create([
+            beam.Row(element='apple', texture='smooth'),
+            beam.Row(element='banana', texture='smooth'),
+            beam.Row(element='orange', texture='bumpy'),
+        ])
+        result = elements | YamlTransform(
+            '''
+            type: Split
+            input: input
+            config:
+              language: python
+              outputs: [bumpy, smooth]
+              destination: len(texture)
+            ''')
+
+  def test_split_bad_runtime_type(self):
+    with self.assertRaisesRegex(ValueError,
+                                r'.*Returned output name.*must be a string.*'):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        elements = p | beam.Create([
+            beam.Row(element='apple', texture='smooth'),
+            beam.Row(element='banana', texture='smooth'),
+            beam.Row(element='orange', texture='bumpy'),
+        ])
+        result = elements | YamlTransform(
+            '''
+            type: Split
+            input: input
+            config:
+              language: python
+              outputs: [bumpy, smooth]
+              destination: print(texture)
+            ''')
 
 
 if __name__ == '__main__':
