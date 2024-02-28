@@ -930,8 +930,8 @@ processing function.
 {{< /paragraph >}}
 
 {{< paragraph class="language-yaml">}}
-In Beam YAML, `ParDo` operations are expressed by the `MapToFields`, `Filter`, 
-and `Explode` transform types. These types can take a UDF in the language of your 
+In Beam YAML, `ParDo` operations are expressed by the `MapToFields`, `Filter`,
+and `Explode` transform types. These types can take a UDF in the language of your
 choice, rather than introducing the notion of a `DoFn`.
 See [the page on mapping fns](https://beam.apache.org/documentation/sdks/yaml-udf/) for more details.
 {{< /paragraph >}}
