@@ -44,6 +44,7 @@ from apache_beam.typehints import row_type
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
+from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.utils import python_callable
 from apache_beam.yaml import json_utils
@@ -321,10 +322,14 @@ def exception_handling_args(error_handling_spec):
     return None
 
 
-def _map_errors_to_standard_format():
+def _map_errors_to_standard_format(input_type):
   # TODO(https://github.com/apache/beam/issues/24755): Switch to MapTuple.
+
   return beam.Map(
-      lambda x: beam.Row(element=x[0], msg=str(x[1][1]), stack=str(x[1][2])))
+      lambda x: beam.Row(element=x[0], msg=str(x[1][1]), stack=str(x[1][2]))
+  ).with_output_types(
+      RowTypeConstraint.from_fields([("element", input_type), ("msg", str),
+                                     ("stack", str)]))
 
 
 def maybe_with_exception_handling(inner_expand):
@@ -332,7 +337,7 @@ def maybe_with_exception_handling(inner_expand):
     wrapped_pcoll = beam.core._MaybePValueWithErrors(
         pcoll, self._exception_handling_args)
     return inner_expand(self, wrapped_pcoll).as_result(
-        _map_errors_to_standard_format())
+        _map_errors_to_standard_format(pcoll.element_type))
 
   return expand
 
@@ -342,8 +347,8 @@ def maybe_with_exception_handling_transform_fn(transform_fn):
   def expand(pcoll, error_handling=None, **kwargs):
     wrapped_pcoll = beam.core._MaybePValueWithErrors(
         pcoll, exception_handling_args(error_handling))
-    return transform_fn(wrapped_pcoll,
-                        **kwargs).as_result(_map_errors_to_standard_format())
+    return transform_fn(wrapped_pcoll, **kwargs).as_result(
+        _map_errors_to_standard_format(pcoll.element_type))
 
   original_signature = inspect.signature(transform_fn)
   new_parameters = list(original_signature.parameters.values())

@@ -29,6 +29,12 @@ requires = [
     "numpy>=1.14.3,<1.27", # Update setup.py as well.
     # having cython here will create wheels that are platform dependent.
     "cython==0.29.36",
+    ## deps for generating external transform wrappers:
+    # also update PyYaml bounds in sdks:python:generateExternalTransformsConfig
+    'pyyaml>=3.12,<7.0.0',
+    # also update Jinja2 bounds in test-suites/xlang/build.gradle (look for xlangWrapperValidation task)
+    "jinja2>=2.7.1,<4.0.0",
+    'yapf==0.29.0'
 ]
 
 

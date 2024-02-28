@@ -85,8 +85,13 @@ python -m apache_beam.yaml.main --yaml_pipeline_file=/path/to/pipeline.yaml --ru
 
 (This requires [Graphviz](https://graphviz.org/download/) to be installed to render the pipeline.)
 
-We intend to support running a pipeline on Dataflow by directly passing the
-yaml specification to a template, no local installation of the Beam SDKs required.
+You can also submit a YAML pipeline directly by using the Dataflow CLI command
+[`gcloud beta dataflow yaml run`](https://cloud.google.com/sdk/gcloud/reference/beta/dataflow/yaml/run).
+When you use the `gcloud` CLI, you don't need to install the Beam SDKs locally.
+
+```
+gcloud beta dataflow yaml run job_name --yaml-pipeline-file=/path/to/pipeline.yaml --region=europe-west1
+```
 
 ## Example pipelines
 
@@ -582,10 +587,3 @@ providers:
 * [Example pipelines](https://gist.github.com/robertwb/2cb26973f1b1203e8f5f8f88c5764da0)
 * [More examples](https://github.com/Polber/beam/tree/jkinard/bug-bash/sdks/python/apache_beam/yaml/examples)
 * [Transform glossary](https://gist.github.com/robertwb/64e2f51ff88320eeb6ffd96634202df7)
-
-Additional documentation in this directory
-
-* [Mapping](yaml_mapping.md)
-* [Aggregation](yaml_combine.md)
-* [Error handling](yaml_errors.md)
-* [Inlining Python](inline_python.md)

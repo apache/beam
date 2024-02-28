@@ -15,4 +15,4 @@ Using pre-trained models in Apache Beam is also supported with [PyTorch](https:/
 Apache Beam also supports automatically updating the model being used with the `RunInference PTransform` in streaming pipelines without stopping the pipeline. The feature lets you avoid downtime downtime. For more information, see [Automatic model refresh](https://beam.apache.org/documentation/ml/about-ml/#automatic-model-refresh).
 For more information about using machine learning models with Apache Beam, see [Running ML models now easier with new Dataflow ML innovations on Apache Beam](https://cloud.google.com/blog/products/ai-machine-learning/dataflow-ml-innovations-on-apache-beam/).
 
-For an example that use the Apache Beam ML integration, see [BigQuery ML integration](https://beam.apache.org/documentation/patterns/bqml/).
+For an example that uses the Apache Beam ML integration, see [BigQuery ML integration](https://beam.apache.org/documentation/patterns/bqml/).
