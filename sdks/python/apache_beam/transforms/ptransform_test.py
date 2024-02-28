@@ -108,7 +108,8 @@ class PTransformTest(unittest.TestCase):
     self.assertEqual(named_t.annotations(), {'test': 'value'})
     original_annotations = named_t.annotations()
     named_t.annotations = lambda: {'another': 'value', **original_annotations}
-    # This is what gets used in apply.
+    # Verify this is reflected on the original transform,
+    # which is what gets used in apply.
     self.assertEqual(t.annotations(), {'test': 'value', 'another': 'value'})
 
   def test_do_with_do_fn(self):
