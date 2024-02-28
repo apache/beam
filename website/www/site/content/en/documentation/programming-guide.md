@@ -47,7 +47,7 @@ The Typescript SDK supports Node v16+ and is still experimental.
 {{< /paragraph >}}
 
 {{< paragraph class="language-yaml">}}
-Yaml is supported as of Beam 2.52, but is under active development and the most
+YAML is supported as of Beam 2.52, but is under active development and the most
 recent SDK is advised.
 {{< /paragraph >}}
 
@@ -99,7 +99,7 @@ include:
   read or write data to various external storage systems.
 
 <span class="language-yaml">
-Note that in Beam YAML `PCollection`s are either implicit (e.g. when using
+Note that in Beam YAML, `PCollection`s are either implicit (e.g. when using
 `chain`) or referenced by their producing `PTransform`.
 </span>
 
@@ -420,7 +420,7 @@ place this transform in the `source` or `transforms` portion of the pipeline.
 for example, reads from an
 external text file and returns a `PCollection` whose elements
 <span class="language-java language-py language-go language-typescript">
-are of type `String`, each `String`
+are of type `String` where each `String`
 </span>
 represents one line from the text file. Here's how you
 would apply <span class="language-java">`TextIO.Read`</span>
@@ -910,9 +910,9 @@ processing function.
 {{< /paragraph >}}
 
 {{< paragraph class="language-yaml">}}
-In Beam YAML `ParDo` operations are expressed by the `MapToFields`, `Filter`,
-and `Explode` transform types which may take a UDF in the language of your
-choice rather than introducing the notion of a `DoFn`.
+In Beam YAML, `ParDo` operations are expressed by the `MapToFields`, `Filter`, 
+and `Explode` transform types. These types can take a UDF in the language of your 
+choice, rather than introducing the notion of a `DoFn`.
 See [the page on mapping fns](https://beam.apache.org/documentation/sdks/yaml-udf/) for more details.
 {{< /paragraph >}}
 
@@ -3315,8 +3315,8 @@ In Beam YAML, all transforms produce and accept schema'd data which is used to v
 {{< /paragraph >}}
 
 {{< paragraph class="language-yaml">}}
-In some cases Beam is unable to figure out the output type of a mapping function.
-In this case you can specify it manually using
+In some cases, Beam is unable to figure out the output type of a mapping function.
+In this case, you can specify it manually using
 [JSON schema syntax](https://json-schema.org/understanding-json-schema/reference/type).
 {{< /paragraph >}}
 
