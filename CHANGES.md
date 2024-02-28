@@ -66,6 +66,8 @@
   * Full Support for Storage Read and Write APIs
   * Partial Support for File Loads (Failures writing to files supported, failures loading files to BQ unsupported)
   * No Support for Extract or Streaming Inserts
+* Added support for handling bad records to PubSubIO ([#30372](https://github.com/apache/beam/pull/30372)).
+  * Support is not available for handling schema mismatches, and enabling error handling for writing to pubsub topics with schemas is not recommended
 * `--enableBundling` pipeline option for BigQueryIO DIRECT_READ is replaced by `--enableStorageReadApiV2`. Both were considered experimental and may subject to change (Java) ([#26354](https://github.com/apache/beam/issues/26354)).
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
