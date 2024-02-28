@@ -25,10 +25,12 @@ import unittest
 from decimal import Decimal
 from typing import Callable
 from typing import Union
-from apache_beam import DoFn, ParDo
+
 from parameterized import parameterized
 
 import apache_beam as beam
+from apache_beam import DoFn
+from apache_beam import ParDo
 from apache_beam import coders
 from apache_beam.io.jdbc import ReadFromJdbc
 from apache_beam.io.jdbc import WriteToJdbc
