@@ -25,9 +25,12 @@ Dependency management is about specifying dependencies that your pipeline requir
 
 ## PyPI Dependencies {#pypi-dependencies}
 
-If your pipeline uses public packages from the [Python Package Index](https://pypi.python.org/), make these packages available remotely by performing the following steps:
+If your pipeline uses public packages from the [Python Package Index](https://pypi.python.org/), you must make these packages available remotely on the workers.
 
-**Note:** If your PyPI package depends on a non-Python package (e.g. a package that requires installation on Linux using the `apt-get install` command), see the [PyPI Dependencies with Non-Python Dependencies](#nonpython) section instead.
+For simplest pipelines where a pipeline consists only of a single Python file or a notebook, the easiest way to supply dependencies is to provide a
+`requirements.txt` file. For more complex scenarios, define the [pipeline in a package](#multiple-file-dependencies) and consider installing your dependencies in a [custom container](#custom-containers).
+
+To supply a requirements.txt file:
 
 1. Find out which packages are installed on your machine. Run the following command:
 
@@ -56,7 +59,7 @@ You can pass a [container](https://hub.docker.com/search?q=apache%2Fbeam&type=im
        RUN python -m pip install -r /tmp/requirements.txt
 
 
-## Local or non-PyPI Dependencies {#local-or-nonpypi}
+## Local Python packages or non-public Python Dependencies {#local-or-nonpypi}
 
 If your pipeline uses packages that are not available publicly (e.g. packages that you've downloaded from a GitHub repo), make these packages available remotely by performing the following steps:
 
@@ -78,7 +81,7 @@ If your pipeline uses packages that are not available publicly (e.g. packages th
 
       See the [build documentation](https://pypa-build.readthedocs.io/en/latest/index.html) for more details on this command.
 
-## Multiple File Dependencies
+## Multiple File Dependencies {#multiple-file-dependencies}
 
 Often, your pipeline code spans multiple files. To run your project remotely, you must group these files as a Python package and specify the package when you run your pipeline. When the remote workers start, they will install your package. To group your files as a Python package and make it available remotely, perform the following steps:
 
@@ -89,20 +92,29 @@ Often, your pipeline code spans multiple files. To run your project remotely, yo
         setuptools.setup(
            name='PACKAGE-NAME',
            version='PACKAGE-VERSION',
-           install_requires=[],
+           install_requires=[
+             # List Python packages your pipeline depends on.
+           ],
            packages=setuptools.find_packages(),
         )
 
-2. Structure your project so that the root directory contains the `setup.py` file, the main workflow file, and a directory with the rest of the files.
+2. Structure your project so that the root directory contains the `setup.py` file, the main workflow file, and a directory with the rest of the files, for example:
 
         root_dir/
           setup.py
           main.py
-          other_files_dir/
+          my_package/
+            my_pipeline_launcher.py
+            my_custom_dofns_and_transforms.py
+            other_utils_and_helpers.py
 
-    See [Juliaset](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete/juliaset) for an example that follows this required project structure.
+    See [Juliaset](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete/juliaset) for an example that follows this project structure.
 
-3. Run your pipeline with the following command-line option:
+3. Install your package in the submission environment, for example via:
+
+        pip install -e .
+
+4. Run your pipeline with the following command-line option:
 
         --setup_file /path/to/setup.py
 
@@ -111,22 +123,14 @@ Often, your pipeline code spans multiple files. To run your project remotely, yo
 
 ## Non-Python Dependencies or PyPI Dependencies with Non-Python Dependencies {#nonpython}
 
-If your pipeline uses non-Python packages (e.g. packages that require installation using the `apt-get install` command), or uses a PyPI package that depends on non-Python dependencies during package installation, you must perform the following steps.
+If your pipeline uses non-Python packages (e.g. packages that require installation using the `apt install` command), or uses a PyPI package that depends on non-Python dependencies during package installation, we recommend installing them using a (custom container){#custom-containers}.
+Alternatively you must perform the following steps.
 
-1. Add the required installation commands (e.g. the `apt-get install` commands) for the non-Python dependencies to the list of `CUSTOM_COMMANDS` in your `setup.py` file. See the [Juliaset setup.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/juliaset/setup.py) for an example.
+1. [Structure your pipeline as a package](#multiple-file-dependencies).
 
-    **Note:** You must make sure that these commands are runnable on the remote worker (e.g. if you use `apt-get`, the remote worker needs `apt-get` support).
+2. Add the required installation commands (e.g. the `apt install` commands) for the non-Python dependencies to the list of `CUSTOM_COMMANDS` in your `setup.py` file. See the [Juliaset setup.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/juliaset/setup.py) for an example.
 
-2. If you are using a PyPI package that depends on non-Python dependencies, add `['pip', 'install', '<your PyPI package>']` to the list of `CUSTOM_COMMANDS` in your `setup.py` file.
-
-3. Structure your project so that the root directory contains the `setup.py` file, the main workflow file, and a directory with the rest of the files.
-
-        root_dir/
-          setup.py
-          main.py
-          other_files_dir/
-
-    See the [Juliaset](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete/juliaset) project for an example that follows this required project structure.
+    **Note:** You must make sure that these commands are runnable on the remote worker (e.g. if you use `apt`, the remote worker needs `apt` support).
 
 4. Run your pipeline with the following command-line option:
 
