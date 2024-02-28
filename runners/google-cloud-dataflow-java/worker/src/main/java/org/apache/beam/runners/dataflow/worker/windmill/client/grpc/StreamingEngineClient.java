@@ -90,10 +90,10 @@ public final class StreamingEngineClient {
   private final long clientId;
   private final Supplier<GetWorkerMetadataStream> getWorkerMetadataStream;
   private final Queue<WindmillEndpoints> newWindmillEndpoints;
+  private final ChannelCache channelCache;
+
   /** Writes are guarded by synchronization, reads are lock free. */
   private final AtomicReference<StreamingEngineConnectionState> connections;
-
-  private final ChannelCache channelCache;
 
   @SuppressWarnings("FutureReturnValueIgnored")
   private StreamingEngineClient(

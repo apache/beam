@@ -47,6 +47,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataR
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
@@ -96,7 +97,7 @@ public class StreamingEngineClientTest {
           .build();
 
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-  private final Set<ManagedChannel> channels = new HashSet<>();
+  private final List<ManagedChannel> channels = new ArrayList<>();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   private final GrpcWindmillStreamFactory streamFactory =
       spy(GrpcWindmillStreamFactory.of(JOB_HEADER).build());
@@ -187,7 +188,18 @@ public class StreamingEngineClientTest {
         stubFactory,
         getWorkBudgetDistributor,
         dispatcherClient,
-        CLIENT_ID);
+        CLIENT_ID,
+        new ChannelCache() {
+          @Override
+          public ManagedChannel get(WindmillServiceAddress windmillServiceAddress) {
+            return channels.get(0);
+          }
+
+          @Override
+          public void remove(WindmillServiceAddress windmillServiceAddress) {
+            // no-op
+          }
+        });
   }
 
   @Test
