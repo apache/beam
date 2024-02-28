@@ -132,7 +132,7 @@ Otherwise, you must perform the following steps.
 
     **Note:** You must verify that these commands run on the remote worker. For example, if you use `apt`, the remote worker needs `apt` support.
 
-4. Run your pipeline with the following command-line option:
+3. Run your pipeline with the following command-line option:
 
         --setup_file /path/to/setup.py
 
