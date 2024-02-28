@@ -51,8 +51,10 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
   Bigtable Online serving.
 
   With the Bigtable Online serving approach, the client fetches all the
-  available features for an entity-id. To filter the features to enrich, use
-  the `join_fn` param in :class:`apache_beam.transforms.enrichment.Enrichment`.
+  available features for an entity-id. The entity-id is extracted from the
+  `row_key` field in the input `beam.Row` object. To filter the features to
+  enrich, use the `join_fn` param in
+  :class:`apache_beam.transforms.enrichment.Enrichment`.
 
   **NOTE:** The default severity to report exceptions is logging a warning. For
     this handler, Vertex AI client returns the same exception
@@ -88,9 +90,7 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
         to set the level when an empty row is returned from the BigTable query.
         Defaults to `ExceptionLevel.WARN`.
       kwargs: Optional keyword arguments to configure the
-        `aiplatform.gapic.FeatureOnlineStoreServiceClient`. When using
-        `kwargs`, the `api_endpoint` param will be overridden with this config
-        if multiple values are found for `client_options`.
+        `aiplatform.gapic.FeatureOnlineStoreServiceClient`.
     """
     self.project = project
     self.location = location
@@ -100,15 +100,20 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
     self.row_key = row_key
     self.exception_level = exception_level
     self.kwargs = kwargs if kwargs else {}
+    if 'client_options' in self.kwargs:
+      if not self.kwargs['client_options']['api_endpoint']:
+        self.kwargs['client_options']['api_endpoint'] = self.api_endpoint
+      elif self.kwargs['client_options']['api_endpoint'] != self.api_endpoint:
+        raise ValueError(
+            'Multiple values received for api_endpoint in '
+            'api_endpoint and client_options parameters.')
+    else:
+      self.kwargs['client_options'] = {"api_endpoint": self.api_endpoint}
 
   def __enter__(self):
     """Connect with the Vertex AI Feature Store."""
-    if 'client_options' in self.kwargs:
-      self.client = aiplatform.gapic.FeatureOnlineStoreServiceClient(
-          **self.kwargs)
-    else:
-      self.client = aiplatform.gapic.FeatureOnlineStoreServiceClient(
-          client_options={"api_endpoint": self.api_endpoint}, **self.kwargs)
+    self.client = aiplatform.gapic.FeatureOnlineStoreServiceClient(
+        **self.kwargs)
     self.feature_view_path = self.client.feature_view_path(
         self.project,
         self.location,
@@ -124,8 +129,12 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
     try:
       entity_id = request._asdict()[self.row_key]
     except KeyError:
-      raise ValueError(
-          "no entry found for row_key %s in input row" % self.row_key)
+      raise KeyError(
+          "Enrichment requests to Vertex AI Feature Store should "
+          "contain a field: %s in the input `beam.Row` to join "
+          "the input with fetched response. This is used as the "
+          "`FeatureViewDataKey` to fetch feature values "
+          "corresponding to this key." % self.row_key)
     try:
       response = self.client.fetch_feature_values(
           request=aiplatform.gapic.FetchFeatureValuesRequest(
@@ -153,7 +162,7 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
   def get_cache_key(self, request: beam.Row) -> str:
     """Returns a string formatted with unique entity-id for the feature values.
     """
-    return 'entity_id: %s'
+    return 'entity_id: %s' % request._asdict()[self.row_key]
 
 
 class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
@@ -162,8 +171,10 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
   Use this handler with :class:`apache_beam.transforms.enrichment.Enrichment`
   transform for the Vertex AI Feature Store (Legacy).
 
-  By default, it fetches all the features values for an entity-id. You can
-  specify the features names using `feature_ids` to fetch specific features.
+  By default, it fetches all the features values for an entity-id. The
+  entity-id is extracted from the `row_key` field in the input `beam.Row`
+  object.You can specify the features names using `feature_ids` to fetch
+  specific features.
   """
   def __init__(
       self,
@@ -196,9 +207,7 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
         to set the level when an empty row is returned from the BigTable query.
         Defaults to `ExceptionLevel.WARN`.
       kwargs: Optional keyword arguments to configure the
-        `aiplatform.gapic.FeaturestoreOnlineServingServiceClient`. When using
-        `kwargs`, the `api_endpoint` param will be overridden with this config
-        if multiple values are found for `client_options`.
+        `aiplatform.gapic.FeaturestoreOnlineServingServiceClient`.
     """
     self.project = project
     self.location = location
@@ -209,6 +218,15 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
     self.row_key = row_key
     self.exception_level = exception_level
     self.kwargs = kwargs if kwargs else {}
+    if 'client_options' in self.kwargs:
+      if not self.kwargs['client_options']['api_endpoint']:
+        self.kwargs['client_options']['api_endpoint'] = self.api_endpoint
+      elif self.kwargs['client_options']['api_endpoint'] != self.api_endpoint:
+        raise ValueError(
+            'Multiple values received for api_endpoint in '
+            'api_endpoint and client_options parameters.')
+    else:
+      self.kwargs['client_options'] = {"api_endpoint": self.api_endpoint}
 
   def __enter__(self):
     """Connect with the Vertex AI Feature Store (Legacy)."""
@@ -220,12 +238,8 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
           location=self.location,
           credentials=self.kwargs.get('credentials'),
       )
-      if 'client_options' in self.kwargs:
-        self.client = aiplatform.gapic.FeaturestoreOnlineServingServiceClient(
-            **self.kwargs)
-      else:
-        self.client = aiplatform.gapic.FeaturestoreOnlineServingServiceClient(
-            client_options={'api_endpoint': self.api_endpoint}, **self.kwargs)
+      self.client = aiplatform.gapic.FeaturestoreOnlineServingServiceClient(
+          **self.kwargs)
       self.entity_type_path = self.client.entity_type_path(
           self.project,
           self.location,
@@ -245,8 +259,12 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
     try:
       entity_id = request._asdict()[self.row_key]
     except KeyError:
-      raise ValueError(
-          "no entry found for row_key %s in input row" % self.row_key)
+      raise KeyError(
+          "Enrichment requests to Vertex AI Feature Store should "
+          "contain a field: %s in the input `beam.Row` to join "
+          "the input with fetched response. This is used as the "
+          "`FeatureViewDataKey` to fetch feature values "
+          "corresponding to this key." % self.row_key)
 
     try:
       selector = aiplatform.gapic.FeatureSelector(
@@ -266,9 +284,8 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
     for key, msg in zip(response.header.feature_descriptors,
                         proto_to_dict['data']):
       if msg and 'value' in msg:
-        for _, value in msg['value'].items():
-          response_dict[key.id] = value
-          break  # skip fetching the metadata
+        response_dict[key.id] = list(msg['value'].values())[0]
+        # skip fetching the metadata
       elif self.exception_level == ExceptionLevel.RAISE:
         raise ValueError(
             _not_found_err_message(
@@ -286,4 +303,4 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
   def get_cache_key(self, request: beam.Row) -> str:
     """Returns a string formatted with unique entity-id for the feature values.
     """
-    return 'entity_id: %s'
+    return 'entity_id: %s' % request._asdict()[self.row_key]
