@@ -221,7 +221,7 @@ output `Split.a`.
 - type: Split
   input: input
   config:
-    destination: col1
+    on: col1
     outputs: ['a', 'b', 'c']
 
 - type: SomeTransform
@@ -241,8 +241,8 @@ One can also specify the destination as a function, e.g.
 - type: Split
   input: input
   config:
+    on: "'even' if col2 % 2 == 0 else 'odd'"
     language: python
-    destination: "'even' if col2 % 2 == 0 else 'odd'"
     outputs: ['even', 'odd']
 ```
 
@@ -253,7 +253,7 @@ that are not in the named outputs (which would otherwise be an error):
 - type: Split
   input: input
   config:
-    destination: col1
+    on: col1
     outputs: ['a', 'b', 'c']
     unknown_output: 'other'
 ```
@@ -271,7 +271,7 @@ one could use an iterable column and precede the `Split` with an `Explode`.
 - type: Split
   input: Explode
   config:
-    destination: col1
+    on: col1
     outputs: ['a', 'b', 'c']
 ```
 

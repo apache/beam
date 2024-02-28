@@ -556,22 +556,22 @@ def _SqlMapToFieldsTransform(pcoll, sql_transform_constructor, **mapping_args):
 def _Split(
     pcoll,
     outputs: List[str],
-    destination: Union[str, Dict[str, str]],
+    on: Union[str, Dict[str, str]],
     unknown_output: Optional[str] = None,
     error_handling: Optional[Mapping[str, Any]] = None,
     language: Optional[str] = 'generic'):
-  split_fn = _as_callable_for_pcoll(pcoll, destination, 'destination', language)
+  split_fn = _as_callable_for_pcoll(pcoll, on, 'on', language)
   try:
     split_fn_output_type = trivial_inference.infer_return_type(
         split_fn, [pcoll.element_type])
   except (TypeError, ValueError):
     pass
   else:
-    if not typehints.is_consistent_with(split_fn_output_type, str):
+    if not typehints.is_consistent_with(split_fn_output_type,
+                                        typehints.Optional[str]):
       raise ValueError(
-          f'Split function "{destination}" must return a string type '
-          f'not {split_fn_output_type}'
-      )
+          f'Split function "{on}" must return a string type '
+          f'not {split_fn_output_type}')
   error_output = error_handling['output'] if error_handling else None
   if error_output in outputs:
     raise ValueError(
@@ -581,16 +581,15 @@ def _Split(
 
   def split(element):
     tag = split_fn(element)
-    if not isinstance(tag, str):
+    if not (tag is None or isinstance(tag, str)):
       raise ValueError(
           f'Returned output name "{tag}" of type {type(tag)} '
-          f'from "{destination}" must be a string.'
-      )
+          f'from "{on}" must be a string.')
     if tag not in outputs:
       if unknown_output:
         tag = unknown_output
       else:
-        raise ValueError(f'Unknown output name "{tag}" from {destination}')
+        raise ValueError(f'Unknown output name "{tag}" from {on}')
     return beam.pvalue.TaggedOutput(tag, element)
 
   output_set = set(outputs)

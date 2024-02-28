@@ -208,6 +208,8 @@ def create_test_method(test_type, test_name, test_yaml):
       'pkg.module.', 'apache_beam.yaml.readme_test._Fakes.')
   test_yaml = test_yaml.replace(
       'apache_beam.pkg.module.', 'apache_beam.yaml.readme_test._Fakes.')
+  # DO NOT SUBMIT
+  test_yaml = test_yaml.replace(' on:', ' "on":')
 
   def test(self):
     with TestEnvironment() as env:

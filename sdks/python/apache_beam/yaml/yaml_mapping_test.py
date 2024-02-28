@@ -164,9 +164,9 @@ class YamlMappingTest(unittest.TestCase):
           type: Split
           input: input
           config:
+            on: "'even' if len(element) % 2 == 0 else 'odd'"
             language: python
             outputs: [even, odd]
-            destination: "'even' if len(element) % 2 == 0 else 'odd'"
           ''')
       assert_that(
           result['even'] | beam.Map(lambda x: x.element),
@@ -190,11 +190,11 @@ class YamlMappingTest(unittest.TestCase):
           type: Split
           input: input
           config:
-            language: python
-            outputs: [even, odd]
-            destination:
+            on:
               callable:
                 "lambda row: 'even' if len(row.element) % 2 == 0 else 'odd'"
+            language: python
+            outputs: [even, odd]
           ''')
       assert_that(
           result['even'] | beam.Map(lambda x: x.element),
@@ -218,10 +218,10 @@ class YamlMappingTest(unittest.TestCase):
           type: Split
           input: input
           config:
+            on: "element.lower()[0]"
             language: python
             outputs: [a, b, c]
             unknown_output: other
-            destination: "element.lower()[0]"
           ''')
       assert_that(
           result['a'] | beam.Map(lambda x: x.element),
@@ -252,9 +252,9 @@ class YamlMappingTest(unittest.TestCase):
             type: Split
             input: input
             config:
+              on: "element.lower()[0]"
               language: python
               outputs: [a, b, c]
-              destination: "element.lower()[0]"
             ''')
 
   def test_split_without_unknown_with_error(self):
@@ -270,9 +270,9 @@ class YamlMappingTest(unittest.TestCase):
           type: Split
           input: input
           config:
+            on: "element.lower()[0]"
             language: python
             outputs: [a, b, c]
-            destination: "element.lower()[0]"
             error_handling:
               output: unknown
           ''')
@@ -304,9 +304,9 @@ class YamlMappingTest(unittest.TestCase):
           type: Split
           input: input
           config:
+            on: "element.lower()[5]"
             language: python
             outputs: [a, b, c]
-            destination: "element.lower()[5]"
             unknown_output: other
             error_handling:
               output: errors
@@ -338,8 +338,8 @@ class YamlMappingTest(unittest.TestCase):
           type: Split
           input: input
           config:
+            on: texture
             outputs: [bumpy, smooth]
-            destination: texture
           ''')
       assert_that(
           result['bumpy'] | beam.Map(lambda x: x.element),
@@ -365,9 +365,9 @@ class YamlMappingTest(unittest.TestCase):
             type: Split
             input: input
             config:
-              language: python
+              on: len(texture)
               outputs: [bumpy, smooth]
-              destination: len(texture)
+              language: python
             ''')
 
   def test_split_bad_runtime_type(self):
@@ -385,9 +385,9 @@ class YamlMappingTest(unittest.TestCase):
             type: Split
             input: input
             config:
-              language: python
+              on: print(texture)
               outputs: [bumpy, smooth]
-              destination: print(texture)
+              language: python
             ''')
 
 
