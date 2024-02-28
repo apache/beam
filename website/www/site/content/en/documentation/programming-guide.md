@@ -221,7 +221,7 @@ created from command line options such as `yargs.argv`.
 {{< /paragraph >}}
 
 {{< paragraph class="language-yaml">}}
-Pipeline options are simply an optional yaml mapping property that is a sibling to
+Pipeline options are simply an optional YAML mapping property that is a sibling to
 the pipeline definition itself.
 It will be merged with whatever options are passed on the command line.
 {{< /paragraph >}}
@@ -384,7 +384,7 @@ one `PCollection` in some form. The `PCollection` you create serves as the input
 for the first operation in your pipeline.
 
 <span class="language-yaml">
-In Beam YAML `PCollection`s are either implicit (e.g. when using `chain`)
+In Beam YAML, `PCollection`s are either implicit (e.g. when using `chain`)
 or referred to by their producing `PTransform`.
 </span>
 
@@ -704,13 +704,33 @@ pipeline:
 
     - name: MyTransform
       type: MyTransformType
-      input: ProducingTransform.output_name
+      input: ProducingTransform
       ...
 {{< /highlight >}}
 
 {{< paragraph class="language-yaml">}}
-The `.output_name` designation can be omitted for those transforms
-with a single (non-error) output.
+If a transform has more than one
+([non-error](https://beam.apache.org/documentation/sdks/yaml-errors/)) output,
+the various outputs can be identified by explicitly giving the output name.
+{{< /highlight >}}
+
+{{< highlight yaml >}}
+pipeline:
+  transforms:
+    ...
+    - name: ProducingTransform
+      type: ProducingTransformType
+      ...
+
+    - name: MyTransform
+      type: MyTransformType
+      input: ProducingTransform.output_name
+      ...
+
+    - name: MyTransform
+      type: MyTransformType
+      input: ProducingTransform.another_output_name
+      ...
 {{< /highlight >}}
 
 {{< paragraph class="language-yaml">}}
@@ -1673,7 +1693,8 @@ automatically apply some optimizations:
 <span class="language-yaml">
 Beam YAML has the following buit-in CombineFns: count, sum, min, max,
 mean, any, all, group, and concat.
-CombineFns from other languages can also be referenced.
+CombineFns from other languages can also be referenced
+as described in the (full docs on aggregation)[https://beam.apache.org/documentation/sdks/yaml-combine/].
 </span>
 The following example code shows a simple combine function.
 
