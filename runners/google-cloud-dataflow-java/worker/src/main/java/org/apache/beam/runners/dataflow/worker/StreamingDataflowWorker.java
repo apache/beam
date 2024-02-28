@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toConcurrentMap;
 import static org.apache.beam.runners.dataflow.DataflowRunner.hasExperiment;
+import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.remoteChannel;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
@@ -114,8 +115,11 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Co
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.ChannelzServlet;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcDispatcherClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCacheLoader;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingRemoteStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.ActiveWorkRefresher;
@@ -472,6 +476,17 @@ public class StreamingDataflowWorker {
         createWindmillServerStub(
             options,
             clientId,
+            GrpcDispatcherClient.create(
+                new ChannelCachingRemoteStubFactory(
+                    options.getGcpCredential(),
+                    CacheBuilder.newBuilder()
+                        .build(
+                            new ChannelCacheLoader(
+                                options.getUseWindmillIsolatedChannels(),
+                                serviceAddress ->
+                                    remoteChannel(
+                                        serviceAddress,
+                                        options.getWindmillServiceRpcChannelAliveTimeoutSec()))))),
             new WorkHeartbeatResponseProcessor(
                 computationId -> Optional.ofNullable(computationMap.get(computationId)))),
         clientId,
@@ -606,6 +621,7 @@ public class StreamingDataflowWorker {
   private static WindmillServerStub createWindmillServerStub(
       DataflowWorkerHarnessOptions options,
       long clientId,
+      GrpcDispatcherClient grpcDispatcherClient,
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     if (options.getWindmillServiceEndpoint() != null
         || options.isEnableStreamingEngine()
@@ -632,7 +648,8 @@ public class StreamingDataflowWorker {
                 .build();
         windmillStreamFactory.scheduleHealthChecks(
             options.getWindmillServiceStreamingRpcHealthCheckPeriodMs());
-        return GrpcWindmillServer.create(options, windmillStreamFactory, processHeartbeatResponses);
+        return GrpcWindmillServer.create(
+            options, windmillStreamFactory, grpcDispatcherClient, processHeartbeatResponses);
       } catch (IOException e) {
         throw new RuntimeException("Failed to create GrpcWindmillServer: ", e);
       }
