@@ -5385,11 +5385,14 @@ programming guide, take a look at the
 &lt;li data-value="py">Python SDK&lt;/li>
 &lt;li data-value="go">Go SDK&lt;/li>
 &lt;li data-value="typescript">TypeScript SDK&lt;/li>
+&lt;li data-value="yaml">Yaml API&lt;/li>
 &lt;/ul>
 &lt;/nav>
 &lt;p class="language-py">The Python SDK supports Python 3.8, 3.9, 3.10, and 3.11.&lt;/p>
 &lt;p class="language-go">The &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam">Go SDK&lt;/a> supports Go v1.20+.&lt;/p>
 &lt;p class="language-typescript">The Typescript SDK supports Node v16+ and is still experimental.&lt;/p>
+&lt;p class="language-yaml">YAML is supported as of Beam 2.52, but is under active development and the most
+recent SDK is advised.&lt;/p>
 &lt;h2 id="overview">1. Overview&lt;/h2>
 &lt;p>To use Beam, you need to first create a driver program using the classes in one
 of the Beam SDKs. Your driver program &lt;em>defines&lt;/em> your pipeline, including all of
@@ -5439,6 +5442,10 @@ that owns the &lt;code>Scope&lt;/code>.&lt;/li>
 &lt;li>I/O transforms: Beam comes with a number of &amp;ldquo;IOs&amp;rdquo; - library &lt;code>PTransform&lt;/code>s that
 read or write data to various external storage systems.&lt;/li>
 &lt;/ul>
+&lt;span class="language-yaml">
+Note that in Beam YAML, `PCollection`s are either implicit (e.g. when using
+`chain`) or referenced by their producing `PTransform`.
+&lt;/span>
 &lt;p>A typical Beam driver program works as follows:&lt;/p>
 &lt;ul>
 &lt;li>&lt;strong>Create&lt;/strong> a &lt;code>Pipeline&lt;/code> object and set the pipeline execution options, including
@@ -5527,6 +5534,18 @@ with a single `root` object and is passed to a Runner's `run` method.
 &lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="p">});&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">pipeline&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="l">...&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">options&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="l">...&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p>For a more in-depth tutorial on creating basic pipelines
 in the Python SDK, please read and work through
 &lt;a href="https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/get-started/learn_beam_basics_by_doing.ipynb">this colab notebook&lt;/a>.&lt;/p>
@@ -5550,6 +5569,9 @@ before &lt;code>beam.Init()&lt;/code> is called.&lt;/p>
 &lt;p class="language-typescript">Any Javascript object can be used as pipeline options.
 One can either construct one manually, but it is also common to pass an object
 created from command line options such as &lt;code>yargs.argv&lt;/code>.&lt;/p>
+&lt;p class="language-yaml">Pipeline options are simply an optional YAML mapping property that is a sibling to
+the pipeline definition itself.
+It will be merged with whatever options are passed on the command line.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -5592,6 +5614,19 @@ created from command line options such as &lt;code>yargs.argv&lt;/code>.&lt;/p>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kr">const&lt;/span> &lt;span class="nx">runner&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">createRunner&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">pipeline_options&lt;/span>&lt;span class="p">);&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kr">const&lt;/span> &lt;span class="nx">runnerFromCommandLineOptions&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">createRunner&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">yargs&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">argv&lt;/span>&lt;span class="p">);&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">pipeline&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="l">...&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">options&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">my_pipeline_option&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">my_value&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="l">...&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>This interprets command-line arguments that follow the format:&lt;/p>
@@ -5751,6 +5786,10 @@ must be in the form of a &lt;code>PCollection&lt;/code>.&lt;/p>
 &lt;p>After you&amp;rsquo;ve created your &lt;code>Pipeline&lt;/code>, you&amp;rsquo;ll need to begin by creating at least
 one &lt;code>PCollection&lt;/code> in some form. The &lt;code>PCollection&lt;/code> you create serves as the input
 for the first operation in your pipeline.&lt;/p>
+&lt;span class="language-yaml">
+In Beam YAML, `PCollection`s are either implicit (e.g. when using `chain`)
+or referred to by their producing `PTransform`.
+&lt;/span>
 &lt;h3 id="creating-a-pcollection">3.1. Creating a PCollection&lt;/h3>
 &lt;p>You create a &lt;code>PCollection&lt;/code> by either reading data from an external source using
 Beam&amp;rsquo;s &lt;a href="#pipeline-io">Source API&lt;/a>, or you can create a &lt;code>PCollection&lt;/code> of data
@@ -5764,19 +5803,29 @@ testing and debugging purposes.&lt;/p>
 adapters&lt;/a>. The adapters vary in their exact usage, but all of them
 read from some external data source and return a &lt;code>PCollection&lt;/code> whose elements
 represent the data records in that source.&lt;/p>
-&lt;p>Each data source adapter has a &lt;code>Read&lt;/code> transform; to read, you must apply that
-transform to the &lt;code>Pipeline&lt;/code> object itself.
+&lt;p>Each data source adapter has a &lt;code>Read&lt;/code> transform; to read,
+&lt;span class="language-java language-py language-go language-typescript">
+you must apply that transform to the &lt;code>Pipeline&lt;/code> object itself.
+&lt;/span>
+&lt;span class="language-yaml">
+place this transform in the &lt;code>source&lt;/code> or &lt;code>transforms&lt;/code> portion of the pipeline.
+&lt;/span>
 &lt;span class="language-java">&lt;code>TextIO.Read&lt;/code>&lt;/span>
 &lt;span class="language-py">&lt;code>io.TextFileSource&lt;/code>&lt;/span>
 &lt;span class="language-go">&lt;code>textio.Read&lt;/code>&lt;/span>
 &lt;span class="language-typescript">&lt;code>textio.ReadFromText&lt;/code>&lt;/span>,
+&lt;span class="language-yaml">&lt;code>ReadFromText&lt;/code>&lt;/span>,
 for example, reads from an
-external text file and returns a &lt;code>PCollection&lt;/code> whose elements are of type
-&lt;code>String&lt;/code>, each &lt;code>String&lt;/code> represents one line from the text file. Here&amp;rsquo;s how you
+external text file and returns a &lt;code>PCollection&lt;/code> whose elements
+&lt;span class="language-java language-py language-go language-typescript">
+are of type &lt;code>String&lt;/code> where each &lt;code>String&lt;/code>
+&lt;/span>
+represents one line from the text file. Here&amp;rsquo;s how you
 would apply &lt;span class="language-java">&lt;code>TextIO.Read&lt;/code>&lt;/span>
 &lt;span class="language-py">&lt;code>io.TextFileSource&lt;/code>&lt;/span>
 &lt;span class="language-go">&lt;code>textio.Read&lt;/code>&lt;/span>
 &lt;span class="language-typescript">&lt;code>textio.ReadFromText&lt;/code>&lt;/span>
+&lt;span class="language-yaml">&lt;code>ReadFromText&lt;/code>&lt;/span>
 to your &lt;code>Pipeline&lt;/code> &lt;span class="language-typescript">root&lt;/span> to create
 a &lt;code>PCollection&lt;/code>:&lt;/p>
 &lt;div class='language-java snippet'>
@@ -5830,6 +5879,18 @@ a &lt;code>PCollection&lt;/code>:&lt;/p>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">pipeline&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">source&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ReadFromText&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">path&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">...&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p>See the &lt;a href="#pipeline-io">section on I/O&lt;/a> to learn more about how to read from the
 various data sources supported by the Beam SDK.&lt;/p>
 &lt;h4 id="creating-pcollection-in-memory">3.1.2. Creating a PCollection from in-memory data&lt;/h4>
@@ -5846,11 +5907,13 @@ itself.&lt;/p>
 &lt;code>beam.CreateList&lt;/code> transform. Pass the pipeline &lt;code>scope&lt;/code>, and the &lt;code>slice&lt;/code> to this transform.&lt;/p>
 &lt;p class="language-typescript">To create a &lt;code>PCollection&lt;/code> from an in-memory &lt;code>array&lt;/code>, you use the Beam-provided
 &lt;code>Create&lt;/code> transform. Apply this transform directly to your &lt;code>Root&lt;/code> object.&lt;/p>
+&lt;p class="language-yaml">To create a &lt;code>PCollection&lt;/code> from an in-memory &lt;code>array&lt;/code>, you use the Beam-provided
+&lt;code>Create&lt;/code> transform. Specify the elements in the pipeline itself.&lt;/p>
 &lt;p>The following example code shows how to create a &lt;code>PCollection&lt;/code> from an in-memory
 &lt;span class="language-java">&lt;code>List&lt;/code>&lt;/span>
 &lt;span class="language-py">&lt;code>list&lt;/code>&lt;/span>
 &lt;span class="language-go">&lt;code>slice&lt;/code>&lt;/span>
-&lt;span class="language-typescript">&lt;code>array&lt;/code>&lt;/span>:&lt;/p>
+&lt;span class="language-typescript language-yaml">&lt;code>array&lt;/code>&lt;/span>:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -5930,6 +5993,21 @@ itself.&lt;/p>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">])&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">);&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">pipeline&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">transforms&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Create&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">elements&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="l">A&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="l">B&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="l">...&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="pcollection-characteristics">3.2. PCollection characteristics&lt;/h3>
@@ -6037,11 +6115,16 @@ in the Python SDK, please read and work through
 &lt;a href="https://colab.sandbox.google.com/github/liferoad/beam/blob/learn-transforms/examples/notebooks/get-started/learn_beam_transforms_by_doing.ipynb">this colab notebook&lt;/a>.&lt;/p>
 &lt;h3 id="applying-transforms">4.1. Applying transforms&lt;/h3>
 &lt;p>To invoke a transform, you must &lt;strong>apply&lt;/strong> it to the input &lt;code>PCollection&lt;/code>. Each
-transform in the Beam SDKs has a generic &lt;code>apply&lt;/code> method &lt;span class="language-py">(or pipe operator &lt;code>|&lt;/code>)&lt;/span>.
+transform in the Beam SDKs has a generic &lt;code>apply&lt;/code> method
+&lt;span class="language-py">(or pipe operator &lt;code>|&lt;/code>)&lt;/span>.
 Invoking multiple Beam transforms is similar to &lt;em>method chaining&lt;/em>, but with one
 slight difference: You apply the transform to the input &lt;code>PCollection&lt;/code>, passing
 the transform itself as an argument, and the operation returns the output
-&lt;code>PCollection&lt;/code>. This takes the general form:&lt;/p>
+&lt;code>PCollection&lt;/code>.
+&lt;span class="language-yaml">&lt;code>array&lt;/code>&lt;/span>
+In YAML, transforms are applied by listing their inputs.
+&lt;/span>
+This takes the general form:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -6075,6 +6158,76 @@ the transform itself as an argument, and the operation returns the output
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">[&lt;/span>&lt;span class="nx">Output&lt;/span> &lt;span class="nx">PCollection&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">await&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="nx">Input&lt;/span> &lt;span class="nx">PCollection&lt;/span>&lt;span class="p">].&lt;/span>&lt;span class="nx">applyAsync&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="nx">AsyncTransform&lt;/span>&lt;span class="p">])&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">pipeline&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">transforms&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="l">...&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ProducingTransform&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ProducingTransformType&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="l">...&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">MyTransform&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">MyTransformType&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ProducingTransform&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="l">...&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p class="language-yaml">If a transform has more than one
+(&lt;a href="https://beam.apache.org/documentation/sdks/yaml-errors/">non-error&lt;/a>) output,
+the various outputs can be identified by explicitly giving the output name.&lt;/p>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">pipeline&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">transforms&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="l">...&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ProducingTransform&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ProducingTransformType&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="l">...&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">MyTransform&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">MyTransformType&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ProducingTransform.output_name&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="l">...&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">MyTransform&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">MyTransformType&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ProducingTransform.another_output_name&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="l">...&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>
+&lt;p class="language-yaml">For linear pipelines, this can be further simplified by implicitly determining
+the inputs based on by the ordering of the transforms by designating and setting
+the type to &lt;code>chain&lt;/code>. For example&lt;/p>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">pipeline&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">chain&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">transforms&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ProducingTransform&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ReadTransform&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">...&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">MyTransform&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">MyTransformType&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">...&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ConsumingTransform&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">WriteTransform&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">...&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/p>
 &lt;p class="language-java language-py language-typescript">Because Beam uses a generic &lt;code>apply&lt;/code> method for &lt;code>PCollection&lt;/code>, you can both chain
 transforms sequentially and also apply transforms that contain other transforms
 nested within (called &lt;a href="#composite-transforms">composite transforms&lt;/a> in the Beam
@@ -6242,9 +6395,13 @@ use it to extract certain fields from a set of raw input records, or convert raw
 input into a different format; you might also use &lt;code>ParDo&lt;/code> to convert processed
 data into a format suitable for output, like database table rows or printable
 strings.&lt;/p>
-&lt;p>When you apply a &lt;code>ParDo&lt;/code> transform, you&amp;rsquo;ll need to provide user code in the form
+&lt;p class="language-java language-go language-py language-typescript">When you apply a &lt;code>ParDo&lt;/code> transform, you&amp;rsquo;ll need to provide user code in the form
 of a &lt;code>DoFn&lt;/code> object. &lt;code>DoFn&lt;/code> is a Beam SDK class that defines a distributed
 processing function.&lt;/p>
+&lt;p class="language-yaml">In Beam YAML, &lt;code>ParDo&lt;/code> operations are expressed by the &lt;code>MapToFields&lt;/code>, &lt;code>Filter&lt;/code>,
+and &lt;code>Explode&lt;/code> transform types. These types can take a UDF in the language of your
+choice, rather than introducing the notion of a &lt;code>DoFn&lt;/code>.
+See &lt;a href="https://beam.apache.org/documentation/sdks/yaml-udf/">the page on mapping fns&lt;/a> for more details.&lt;/p>
 &lt;span class="language-java language-py">
 &lt;blockquote>
 &lt;p>When you create a subclass of &lt;code>DoFn&lt;/code>, note that your subclass should adhere to
@@ -6811,7 +6968,7 @@ tree, [2]
 &lt;/code>&lt;/pre>&lt;p>Thus, &lt;code>GroupByKey&lt;/code> represents a transform from a multimap (multiple keys to
 individual values) to a uni-map (unique keys to collections of values).&lt;/p>
 &lt;p>&lt;span class="language-java">Using &lt;code>GroupByKey&lt;/code> is straightforward:&lt;/span>&lt;/p>
-&lt;p class="language-py language-typescript">While all SDKs have a &lt;code>GroupByKey&lt;/code> transform, using &lt;code>GroupBy&lt;/code> is
+&lt;p class="language-py language-typescript language-yaml">While all SDKs have a &lt;code>GroupByKey&lt;/code> transform, using &lt;code>GroupBy&lt;/code> is
 generally more natural.
 The &lt;code>GroupBy&lt;/code> transform can be parameterized by the name(s) of properties
 on which to group the elements of the PCollection, or a function taking
@@ -6875,6 +7032,18 @@ the each element as input that maps to a key on which to do grouping.&lt;/p>
 &lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kr">const&lt;/span> &lt;span class="nx">by_word_length&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">scores&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">groupBy&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="nx">x&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&amp;gt;&lt;/span> &lt;span class="nx">x&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">word&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">length&lt;/span>&lt;span class="p">));&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Combine&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">group_by&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">animal&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">combine&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">weight&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">group&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h5 id="groupbykey-and-unbounded-pcollections">4.2.2.1 GroupByKey and unbounded PCollections&lt;/h5>
 &lt;p>If you are using unbounded &lt;code>PCollection&lt;/code>s, you must use either &lt;a href="#setting-your-pcollections-windowing-function">non-global
 windowing&lt;/a> or an
@@ -6908,6 +7077,7 @@ has names and phone numbers. You can join those two data sets, using the user
 name as a common key and the other data as the associated values. After the
 join, you have one data set that contains all of the information (email
 addresses and phone numbers) associated with each name.&lt;/p>
+&lt;p>One can also consider using SqlTransform to perform a join.&lt;/p>
 &lt;p>If you are using unbounded &lt;code>PCollection&lt;/code>s, you must use either &lt;a href="#setting-your-pcollections-windowing-function">non-global
 windowing&lt;/a> or an
 &lt;a href="#triggers">aggregation trigger&lt;/a> in order to perform a &lt;code>CoGroupByKey&lt;/code>. See
@@ -7052,6 +7222,30 @@ data contains names and phone numbers.&lt;/p>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kr">const&lt;/span> &lt;span class="nx">phones&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">withName&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;createPhones&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">phones_list&lt;/span>&lt;span class="p">))&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">);&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Create&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">CreateEmails&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">elements&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- {&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;amy&amp;#34;&lt;/span>&lt;span class="nt">, email&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;amy@example.com&amp;#34;&lt;/span>&lt;span class="w"> &lt;/span>}&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- {&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;carl&amp;#34;&lt;/span>&lt;span class="nt">, email&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;carl@example.com&amp;#34;&lt;/span>&lt;span class="w"> &lt;/span>}&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- {&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;julia&amp;#34;&lt;/span>&lt;span class="nt">, email&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;julia@example.com&amp;#34;&lt;/span>&lt;span class="w"> &lt;/span>}&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- {&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;carl&amp;#34;&lt;/span>&lt;span class="nt">, email&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;carl@email.com&amp;#34;&lt;/span>&lt;span class="w"> &lt;/span>}&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Create&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">CreatePhones&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">elements&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- {&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;amy&amp;#34;&lt;/span>&lt;span class="nt">, phone&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;111-222-3333&amp;#34;&lt;/span>&lt;span class="w"> &lt;/span>}&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- {&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;james&amp;#34;&lt;/span>&lt;span class="nt">, phone&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;222-333-4444&amp;#34;&lt;/span>&lt;span class="w"> &lt;/span>}&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- {&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;amy&amp;#34;&lt;/span>&lt;span class="nt">, phone&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;333-444-5555&amp;#34;&lt;/span>&lt;span class="w"> &lt;/span>}&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- {&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;carl&amp;#34;&lt;/span>&lt;span class="nt">, phone&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;444-555-6666&amp;#34;&lt;/span>&lt;span class="w"> &lt;/span>}&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>After &lt;code>CoGroupByKey&lt;/code>, the resulting data contains all data associated with each
@@ -7310,6 +7504,50 @@ parameters maps to the ordering of the &lt;code>CoGroupByKey&lt;/code> inputs.&l
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">});&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">MapToFields&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">PrepareEmails&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">CreateEmails&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">language&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">python&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">fields&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">name&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">email&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;[email]&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">phone&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;[]&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">MapToFields&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">PreparePhones&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">CreatePhones&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">language&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">python&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">fields&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">name&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">email&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;[]&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">phone&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;[phone]&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Combine&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">CoGropuBy&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="l">PrepareEmails, PreparePhones]&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">group_by&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="l">name]&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">combine&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">email&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">concat&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">phone&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">concat&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">MapToFields&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">FormatResults&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">CoGropuBy&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">language&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">python&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">fields&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">formatted&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;&amp;#39;%s; %s; %s&amp;#39; % (name, sorted(email), sorted(phone))&amp;#34;&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;p>The formatted data looks like this:&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
@@ -7363,6 +7601,17 @@ parameters maps to the ordering of the &lt;code>CoGroupByKey&lt;/code> inputs.&l
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">];&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="s2">&amp;#34;amy; [&amp;#39;amy@example.com&amp;#39;]; [&amp;#39;111-222-3333&amp;#39;, &amp;#39;333-444-5555&amp;#39;]&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="s2">&amp;#34;carl; [&amp;#39;carl@email.com&amp;#39;, &amp;#39;carl@example.com&amp;#39;]; [&amp;#39;444-555-6666&amp;#39;]&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="s2">&amp;#34;james; []; [&amp;#39;222-333-4444&amp;#39;]&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="s2">&amp;#34;julia; [&amp;#39;julia@example.com&amp;#39;]; []&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h4 id="combine">4.2.4. Combine&lt;/h4>
 &lt;p>&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.54.0/index.html?org/apache/beam/sdk/transforms/Combine.html">&lt;code>Combine&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-py">&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py">&lt;code>Combine&lt;/code>&lt;/a>&lt;/span>
@@ -7398,14 +7647,20 @@ that your streaming computation might be idle. Incremental combining also
 reduces the storage of intermediate accumulators.&lt;/li>
 &lt;/ul>
 &lt;h5 id="simple-combines">4.2.4.1. Simple combinations using simple functions&lt;/h5>
-&lt;p>The following example code shows a simple combine function.
+&lt;span class="language-yaml">
+Beam YAML has the following buit-in CombineFns: count, sum, min, max,
+mean, any, all, group, and concat.
+CombineFns from other languages can also be referenced
+as described in the (full docs on aggregation)[https://beam.apache.org/documentation/sdks/yaml-combine/].
+&lt;/span>
+The following example code shows a simple combine function.
 &lt;span class="language-typescript">
-Combining is done by modifying a grouping transform with the &lt;code>combining&lt;/code> method.
+Combining is done by modifying a grouping transform with the `combining` method.
 This method takes three parameters: the value to combine (either as a named
 property of the input elements, or a function of the entire input),
-the combining operation (either a binary function or a &lt;code>CombineFn&lt;/code>),
+the combining operation (either a binary function or a `CombineFn`),
 and finally a name for the combined value in the output object.
-&lt;/span>&lt;/p>
+&lt;/span>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -7491,21 +7746,38 @@ and finally a name for the combined value in the output object.
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kr">const&lt;/span> &lt;span class="nx">expected&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="nx">sum&lt;/span>: &lt;span class="kt">1111&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">product&lt;/span>: &lt;span class="kt">1000000&lt;/span> &lt;span class="p">}&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
-&lt;p class="language-go">&lt;p>All Combiners should be registered using a generic &lt;code>register.CombinerX[...]&lt;/code>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Combine&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">language&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">python&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">group_by&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">animal&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">combine&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">biggest&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">fn&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s1">&amp;#39;apache_beam.transforms.combiners.TopCombineFn&amp;#39;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">n&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">2&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">value&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">weight&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p class="language-go">All Combiners should be registered using a generic &lt;code>register.CombinerX[...]&lt;/code>
 function. This allows the Go SDK to infer an encoding from any inputs/outputs,
 registers the Combiner for execution on remote runners, and optimizes the runtime
 execution of the Combiner via reflection.&lt;/p>
-&lt;p>Combiner1 should be used when your accumulator, input, and output are all of the
+&lt;p class="language-go">Combiner1 should be used when your accumulator, input, and output are all of the
 same type. It can be called with &lt;code>register.Combiner1[T](&amp;amp;CustomCombiner{})&lt;/code> where &lt;code>T&lt;/code>
 is the type of the input/accumulator/output.&lt;/p>
-&lt;p>Combiner2 should be used when your accumulator, input, and output are 2 distinct
+&lt;p class="language-go">Combiner2 should be used when your accumulator, input, and output are 2 distinct
 types. It can be called with &lt;code>register.Combiner2[T1, T2](&amp;amp;CustomCombiner{})&lt;/code> where
 &lt;code>T1&lt;/code> is the type of the accumulator and &lt;code>T2&lt;/code> is the other type.&lt;/p>
-&lt;p>Combiner3 should be used when your accumulator, input, and output are 3 distinct
+&lt;p class="language-go">Combiner3 should be used when your accumulator, input, and output are 3 distinct
 types. It can be called with &lt;code>register.Combiner3[T1, T2, T3](&amp;amp;CustomCombiner{})&lt;/code>
 where &lt;code>T1&lt;/code> is the type of the accumulator, &lt;code>T2&lt;/code> is the type of the input, and &lt;code>T3&lt;/code> is
 the type of the output.&lt;/p>
-&lt;/p>
 &lt;h5 id="advanced-combines">4.2.4.2. Advanced combinations using CombineFn&lt;/h5>
 &lt;p>For more complex combine functions, you can define a
 &lt;span class="language-java language-py">subclass of&lt;/span>&lt;code>CombineFn&lt;/code>.
@@ -7738,6 +8010,18 @@ of integers.&lt;/p>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">);&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Combine&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">group_by&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="p">[]&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">combine&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">weight&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">sum&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h5 id="combine-global-windowing">4.2.4.4. Combine and global windowing&lt;/h5>
 &lt;p>If your input &lt;code>PCollection&lt;/code> uses the default global windowing, the default
 behavior is to return a &lt;code>PCollection&lt;/code> containing one item. That item&amp;rsquo;s value
@@ -7927,6 +8211,23 @@ PerKey must be an associative reduction function or a
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">];&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Combine&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">group_by&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="l">animal]&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">combine&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">total_weight&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">fn&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">sum&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">value&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">weight&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">average_weight&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">fn&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">mean&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">value&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">weight&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h4 id="flatten">4.2.5. Flatten&lt;/h4>
 &lt;p>&lt;span class="language-java">&lt;a href="https://beam.apache.org/releases/javadoc/2.54.0/index.html?org/apache/beam/sdk/transforms/Flatten.html">&lt;code>Flatten&lt;/code>&lt;/a>&lt;/span>
 &lt;span class="language-py">&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py">&lt;code>Flatten&lt;/code>&lt;/a>&lt;/span>
@@ -7994,6 +8295,17 @@ is a Beam transform for &lt;code>PCollection&lt;/code> objects that store the sa
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kr">const&lt;/span> &lt;span class="nx">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">P&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="nx">fib&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">pow&lt;/span>&lt;span class="p">]).&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">flatten&lt;/span>&lt;span class="p">());&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Flatten&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="l">SomeProducingTransform, AnotherProducingTransform]&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p class="language-yaml">In Beam YAML explicit flattens are not usually needed as one can list
+multiple inputs for any transform which will be implicitly flattened.&lt;/p>
 &lt;h5 id="data-encoding-merged-collections">4.2.5.1. Data encoding in merged collections&lt;/h5>
 &lt;p>By default, the coder for the output &lt;code>PCollection&lt;/code> is the same as the coder for
 the first &lt;code>PCollection&lt;/code> in the input &lt;code>PCollectionList&lt;/code>. However, the input
@@ -8578,6 +8890,10 @@ function. This optimizes runtime execution of the emitter.&lt;/p>
 &lt;p class="language-go">DoFns can also return a single element via the standard return.
 The standard return is always the first PCollection returned from beam.ParDo.
 Other emitters output to their own PCollections in their defined parameter order.&lt;/p>
+&lt;p class="language-yaml">&lt;code>MapToFields&lt;/code> is always one-to-one. To perform a one-to-many mapping one can
+first map a field to an iterable type and then follow this transform with an
+&lt;code>Explode&lt;/code> transform that will emit multiple values, one per value of the
+exploded field.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -8697,6 +9013,24 @@ Other emitters output to their own PCollections in their defined parameter order
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">yield&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="nx">marked&lt;/span>: &lt;span class="kt">word&lt;/span> &lt;span class="p">};&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">});&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">MapToFields&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">SomeProducingTransform&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">language&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">python&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">fields&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">word&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;line.split()&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Explode&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">MapToFields&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">fields&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">word&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="other-dofn-parameters">4.5.3. Accessing additional parameters in your DoFn&lt;/h4>
@@ -9599,6 +9933,10 @@ Beam will automatically infer the schema based on the fields and field tags of t
 &lt;p class="language-typescript">In Typescript, JSON objects are used to represent schema&amp;rsquo;d data.
 Unfortunately type information in Typescript is not propagated to the runtime layer,
 so it needs to be manually specified in some places (e.g. when using cross-language pipelines).&lt;/p>
+&lt;p class="language-yaml">In Beam YAML, all transforms produce and accept schema&amp;rsquo;d data which is used to validate the pipeline.&lt;/p>
+&lt;p class="language-yaml">In some cases, Beam is unable to figure out the output type of a mapping function.
+In this case, you can specify it manually using
+&lt;a href="https://json-schema.org/understanding-json-schema/reference/type">JSON schema syntax&lt;/a>.&lt;/p>
 &lt;div class='language-java snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -9720,6 +10058,20 @@ so it needs to be manually specified in some places (e.g. when using cross-langu
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Let beam know the type of the elements by providing an exemplar.
 &lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">withRowCoder&lt;/span>&lt;span class="p">({&lt;/span> &lt;span class="nx">intField&lt;/span>: &lt;span class="kt">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">stringField&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="s2">&amp;#34;&amp;#34;&lt;/span> &lt;span class="p">}));&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">MapToFields&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">language&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">python&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">fields&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">new_field&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">expression&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;hex(weight)&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">output_type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>{&lt;span class="w"> &lt;/span>&lt;span class="nt">&amp;#34;type&amp;#34;: &lt;/span>&lt;span class="s2">&amp;#34;string&amp;#34;&lt;/span>&lt;span class="w"> &lt;/span>}&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p class="language-java">Using JavaBean classes as above is one way to map a schema to Java classes. However multiple Java classes might have
@@ -11535,6 +11887,8 @@ subsequent grouping transforms, such as a fixed or sliding time window.&lt;/p>
 and emitted, and helps refine how the windowing function performs with respect
 to late data and computing early results. See the &lt;a href="#triggers">triggers&lt;/a> section
 for more information.&lt;/p>
+&lt;p class="language-yaml">In Beam YAML windowing specifications can also be placed directly on any
+transform rather than requiring an explicit &lt;code>WindowInto&lt;/code> transform.&lt;/p>
 &lt;h4 id="using-fixed-time-windows">8.3.1. Fixed-time windows&lt;/h4>
 &lt;p>The following example code shows how to apply &lt;code>Window&lt;/code> to divide a &lt;code>PCollection&lt;/code>
 into fixed windows, each 60 seconds in length:&lt;/p>
@@ -11575,6 +11929,17 @@ into fixed windows, each 60 seconds in length:&lt;/p>
 &lt;/a>
 &lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="line">&lt;span class="cl">&lt;span class="nx">pcoll&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">windowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">windowings&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">fixedWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">60&lt;/span>&lt;span class="p">)))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">WindowInto&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">windowing&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">fixed&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">size&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">60s&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h4 id="using-sliding-time-windows">8.3.2. Sliding time windows&lt;/h4>
@@ -11620,6 +11985,18 @@ begins every five seconds:&lt;/p>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">windowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">windowings&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">slidingWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">30&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">5&lt;/span>&lt;span class="p">)))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">WindowInto&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">windowing&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">sliding&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">size&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">5m&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">period&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">30s&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;h4 id="using-session-windows">8.3.3. Session windows&lt;/h4>
 &lt;p>The following example code shows how to apply &lt;code>Window&lt;/code> to divide a &lt;code>PCollection&lt;/code>
 into session windows, where each session must be separated by a time gap of at
@@ -11661,6 +12038,17 @@ least 10 minutes (600 seconds):&lt;/p>
 &lt;/a>
 &lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="line">&lt;span class="cl">&lt;span class="nx">pcoll&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">windowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">windowings&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">sessions&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">10&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">60&lt;/span>&lt;span class="p">)))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">WindowInto&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">windowing&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">sessions&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">gap&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">60s&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;p>Note that the sessions are per-key — each key in the collection will have its
@@ -11706,6 +12094,16 @@ a single global window for a &lt;code>PCollection&lt;/code>:&lt;/p>
 &lt;/a>
 &lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-typescript" data-lang="typescript">&lt;span class="line">&lt;span class="cl">&lt;span class="nx">pcoll&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">.&lt;/span>&lt;span class="nx">apply&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">windowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">windowings&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">globalWindows&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">WindowInto&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">windowing&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">global&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h3 id="watermarks-and-late-data">8.4. Watermarks and late data&lt;/h3>
@@ -11856,6 +12254,24 @@ with a &lt;code>DoFn&lt;/code> to attach the timestamps to each element in your 
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// Use the DoFn with ParDo as normal.
 &lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">stampedLogs&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">AddTimestampDoFn&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">unstampedLogs&lt;/span>&lt;span class="p">)&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">AssignTimestamps&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">language&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">python&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">timestamp&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">callable&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="p">|&lt;/span>&lt;span class="sd">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="sd"> import datetime
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="sd">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="sd"> def extract_timestamp(x):
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="sd"> raw = datetime.datetime.strptime(
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="sd"> x.external_timestamp_field, &amp;#34;%Y-%m-%d&amp;#34;)
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="sd"> return raw.astimezone(datetime.timezone.utc)&lt;/span>&lt;span class="w"> &lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
 &lt;h2 id="triggers">9. Triggers&lt;/h2>
@@ -14830,6 +15246,10 @@ use case.&lt;/p>
 &lt;/ul>
 &lt;p>Beam lets you combine transforms written in any supported SDK language (currently, Java and Python) and use them in one multi-language pipeline. This capability makes it easy to provide new functionality simultaneously in different Apache Beam SDKs through a single cross-language transform. For example, the &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/kafka.py">Apache Kafka connector&lt;/a> and &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/sql.py">SQL transform&lt;/a> from the Java SDK can be used in Python pipelines.&lt;/p>
 &lt;p>Pipelines that use transforms from more than one SDK-language are known as &lt;em>multi-language pipelines&lt;/em>.&lt;/p>
+&lt;p class="language-yaml">Beam YAML is built entirely on top of cross-language transforms.
+In addition to the built in transforms, you can author your own transforms
+(using the full expressivity of the Beam API) and surface them via a concept
+called &lt;a href="https://beam.apache.org/documentation/sdks/yaml/#providers">providers&lt;/a>.&lt;/p>
 &lt;h3 id="create-x-lang-transforms">13.1. Creating cross-language transforms&lt;/h3>
 &lt;p>To make transforms written in one language available to pipelines written in another language, Beam uses an &lt;em>expansion service&lt;/em>, which creates and injects the appropriate language-specific pipeline fragments into the pipeline.&lt;/p>
 &lt;p>In the following example, a Beam Python pipeline starts up a local Java expansion service to create and inject the appropriate Java pipeline fragments for executing the Java Kafka cross-language transform into the Python pipeline. The SDK then downloads and stages the necessary Java dependencies needed to execute these transforms.&lt;/p>
