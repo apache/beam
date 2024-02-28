@@ -751,6 +751,8 @@ class YamlProviders:
       elif window_type == 'sessions':
         window_fn = window.Sessions(
             YamlProviders.WindowInto._parse_duration(spec.pop('gap'), 'gap'))
+      else:
+        raise ValueError(f'Unknown window type {window_type}')
       if spec:
         raise ValueError(f'Unknown parameters {spec.keys()}')
       # TODO: Triggering, etc.
