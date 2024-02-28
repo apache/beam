@@ -85,6 +85,8 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed SpannerIO.readChangeStream to support propagating credentials from pipeline options 
+  to the getDialect calls for authenticating with Spanner ([#30361](https://github.com/apache/beam/pull/30361)).
 
 ## Security Fixes
 * Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
