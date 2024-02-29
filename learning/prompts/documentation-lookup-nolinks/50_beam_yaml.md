@@ -1,6 +1,6 @@
 Prompt: Can I create Apache Beam pipelines using YAML?
 
-Response: The Beam YAML API enables the creation of basic Apache Beam pipelines using YAML syntax, which can be edited with any text editor. This intuitive, declarative syntax simplifies pipeline authoring by eliminating the need for coding experience or SDK familiarity. Manipulating and understanding YAML semantics is easier compared to working directly with Beam protos. Additionally, YAML's readability and ease of authorship make it a suitable intermediate representation for tools such as pipeline authoring GUIs or lineage analysis tools.
+Response: The Beam YAML API enables the creation of basic Apache Beam pipelines using YAML files, which can be edited with any text editor. The API provides an intuitive, declarative syntax that simplifies pipeline authoring by eliminating the need for coding experience or SDK familiarity. Manipulating and understanding YAML semantics is easier compared to working directly with Beam protos. Additionally, YAML's readability and ease of authorship make it a suitable intermediate representation for tools such as pipeline authoring GUIs or lineage analysis tools.
 
 The Beam YAML parser is currently integrated into the Apache Beam Python SDK.
 
