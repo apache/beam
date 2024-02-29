@@ -62,4 +62,9 @@ pipeline:
         format: json
 ```
 
-You can execute a pipeline defined in a YAML file using the standard `python -m` command.
+You can execute a pipeline defined in a YAML file using the standard `python -m` command:
+
+```python
+python -m apache_beam.yaml.main --yaml_pipeline_file=/path/to/pipeline.yaml [other pipeline options such as the runner]
+```
+
