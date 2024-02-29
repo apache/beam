@@ -130,7 +130,7 @@ Otherwise, you must perform the following steps.
 
 2. Add the required installation commands for the non-Python dependencies, such as the `apt install` commands, to the list of `CUSTOM_COMMANDS` in your `setup.py` file. See the [Juliaset setup.py file](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/juliaset/setup.py) for an example.
 
-    **Note:** You must make sure that these commands are runnable on the remote worker (e.g. if you use `apt`, the remote worker needs `apt` support).
+    **Note:** You must verify that these commands run on the remote worker. For example, if you use `apt`, the remote worker needs `apt` support.
 
 4. Run your pipeline with the following command-line option:
 
