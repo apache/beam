@@ -185,7 +185,7 @@ tasks.register("hdfsIntegrationTest") {
   doLast {
     exec {
       executable 'sh'
-      args '-c', "${rootDir}/sdks/python/apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh python:${pythonContainerVersion}"
+      args '-c', "${rootDir}/sdks/python/apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh python:${pythonContainerVersion}-bookworm"
     }
   }
 }
