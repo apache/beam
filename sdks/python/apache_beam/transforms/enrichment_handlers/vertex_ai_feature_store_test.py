@@ -52,3 +52,7 @@ class TestVertexAIFeatureStoreHandlerInit(unittest.TestCase):
           row_key='row_key',
           client_options={'api_endpoint': 'region@google.com'},
       )
+
+
+if __name__ == '__main__':
+  unittest.main()
