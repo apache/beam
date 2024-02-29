@@ -16,8 +16,8 @@
 name: Playground CI Nightly
 
 on:
-  pull_request_target:
-    paths: ['playground']
+  schedule:
+    - cron: '20 */12 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
