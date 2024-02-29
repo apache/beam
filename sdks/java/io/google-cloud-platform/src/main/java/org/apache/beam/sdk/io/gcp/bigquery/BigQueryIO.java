@@ -2825,14 +2825,16 @@ public class BigQueryIO {
      * #to(SerializableFunction)} or {@link #to(DynamicDestinations)} is used to write to dynamic
      * tables, the fields here will be ignored; call {@link #withClustering()} instead.
      */
-    public Write<T> withClustering(ValueProvider<Clustering> clustering) {
-      return withJsonClustering(NestedValueProvider.of(clustering, BigQueryHelpers::toJsonString));
-    }
-
     public Write<T> withClustering(Clustering clustering) {
       return withClustering(StaticValueProvider.of(clustering));
     }
 
+    /** Like {@link #withClustering(Clustering)} but using a deferred {@link ValueProvider}. */
+    public Write<T> withClustering(ValueProvider<Clustering> clustering) {
+      return withJsonClustering(NestedValueProvider.of(clustering, BigQueryHelpers::toJsonString));
+    }
+
+    /** The same as {@link #withClustering(Clustering)}, but takes a JSON-serialized object. */
     public Write<T> withJsonClustering(ValueProvider<String> clustering) {
       checkArgument(clustering != null, "clustering can not be null");
       return toBuilder().setJsonClustering(clustering).build();
