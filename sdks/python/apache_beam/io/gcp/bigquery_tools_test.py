@@ -225,7 +225,6 @@ class TestBigQueryWrapper(unittest.TestCase):
 
   @mock.patch('time.sleep', return_value=None)
   @mock.patch('google.cloud._http.JSONConnection.http')
-  @unittest.skip('Fails on import')
   def test_user_agent_insert_all(self, http_mock, patched_sleep):
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
     try:
