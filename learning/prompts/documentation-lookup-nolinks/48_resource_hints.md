@@ -1,6 +1,8 @@
-Prompt: How to customize compute resources for an Apache Beam pipeline?
+Prompt:
+How to customize compute resources for an Apache Beam pipeline?
 
-Response: Resource hints allow pipeline authors to provide Apache Beam runners with additional information, suggesting desired compute resource requirements. Runners can apply such hints to configure the execution environment for specific transforms or the entire pipeline.
+Response:
+Resource hints allow pipeline authors to provide Apache Beam runners with additional information, suggesting desired compute resource requirements. Runners can apply such hints to configure the execution environment for specific transforms or the entire pipeline.
 
 Currently, Apache Beam supports two resource hints:
 * `min_ram`: specifies the minimum amount of RAM to allocate to workers, expressed in MB, GB, MiB, or GiB (for example, `min_ram="4GB"`). This value serves as a lower limit when allocating memory to workers.
