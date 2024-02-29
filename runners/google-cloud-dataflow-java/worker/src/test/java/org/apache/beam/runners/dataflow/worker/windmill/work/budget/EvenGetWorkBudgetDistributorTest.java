@@ -243,7 +243,6 @@ public class EvenGetWorkBudgetDistributorTest {
   private WindmillStreamSender createWindmillStreamSender(GetWorkBudget getWorkBudget) {
     return WindmillStreamSender.create(
         stub,
-        inProcessChannel,
         Windmill.GetWorkRequest.newBuilder()
             .setClientId(1L)
             .setJobId("job")

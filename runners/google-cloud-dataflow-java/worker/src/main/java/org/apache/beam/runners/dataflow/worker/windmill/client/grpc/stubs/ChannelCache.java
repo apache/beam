@@ -17,11 +17,104 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
+import java.io.PrintWriter;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public interface ChannelCache {
-  ManagedChannel get(WindmillServiceAddress windmillServiceAddress);
+/**
+ * Cache of gRPC channels for {@link WindmillServiceAddress}. Follows <a
+ * href=https://grpc.io/docs/guides/performance/#java>gRPC recommendations</a> for re-using channels
+ * when possible.
+ *
+ * @implNote Backed by {@link LoadingCache} which is thread-safe.
+ */
+@ThreadSafe
+public final class ChannelCache implements StatusDataProvider {
+  private static final Logger LOG = LoggerFactory.getLogger(ChannelCache.class);
+  private final LoadingCache<WindmillServiceAddress, ManagedChannel> channelCache;
 
-  void remove(WindmillServiceAddress windmillServiceAddress);
+  public ChannelCache(
+      boolean useIsolatedChannels,
+      Function<WindmillServiceAddress, ManagedChannel> channelFactory) {
+    this.channelCache =
+        CacheBuilder.newBuilder()
+            .build(
+                new CacheLoader<WindmillServiceAddress, ManagedChannel>() {
+                  @Override
+                  public ManagedChannel load(WindmillServiceAddress serviceAddress) {
+                    // IsolationChannel will create and manage separate RPC channels to the same
+                    // serviceAddress via calling the channelFactory, else just directly return the
+                    // RPC channel.
+                    return useIsolatedChannels
+                        ? IsolationChannel.create(() -> channelFactory.apply(serviceAddress))
+                        : channelFactory.apply(serviceAddress);
+                  }
+                });
+  }
+
+  private static void shutdownChannel(ManagedChannel channel) {
+    channel.shutdown();
+    try {
+      channel.awaitTermination(10, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      LOG.error("Couldn't close gRPC channel={}", channel, e);
+    }
+    channel.shutdownNow();
+  }
+
+  public ManagedChannel get(WindmillServiceAddress windmillServiceAddress) {
+    return channelCache.getUnchecked(windmillServiceAddress);
+  }
+
+  public void removeAndClose(WindmillServiceAddress windmillServiceAddress) {
+    Optional.ofNullable(channelCache.getIfPresent(windmillServiceAddress))
+        .ifPresent(ChannelCache::shutdownChannel);
+    channelCache.invalidate(windmillServiceAddress);
+  }
+
+  public void clear() {
+    channelCache
+        .asMap()
+        .values()
+        .forEach(
+            channel -> {
+              channel.shutdown();
+              try {
+                channel.awaitTermination(10, TimeUnit.SECONDS);
+              } catch (InterruptedException e) {
+                LOG.error("Couldn't close gRPC channel={}", channel, e);
+              }
+              channel.shutdownNow();
+            });
+    channelCache.invalidateAll();
+  }
+
+  public boolean isEmpty() {
+    return channelCache.size() == 0;
+  }
+
+  @Override
+  public void appendSummaryHtml(PrintWriter writer) {
+    writer.write("Active gRPC Channels:<br>");
+    for (Map.Entry<WindmillServiceAddress, ManagedChannel> addressAndChannel :
+        channelCache.asMap().entrySet()) {
+      writer.format(
+          "Address: [%s]; Channel: [%s]; ChannelState: [%s]",
+          addressAndChannel.getKey(),
+          addressAndChannel.getValue(),
+          addressAndChannel.getValue().getState(false));
+      writer.write("<br>");
+    }
+  }
 }

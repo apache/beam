@@ -118,7 +118,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.ChannelzServ
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcDispatcherClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCacheLoader;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingRemoteStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
@@ -472,21 +472,18 @@ public class StreamingDataflowWorker {
   public static StreamingDataflowWorker fromOptions(DataflowWorkerHarnessOptions options) {
     ConcurrentMap<String, ComputationState> computationMap = new ConcurrentHashMap<>();
     long clientId = clientIdGenerator.nextLong();
+    ChannelCache channelCache =
+        new ChannelCache(
+            options.getUseWindmillIsolatedChannels(),
+            serviceAddress ->
+                remoteChannel(
+                    serviceAddress, options.getWindmillServiceRpcChannelAliveTimeoutSec()));
     return new StreamingDataflowWorker(
         createWindmillServerStub(
             options,
             clientId,
             GrpcDispatcherClient.create(
-                new ChannelCachingRemoteStubFactory(
-                    options.getGcpCredential(),
-                    CacheBuilder.newBuilder()
-                        .build(
-                            new ChannelCacheLoader(
-                                options.getUseWindmillIsolatedChannels(),
-                                serviceAddress ->
-                                    remoteChannel(
-                                        serviceAddress,
-                                        options.getWindmillServiceRpcChannelAliveTimeoutSec()))))),
+                new ChannelCachingRemoteStubFactory(options.getGcpCredential(), channelCache)),
             new WorkHeartbeatResponseProcessor(
                 computationId -> Optional.ofNullable(computationMap.get(computationId)))),
         clientId,

@@ -61,7 +61,7 @@ class IsolationChannel extends ManagedChannel {
   private final String authority;
 
   // Expected that supplier returns channels to the same endpoint with the same authority.
-  public static IsolationChannel create(Supplier<ManagedChannel> channelFactory) {
+  static IsolationChannel create(Supplier<ManagedChannel> channelFactory) {
     return new IsolationChannel(channelFactory);
   }
 

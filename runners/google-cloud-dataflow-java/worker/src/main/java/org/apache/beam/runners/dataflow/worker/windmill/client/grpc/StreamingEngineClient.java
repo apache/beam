@@ -319,9 +319,11 @@ public final class StreamingEngineClient {
     currentStreams.entrySet().stream()
         .filter(
             connectionAndStream -> !newWindmillConnections.contains(connectionAndStream.getKey()))
-        .peek(entry -> entry.getKey().directEndpoint().ifPresent(channelCache::remove))
-        .map(Entry::getValue)
-        .forEach(WindmillStreamSender::closeAllStreams);
+        .forEach(
+            entry -> {
+              entry.getValue().closeAllStreams();
+              entry.getKey().directEndpoint().ifPresent(channelCache::removeAndClose);
+            });
 
     return newWindmillConnections.stream()
         .collect(
@@ -368,8 +370,6 @@ public final class StreamingEngineClient {
     WindmillStreamSender windmillStreamSender =
         WindmillStreamSender.create(
             connection.stub(),
-            channelCache.get(
-                connection.directEndpoint().orElseGet(dispatcherClient::getWindmillServiceAddress)),
             GetWorkRequest.newBuilder()
                 .setClientId(clientId)
                 .setJobId(jobHeader.getJobId())

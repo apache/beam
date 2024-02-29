@@ -30,7 +30,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.Stream
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 
 /**
@@ -64,7 +63,6 @@ public class WindmillStreamSender {
 
   private WindmillStreamSender(
       CloudWindmillServiceV1Alpha1Stub stub,
-      ManagedChannel rpcChannel,
       GetWorkRequest getWorkRequest,
       AtomicReference<GetWorkBudget> getWorkBudget,
       GrpcWindmillStreamFactory streamingEngineStreamFactory,
@@ -92,7 +90,6 @@ public class WindmillStreamSender {
             () ->
                 streamingEngineStreamFactory.createDirectGetWorkStream(
                     stub,
-                    rpcChannel,
                     withRequestBudget(getWorkRequest, getWorkBudget.get()),
                     streamingEngineThrottleTimers.getWorkThrottleTimer(),
                     getDataStream,
@@ -102,14 +99,12 @@ public class WindmillStreamSender {
 
   public static WindmillStreamSender create(
       CloudWindmillServiceV1Alpha1Stub stub,
-      ManagedChannel rpcChannel,
       GetWorkRequest getWorkRequest,
       GetWorkBudget getWorkBudget,
       GrpcWindmillStreamFactory streamingEngineStreamFactory,
       WorkItemProcessor workItemProcessor) {
     return new WindmillStreamSender(
         stub,
-        rpcChannel,
         getWorkRequest,
         new AtomicReference<>(getWorkBudget),
         streamingEngineStreamFactory,
