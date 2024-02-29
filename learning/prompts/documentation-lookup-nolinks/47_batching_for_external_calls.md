@@ -1,4 +1,5 @@
-Prompt: How to reduce payload when calling external services from my Apache Beam pipeline?
+Prompt:
+How to reduce payload when calling external services from my Apache Beam pipeline?
 
 Response:
 To reduce payload when calling external services from your Apache Beam pipeline, you can employ batching techniques by using the `GroupIntoBatches` transform. Batching involves aggregating multiple elements into a single payload, reducing the number of requests sent to the external service and minimizing overhead.
@@ -15,65 +16,51 @@ The following sample code snippets illustrate the use of `GroupIntoBatches` to b
 Java:
 
 ```java
-public class GroupIntoBatchesExample {
-    public static void main(String[] args) {
-        // Create PipelineOptions
-        PipelineOptions options = PipelineOptionsFactory.create();
-        // Create Pipeline
-        Pipeline pipeline = Pipeline.create(options);
+// Define your input PCollection
+PCollection<KV<String, String>> input = ...;
 
-        pipeline
-            // Read input data from a text file
-            .apply("Read Input", TextIO.read().from("input.txt"))
-            // Add a key to each input element
-            .apply("Add Key", MapElements.via(new SerializableFunction<String, KV<String, String>>() {
-                public KV<String, String> apply(String input) {
-                    // Map each input element to a (key, value) pair
-                    return KV.of("key", input);
-                }
-            }))
-            // Group elements into batches
-            .apply("Group Into Batches", GroupIntoBatches.ofSize(100)
-                // Specify maximum buffering duration for batching
-                .withMaxBufferingDuration(Duration.standardSeconds(60))
-                // Enable sharded keys for improved parallelism
-                .withShardedKey())
-            // Write the batched output to a text file
-            .apply("Write Output", TextIO.write().to("output.txt").withoutSharding());
-    }
-}
+// Specify the batch size
+long batchSize = 100L;
+
+// Apply GroupIntoBatches to group elements into batches of the specified size
+PCollection<KV<String, Iterable<String>>> batched = input
+    .apply(GroupIntoBatches.<String, String>ofSize(batchSize))
+
+    // Set the coder for the batched PCollection
+    .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())))
+
+    // Apply ParDo to process each batch element
+    .apply(ParDo.of(new DoFn<KV<String, Iterable<String>>, KV<String, String>>() {
+        @ProcessElement
+        public void processElement(@Element KV<String, Iterable<String>> element,
+            OutputReceiver<KV<String, String>> r) {
+
+            // Call the web service with the batch values and output the result
+            r.output(KV.of(element.getKey(), callWebService(element.getValue())));
+        }
+    }));
 ```
 
 Python:
 
 ```python
-def main():
-    with beam.Pipeline() as pipeline:
-        # Read input data from a text file
-        input_data = pipeline | "Read Input" >> beam.io.ReadFromText("input.txt")
+input_data = ...  # Replace ... with your input PCollection
 
-        # Transform elements into (key, value) pairs with a key assigned to each element
-        keyed_data = input_data | "Add Key" >> beam.Map(lambda x: ('key', x))
+def call_web_service(batch):
+    # Function to call web service with batch of values
+    pass  # Implement your web service call logic here
 
-        # Apply GroupIntoBatches with options
-        batched_data = (
-            keyed_data
-            | "Group Into Batches"
-            >> beam.GroupIntoBatches(
-                # Specify max duration for buffering elements before emitting batches
-                max_buffering_duration=60,  # 60 seconds
-                # Specify the maximum number of elements in each batch
-                batch_size=100,
-                # Shard keys to distribute batches evenly across workers
-                with_sharded_key=True
-            )
-        )
-
-        # Print the results
-        batched_data | "Write Output" >> beam.io.WriteToText("output.txt", shard_name_template="")
+batch_size = 100
+batched = (
+    input_data
+    | "GroupIntoBatches" >> beam.GroupIntoBatches(batch_size)
+    | "ProcessBatch" >> beam.Map(lambda element: (element[0], call_web_service(element[1])))
+)
 ```
 
-By employing these transforms, you can efficiently process batches of elements in bulks, reducing the overhead in your pipeline when making external API calls.
+The provided examples demonstrate the usage of `GroupIntoBatches` to organize elements into batches of a specified size. Subsequently, the code invokes the designated web service with each batch of values and produces the resulting key-value pairs.
+
+Utilizing `GroupIntoBatches` allows for the efficient processing of elements in bulk, reducing the overhead in your pipeline when making external API calls.
 
 When grouping elements into batches, keep in mind the following considerations:
 * Batches exclusively contain elements with the same key.
