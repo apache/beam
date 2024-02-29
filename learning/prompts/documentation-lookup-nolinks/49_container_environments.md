@@ -1,6 +1,8 @@
-Prompt: How to create customized containers for the Beam SDKs?
+Prompt:
+How to create customized containers for the Beam SDKs?
 
-Response: The Apache Beam SDK runtime environment can be containerized with Docker to isolate it from other runtime systems. Public Beam SDK container images are built from Dockerfiles and checked into the Apache Beam GitHub repository for every release.
+Response:
+The Apache Beam SDK runtime environment can be containerized with Docker to isolate it from other runtime systems. Public Beam SDK container images are built from Dockerfiles and checked into the Apache Beam GitHub repository for every release.
 
 Customizing publicly available container images may be necessary for various reasons, such as pre-installing additional dependencies or configuring the execution environment further.
 
