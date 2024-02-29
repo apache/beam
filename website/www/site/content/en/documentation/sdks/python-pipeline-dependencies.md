@@ -110,7 +110,7 @@ Often, your pipeline code spans multiple files. To run your project remotely, yo
 
     See [Juliaset](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete/juliaset) for an example that follows this project structure.
 
-3. Install your package in the submission environment, for example via:
+3. Install your package in the submission environment, for example by using the following command:
 
         pip install -e .
 
