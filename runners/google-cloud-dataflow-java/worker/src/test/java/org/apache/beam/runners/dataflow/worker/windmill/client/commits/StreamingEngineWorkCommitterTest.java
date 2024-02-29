@@ -39,9 +39,10 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPoolCloseableStreamFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
@@ -90,7 +91,9 @@ public class StreamingEngineWorkCommitterTest {
         new FakeWindmillServer(
             errorCollector, ignored -> Optional.of(Mockito.mock(ComputationState.class)));
     commitWorkStreamFactory =
-        new WindmillStreamPoolCloseableStreamFactory<>(fakeWindmillServer::commitWorkStream);
+        WindmillStreamPool.create(
+                1, Duration.standardMinutes(1), fakeWindmillServer::commitWorkStream)
+            ::getCloseableStream;
   }
 
   @After
