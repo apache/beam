@@ -50,6 +50,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBa
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -219,6 +220,7 @@ public class DispatchedActiveWorkRefresherTest {
 
     activeWorkRefresher.start();
     fakeClock.advance(Duration.millis(stuckCommitDurationMillis));
+    Uninterruptibles.sleepUninterruptibly(stuckCommitDurationMillis, TimeUnit.MILLISECONDS);
 
     for (Table.Cell<ComputationState, Work, WindmillStateCache.ForComputation> cell :
         computations.cellSet()) {
