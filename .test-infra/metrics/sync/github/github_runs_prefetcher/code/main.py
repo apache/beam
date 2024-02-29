@@ -169,6 +169,10 @@ async def check_workflow_flakiness(workflow):
         workflow_runs = [run for run in workflow_runs if filter_workflow_runs(run, response[0])]
 
     print(f"Number of workflow runs to consider: {len(workflow_runs)}")
+    if len(workflow_runs) < 3:
+        print(f"Insufficient number of runs for consideration")
+        return False
+
     success_rate = 1.0
     if len(workflow_runs):
         failed_runs = list(filter(lambda r: r.status == "failure", workflow_runs))
