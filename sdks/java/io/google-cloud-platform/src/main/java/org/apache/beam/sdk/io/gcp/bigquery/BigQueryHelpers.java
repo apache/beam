@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
@@ -700,6 +701,13 @@ public class BigQueryHelpers {
   static class TimePartitioningToJson implements SerializableFunction<TimePartitioning, String> {
     @Override
     public String apply(TimePartitioning partitioning) {
+      return toJsonString(partitioning);
+    }
+  }
+
+  static class ClusteringToJson implements SerializableFunction<Clustering, String> {
+    @Override
+    public String apply(Clustering partitioning) {
       return toJsonString(partitioning);
     }
   }

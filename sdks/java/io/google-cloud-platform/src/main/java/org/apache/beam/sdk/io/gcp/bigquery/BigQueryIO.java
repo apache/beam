@@ -2350,7 +2350,7 @@ public class BigQueryIO {
 
     abstract @Nullable ValueProvider<String> getJsonTimePartitioning();
 
-    abstract @Nullable Clustering getClustering();
+    abstract @Nullable ValueProvider<String> getJsonClustering();
 
     abstract CreateDisposition getCreateDisposition();
 
@@ -2459,7 +2459,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setJsonTimePartitioning(ValueProvider<String> jsonTimePartitioning);
 
-      abstract Builder<T> setClustering(Clustering clustering);
+      abstract Builder<T> setJsonClustering(ValueProvider<String> clustering);
 
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
 
@@ -2825,9 +2825,17 @@ public class BigQueryIO {
      * #to(SerializableFunction)} or {@link #to(DynamicDestinations)} is used to write to dynamic
      * tables, the fields here will be ignored; call {@link #withClustering()} instead.
      */
+    public Write<T> withClustering(ValueProvider<Clustering> clustering) {
+      return withJsonClustering(NestedValueProvider.of(clustering, BigQueryHelpers::toJsonString));
+    }
+
     public Write<T> withClustering(Clustering clustering) {
+      return withClustering(StaticValueProvider.of(clustering));
+    }
+
+    public Write<T> withJsonClustering(ValueProvider<String> clustering) {
       checkArgument(clustering != null, "clustering can not be null");
-      return toBuilder().setClustering(clustering).build();
+      return toBuilder().setJsonClustering(clustering).build();
     }
 
     /**
@@ -2844,7 +2852,9 @@ public class BigQueryIO {
      * read state written with a previous version.
      */
     public Write<T> withClustering() {
-      return toBuilder().setClustering(new Clustering()).build();
+      return toBuilder()
+          .setJsonClustering(StaticValueProvider.of(BigQueryHelpers.toJsonString(new Clustering())))
+          .build();
     }
 
     /** Specifies whether the table should be created if it does not exist. */
@@ -3420,10 +3430,10 @@ public class BigQueryIO {
         if (getJsonTableRef() != null) {
           dynamicDestinations =
               DynamicDestinationsHelpers.ConstantTableDestinations.fromJsonTableRef(
-                  getJsonTableRef(), getTableDescription(), getClustering() != null);
+                  getJsonTableRef(), getTableDescription(), getJsonClustering() != null);
         } else if (getTableFunction() != null) {
           dynamicDestinations =
-              new TableFunctionDestinations<>(getTableFunction(), getClustering() != null);
+              new TableFunctionDestinations<>(getTableFunction(), getJsonClustering() != null);
         }
 
         // Wrap with a DynamicDestinations class that will provide a schema. There might be no
@@ -3441,12 +3451,16 @@ public class BigQueryIO {
 
         // Wrap with a DynamicDestinations class that will provide the proper TimePartitioning.
         if (getJsonTimePartitioning() != null
-            || Optional.ofNullable(getClustering()).map(Clustering::getFields).isPresent()) {
+            || (getJsonClustering() != null
+                && getJsonClustering().isAccessible()
+                && !JsonParser.parseString(getJsonClustering().get())
+                    .getAsJsonObject()
+                    .isEmpty())) {
           dynamicDestinations =
               new ConstantTimePartitioningClusteringDestinations<>(
                   (DynamicDestinations<T, TableDestination>) dynamicDestinations,
                   getJsonTimePartitioning(),
-                  StaticValueProvider.of(BigQueryHelpers.toJsonString(getClustering())));
+                  getJsonClustering());
         }
         if (getPrimaryKey() != null) {
           dynamicDestinations =
@@ -3699,7 +3713,7 @@ public class BigQueryIO {
                 elementCoder,
                 rowWriterFactory,
                 getKmsKey(),
-                getClustering() != null,
+                getJsonClustering() != null,
                 getUseAvroLogicalTypes(),
                 getWriteTempDataset(),
                 getBadRecordRouter(),
