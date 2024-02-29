@@ -131,6 +131,11 @@ public class WindmillStreamPool<StreamT extends WindmillStream> {
     }
   }
 
+  public CloseableStream<StreamT> getCloseableStream() {
+    StreamT stream = getStream();
+    return CloseableStream.create(() -> stream, () -> releaseStream(stream));
+  }
+
   private synchronized WindmillStreamPool.StreamData<StreamT> createAndCacheStream(int cacheKey) {
     WindmillStreamPool.StreamData<StreamT> newStreamData =
         new WindmillStreamPool.StreamData<>(streamSupplier.get());

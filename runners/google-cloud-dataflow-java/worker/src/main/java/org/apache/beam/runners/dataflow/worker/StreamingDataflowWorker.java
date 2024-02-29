@@ -115,7 +115,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPoo
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.ChannelzServlet;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPoolCloseableStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.CompleteCommit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
@@ -427,7 +426,9 @@ public class StreamingDataflowWorker {
     this.workCommitter =
         windmillServiceEnabled
             ? WorkCommitters.createStreamingEngineWorkCommitter(
-                new WindmillStreamPoolCloseableStreamFactory<>(windmillServer::commitWorkStream),
+                WindmillStreamPool.create(
+                        NUM_COMMIT_STREAMS, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream)
+                    ::getCloseableStream,
                 numCommitThreads,
                 running::get,
                 this::onStreamingCommitFailed,
