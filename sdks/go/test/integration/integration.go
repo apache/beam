@@ -185,6 +185,7 @@ var flinkFilters = []string{
 	"TestTestStreamStrings",
 	"TestTestStreamByteSliceSequence",
 	"TestTestStreamTwoUserTypeSequences",
+	"TestTestStreamInt16Sequence",
 
 	"TestTimers_EventTime_Unbounded", // (failure when comparing on side inputs (NPE on window lookup))
 }
