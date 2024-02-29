@@ -389,7 +389,7 @@ public class BigQuerySinkMetricsTest {
         BigQuerySinkMetrics.StreamingInsertsResults.create();
     results.updateInternalRetriedRows(10);
     Instant t1 = Instant.now();
-    results.updateRpcResults(t1, t1.plus(Duration.ofMillis(10)), "OK");
+    results.updateSuccessfulRpcMetrics(t1, t1.plus(Duration.ofMillis(10)));
 
     results.updateStreamingInsertsMetrics(null);
 
@@ -453,10 +453,10 @@ public class BigQuerySinkMetricsTest {
     BigQuerySinkMetrics.StreamingInsertsResults results =
         BigQuerySinkMetrics.StreamingInsertsResults.create();
     Instant t1 = Instant.now();
-    results.updateRpcResults(t1, t1.plus(Duration.ofMillis(10)), "OK");
-    results.updateRpcResults(t1, t1.plus(Duration.ofMillis(20)), "OK");
-    results.updateRpcResults(t1, t1.plus(Duration.ofMillis(30)), "PermissionDenied");
-    results.updateRpcResults(t1, t1.plus(Duration.ofMillis(40)), "Unavailable");
+    results.updateSuccessfulRpcMetrics(t1, t1.plus(Duration.ofMillis(10)));
+    results.updateSuccessfulRpcMetrics(t1, t1.plus(Duration.ofMillis(20)));
+    results.updateFailedRpcMetrics(t1, t1.plus(Duration.ofMillis(30)), "PermissionDenied");
+    results.updateFailedRpcMetrics(t1, t1.plus(Duration.ofMillis(40)), "Unavailable");
 
     results.updateStreamingInsertsMetrics(ref);
 

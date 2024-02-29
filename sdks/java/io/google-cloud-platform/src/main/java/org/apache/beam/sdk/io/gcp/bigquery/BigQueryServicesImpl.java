@@ -992,18 +992,18 @@ public class BigQueryServicesImpl implements BigQueryServices {
                 }
               }
             }
-            result.updateRpcResults(start, Instant.now(), BigQuerySinkMetrics.OK);
+            result.updateSuccessfulRpcMetrics(start, Instant.now());
             return response;
           } catch (IOException e) {
             GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
             if (errorInfo == null) {
               serviceCallMetric.call(ServiceCallMetric.CANONICAL_STATUS_UNKNOWN);
-              result.updateRpcResults(start, Instant.now(), BigQuerySinkMetrics.UNKNOWN);
+              result.updateFailedRpcMetrics(start, start, BigQuerySinkMetrics.UNKNOWN);
               throw e;
             }
             String errorReason = errorInfo.getReason();
             serviceCallMetric.call(errorReason);
-            result.updateRpcResults(start, Instant.now(), errorReason);
+            result.updateFailedRpcMetrics(start, Instant.now(), errorReason);
             /**
              * TODO(BEAM-10584): Check for QUOTA_EXCEEDED error will be replaced by
              * ApiErrorExtractor.INSTANCE.quotaExceeded(e) after the next release of
@@ -1227,6 +1227,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                 errorContainer.add(failedInserts, error, ref, rowsToPublish.get(errorIndex));
               }
             }
+            streamingInsertsResults.exportRpcLatencyMetrics();
           }
           streamingInsertsResults.updateInternalRetriedRows(retryRows.size());
           // Accumulate the longest throttled time across all parallel threads

@@ -342,32 +342,41 @@ public class BigQuerySinkMetrics {
    * Metrics of a batch of InsertAll RPCs. Member variables are thread safe; however, this class
    * does not have atomicity across member variables.
    *
-   * <p>Expected usage: A number of threads update an instance of this class with the member
-   * methods. Afterwards, a single thread should read call {@code updateStreamingInsertsMetrics} to
-   * export metrics to the underlying {@code perWorkerMetrics} container. Afterwards, metrics should
-   * not be written/read from this object.
+   * <p>Expected usage: A number of threads record metrics in an instance of this class with the
+   * member methods. During this time, threads can eagerly export the RPC latency metric by calling
+   * {@code updateLatencyMetric}. Afterwards, a single thread should call {@code
+   * updateStreamingInsertsMetrics} which will export all counters metrics and the remaining RPC
+   * latency distribution metrics to the underlying {@code perWorkerMetrics} container. Afterwards,
+   * metrics should not be written/read from this object.
    */
   @AutoValue
   abstract static class StreamingInsertsResults {
-    private final ConcurrentLinkedQueue<java.time.Duration> rpcLatencies =
-        new ConcurrentLinkedQueue<>();
-    private final ConcurrentLinkedQueue<String> rpcStatus = new ConcurrentLinkedQueue<>();
+    abstract ConcurrentLinkedQueue<java.time.Duration> rpcLatencies();
+    abstract ConcurrentLinkedQueue<String> rpcErrorStatus();
     // Represents <Rpc Status, Number of Rows> for rows that are retried because of a failed
     // InsertAll RPC.
-    private final ConcurrentLinkedQueue<KV<String, Integer>> retriedRowsByStatus =
-        new ConcurrentLinkedQueue<>();
-    private final AtomicInteger successfulRowsCount = new AtomicInteger();
-    private final AtomicInteger failedRowsCount = new AtomicInteger();
-    private final AtomicBoolean isWritable = new AtomicBoolean(true);
+    abstract ConcurrentLinkedQueue<KV<String, Integer>> retriedRowsByStatus();
+    abstract AtomicInteger successfulRpcsCount();
+    abstract AtomicInteger successfulRowsCount();
+    abstract AtomicInteger failedRowsCount();
+    abstract AtomicBoolean isWritable();
 
     public static StreamingInsertsResults create() {
-      return new AutoValue_BigQuerySinkMetrics_StreamingInsertsResults();
+      return new AutoValue_BigQuerySinkMetrics_StreamingInsertsResults(
+        new ConcurrentLinkedQueue<>(),
+        new ConcurrentLinkedQueue<>(),
+        new ConcurrentLinkedQueue<>(),
+        new AtomicInteger(),
+        new AtomicInteger(),
+        new AtomicInteger(),
+        new AtomicBoolean(true)
+      );
     }
 
     /** Update metrics for rows that were retried due to an RPC error. */
     public void updateRetriedRowsWithStatus(String status, int retriedRows) {
-      if (isWritable.get()) {
-        retriedRowsByStatus.add(KV.of(status, retriedRows));
+      if (isWritable().get()) {
+        retriedRowsByStatus().add(KV.of(status, retriedRows));
       }
     }
 
@@ -376,38 +385,65 @@ public class BigQuerySinkMetrics {
       updateRetriedRowsWithStatus(INTERNAL, retriedRows);
     }
 
-    /** Record the rpc status and latency of a StreamingInserts rpc call. */
-    public void updateRpcResults(Instant start, Instant end, String status) {
-      if (isWritable.get()) {
-        rpcStatus.add(status);
-        rpcLatencies.add(Duration.between(start, end));
+    /** Record the rpc status and latency of a failed StreamingInserts RPC call. */
+    public void updateFailedRpcMetrics(Instant start, Instant end, String status) {
+      if (isWritable().get()) {
+        rpcErrorStatus().add(status);
+        rpcLatencies().add(Duration.between(start, end));
+      }
+    }
+  
+    /** Record the rpc status and latency of a successful StreamingInserts RPC call. */
+    public void updateSuccessfulRpcMetrics(Instant start, Instant end) {
+      if (isWritable().get()) {
+        successfulRpcsCount().getAndIncrement();
+        rpcLatencies().add(Duration.between(start, end));
       }
     }
 
     /** Increment the failed rows count by one. */
     public void incrementFailedRows() {
-      if (isWritable.get()) {
-        failedRowsCount.getAndIncrement();
+      if (isWritable().get()) {
+        failedRowsCount().getAndIncrement();
       }
     }
 
     /** Increment the failed rows count, and set the successful rows count. */
     public void updateSuccessfulAndFailedRows(int totalRows, int failedRows) {
-      if (isWritable.get()) {
-        failedRowsCount.getAndAdd(failedRows);
-        successfulRowsCount.set(totalRows - failedRowsCount.get());
+      if (isWritable().get()) {
+        failedRowsCount().getAndAdd(failedRows);
+        successfulRowsCount().set(totalRows - failedRowsCount().get());
       }
     }
 
     /**
-     * Export metrics recorded in this instance to the underlying {@code perWorkerMetrics}
-     * containers. Metrics are only reported once per instance. Subsequent calls to this function
-     * will no-op.
+     * Eagerly export the existing latency metrics recorded in this instance to the underlying
+     * {@code perWorkerHistogram} container. This method can be called multiple times and is
+     * thread-safe with methods that are used to record metrics.
+     */
+    void exportRpcLatencyMetrics() {
+      @Nullable Duration latency = rpcLatencies().poll();
+      if (latency == null) {
+        return;
+      }
+
+      Histogram latencyHistogram =
+          BigQuerySinkMetrics.createRPCLatencyHistogram(RpcMethod.STREAMING_INSERTS);
+      while (latency != null) {
+        latencyHistogram.update(latency.toMillis());
+        latency = rpcLatencies().poll();
+      }
+    }
+
+    /**
+     * Export all metrics recorded in this instance to the underlying {@code perWorkerMetrics}
+     * containers. This function will only report metrics once per instance. Subsequent calls to
+     * this function will no-op.
      *
      * @param tableRef BigQuery table that was written to, return early if null.
      */
     public void updateStreamingInsertsMetrics(@Nullable TableReference tableRef) {
-      if (!isWritable.compareAndSet(true, false)) {
+      if (!isWritable().compareAndSet(true, false)) {
         // Metrics have already been exported.
         return;
       }
@@ -421,12 +457,12 @@ public class BigQuerySinkMetrics {
       Map<String, Integer> rpcRequetsRpcStatusMap = new HashMap<>();
       Map<String, Integer> retriedRowsRpcStatusMap = new HashMap<>();
 
-      for (String status : rpcStatus) {
+      for (String status : rpcErrorStatus()) {
         Integer currentVal = rpcRequetsRpcStatusMap.getOrDefault(status, 0);
         rpcRequetsRpcStatusMap.put(status, currentVal + 1);
       }
 
-      for (KV<String, Integer> retryCountByStatus : retriedRowsByStatus) {
+      for (KV<String, Integer> retryCountByStatus : retriedRowsByStatus()) {
         Integer currentVal = retriedRowsRpcStatusMap.getOrDefault(retryCountByStatus.getKey(), 0);
         retriedRowsRpcStatusMap.put(
             retryCountByStatus.getKey(), currentVal + retryCountByStatus.getValue());
@@ -442,20 +478,21 @@ public class BigQuerySinkMetrics {
             .inc(entry.getValue());
       }
 
-      if (failedRowsCount.get() != 0) {
-        appendRowsRowStatusCounter(RowStatus.FAILED, INTERNAL, shortTableId)
-            .inc(failedRowsCount.longValue());
-      }
-      if (successfulRowsCount.get() != 0) {
-        appendRowsRowStatusCounter(RowStatus.SUCCESSFUL, OK, shortTableId)
-            .inc(successfulRowsCount.longValue());
+      if (successfulRpcsCount().get() != 0) {
+        createRPCRequestCounter(RpcMethod.STREAMING_INSERTS, OK, shortTableId)
+            .inc(successfulRpcsCount().longValue());
       }
 
-      Histogram latencyHistogram =
-          BigQuerySinkMetrics.createRPCLatencyHistogram(RpcMethod.STREAMING_INSERTS);
-      for (Duration duration : rpcLatencies) {
-        latencyHistogram.update(duration.toMillis());
+      if (failedRowsCount().get() != 0) {
+        appendRowsRowStatusCounter(RowStatus.FAILED, INTERNAL, shortTableId)
+            .inc(failedRowsCount().longValue());
       }
+
+      if (successfulRowsCount().get() != 0) {
+        appendRowsRowStatusCounter(RowStatus.SUCCESSFUL, OK, shortTableId)
+            .inc(successfulRowsCount().longValue());
+      }
+      exportRpcLatencyMetrics();
     }
   }
 
