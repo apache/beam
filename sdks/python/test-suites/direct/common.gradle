@@ -182,6 +182,9 @@ tasks.register("directRunnerIT") {
 }
 
 tasks.register("hdfsIntegrationTest") {
+  // needs generated srcs in sdks/python
+  dependsOn ':sdks:python:sdist'
+
   doLast {
     exec {
       executable 'sh'
