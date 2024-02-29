@@ -124,7 +124,7 @@ Often, your pipeline code spans multiple files. To run your project remotely, yo
 ## Non-Python Dependencies or PyPI Dependencies with Non-Python Dependencies {#nonpython}
 
 If your pipeline uses non-Python packages, such as packages that require installation using the `apt install` command, or uses a PyPI package that depends on non-Python dependencies during package installation, we recommend installing them using a [custom container](#custom-containers).
-Alternatively you must perform the following steps.
+Otherwise, you must perform the following steps.
 
 1. [Structure your pipeline as a package](#multiple-file-dependencies).
 
