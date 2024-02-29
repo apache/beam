@@ -27,7 +27,7 @@ Dependency management is about specifying dependencies that your pipeline requir
 
 If your pipeline uses public packages from the [Python Package Index](https://pypi.python.org/), you must make these packages available remotely on the workers.
 
-For simplest pipelines where a pipeline consists only of a single Python file or a notebook, the easiest way to supply dependencies is to provide a
+For pipelines that consists only of a single Python file or a notebook, the most straightforward way to supply dependencies is to provide a
 `requirements.txt` file. For more complex scenarios, define the [pipeline in a package](#multiple-file-dependencies) and consider installing your dependencies in a [custom container](#custom-containers).
 
 To supply a requirements.txt file:
