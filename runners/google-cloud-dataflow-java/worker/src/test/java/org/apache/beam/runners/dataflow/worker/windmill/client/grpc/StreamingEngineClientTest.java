@@ -54,7 +54,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStub
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessSocketAddress;
@@ -97,29 +96,27 @@ public class StreamingEngineClientTest {
           .build();
 
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-  private final List<ManagedChannel> channels = new ArrayList<>();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   private final GrpcWindmillStreamFactory streamFactory =
       spy(GrpcWindmillStreamFactory.of(JOB_HEADER).build());
+  private final ChannelCache channelCache =
+      new ChannelCache(
+          false,
+          ignored ->
+              grpcCleanup.register(
+                  WindmillChannelFactory.inProcessChannel("StreamingEngineClientTest")));
   private final WindmillStubFactory stubFactory =
-      new FakeWindmillStubFactory(
-          () -> {
-            ManagedChannel channel =
-                grpcCleanup.register(
-                    WindmillChannelFactory.inProcessChannel("StreamingEngineClientTest"));
-            channels.add(channel);
-            return channel;
-          });
+      new FakeWindmillStubFactory(() -> channelCache.get(DEFAULT_WINDMILL_SERVICE_ADDRESS));
   private final GrpcDispatcherClient dispatcherClient =
       GrpcDispatcherClient.forTesting(
           stubFactory, new ArrayList<>(), new ArrayList<>(), new HashSet<>());
   private final AtomicReference<StreamingEngineConnectionState> connections =
       new AtomicReference<>(StreamingEngineConnectionState.EMPTY);
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
   private Server fakeStreamingEngineServer;
   private CountDownLatch getWorkerMetadataReady;
   private GetWorkerMetadataTestStub fakeGetWorkerMetadataStub;
-
   private StreamingEngineClient streamingEngineClient;
 
   private static WorkItemProcessor noOpProcessWorkItemFn() {
@@ -143,13 +140,15 @@ public class StreamingEngineClientTest {
   }
 
   private static WorkerMetadataResponse.Endpoint metadataResponseEndpoint(String workerToken) {
-    return WorkerMetadataResponse.Endpoint.newBuilder().setBackendWorkerToken(workerToken).build();
+    return WorkerMetadataResponse.Endpoint.newBuilder()
+        .setDirectEndpoint(DEFAULT_WINDMILL_SERVICE_ADDRESS.gcpServiceAddress().getHost())
+        .setBackendWorkerToken(workerToken)
+        .build();
   }
 
   @Before
   public void setUp() throws IOException {
-    channels.forEach(ManagedChannel::shutdownNow);
-    channels.clear();
+    channelCache.clear();
     fakeStreamingEngineServer =
         grpcCleanup.register(
             InProcessServerBuilder.forName("StreamingEngineClientTest")
@@ -172,7 +171,7 @@ public class StreamingEngineClientTest {
     Preconditions.checkNotNull(streamingEngineClient).finish();
     fakeGetWorkerMetadataStub.close();
     fakeStreamingEngineServer.shutdownNow();
-    channels.forEach(ManagedChannel::shutdownNow);
+    channelCache.clear();
   }
 
   private StreamingEngineClient newStreamingEngineClient(
@@ -189,17 +188,7 @@ public class StreamingEngineClientTest {
         getWorkBudgetDistributor,
         dispatcherClient,
         CLIENT_ID,
-        new ChannelCache() {
-          @Override
-          public ManagedChannel get(WindmillServiceAddress windmillServiceAddress) {
-            return channels.get(0);
-          }
-
-          @Override
-          public void remove(WindmillServiceAddress windmillServiceAddress) {
-            // no-op
-          }
-        });
+        channelCache);
   }
 
   @Test
@@ -252,13 +241,7 @@ public class StreamingEngineClientTest {
 
     verify(streamFactory, times(2))
         .createDirectGetWorkStream(
-            any(),
-            any(),
-            eq(getWorkRequest(0, 0)),
-            any(),
-            any(),
-            any(),
-            eq(noOpProcessWorkItemFn()));
+            any(), eq(getWorkRequest(0, 0)), any(), any(), any(), eq(noOpProcessWorkItemFn()));
 
     verify(streamFactory, times(2)).createGetDataStream(any(), any());
     verify(streamFactory, times(2)).createCommitWorkStream(any(), any());

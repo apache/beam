@@ -110,7 +110,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.ChannelzServ
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcDispatcherClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCacheLoader;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingRemoteStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
@@ -399,23 +399,22 @@ public class StreamingDataflowWorker {
     ConcurrentMap<String, ComputationState> computationMap = new ConcurrentHashMap<>();
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
     StreamingCounters streamingCounters = StreamingCounters.create();
+    ChannelCache channelCache =
+        new ChannelCache(
+            options.getUseWindmillIsolatedChannels(),
+            serviceAddress ->
+                remoteChannel(
+                    serviceAddress, options.getWindmillServiceRpcChannelAliveTimeoutSec()));
+
     WindmillServerStub windmillServer =
         createWindmillServerStub(
             options,
             clientId,
             GrpcDispatcherClient.create(
-                new ChannelCachingRemoteStubFactory(
-                    options.getGcpCredential(),
-                    CacheBuilder.newBuilder()
-                        .build(
-                            new ChannelCacheLoader(
-                                options.getUseWindmillIsolatedChannels(),
-                                serviceAddress ->
-                                    remoteChannel(
-                                        serviceAddress,
-                                        options.getWindmillServiceRpcChannelAliveTimeoutSec()))))),
+                new ChannelCachingRemoteStubFactory(options.getGcpCredential(), channelCache)),
             new WorkHeartbeatResponseProcessor(
                 computationId -> Optional.ofNullable(computationMap.get(computationId))));
+
     FailureTracker failureTracker =
         options.isEnableStreamingEngine()
             ? StreamingEngineFailureTracker.create(
@@ -424,6 +423,7 @@ public class StreamingDataflowWorker {
                 MAX_FAILURES_TO_REPORT_IN_UPDATE,
                 options.getMaxStackTraceDepthToReport(),
                 windmillServer::reportStats);
+
     WorkUnitClient dataflowServiceClient = new DataflowWorkUnitClient(options, LOG);
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
     Supplier<Instant> clock = Instant::now;

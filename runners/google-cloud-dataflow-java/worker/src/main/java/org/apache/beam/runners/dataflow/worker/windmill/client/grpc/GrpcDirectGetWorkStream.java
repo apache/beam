@@ -23,7 +23,6 @@ import java.io.PrintWriter;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -45,7 +44,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudge
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
@@ -82,7 +80,6 @@ public final class GrpcDirectGetWorkStream
   private final ThrottleTimer getWorkThrottleTimer;
   private final Supplier<GetDataStream> getDataStream;
   private final Supplier<CommitWorkStream> commitWorkStream;
-  private final ManagedChannel rpcChannel;
   /**
    * Map of stream IDs to their buffers. Used to aggregate streaming gRPC response chunks as they
    * come in. Once all chunks for a response has been received, the chunk is processed and the
@@ -95,7 +92,6 @@ public final class GrpcDirectGetWorkStream
               StreamObserver<StreamingGetWorkResponseChunk>,
               StreamObserver<StreamingGetWorkRequest>>
           startGetWorkRpcFn,
-      ManagedChannel rpcChannel,
       GetWorkRequest request,
       BackOff backoff,
       StreamObserverFactory streamObserverFactory,
@@ -118,7 +114,6 @@ public final class GrpcDirectGetWorkStream
     this.inFlightBudget = new AtomicReference<>(GetWorkBudget.noBudget());
     this.nextBudgetAdjustment = new AtomicReference<>(GetWorkBudget.noBudget());
     this.pendingResponseBudget = new AtomicReference<>(GetWorkBudget.noBudget());
-    this.rpcChannel = rpcChannel;
   }
 
   public static GrpcDirectGetWorkStream create(
@@ -126,7 +121,6 @@ public final class GrpcDirectGetWorkStream
               StreamObserver<StreamingGetWorkResponseChunk>,
               StreamObserver<StreamingGetWorkRequest>>
           startGetWorkRpcFn,
-      ManagedChannel rpcChannel,
       GetWorkRequest request,
       BackOff backoff,
       StreamObserverFactory streamObserverFactory,
@@ -139,7 +133,6 @@ public final class GrpcDirectGetWorkStream
     GrpcDirectGetWorkStream getWorkStream =
         new GrpcDirectGetWorkStream(
             startGetWorkRpcFn,
-            rpcChannel,
             request,
             backoff,
             streamObserverFactory,
@@ -255,22 +248,6 @@ public final class GrpcDirectGetWorkStream
     return currentPendingResponseBudget
         .apply(currentNextBudgetAdjustment)
         .apply(currentInflightBudget);
-  }
-
-  @Override
-  public synchronized void close() {
-    super.close();
-    if (!rpcChannel.isShutdown()) {
-      rpcChannel.shutdown();
-      try {
-        rpcChannel.awaitTermination(10, TimeUnit.SECONDS);
-      } catch (InterruptedException e) {
-        LOG.warn("Error occurred trying to shutdown channel:", e);
-      }
-      if (!rpcChannel.isTerminated()) {
-        rpcChannel.shutdownNow();
-      }
-    }
   }
 
   private synchronized void updatePendingResponseBudget(long itemsDelta, long bytesDelta) {

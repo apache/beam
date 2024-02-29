@@ -25,43 +25,31 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
 import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class ChannelCacheLoaderTest {
+public class ChannelCacheTest {
 
-  private final List<ManagedChannel> existingChannels = new ArrayList<>();
+  private ChannelCache cache;
 
-  private LoadingCache<WindmillServiceAddress, ManagedChannel> newCache(
+  private ChannelCache newCache(
       boolean useIsolatedChannels,
       Function<WindmillServiceAddress, ManagedChannel> channelFactory) {
-    return CacheBuilder.newBuilder()
-        .build(
-            new ChannelCacheLoader(
-                useIsolatedChannels,
-                address -> {
-                  ManagedChannel channel = channelFactory.apply(address);
-                  existingChannels.add(channel);
-                  return channel;
-                }));
+    return new ChannelCache(useIsolatedChannels, channelFactory);
   }
 
   @After
   public void cleanUp() {
-    existingChannels.forEach(ManagedChannel::shutdownNow);
-    existingChannels.clear();
+    if (cache != null) {
+      cache.clear();
+    }
   }
 
   private ManagedChannel newChannel(String channelName) {
@@ -81,12 +69,14 @@ public class ChannelCacheLoaderTest {
               }
             });
 
-    LoadingCache<WindmillServiceAddress, ManagedChannel> cache = newCache(false, channelFactory);
+    cache = newCache(false, channelFactory);
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
-    cache.put(someAddress, channel);
-    ManagedChannel cachedChannel = cache.getUnchecked(someAddress);
+    // Initial call to load the cache.
+    cache.get(someAddress);
+
+    ManagedChannel cachedChannel = cache.get(someAddress);
     assertSame(channel, cachedChannel);
-    verifyNoInteractions(channelFactory);
+    verify(channelFactory, times(1)).apply(eq(someAddress));
     assertFalse(cachedChannel instanceof IsolationChannel);
   }
 
@@ -103,12 +93,14 @@ public class ChannelCacheLoaderTest {
               }
             });
 
-    LoadingCache<WindmillServiceAddress, ManagedChannel> cache = newCache(true, channelFactory);
+    cache = newCache(true, channelFactory);
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
-    cache.put(someAddress, channel);
-    ManagedChannel cachedChannel = cache.getUnchecked(someAddress);
-    assertSame(channel, cachedChannel);
-    verifyNoInteractions(channelFactory);
+    // First get loads the cache.
+    ManagedChannel loadedChannel = cache.get(someAddress);
+    // Second get should return loaded value.
+    ManagedChannel cachedChannel = cache.get(someAddress);
+    assertSame(loadedChannel, cachedChannel);
+    verify(channelFactory, times(1)).apply(eq(someAddress));
   }
 
   @Test
@@ -124,9 +116,9 @@ public class ChannelCacheLoaderTest {
               }
             });
 
-    LoadingCache<WindmillServiceAddress, ManagedChannel> cache = newCache(false, channelFactory);
+    cache = newCache(false, channelFactory);
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
-    ManagedChannel cachedChannel = cache.getUnchecked(someAddress);
+    ManagedChannel cachedChannel = cache.get(someAddress);
     assertSame(channel, cachedChannel);
     verify(channelFactory, times(1)).apply(eq(someAddress));
     assertFalse(cachedChannel instanceof IsolationChannel);
@@ -144,10 +136,32 @@ public class ChannelCacheLoaderTest {
               }
             });
 
-    LoadingCache<WindmillServiceAddress, ManagedChannel> cache = newCache(true, channelFactory);
+    cache = newCache(true, channelFactory);
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
-    ManagedChannel cachedChannel = cache.getUnchecked(someAddress);
+    ManagedChannel cachedChannel = cache.get(someAddress);
     verify(channelFactory, times(1)).apply(eq(someAddress));
     assertTrue(cachedChannel instanceof IsolationChannel);
+  }
+
+  @Test
+  public void testRemoveAndClose() {
+    String channelName = "existingChannel";
+    cache = newCache(true, ignored -> newChannel(channelName));
+    WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
+    ManagedChannel cachedChannel = cache.get(someAddress);
+    cache.removeAndClose(someAddress);
+    assertTrue(cachedChannel.isShutdown());
+    assertTrue(cache.isEmpty());
+  }
+
+  @Test
+  public void testClear() {
+    String channelName = "existingChannel";
+    cache = newCache(true, ignored -> newChannel(channelName));
+    WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
+    ManagedChannel cachedChannel = cache.get(someAddress);
+    cache.clear();
+    assertTrue(cachedChannel.isShutdown());
+    assertTrue(cache.isEmpty());
   }
 }

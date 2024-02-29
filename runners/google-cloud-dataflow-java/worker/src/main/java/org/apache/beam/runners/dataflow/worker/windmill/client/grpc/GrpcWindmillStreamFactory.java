@@ -50,7 +50,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.AbstractStub;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.joda.time.Duration;
@@ -137,7 +136,6 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
 
   public GetWorkStream createDirectGetWorkStream(
       CloudWindmillServiceV1Alpha1Stub stub,
-      ManagedChannel rpcChannel,
       GetWorkRequest request,
       ThrottleTimer getWorkThrottleTimer,
       Supplier<GetDataStream> getDataStream,
@@ -145,7 +143,6 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       WorkItemProcessor workItemProcessor) {
     return GrpcDirectGetWorkStream.create(
         responseObserver -> withDefaultDeadline(stub).getWorkStream(responseObserver),
-        rpcChannel,
         request,
         grpcBackOff.get(),
         newStreamObserverFactory(),

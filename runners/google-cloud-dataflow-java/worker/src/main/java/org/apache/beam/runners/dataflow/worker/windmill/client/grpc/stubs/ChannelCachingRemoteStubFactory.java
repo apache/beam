@@ -26,20 +26,16 @@ import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Al
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.auth.VendoredCredentialsAdapter;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.auth.MoreCallCredentials;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
 
 /** Creates remote stubs to talk to Streaming Engine. */
 @Internal
 @ThreadSafe
-public final class ChannelCachingRemoteStubFactory implements WindmillStubFactory, ChannelCache {
+public final class ChannelCachingRemoteStubFactory implements WindmillStubFactory {
   private final Credentials gcpCredentials;
-  private final LoadingCache<WindmillServiceAddress, ManagedChannel> channelCache;
+  private final ChannelCache channelCache;
 
-  public ChannelCachingRemoteStubFactory(
-      Credentials gcpCredentials,
-      LoadingCache<WindmillServiceAddress, ManagedChannel> channelCache) {
+  public ChannelCachingRemoteStubFactory(Credentials gcpCredentials, ChannelCache channelCache) {
     this.gcpCredentials = gcpCredentials;
     this.channelCache = channelCache;
   }
@@ -48,7 +44,7 @@ public final class ChannelCachingRemoteStubFactory implements WindmillStubFactor
   public CloudWindmillServiceV1Alpha1Stub createWindmillServiceStub(
       WindmillServiceAddress serviceAddress) {
     CloudWindmillServiceV1Alpha1Stub windmillServiceStub =
-        CloudWindmillServiceV1Alpha1Grpc.newStub(get(serviceAddress));
+        CloudWindmillServiceV1Alpha1Grpc.newStub(channelCache.get(serviceAddress));
     return serviceAddress.getKind() != WindmillServiceAddress.Kind.AUTHENTICATED_GCP_SERVICE_ADDRESS
         ? windmillServiceStub.withCallCredentials(
             MoreCallCredentials.from(new VendoredCredentialsAdapter(gcpCredentials)))
@@ -58,22 +54,8 @@ public final class ChannelCachingRemoteStubFactory implements WindmillStubFactor
   @Override
   public CloudWindmillMetadataServiceV1Alpha1Stub createWindmillMetadataServiceStub(
       WindmillServiceAddress serviceAddress) {
-    return CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(get(serviceAddress))
+    return CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(channelCache.get(serviceAddress))
         .withCallCredentials(
             MoreCallCredentials.from(new VendoredCredentialsAdapter(gcpCredentials)));
-  }
-
-  @Override
-  public ManagedChannel get(WindmillServiceAddress serviceAddress) {
-    return channelCache.getUnchecked(serviceAddress);
-  }
-
-  @Override
-  public void remove(WindmillServiceAddress windmillServiceAddress) {
-    channelCache.invalidate(windmillServiceAddress);
-  }
-
-  public ChannelCache asChannelCache() {
-    return this;
   }
 }
