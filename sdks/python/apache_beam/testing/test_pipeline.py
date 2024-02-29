@@ -71,7 +71,8 @@ class TestPipeline(Pipeline):
       is_integration_test=False,
       blocking=True,
       additional_pipeline_args=None,
-      display_data=None):
+      # display_data=None
+  ):
     """Initialize a pipeline object for test.
 
     Args:
@@ -94,8 +95,8 @@ class TestPipeline(Pipeline):
         completed.
       additional_pipeline_args (List[str]): additional pipeline arguments to be
         included when construction the pipeline options object.
-      display_data (Dict[str, Any]): a dictionary of static data associated
-        with this pipeline that can be displayed when it runs.
+      # display_data (Dict[str, Any]): a dictionary of static data associated
+      #   with this pipeline that can be displayed when it runs.
 
     Raises:
       ValueError: if either the runner or options argument is not
@@ -109,7 +110,7 @@ class TestPipeline(Pipeline):
     self.blocking = blocking
     if options is None:
       options = PipelineOptions(self.options_list)
-    super().__init__(runner, options, display_data=display_data)
+    super().__init__(runner, options)  #, display_data=display_data)
 
   def run(self, test_runner_api=True):
     result = super().run(
