@@ -21,16 +21,19 @@ permissions:
   issues: write
 
 on:
-  workflow_dispatch: 
+  schedule:
+    - cron: '30 */3 * * *'
+  workflow_dispatch:
     inputs:
       READ_ONLY:
         description: 'Run in read-only mode'
         required: false
         default: 'true'
-    
+
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   READ_ONLY: ${{ inputs.READ_ONLY }}
+
 jobs:
   flaky-test-detection:
     runs-on: [self-hosted, ubuntu-20.04, main]

@@ -20,10 +20,9 @@ from github import Github
 from github import Auth
 
 
-GIT_ORG = "apache"
-GIT_REPO = "beam"
-GRAFANA_URL = "https://metrics.beam.apache.org"
 ALERT_NAME = "flaky_test"
+GIT_ORG = "apache"
+GRAFANA_URL = "https://metrics.beam.apache.org"
 READ_ONLY = os.environ.get("READ_ONLY", "false")
 
 
@@ -39,24 +38,24 @@ class Alert:
         self.workflow_id = workflow_id
         self.workflow_url = workflow_url
         self.workflow_name = workflow_name
-        self.workflow_file_name = workflow_filename
+        self.workflow_filename = workflow_filename
         self.workflow_threshold = round(float(workflow_threshold), 2)
 
 
-def extract_workflow_id_from_issue_label(issues):
-    label_ids = []
+def get_workflow_issues(issues):
+    workflows = {}
     for issue in issues:
         for label in issue.get_labels():
             match = re.search(r"workflow_id:\s*(\d+)", str(label.name))
             if match:
-                label_id = match.group(1)
-                label_ids.append(label_id)
+                workflow_id = match.group(1)
+                workflows[workflow_id] = issue
 
-    return label_ids
+    return workflows
 
 
 def create_github_issue(repo, alert):
-    failing_runs_url = f"https://github.com/{GIT_ORG}/beam/actions/{alert.workflow_file_name}?query=is%3Afailure+branch%3Amaster"
+    failing_runs_url = f"https://github.com/{GIT_ORG}/beam/actions/{alert.workflow_filename}?query=is%3Afailure+branch%3Amaster"
     title = f"The {alert.workflow_name} job is flaky"
     body = f"The {alert.workflow_name } is failing over {int(alert.workflow_threshold * 100)}% of the time \nPlease visit {failing_runs_url} to see the logs."
     labels = ["flaky_test", f"workflow_id: {alert.workflow_id}", "bug", "P1"]
@@ -103,17 +102,26 @@ def main():
     token = os.environ["GITHUB_TOKEN"]
     auth = Auth.Token(token)
     g = Github(auth=auth)
-    repo = g.get_repo(f"{GIT_ORG}/{GIT_REPO}")
+    repo = g.get_repo(f"{GIT_ORG}/beam")
 
     alerts = get_grafana_alerts()
     open_issues = repo.get_issues(state="open", labels=["flaky_test"])
-    workflow_ids = extract_workflow_id_from_issue_label(open_issues)
+    closed_issues = repo.get_issues(state="closed", labels=["flaky_test"])
+    workflow_open_issues = get_workflow_issues(open_issues)
+    workflow_closed_issues = get_workflow_issues(closed_issues)
     for alert in alerts:
-        if alert.workflow_id not in workflow_ids:
+        if alert.workflow_id in workflow_closed_issues.keys():
+            issue = workflow_closed_issues[alert.workflow_id]
+            if READ_ONLY == "true":
+                print("READ_ONLY is true, not reopening issue")
+            else:
+                issue.edit(state="open")
+                issue.create_comment(body="Reopening since the workflow is still flaky")
+                print(f"The issue for the workflow {alert.workflow_id} has been reopened")
+        elif alert.workflow_id not in workflow_open_issues.keys():
             create_github_issue(repo, alert)
-            workflow_ids.append(alert.workflow_id)
         else:
-            print("Issue already exists, skipping")
+            print("Issue is already open, skipping")
 
     g.close()
 
