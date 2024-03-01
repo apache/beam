@@ -38,30 +38,34 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.ExecutionEnvironment;
 
 class BeamAdapterUtils {
   private BeamAdapterUtils() {}
 
-  interface PipelineFragmentTranslator<DataSetOrStreamT> {
+  interface PipelineFragmentTranslator<DataSetOrStreamT, ExecutionEnvironmentT> {
     Map<String, DataSetOrStreamT> translate(
         Map<String, ? extends DataSetOrStreamT> inputs,
         RunnerApi.Pipeline pipelineProto,
-        ExecutionEnvironment executionEnvironment);
+        ExecutionEnvironmentT executionEnvironment);
   }
 
   @SuppressWarnings({"nullness", "rawtypes"})
-  static <DataSetOrStreamT, BeamInputT extends PInput, BeamOutputT extends POutput>
+  static <
+          DataSetOrStreamT,
+          ExecutionEnvironmentT,
+          BeamInputT extends PInput,
+          BeamOutputT extends POutput>
       Map<String, DataSetOrStreamT> applyBeamPTransformInternal(
           Map<String, ? extends DataSetOrStreamT> inputs,
           BiFunction<Pipeline, Map<String, PCollection<?>>, BeamInputT> toBeamInput,
           Function<BeamOutputT, Map<String, PCollection<?>>> fromBeamOutput,
           PTransform<? super BeamInputT, BeamOutputT> transform,
-          ExecutionEnvironment executionEnvironment,
+          ExecutionEnvironmentT executionEnvironment,
+          boolean isBounded,
           Function<DataSetOrStreamT, TypeInformation<?>> getTypeInformation,
           PipelineOptions pipelineOptions,
           CoderRegistry coderRegistry,
-          PipelineFragmentTranslator<DataSetOrStreamT> translator) {
+          PipelineFragmentTranslator<DataSetOrStreamT, ExecutionEnvironmentT> translator) {
     Pipeline pipeline = Pipeline.create();
 
     // Construct beam inputs corresponding to each Flink input.
@@ -75,7 +79,8 @@ class BeamAdapterUtils {
                         new FlinkInput<>(
                             key,
                             BeamAdapterCoderUtils.typeInformationToCoder(
-                                getTypeInformation.apply(flinkInput), coderRegistry)))));
+                                getTypeInformation.apply(flinkInput), coderRegistry),
+                            isBounded))));
 
     // Actually apply the transform to create Beam outputs.
     Map<String, PCollection<?>> beamOutputs =
