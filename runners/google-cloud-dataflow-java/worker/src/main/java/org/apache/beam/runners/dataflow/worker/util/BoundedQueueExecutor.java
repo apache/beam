@@ -17,12 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
-import javax.annotation.concurrent.GuardedBy;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor.Guard;
 
@@ -38,12 +37,16 @@ public class BoundedQueueExecutor {
   private final Monitor monitor = new Monitor();
   private int elementsOutstanding = 0;
   private long bytesOutstanding = 0;
+
   @GuardedBy("this")
   private int activeCount;
+
   @GuardedBy("this")
   private int maximumThreadCount;
+
   @GuardedBy("this")
   private long startTimeMaxActiveThreadsUsed;
+
   @GuardedBy("this")
   private long totalTimeMaxActiveThreadsUsed;
 

@@ -23,8 +23,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import java.util.Collections;
-import java.util.concurrent.AtomicBoolean;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.joda.time.Instant;
@@ -33,7 +33,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-/** Unit tests for {@link BoundedQueueExecutor}. */
+/** Unit tests for {@link org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor}. */
 @RunWith(Parameterized.class)
 // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
 // released (2.11.0)
@@ -187,4 +187,3 @@ public class BoundedQueueExecutorTest {
     executor.shutdown();
   }
 }
-

@@ -2920,7 +2920,8 @@ public class StreamingDataflowWorkerTest {
   @Test
   public void testOverrideMaximumThreadCount() throws Exception {
     BoundedQueueExecutor mockExecutor = Mockito.mock(BoundedQueueExecutor.class);
-    StreamingDataflowWorker worker = StreamingDataflowWorker.forTesting(
+    StreamingDataflowWorker worker =
+        StreamingDataflowWorker.forTesting(
             computationMap,
             server,
             Collections.emptyList(),
