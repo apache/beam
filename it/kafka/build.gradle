@@ -43,7 +43,7 @@ dependencies {
     testImplementation project(path: ":runners:direct-java")
     testImplementation project(path: ":runners:google-cloud-dataflow-java")
     testImplementation project(path: ":sdks:java:testing:test-utils")
-    testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
+    testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
 }
 
 tasks.register("KafkaStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'kafka', 'KafkaIOST', ['configuration':'medium','bootstrapServers':System.getProperty("bootstrapServers"),'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
