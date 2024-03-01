@@ -21,15 +21,16 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertNotNull;
 
 import com.google.api.services.dataflow.model.MapTask;
+import com.google.common.truth.Correspondence;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 import org.apache.beam.runners.dataflow.worker.FakeWindmillServer;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
+import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -49,7 +50,6 @@ import org.mockito.Mockito;
 public class StreamingApplianceWorkCommitterTest {
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
   private FakeWindmillServer fakeWindmillServer;
-  private boolean shouldCommitWork;
   private StreamingApplianceWorkCommitter workCommitter;
 
   private static Work createMockWork(long workToken, Consumer<Work> processWorkFn) {
@@ -75,9 +75,8 @@ public class StreamingApplianceWorkCommitterTest {
   }
 
   private StreamingApplianceWorkCommitter createWorkCommitter(
-      int numCommitWorkers, CountDownLatch ready) {
-    return StreamingApplianceWorkCommitter.create(
-        fakeWindmillServer::commitWork, numCommitWorkers, () -> shouldCommitWork, ready);
+      Consumer<CompleteCommit> onCommitComplete) {
+    return StreamingApplianceWorkCommitter.create(fakeWindmillServer::commitWork, onCommitComplete);
   }
 
   @Before
@@ -85,28 +84,24 @@ public class StreamingApplianceWorkCommitterTest {
     fakeWindmillServer =
         new FakeWindmillServer(
             errorCollector, ignored -> Optional.of(Mockito.mock(ComputationState.class)));
-    shouldCommitWork = true;
   }
 
   @After
   public void cleanUp() {
-    shouldCommitWork = false;
     workCommitter.stop();
   }
 
   @Test
   public void testParallelism() {
-    int numCommitWorkers = 10;
-    CountDownLatch ready = new CountDownLatch(1);
-    workCommitter = createWorkCommitter(numCommitWorkers, ready);
-    ready.countDown();
-    assertThat(workCommitter.parallelism()).isEqualTo(numCommitWorkers);
+    workCommitter = createWorkCommitter(ignored -> {});
+    workCommitter.start();
+    assertThat(workCommitter.parallelism()).isEqualTo(1);
   }
 
   @Test
   public void testCommit() {
-    CountDownLatch started = new CountDownLatch(1);
-    workCommitter = createWorkCommitter(1, started);
+    List<CompleteCommit> completeCommits = new ArrayList<>();
+    workCommitter = createWorkCommitter(completeCommits::add);
     List<Commit> commits = new ArrayList<>();
     for (int i = 1; i <= 5; i++) {
       Work work = createMockWork(i, ignored -> {});
@@ -120,7 +115,7 @@ public class StreamingApplianceWorkCommitterTest {
       commits.add(Commit.create(commitRequest, createComputationState("computationId-" + i), work));
     }
 
-    started.countDown();
+    workCommitter.start();
     commits.forEach(workCommitter::commit);
 
     Map<Long, Windmill.WorkItemCommitRequest> committed =
@@ -132,5 +127,21 @@ public class StreamingApplianceWorkCommitterTest {
       assertNotNull(request);
       assertThat(request).isEqualTo(commit.request());
     }
+
+    assertThat(completeCommits).hasSize(commits.size());
+    assertThat(completeCommits)
+        .comparingElementsUsing(
+            Correspondence.from(
+                (CompleteCommit completeCommit, Commit commit) ->
+                    completeCommit.computationId().equals(commit.computationId())
+                        && completeCommit.status() == Windmill.CommitStatus.OK
+                        && completeCommit.workId().equals(commit.work().id())
+                        && completeCommit
+                            .shardedKey()
+                            .equals(
+                                ShardedKey.create(
+                                    commit.request().getKey(), commit.request().getShardingKey())),
+                "expected to equal"))
+        .containsExactlyElementsIn(commits);
   }
 }

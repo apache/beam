@@ -18,8 +18,11 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
 import com.google.auto.value.AutoValue;
+import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
+import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 
 /**
@@ -30,14 +33,35 @@ import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
  * org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub#commitWork(Windmill.CommitWorkRequest,
  * StreamObserver)} for Streaming Appliance.
  */
+@Internal
 @AutoValue
 public abstract class CompleteCommit {
 
   public static CompleteCommit create(Commit commit, CommitStatus commitStatus) {
-    return new AutoValue_CompleteCommit(commit, commitStatus);
+    return new AutoValue_CompleteCommit(
+        commit.computationId(),
+        ShardedKey.create(commit.request().getKey(), commit.request().getShardingKey()),
+        WorkId.builder()
+            .setWorkToken(commit.request().getWorkToken())
+            .setCacheToken(commit.request().getCacheToken())
+            .build(),
+        commitStatus);
   }
 
-  public abstract Commit commit();
+  public static CompleteCommit create(
+      String computationId, ShardedKey shardedKey, WorkId workId, CommitStatus status) {
+    return new AutoValue_CompleteCommit(computationId, shardedKey, workId, status);
+  }
+
+  public static CompleteCommit forFailedWork(Commit commit) {
+    return create(commit, CommitStatus.DEFAULT);
+  }
+
+  public abstract String computationId();
+
+  public abstract ShardedKey shardedKey();
+
+  public abstract WorkId workId();
 
   public abstract CommitStatus status();
 }
