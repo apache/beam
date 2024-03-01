@@ -51,7 +51,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -97,7 +96,6 @@ import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.Work.State;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
-import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
@@ -117,8 +115,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmill
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.CompleteCommit;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.StreamingApplianceWorkCommitter;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.StreamingEngineWorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
-import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitters;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
@@ -297,7 +296,6 @@ public class StreamingDataflowWorker {
   private final DataflowExecutionStateSampler sampler = DataflowExecutionStateSampler.instance();
   private final ActiveWorkRefresher activeWorkRefresher;
   private final WorkCommitter workCommitter;
-  private final CountDownLatch started;
 
   private StreamingDataflowWorker(
       WindmillServerStub windmillServer,
@@ -422,20 +420,16 @@ public class StreamingDataflowWorker {
       numCommitThreads = options.getWindmillServiceCommitThreads();
     }
 
-    this.started = new CountDownLatch(1);
     this.workCommitter =
         windmillServiceEnabled
-            ? WorkCommitters.createStreamingEngineWorkCommitter(
+            ? StreamingEngineWorkCommitter.create(
                 WindmillStreamPool.create(
                         NUM_COMMIT_STREAMS, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream)
                     ::getCloseableStream,
                 numCommitThreads,
-                running::get,
-                this::onStreamingCommitFailed,
-                this::onStreamingCommitComplete,
-                started)
-            : WorkCommitters.createApplianceWorkCommitter(
-                windmillServer::commitWork, numCommitThreads, running::get, started);
+                this::onStreamingCommitComplete)
+            : StreamingApplianceWorkCommitter.create(
+                windmillServer::commitWork, this::onStreamingCommitComplete);
 
     // Register standard file systems.
     FileSystems.setDefaultPipelineOptions(options);
@@ -780,7 +774,7 @@ public class StreamingDataflowWorker {
           TimeUnit.SECONDS);
       scheduledExecutors.add(statusPageTimer);
     }
-    started.countDown();
+    workCommitter.start();
     reportHarnessStartup();
   }
 
@@ -1442,36 +1436,21 @@ public class StreamingDataflowWorker {
     return outputBuilder.build();
   }
 
-  private void onStreamingCommitFailed(Commit commit) {
-    ComputationState state = commit.computationState();
-    Windmill.WorkItemCommitRequest request = commit.request();
-    invalidateReaderAndCache(state.getComputationId(), request.getKey(), request.getShardingKey());
-    state.completeWorkAndScheduleNextWorkForKey(
-        ShardedKey.create(request.getKey(), request.getShardingKey()),
-        WorkId.builder()
-            .setWorkToken(request.getWorkToken())
-            .setCacheToken(request.getCacheToken())
-            .build());
-  }
-
   private void onStreamingCommitComplete(CompleteCommit completeCommit) {
-    ComputationState state = completeCommit.commit().computationState();
-    Windmill.WorkItemCommitRequest request = completeCommit.commit().request();
     if (completeCommit.status() != Windmill.CommitStatus.OK) {
-      invalidateReaderAndCache(
-          state.getComputationId(), request.getKey(), request.getShardingKey());
+      readerCache.invalidateReader(
+          WindmillComputationKey.create(
+              completeCommit.computationId(), completeCommit.shardedKey()));
+      stateCache
+          .forComputation(completeCommit.computationId())
+          .invalidate(completeCommit.shardedKey());
     }
-    state.completeWorkAndScheduleNextWorkForKey(
-        ShardedKey.create(request.getKey(), request.getShardingKey()),
-        WorkId.builder()
-            .setCacheToken(request.getCacheToken())
-            .setWorkToken(request.getWorkToken())
-            .build());
-  }
 
-  private void invalidateReaderAndCache(String computationId, ByteString key, long shardingKey) {
-    readerCache.invalidateReader(WindmillComputationKey.create(computationId, key, shardingKey));
-    stateCache.forComputation(computationId).invalidate(key, shardingKey);
+    Optional.ofNullable(computationMap.get(completeCommit.computationId()))
+        .ifPresent(
+            state ->
+                state.completeWorkAndScheduleNextWorkForKey(
+                    completeCommit.shardedKey(), completeCommit.workId()));
   }
 
   private Windmill.GetWorkResponse getWork() {

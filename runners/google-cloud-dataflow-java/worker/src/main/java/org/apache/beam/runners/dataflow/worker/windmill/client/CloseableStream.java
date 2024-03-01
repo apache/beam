@@ -18,25 +18,25 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client;
 
 import com.google.auto.value.AutoValue;
-import java.util.function.Supplier;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * Wrapper for a {@link WindmillStream} that allows callers to tie an action after the stream is
  * finished being used. Has an option for closing code to be a no-op.
  */
+@Internal
 @AutoValue
 public abstract class CloseableStream<StreamT extends WindmillStream> implements AutoCloseable {
   public static <StreamT extends WindmillStream> CloseableStream<StreamT> create(
-      Supplier<StreamT> stream, Runnable onClose) {
+      StreamT stream, Runnable onClose) {
     return new AutoValue_CloseableStream<>(stream, onClose);
   }
 
-  public static <StreamT extends WindmillStream> CloseableStream<StreamT> create(
-      Supplier<StreamT> stream) {
+  public static <StreamT extends WindmillStream> CloseableStream<StreamT> create(StreamT stream) {
     return create(stream, () -> {});
   }
 
-  public abstract Supplier<StreamT> stream();
+  public abstract StreamT stream();
 
   abstract Runnable onClose();
 

@@ -19,12 +19,10 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
@@ -33,53 +31,54 @@ import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkRequest;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Streaming appliance implementation of {@link WorkCommitter}. */
+@Internal
 @ThreadSafe
-final class StreamingApplianceWorkCommitter implements WorkCommitter {
+public final class StreamingApplianceWorkCommitter implements WorkCommitter {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingApplianceWorkCommitter.class);
   private static final long TARGET_COMMIT_BUNDLE_BYTES = 32 << 20;
+  private static final int TARGET_COMMIT_BATCH_SIZE = 500 << 20; // 500MB
 
-  private final Consumer<CommitWorkRequest> commitWork;
+  private final Consumer<CommitWorkRequest> commitWorkFn;
   private final WeightedBoundedQueue<Commit> commitQueue;
   private final ExecutorService commitWorkers;
   private final AtomicLong activeCommitBytes;
-  private final Supplier<Boolean> shouldCommitWork;
-  private final int numCommitWorkers;
+  private final Consumer<CompleteCommit> onCommitComplete;
 
   private StreamingApplianceWorkCommitter(
-      Consumer<CommitWorkRequest> commitWork,
-      int numCommitWorkers,
-      Supplier<Boolean> shouldCommitWork) {
-    this.commitWork = commitWork;
+      Consumer<CommitWorkRequest> commitWorkFn, Consumer<CompleteCommit> onCommitComplete) {
+    this.commitWorkFn = commitWorkFn;
     this.commitQueue =
         WeightedBoundedQueue.create(
-            MAX_COMMIT_QUEUE_BYTES, commit -> Math.min(MAX_COMMIT_QUEUE_BYTES, commit.getSize()));
+            TARGET_COMMIT_BATCH_SIZE,
+            commit -> Math.min(TARGET_COMMIT_BATCH_SIZE, commit.getSize()));
     this.commitWorkers =
-        Executors.newFixedThreadPool(
-            numCommitWorkers,
+        Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder()
                 .setDaemon(true)
                 .setPriority(Thread.MAX_PRIORITY)
                 .setNameFormat("CommitThread-%d")
                 .build());
     this.activeCommitBytes = new AtomicLong();
-    this.shouldCommitWork = shouldCommitWork;
-    this.numCommitWorkers = numCommitWorkers;
+    this.onCommitComplete = onCommitComplete;
   }
 
-  static StreamingApplianceWorkCommitter create(
-      Consumer<CommitWorkRequest> commitWork,
-      int numCommitWorkers,
-      Supplier<Boolean> shouldCommitWork,
-      CountDownLatch ready) {
-    StreamingApplianceWorkCommitter workCommitter =
-        new StreamingApplianceWorkCommitter(commitWork, numCommitWorkers, shouldCommitWork);
-    workCommitter.startCommitWorkers(ready);
-    return workCommitter;
+  public static StreamingApplianceWorkCommitter create(
+      Consumer<CommitWorkRequest> commitWork, Consumer<CompleteCommit> onCommitComplete) {
+    return new StreamingApplianceWorkCommitter(commitWork, onCommitComplete);
+  }
+
+  @Override
+  @SuppressWarnings("FutureReturnValueIgnored")
+  public void start() {
+    if (!commitWorkers.isTerminated() || !commitWorkers.isShutdown()) {
+      commitWorkers.submit(this::commitLoop);
+    }
   }
 
   @Override
@@ -99,30 +98,13 @@ final class StreamingApplianceWorkCommitter implements WorkCommitter {
 
   @Override
   public int parallelism() {
-    return numCommitWorkers;
-  }
-
-  @SuppressWarnings("FutureReturnValueIgnored")
-  private void startCommitWorkers(CountDownLatch ready) {
-    for (int i = 0; i < numCommitWorkers; i++) {
-      commitWorkers.submit(
-          () -> {
-            while (true) {
-              try {
-                ready.await();
-                break;
-              } catch (InterruptedException ignore) {
-              }
-            }
-            commitLoop();
-          });
-    }
+    return 1;
   }
 
   private void commitLoop() {
     Map<ComputationState, Windmill.ComputationCommitWorkRequest.Builder> computationRequestMap =
         new HashMap<>();
-    while (shouldCommitWork.get()) {
+    while (true) {
       computationRequestMap.clear();
       CommitWorkRequest.Builder commitRequestBuilder = CommitWorkRequest.newBuilder();
       long commitBytes = 0;
@@ -161,7 +143,7 @@ final class StreamingApplianceWorkCommitter implements WorkCommitter {
   private void commitWork(CommitWorkRequest commitRequest, long commitBytes) {
     LOG.trace("Commit: {}", commitRequest);
     activeCommitBytes.addAndGet(commitBytes);
-    commitWork.accept(commitRequest);
+    commitWorkFn.accept(commitRequest);
     activeCommitBytes.addAndGet(-commitBytes);
   }
 
@@ -169,14 +151,16 @@ final class StreamingApplianceWorkCommitter implements WorkCommitter {
       Map<ComputationState, Windmill.ComputationCommitWorkRequest.Builder> committedWork) {
     for (Map.Entry<ComputationState, Windmill.ComputationCommitWorkRequest.Builder> entry :
         committedWork.entrySet()) {
-      ComputationState computationState = entry.getKey();
       for (Windmill.WorkItemCommitRequest workRequest : entry.getValue().getRequestsList()) {
-        computationState.completeWorkAndScheduleNextWorkForKey(
-            ShardedKey.create(workRequest.getKey(), workRequest.getShardingKey()),
-            WorkId.builder()
-                .setCacheToken(workRequest.getCacheToken())
-                .setWorkToken(workRequest.getWorkToken())
-                .build());
+        onCommitComplete.accept(
+            CompleteCommit.create(
+                entry.getKey().getComputationId(),
+                ShardedKey.create(workRequest.getKey(), workRequest.getShardingKey()),
+                WorkId.builder()
+                    .setCacheToken(workRequest.getCacheToken())
+                    .setWorkToken(workRequest.getWorkToken())
+                    .build(),
+                Windmill.CommitStatus.OK));
       }
     }
   }

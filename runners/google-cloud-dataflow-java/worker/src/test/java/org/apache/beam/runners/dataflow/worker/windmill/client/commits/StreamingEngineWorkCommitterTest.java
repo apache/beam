@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.FakeWindmillServer;
@@ -58,7 +57,6 @@ public class StreamingEngineWorkCommitterTest {
 
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
   private StreamingEngineWorkCommitter workCommitter;
-  private boolean shouldCommitWork;
   private FakeWindmillServer fakeWindmillServer;
   private Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
 
@@ -84,9 +82,16 @@ public class StreamingEngineWorkCommitterTest {
         null);
   }
 
+  private static CompleteCommit asCompleteCommit(Commit commit) {
+    if (commit.work().isFailed()) {
+      return CompleteCommit.forFailedWork(commit);
+    }
+
+    return CompleteCommit.create(commit, Windmill.CommitStatus.OK);
+  }
+
   @Before
   public void setUp() {
-    shouldCommitWork = true;
     fakeWindmillServer =
         new FakeWindmillServer(
             errorCollector, ignored -> Optional.of(Mockito.mock(ComputationState.class)));
@@ -98,27 +103,17 @@ public class StreamingEngineWorkCommitterTest {
 
   @After
   public void cleanUp() {
-    shouldCommitWork = false;
     workCommitter.stop();
   }
 
   private StreamingEngineWorkCommitter createWorkCommitter(
-      CountDownLatch onReady,
-      Consumer<Commit> onFailedCommit,
       Consumer<CompleteCommit> onCommitComplete) {
-    return StreamingEngineWorkCommitter.create(
-        commitWorkStreamFactory,
-        1,
-        () -> shouldCommitWork,
-        onFailedCommit,
-        onCommitComplete,
-        onReady);
+    return StreamingEngineWorkCommitter.create(commitWorkStreamFactory, 1, onCommitComplete);
   }
 
   @Test
   public void testCommit_sendsCommitsToStreamingEngine() {
-    CountDownLatch started = new CountDownLatch(1);
-    workCommitter = createWorkCommitter(started, ignored -> {}, ignored -> {});
+    workCommitter = createWorkCommitter(ignored -> {});
     List<Commit> commits = new ArrayList<>();
     for (int i = 1; i <= 5; i++) {
       Work work = createMockWork(i, ignored -> {});
@@ -132,7 +127,7 @@ public class StreamingEngineWorkCommitterTest {
       commits.add(Commit.create(commitRequest, createComputationState("computationId-" + i), work));
     }
 
-    started.countDown();
+    workCommitter.start();
     commits.forEach(workCommitter::commit);
 
     Map<Long, WorkItemCommitRequest> committed =
@@ -147,9 +142,8 @@ public class StreamingEngineWorkCommitterTest {
 
   @Test
   public void testCommit_handlesFailedCommits() {
-    CountDownLatch started = new CountDownLatch(1);
-    Set<Commit> failedCommits = new HashSet<>();
-    workCommitter = createWorkCommitter(started, failedCommits::add, ignored -> {});
+    Set<CompleteCommit> failedCommits = new HashSet<>();
+    workCommitter = createWorkCommitter(failedCommits::add);
     List<Commit> commits = new ArrayList<>();
     for (int i = 1; i <= 10; i++) {
       Work work = createMockWork(i, ignored -> {});
@@ -167,7 +161,7 @@ public class StreamingEngineWorkCommitterTest {
       commits.add(Commit.create(commitRequest, createComputationState("computationId-" + i), work));
     }
 
-    started.countDown();
+    workCommitter.start();
     commits.forEach(workCommitter::commit);
 
     Map<Long, WorkItemCommitRequest> committed =
@@ -175,7 +169,7 @@ public class StreamingEngineWorkCommitterTest {
 
     for (Commit commit : commits) {
       if (commit.work().isFailed()) {
-        assertThat(failedCommits).contains(commit);
+        assertThat(failedCommits).contains(asCompleteCommit(commit));
         assertThat(committed).doesNotContainKey(commit.work().getWorkItem().getWorkToken());
       }
     }
@@ -183,11 +177,8 @@ public class StreamingEngineWorkCommitterTest {
 
   @Test
   public void testCommit_handlesCompleteCommits() {
-    CountDownLatch started = new CountDownLatch(1);
-    Set<Commit> completeCommits = new HashSet<>();
-    workCommitter =
-        createWorkCommitter(
-            started, ignored -> {}, completeCommit -> completeCommits.add(completeCommit.commit()));
+    Set<CompleteCommit> completeCommits = new HashSet<>();
+    workCommitter = createWorkCommitter(completeCommits::add);
     List<Commit> commits = new ArrayList<>();
     for (int i = 1; i <= 5; i++) {
       Work work = createMockWork(i, ignored -> {});
@@ -201,7 +192,7 @@ public class StreamingEngineWorkCommitterTest {
       commits.add(Commit.create(commitRequest, createComputationState("computationId-" + i), work));
     }
 
-    started.countDown();
+    workCommitter.start();
     commits.forEach(workCommitter::commit);
 
     Map<Long, WorkItemCommitRequest> committed =
@@ -211,7 +202,7 @@ public class StreamingEngineWorkCommitterTest {
       WorkItemCommitRequest request = committed.get(commit.work().getWorkItem().getWorkToken());
       assertNotNull(request);
       assertThat(request).isEqualTo(commit.request());
-      assertThat(completeCommits).contains(commit);
+      assertThat(completeCommits).contains(asCompleteCommit(commit));
     }
   }
 }

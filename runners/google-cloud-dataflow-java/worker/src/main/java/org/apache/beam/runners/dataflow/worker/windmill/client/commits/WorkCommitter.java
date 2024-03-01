@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.annotations.Internal;
 
 /**
@@ -24,14 +25,30 @@ import org.apache.beam.sdk.annotations.Internal;
  * processing back to persistence layer.
  */
 @Internal
+@ThreadSafe
 public interface WorkCommitter {
-  int MAX_COMMIT_QUEUE_BYTES = 500 << 20; // 500MB
 
+  /** Starts internal processing of commits. */
+  void start();
+
+  /**
+   * Add a commit to {@link WorkCommitter}. This may be block the calling thread depending on
+   * underlying implementations, and persisting to the persistence layer may be done asynchronously.
+   */
   void commit(Commit commit);
 
+  /** Number of bytes currently trying to be committed to the backing persistence layer. */
   long currentActiveCommitBytes();
 
+  /**
+   * Stops internal processing of commits. In progress and subsequent commits may be canceled or
+   * dropped.
+   */
   void stop();
 
+  /**
+   * Number of internal workers {@link WorkCommitter} uses to commit work to the backing persistence
+   * layer.
+   */
   int parallelism();
 }

@@ -17,18 +17,19 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedBoundedQueue;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
@@ -38,30 +39,29 @@ import org.slf4j.LoggerFactory;
  * Streaming engine implementation of {@link WorkCommitter}. Commits work back to Streaming Engine
  * backend.
  */
+@Internal
 @ThreadSafe
-final class StreamingEngineWorkCommitter implements WorkCommitter {
+public final class StreamingEngineWorkCommitter implements WorkCommitter {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingEngineWorkCommitter.class);
   private static final int COMMIT_BATCH_SIZE = 5;
+  private static final int TARGET_COMMIT_BATCH_SIZE = 500 << 20; // 500MB
 
   private final Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
   private final WeightedBoundedQueue<Commit> commitQueue;
   private final ExecutorService commitSenders;
   private final AtomicLong activeCommitBytes;
-  private final Supplier<Boolean> shouldCommitWork;
-  private final Consumer<Commit> onFailedCommit;
   private final Consumer<CompleteCommit> onCommitComplete;
   private final int numCommitSenders;
 
   private StreamingEngineWorkCommitter(
       Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory,
       int numCommitSenders,
-      Supplier<Boolean> shouldCommitWork,
-      Consumer<Commit> onFailedCommit,
       Consumer<CompleteCommit> onCommitComplete) {
     this.commitWorkStreamFactory = commitWorkStreamFactory;
     this.commitQueue =
         WeightedBoundedQueue.create(
-            MAX_COMMIT_QUEUE_BYTES, commit -> Math.min(MAX_COMMIT_QUEUE_BYTES, commit.getSize()));
+            TARGET_COMMIT_BATCH_SIZE,
+            commit -> Math.min(TARGET_COMMIT_BATCH_SIZE, commit.getSize()));
     this.commitSenders =
         Executors.newFixedThreadPool(
             numCommitSenders,
@@ -71,28 +71,26 @@ final class StreamingEngineWorkCommitter implements WorkCommitter {
                 .setNameFormat("CommitThread-%d")
                 .build());
     this.activeCommitBytes = new AtomicLong();
-    this.shouldCommitWork = shouldCommitWork;
-    this.onFailedCommit = onFailedCommit;
     this.onCommitComplete = onCommitComplete;
     this.numCommitSenders = numCommitSenders;
   }
 
-  static StreamingEngineWorkCommitter create(
+  public static StreamingEngineWorkCommitter create(
       Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory,
       int numCommitSenders,
-      Supplier<Boolean> shouldCommitWork,
-      Consumer<Commit> onFailedCommit,
-      Consumer<CompleteCommit> onCommitComplete,
-      CountDownLatch ready) {
-    StreamingEngineWorkCommitter workCommitter =
-        new StreamingEngineWorkCommitter(
-            commitWorkStreamFactory,
-            numCommitSenders,
-            shouldCommitWork,
-            onFailedCommit,
-            onCommitComplete);
-    workCommitter.startCommitSenders(ready);
-    return workCommitter;
+      Consumer<CompleteCommit> onCommitComplete) {
+    return new StreamingEngineWorkCommitter(
+        commitWorkStreamFactory, numCommitSenders, onCommitComplete);
+  }
+
+  @Override
+  @SuppressWarnings("FutureReturnValueIgnored")
+  public void start() {
+    if (!commitSenders.isShutdown() || !commitSenders.isTerminated()) {
+      for (int i = 0; i < numCommitSenders; i++) {
+        commitSenders.submit(this::streamingCommitLoop);
+      }
+    }
   }
 
   @Override
@@ -107,7 +105,15 @@ final class StreamingEngineWorkCommitter implements WorkCommitter {
 
   @Override
   public void stop() {
-    commitSenders.shutdownNow();
+    if (!commitSenders.isTerminated() || !commitSenders.isShutdown()) {
+      commitSenders.shutdown();
+      try {
+        commitSenders.awaitTermination(10, TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        LOG.warn("Could not shut down commitSenders gracefully, forcing shutdown.", e);
+      }
+      commitSenders.shutdownNow();
+    }
   }
 
   @Override
@@ -115,37 +121,27 @@ final class StreamingEngineWorkCommitter implements WorkCommitter {
     return numCommitSenders;
   }
 
-  @SuppressWarnings("FutureReturnValueIgnored")
-  private void startCommitSenders(CountDownLatch ready) {
-    for (int i = 0; i < numCommitSenders; i++) {
-      commitSenders.submit(
-          () -> {
-            while (true) {
-              try {
-                ready.await();
-                break;
-              } catch (InterruptedException ignore) {
-              }
-            }
-            streamingCommitLoop();
-          });
-    }
-  }
-
   private void streamingCommitLoop() {
-    Commit initialCommit = null;
-    while (shouldCommitWork.get()) {
+    @Nullable Commit initialCommit = null;
+    while (true) {
       if (initialCommit == null) {
         try {
+          // Block until we have a commit or are shutting down.
           initialCommit = commitQueue.take();
         } catch (InterruptedException e) {
           continue;
         }
       }
 
+      if (initialCommit.work().isFailed()) {
+        onCommitComplete.accept(CompleteCommit.forFailedWork(initialCommit));
+        initialCommit = null;
+        continue;
+      }
+
       try (CloseableStream<CommitWorkStream> closeableCommitStream =
           commitWorkStreamFactory.get()) {
-        CommitWorkStream commitStream = closeableCommitStream.stream().get();
+        CommitWorkStream commitStream = closeableCommitStream.stream();
         if (!tryAddToCommitStream(initialCommit, commitStream)) {
           throw new AssertionError("Initial commit on flushed stream should always be accepted.");
         }
@@ -162,12 +158,6 @@ final class StreamingEngineWorkCommitter implements WorkCommitter {
   /** Adds the commit to the commitStream if it fits, returning true if it is consumed. */
   private boolean tryAddToCommitStream(Commit commit, CommitWorkStream commitStream) {
     Preconditions.checkNotNull(commit);
-    // Drop commits for failed work. Such commits will be dropped by Windmill anyway.
-    if (commit.work().isFailed()) {
-      onFailedCommit.accept(commit);
-      return true;
-    }
-
     commit.work().setState(Work.State.COMMITTING);
     activeCommitBytes.addAndGet(commit.getSize());
     boolean isCommitSuccessful =
@@ -188,7 +178,7 @@ final class StreamingEngineWorkCommitter implements WorkCommitter {
   // Returns a commit that was removed from the queue but not consumed or null.
   private Commit batchCommitsToStream(CommitWorkStream commitStream) {
     int commits = 1;
-    while (shouldCommitWork.get()) {
+    while (true) {
       Commit commit;
       try {
         if (commits < COMMIT_BATCH_SIZE) {
@@ -200,11 +190,21 @@ final class StreamingEngineWorkCommitter implements WorkCommitter {
         // Continue processing until !running.get()
         continue;
       }
-      if (commit == null || !tryAddToCommitStream(commit, commitStream)) {
+
+      if (commit == null) {
+        return null;
+      }
+
+      // Drop commits for failed work. Such commits will be dropped by Windmill anyway.
+      if (commit.work().isFailed()) {
+        onCommitComplete.accept(CompleteCommit.forFailedWork(commit));
+        continue;
+      }
+
+      if (!tryAddToCommitStream(commit, commitStream)) {
         return commit;
       }
       commits++;
     }
-    return null;
   }
 }
