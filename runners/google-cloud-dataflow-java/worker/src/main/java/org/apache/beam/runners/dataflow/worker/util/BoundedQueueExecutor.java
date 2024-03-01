@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
+import javax.annotation.concurrent.GuardedBy;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -37,9 +38,13 @@ public class BoundedQueueExecutor {
   private final Monitor monitor = new Monitor();
   private int elementsOutstanding = 0;
   private long bytesOutstanding = 0;
-  private final AtomicInteger activeCount = new AtomicInteger();
-  private final AtomicInteger maximumThreadCount = new AtomicInteger();
+  @GuardedBy("this")
+  private int activeCount;
+  @GuardedBy("this")
+  private int maximumThreadCount;
+  @GuardedBy("this")
   private long startTimeMaxActiveThreadsUsed;
+  @GuardedBy("this")
   private long totalTimeMaxActiveThreadsUsed;
 
   public BoundedQueueExecutor(
@@ -49,7 +54,7 @@ public class BoundedQueueExecutor {
       int maximumElementsOutstanding,
       long maximumBytesOutstanding,
       ThreadFactory threadFactory) {
-    this.maximumThreadCount.set(maximumPoolSize);
+    this.maximumThreadCount = maximumPoolSize;
     executor =
         new ThreadPoolExecutor(
             maximumPoolSize,
@@ -61,8 +66,8 @@ public class BoundedQueueExecutor {
           @Override
           protected void beforeExecute(Thread t, Runnable r) {
             super.beforeExecute(t, r);
-            synchronized (this) {
-              if (activeCount.getAndIncrement() >= maximumThreadCount.get() - 1) {
+            synchronized (BoundedQueueExecutor.this) {
+              if (activeCount++ >= maximumThreadCount - 1) {
                 startTimeMaxActiveThreadsUsed = System.currentTimeMillis();
               }
             }
@@ -71,8 +76,8 @@ public class BoundedQueueExecutor {
           @Override
           protected void afterExecute(Runnable r, Throwable t) {
             super.afterExecute(r, t);
-            synchronized (this) {
-              if (activeCount.getAndDecrement() == maximumThreadCount.get()) {
+            synchronized (BoundedQueueExecutor.this) {
+              if (activeCount-- <= maximumThreadCount && startTimeMaxActiveThreadsUsed > 0) {
                 totalTimeMaxActiveThreadsUsed +=
                     (System.currentTimeMillis() - startTimeMaxActiveThreadsUsed);
                 startTimeMaxActiveThreadsUsed = 0;
@@ -107,7 +112,7 @@ public class BoundedQueueExecutor {
   }
 
   // Set the maximum/core pool size of the executor.
-  public void setMaximumPoolSize(int maximumPoolSize) {
+  public synchronized void setMaximumPoolSize(int maximumPoolSize) {
     // For ThreadPoolExecutor, the maximum pool size should always greater than or equal to core
     // pool size.
     if (maximumPoolSize > executor.getCorePoolSize()) {
@@ -117,7 +122,7 @@ public class BoundedQueueExecutor {
       executor.setCorePoolSize(maximumPoolSize);
       executor.setMaximumPoolSize(maximumPoolSize);
     }
-    maximumThreadCount.set(maximumPoolSize);
+    maximumThreadCount = maximumPoolSize;
   }
 
   public void shutdown() throws InterruptedException {
@@ -131,16 +136,16 @@ public class BoundedQueueExecutor {
     return executor.getQueue().isEmpty();
   }
 
-  public long allThreadsActiveTime() {
+  public synchronized long allThreadsActiveTime() {
     return totalTimeMaxActiveThreadsUsed;
   }
 
-  public int activeCount() {
-    return activeCount.intValue();
+  public synchronized int activeCount() {
+    return activeCount;
   }
 
-  public int maximumThreadCount() {
-    return maximumThreadCount.intValue();
+  public synchronized int maximumThreadCount() {
+    return maximumThreadCount;
   }
 
   public long bytesOutstanding() {

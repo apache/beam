@@ -54,8 +54,10 @@ import com.google.api.services.dataflow.model.Sink;
 import com.google.api.services.dataflow.model.Source;
 import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
+import com.google.api.services.dataflow.model.StreamingScalingReportResponse;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
+import com.google.api.services.dataflow.model.WorkerMessageResponse;
 import com.google.api.services.dataflow.model.WriteInstruction;
 import java.io.IOException;
 import java.io.InputStream;
@@ -807,7 +809,8 @@ public class StreamingDataflowWorkerTest {
             publishCounters,
             hotKeyLogger,
             clock,
-            executorSupplier);
+            executorSupplier,
+            null);
     worker.addStateNameMappings(
         ImmutableMap.of(DEFAULT_PARDO_USER_NAME, DEFAULT_PARDO_STATE_FAMILY));
     return worker;
@@ -2916,65 +2919,28 @@ public class StreamingDataflowWorkerTest {
 
   @Test
   public void testOverrideMaximumThreadCount() throws Exception {
-    int maxThreads = 5;
-    int threadExpirationSec = 60;
-    CountDownLatch processStart1 = new CountDownLatch(2);
-    AtomicBoolean stop = new AtomicBoolean(false);
-    // setting up actual implementation of executor instead of mocking to keep track of
-    // active thread count.
-    BoundedQueueExecutor executor =
-        new BoundedQueueExecutor(
-            maxThreads,
-            threadExpirationSec,
-            TimeUnit.SECONDS,
-            maxThreads,
-            MAXIMUM_BYTES_OUTSTANDING,
-            new ThreadFactoryBuilder()
-                .setNameFormat("DataflowWorkUnits-%d")
-                .setDaemon(true)
-                .build());
-
-    ComputationState computationState =
-        new ComputationState(
-            "computation",
-            defaultMapTask(Arrays.asList(makeSourceInstruction(StringUtf8Coder.of()))),
-            executor,
-            ImmutableMap.of(),
-            null);
-
-    ShardedKey key1Shard1 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 1);
-
-    Consumer<Work> sleepProcessWorkFn =
-        unused -> {
-          processStart1.countDown();
-          int count = 0;
-          while (!stop.get()) {
-            count += 1;
-          }
-        };
-
-    Work m2 = createMockWork(2, sleepProcessWorkFn);
-
-    Work m3 = createMockWork(3, sleepProcessWorkFn);
-
-    assertEquals(0, executor.activeCount());
-
-    assertTrue(computationState.activateWork(key1Shard1, m2));
-    // activate work starts executing work if no other work is queued for that shard
-    executor.execute(m2, m2.getWorkItem().getSerializedSize());
-    processStart1.await();
-    assertEquals(2, executor.activeCount());
-
-    executor.setMaximumPoolSize(2);
-    assertEquals(2, executor.maximumThreadCount());
-
-    assertTrue(computationState.activateWork(key1Shard1, m3));
-    executor.execute(m3, m3.getWorkItem().getSerializedSize());
-    // Max pool size was reached so no new work is accepted.
-    assertEquals(2, executor.activeCount());
-
-    stop.set(true);
-    executor.shutdown();
+    BoundedQueueExecutor mockExecutor = Mockito.mock(BoundedQueueExecutor.class);
+    StreamingDataflowWorker worker = StreamingDataflowWorker.forTesting(
+            computationMap,
+            server,
+            Collections.emptyList(),
+            IntrinsicMapTaskExecutorFactory.defaultFactory(),
+            mockWorkUnitClient,
+            createTestingPipelineOptions(),
+            false,
+            hotKeyLogger,
+            Instant::now,
+            (threadName) -> Executors.newSingleThreadScheduledExecutor(),
+            mockExecutor);
+    StreamingScalingReportResponse streamingScalingReportResponse =
+        new StreamingScalingReportResponse().setMaximumThreadCount(10);
+    WorkerMessageResponse workerMessageResponse =
+        new WorkerMessageResponse()
+            .setStreamingScalingReportResponse(streamingScalingReportResponse);
+    when(mockWorkUnitClient.reportWorkerMessage(any()))
+        .thenReturn(Collections.singletonList(workerMessageResponse));
+    worker.reportPeriodicWorkerMessage();
+    Mockito.verify(mockExecutor).setMaximumPoolSize(10);
   }
 
   @Test

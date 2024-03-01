@@ -492,8 +492,9 @@ public class StreamingDataflowWorker {
       boolean publishCounters,
       HotKeyLogger hotKeyLogger,
       Supplier<Instant> clock,
-      Function<String, ScheduledExecutorService> executorSupplier) {
-    BoundedQueueExecutor boundedQueueExecutor = createWorkUnitExecutor(options);
+      Function<String, ScheduledExecutorService> executorSupplier,
+      BoundedQueueExecutor executor) {
+    BoundedQueueExecutor boundedQueueExecutor = executor == null ? createWorkUnitExecutor(options) : executor;
     WindmillStateCache stateCache = WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb());
     computationMap.putAll(
         createComputationMapForTesting(mapTasks, boundedQueueExecutor, stateCache::forComputation));
@@ -2001,3 +2002,4 @@ public class StreamingDataflowWorker {
     }
   }
 }
+
