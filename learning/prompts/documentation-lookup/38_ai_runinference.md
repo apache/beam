@@ -1,18 +1,19 @@
 Prompt:
-How can I run inference on a trained model using AI?
+How can I run inference on a trained ML model using Apache Beam?
+
 Response:
-Apache Beam lets you efficiently inference on local and remote ML models in your pipelines with the help of `RunInference API` which is supported in Python SDK starting from Apache Beam 2.40.0 and in Java SDK version 2.41.0 through Apache Beam’s [Multi-language Pipelines framework](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines). A `RunInference` transform performs inference on a `PCollection` of examples using a machine learning (ML) model. The transform outputs a `PCollection` that contains the input examples and output predictions.
+Apache Beam enables efficient inference on both local and remote ML models within your pipelines through the RunInference API. This functionality is available in the Python SDK versions 2.40.0 and later. The Java SDK versions 2.41.0 and later also support the API through Apache Beam’s [Multi-language Pipelines](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines) framework. The `RunInference` transform performs inference on a [`PCollection`](https://beam.apache.org/documentation/programming-guide/#pcollections) of examples using an ML model and outputs a `PCollection` containing both the input examples and the corresponding output predictions.
 
-`RunInference API` has includes following features:
-- support of both batch and streaming inference
-- centralized model management fot efficient memory and bandwidth usage
-- support of multiple model frameworks and model hubs
-- automatic model refresh ensures latest model version is used
-- support of GPUs for model inference
+Key features of the RunInference API include:
+* Support for both batch and streaming inference.
+* Centralized model management for efficient memory and bandwidth usage.
+* Compatibility with multiple model frameworks and model hubs.
+* Automatic model refreshing to ensure the latest model version is used.
+* GPU support for model inference.
 
-`RunInference API` supports variety of frameworks and model hubs including [Tensorflow](https://www.tensorflow.org/), [Pytorch](https://pytorch.org/), [Sklearn](https://scikit-learn.org/), [XGBoost](https://xgboost.ai/), [Hugging Face](https://huggingface.co/), [TensorFlow Hub](https://www.tensorflow.org/hub), [Vertex AI](https://cloud.google.com/vertex-ai), [TensorRT](https://developer.nvidia.com/tensorrt), and [ONNX](https://onnx.ai/). You can also use custom model frameworks by using a custom [model_handler](https://beam.apache.org/documentation/ml/about-ml/#use-custom-models).
+The RunInference API supports a variety of frameworks and model hubs, including [TensorFlow](https://www.tensorflow.org/), [PyTorch](https://pytorch.org/), [Scikit-learn](https://scikit-learn.org/), [XGBoost](https://xgboost.ai/), [Hugging Face](https://huggingface.co/), [TensorFlow Hub](https://www.tensorflow.org/hub), [Vertex AI](https://cloud.google.com/vertex-ai), [TensorRT](https://developer.nvidia.com/tensorrt), and [ONNX](https://onnx.ai/). Additionally, you can easily integrate custom model frameworks.
 
-To import models you need to configure the a `ModelHandler` object that wraps the underlying model. The `ModelHandler` allows you to set environment variables needed for inference.
+To import a model into your Apache Beam pipeline, you'll need to configure the [`ModelHandler`](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.ModelHandler) object, which wraps the underlying model and allows you to set necessary environment variables for inference.
 
 Following is an example importing a `Pytorch` model handler to use in your pipeline:
 
@@ -21,7 +22,7 @@ from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
 from apache_beam.ml.inference.base import RunInference
 
   model_handler = PytorchModelHandlerTensor(
-    # model handler setup
+    # Model handler setup
   )
 
 with pipeline as p:
@@ -29,10 +30,10 @@ with pipeline as p:
                     | 'RunInference' >> RunInference(model_handler)
 ```
 
-See [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference) for end-to-end examples for supported model frameworks and model hubs.
+For comprehensive end-to-end examples of inference with supported model frameworks and model hubs, refer to the [Apache Beam GitHub repository](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference).
 
-If you would like to run inference on a model that is not specifically supported, you need to create your own `ModelHandler` or `KeyedModelHandler` with logic to load your model and use it to run the inference. See here example of [custom model handler](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_custom_inference.ipynb).
+If you need to run inference on a model that isn't explicitly supported, you can [create your own `ModelHandler` or `KeyedModelHandler`](https://beam.apache.org/documentation/ml/about-ml/#use-custom-models with custom logic] to load and use your model. For an example of running inference on a custom model loaded with [spaCy](https://spacy.io/), refer to the [Bring your own ML model to Beam RunInference](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_custom_inference.ipynb) example in the Apache Beam GitHub repository.
 
-For patterns and best practices of running inference with Apache Beam, see [here](https://beam.apache.org/documentation/ml/about-ml/#runinference-patterns).
+For recommended patterns and best practices when leveraging Apache Beam for inference tasks, see the [RunInference Patterns](https://beam.apache.org/documentation/ml/about-ml/#runinference-patterns) section in the official documentation.
 
-For an example of using RunInference API in Java SDK see [here](https://github.com/apache/beam/tree/master/examples/multi-languages). Additionally see [Using RunInference from Java SDK](https://beam.apache.org/documentation/ml/multi-language-inference/) for an example of a composite Python transform that uses the RunInference API along with preprocessing and postprocessing from a Beam Java SDK pipeline.
+For an example of using the RunInference API in the Java SDK, see the [example multi-language pipelines](https://github.com/apache/beam/tree/master/examples/multi-language) in the Apache Beam GitHub repository. Additionally, for an illustration of a composite Python transform integrating the RunInference API with preprocessing and postprocessing from a Beam Java SDK pipeline, you can refer to the [Using RunInference from Java SDK](https://beam.apache.org/documentation/ml/multi-language-inference/) section in the official documentation.
