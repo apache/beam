@@ -2,15 +2,15 @@ Prompt:
 How can I use custom remote inference calls in my Apache Beam pipeline?
 
 Response:
-The preferred way to run inference in an Apache Beam pipeline is to use the [RunInference API](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.html#apache_beam.ml.inference.RunInference) provided by the Apache Beam SDK. It enables you to run models as part of your pipeline or perform remote inference calls.
+The optimal approach for conducting inference within an Apache Beam pipeline is by leveraging the [RunInference API](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.html#apache_beam.ml.inference.RunInference) provided by the Apache Beam SDK. This feature allows you to seamlessly incorporate ML models into your pipeline or execute remote inference calls.
 
-You have to consider following factors while developing custom inference calls:
-- **API quotas**: heavy load might result in API quota limits being reached. You may use [PipelineOptions](https://beam.apache.org/documentation/programming-guide/#configuring-pipeline-options) to set the maximum number of parallel API calls. Use direct_num_workers pipeline option for [Direct Runner](https://beam.apache.org/documentation/runners/direct/) or max_num_workers for [Google Cloud Dataflow Runner](https://beam.apache.org/documentation/runners/dataflow/). See [Beam capability matrix](https://beam.apache.org/documentation/runners/capability-matrix/) for information about other runners.
-- **Error handling**: you need to handle errors in case of API call failures. You may use exponential backoff for retries or dead-letter queues for failed API calls.
-- **Monitoring**: use monitoring and performance metrics to track the performance of your inference calls and health of your pipeline.
-- **Batching**: you may use batching to send multiple inputs in a single API call for efficiency.
+When developing custom inference calls, consider the following factors:
+* **API quotas**: heavy loads may lead to reaching API quota limits. You can use [`PipelineOptions`](https://beam.apache.org/documentation/programming-guide/#configuring-pipeline-options) to specify the maximum number of parallel API calls. Use `direct_num_workers` for the [Direct Runner](https://beam.apache.org/documentation/runners/direct/) or `max_num_workers` for the [Google Cloud Dataflow Runner](https://beam.apache.org/documentation/runners/dataflow/). Refer to the [Beam Capability Matrix](https://beam.apache.org/documentation/runners/capability-matrix/) for information about other runners.
+* **Error handling**: it is essential to handle errors in case of API call failures. Consider implementing exponential backoff for retries or utilizing dead-letter queues for failed API calls.
+* **Monitoring**: incorporate monitoring and performance metrics to track the performance of your inference calls and the health of your pipeline.
+* **Batching**: batching can be used to send multiple inputs in a single API call for improved efficiency.
 
-You will need to create a `beam.DoFn` in the form of custom model handler in order to make external API calls with `RunInference` `Ptransform`:
+To execute external API calls with the `RunInference` transform, you'll need to create a `beam.DoFn` in the form of a custom model handler:
 
 ```python
 class CustomModelHandler(ModelHandler):
@@ -24,7 +24,7 @@ class CustomModelHandler(ModelHandler):
   def run_inference(self, batch, model, inference):
 
     # Prepare a batch request for all inputs in the batch.
-    inputs = ... # process inputs from the batch
+    inputs = ... # Process inputs from the batch
     input_requests = ... # Prepare input requests for the model
     batch_request = ... # Prepare batch request for the model
 
@@ -33,9 +33,10 @@ class CustomModelHandler(ModelHandler):
 
     return responses
 ```
-Use this custom model handler in your pipeline as follows:
-```python
 
+Integrate this custom model handler into your pipeline as demonstrated in the following example:
+
+```python
 with beam.Pipeline() as pipeline:
   _ = (pipeline | "Create inputs" >> beam.Create(<read input data>)
                 | "Inference" >> RunInference(model_handler=CustomModelHandler())
@@ -43,4 +44,4 @@ with beam.Pipeline() as pipeline:
   )
 ```
 
-For a complete example of using the `RunInference API` for remote inference calls, see the [here](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/custom_remote_inference.ipynb).
+For a comprehensive example of using the RunInference API for remote inference calls, refer to the [Apache Beam GitHub repository](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/custom_remote_inference.ipynb).

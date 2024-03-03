@@ -1,17 +1,18 @@
 Prompt:
 Ho can I use Apache Beam to run inference on Large Language Models (LLMs)?
+
 Response:
-The preferred way to run inference in an Apache Beam pipeline is to use the [RunInference API](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.html#apache_beam.ml.inference.RunInference) provided by the Apache Beam SDK. It enables you to run models as part of your pipeline or perform remote inference calls.
+The optimal approach for conducting inference within an Apache Beam pipeline is by leveraging the [RunInference API](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.html#apache_beam.ml.inference.RunInference) provided by the Apache Beam SDK. This feature allows you to seamlessly incorporate ML models into your pipeline or execute remote inference calls.
 
-You can use `RunInference` `PTransform` with large models as long they fit into memory.
+You can use the `RunInference` transform with large models as long they fit into memory.
 
-Your typical workflow for running inference on LLMs in an Apache Beam pipeline is as follows:
+The typical workflow for conducting inference on Large Language Models (LLMs) within an Apache Beam pipeline involves the following steps:
 1. Read the input text data from a source such as a file or a Pub/Sub topic.
-2. Encode the text into LLM model understandable tokens, usually using a tokenizer.
-3. Use RunInference to get the predictions from the model.
+2. Encode the text into tokens understandable by the LLM model, typically using a tokenizer.
+3. Use the `RunInference` transform to obtain predictions from the model.
 4. Decode the predictions into human-readable text.
 
-Following is an example of how to use the `RunInference` API with LLMs in an Apache Beam pipeline:
+Here is an example demonstrating how to leverage the RunInference API with LLMs in an Apache Beam pipeline:
 
 ```python
 import apache_beam as beam
@@ -27,9 +28,9 @@ with beam.Pipeline(options=pipeline_options) as pipeline:
     )
 ```
 
-In this example, `Preprocess` and `Postprocess` are `DoFn` classes that encode and decode the input and output data using a tokenizer, and `model_handler` is a `ModelHandler` object that wraps the underlying model and allows you to set environment variables needed load the model.
+In this example, `Preprocess` and `Postprocess` are `DoFn` classes responsible for encoding and decoding the input and output data using a tokenizer. The `model_handler` is a `ModelHandler` object that wraps the underlying model and allows you to configure environment variables required to load the model.
 
-Following is an example of how to configure a `Pytorch` model handler to use in your pipeline:
+Here is an example of how to configure a Pytorch model handler for use in your pipeline:
 
 ```python
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
@@ -42,13 +43,14 @@ model_handler = PytorchModelHandlerTensor(
     device="cpu",
     inference_fn=gen_fn)
 ```
-Each particular model handler will have its own specific configuration parameters. For example, the `PytorchModelHandlerTensor` requires the following parameters:
-- `state_dict_path`: The path to the saved model state dictionary.
-- `model_class`: The class of the `Pytorch` model that defines model structure.
-- `model_params`: The dictionary of model parameters.
-- `device`: The device to run the model on (e.g. "cpu" or "gpu").
-- `inference_fn`: The function to run the inference during RunInference.
 
-See [here](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.html) for supported popular frameworks and models.
+Each specific model handler has its own configuration parameters. For example, the `PytorchModelHandlerTensor` requires the following parameters:
+* `state_dict_path`: the path to the saved model state dictionary.
+* `model_class`: the class of the Pytorch model that defines model structure.
+* `model_params`: the dictionary of model parameters.
+* `device`: the device to run the model on (e.g. "cpu" or "gpu").
+* `inference_fn`: the function to run the inference during RunInference.
 
-Please see [here](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/large_language_modeling/main.py) for the full example of using the `RunInference API` with LLMs.
+For information on supported popular frameworks and models, refer to the reference documentation for the [`apache_beam.ml.inference` package](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.html).
+
+You can find the comprehensive example of using the RunInference API with LLMs in the [Apache Beam GitHub repository](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/large_language_modeling/main.py).

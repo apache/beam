@@ -2,17 +2,18 @@ Prompt:
 How can I integrate BigQuery ML with Apache Beam?
 
 Response:
-[BigQuery ML](https://cloud.google.com/bigquery/docs/bqml-introduction) lets you create and run ML models by using `GoogleSQL` queries. You can integrate those models into your Apache Beam pipeline using [TFX Basic Shared Libraries (tfx_bsl)](https://github.com/tensorflow/tfx-bsl) and run inference on them using the `RunInference` API.
+[BigQuery ML](https://cloud.google.com/bigquery/docs/bqml-introduction) allows you to develop and execute ML models using [GoogleSQL](https://cloud.google.com/bigquery/docs/introduction-sql) queries. You can seamlessly integrate these models into your Apache Beam pipeline using [TFX Basic Shared Libraries (tfx_bsl)](https://github.com/tensorflow/tfx-bsl) and perform inference on them using the RunInference API.
 
-For an example of training a simple `BQML` model please see [here](https://cloud.google.com/bigquery-ml/docs/bigqueryml-web-ui-start).
+For an example of training a basic BigQuery ML model, refer to the [BigQuery documentation](?).
 
-After you have trained your model, you need to export it. Below is an example of BigQuery command to export a model to a [Google Cloud Storage](https://cloud.google.com/storage/docs/creating-buckets) bucket:
+Once you have trained your model, you will need to export it. Here is an example BigQuery command to export a model to a [Google Cloud Storage](https://cloud.google.com/storage/docs/creating-buckets) bucket:
 
 ```
 bq extract -m <model name> gs://<cloud storage path>
 ```
 
-In order to incorporate your `BQML` model into an Apache Beam pipeline using `tfx_bsl` it has to be saved in the [TensorFlow SavedModel](https://www.tensorflow.org/guide/saved_model) format. You have to download model to local directory to do local predictions.
+To incorporate your BigQuery ML model into an Apache Beam pipeline using `tfx_bsl`, it must be saved in the [TensorFlow SavedModel](https://www.tensorflow.org/guide/saved_model) format. You will need to download the model to your local directory to perform local predictions:
+
 ```python
 import apache_beam
 import tensorflow as tf
@@ -43,8 +44,7 @@ with beam.Pipeline() as p:
     )
 ```
 
-This example uses the `RunInference` `PTransform` from the `tfx_bsl` library, and we  point it to your local directory where the model is stored.
-The transform takes elements of the type `tf.train.Example` as inputs and outputs elements of the type `tensorflow_serving.apis.prediction_log_pb2.PredictionLog`. You can extract values from the output depending on the signature of the model. See [here](https://cloud.google.com/bigquery/docs/exporting-models#prediction_output_format) for the output format of `BQML` models.
+This example uses the [`RunInference`](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/) transform from the `tfx_bsl` library,  directing it to the local directory where the model is stored. The transform takes `tf.train.Example` type elements as inputs and produces `tensorflow_serving.apis.prediction_log_pb2.PredictionLog` type elements as outputs. Depending on the signature of your model, you can extract values from the output. For the prediction output format of exported models for each model type, refer to the [Prediction output format](https://cloud.google.com/bigquery/docs/exporting-models#prediction_output_format) section in the BigQuery documentation.
 
 
 
