@@ -4,7 +4,7 @@ How can I integrate BigQuery ML with Apache Beam?
 Response:
 [BigQuery ML](https://cloud.google.com/bigquery/docs/bqml-introduction) allows you to develop and execute ML models using [GoogleSQL](https://cloud.google.com/bigquery/docs/introduction-sql) queries. You can seamlessly integrate these models into your Apache Beam pipeline using [TFX Basic Shared Libraries (tfx_bsl)](https://github.com/tensorflow/tfx-bsl) and perform inference on them using the RunInference API.
 
-For an example of training a basic BigQuery ML model, refer to the [BigQuery documentation](?).
+For an example of training a basic BigQuery ML model, refer to the [BigQuery documentation](https://cloud.google.com/bigquery/docs/bqml-introduction).
 
 Once you have trained your model, you will need to export it. Here is an example BigQuery command to export a model to a [Google Cloud Storage](https://cloud.google.com/storage/docs/creating-buckets) bucket:
 
