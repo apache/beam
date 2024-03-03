@@ -1,5 +1,5 @@
 Prompt:
-How can I orchestrate Apache Beam pipelines with KubeFlow?
+How can I orchestrate Apache Beam pipelines with Kubeflow?
 
 Response:
 You can use Apache Beam for various tasks within your machine learning project, including data validation, preprocessing, model validation, and model deployment and inference.
@@ -16,6 +16,7 @@ To run an Apache Beam pipeline as a part of a Kubeflow Pipeline (KFP), you need 
 3. Compile and run the KFP pipeline by submitting it to a KFP client endpoint.
 
 Here is an example of a KFP pipeline orchestrating an Apache Beam preprocessing pipeline:
+
 ```
     kfp
     ├── pipeline.py
@@ -30,9 +31,10 @@ Here is an example of a KFP pipeline orchestrating an Apache Beam preprocessing 
 ```
 
 Apache Beam pipelines can be used as KFP components consisting of a YAML specification `component.yaml` and a Python source file `preprocess.py`. The YAML file defines the input and output arguments of the component, while the Python file contains the Apache Beam pipeline code.
-Since KFP provides input and output arguments as command-line arguments, an `ArgumentParser` is required. The component logic and requirements are containerized, and the container image is pushed to a container registry.
 
-As a final step, the KFP pipeline is compiled into a JSON file and submitted to a KFP client endpoint using `pipeline.py`.
+Since KFP provides the input and output arguments as command-line arguments, you need to use the `ArgumentParser` class. You containerize the logic and prerequisites of the pipeline components, and then push the resulting container image to a container registry.
+
+In the final stage, the `compiler` method transforms the KFP pipeline into a JSON file, and the `pipeline.py` script submits it to a KFP client endpoint.
 
 ```python
 Compiler().compile(pipeline_func=pipeline, package_path="pipeline.json")
