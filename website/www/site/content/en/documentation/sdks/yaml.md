@@ -366,6 +366,8 @@ pipeline:
       config:
         topic: anotherPubSubTopic
         format: json
+options:
+  streaming: true
 ```
 
 Rather than using an explicit `WindowInto` operation, one may instead tag a
@@ -392,6 +394,8 @@ pipeline:
       config:
         topic: anotherPubSubTopic
         format: json
+options:
+  streaming: true
 ```
 
 Note that the `Sql` operation itself is often a from of aggregation, and
@@ -417,6 +421,8 @@ pipeline:
       config:
         topic: anotherPubSubTopic
         format: json
+options:
+  streaming: true
 ```
 
 The specified windowing is applied to all inputs, in this case resulting in
@@ -448,6 +454,8 @@ pipeline:
       windowing:
         type: fixed
         size: 60s
+options:
+  streaming: true
 ```
 
 For a transform with no inputs, the specified windowing is instead applied to
@@ -473,6 +481,8 @@ pipeline:
       config:
         topic: anotherPubSubTopic
         format: json
+options:
+  streaming: true
 ```
 
 One can also specify windowing at the top level of a pipeline (or composite),
@@ -499,6 +509,8 @@ pipeline:
   windowing:
     type: fixed
     size: 60
+options:
+  streaming: true
 ```
 
 Note that all these windowing specifications are compatible with the `source`
@@ -530,6 +542,9 @@ pipeline:
     windowing:
       type: fixed
       size: 5m
+
+options:
+  streaming: true
 ```
 
 
@@ -582,6 +597,31 @@ providers:
            - /path/to/local/package.zip
     transforms:
        MyCustomTransform: "pkg.subpkg.PTransformClassOrCallable"
+```
+
+## Pipeline Options
+
+[Pipeline options](https://beam.apache.org/documentation/programming-guide/#configuring-pipeline-options)
+are used to configure different aspects of your pipeline, such as the pipeline runner that will execute
+your pipeline and any runner-specific configuration required by the chosen runner. To set pipeline options,
+append an options block at the end of your yaml file. For example:
+
+```
+pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromPubSub
+      config:
+        topic: myPubSubTopic
+        format: ...
+        schema: ...
+    ...
+    - type: WriteToPubSub
+      config:
+        topic: anotherPubSubTopic
+        format: json
+options:
+  streaming: true
 ```
 
 ## Other Resources
