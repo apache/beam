@@ -33,7 +33,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.values.PBegin;
@@ -42,6 +41,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -69,55 +69,54 @@ public class BeamFlinkDataStreamAdapter {
     this.pipelineOptions = pipelineOptions;
   }
 
-  @SuppressWarnings("nullness")
   public <InputT, OutputT, CollectionT extends PCollection<? extends InputT>>
       DataStream<OutputT> applyBeamPTransform(
           DataStream<InputT> input, PTransform<CollectionT, PCollection<OutputT>> transform) {
     return (DataStream)
-        applyBeamPTransformInternal(
+        getNonNull(
+            applyBeamPTransformInternal(
                 ImmutableMap.of("input", input),
-                (pipeline, map) -> (CollectionT) map.get("input"),
+                (pipeline, map) -> (CollectionT) getNonNull(map, "input"),
                 (output) -> ImmutableMap.of("output", output),
                 transform,
-                input.getExecutionEnvironment())
-            .get("output");
+                input.getExecutionEnvironment()),
+            "output");
   }
 
-  @SuppressWarnings("nullness")
   public <OutputT> DataStream<OutputT> applyBeamPTransform(
       Map<String, ? extends DataStream<?>> inputs,
       PTransform<PCollectionTuple, PCollection<OutputT>> transform) {
     return (DataStream)
-        applyBeamPTransformInternal(
+        getNonNull(
+            applyBeamPTransformInternal(
                 inputs,
                 BeamAdapterUtils::mapToTuple,
                 (output) -> ImmutableMap.of("output", output),
                 transform,
-                inputs.values().stream().findAny().get().getExecutionEnvironment())
-            .get("output");
+                inputs.values().stream().findAny().get().getExecutionEnvironment()),
+            "output");
   }
 
-  @SuppressWarnings("nullness")
   public <OutputT> DataStream<OutputT> applyBeamPTransform(
       StreamExecutionEnvironment executionEnvironment,
       PTransform<PBegin, PCollection<OutputT>> transform) {
     return (DataStream)
-        applyBeamPTransformInternal(
+        getNonNull(
+            applyBeamPTransformInternal(
                 ImmutableMap.of(),
                 (pipeline, map) -> PBegin.in(pipeline),
                 (output) -> ImmutableMap.of("output", output),
                 transform,
-                executionEnvironment)
-            .get("output");
+                executionEnvironment),
+            "output");
   }
 
-  @SuppressWarnings("nullness")
   public <InputT, CollectionT extends PCollection<? extends InputT>>
       Map<String, DataStream<?>> applyMultiOutputBeamPTransform(
           DataStream<InputT> input, PTransform<CollectionT, PCollectionTuple> transform) {
     return applyBeamPTransformInternal(
         ImmutableMap.of("input", input),
-        (pipeline, map) -> (CollectionT) map.get("input"),
+        (pipeline, map) -> (CollectionT) getNonNull(map, "input"),
         BeamAdapterUtils::tupleToMap,
         transform,
         input.getExecutionEnvironment());
@@ -145,13 +144,12 @@ public class BeamFlinkDataStreamAdapter {
         executionEnvironment);
   }
 
-  @SuppressWarnings("nullness")
   public <InputT, CollectionT extends PCollection<? extends InputT>>
       void applyNoOutputBeamPTransform(
           DataStream<InputT> input, PTransform<CollectionT, PDone> transform) {
     applyBeamPTransformInternal(
         ImmutableMap.of("input", input),
-        (pipeline, map) -> (CollectionT) map.get("input"),
+        (pipeline, map) -> (CollectionT) getNonNull(map, "input"),
         pDone -> ImmutableMap.of(),
         transform,
         input.getExecutionEnvironment());
@@ -227,7 +225,7 @@ public class BeamFlinkDataStreamAdapter {
       RunnerApi.PTransform transform = p.getComponents().getTransformsOrThrow(id);
       String inputId = transform.getSpec().getPayload().toStringUtf8();
       DataStream<InputT> flinkInput =
-          Preconditions.checkArgumentNotNull((DataStream<InputT>) inputMap.get(inputId));
+          Preconditions.checkNotNull((DataStream<InputT>) inputMap.get(inputId));
       context.addDataStream(
           Iterables.getOnlyElement(transform.getOutputsMap().values()),
           flinkInput.process(
@@ -296,5 +294,9 @@ public class BeamFlinkDataStreamAdapter {
           element.replace(
               element.getValue().getValue(), element.getValue().getTimestamp().getMillis()));
     }
+  }
+
+  private <K, V> V getNonNull(Map<K, V> map, K key) {
+    return Preconditions.checkNotNull(map.get(Preconditions.checkNotNull(key)));
   }
 }
