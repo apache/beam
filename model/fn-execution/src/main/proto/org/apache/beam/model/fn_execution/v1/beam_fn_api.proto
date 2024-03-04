@@ -808,9 +808,6 @@ message StateRequest {
 
     // A request to clear state.
     StateClearRequest clear = 1002;
-
-    // A request to insert entries to an ordered list state.
-    OrderedListStateUpdateRequest ordered_list_update = 2001;
   }
 }
 
@@ -835,9 +832,6 @@ message StateResponse {
 
     // A response to clearing state.
     StateClearResponse clear = 1002;
-
-    // A response to inserting entries to an ordered list state.
-    OrderedListStateUpdateResponse ordered_list_update = 2001;
   }
 }
 
@@ -1046,7 +1040,7 @@ message StateKey {
     // (Required) The key of the currently executing element encoded in a
     // nested context.
     bytes key = 4;
-    // (optional) The sort range encoded in a nested context.
+    // (Required) The sort range encoded in a nested context.
     OrderedListRange range = 5;
   }
 
@@ -1090,10 +1084,17 @@ message StateGetResponse {
 
 // A request to append state.
 message StateAppendRequest {
-  // Represents a part of a logical byte stream. Elements within
-  // the logical byte stream are encoded in the nested context and
-  // multiple append requests are concatenated together.
-  bytes data = 1;
+  message OrderedListInsertList {
+    repeated OrderedListEntry entries = 2;
+  }
+
+  oneof input {
+    // Represents a part of a logical byte stream. Elements within
+    // the logical byte stream are encoded in the nested context and
+    // multiple append requests are concatenated together.
+    bytes data = 1;
+    OrderedListInsertList order_list_inserts = 2;
+  }
 }
 
 // A response to append state.
@@ -1116,16 +1117,6 @@ message OrderedListEntry {
   int64 sort_key = 1;
   bytes data = 2;
 }
-
-// A request to update an ordered list
-message OrderedListStateUpdateRequest {
-  // when the request is processed, deletes should always happen before inserts.
-  repeated OrderedListRange deletes = 1;
-  repeated OrderedListEntry inserts = 2;
-}
-
-// A response to the update state request for an ordered list.
-message OrderedListStateUpdateResponse {}
 
 /*
  * Logging API

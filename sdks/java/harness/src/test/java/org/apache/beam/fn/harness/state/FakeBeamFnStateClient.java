@@ -38,7 +38,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListEntry;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListRange;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListStateUpdateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
@@ -299,59 +298,63 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
         break;
 
       case CLEAR:
-        data.remove(request.getStateKey());
-        response = StateResponse.newBuilder().setClear(StateClearResponse.getDefaultInstance());
-        break;
+        if (key.getTypeCase() != TypeCase.ORDERED_LIST_USER_STATE) {
+          data.remove(request.getStateKey());
+        }
+        else {
+          OrderedListRange r = request.getStateKey().getOrderedListUserState().getRange();
+          StateKey.Builder stateKeyWithoutRange = request.getStateKey().toBuilder();
+          stateKeyWithoutRange.getOrderedListUserStateBuilder().clearRange();
 
-      case APPEND:
-        List<ByteString> previousValue =
-            data.computeIfAbsent(request.getStateKey(), (unused) -> new ArrayList<>());
-        previousValue.add(request.getAppend().getData());
-        response = StateResponse.newBuilder().setAppend(StateAppendResponse.getDefaultInstance());
-        break;
-
-      case ORDERED_LIST_UPDATE:
-        for (OrderedListRange r : request.getOrderedListUpdate().getDeletesList()) {
           List<Long> keysToRemove =
               new ArrayList<>(
                   orderedListKeys
-                      .getOrDefault(request.getStateKey(), new TreeSet<>())
+                      .getOrDefault(stateKeyWithoutRange.build(), new TreeSet<>())
                       .subSet(r.getStart(), true, r.getEnd(), false));
-
           for (Long l : keysToRemove) {
             StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
             keyBuilder.getOrderedListUserStateBuilder().getRangeBuilder().setStart(l).setEnd(l+1);
             data.remove(keyBuilder.build());
-            orderedListKeys.get(request.getStateKey()).remove(l);
+            orderedListKeys.get(stateKeyWithoutRange.build()).remove(l);
           }
         }
+        response = StateResponse.newBuilder().setClear(StateClearResponse.getDefaultInstance());
+        break;
 
-        for (OrderedListEntry e : request.getOrderedListUpdate().getInsertsList()) {
-          StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
-          long sortKey = e.getSortKey();
-          keyBuilder.getOrderedListUserStateBuilder().getRangeBuilder().setStart(sortKey).setEnd(sortKey+1);
-
-          ByteStringOutputStream outStream = new ByteStringOutputStream();
-          TimestampedValue<ByteString> tv =
-              TimestampedValue.of(e.getData(), Instant.ofEpochMilli(sortKey));
-          try {
-            TimestampedValueCoder.of(EncodeOnlyByteStringCoder.of()).encode(tv, outStream);
-          } catch (IOException ex) {
-            throw new RuntimeException(ex);
-          }
-          ByteString output = outStream.toByteString();
-
-          List<ByteString> previousValues =
-              data.computeIfAbsent(keyBuilder.build(), (unused) -> new ArrayList<>());
-          previousValues.add(output);
-
-          orderedListKeys
-              .computeIfAbsent(request.getStateKey(), (unused) -> new TreeSet<>())
-              .add(sortKey);
+      case APPEND:
+        if (key.getTypeCase() != TypeCase.ORDERED_LIST_USER_STATE) {
+          List<ByteString> previousValue =
+              data.computeIfAbsent(request.getStateKey(), (unused) -> new ArrayList<>());
+          previousValue.add(request.getAppend().getData());
         }
-        response =
-            StateResponse.newBuilder()
-                .setOrderedListUpdate(OrderedListStateUpdateResponse.getDefaultInstance());
+        else {
+          for (OrderedListEntry e : request.getAppend().getOrderListInserts().getEntriesList()) {
+            StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
+            long sortKey = e.getSortKey();
+            keyBuilder.getOrderedListUserStateBuilder().getRangeBuilder().setStart(sortKey).setEnd(sortKey+1);
+
+            ByteStringOutputStream outStream = new ByteStringOutputStream();
+            TimestampedValue<ByteString> tv =
+                TimestampedValue.of(e.getData(), Instant.ofEpochMilli(sortKey));
+            try {
+              TimestampedValueCoder.of(EncodeOnlyByteStringCoder.of()).encode(tv, outStream);
+            } catch (IOException ex) {
+              throw new RuntimeException(ex);
+            }
+            ByteString output = outStream.toByteString();
+
+            List<ByteString> previousValues =
+                data.computeIfAbsent(keyBuilder.build(), (unused) -> new ArrayList<>());
+            previousValues.add(output);
+
+            StateKey.Builder stateKeyWithoutRange = request.getStateKey().toBuilder();
+            stateKeyWithoutRange.getOrderedListUserStateBuilder().clearRange();
+            orderedListKeys
+                .computeIfAbsent(stateKeyWithoutRange.build(), (unused) -> new TreeSet<>())
+                .add(sortKey);
+          }
+        }
+        response = StateResponse.newBuilder().setAppend(StateAppendResponse.getDefaultInstance());
         break;
 
       default:
