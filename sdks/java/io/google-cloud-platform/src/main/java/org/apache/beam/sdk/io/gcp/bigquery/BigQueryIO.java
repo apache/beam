@@ -2949,8 +2949,8 @@ public class BigQueryIO {
     /**
      * Choose the frequency at which file writes are triggered.
      *
-     * <p>This is only applicable when the write method is set to {@link Method#FILE_LOADS}, and
-     * only when writing an unbounded {@link PCollection}.
+     * <p>This is only applicable when the write method is set to {@link Method#FILE_LOADS} or
+     * {@link Method#STORAGE_WRITE_API}, and only when writing an unbounded {@link PCollection}.
      *
      * <p>Every triggeringFrequency duration, a BigQuery load job will be generated for all the data
      * written since the last load job. BigQuery has limits on how many load jobs can be triggered
@@ -2975,9 +2975,9 @@ public class BigQueryIO {
     }
 
     /**
-     * Control how many parallel streams are used when using Storage API writes. Applicable only
-     * when also setting {@link #withTriggeringFrequency}. To let runner determine the sharding at
-     * runtime, set this to zero, or {@link #withAutoSharding()} instead.
+     * Control how many parallel streams are used when using Storage API writes. Applicable only for
+     * streaming pipelines, and when {@link #withTriggeringFrequency} is also set. To let runner
+     * determine the sharding at runtime, set this to zero, or {@link #withAutoSharding()} instead.
      */
     public Write<T> withNumStorageWriteApiStreams(int numStorageWriteApiStreams) {
       return toBuilder().setNumStorageWriteApiStreams(numStorageWriteApiStreams).build();
