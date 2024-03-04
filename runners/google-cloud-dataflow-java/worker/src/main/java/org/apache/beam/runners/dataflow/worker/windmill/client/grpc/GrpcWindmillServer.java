@@ -88,7 +88,6 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("nullness") // TODO(https://github.com/apache/beam/issues/20497
 public final class GrpcWindmillServer extends WindmillServerStub {
   public static final Duration LOCALHOST_MAX_BACKOFF = Duration.millis(500);
-  public static final Duration MAX_BACKOFF = Duration.standardSeconds(30);
   private static final Duration MIN_BACKOFF = Duration.millis(1);
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServer.class);
   private static final int DEFAULT_LOG_EVERY_N_FAILURES = 20;
@@ -113,7 +112,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     this.options = options;
     this.throttleTimers = StreamingEngineThrottleTimers.create();
-    this.maxBackoff = MAX_BACKOFF;
+    this.maxBackoff = Duration.millis(options.getWindmillServiceStreamMaxBackoffMillis());
     this.dispatcherClient = grpcDispatcherClient;
     this.syncApplianceStub = null;
     this.sendKeyedGetDataRequests =
