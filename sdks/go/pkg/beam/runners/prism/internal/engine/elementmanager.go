@@ -169,6 +169,7 @@ type ElementManager struct {
 	livePending     atomic.Int64   // An accessible live pending count. DEBUG USE ONLY
 	pendingElements sync.WaitGroup // pendingElements counts all unprocessed elements in a job. Jobs with no pending elements terminate successfully.
 
+	processTimeEvents *ptQueue           // Manages sequence of stage updates when interfacing with processing time.
 	testStreamHandler *testStreamHandler // Optional test stream handler when a test stream is in the pipeline.
 }
 
@@ -609,6 +610,20 @@ func reElementResiduals(residuals []Residual, inputInfo PColInfo, rb RunBundle) 
 		}
 	}
 	return unprocessedElements
+}
+
+// Residual represents the unprocessed portion of a single element.
+type Residual struct {
+	Element []byte
+	Delay   time.Duration // The relative time delay.
+	Bounded bool          // Whether this element is finite or not.
+}
+
+// Residuals is used to specify process continuations within a bundle.
+type Residuals struct {
+	Data                 []Residual
+	TransformID, InputID string                // We only allow one SDF at the root of a bundledescriptor so there should only be one each.
+	MinOutputWatermarks  map[string]mtime.Time // Output watermarks (technically per Residual, but aggregated here until it makes a difference.)
 }
 
 // PersistBundle uses the tentative bundle output to update the watermarks for the stage.
@@ -1358,4 +1373,21 @@ func (ss *stageState) bundleReady(em *ElementManager) (mtime.Time, bool) {
 		}
 	}
 	return upstreamW, ready
+}
+
+// ProcessingTimeNow gives the current processing time for the runner.
+func (em *ElementManager) ProcessingTimeNow() time.Time {
+	if em.testStreamHandler != nil {
+		return em.testStreamHandler.Now()
+	}
+	// "Test" mode -> advance to next processing time event if any, to allow execution.
+
+	// "Production" mode, always real time now.
+	return time.Now()
+}
+
+// rebaseProcessingTime turns an absolute processing time to be relative to the provided local clock now.
+// Necessary to reasonably schedule ProcessingTime timers within a TestStream using pipeline.
+func (em *ElementManager) rebaseProcessingTime(localNow, scheduled mtime.Time) mtime.Time {
+	return localNow + (scheduled - mtime.Now())
 }
