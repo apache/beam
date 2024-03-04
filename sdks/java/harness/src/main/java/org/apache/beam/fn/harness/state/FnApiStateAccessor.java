@@ -172,7 +172,6 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public @Nullable <T> T get(PCollectionView<T> view, BoundedWindow window) {
     TupleTag<?> tag = view.getTagInternal();
 
@@ -278,7 +277,6 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public <T> ValueState<T> bindValue(String id, StateSpec<ValueState<T>> spec, Coder<T> coder) {
     return (ValueState<T>)
         stateKeyObjectCache.computeIfAbsent(
@@ -321,7 +319,6 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public <T> BagState<T> bindBag(String id, StateSpec<BagState<T>> spec, Coder<T> elemCoder) {
     return (BagState<T>)
         stateKeyObjectCache.computeIfAbsent(
@@ -373,7 +370,6 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public <T> SetState<T> bindSet(String id, StateSpec<SetState<T>> spec, Coder<T> elemCoder) {
     return (SetState<T>)
         stateKeyObjectCache.computeIfAbsent(
@@ -458,7 +454,6 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
       String id,
       StateSpec<MapState<KeyT, ValueT>> spec,
@@ -606,7 +601,6 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public <T> OrderedListState<T> bindOrderedList(
       String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder) {
     return (OrderedListState<T>)
@@ -655,7 +649,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   @Override
                   public GroupingState<TimestampedValue<T>, Iterable<TimestampedValue<T>>>
                       readLater() {
-                    throw new UnsupportedOperationException();
+                    return this;
                   }
 
                   @Override
@@ -672,7 +666,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   @Override
                   public OrderedListState<T> readRangeLater(
                       Instant minTimestamp, Instant limitTimestamp) {
-                    throw new UnsupportedOperationException();
+                    return this;
                   }
                 };
               }
@@ -680,7 +674,6 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public <ElementT, AccumT, ResultT> CombiningState<ElementT, AccumT, ResultT> bindCombining(
       String id,
       StateSpec<CombiningState<ElementT, AccumT, ResultT>> spec,
@@ -773,7 +766,6 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public <ElementT, AccumT, ResultT>
       CombiningState<ElementT, AccumT, ResultT> bindCombiningWithContext(
           String id,

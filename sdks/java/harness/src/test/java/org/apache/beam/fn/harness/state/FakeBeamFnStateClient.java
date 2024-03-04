@@ -208,7 +208,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
           List<ByteString> byteStrings =
               data.getOrDefault(request.getStateKey(), Collections.singletonList(ByteString.EMPTY));
           int block = 0;
-          if (request.getGet().getContinuationToken().size() > 0) {
+          if (!request.getGet().getContinuationToken().isEmpty()) {
             block = Integer.parseInt(request.getGet().getContinuationToken().toStringUtf8());
           }
           ByteString returnBlock = byteStrings.get(block);
@@ -230,7 +230,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
           KvCoder<Long, Integer> coder = KvCoder.of(VarLongCoder.of(), VarIntCoder.of());
           long sortKey = start;
           int index = 0;
-          if (request.getGet().getContinuationToken().size() > 0) {
+          if (!request.getGet().getContinuationToken().isEmpty()) {
             try {
               // The continuation format here is the sort key (long) followed by an index (int)
               KV<Long, Integer> cursor =
