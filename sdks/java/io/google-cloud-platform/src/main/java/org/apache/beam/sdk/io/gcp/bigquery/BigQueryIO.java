@@ -2826,7 +2826,7 @@ public class BigQueryIO {
      * tables, the fields here will be ignored; call {@link #withClustering()} instead.
      */
     public Write<T> withClustering(Clustering clustering) {
-      return withClustering(StaticValueProvider.of(clustering));
+      return withJsonClustering(StaticValueProvider.of(BigQueryHelpers.toJsonString(clustering)));
     }
 
     /** Like {@link #withClustering(Clustering)} but using a deferred {@link ValueProvider}. */
