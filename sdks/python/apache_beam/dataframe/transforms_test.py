@@ -234,6 +234,45 @@ class TransformTest(unittest.TestCase):
 
       assert_that(result, equal_to([('Falcon', 375.), ('Parrot', 25.)]))
 
+  def test_multiple_dataframe_transforms(self):
+    # Define test data
+    data1 = [
+        beam.Row(id=1, name="abc"),
+        beam.Row(id=2, name="def"),
+        beam.Row(id=3, name="ghi")
+    ]
+    data2 = [
+        beam.Row(addr="addr1"), beam.Row(addr="addr2"), beam.Row(addr="addr3")
+    ]
+
+    # Create a TestPipeline
+    with beam.Pipeline() as p:
+      # Create PCollections for testing
+      pcol1 = p | "Create1" >> beam.Create(data1)
+      pcol2 = p | "Create2" >> beam.Create(data2)
+
+      # Apply the DataframeTransform to the PCollections
+      pcol = ({
+          "a": pcol1, "b": pcol2
+      }
+              | "TransformedDF" >> transforms.DataframeTransform(
+                  lambda a, b: a.assign(addr="addr-common")))
+
+      # Assert the expected output
+      expected_output = [
+          {
+              "id": 1, "name": "abc", "addr": "addr-common"
+          },
+          {
+              "id": 2, "name": "def", "addr": "addr-common"
+          },
+          {
+              "id": 3, "name": "ghi", "addr": "addr-common"
+          },
+      ]
+      assert_that(pcol | "Map" >> beam.Map(lambda row: row.asdict())) \
+          .equal_to(expected_output)
+
   def test_batching_passthrough_nested_schema(self):
     with beam.Pipeline() as p:
       nested_schema_pc = (
