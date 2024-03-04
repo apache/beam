@@ -209,7 +209,7 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
    * Factory for creating local Windmill address. Reads from system propery 'windmill.hostport' for
    * backwards compatibility.
    */
-  public static class LocalWindmillHostportFactory implements DefaultValueFactory<String> {
+  class LocalWindmillHostportFactory implements DefaultValueFactory<String> {
     private static final String WINDMILL_HOSTPORT_PROPERTY = "windmill.hostport";
 
     @Override
@@ -222,7 +222,7 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
    * Read counter reporting period from system property 'windmill.harness_update_reporting_period'.
    * The duration is specified as seconds in "PTx.yS" format, e.g. 'PT2.153S'. @See Duration#parse
    */
-  static class HarnessUpdateReportingPeriodFactory implements DefaultValueFactory<Duration> {
+  class HarnessUpdateReportingPeriodFactory implements DefaultValueFactory<Duration> {
     @Override
     public Duration create(PipelineOptions options) {
       Duration period =
@@ -236,7 +236,7 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
    * 'windmill.global_config_refresh_period'. The duration is specified as seconds in "PTx.yS"
    * format, e.g. 'PT2.153S'. @See Duration#parse
    */
-  static class GlobalConfigRefreshPeriodFactory implements DefaultValueFactory<Duration> {
+  class GlobalConfigRefreshPeriodFactory implements DefaultValueFactory<Duration> {
     @Override
     public Duration create(PipelineOptions options) {
       Duration period =
@@ -249,7 +249,7 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
    * Read 'MaxStackTraceToReport' from system property 'windmill.max_stack_trace_to_report' or
    * Integer.MAX_VALUE if unspecified.
    */
-  static class MaxStackTraceDepthToReportFactory implements DefaultValueFactory<Integer> {
+  class MaxStackTraceDepthToReportFactory implements DefaultValueFactory<Integer> {
     @Override
     public Integer create(PipelineOptions options) {
       return Integer.parseInt(
@@ -262,7 +262,7 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
    * Read 'PeriodicStatusPageOutputDirector' from system property
    * 'windmill.periodic_status_page_directory' or null if unspecified.
    */
-  static class PeriodicStatusPageDirectoryFactory implements DefaultValueFactory<String> {
+  class PeriodicStatusPageDirectoryFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
       return System.getProperty("windmill.periodic_status_page_directory");
@@ -270,8 +270,7 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   }
 
   /** Factory for setting value of WindmillServiceStreamingRpcBatchLimit based on environment. */
-  public static class WindmillServiceStreamingRpcBatchLimitFactory
-      implements DefaultValueFactory<Integer> {
+  class WindmillServiceStreamingRpcBatchLimitFactory implements DefaultValueFactory<Integer> {
     @Override
     public Integer create(PipelineOptions options) {
       DataflowWorkerHarnessOptions streamingOptions =
