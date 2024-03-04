@@ -2,7 +2,7 @@ Prompt:
 Write the Python code to read data from JSON files using Apache Beam.
 
 Response:
-You can read data from [JSON files](https://www.json.org/) using the Apache Beam [TextIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html).
+Your Apache Beam pipeline can read data from [JSON files](https://www.json.org/) using the Apache Beam [TextIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html).
 
 ```python
 import logging
@@ -42,7 +42,8 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     run()
 ```
-The `JsonOptions` class is a custom class that extends the `PipelineOptions` object. It is used to parse pipeline options from command-line arguments. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command-line arguments.
 
-The [ReadFromJson](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html#apache_beam.io.textio.ReadFromJson) transform is a built-in Apache Beam transform that reads data from a JSON file.
+The `JsonOptions` class is a custom class that extends the `PipelineOptions` object. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command-line arguments.
+
+The [`ReadFromJson`](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html#apache_beam.io.textio.ReadFromJson) transform is a built-in Apache Beam transform that reads data from a JSON file.
 
