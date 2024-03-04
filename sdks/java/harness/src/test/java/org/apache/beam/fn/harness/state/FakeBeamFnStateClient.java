@@ -31,12 +31,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListEntry;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListRange;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListStateGetResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListStateUpdateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearResponse;
@@ -116,23 +117,19 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
                   return chunks;
                 }));
 
-    Map<StateKey, Coder<Object>> orderedListInitialData =
-        new HashMap<>(
-            Maps.transformValues(
-                Maps.filterKeys(
-                    initialData, (k) -> k.getTypeCase() == TypeCase.ORDERED_LIST_USER_STATE),
-                (v) -> {
-                  // make sure the provided coder is a TimestampedValueCoder.
-                  assert v.getKey() instanceof TimestampedValueCoder;
-                  return ((TimestampedValueCoder<Object>) v.getKey()).getValueCoder();
-                }));
+    List<StateKey> orderedListStateKeys = initialData.keySet().stream()
+        .filter((k) -> k.getTypeCase() == TypeCase.ORDERED_LIST_USER_STATE).collect(
+            Collectors.toList());
 
     this.orderedListKeys = new HashMap<>();
-    for (Map.Entry<StateKey, Coder<Object>> entry : orderedListInitialData.entrySet()) {
-      long sortKey = entry.getKey().getOrderedListUserState().getSortKey();
+    for (StateKey key : orderedListStateKeys) {
+      long sortKey = key.getOrderedListUserState().getRange().getStart();
 
-      StateKey.Builder keyBuilder = entry.getKey().toBuilder();
-      keyBuilder.getOrderedListUserStateBuilder().clearSortKey();
+      StateKey.Builder keyBuilder = key.toBuilder();
+
+      // clear the range in the state key before using it as a key to store, because ordered list
+      // with different ranges would be mapped to the same set in orderedListKeys.
+      keyBuilder.getOrderedListUserStateBuilder().clearRange();
 
       this.orderedListKeys
           .computeIfAbsent(keyBuilder.build(), (unused) -> new TreeSet<>())
@@ -208,7 +205,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
 
     switch (request.getRequestCase()) {
       case GET:
-        {
+        if (key.getTypeCase() != TypeCase.ORDERED_LIST_USER_STATE) {
           List<ByteString> byteStrings =
               data.getOrDefault(request.getStateKey(), Collections.singletonList(ByteString.EMPTY));
           int block = 0;
@@ -227,33 +224,18 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
                           .setData(returnBlock)
                           .setContinuationToken(continuationToken));
         }
-        break;
-
-      case CLEAR:
-        data.remove(request.getStateKey());
-        response = StateResponse.newBuilder().setClear(StateClearResponse.getDefaultInstance());
-        break;
-
-      case APPEND:
-        List<ByteString> previousValue =
-            data.computeIfAbsent(request.getStateKey(), (unused) -> new ArrayList<>());
-        previousValue.add(request.getAppend().getData());
-        response = StateResponse.newBuilder().setAppend(StateAppendResponse.getDefaultInstance());
-        break;
-
-      case ORDERED_LIST_GET:
-        {
-          long start = request.getOrderedListGet().getRange().getStart();
-          long end = request.getOrderedListGet().getRange().getEnd();
+        else {
+          long start = key.getOrderedListUserState().getRange().getStart();
+          long end = key.getOrderedListUserState().getRange().getEnd();
 
           KvCoder<Long, Integer> coder = KvCoder.of(VarLongCoder.of(), VarIntCoder.of());
           long sortKey = start;
           int index = 0;
-          if (request.getOrderedListGet().getContinuationToken().size() > 0) {
+          if (request.getGet().getContinuationToken().size() > 0) {
             try {
               // The continuation format here is the sort key (long) followed by an index (int)
               KV<Long, Integer> cursor =
-                  coder.decode(request.getOrderedListGet().getContinuationToken().newInput());
+                  coder.decode(request.getGet().getContinuationToken().newInput());
               sortKey = cursor.getKey();
               index = cursor.getValue();
             } catch (IOException e) {
@@ -268,16 +250,18 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
               throw new IndexOutOfBoundsException("sort key out of range");
             }
 
+            StateKey.Builder stateKeyWithoutRange = request.getStateKey().toBuilder();
+            stateKeyWithoutRange.getOrderedListUserStateBuilder().clearRange();
             NavigableSet<Long> subset =
                 orderedListKeys
-                    .getOrDefault(request.getStateKey(), new TreeSet<>())
+                    .getOrDefault(stateKeyWithoutRange.build(), new TreeSet<>())
                     .subSet(sortKey, true, end, false);
 
             // get the effective sort key currently, can throw NoSuchElementException
             Long nextSortKey = subset.first();
 
             StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
-            keyBuilder.getOrderedListUserStateBuilder().setSortKey(nextSortKey);
+            keyBuilder.getOrderedListUserStateBuilder().getRangeBuilder().setStart(nextSortKey).setEnd(nextSortKey+1);
             List<ByteString> byteStrings =
                 data.getOrDefault(keyBuilder.build(), Collections.singletonList(ByteString.EMPTY));
 
@@ -307,11 +291,23 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
           }
           response =
               StateResponse.newBuilder()
-                  .setOrderedListGet(
-                      OrderedListStateGetResponse.newBuilder()
+                  .setGet(
+                      StateGetResponse.newBuilder()
                           .setData(returnBlock)
                           .setContinuationToken(continuationToken));
         }
+        break;
+
+      case CLEAR:
+        data.remove(request.getStateKey());
+        response = StateResponse.newBuilder().setClear(StateClearResponse.getDefaultInstance());
+        break;
+
+      case APPEND:
+        List<ByteString> previousValue =
+            data.computeIfAbsent(request.getStateKey(), (unused) -> new ArrayList<>());
+        previousValue.add(request.getAppend().getData());
+        response = StateResponse.newBuilder().setAppend(StateAppendResponse.getDefaultInstance());
         break;
 
       case ORDERED_LIST_UPDATE:
@@ -324,7 +320,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
 
           for (Long l : keysToRemove) {
             StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
-            keyBuilder.getOrderedListUserStateBuilder().setSortKey(l);
+            keyBuilder.getOrderedListUserStateBuilder().getRangeBuilder().setStart(l).setEnd(l+1);
             data.remove(keyBuilder.build());
             orderedListKeys.get(request.getStateKey()).remove(l);
           }
@@ -332,11 +328,12 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
 
         for (OrderedListEntry e : request.getOrderedListUpdate().getInsertsList()) {
           StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
-          keyBuilder.getOrderedListUserStateBuilder().setSortKey(e.getSortKey());
+          long sortKey = e.getSortKey();
+          keyBuilder.getOrderedListUserStateBuilder().getRangeBuilder().setStart(sortKey).setEnd(sortKey+1);
 
           ByteStringOutputStream outStream = new ByteStringOutputStream();
           TimestampedValue<ByteString> tv =
-              TimestampedValue.of(e.getData(), Instant.ofEpochMilli(e.getSortKey()));
+              TimestampedValue.of(e.getData(), Instant.ofEpochMilli(sortKey));
           try {
             TimestampedValueCoder.of(EncodeOnlyByteStringCoder.of()).encode(tv, outStream);
           } catch (IOException ex) {
@@ -350,7 +347,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
 
           orderedListKeys
               .computeIfAbsent(request.getStateKey(), (unused) -> new TreeSet<>())
-              .add(e.getSortKey());
+              .add(sortKey);
         }
         response =
             StateResponse.newBuilder()

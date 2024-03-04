@@ -27,6 +27,7 @@ import static org.junit.Assert.assertThrows;
 import java.io.IOException;
 import java.util.Collections;
 import org.apache.beam.fn.harness.Caches;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListRange;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
@@ -589,7 +590,7 @@ public class OrderedListUserStateTest {
                 .setTransformId(pTransformId)
                 .setUserStateId(stateId)
                 .setKey(encode(key))
-                .setSortKey(sortKey))
+                .setRange(OrderedListRange.newBuilder().setStart(sortKey).setEnd(sortKey+1).build()))
         .build();
   }
 }

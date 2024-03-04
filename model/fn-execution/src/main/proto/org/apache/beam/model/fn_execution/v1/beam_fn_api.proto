@@ -809,9 +809,6 @@ message StateRequest {
     // A request to clear state.
     StateClearRequest clear = 1002;
 
-    // A request to get entries from an ordered list state.
-    OrderedListStateGetRequest ordered_list_get = 2000;
-
     // A request to insert entries to an ordered list state.
     OrderedListStateUpdateRequest ordered_list_update = 2001;
   }
@@ -838,9 +835,6 @@ message StateResponse {
 
     // A response to clearing state.
     StateClearResponse clear = 1002;
-
-    // A response to getting entries from an ordered list state.
-    OrderedListStateGetResponse ordered_list_get = 2000;
 
     // A response to inserting entries to an ordered list state.
     OrderedListStateUpdateResponse ordered_list_update = 2001;
@@ -1052,8 +1046,8 @@ message StateKey {
     // (Required) The key of the currently executing element encoded in a
     // nested context.
     bytes key = 4;
-    // (optional) The sort key encoded in a nested context.
-    int64 sort_key = 5;
+    // (optional) The sort range encoded in a nested context.
+    OrderedListRange range = 5;
   }
 
   // (Required) One of the following state keys must be set.
@@ -1120,20 +1114,6 @@ message OrderedListRange {
 // A data entry which is tagged with a sort key.
 message OrderedListEntry {
   int64 sort_key = 1;
-  bytes data = 2;
-}
-
-// This request will fetch an ordered list with a sort key range. If the
-// timestamp range is not specified, the runner should use [MIN_INT64,
-// MAX_INT64) by default.
-message OrderedListStateGetRequest {
-  bytes continuation_token = 1;
-  OrderedListRange range = 2;
-}
-
-// A response to the get state request for an ordered list.
-message OrderedListStateGetResponse {
-  bytes continuation_token = 1;
   bytes data = 2;
 }
 

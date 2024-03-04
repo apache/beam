@@ -124,7 +124,8 @@ public class OrderedListUserState<T> {
     if (!isCleared) {
       StateRequest.Builder getRequestBuilder = this.request.toBuilder();
       getRequestBuilder
-          .getOrderedListGetBuilder()
+          .getStateKeyBuilder()
+          .getOrderedListUserStateBuilder()
           .getRangeBuilder()
           .setStart(minTimestamp.getMillis())
           .setEnd(limitTimestamp.getMillis());

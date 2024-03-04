@@ -573,21 +573,10 @@ public class StateFetchingIterators {
     }
 
     public CompletableFuture<StateResponse> loadPrefetchedResponse(ByteString continuationToken) {
-      if (stateRequestForFirstChunk.getStateKey().getTypeCase() == ORDERED_LIST_USER_STATE) {
-        return beamFnStateClient.handle(
-            stateRequestForFirstChunk
-                .toBuilder()
-                .setOrderedListGet(
-                    stateRequestForFirstChunk
-                        .getOrderedListGet()
-                        .toBuilder()
-                        .setContinuationToken(continuationToken)));
-      } else {
-        return beamFnStateClient.handle(
-            stateRequestForFirstChunk
-                .toBuilder()
-                .setGet(StateGetRequest.newBuilder().setContinuationToken(continuationToken)));
-      }
+      return beamFnStateClient.handle(
+          stateRequestForFirstChunk
+              .toBuilder()
+              .setGet(StateGetRequest.newBuilder().setContinuationToken(continuationToken)));
     }
 
     @Override
@@ -617,12 +606,7 @@ public class StateFetchingIterators {
       }
       prefetchedResponse = null;
 
-      ByteString tokenFromResponse;
-      if (stateRequestForFirstChunk.getStateKey().getTypeCase() == ORDERED_LIST_USER_STATE) {
-        tokenFromResponse = stateResponse.getOrderedListGet().getContinuationToken();
-      } else {
-        tokenFromResponse = stateResponse.getGet().getContinuationToken();
-      }
+      ByteString tokenFromResponse = stateResponse.getGet().getContinuationToken();
 
       // If the continuation token is empty, that means we have reached EOF.
       if (ByteString.EMPTY.equals(tokenFromResponse)) {
@@ -632,13 +616,7 @@ public class StateFetchingIterators {
         prefetch();
       }
 
-      ByteString ret;
-      if (stateRequestForFirstChunk.getStateKey().getTypeCase() == ORDERED_LIST_USER_STATE) {
-        ret = stateResponse.getOrderedListGet().getData();
-      } else {
-        ret = stateResponse.getGet().getData();
-      }
-      return ret;
+      return stateResponse.getGet().getData();
     }
   }
 }
