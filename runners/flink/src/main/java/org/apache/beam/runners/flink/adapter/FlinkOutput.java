@@ -62,7 +62,7 @@ import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
     }
 
     @Override
-    @SuppressWarnings("nullness")  // TODO(https://github.com/apache/beam/issues/20497)
+    @SuppressWarnings("nullness") // TODO(https://github.com/apache/beam/issues/20497)
     public RunnerApi.FunctionSpec translate(
         AppliedPTransform<?, ?, FlinkOutput<?>> application, SdkComponents components)
         throws IOException {

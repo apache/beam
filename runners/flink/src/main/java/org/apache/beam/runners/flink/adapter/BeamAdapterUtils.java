@@ -76,7 +76,8 @@ class BeamAdapterUtils {
                         new FlinkInput<>(
                             key,
                             BeamAdapterCoderUtils.typeInformationToCoder(
-                                getTypeInformation.apply(Preconditions.checkNotNull(flinkInput)), coderRegistry)))));
+                                getTypeInformation.apply(Preconditions.checkNotNull(flinkInput)),
+                                coderRegistry)))));
 
     // Actually apply the transform to create Beam outputs.
     Map<String, PCollection<?>> beamOutputs =

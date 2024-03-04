@@ -40,9 +40,9 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.MapOperator;
@@ -64,39 +64,42 @@ public class BeamFlinkDataSetAdapter {
       DataSet<OutputT> applyBeamPTransform(
           DataSet<InputT> input, PTransform<CollectionT, PCollection<OutputT>> transform) {
     return (DataSet)
-        getNonNull(applyBeamPTransformInternal(
+        getNonNull(
+            applyBeamPTransformInternal(
                 ImmutableMap.of("input", input),
                 (pipeline, map) -> (CollectionT) getNonNull(map, "input"),
                 (output) -> ImmutableMap.of("output", output),
                 transform,
-                input.getExecutionEnvironment())
-            ,"output");
+                input.getExecutionEnvironment()),
+            "output");
   }
 
   public <OutputT> DataSet<OutputT> applyBeamPTransform(
       Map<String, ? extends DataSet<?>> inputs,
       PTransform<PCollectionTuple, PCollection<OutputT>> transform) {
     return (DataSet)
-        getNonNull(applyBeamPTransformInternal(
+        getNonNull(
+            applyBeamPTransformInternal(
                 inputs,
                 BeamAdapterUtils::mapToTuple,
                 (output) -> ImmutableMap.of("output", output),
                 transform,
-                inputs.values().stream().findAny().get().getExecutionEnvironment())
-            , "output");
+                inputs.values().stream().findAny().get().getExecutionEnvironment()),
+            "output");
   }
 
   public <OutputT> DataSet<OutputT> applyBeamPTransform(
       ExecutionEnvironment executionEnvironment,
       PTransform<PBegin, PCollection<OutputT>> transform) {
     return (DataSet)
-        getNonNull(applyBeamPTransformInternal(
+        getNonNull(
+            applyBeamPTransformInternal(
                 ImmutableMap.<String, DataSet<?>>of(),
                 (pipeline, map) -> PBegin.in(pipeline),
                 (output) -> ImmutableMap.of("output", output),
                 transform,
-                executionEnvironment)
-            , "output");
+                executionEnvironment),
+            "output");
   }
 
   public <InputT, CollectionT extends PCollection<? extends InputT>>
@@ -213,7 +216,8 @@ public class BeamFlinkDataSetAdapter {
       // When we run into a FlinkInput operator, it "produces" the corresponding input as its
       // "computed result."
       String inputId = t.getTransform().getSpec().getPayload().toStringUtf8();
-      DataSet<InputT> flinkInput = Preconditions.checkNotNull( (DataSet<InputT>) inputMap.get(inputId));
+      DataSet<InputT> flinkInput =
+          Preconditions.checkNotNull((DataSet<InputT>) inputMap.get(inputId));
       context.addDataSet(
           Iterables.getOnlyElement(t.getTransform().getOutputsMap().values()),
           // new MapOperator(...) rather than .map to manually designate the type information.
