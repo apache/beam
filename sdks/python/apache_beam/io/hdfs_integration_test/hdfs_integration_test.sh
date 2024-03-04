@@ -39,6 +39,7 @@ cp ${TEST_DIR}/* ${CONTEXT_DIR}/
 cp -r ${ROOT_DIR}/sdks/python ${CONTEXT_DIR}/sdks/
 cp -r ${ROOT_DIR}/model ${CONTEXT_DIR}/
 cp -r ${ROOT_DIR}/sdks/standard_external_transforms.yaml ${CONTEXT_DIR}/sdks/
+echo config file::: $(ls ${CONTEXT_DIR}/sdks)
 
 # Use a unique name to allow concurrent runs on the same machine.
 PROJECT_NAME=$(echo hdfs_IT-${BUILD_TAG:-non-jenkins})
