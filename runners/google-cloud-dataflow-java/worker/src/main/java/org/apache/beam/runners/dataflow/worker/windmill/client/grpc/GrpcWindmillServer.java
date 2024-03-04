@@ -32,7 +32,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowRunner;
-import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOptions;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc.CloudWindmillMetadataServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
@@ -96,7 +96,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   private static final String GRPC_LOCALHOST = "grpc:localhost";
 
   private final GrpcDispatcherClient dispatcherClient;
-  private final StreamingDataflowWorkerOptions options;
+  private final DataflowWorkerHarnessOptions options;
   private final StreamingEngineThrottleTimers throttleTimers;
   private Duration maxBackoff;
   private @Nullable WindmillApplianceGrpc.WindmillApplianceBlockingStub syncApplianceStub;
@@ -107,7 +107,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   private final GrpcWindmillStreamFactory windmillStreamFactory;
 
   private GrpcWindmillServer(
-      StreamingDataflowWorkerOptions options,
+      DataflowWorkerHarnessOptions options,
       GrpcWindmillStreamFactory grpcWindmillStreamFactory,
       GrpcDispatcherClient grpcDispatcherClient,
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
@@ -124,10 +124,10 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     this.windmillStreamFactory = grpcWindmillStreamFactory;
   }
 
-  private static StreamingDataflowWorkerOptions testOptions(
+  private static DataflowWorkerHarnessOptions testOptions(
       boolean enableStreamingEngine, List<String> additionalExperiments) {
-    StreamingDataflowWorkerOptions options =
-        PipelineOptionsFactory.create().as(StreamingDataflowWorkerOptions.class);
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.create().as(DataflowWorkerHarnessOptions.class);
     options.setProject("project");
     options.setJobId("job");
     options.setWorkerId("worker");
@@ -148,7 +148,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
 
   /** Create new instance of {@link GrpcWindmillServer}. */
   public static GrpcWindmillServer create(
-      StreamingDataflowWorkerOptions workerOptions,
+      DataflowWorkerHarnessOptions workerOptions,
       GrpcWindmillStreamFactory grpcWindmillStreamFactory,
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses)
       throws IOException {
@@ -196,7 +196,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
             windmillMetadataServiceStubs,
             dispatcherEndpoints);
 
-    StreamingDataflowWorkerOptions testOptions =
+    DataflowWorkerHarnessOptions testOptions =
         testOptions(/* enableStreamingEngine= */ true, experiments);
     GrpcWindmillStreamFactory windmillStreamFactory =
         GrpcWindmillStreamFactory.of(createJobHeader(testOptions, clientId)).build();
@@ -208,7 +208,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   @VisibleForTesting
   static GrpcWindmillServer newApplianceTestInstance(
       Channel channel, WindmillStubFactory windmillStubFactory) {
-    StreamingDataflowWorkerOptions options =
+    DataflowWorkerHarnessOptions options =
         testOptions(/* enableStreamingEngine= */ false, new ArrayList<>());
     GrpcWindmillServer testServer =
         new GrpcWindmillServer(
@@ -221,7 +221,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     return testServer;
   }
 
-  private static JobHeader createJobHeader(StreamingDataflowWorkerOptions options, long clientId) {
+  private static JobHeader createJobHeader(DataflowWorkerHarnessOptions options, long clientId) {
     return Windmill.JobHeader.newBuilder()
         .setJobId(options.getJobId())
         .setProjectId(options.getProject())

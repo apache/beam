@@ -30,7 +30,7 @@ import java.util.concurrent.Callable;
 import java.util.function.Function;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
+import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
@@ -65,7 +65,7 @@ public class SideInputStateFetcher {
 
   public SideInputStateFetcher(
       Function<GlobalDataRequest, GlobalData> fetchGlobalDataFn,
-      DataflowPipelineDebugOptions options) {
+      DataflowStreamingPipelineOptions options) {
     this(fetchGlobalDataFn, SideInputCache.create(options));
   }
 
