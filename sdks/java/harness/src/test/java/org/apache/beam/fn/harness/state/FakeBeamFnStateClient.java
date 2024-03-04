@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.NoSuchElementException;
-import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -116,9 +115,10 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
                   return chunks;
                 }));
 
-    List<StateKey> orderedListStateKeys = initialData.keySet().stream()
-        .filter((k) -> k.getTypeCase() == TypeCase.ORDERED_LIST_USER_STATE).collect(
-            Collectors.toList());
+    List<StateKey> orderedListStateKeys =
+        initialData.keySet().stream()
+            .filter((k) -> k.getTypeCase() == TypeCase.ORDERED_LIST_USER_STATE)
+            .collect(Collectors.toList());
 
     this.orderedListKeys = new HashMap<>();
     for (StateKey key : orderedListStateKeys) {
@@ -222,8 +222,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
                       StateGetResponse.newBuilder()
                           .setData(returnBlock)
                           .setContinuationToken(continuationToken));
-        }
-        else {
+        } else {
           long start = key.getOrderedListUserState().getRange().getStart();
           long end = key.getOrderedListUserState().getRange().getEnd();
 
@@ -260,7 +259,11 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
             Long nextSortKey = subset.first();
 
             StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
-            keyBuilder.getOrderedListUserStateBuilder().getRangeBuilder().setStart(nextSortKey).setEnd(nextSortKey+1);
+            keyBuilder
+                .getOrderedListUserStateBuilder()
+                .getRangeBuilder()
+                .setStart(nextSortKey)
+                .setEnd(nextSortKey + 1);
             List<ByteString> byteStrings =
                 data.getOrDefault(keyBuilder.build(), Collections.singletonList(ByteString.EMPTY));
 
@@ -300,8 +303,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
       case CLEAR:
         if (key.getTypeCase() != TypeCase.ORDERED_LIST_USER_STATE) {
           data.remove(request.getStateKey());
-        }
-        else {
+        } else {
           OrderedListRange r = request.getStateKey().getOrderedListUserState().getRange();
           StateKey.Builder stateKeyWithoutRange = request.getStateKey().toBuilder();
           stateKeyWithoutRange.getOrderedListUserStateBuilder().clearRange();
@@ -313,7 +315,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
                       .subSet(r.getStart(), true, r.getEnd(), false));
           for (Long l : keysToRemove) {
             StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
-            keyBuilder.getOrderedListUserStateBuilder().getRangeBuilder().setStart(l).setEnd(l+1);
+            keyBuilder.getOrderedListUserStateBuilder().getRangeBuilder().setStart(l).setEnd(l + 1);
             data.remove(keyBuilder.build());
             orderedListKeys.get(stateKeyWithoutRange.build()).remove(l);
           }
@@ -326,12 +328,15 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
           List<ByteString> previousValue =
               data.computeIfAbsent(request.getStateKey(), (unused) -> new ArrayList<>());
           previousValue.add(request.getAppend().getData());
-        }
-        else {
+        } else {
           for (OrderedListEntry e : request.getAppend().getOrderListInserts().getEntriesList()) {
             StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
             long sortKey = e.getSortKey();
-            keyBuilder.getOrderedListUserStateBuilder().getRangeBuilder().setStart(sortKey).setEnd(sortKey+1);
+            keyBuilder
+                .getOrderedListUserStateBuilder()
+                .getRangeBuilder()
+                .setStart(sortKey)
+                .setEnd(sortKey + 1);
 
             ByteStringOutputStream outStream = new ByteStringOutputStream();
             TimestampedValue<ByteString> tv =

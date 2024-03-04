@@ -31,7 +31,6 @@ import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.CachingStateIterable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListEntry;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListRange;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
@@ -201,8 +200,12 @@ public class OrderedListUserState<T> {
       for (Range<Instant> r : pendingRemoves.asRanges()) {
         StateRequest.Builder stateRequest = this.request.toBuilder();
         stateRequest.setClear(StateClearRequest.newBuilder().build());
-        stateRequest.getStateKeyBuilder().getOrderedListUserStateBuilder().getRangeBuilder()
-            .setStart(r.lowerEndpoint().getMillis()).setEnd(r.upperEndpoint().getMillis());
+        stateRequest
+            .getStateKeyBuilder()
+            .getOrderedListUserStateBuilder()
+            .getRangeBuilder()
+            .setStart(r.lowerEndpoint().getMillis())
+            .setEnd(r.upperEndpoint().getMillis());
 
         CompletableFuture<StateResponse> response = beamFnStateClient.handle(stateRequest);
         if (!response.get().getError().isEmpty()) {
@@ -213,7 +216,8 @@ public class OrderedListUserState<T> {
     }
 
     if (!pendingAdds.isEmpty()) {
-      StateAppendRequest.OrderedListInsertList.Builder insertsBuilder = StateAppendRequest.OrderedListInsertList.newBuilder();
+      StateAppendRequest.OrderedListInsertList.Builder insertsBuilder =
+          StateAppendRequest.OrderedListInsertList.newBuilder();
       for (Entry<Instant, Collection<T>> entry : pendingAdds.entrySet()) {
         insertsBuilder.addAllEntries(
             Iterables.transform(

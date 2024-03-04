@@ -17,7 +17,6 @@
  */
 package org.apache.beam.fn.harness.state;
 
-import static org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase.ORDERED_LIST_USER_STATE;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;

@@ -590,7 +590,8 @@ public class OrderedListUserStateTest {
                 .setTransformId(pTransformId)
                 .setUserStateId(stateId)
                 .setKey(encode(key))
-                .setRange(OrderedListRange.newBuilder().setStart(sortKey).setEnd(sortKey+1).build()))
+                .setRange(
+                    OrderedListRange.newBuilder().setStart(sortKey).setEnd(sortKey + 1).build()))
         .build();
   }
 }
