@@ -614,7 +614,7 @@ public class StreamingDataflowWorker {
         Duration maxBackoff =
             !options.isEnableStreamingEngine() && options.getLocalWindmillHostport() != null
                 ? GrpcWindmillServer.LOCALHOST_MAX_BACKOFF
-                : GrpcWindmillServer.MAX_BACKOFF;
+                : Duration.millis(options.getWindmillServiceStreamMaxBackoffMillis());
         GrpcWindmillStreamFactory windmillStreamFactory =
             GrpcWindmillStreamFactory.of(
                     JobHeader.newBuilder()

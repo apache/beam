@@ -205,6 +205,12 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
   void setWindmillServiceRpcChannelAliveTimeoutSec(int value);
 
+  @Description("Max backoff with which the windmill service stream failures are retried")
+  @Default.Integer(30 * 1000) // 30s
+  int getWindmillServiceStreamMaxBackoffMillis();
+
+  void setWindmillServiceStreamMaxBackoffMillis(int value);
+
   /**
    * Factory for creating local Windmill address. Reads from system propery 'windmill.hostport' for
    * backwards compatibility.
