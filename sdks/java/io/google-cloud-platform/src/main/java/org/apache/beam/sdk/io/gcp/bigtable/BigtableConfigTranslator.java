@@ -42,9 +42,11 @@ import java.util.Objects;
 import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -63,6 +65,8 @@ import org.threeten.bp.Duration;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class BigtableConfigTranslator {
+
+  @VisibleForTesting static final String BIGTABLE_ENDPOINT_OVERRIDE = "bigtable_endpoint_override";
 
   /** Translate BigtableConfig and BigtableReadOptions to Veneer settings. */
   static BigtableDataSettings translateReadToVeneerSettings(
@@ -146,7 +150,7 @@ class BigtableConfigTranslator {
       }
     }
 
-    configureChannelPool(dataBuilder.stubSettings(), config);
+    configureChannelPool(dataBuilder.stubSettings(), config, pipelineOptions);
     configureHeaderProvider(dataBuilder.stubSettings(), pipelineOptions);
 
     return dataBuilder;
@@ -165,13 +169,21 @@ class BigtableConfigTranslator {
   }
 
   private static void configureChannelPool(
-      StubSettings.Builder<?, ?> stubSettings, BigtableConfig config) {
+      StubSettings.Builder<?, ?> stubSettings,
+      BigtableConfig config,
+      PipelineOptions pipelineOptions) {
     if (config.getChannelCount() != null) {
-      InstantiatingGrpcChannelProvider grpcChannelProvider =
-          (InstantiatingGrpcChannelProvider) stubSettings.getTransportChannelProvider();
+      InstantiatingGrpcChannelProvider.Builder grpcChannelProvider =
+          ((InstantiatingGrpcChannelProvider) stubSettings.getTransportChannelProvider())
+              .toBuilder();
+      // Provide a way to override the endpoint for testing
+      String endpoint =
+          ExperimentalOptions.getExperimentValue(pipelineOptions, BIGTABLE_ENDPOINT_OVERRIDE);
+      if (endpoint != null) {
+        grpcChannelProvider.setEndpoint(endpoint);
+      }
       stubSettings.setTransportChannelProvider(
           grpcChannelProvider
-              .toBuilder()
               .setChannelPoolSettings(ChannelPoolSettings.staticallySized(config.getChannelCount()))
               .build());
     }

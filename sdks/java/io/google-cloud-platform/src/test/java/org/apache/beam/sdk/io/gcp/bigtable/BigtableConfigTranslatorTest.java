@@ -28,9 +28,11 @@ import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.stub.EnhancedBigtableStubSettings;
+import java.util.Arrays;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -418,5 +420,33 @@ public class BigtableConfigTranslatorTest {
 
     assertEquals(
         testCredential, veneerSettings.getStubSettings().getCredentialsProvider().getCredentials());
+  }
+
+  @Test
+  public void testEndpointOverride() throws Exception {
+    GcpOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
+    String testEndpoint = "test-endpoint:123";
+    pipelineOptions
+        .as(ExperimentalOptions.class)
+        .setExperiments(
+            Arrays.asList(
+                String.format(
+                    "%s=%s",
+                    BigtableConfigTranslator.BIGTABLE_ENDPOINT_OVERRIDE, "test-endpoint:123")));
+    BigtableOptions options = BigtableOptions.builder().build();
+    BigtableConfig config =
+        BigtableConfig.builder()
+            .setProjectId(ValueProvider.StaticValueProvider.of("project"))
+            .setInstanceId(ValueProvider.StaticValueProvider.of("instance"))
+            .setValidate(true)
+            .build();
+
+    config = BigtableConfigTranslator.translateToBigtableConfig(config, options);
+
+    BigtableDataSettings veneerSettings =
+        BigtableConfigTranslator.translateToVeneerSettings(config, pipelineOptions);
+
+    assertEquals(
+        veneerSettings.getStubSettings().getTransportChannelProvider().getEndpoint(), testEndpoint);
   }
 }
