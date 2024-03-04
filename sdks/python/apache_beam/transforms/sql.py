@@ -29,7 +29,7 @@ __all__ = ['SqlTransform']
 
 SqlTransformSchema = typing.NamedTuple(
     'SqlTransformSchema',
-    [('query', str), ('ddlQuery', typing.Optional[list[str]]),
+    [('query', str), ('ddlQuery', typing.Optional[typing.List[str]]),
      ('dialect', typing.Optional[str])])
 
 
