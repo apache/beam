@@ -195,7 +195,7 @@ class SqlTransformTest(unittest.TestCase):
          p
          | SqlTransform("INSERT INTO sample_table VALUES ('Toyota', 1849751, -9.0); "
                         + "SELECT * FROM sample_table;",
-       ddlQuery=["CREATE EXTERNAL TABLE bizim_table "
+       ddlQuery=["CREATE EXTERNAL TABLE sample_table "
                  + "( brand_name VARCHAR, us_sales_2022 BIGINT, "
                  + "sales_change_percentage DOUBLE ) TYPE test;"] )
      )
