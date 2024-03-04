@@ -689,7 +689,8 @@ and roughly corresponds to the number of Storage Write API streams that the
 pipeline uses. You can set it explicitly on the transform via
 <a href=https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.html#withNumStorageWriteApiStreams-int-><code>withNumStorageWriteApiStreams</code></a>
 or provide the <code>numStorageWriteApiStreams</code> option to the pipeline as defined in
-<a href=https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryOptions.html><code>BigQueryOptions</code></a>.</p><p>Triggering frequency determines how soon the data is visible for querying in
+<a href=https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryOptions.html><code>BigQueryOptions</code></a>.
+Please note this is only supported for streaming pipelines.</p><p>Triggering frequency determines how soon the data is visible for querying in
 BigQuery. You can explicitly set it via
 <a href=https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.html#withTriggeringFrequency-org.joda.time.Duration-><code>withTriggeringFrequency</code></a>
 or specify the number of seconds by setting the
