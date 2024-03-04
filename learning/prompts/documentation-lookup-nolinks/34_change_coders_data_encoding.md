@@ -75,12 +75,8 @@ For custom or complex nested data types, you can implement a custom coder for yo
 Here’s an example of a custom `Coder` implementation in the Java SDK:
 
 ```java
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
-import org.joda.time.Instant;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
