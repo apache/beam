@@ -23,7 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
+import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -49,7 +49,7 @@ final class SideInputCache {
     this.sideInputCache = sideInputCache;
   }
 
-  static SideInputCache create(DataflowPipelineDebugOptions options) {
+  static SideInputCache create(DataflowStreamingPipelineOptions options) {
     return new SideInputCache(
         CacheBuilder.newBuilder()
             .maximumWeight(options.getStreamingSideInputCacheMb() * BYTES_PER_MB)
