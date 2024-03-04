@@ -26,15 +26,15 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StopWorkerRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StopWorkerResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnExternalWorkerPoolGrpc.BeamFnExternalWorkerPoolImplBase;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.fn.server.FnService;
 import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

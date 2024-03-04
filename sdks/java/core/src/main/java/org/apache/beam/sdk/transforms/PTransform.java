@@ -20,14 +20,17 @@ package org.apache.beam.sdk.transforms;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayData.ItemSpec;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.NameUtils;
@@ -140,6 +143,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
     implements Serializable /* See the note above */, HasDisplayData {
+
+  private static final long serialVersionUID = 3383862966597863311L;
+
   /**
    * Override this method to specify how this {@code PTransform} should be expanded on the given
    * {@code InputT}.
@@ -217,6 +223,25 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
     return resourceHints;
   }
 
+  /**
+   * Set display data for your PTransform.
+   *
+   * @param displayData a list of {@link ItemSpec} instances.
+   * @return a reference to the same transfrom instance.
+   *     <p>For example:
+   *     <pre>{@code
+   * Pipeline p = ...
+   * ...
+   * p.apply(new SomeTransform().setDisplayData(ImmutableList.of(DisplayData.item("userFn", userFn.getClass())))
+   * ...
+   *
+   * }</pre>
+   */
+  public PTransform<InputT, OutputT> setDisplayData(@NonNull List<ItemSpec<?>> displayData) {
+    this.displayData = displayData;
+    return this;
+  }
+
   /** Returns annotations map to provide additional hints to the runner. */
   public Map<String, byte[]> getAnnotations() {
     return annotations;
@@ -242,6 +267,8 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
   protected transient @NonNull ResourceHints resourceHints = ResourceHints.create();
 
   protected transient @NonNull Map<String, byte @NonNull []> annotations = new HashMap<>();
+
+  protected transient @NonNull List<ItemSpec<?>> displayData = new ArrayList<>();
 
   protected PTransform() {
     this.name = null;
@@ -346,7 +373,11 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * provide their own display data.
    */
   @Override
-  public void populateDisplayData(DisplayData.Builder builder) {}
+  public void populateDisplayData(DisplayData.Builder builder) {
+    if (this.displayData != null) {
+      this.displayData.forEach(builder::add);
+    }
+  }
 
   /**
    * For a {@code SerializableFunction<InputT, OutputT>} {@code fn}, returns a {@code PTransform}

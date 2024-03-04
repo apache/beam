@@ -123,8 +123,12 @@ def preprocess_data(
           top_k=VOCAB_SIZE,
           frequency_threshold=10,
           columns=[REVIEW_COLUMN],
+          vocab_filename='vocab',
           split_string_by_delimiter=DELIMITERS)).with_transform(
-              TFIDF(columns=[REVIEW_COLUMN], vocab_size=VOCAB_SIZE))
+              TFIDF(
+                  columns=[REVIEW_COLUMN],
+                  vocab_size=VOCAB_SIZE,
+              ))
   data_pcoll = data_pcoll | 'MLTransform' >> ml_transform
 
   data_pcoll = (

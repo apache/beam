@@ -572,12 +572,18 @@ class StreamingOptions(PipelineOptions):
 
 
 class CrossLanguageOptions(PipelineOptions):
+  @staticmethod
+  def _beam_services_from_enviroment():
+    return json.loads(os.environ.get('BEAM_SERVICE_OVERRIDES') or '{}')
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--beam_services',
-        type=json.loads,
-        default={},
+        type=lambda s: {
+            **cls._beam_services_from_enviroment(), **json.loads(s)
+        },
+        default=cls._beam_services_from_enviroment(),
         help=(
             'For convenience, Beam provides the ability to automatically '
             'download and start various services (such as expansion services) '
@@ -586,7 +592,9 @@ class CrossLanguageOptions(PipelineOptions):
             'use pre-started services or non-default pre-existing artifacts to '
             'start the given service. '
             'Should be a json mapping of gradle build targets to pre-built '
-            'artifacts (e.g. jar files) expansion endpoints (e.g. host:port).'))
+            'artifacts (e.g. jar files) or expansion endpoints '
+            '(e.g. host:port). Defaults to the value of BEAM_SERVICE_OVERRIDES '
+            'from the environment.'))
 
     parser.add_argument(
         '--use_transform_service',
@@ -1186,18 +1194,22 @@ class WorkerOptions(PipelineOptions):
         '--max_cache_memory_usage_mb',
         dest='max_cache_memory_usage_mb',
         type=int,
-        default=100,
+        default=0,
         help=(
             'Size of the SDK Harness cache to store user state and side '
-            'inputs in MB. Default is 100MB. If the cache is full, least '
+            'inputs in MB. The cache is disabled by default. Increasing '
+            'cache size might improve performance of some pipelines, such as '
+            'pipelines that use iterable side input views, but can '
+            'lead to an increase in memory consumption and OOM errors if '
+            'workers are not appropriately provisioned. '
+            'Using the cache might decrease performance pipelines using '
+            'materialized side inputs. '
+            'If the cache is full, least '
             'recently used elements will be evicted. This cache is per '
             'each SDK Harness instance. SDK Harness is a component '
             'responsible for executing the user code and communicating with '
             'the runner. Depending on the runner, there may be more than one '
-            'SDK Harness process running on the same worker node. Increasing '
-            'cache size might improve performance of some pipelines, but can '
-            'lead to an increase in memory consumption and OOM errors if '
-            'workers are not appropriately provisioned.'))
+            'SDK Harness process running on the same worker node.'))
 
   def validate(self, validator):
     errors = []

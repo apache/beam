@@ -165,10 +165,10 @@ public interface BigQueryOptions
   void setStorageWriteApiMaxRequestSize(Long value);
 
   @Description(
-      "If set, BigQueryIO.Read will use the StreamBundle based"
-          + "implementation of the Read API Source")
+      "If set, BigQueryIO.Read will rely on the Read API backends to surface the appropriate"
+          + " number of streams for read")
   @Default.Boolean(false)
-  Boolean getEnableBundling();
+  Boolean getEnableStorageReadApiV2();
 
-  void setEnableBundling(Boolean value);
+  void setEnableStorageReadApiV2(Boolean value);
 }

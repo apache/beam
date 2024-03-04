@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { AsyncLocalStorage, AsyncResource } from "node:async_hooks";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 export const loggingLocalStorage = new AsyncLocalStorage();
 
@@ -38,12 +38,12 @@ export class LoggingStageInfoHolder {
 
 export function createLoggingChannel(workerId: string, endpoint: string) {
   const logQueue = new Queue<LogEntry>();
-  function toEntry(line: string, severity: number): LogEntry {
+  function toEntry(line: string): LogEntry {
     const now_ms = Date.now();
     const seconds = Math.trunc(now_ms / 1000);
     const stageInfo = loggingLocalStorage.getStore() as LoggingStageInfo;
-    return LogEntry.create({
-      severity,
+    let logRecord = {
+      severity: LogEntry_Severity_Enum.INFO,
       message: line,
       timestamp: {
         seconds: BigInt(seconds),
@@ -51,7 +51,13 @@ export function createLoggingChannel(workerId: string, endpoint: string) {
       },
       instructionId: stageInfo?.instructionId,
       transformId: stageInfo?.transformId,
-    });
+    };
+    try {
+      const structuredLog = JSON.parse(line);
+      logRecord.severity = guessLogLevel(structuredLog);
+      logRecord = { ...structuredLog, ...logRecord };
+    } catch {}
+    return LogEntry.create(logRecord);
   }
 
   let currentConsoleLogLevel = undefined;
@@ -82,12 +88,11 @@ export function createLoggingChannel(workerId: string, endpoint: string) {
     console[method] = createLogMethod(method, level);
   }
 
-  function guessLogLevel(line) {
+  function guessLogLevel(structuredLog: any) {
     if (currentConsoleLogLevel !== undefined) {
       return currentConsoleLogLevel;
     } else {
       try {
-        const structuredLog = JSON.parse(line);
         if (structuredLog.level !== undefined) {
           if (0 <= structuredLog.level && structuredLog.level <= 7) {
             // Assume https://www.rfc-editor.org/rfc/rfc5424
@@ -123,19 +128,15 @@ export function createLoggingChannel(workerId: string, endpoint: string) {
     }
   }
 
-  startCapture(process.stdout, (out) =>
-    logQueue.enqueue(toEntry(out, guessLogLevel(out)))
-  );
-  startCapture(process.stderr, (out) =>
-    logQueue.enqueue(toEntry(out, guessLogLevel(out)))
-  );
+  startCapture(process.stdout, (out) => logQueue.enqueue(toEntry(out)));
+  startCapture(process.stderr, (out) => logQueue.enqueue(toEntry(out)));
   const metadata = new grpc.Metadata();
   metadata.add("worker_id", workerId);
   const client = new BeamFnLoggingClient(
     endpoint,
     grpc.ChannelCredentials.createInsecure(),
     {},
-    {}
+    {},
   );
   const channel = client.logging(metadata);
 

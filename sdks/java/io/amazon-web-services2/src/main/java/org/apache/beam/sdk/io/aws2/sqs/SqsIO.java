@@ -766,7 +766,7 @@ public class SqsIO {
           if (batch == null || !batch.lock(true)) {
             batch = Batch.createLocked(checkStateNotNull(spec.queueUrl()), spec);
           }
-          return batch;
+          return checkStateNotNull(batch);
         }
 
         @Override
@@ -777,7 +777,7 @@ public class SqsIO {
         @Override
         void submitExpired(boolean throwFailures) {
           if (batch != null && batch.isExpired()) {
-            lockAndSubmit(batch, throwFailures);
+            lockAndSubmit(checkStateNotNull(batch), throwFailures);
           }
         }
       }

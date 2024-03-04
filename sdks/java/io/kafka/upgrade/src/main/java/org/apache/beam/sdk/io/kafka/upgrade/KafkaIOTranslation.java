@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.kafka.upgrade;
 
-import static org.apache.beam.runners.core.construction.TransformUpgrader.fromByteArray;
-import static org.apache.beam.runners.core.construction.TransformUpgrader.toByteArray;
+import static org.apache.beam.sdk.util.construction.TransformUpgrader.fromByteArray;
+import static org.apache.beam.sdk.util.construction.TransformUpgrader.toByteArray;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -32,9 +32,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.io.kafka.DeserializerProvider;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaIO.Read;
@@ -42,6 +39,7 @@ import org.apache.beam.sdk.io.kafka.KafkaIO.Write;
 import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecords;
 import org.apache.beam.sdk.io.kafka.KafkaIOUtils;
 import org.apache.beam.sdk.io.kafka.TimestampPolicyFactory;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -50,8 +48,11 @@ import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -136,7 +137,7 @@ public class KafkaIOTranslation {
         fieldValues.put("topics", transform.getTopics());
       }
 
-      if (transform.getTopicPartitions() != null) {
+      if (transform.getTopicPartitions() != null && !transform.getTopicPartitions().isEmpty()) {
         List<Row> encodedTopicPartitions = new ArrayList<>();
         for (TopicPartition topicPartition : transform.getTopicPartitions()) {
           encodedTopicPartitions.add(
@@ -215,7 +216,7 @@ public class KafkaIOTranslation {
     }
 
     @Override
-    public Read<?, ?> fromConfigRow(Row configRow) {
+    public Read<?, ?> fromConfigRow(Row configRow, PipelineOptions options) {
       try {
         Read<?, ?> transform = KafkaIO.read();
 
@@ -244,7 +245,7 @@ public class KafkaIOTranslation {
           transform = transform.withTopics(new ArrayList<>(topics));
         }
         Collection<Row> topicPartitionRows = configRow.getArray("topic_partitions");
-        if (topicPartitionRows != null) {
+        if (topicPartitionRows != null && !topicPartitionRows.isEmpty()) {
           Collection<TopicPartition> topicPartitions =
               topicPartitionRows.stream()
                   .map(
@@ -511,7 +512,7 @@ public class KafkaIOTranslation {
     }
 
     @Override
-    public Write<?, ?> fromConfigRow(Row configRow) {
+    public Write<?, ?> fromConfigRow(Row configRow, PipelineOptions options) {
       try {
         Write<?, ?> transform = KafkaIO.write();
 

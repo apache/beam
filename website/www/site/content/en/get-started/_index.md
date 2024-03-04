@@ -21,13 +21,19 @@ limitations under the License.
 
 # Get Started with Apache Beam
 
-Learn how to use Beam to create data processing pipelines that run on supported processing back-ends.
+Learn how to use Beam to create data processing pipelines that run on supported processing back-ends. More learning resources are [here](https://beam.apache.org/get-started/resources/learning-resources/).
+
+You can also get a Beam badge now if you pass [this quest](https://beam.apache.org/get-started/resources/learning-resources/#certifications)!
 
 ## Tour of Beam
 
 [Learn Beam with an interactive tour](https://tour.beam.apache.org).
 Topics include core Beam concepts, from simple to advanced.
 You can try examples, do exercises, and solve challenges along the learning journey.
+
+## Beam Playground
+
+[Beam Playground](https://play.beam.apache.org) is an interactive environment to try out Beam transforms and examples without having to install Apache Beam in your environment.
 
 ## Beam Overview
 

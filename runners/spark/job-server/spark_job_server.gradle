@@ -87,6 +87,8 @@ runShadow {
 def sickbayTests = [
         // TODO(BEAM-13498)
         'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
+        // TODO(https://github.com/apache/beam/issues/29973)
+        'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata',
 ]
 
 def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, ArrayList<String> sickbayTests) {
@@ -106,6 +108,7 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
 
       testCategories = {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
         // Should be run only in a properly configured SDK harness environment
         excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
         excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
@@ -157,12 +160,15 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
         excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest'
         // // Assertion error: incorrect output
         excludeTestsMatching 'CombineTest$BasicTests.testHotKeyCombining'
+        // TODO(https://github.com/apache/beam/issues/29973)
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata'
       }
     }
     else {
       // Batch
       testCategories = {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
         // Should be run only in a properly configured SDK harness environment
         excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
         excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'

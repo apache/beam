@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.runners.core.construction.TransformUpgrader.fromByteArray;
-import static org.apache.beam.runners.core.construction.TransformUpgrader.toByteArray;
+import static org.apache.beam.sdk.util.construction.TransformUpgrader.fromByteArray;
+import static org.apache.beam.sdk.util.construction.TransformUpgrader.toByteArray;
 
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.TableRow;
@@ -37,9 +37,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.FromBeamRowFunction;
@@ -50,6 +47,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.RowWriterFactory.AvroRowWriterFactory;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.Schema;
@@ -57,10 +56,16 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -99,6 +104,8 @@ public class BigQueryIOTranslation {
             .addNullableStringField("from_beam_row_fn")
             .addNullableBooleanField("use_avro_logical_types")
             .addNullableBooleanField("projection_pushdown_applied")
+            .addNullableByteArrayField("bad_record_router")
+            .addNullableByteArrayField("bad_record_error_handler")
             .build();
 
     public static final String BIGQUERY_READ_TRANSFORM_URN =
@@ -183,12 +190,15 @@ public class BigQueryIOTranslation {
         fieldValues.put("use_avro_logical_types", transform.getUseAvroLogicalTypes());
       }
       fieldValues.put("projection_pushdown_applied", transform.getProjectionPushdownApplied());
+      fieldValues.put("bad_record_router", toByteArray(transform.getBadRecordRouter()));
+      fieldValues.put(
+          "bad_record_error_handler", toByteArray(transform.getBadRecordErrorHandler()));
 
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
     }
 
     @Override
-    public TypedRead<?> fromConfigRow(Row configRow) {
+    public TypedRead<?> fromConfigRow(Row configRow, PipelineOptions options) {
       try {
         BigQueryIO.TypedRead.Builder builder = new AutoValue_BigQueryIO_TypedRead.Builder<>();
 
@@ -302,6 +312,11 @@ public class BigQueryIOTranslation {
         if (projectionPushdownApplied != null) {
           builder = builder.setProjectionPushdownApplied(projectionPushdownApplied);
         }
+        byte[] badRecordRouter = configRow.getBytes("bad_record_router");
+        builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));
+        byte[] badRecordErrorHandler = configRow.getBytes("bad_record_error_handler");
+        builder.setBadRecordErrorHandler(
+            (ErrorHandler<BadRecord, ?>) fromByteArray(badRecordErrorHandler));
 
         return builder.build();
       } catch (InvalidClassException e) {
@@ -353,7 +368,7 @@ public class BigQueryIOTranslation {
             .addNullableBooleanField("propagate_successful_storage_api_writes")
             .addNullableInt32Field("max_files_per_partition")
             .addNullableInt64Field("max_bytes_per_partition")
-            .addNullableLogicalTypeField("triggerring_frequency", new NanosDuration())
+            .addNullableLogicalTypeField("triggering_frequency", new NanosDuration())
             .addNullableByteArrayField("method")
             .addNullableStringField("load_job_project_id")
             .addNullableByteArrayField("failed_insert_retry_policy")
@@ -376,6 +391,8 @@ public class BigQueryIOTranslation {
             .addNullableByteArrayField("deterministic_record_id_fn")
             .addNullableStringField("write_temp_dataset")
             .addNullableByteArrayField("row_mutation_information_fn")
+            .addNullableByteArrayField("bad_record_error_handler")
+            .addNullableByteArrayField("bad_record_router")
             .build();
 
     public static final String BIGQUERY_WRITE_TRANSFORM_URN =
@@ -477,7 +494,7 @@ public class BigQueryIOTranslation {
       fieldValues.put("max_bytes_per_partition", transform.getMaxBytesPerPartition());
       if (transform.getTriggeringFrequency() != null) {
         fieldValues.put(
-            "triggerring_frequency",
+            "triggering_frequency",
             Duration.ofMillis(transform.getTriggeringFrequency().getMillis()));
       }
       if (transform.getMethod() != null) {
@@ -547,12 +564,15 @@ public class BigQueryIOTranslation {
         fieldValues.put(
             "row_mutation_information_fn", toByteArray(transform.getRowMutationInformationFn()));
       }
+      fieldValues.put("bad_record_router", toByteArray(transform.getBadRecordRouter()));
+      fieldValues.put(
+          "bad_record_error_handler", toByteArray(transform.getBadRecordErrorHandler()));
 
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
     }
 
     @Override
-    public Write<?> fromConfigRow(Row configRow) {
+    public Write<?> fromConfigRow(Row configRow, PipelineOptions options) {
       try {
         BigQueryIO.Write.Builder builder = new AutoValue_BigQueryIO_Write.Builder<>();
 
@@ -695,11 +715,29 @@ public class BigQueryIOTranslation {
         if (maxBytesPerPartition != null) {
           builder = builder.setMaxBytesPerPartition(maxBytesPerPartition);
         }
-        Duration triggerringFrequency = configRow.getValue("triggerring_frequency");
-        if (triggerringFrequency != null) {
+
+        String updateCompatibilityBeamVersion =
+            options.as(StreamingOptions.class).getUpdateCompatibilityVersion();
+
+        // We need to update the 'triggerring_frequency' field name for pipelines that are upgraded
+        // from Beam 2.53.0 due to https://github.com/apache/beam/pull/29785.
+        // We need to set a default 'updateCompatibilityBeamVersion' here since this PipelineOption
+        // is not correctly passed in for pipelines that use Beam 2.53.0.
+        // Both above issues are fixed for Beam 2.54.0 and later.
+        updateCompatibilityBeamVersion =
+            (updateCompatibilityBeamVersion != null) ? updateCompatibilityBeamVersion : "2.53.0";
+
+        String triggeringFrequencyFieldName =
+            (updateCompatibilityBeamVersion != null
+                    && updateCompatibilityBeamVersion.equals("2.53.0"))
+                ? "triggerring_frequency"
+                : "triggering_frequency";
+
+        Duration triggeringFrequency = configRow.getValue(triggeringFrequencyFieldName);
+        if (triggeringFrequency != null) {
           builder =
               builder.setTriggeringFrequency(
-                  org.joda.time.Duration.millis(triggerringFrequency.toMillis()));
+                  org.joda.time.Duration.millis(triggeringFrequency.toMillis()));
         }
         byte[] methodBytes = configRow.getBytes("method");
         if (methodBytes != null) {
@@ -802,6 +840,11 @@ public class BigQueryIOTranslation {
               builder.setRowMutationInformationFn(
                   (SerializableFunction) fromByteArray(rowMutationInformationFnBytes));
         }
+        byte[] badRecordRouter = configRow.getBytes("bad_record_router");
+        builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));
+        byte[] badRecordErrorHandler = configRow.getBytes("bad_record_error_handler");
+        builder.setBadRecordErrorHandler(
+            (ErrorHandler<BadRecord, ?>) fromByteArray(badRecordErrorHandler));
 
         return builder.build();
       } catch (InvalidClassException e) {

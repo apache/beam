@@ -44,6 +44,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Al
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationWorkItemMetadata;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkStreamTimingInfo;
@@ -51,6 +52,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkStreamTi
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
@@ -71,21 +73,24 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillApplianceGrpc;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.CallOptions;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ClientCall;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ClientInterceptor;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ClientInterceptors;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Deadline;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.MethodDescriptor;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.util.MutableHandlerRegistry;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.CallOptions;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientCall;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientInterceptor;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientInterceptors;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Deadline;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.MethodDescriptor;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.testing.GrpcCleanupRule;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.util.MutableHandlerRegistry;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -107,10 +112,13 @@ import org.slf4j.LoggerFactory;
 })
 public class GrpcWindmillServerTest {
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+  @Rule public GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
+  @Rule public ErrorCollector errorCollector = new ErrorCollector();
+
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServerTest.class);
   private static final int STREAM_CHUNK_SIZE = 2 << 20;
+  private final long clientId = 10L;
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
-  @Rule public ErrorCollector errorCollector = new ErrorCollector();
   private Server server;
   private GrpcWindmillServer client;
   private int remainingErrors = 20;
@@ -126,7 +134,13 @@ public class GrpcWindmillServerTest {
             .build()
             .start();
 
-    this.client = GrpcWindmillServer.newTestInstance(name);
+    this.client =
+        GrpcWindmillServer.newTestInstance(
+            name,
+            new ArrayList<>(),
+            clientId,
+            new FakeWindmillStubFactory(
+                () -> grpcCleanup.register(WindmillChannelFactory.inProcessChannel(name))));
   }
 
   @After
@@ -195,7 +209,9 @@ public class GrpcWindmillServerTest {
                 .build(),
             testInterceptor);
 
-    this.client = GrpcWindmillServer.newApplianceTestInstance(inprocessChannel);
+    this.client =
+        GrpcWindmillServer.newApplianceTestInstance(
+            inprocessChannel, new FakeWindmillStubFactory(() -> inprocessChannel));
 
     Windmill.GetWorkResponse response1 = client.getWork(GetWorkRequest.getDefaultInstance());
     Windmill.GetWorkResponse response2 = client.getWork(GetWorkRequest.getDefaultInstance());
@@ -344,6 +360,7 @@ public class GrpcWindmillServerTest {
                                 .setJobId("job")
                                 .setProjectId("project")
                                 .setWorkerId("worker")
+                                .setClientId(clientId)
                                 .build()));
                     sawHeader = true;
                   } else {
@@ -553,6 +570,7 @@ public class GrpcWindmillServerTest {
                       .setJobId("job")
                       .setProjectId("project")
                       .setWorkerId("worker")
+                      .setClientId(clientId)
                       .build()));
           sawHeader = true;
           LOG.info("Received header");
@@ -744,7 +762,7 @@ public class GrpcWindmillServerTest {
     while (true) {
       Thread.sleep(100);
       int tmpErrorsBeforeClose = errorsBeforeClose.get();
-      // wait for at least 1 errors before close
+      // wait for at least 1 error before close
       if (tmpErrorsBeforeClose > 0) {
         break;
       }
@@ -765,7 +783,7 @@ public class GrpcWindmillServerTest {
     while (true) {
       Thread.sleep(100);
       int tmpErrorsAfterClose = errorsAfterClose.get();
-      // wait for at least 1 errors after close
+      // wait for at least 1 error after close
       if (tmpErrorsAfterClose > 0) {
         break;
       }
@@ -786,22 +804,36 @@ public class GrpcWindmillServerTest {
     assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
   }
 
-  private List<KeyedGetDataRequest> makeHeartbeatRequest(List<String> keys) {
+  private List<KeyedGetDataRequest> makeGetDataHeartbeatRequest(List<String> keys) {
     List<KeyedGetDataRequest> result = new ArrayList<>();
     for (String key : keys) {
       result.add(
           Windmill.KeyedGetDataRequest.newBuilder()
-              .setKey(ByteString.copyFromUtf8(key))
+              .setShardingKey(key.hashCode())
               .setWorkToken(0)
+              .setCacheToken(0)
+              .build());
+    }
+    return result;
+  }
+
+  private List<HeartbeatRequest> makeHeartbeatRequest(List<String> keys) {
+    List<HeartbeatRequest> result = new ArrayList<>();
+    for (String key : keys) {
+      result.add(
+          Windmill.HeartbeatRequest.newBuilder()
+              .setShardingKey(key.hashCode())
+              .setWorkToken(0)
+              .setCacheToken(0)
               .build());
     }
     return result;
   }
 
   @Test
-  public void testStreamingGetDataHeartbeats() throws Exception {
+  public void testStreamingGetDataHeartbeatsAsKeyedGetDataRequests() throws Exception {
     // This server records the heartbeats observed but doesn't respond.
-    final Map<String, List<KeyedGetDataRequest>> heartbeats = new HashMap<>();
+    final Map<String, List<KeyedGetDataRequest>> getDataHeartbeats = new HashMap<>();
 
     serviceRegistry.addService(
         new CloudWindmillServiceV1Alpha1ImplBase() {
@@ -823,19 +855,21 @@ public class GrpcWindmillServerTest {
                                 .setJobId("job")
                                 .setProjectId("project")
                                 .setWorkerId("worker")
+                                .setClientId(clientId)
                                 .build()));
                     sawHeader = true;
                   } else {
-                    LOG.info("Received {} heartbeats", chunk.getStateRequestCount());
+                    LOG.info("Received {} getDataHeartbeats", chunk.getStateRequestCount());
                     errorCollector.checkThat(
                         chunk.getSerializedSize(), Matchers.lessThanOrEqualTo(STREAM_CHUNK_SIZE));
                     errorCollector.checkThat(chunk.getRequestIdCount(), Matchers.is(0));
 
-                    synchronized (heartbeats) {
+                    synchronized (getDataHeartbeats) {
                       for (ComputationGetDataRequest request : chunk.getStateRequestList()) {
                         errorCollector.checkThat(request.getRequestsCount(), Matchers.is(1));
-                        heartbeats.putIfAbsent(request.getComputationId(), new ArrayList<>());
-                        heartbeats
+                        getDataHeartbeats.putIfAbsent(
+                            request.getComputationId(), new ArrayList<>());
+                        getDataHeartbeats
                             .get(request.getComputationId())
                             .add(request.getRequestsList().get(0));
                       }
@@ -857,7 +891,6 @@ public class GrpcWindmillServerTest {
           }
         });
 
-    Map<String, List<KeyedGetDataRequest>> activeMap = new HashMap<>();
     List<String> computation1Keys = new ArrayList<>();
     List<String> computation2Keys = new ArrayList<>();
 
@@ -865,22 +898,145 @@ public class GrpcWindmillServerTest {
       computation1Keys.add("Computation1Key" + i);
       computation2Keys.add("Computation2Key" + largeString(i * 20));
     }
-    activeMap.put("Computation1", makeHeartbeatRequest(computation1Keys));
-    activeMap.put("Computation2", makeHeartbeatRequest(computation2Keys));
+    // We're adding HeartbeatRequests to refreshActiveWork, but expecting to get back
+    // KeyedGetDataRequests, so make a Map of both types.
+    Map<String, List<KeyedGetDataRequest>> expectedKeyedGetDataRequests = new HashMap<>();
+    expectedKeyedGetDataRequests.put("Computation1", makeGetDataHeartbeatRequest(computation1Keys));
+    expectedKeyedGetDataRequests.put("Computation2", makeGetDataHeartbeatRequest(computation2Keys));
+    Map<String, List<HeartbeatRequest>> heartbeatsToRefresh = new HashMap<>();
+    heartbeatsToRefresh.put("Computation1", makeHeartbeatRequest(computation1Keys));
+    heartbeatsToRefresh.put("Computation2", makeHeartbeatRequest(computation2Keys));
 
     GetDataStream stream = client.getDataStream();
-    stream.refreshActiveWork(activeMap);
+    stream.refreshActiveWork(heartbeatsToRefresh);
     stream.close();
     assertTrue(stream.awaitTermination(60, TimeUnit.SECONDS));
 
-    while (true) {
+    boolean receivedAllGetDataHeartbeats = false;
+    while (!receivedAllGetDataHeartbeats) {
       Thread.sleep(100);
-      synchronized (heartbeats) {
-        if (heartbeats.size() != activeMap.size()) {
+      synchronized (getDataHeartbeats) {
+        if (getDataHeartbeats.size() != expectedKeyedGetDataRequests.size()) {
           continue;
         }
-        assertEquals(heartbeats, activeMap);
-        break;
+        assertEquals(expectedKeyedGetDataRequests, getDataHeartbeats);
+        receivedAllGetDataHeartbeats = true;
+      }
+    }
+  }
+
+  @Test
+  public void testStreamingGetDataHeartbeatsAsHeartbeatRequests() throws Exception {
+    // Create a client and server different from the one in SetUp so we can add an experiment to the
+    // options passed in.
+    this.server =
+        InProcessServerBuilder.forName("TestServer")
+            .fallbackHandlerRegistry(serviceRegistry)
+            .executor(Executors.newFixedThreadPool(1))
+            .build()
+            .start();
+    this.client =
+        GrpcWindmillServer.newTestInstance(
+            "TestServer",
+            Collections.singletonList("streaming_engine_send_new_heartbeat_requests"),
+            clientId,
+            new FakeWindmillStubFactory(
+                () -> WindmillChannelFactory.inProcessChannel("TestServer")));
+    // This server records the heartbeats observed but doesn't respond.
+    final List<ComputationHeartbeatRequest> receivedHeartbeats = new ArrayList<>();
+
+    serviceRegistry.addService(
+        new CloudWindmillServiceV1Alpha1ImplBase() {
+          @Override
+          public StreamObserver<StreamingGetDataRequest> getDataStream(
+              StreamObserver<StreamingGetDataResponse> responseObserver) {
+            return new StreamObserver<StreamingGetDataRequest>() {
+              boolean sawHeader = false;
+
+              @Override
+              public void onNext(StreamingGetDataRequest chunk) {
+                try {
+                  if (!sawHeader) {
+                    LOG.info("Received header");
+                    errorCollector.checkThat(
+                        chunk.getHeader(),
+                        Matchers.equalTo(
+                            JobHeader.newBuilder()
+                                .setJobId("job")
+                                .setProjectId("project")
+                                .setWorkerId("worker")
+                                .setClientId(clientId)
+                                .build()));
+                    sawHeader = true;
+                  } else {
+                    LOG.info(
+                        "Received {} computationHeartbeatRequests",
+                        chunk.getComputationHeartbeatRequestCount());
+                    errorCollector.checkThat(
+                        chunk.getSerializedSize(), Matchers.lessThanOrEqualTo(STREAM_CHUNK_SIZE));
+                    errorCollector.checkThat(chunk.getRequestIdCount(), Matchers.is(0));
+
+                    synchronized (receivedHeartbeats) {
+                      receivedHeartbeats.addAll(chunk.getComputationHeartbeatRequestList());
+                    }
+                  }
+                } catch (Exception e) {
+                  errorCollector.addError(e);
+                }
+              }
+
+              @Override
+              public void onError(Throwable throwable) {}
+
+              @Override
+              public void onCompleted() {
+                responseObserver.onCompleted();
+              }
+            };
+          }
+        });
+
+    List<String> computation1Keys = new ArrayList<>();
+    List<String> computation2Keys = new ArrayList<>();
+
+    // When sending heartbeats as HeartbeatRequest protos, all keys for the same computation should
+    // be batched into the same ComputationHeartbeatRequest. Compare to the KeyedGetDataRequest
+    // version in the test above, which only sends one key per ComputationGetDataRequest.
+    List<ComputationHeartbeatRequest> expectedHeartbeats = new ArrayList<>();
+    ComputationHeartbeatRequest.Builder comp1Builder =
+        ComputationHeartbeatRequest.newBuilder().setComputationId("Computation1");
+    ComputationHeartbeatRequest.Builder comp2Builder =
+        ComputationHeartbeatRequest.newBuilder().setComputationId("Computation2");
+    for (int i = 0; i < 100; ++i) {
+      String computation1Key = "Computation1Key" + i;
+      computation1Keys.add(computation1Key);
+      comp1Builder.addHeartbeatRequests(
+          makeHeartbeatRequest(Collections.singletonList(computation1Key)).get(0));
+      String computation2Key = "Computation2Key" + largeString(i * 20);
+      computation2Keys.add(computation2Key);
+      comp2Builder.addHeartbeatRequests(
+          makeHeartbeatRequest(Collections.singletonList(computation2Key)).get(0));
+    }
+    expectedHeartbeats.add(comp1Builder.build());
+    expectedHeartbeats.add(comp2Builder.build());
+    Map<String, List<HeartbeatRequest>> heartbeatRequestMap = new HashMap<>();
+    heartbeatRequestMap.put("Computation1", makeHeartbeatRequest(computation1Keys));
+    heartbeatRequestMap.put("Computation2", makeHeartbeatRequest(computation2Keys));
+
+    GetDataStream stream = client.getDataStream();
+    stream.refreshActiveWork(heartbeatRequestMap);
+    stream.close();
+    assertTrue(stream.awaitTermination(60, TimeUnit.SECONDS));
+
+    boolean receivedAllHeartbeatRequests = false;
+    while (!receivedAllHeartbeatRequests) {
+      Thread.sleep(100);
+      synchronized (receivedHeartbeats) {
+        if (receivedHeartbeats.size() != expectedHeartbeats.size()) {
+          continue;
+        }
+        assertEquals(expectedHeartbeats, receivedHeartbeats);
+        receivedAllHeartbeatRequests = true;
       }
     }
   }
@@ -888,7 +1044,7 @@ public class GrpcWindmillServerTest {
   @Test
   public void testThrottleSignal() throws Exception {
     // This server responds with work items until the throttleMessage limit is hit at which point it
-    // returns RESROUCE_EXHAUSTED errors for throttleTime msecs after which it resumes sending
+    // returns RESOURCE_EXHAUSTED errors for throttleTime msecs after which it resumes sending
     // work items.
     final int throttleTime = 2000;
     final int throttleMessage = 15;
