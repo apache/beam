@@ -189,6 +189,17 @@ class SqlTransformTest(unittest.TestCase):
           | SqlTransform("SELECT * FROM PCOLLECTION WHERE shopper = 'alice'"))
       assert_that(out, equal_to([('alice', {'apples': 2, 'bananas': 3})]))
 
+  def test_ddl(self):
+    with TestPipeline() as p:
+     out = (
+         p
+         | SqlTransform("INSERT INTO sample_table VALUES ('Toyota', 1849751, -9.0); "
+                        + "SELECT * FROM sample_table;",
+       ddlQuery=["CREATE EXTERNAL TABLE bizim_table "
+                 + "( brand_name VARCHAR, us_sales_2022 BIGINT, "
+                 + "sales_change_percentage DOUBLE ) TYPE test;"] )
+     )
+    assert_that(out, equal_to([('Toyota', 1849751, -9.0)]))
 
 if __name__ == "__main__":
   logging.getLogger().setLevel(logging.INFO)

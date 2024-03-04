@@ -28,7 +28,7 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 __all__ = ['SqlTransform']
 
 SqlTransformSchema = typing.NamedTuple(
-    'SqlTransformSchema', [('query', str), ('dialect', typing.Optional[str])])
+    'SqlTransformSchema', [('query', str), ('ddlQuery', typing.Optional[list]), ('dialect', typing.Optional[str])])
 
 
 class SqlTransform(ExternalTransform):
@@ -75,11 +75,12 @@ class SqlTransform(ExternalTransform):
   """
   URN = 'beam:external:java:sql:v1'
 
-  def __init__(self, query, dialect=None, expansion_service=None):
+  def __init__(self, query, ddlQuery = None, dialect=None, expansion_service=None):
     """
     Creates a SqlTransform which will be expanded to Java's SqlTransform.
     (See class docs).
     :param query: The SQL query.
+    :param ddlQuery: (optional) Array of DDLs.
     :param dialect: (optional) The dialect, e.g. use 'zetasql' for ZetaSQL.
     :param expansion_service: (optional) The URL of the expansion service to use
     """
@@ -88,5 +89,5 @@ class SqlTransform(ExternalTransform):
     super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
-            SqlTransformSchema(query=query, dialect=dialect)),
+            SqlTransformSchema(query=query, ddlQuery = ddlQuery, dialect=dialect)),
         expansion_service=expansion_service)
