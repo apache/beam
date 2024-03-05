@@ -229,7 +229,9 @@ class PipelineOptions(HasDisplayData):
 
     # The _visible_options attribute will contain options that were recognized
     # by the parser.
-    self._visible_options, _ = parser.parse_known_args(flags)
+    self._visible_options = argparse.Namespace()
+    if self.flags:
+      self._visible_options, _ = parser.parse_known_args(flags)
 
     # self._all_options is initialized with overrides to flag values,
     # provided in kwargs, and will store key-value pairs for options recognized
