@@ -2,7 +2,7 @@ Prompt:
 What is a PCollection in Apache Beam?
 Response:
 
-A `PCollection` in Apache Beam is an an unordered bag of elements. Each `PCollection` is a potentially distributed, homogeneous data set or data stream, and is owned by the specific `Pipeline` object for which it is created. It’s the primary data structure used in Apache Beam pipelines to handle large-scale data processing in batch and streaming modes.
+A `PCollection` in Apache Beam is an unordered bag of elements. Each `PCollection` is a potentially distributed, homogeneous data set or data stream, and is owned by the specific `Pipeline` object for which it is created. It’s the primary data structure used in Apache Beam pipelines to handle large-scale data processing in batch and streaming modes.
 
 The following example shows how to create a `PCollection` using the `Create` transform:
 
@@ -22,4 +22,4 @@ Beam’s computational patterns and transforms are focused on situations where d
    - Random access to individual elements of the collection isn't allowed.
    - Beam encodes each element for distributed processing.
 
-For more information about `Pcollection` objects in Apache Beam and for usage patterns, see [Beam Programming Guide: PCollections](https://beam.apache.org/documentation/programming-guide/#pcollections).
+For more information about `PCollection` objects in Apache Beam and usage patterns, see [Beam Programming Guide: PCollections](https://beam.apache.org/documentation/programming-guide/#pcollections).

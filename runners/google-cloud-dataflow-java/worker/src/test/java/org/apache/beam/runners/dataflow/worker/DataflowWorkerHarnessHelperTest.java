@@ -29,7 +29,6 @@ import java.nio.file.Paths;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
-import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOptions;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
@@ -92,8 +91,8 @@ public class DataflowWorkerHarnessHelperTest {
 
   @Test
   public void testStreamingStreamingConfiguration() throws Exception {
-    StreamingDataflowWorkerOptions pipelineOptions =
-        PipelineOptionsFactory.as(StreamingDataflowWorkerOptions.class);
+    DataflowWorkerHarnessOptions pipelineOptions =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     pipelineOptions.setJobId(JOB_ID);
     pipelineOptions.setWorkerId(WORKER_ID);
     int activeWorkRefreshPeriodMillis = 12345;
@@ -105,9 +104,9 @@ public class DataflowWorkerHarnessHelperTest {
     Files.write(Paths.get(file.getPath()), serializedOptions.getBytes(StandardCharsets.UTF_8));
     System.setProperty("sdk_pipeline_options_file", file.getPath());
 
-    StreamingDataflowWorkerOptions generatedOptions =
+    DataflowWorkerHarnessOptions generatedOptions =
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
-            DataflowBatchWorkerHarnessTest.class, StreamingDataflowWorkerOptions.class);
+            DataflowBatchWorkerHarnessTest.class, DataflowWorkerHarnessOptions.class);
     // Assert that the returned options are correct.
     assertThat(generatedOptions.getJobId(), equalTo(JOB_ID));
     assertThat(generatedOptions.getWorkerId(), equalTo(WORKER_ID));

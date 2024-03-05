@@ -20,7 +20,6 @@ package org.apache.beam.io.requestresponse;
 import static org.apache.beam.io.requestresponse.Monitoring.incIfPresent;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
@@ -302,8 +301,7 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
     }
 
     @ProcessElement
-    public void process(@Element RequestT request, MultiOutputReceiver receiver)
-        throws JsonProcessingException {
+    public void process(@Element RequestT request, MultiOutputReceiver receiver) {
 
       BackOff backOff = configuration.getBackOffSupplier().get();
       Sleeper sleeper = configuration.getSleeperSupplier().get();

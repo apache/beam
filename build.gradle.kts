@@ -247,7 +247,6 @@ tasks.register("javaPreCommit") {
   dependsOn(":model:fn-execution:build")
   dependsOn(":model:job-management:build")
   dependsOn(":model:pipeline:build")
-  dependsOn(":runners:core-construction-java:build")
   dependsOn(":runners:core-java:build")
   dependsOn(":runners:direct-java:build")
   dependsOn(":runners:direct-java:needsRunnerTests")
@@ -646,6 +645,11 @@ tasks.register("checkSetup") {
   dependsOn(":sdks:go:examples:wordCount")
   dependsOn(":sdks:python:wordCount")
   dependsOn(":examples:java:wordCount")
+}
+
+// Generates external transform config
+project.tasks.register("generateExternalTransformsConfig") {
+  dependsOn(":sdks:python:generateExternalTransformsConfig")
 }
 
 // Configure the release plugin to do only local work; the release manager determines what, if

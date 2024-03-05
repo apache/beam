@@ -16,57 +16,43 @@
  * limitations under the License.
  */
 // This is a base file to set up cross language tests for different runners
-import org.apache.beam.gradle.BeamModulePlugin
-import static org.apache.beam.gradle.BeamModulePlugin.CrossLanguageTaskCommon
+import static org.apache.beam.gradle.BeamModulePlugin.CrossLanguageTask
 project.evaluationDependsOn(":sdks:python")
-
-// Set up cross language tests
-def envDir = project.project(":sdks:python").envdir
-def jobPort = BeamModulePlugin.getRandomPort()
-def tmpDir = System.getenv("TMPDIR") ?: System.getenv("WORKSPACE") ?: "/tmp"
-def pidFile = "${tmpDir}/local_job_service_main-${jobPort}.pid"
-
-def setupTask = project.tasks.register("fnApiJobServerSetup", Exec) {
-  dependsOn ':sdks:python:installGcpTest'
-
-  executable 'sh'
-  args '-c', ". ${envDir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --job_port ${jobPort} --pid_file ${pidFile} --background --stdout_file ${tmpDir}/beam-fnapi-job-server.log"
-}
-
-def cleanupTask = project.tasks.register("fnApiJobServerCleanup", Exec) {
-  executable 'sh'
-  args '-c', ". ${envDir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --pid_file ${pidFile} --stop"
-}
-
-// List of objects representing task metadata to create cross-language tasks from.
-// Each object contains the minimum relevant metadata.
-def xlangTasks = []
 
 // ******** Java GCP expansion service ********
 // Note: this only runs cross-language tests that use the Java GCP expansion service
-// To run tests that use another expansion service, create a new CrossLanguageTaskCommon with the
+// To run tests that use another expansion service, create a new CrossLanguageTask with the
 // relevant fields as done here, then add it to `xlangTasks`.
-def gcpExpansionProject = project.project(':sdks:java:io:google-cloud-platform:expansion-service')
+def gcpExpansionPath = project.project(':sdks:java:io:google-cloud-platform:expansion-service').getPath()
+def ioExpansionPath = project.project(':sdks:java:io:expansion-service').getPath()
 // Properties that are common across runners.
 // Used to launch the expansion service, collect the right tests, and cleanup afterwards
-def gcpXlangCommon = new CrossLanguageTaskCommon().tap {
+def gcpXlang = new CrossLanguageTask().tap {
     name = "gcpCrossLanguage"
-    expansionProjectPath = gcpExpansionProject.getPath()
+    expansionProjectPaths = [gcpExpansionPath]
     collectMarker = "uses_gcp_java_expansion_service"
-    startJobServer = setupTask
-    cleanupJobServer = cleanupTask
 }
 
-def ioXlangCommon = new CrossLanguageTaskCommon().tap {
+def ioXlang = new CrossLanguageTask().tap {
     name = "ioCrossLanguage"
-    expansionProjectPath = project.project(':sdks:java:io:expansion-service').getPath()
+    expansionProjectPaths = [ioExpansionPath]
     collectMarker = "uses_io_java_expansion_service"
-    startJobServer = setupTask
-    cleanupJobServer = cleanupTask
     //See .test-infra/kafka/bitnami/README.md for setup instructions
     additionalEnvs = ["KAFKA_BOOTSTRAP_SERVER":project.findProperty('kafkaBootstrapServer')]
 }
 
-xlangTasks.addAll(gcpXlangCommon, ioXlangCommon)
+// This list should include all expansion service targets in sdks/python/standard_expansion_services.yaml
+def servicesToGenerateFrom = [ioExpansionPath, gcpExpansionPath]
+def xlangWrapperValidation = new CrossLanguageTask().tap {
+    name = "xlangWrapperValidation"
+    expansionProjectPaths = servicesToGenerateFrom
+    collectMarker = "xlang_wrapper_generation"
+    // update Jinja2 bounds in pyproject.toml as well
+    additionalDeps = ['\"Jinja2>=2.7.1,<4.0.0\"']
+}
+
+// List of task metadata objects to create cross-language tasks from.
+// Each object contains the minimum relevant metadata.
+def xlangTasks = [gcpXlang, ioXlang, xlangWrapperValidation]
 
 ext.xlangTasks = xlangTasks

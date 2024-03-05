@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.StatusCode.Code;
+import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.Options.RpcPriority;
@@ -83,6 +84,8 @@ public abstract class SpannerConfig implements Serializable {
   abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
 
   public abstract @Nullable ValueProvider<Boolean> getDataBoostEnabled();
+
+  public abstract @Nullable ValueProvider<Credentials> getCredentials();
 
   abstract Builder toBuilder();
 
@@ -160,6 +163,8 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setPartitionQueryTimeout(ValueProvider<Duration> partitionQueryTimeout);
 
     abstract Builder setPartitionReadTimeout(ValueProvider<Duration> partitionReadTimeout);
+
+    abstract Builder setCredentials(ValueProvider<Credentials> credentials);
 
     public abstract SpannerConfig build();
   }
@@ -301,5 +306,15 @@ public abstract class SpannerConfig implements Serializable {
   /** Specifies the PartitionRead timeout. */
   public SpannerConfig withPartitionReadTimeout(ValueProvider<Duration> partitionReadTimeout) {
     return toBuilder().setPartitionReadTimeout(partitionReadTimeout).build();
+  }
+
+  /** Specifies the credentials. */
+  public SpannerConfig withCredentials(Credentials credentials) {
+    return withCredentials(ValueProvider.StaticValueProvider.of(credentials));
+  }
+
+  /** Specifies the credentials. */
+  public SpannerConfig withCredentials(ValueProvider<Credentials> credentials) {
+    return toBuilder().setCredentials(credentials).build();
   }
 }

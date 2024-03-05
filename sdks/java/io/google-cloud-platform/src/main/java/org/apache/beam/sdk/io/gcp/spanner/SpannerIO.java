@@ -31,6 +31,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.StatusCode.Code;
+import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
@@ -68,6 +69,7 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.MetadataSpannerConfigFactory;
@@ -86,6 +88,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
@@ -1667,31 +1670,15 @@ public class SpannerIO {
               getSpannerConfig().getProjectId().get(),
               partitionMetadataInstanceId,
               partitionMetadataDatabaseId);
-      SpannerConfig changeStreamSpannerConfig = getSpannerConfig();
-      // Set default retryable errors for ReadChangeStream
-      if (changeStreamSpannerConfig.getRetryableCodes() == null) {
-        ImmutableSet<Code> defaultRetryableCodes = ImmutableSet.of(Code.UNAVAILABLE, Code.ABORTED);
-        changeStreamSpannerConfig =
-            changeStreamSpannerConfig.toBuilder().setRetryableCodes(defaultRetryableCodes).build();
-      }
-      // Set default retry timeouts for ReadChangeStream
-      if (changeStreamSpannerConfig.getExecuteStreamingSqlRetrySettings() == null) {
-        changeStreamSpannerConfig =
-            changeStreamSpannerConfig
-                .toBuilder()
-                .setExecuteStreamingSqlRetrySettings(
-                    RetrySettings.newBuilder()
-                        .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(5))
-                        .setInitialRpcTimeout(org.threeten.bp.Duration.ofMinutes(1))
-                        .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(1))
-                        .build())
-                .build();
-      }
+
+      final SpannerConfig changeStreamSpannerConfig = buildChangeStreamSpannerConfig();
       final SpannerConfig partitionMetadataSpannerConfig =
           MetadataSpannerConfigFactory.create(
               changeStreamSpannerConfig, partitionMetadataInstanceId, partitionMetadataDatabaseId);
-      Dialect changeStreamDatabaseDialect = getDialect(changeStreamSpannerConfig);
-      Dialect metadataDatabaseDialect = getDialect(partitionMetadataSpannerConfig);
+      final Dialect changeStreamDatabaseDialect =
+          getDialect(changeStreamSpannerConfig, input.getPipeline().getOptions());
+      final Dialect metadataDatabaseDialect =
+          getDialect(partitionMetadataSpannerConfig, input.getPipeline().getOptions());
       LOG.info(
           "The Spanner database "
               + changeStreamDatabaseId
@@ -1773,10 +1760,52 @@ public class SpannerIO {
           .apply(ParDo.of(new CleanUpReadChangeStreamDoFn(daoFactory)));
       return dataChangeRecordsOut;
     }
+
+    @VisibleForTesting
+    SpannerConfig buildChangeStreamSpannerConfig() {
+      SpannerConfig changeStreamSpannerConfig = getSpannerConfig();
+      // Set default retryable errors for ReadChangeStream
+      if (changeStreamSpannerConfig.getRetryableCodes() == null) {
+        ImmutableSet<Code> defaultRetryableCodes = ImmutableSet.of(Code.UNAVAILABLE, Code.ABORTED);
+        changeStreamSpannerConfig =
+            changeStreamSpannerConfig.toBuilder().setRetryableCodes(defaultRetryableCodes).build();
+      }
+      // Set default retry timeouts for ReadChangeStream
+      if (changeStreamSpannerConfig.getExecuteStreamingSqlRetrySettings() == null) {
+        changeStreamSpannerConfig =
+            changeStreamSpannerConfig
+                .toBuilder()
+                .setExecuteStreamingSqlRetrySettings(
+                    RetrySettings.newBuilder()
+                        .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(5))
+                        .setInitialRpcTimeout(org.threeten.bp.Duration.ofMinutes(1))
+                        .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(1))
+                        .build())
+                .build();
+      }
+      return changeStreamSpannerConfig;
+    }
   }
 
-  private static Dialect getDialect(SpannerConfig spannerConfig) {
-    DatabaseClient databaseClient = SpannerAccessor.getOrCreate(spannerConfig).getDatabaseClient();
+  /** If credentials are not set in spannerConfig, uses the credentials from pipeline options. */
+  @VisibleForTesting
+  static SpannerConfig buildSpannerConfigWithCredential(
+      SpannerConfig spannerConfig, PipelineOptions pipelineOptions) {
+    if (spannerConfig.getCredentials() == null && pipelineOptions != null) {
+      final Credentials credentials = pipelineOptions.as(GcpOptions.class).getGcpCredential();
+      if (credentials != null) {
+        spannerConfig = spannerConfig.withCredentials(credentials);
+      }
+    }
+    return spannerConfig;
+  }
+
+  private static Dialect getDialect(SpannerConfig spannerConfig, PipelineOptions pipelineOptions) {
+    // Allow passing the credential from pipeline options to the getDialect() call.
+    SpannerConfig spannerConfigWithCredential =
+        buildSpannerConfigWithCredential(spannerConfig, pipelineOptions);
+    DatabaseClient databaseClient =
+        SpannerAccessor.getOrCreate(spannerConfigWithCredential).getDatabaseClient();
     return databaseClient.getDialect();
   }
 
