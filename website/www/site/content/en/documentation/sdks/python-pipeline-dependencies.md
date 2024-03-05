@@ -48,6 +48,16 @@ To supply a requirements.txt file:
 
 > **NOTE**: An alternative to `pip freeze` is to use a library like [pip-tools](https://github.com/jazzband/pip-tools) to compile all the dependencies required for the pipeline from a `--requirements_file`, where only top-level dependencies are mentioned.
 
+When you supply the `--requirements_file` pipeline option, Beam downloads
+specified packages locally into a requirements cache directory during pipeline
+submission, and stages the requirements cache directory to the runner.
+At pipeline runtime, Beam prefers to install packages from requirements cache
+if available. This mechanism allows staging dependency packages to the runner
+at submission, and at runtime the runner workers might be able to install the
+packages from cache, without a connection to PyPI. To disable staging the
+requirements, supply the `--requirements_cache=skip` pipeline option.
+For more information, see the [help descriptions of these pipeline options](https://beam.apache.org/releases/pydoc/current/_modules/apache_beam/options/pipeline_options.html#SetupOptions).
+
 ## Custom Containers {#custom-containers}
 
 You can pass a [container](https://hub.docker.com/search?q=apache%2Fbeam&type=image) image with all the dependencies that are needed for the pipeline instead of `requirements.txt`. [Follow the instructions on how to run pipeline with Custom Container images](/documentation/runtime/environments/#running-pipelines).
