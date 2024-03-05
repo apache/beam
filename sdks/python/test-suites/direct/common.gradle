@@ -194,6 +194,9 @@ tasks.register("hdfsIntegrationTest") {
 }
 
 tasks.register("azureIntegrationTest") {
+  // needs generated srcs in sdks/python
+  dependsOn ':sdks:python:sdist'
+
   doLast {
     exec {
       executable 'sh'
