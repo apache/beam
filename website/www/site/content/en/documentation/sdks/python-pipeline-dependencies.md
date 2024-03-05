@@ -46,7 +46,7 @@ To supply a requirements.txt file:
 
     The runner will use the `requirements.txt` file to install your additional dependencies onto the remote workers.
 
-> **NOTE**: An alternative to `pip freeze` is to use a library like [pip-tools](https://github.com/jazzband/pip-tools) to compile all the dependencies required for the pipeline from a `--requirements_file`, where only top-level dependencies are mentioned.
+> **NOTE**: An alternative to `pip freeze` is to use a library like [pip-tools](https://github.com/jazzband/pip-tools) to compile all the dependencies required for the pipeline from a `requirements.in` file, where only the top-level dependencies are mentioned.
 
 When you supply the `--requirements_file` pipeline option, Beam downloads
 specified packages locally into a requirements cache directory during pipeline
@@ -60,7 +60,7 @@ For more information, see the [help descriptions of these pipeline options](http
 
 ## Custom Containers {#custom-containers}
 
-You can pass a [container](https://hub.docker.com/search?q=apache%2Fbeam&type=image) image with all the dependencies that are needed for the pipeline instead of `requirements.txt`. [Follow the instructions on how to run pipeline with Custom Container images](/documentation/runtime/environments/#running-pipelines).
+You can pass a [container](https://hub.docker.com/search?q=apache%2Fbeam&type=image) image with all the dependencies that are needed for the pipeline. [Follow the instructions on how to run pipeline with Custom Container images](/documentation/runtime/environments/#running-pipelines).
 
 1. If you are using a custom container image, we recommend that you install the dependencies from the `--requirements_file` directly into your image at build time. In this case, you do not need to pass `--requirements_file` option at runtime, which will reduce the pipeline startup time.
 
@@ -128,7 +128,10 @@ Often, your pipeline code spans multiple files. To run your project remotely, yo
 
         --setup_file /path/to/setup.py
 
-**Note:** If you [created a requirements.txt file](#pypi-dependencies) and your project spans multiple files, you can get rid of the `requirements.txt` file and instead, add all packages contained in `requirements.txt` to the `install_requires` field of the setup call (in step 1).
+**Note:** It is not necessary to supply the `--requirements_file` [option](#pypi-dependencies) if the dependenices of your package are defined in the `install_requires` field of the `setup.py` file (see step 1).
+However unlike the `--requirements_file` option, when  using the `--setup_file` option, Beam does not stage the dependent packages to the Runner,
+only the pipeline package is staged and its dependencies are installed from PyPI
+at runtime if not already provided in the runtime environment.
 
 
 ## Non-Python Dependencies or PyPI Dependencies with Non-Python Dependencies {#nonpython}
