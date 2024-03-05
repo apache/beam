@@ -39,6 +39,7 @@ import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.util.Objects;
+import java.util.function.BiFunction;
 import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -66,7 +67,7 @@ import org.threeten.bp.Duration;
 })
 class BigtableConfigTranslator {
 
-  @VisibleForTesting static final String BIGTABLE_ENDPOINT_OVERRIDE = "bigtable_endpoint_override";
+  @VisibleForTesting static final String BIGTABLE_SETTINGS_OVERRIDE = "bigtable_settings_override";
 
   /** Translate BigtableConfig and BigtableReadOptions to Veneer settings. */
   static BigtableDataSettings translateReadToVeneerSettings(
@@ -150,10 +151,48 @@ class BigtableConfigTranslator {
       }
     }
 
-    configureChannelPool(dataBuilder.stubSettings(), config, pipelineOptions);
+    configureChannelPool(dataBuilder.stubSettings(), config);
     configureHeaderProvider(dataBuilder.stubSettings(), pipelineOptions);
 
-    return dataBuilder;
+    // Provide a way to override any BigtableDataSettings
+    String overrideClassName =
+        ExperimentalOptions.getExperimentValue(pipelineOptions, BIGTABLE_SETTINGS_OVERRIDE);
+
+    return configureSettingsOverride(overrideClassName, dataBuilder, pipelineOptions);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static BigtableDataSettings.Builder configureSettingsOverride(
+      @Nullable String override,
+      BigtableDataSettings.Builder dataBuilder,
+      PipelineOptions pipelineOptions) {
+    if (override == null) {
+      return dataBuilder;
+    }
+    Object object;
+    try {
+      object = Class.forName(override).getConstructor().newInstance();
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Failed to load class override " + override, e);
+    }
+    if (!(object instanceof BiFunction<?, ?, ?>)) {
+      throw new IllegalArgumentException(
+          "Incorrect override class type for "
+              + override
+              + ", override class need to be a subclass of "
+              + "BiFunction<BigtableDataSettings.Builder, PipelineOptions, BigtableDataSettings.Builder>. Actual type is "
+              + object.getClass());
+    }
+    BiFunction<BigtableDataSettings.Builder, PipelineOptions, BigtableDataSettings.Builder>
+        overrideFunction =
+            (BiFunction<
+                    BigtableDataSettings.Builder, PipelineOptions, BigtableDataSettings.Builder>)
+                object;
+    try {
+      return overrideFunction.apply(dataBuilder, pipelineOptions);
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to apply override function for class " + override, e);
+    }
   }
 
   private static void configureHeaderProvider(
@@ -169,21 +208,13 @@ class BigtableConfigTranslator {
   }
 
   private static void configureChannelPool(
-      StubSettings.Builder<?, ?> stubSettings,
-      BigtableConfig config,
-      PipelineOptions pipelineOptions) {
+      StubSettings.Builder<?, ?> stubSettings, BigtableConfig config) {
     if (config.getChannelCount() != null) {
-      InstantiatingGrpcChannelProvider.Builder grpcChannelProvider =
-          ((InstantiatingGrpcChannelProvider) stubSettings.getTransportChannelProvider())
-              .toBuilder();
-      // Provide a way to override the endpoint for testing
-      String endpoint =
-          ExperimentalOptions.getExperimentValue(pipelineOptions, BIGTABLE_ENDPOINT_OVERRIDE);
-      if (endpoint != null) {
-        grpcChannelProvider.setEndpoint(endpoint);
-      }
+      InstantiatingGrpcChannelProvider grpcChannelProvider =
+          (InstantiatingGrpcChannelProvider) stubSettings.getTransportChannelProvider();
       stubSettings.setTransportChannelProvider(
           grpcChannelProvider
+              .toBuilder()
               .setChannelPoolSettings(ChannelPoolSettings.staticallySized(config.getChannelCount()))
               .build());
     }
