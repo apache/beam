@@ -605,11 +605,9 @@ public class JmsIO {
       try {
         Message message;
         synchronized (this) {
-          if (currentMessage != null || receiveTimeoutMillis == 0L) {
+          if (receiveTimeoutMillis == 0L) {
             message = this.consumer.receiveNoWait();
           } else {
-            // block for receiveTimeoutMillis if the previous read did not receive an element
-            // and receiveTimeoutMillis is set
             message = this.consumer.receive(receiveTimeoutMillis);
           }
           // put add in synchronized to make sure all messages in preparer are in same session
