@@ -37,7 +37,6 @@ from apache_beam.runners import DataflowRunner
 from apache_beam.runners import TestDataflowRunner
 from apache_beam.runners import common
 from apache_beam.runners import create_runner
-from apache_beam.runners.dataflow.internal import apiclient
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
 from apache_beam.runners.dataflow.dataflow_runner import _check_and_add_missing_options
@@ -559,6 +558,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
           options.view_as(DebugOptions).lookup_experiment(expected, False),
           expected)
 
+  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   @mock.patch(
       'apache_beam.options.pipeline_options.GoogleCloudOptions.validate',
       lambda *args: [])
@@ -572,11 +572,12 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         '--region=region'
     ])
     with beam.Pipeline(options=options) as p:
-      p | beam.io.ReadFromPubSub('projects/some-project/topics/some-topic')
+      _ = p | beam.io.ReadFromPubSub('projects/some-project/topics/some-topic')
     self.assertEqual(
         p.result.job.proto.type,
         apiclient.dataflow.Job.TypeValueValuesEnum.JOB_TYPE_STREAMING)
 
+  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   @mock.patch(
       'apache_beam.options.pipeline_options.GoogleCloudOptions.validate',
       lambda *args: [])
@@ -590,11 +591,12 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         '--region=region'
     ])
     with beam.Pipeline(options=options) as p:
-      p | beam.Create([1, 2, 3])
+      _ = p | beam.Create([1, 2, 3])
     self.assertEqual(
         p.result.job.proto.type,
         apiclient.dataflow.Job.TypeValueValuesEnum.JOB_TYPE_BATCH)
 
+  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   @mock.patch(
       'apache_beam.options.pipeline_options.GoogleCloudOptions.validate',
       lambda *args: [])
@@ -609,7 +611,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         '--region=region'
     ])
     with beam.Pipeline(options=options) as p:
-      p | beam.Create([1, 2, 3])
+      _ = p | beam.Create([1, 2, 3])
     self.assertEqual(
         p.result.job.proto.type,
         apiclient.dataflow.Job.TypeValueValuesEnum.JOB_TYPE_STREAMING)
