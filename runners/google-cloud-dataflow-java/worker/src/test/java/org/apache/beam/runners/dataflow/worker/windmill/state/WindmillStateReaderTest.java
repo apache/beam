@@ -38,6 +38,7 @@ import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
 import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.WindmillStateTestUtils;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
+import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListEntry;
@@ -107,8 +108,7 @@ public class WindmillStateReaderTest {
     underTest =
         WindmillStateReader.forTesting(
             (request) -> Optional.ofNullable(mockWindmill.getStateData(COMPUTATION, request)),
-            DATA_KEY,
-            SHARDING_KEY,
+            ShardedKey.create(DATA_KEY, SHARDING_KEY),
             WORK_TOKEN);
   }
 
