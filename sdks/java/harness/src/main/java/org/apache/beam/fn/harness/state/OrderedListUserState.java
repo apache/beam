@@ -30,19 +30,17 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.CachingStateIterable;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListEntry;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BoundType;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -216,40 +214,27 @@ public class OrderedListUserState<T> {
     }
 
     if (!pendingAdds.isEmpty()) {
-      StateAppendRequest.OrderedListInsertList.Builder insertsBuilder =
-          StateAppendRequest.OrderedListInsertList.newBuilder();
+      ByteStringOutputStream outStream = new ByteStringOutputStream();
+
       for (Entry<Instant, Collection<T>> entry : pendingAdds.entrySet()) {
-        insertsBuilder.addAllEntries(
-            Iterables.transform(
-                entry.getValue(),
-                (v) ->
-                    OrderedListEntry.newBuilder()
-                        .setSortKey(entry.getKey().getMillis())
-                        .setData(encodeValue(v))
-                        .build()));
+        for (T v : entry.getValue()) {
+          TimestampedValue<T> tv =
+              TimestampedValue.of(v, Instant.ofEpochMilli(entry.getKey().getMillis()));
+          try {
+            TimestampedValueCoder.of(LengthPrefixCoder.of(valueCoder)).encode(tv, outStream);
+          } catch (IOException ex) {
+            throw new RuntimeException(ex);
+          }
+        }
       }
       StateRequest.Builder stateRequest = this.request.toBuilder();
-      stateRequest.getAppendBuilder().setOrderListInserts(insertsBuilder);
+      stateRequest.getAppendBuilder().setData(outStream.toByteString());
 
       CompletableFuture<StateResponse> response = beamFnStateClient.handle(stateRequest);
       if (!response.get().getError().isEmpty()) {
         throw new IllegalStateException(response.get().getError());
       }
       pendingAdds.clear();
-    }
-  }
-
-  private ByteString encodeValue(T value) {
-    try {
-      ByteStringOutputStream output = new ByteStringOutputStream();
-      valueCoder.encode(value, output);
-      return output.toByteString();
-    } catch (IOException | RuntimeException e) {
-      throw new IllegalStateException(
-          String.format(
-              "Failed to encode values for ordered list user state id %s.",
-              request.getStateKey().getOrderedListUserState().getUserStateId()),
-          e);
     }
   }
 }

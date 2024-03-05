@@ -35,7 +35,6 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListEntry;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListRange;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearResponse;
@@ -46,8 +45,10 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
@@ -56,7 +57,6 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
-import org.joda.time.Instant;
 
 /** A fake implementation of a {@link BeamFnStateClient} to aid with testing. */
 public class FakeBeamFnStateClient implements BeamFnStateClient {
@@ -156,29 +156,6 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
   // to the logical concatenated value.
   public Map<StateKey, List<ByteString>> getRawData() {
     return data;
-  }
-
-  static class EncodeOnlyByteStringCoder extends AtomicCoder<ByteString> {
-    public static EncodeOnlyByteStringCoder of() {
-      return INSTANCE;
-    }
-
-    private static final EncodeOnlyByteStringCoder INSTANCE = new EncodeOnlyByteStringCoder();
-
-    private EncodeOnlyByteStringCoder() {}
-
-    @Override
-    public void encode(ByteString value, OutputStream os) throws IOException {
-      // Unlike normal ByteStringCoder, we don't write the length before the content.
-      // The stream receiver should use a coder that can decode the data without knowing
-      // the length.
-      value.writeTo(os);
-    }
-
-    @Override
-    public ByteString decode(InputStream is) throws IOException {
-      throw new RuntimeException("decode is not supported in EncodeOnlyByteStringCoder");
-    }
   }
 
   @Override
@@ -329,34 +306,36 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
               data.computeIfAbsent(request.getStateKey(), (unused) -> new ArrayList<>());
           previousValue.add(request.getAppend().getData());
         } else {
-          for (OrderedListEntry e : request.getAppend().getOrderListInserts().getEntriesList()) {
-            StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
-            long sortKey = e.getSortKey();
-            keyBuilder
-                .getOrderedListUserStateBuilder()
-                .getRangeBuilder()
-                .setStart(sortKey)
-                .setEnd(sortKey + 1);
+          InputStream inStream = request.getAppend().getData().newInput();
+          try {
+            while (inStream.available() > 0) {
+              TimestampedValueCoder<byte[]> coder =
+                  TimestampedValueCoder.of(LengthPrefixCoder.of(ByteArrayCoder.of()));
+              TimestampedValue<byte[]> tv = coder.decode(inStream);
+              ByteStringOutputStream outStream = new ByteStringOutputStream();
+              coder.encode(tv, outStream);
+              ByteString output = outStream.toByteString();
 
-            ByteStringOutputStream outStream = new ByteStringOutputStream();
-            TimestampedValue<ByteString> tv =
-                TimestampedValue.of(e.getData(), Instant.ofEpochMilli(sortKey));
-            try {
-              TimestampedValueCoder.of(EncodeOnlyByteStringCoder.of()).encode(tv, outStream);
-            } catch (IOException ex) {
-              throw new RuntimeException(ex);
+              StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
+              long sortKey = tv.getTimestamp().getMillis();
+              keyBuilder
+                  .getOrderedListUserStateBuilder()
+                  .getRangeBuilder()
+                  .setStart(sortKey)
+                  .setEnd(sortKey + 1);
+
+              List<ByteString> previousValues =
+                  data.computeIfAbsent(keyBuilder.build(), (unused) -> new ArrayList<>());
+              previousValues.add(output);
+
+              StateKey.Builder stateKeyWithoutRange = request.getStateKey().toBuilder();
+              stateKeyWithoutRange.getOrderedListUserStateBuilder().clearRange();
+              orderedListKeys
+                  .computeIfAbsent(stateKeyWithoutRange.build(), (unused) -> new TreeSet<>())
+                  .add(sortKey);
             }
-            ByteString output = outStream.toByteString();
-
-            List<ByteString> previousValues =
-                data.computeIfAbsent(keyBuilder.build(), (unused) -> new ArrayList<>());
-            previousValues.add(output);
-
-            StateKey.Builder stateKeyWithoutRange = request.getStateKey().toBuilder();
-            stateKeyWithoutRange.getOrderedListUserStateBuilder().clearRange();
-            orderedListKeys
-                .computeIfAbsent(stateKeyWithoutRange.build(), (unused) -> new TreeSet<>())
-                .add(sortKey);
+          } catch (IOException ex) {
+            throw new RuntimeException(ex);
           }
         }
         response = StateResponse.newBuilder().setAppend(StateAppendResponse.getDefaultInstance());

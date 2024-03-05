@@ -1084,17 +1084,14 @@ message StateGetResponse {
 
 // A request to append state.
 message StateAppendRequest {
-  message OrderedListInsertList {
-    repeated OrderedListEntry entries = 2;
-  }
-
-  oneof input {
-    // Represents a part of a logical byte stream. Elements within
-    // the logical byte stream are encoded in the nested context and
-    // multiple append requests are concatenated together.
-    bytes data = 1;
-    OrderedListInsertList order_list_inserts = 2;
-  }
+  // Represents a part of a logical byte stream. Elements within
+  // the logical byte stream are encoded in the nested context and
+  // multiple append requests are concatenated together.
+  // For OrderedListState, elements of TimeStampedValue<T> should be encoded
+  // with TimestampedValueCoder.of(LengthPrefixCoder.of(Coder<T>)), so that
+  // the request handler knows how to decode timestamps from the data without
+  // decoding the value bytes.
+  bytes data = 1;
 }
 
 // A response to append state.
@@ -1110,12 +1107,6 @@ message StateClearResponse {}
 message OrderedListRange {
   int64 start = 1;
   int64 end = 2;
-}
-
-// A data entry which is tagged with a sort key.
-message OrderedListEntry {
-  int64 sort_key = 1;
-  bytes data = 2;
 }
 
 /*
