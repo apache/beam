@@ -351,8 +351,8 @@ class YamlMappingTest(unittest.TestCase):
           label='Smooth')
 
   def test_partition_bad_static_type(self):
-    with self.assertRaisesRegex(ValueError,
-                                r'.*Partition function .*must return a string.*'):
+    with self.assertRaisesRegex(
+        ValueError, r'.*Partition function .*must return a string.*'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
         elements = p | beam.Create([
