@@ -653,7 +653,7 @@ public class JmsIO {
 
     @Override
     public Instant getWatermark() {
-      return checkpointMarkPreparer.getOldestMessageTimestamp();
+      return checkpointMarkPreparer.getWatermark();
     }
 
     @Override
