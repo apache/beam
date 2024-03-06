@@ -197,6 +197,11 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
         (self.TABLE_ID, str(int(time.time())), secrets.token_hex(3)))
     self.table.create()
     _LOGGER.info("Created table [%s]", self.table.table_id)
+    if (os.environ.get('TRANSFORM_SERVICE_PORT')):
+      self._transform_service_address = (
+          'localhost:' + os.environ.get('TRANSFORM_SERVICE_PORT'))
+    else:
+      self._transform_service_address = None
 
   def tearDown(self):
     try:
