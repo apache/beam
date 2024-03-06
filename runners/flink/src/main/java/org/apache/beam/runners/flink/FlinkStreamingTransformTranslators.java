@@ -249,7 +249,8 @@ class FlinkStreamingTransformTranslators {
           source =
               nonDedupSource
                   .flatMap(new StripIdsMap<>(context.getPipelineOptions()))
-                  .returns(outputTypeInfo);
+                  .returns(outputTypeInfo)
+                  .setMaxParallelism(unboundedSource.getNumSplits());
         }
       } catch (Exception e) {
         throw new RuntimeException("Error while translating UnboundedSource: " + rawSource, e);
@@ -679,6 +680,8 @@ class FlinkStreamingTransformTranslators {
         }
       }
 
+      //To prevent Fused steps have their own parallesim.
+      outputStream.setMaxParallelism(inputDataStream.getParallelism());
       outputStream.uid(transformName);
       context.setOutputDataStream(outputs.get(mainOutputTag), outputStream);
 
