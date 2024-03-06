@@ -2,9 +2,9 @@ Prompt:
 Ho can I use Apache Beam to run inference on Large Language Models (LLMs)?
 
 Response:
-The optimal approach for conducting inference within an Apache Beam pipeline is by leveraging the RunInference API provided by the Apache Beam SDK. This feature allows you to seamlessly incorporate ML models into your pipeline or execute remote inference calls.
+The optimal approach for conducting inference within an Apache Beam pipeline is by leveraging the RunInference API provided by the Apache Beam Python SDK. This feature allows you to seamlessly incorporate ML models into your pipeline or execute remote inference calls.
 
-You can use the `RunInference` transform with large models as long they fit into memory.
+You can use the `RunInference` transform with large models as long as they fit into memory.
 
 The typical workflow for conducting inference on Large Language Models (LLMs) within an Apache Beam pipeline involves the following steps:
 1. Read the input text data from a source such as a file or a Pub/Sub topic.
@@ -30,7 +30,7 @@ with beam.Pipeline(options=pipeline_options) as pipeline:
 
 In this example, `Preprocess` and `Postprocess` are `DoFn` classes responsible for encoding and decoding the input and output data using a tokenizer. The `model_handler` is a `ModelHandler` object that wraps the underlying model and allows you to configure environment variables required to load the model.
 
-Here is an example of how to configure a Pytorch model handler for use in your pipeline:
+Here is an example of how to configure a PyTorch model handler for use in your pipeline:
 
 ```python
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
@@ -46,7 +46,7 @@ model_handler = PytorchModelHandlerTensor(
 
 Each specific model handler has its own configuration parameters. For example, the `PytorchModelHandlerTensor` requires the following parameters:
 * `state_dict_path`: the path to the saved model state dictionary.
-* `model_class`: the class of the Pytorch model that defines model structure.
+* `model_class`: the class of the PyTorch model that defines model structure.
 * `model_params`: the dictionary of model parameters.
 * `device`: the device to run the model on (e.g. "cpu" or "gpu").
 * `inference_fn`: the function to run the inference during RunInference.

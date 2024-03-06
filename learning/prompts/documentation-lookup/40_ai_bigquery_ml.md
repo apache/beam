@@ -23,7 +23,6 @@ from tfx_bsl.beam import run_inference
 from tfx_bsl.public.beam import RunInference
 from tfx_bsl.public.proto import model_spec_pb2
 
-
 inputs = tf.train.Example(...)
 
 model_path = <path to the directory where the model is stored>

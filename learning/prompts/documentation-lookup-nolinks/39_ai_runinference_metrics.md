@@ -5,7 +5,6 @@ Response:
 Apache Beam enables efficient inference on both local and remote ML models within your pipelines through the RunInference API. This functionality is available in the Python SDK versions 2.40.0 and later. The Java SDK versions 2.41.0 and later also support the API through Apache Beam’s Multi-language Pipelines framework.
 
 The RunInference API provides built-in support for monitoring the performance of ML model inference. Here is a list of commonly used metrics for inference benchmarking:
-
 * `model_byte_size`: size of the memory footprint of the model load and initialization.
 * `load_model_latency_milli_secs`: time taken to load and initialize the model.
 * `num_inferences`: total number of elements passed to `run_inference()`.
@@ -27,6 +26,7 @@ Here is a simplified example of how to use the RunInference API to perform infer
         | "Tokenize" >> beam.ParDo(Tokenize(<TOKENIZER_NAME>))
         | "Inference" >> RunInference(<MODEL_HANDLER>))
 ```
+
 After running the pipeline, you can query the metrics using the following code:
 
 ```python
