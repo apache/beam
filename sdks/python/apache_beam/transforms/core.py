@@ -1478,14 +1478,6 @@ class ParDo(PTransformWithSideInputs):
     if not isinstance(self.fn, DoFn):
       raise TypeError('ParDo must be called with a DoFn instance.')
 
-    # DoFn.process cannot allow both return and yield
-    if _check_fn_use_yield_and_return(self.fn.process):
-      _LOGGER.warning(
-          'Using yield and return in the process method '
-          'of %s can lead to unexpected behavior, see:'
-          'https://github.com/apache/beam/issues/22969.',
-          self.fn.__class__)
-
     # Validate the DoFn by creating a DoFnSignature
     from apache_beam.runners.common import DoFnSignature
     self._signature = DoFnSignature(self.fn)
