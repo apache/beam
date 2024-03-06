@@ -138,7 +138,7 @@ func launchExpansionServiceProcess() error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Starting Python expansion service ... 1")
+	log.Printf("Starting Python expansion service ... 2")
 
 	dir := filepath.Join("/opt/apache/beam", venvDirectory)
 	os.Setenv("VIRTUAL_ENV", dir)
@@ -175,6 +175,7 @@ func launchExpansionServiceProcess() error {
 // 		}
 // 	}
 	if err := execx.Execute(pythonVersion, args...); err != nil {
+	  log.Printf("****** xyz123 could not start the expansion service: %s", err)
 		return fmt.Errorf("could not start the expansion service: %s", err)
 	}
 
