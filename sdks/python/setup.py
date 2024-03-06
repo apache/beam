@@ -436,10 +436,7 @@ if __name__ == '__main__':
               'cachetools>=3.1.0,<6',
               'google-api-core>=2.0.0,<3',
               'google-apitools>=0.5.31,<0.5.32',
-              # NOTE: Maintainers, please do not require google-auth>=2.x.x
-              # Until this issue is closed
-              # https://github.com/googleapis/google-cloud-python/issues/10566
-              'google-auth>=1.18.0,<3',
+              'google-auth>=2.23.0,<3',
               'google-auth-httplib2>=0.1.0,<0.2.0',
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
