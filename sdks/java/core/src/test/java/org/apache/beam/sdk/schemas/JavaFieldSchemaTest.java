@@ -145,20 +145,23 @@ public class JavaFieldSchemaTest {
   }
 
   private Row createSimpleRow(String name) {
-    return Row.withSchema(SIMPLE_POJO_SCHEMA)
-        .addValues(
-            name,
-            (byte) 1,
-            (short) 2,
-            3,
-            4L,
-            true,
-            DATE,
-            INSTANT,
-            BYTE_ARRAY,
-            BYTE_BUFFER.array(),
-            BigDecimal.ONE,
-            new StringBuilder(name).append("builder").toString())
+    return createSimpleRow(name, SIMPLE_POJO_SCHEMA);
+  }
+
+  private Row createSimpleRow(String name, Schema schema) {
+    return Row.withSchema(schema)
+        .withFieldValue("str", name)
+        .withFieldValue("aByte", (byte) 1)
+        .withFieldValue("aShort", (short) 2)
+        .withFieldValue("anInt", 3)
+        .withFieldValue("aLong", 4L)
+        .withFieldValue("aBoolean", true)
+        .withFieldValue("dateTime", DATE)
+        .withFieldValue("instant", INSTANT)
+        .withFieldValue("bytes", BYTE_ARRAY)
+        .withFieldValue("byteBuffer", BYTE_BUFFER)
+        .withFieldValue("bigDecimal", BigDecimal.ONE)
+        .withFieldValue("stringBuilder", new StringBuilder(name).append("builder").toString())
         .build();
   }
 
@@ -552,7 +555,7 @@ public class JavaFieldSchemaTest {
     Schema schema = registry.getSchema(StaticCreationSimplePojo.class);
     SchemaTestUtils.assertSchemaEquivalent(SIMPLE_POJO_SCHEMA, schema);
 
-    Row simpleRow = createSimpleRow("string");
+    Row simpleRow = createSimpleRow("string", schema);
     StaticCreationSimplePojo pojo = createStaticCreation("string");
     assertEquals(simpleRow, registry.getToRowFunction(StaticCreationSimplePojo.class).apply(pojo));
 
@@ -586,11 +589,13 @@ public class JavaFieldSchemaTest {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     Schema schema = registry.getSchema(PojoWithNestedArray.class);
     SchemaTestUtils.assertSchemaEquivalent(POJO_WITH_NESTED_ARRAY_SCHEMA, schema);
+    Schema innerSchema = registry.getSchema(SimplePOJO.class);
+    SchemaTestUtils.assertSchemaEquivalent(SIMPLE_POJO_SCHEMA, innerSchema);
 
-    Row simpleRow = createSimpleRow("string");
+    Row simpleRow = createSimpleRow("string", innerSchema);
     List<Row> list = ImmutableList.of(simpleRow, simpleRow);
     List<List<Row>> listOfList = ImmutableList.of(list, list);
-    Row nestedRow = Row.withSchema(POJO_WITH_NESTED_ARRAY_SCHEMA).addValue(listOfList).build();
+    Row nestedRow = Row.withSchema(schema).addValue(listOfList).build();
 
     SimplePOJO simplePojo = createSimple("string");
     List<SimplePOJO> simplePojoList = ImmutableList.of(simplePojo, simplePojo);

@@ -29,15 +29,15 @@ import java.lang.reflect.Type;
 import java.security.InvalidParameterException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimaps;
@@ -63,15 +63,17 @@ public class ReflectUtils {
     }
   }
 
-  private static final Map<Class<?>, List<Method>> DECLARED_METHODS = Maps.newConcurrentMap();
+  private static final Map<Class<?>, ImmutableList<Method>> DECLARED_METHODS =
+      Maps.newConcurrentMap();
   private static final Map<Class<?>, Method> ANNOTATED_CONSTRUCTORS = Maps.newConcurrentMap();
-  private static final Map<Class<?>, List<Field>> DECLARED_FIELDS = Maps.newConcurrentMap();
+  private static final Map<Class<?>, ImmutableList<Field>> DECLARED_FIELDS =
+      Maps.newConcurrentMap();
 
   /**
-   * Returns the list of non private/protected, non-static methods in the class, caching the
-   * results.
+   * Returns the list of non private/protected, non-static methods in the class sorted by name,
+   * caching the results.
    */
-  public static List<Method> getMethods(Class<?> clazz) {
+  public static List<Method> getSortedPublicInstanceMethods(Class<?> clazz) {
     return DECLARED_METHODS.computeIfAbsent(
         clazz,
         c -> {
@@ -82,12 +84,15 @@ public class ReflectUtils {
               .filter(m -> !Modifier.isPrivate(m.getModifiers()))
               .filter(m -> !Modifier.isProtected(m.getModifiers()))
               .filter(m -> !Modifier.isStatic(m.getModifiers()))
-              .collect(Collectors.toList());
+              // The returned methods have no specified order, sort the fields by name to generate
+              // a consistent order across JVMs.
+              .sorted(Comparator.comparing(Method::getName))
+              .collect(ImmutableList.toImmutableList());
         });
   }
 
   public static Multimap<String, Method> getMethodsMap(Class<?> clazz) {
-    return Multimaps.index(getMethods(clazz), Method::getName);
+    return Multimaps.index(getSortedPublicInstanceMethods(clazz), Method::getName);
   }
 
   public static @Nullable Constructor getAnnotatedConstructor(Class<?> clazz) {
@@ -122,8 +127,8 @@ public class ReflectUtils {
         });
   }
 
-  // Get all public, non-static, non-transient fields.
-  public static List<Field> getFields(Class<?> clazz) {
+  // Get all public, non-static, non-transient fields sorted by field name.
+  public static List<Field> getSortedPublicInstanceFields(Class<?> clazz) {
     return DECLARED_FIELDS.computeIfAbsent(
         clazz,
         c -> {
@@ -143,7 +148,9 @@ public class ReflectUtils {
             }
             c = c.getSuperclass();
           } while (c != null);
-          return Lists.newArrayList(types.values());
+          return types.values().stream()
+              .sorted(Comparator.comparing(Field::getName))
+              .collect(ImmutableList.toImmutableList());
         });
   }
 

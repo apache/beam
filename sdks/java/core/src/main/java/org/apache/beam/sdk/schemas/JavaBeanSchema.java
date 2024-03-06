@@ -62,7 +62,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
     @Override
     public List<FieldValueTypeInformation> get(Class<?> clazz) {
       List<Method> methods =
-          ReflectUtils.getMethods(clazz).stream()
+          ReflectUtils.getSortedPublicInstanceMethods(clazz).stream()
               .filter(ReflectUtils::isGetter)
               .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
               .collect(Collectors.toList());
@@ -111,7 +111,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
 
     @Override
     public List<FieldValueTypeInformation> get(Class<?> clazz) {
-      return ReflectUtils.getMethods(clazz).stream()
+      return ReflectUtils.getSortedPublicInstanceMethods(clazz).stream()
           .filter(ReflectUtils::isSetter)
           .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
           .map(FieldValueTypeInformation::forSetter)

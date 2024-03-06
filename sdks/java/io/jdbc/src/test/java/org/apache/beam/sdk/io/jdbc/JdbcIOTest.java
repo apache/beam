@@ -70,10 +70,12 @@ import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.DataSourceConfiguration;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.PoolableDataSourceProvider;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.transforms.Select;
+import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -421,11 +423,11 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
-  public void testReadWithSchema() {
+  public void testReadWithSchema() throws NoSuchSchemaException {
+    pipeline.getSchemaRegistry().registerJavaBean(RowWithSchema.class);
     SerializableFunction<Void, DataSource> dataSourceProvider = ignored -> DATA_SOURCE;
     JdbcIO.RowMapper<RowWithSchema> rowMapper =
         rs -> new RowWithSchema(rs.getString("NAME"), rs.getInt("ID"));
-    pipeline.getSchemaRegistry().registerJavaBean(RowWithSchema.class);
 
     PCollection<RowWithSchema> rows =
         pipeline.apply(
@@ -433,22 +435,27 @@ public class JdbcIOTest implements Serializable {
                 .withDataSourceProviderFn(dataSourceProvider)
                 .withQuery(String.format("select name,id from %s where name = ?", READ_TABLE_NAME))
                 .withRowMapper(rowMapper)
-                .withCoder(SerializableCoder.of(RowWithSchema.class))
+                .withCoder(pipeline.getSchemaRegistry().getSchemaCoder(RowWithSchema.class))
                 .withStatementPreparator(
                     preparedStatement ->
                         preparedStatement.setString(1, TestRow.getNameForSeed(1))));
 
+    Schema schema = rows.getSchema();
     Schema expectedSchema =
         Schema.of(
             Schema.Field.of("name", Schema.FieldType.STRING),
             Schema.Field.of("id", Schema.FieldType.INT32));
-
-    assertEquals(expectedSchema, rows.getSchema());
+    SchemaTestUtils.assertSchemaEquivalent(expectedSchema, schema);
 
     PCollection<Row> output = rows.apply(Select.fieldNames("name", "id"));
+    SchemaTestUtils.assertSchemaEquivalent(output.getSchema(), schema);
     PAssert.that(output)
         .containsInAnyOrder(
-            ImmutableList.of(Row.withSchema(expectedSchema).addValues("Testval1", 1).build()));
+            ImmutableList.of(
+                Row.withSchema(output.getSchema())
+                    .withFieldValue("name", "Testval1")
+                    .withFieldValue("id", 1)
+                    .build()));
 
     pipeline.run();
   }
@@ -470,7 +477,7 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
-  public void testReadWithPartitionsBySubqery() {
+  public void testReadWithPartitionsBySubquery() {
     PCollection<TestRow> rows =
         pipeline.apply(
             JdbcIO.<TestRow>readWithPartitions()
