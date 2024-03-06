@@ -109,7 +109,7 @@ when needed. It doesn't care what you do inside your `Caller`, whether you make 
 
 ### Working with HTTP calls directly
 
-The example below shows how to use a HTTP client and make raw HTTP calls to download images.
+The example below shows how to use an HTTP client and make raw HTTP calls to download images.
 
 #### Define Caller
 
