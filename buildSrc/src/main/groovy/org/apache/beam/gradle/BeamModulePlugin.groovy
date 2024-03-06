@@ -2890,7 +2890,7 @@ class BeamModulePlugin implements Plugin<Project> {
           def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
 
           project.exec {
-            environment "EXPANSION_PORT", externalPort
+            environment "TRANSFORM_SERVICE_PORT", externalPort
             executable 'sh'
             args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           }

@@ -24,6 +24,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+//   "os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -137,13 +138,24 @@ func launchExpansionServiceProcess() error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Starting Python expansion service ...")
+	log.Printf("Starting Python expansion service ... 1")
 
 	dir := filepath.Join("/opt/apache/beam", venvDirectory)
 	os.Setenv("VIRTUAL_ENV", dir)
 	os.Setenv("PATH", strings.Join([]string{filepath.Join(dir, "bin"), os.Getenv("PATH")}, ":"))
 
 	args := []string{"-m", expansionServiceEntrypoint, "-p", strconv.Itoa(*port), "--fully_qualified_name_glob", "*"}
+
+
+  log.Printf("****** xyz123 executing ls -al:")
+	if err := execx.Execute("/usr/bin/ls", "-al"); err != nil {
+		return fmt.Errorf("Could not execute /usr/bin/ls -al: %s", err)
+	}
+
+  log.Printf("****** xyz123 executing ls -al /:")
+	if err := execx.Execute("/usr/bin/ls", "-al", "/"); err != nil {
+		return fmt.Errorf("Could not execute /usr/bin/ls -al /: %s", err)
+	}
 
 	if *requirements_file != "" {
 		log.Printf("Received the requirements file %v", *requirements_file)
