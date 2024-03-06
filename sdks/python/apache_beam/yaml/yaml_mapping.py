@@ -575,7 +575,7 @@ def _Partition(
     if not typehints.is_consistent_with(split_fn_output_type,
                                         typehints.Optional[str]):
       raise ValueError(
-          f'Split function "{by}" must return a string type '
+          f'Partition function "{by}" must return a string type '
           f'not {split_fn_output_type}')
   error_output = error_handling['output'] if error_handling else None
   if error_output in outputs:

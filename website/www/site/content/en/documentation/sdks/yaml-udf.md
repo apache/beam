@@ -207,7 +207,7 @@ criteria. This can be accomplished with a `Filter` transform, e.g.
     keep: "col2 > 0"
 ```
 
-## Splitting
+## Partitioning
 
 It can also be useful to send different elements to different places
 (similar to what is done with side outputs in other SDKs).
@@ -225,12 +225,12 @@ output `Split.a`.
     outputs: ['a', 'b', 'c']
 
 - type: SomeTransform
-  input: Split.a
+  input: Partition.a
   config:
     param: ...
 
 - type: AnotherTransform
-  input: Split.b
+  input: Partition.b
   config:
     param: ...
 ```

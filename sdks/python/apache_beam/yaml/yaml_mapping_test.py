@@ -352,7 +352,7 @@ class YamlMappingTest(unittest.TestCase):
 
   def test_partition_bad_static_type(self):
     with self.assertRaisesRegex(ValueError,
-                                r'.*Split function .*must return a string.*'):
+                                r'.*Partition function .*must return a string.*'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
         elements = p | beam.Create([
@@ -360,7 +360,7 @@ class YamlMappingTest(unittest.TestCase):
             beam.Row(element='banana', texture='smooth'),
             beam.Row(element='orange', texture='bumpy'),
         ])
-        result = elements | YamlTransform(
+        _ = elements | YamlTransform(
             '''
             type: Partition
             input: input
@@ -380,7 +380,7 @@ class YamlMappingTest(unittest.TestCase):
             beam.Row(element='banana', texture='smooth'),
             beam.Row(element='orange', texture='bumpy'),
         ])
-        result = elements | YamlTransform(
+        _ = elements | YamlTransform(
             '''
             type: Partition
             input: input
