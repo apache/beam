@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
@@ -40,7 +41,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.java.DataSet;
@@ -217,7 +217,10 @@ public class BeamFlinkDataSetAdapter {
       // "computed result."
       String inputId = t.getTransform().getSpec().getPayload().toStringUtf8();
       DataSet<InputT> flinkInput =
-          Preconditions.checkNotNull((DataSet<InputT>) inputMap.get(inputId));
+          org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
+              (DataSet<InputT>) inputMap.get(inputId),
+              "missing input referenced in proto: ",
+              inputId);
       context.addDataSet(
           Iterables.getOnlyElement(t.getTransform().getOutputsMap().values()),
           // new MapOperator(...) rather than .map to manually designate the type information.
@@ -260,6 +263,6 @@ public class BeamFlinkDataSetAdapter {
   }
 
   private <K, V> V getNonNull(Map<K, V> map, K key) {
-    return Preconditions.checkNotNull(map.get(Preconditions.checkNotNull(key)));
+    return Preconditions.checkStateNotNull(map.get(Preconditions.checkArgumentNotNull(key)));
   }
 }
