@@ -419,6 +419,12 @@ class SchemaTranslation(object):
       self,
       type_proto: schema_pb2.FieldType,
       value_proto: schema_pb2.FieldValue):
+    if type_proto.WhichOneof("type_info") == "map_type":
+      return {
+          self.value_from_runner_api(type_proto.map_type.key_type, e.key):
+          self.value_from_runner_api(type_proto.map_type.value_type, e.value)
+          for e in value_proto.map_value.entries
+      }
     if type_proto.WhichOneof("type_info") != "atomic_type":
       # TODO: Allow other value types
       raise ValueError(
@@ -430,6 +436,18 @@ class SchemaTranslation(object):
     return value
 
   def value_to_runner_api(self, typing_proto: schema_pb2.FieldType, value):
+    if typing_proto.WhichOneof("type_info") == "map_type":
+      return schema_pb2.FieldValue(
+          map_value=schema_pb2.MapTypeValue(
+              entries=[
+                  schema_pb2.MapTypeEntry(
+                      key=self.value_to_runner_api(
+                          typing_proto.map_type.key_type, k),
+                      value=self.value_to_runner_api(
+                          typing_proto.map_type.value_type, v)) for k,
+                  v in value.items()
+              ],
+          ))
     if typing_proto.WhichOneof("type_info") != "atomic_type":
       # TODO: Allow other value types
       raise ValueError(
@@ -529,7 +547,7 @@ class SchemaTranslation(object):
         return Any
       else:
         return LogicalType.from_runner_api(
-            fieldtype_proto.logical_type).language_type()
+            fieldtype_proto.logical_type)._language_type()
 
     else:
       raise ValueError(f"Unrecognized type_info: {type_info!r}")
@@ -655,6 +673,9 @@ class LogicalTypeRegistry(object):
     self.by_logical_type[logical_type] = urn
     self.by_language_type[logical_type.language_type()] = logical_type
 
+  def add_parametrized_language_type(self, logical_type, langugage_type):
+    self.by_language_type[langugage_type] = logical_type
+
   def get_logical_type_by_urn(self, urn):
     return self.by_urn.get(urn, None)
 
@@ -688,6 +709,15 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
 
     The returned type should match LanguageT"""
     raise NotImplementedError()
+
+  def _language_type(cls):
+    """Return the language type this LogicalType instance encodes.
+    For logical types without an argument, this is the same as the
+    static language_type() method. If an argument exists, a new class
+    representing the type parameterized by the argument should be returned.
+
+    The returned type should be a subclass of LanguageT"""
+    return cls.language_type()
 
   @classmethod
   def representation_type(cls):
@@ -730,6 +760,13 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
   def register_logical_type(cls, logical_type_cls):
     """Register an implementation of LogicalType."""
     cls._known_logical_types.add(logical_type_cls.urn(), logical_type_cls)
+    return logical_type_cls
+
+  @classmethod
+  def register_logical_type_with_argument(cls, logical_type_cls, language_type):
+    """Register an implementation of LogicalType parametrized by an argument"""
+    cls._known_logical_types.add_parametrized_language_type(
+        logical_type_cls, language_type)
     return logical_type_cls
 
   @classmethod
@@ -776,19 +813,12 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
       # logical type_proto without argument
       return logical_type()
     else:
-      try:
-        argument = value_from_runner_api(
-            logical_type_proto.argument_type, logical_type_proto.argument)
-      except ValueError:
-        # TODO(https://github.com/apache/beam/issues/23373): Complete support
-        # for logical types that require arguments beyond atomic type.
-        # For now, skip arguments.
-        _LOGGER.warning(
-            'Logical type %s with argument is currently unsupported. '
-            'Argument values are omitted',
-            logical_type_proto.urn)
-        return logical_type()
-      return logical_type(argument)
+      argument = value_from_runner_api(
+          logical_type_proto.argument_type, logical_type_proto.argument)
+      logical_type_instance = logical_type(argument)
+      LogicalType.register_logical_type_with_argument(
+          logical_type, logical_type_instance._language_type())
+      return logical_type_instance
 
 
 class NoArgumentLogicalType(LogicalType[LanguageT, RepresentationT, None]):
@@ -800,6 +830,11 @@ class NoArgumentLogicalType(LogicalType[LanguageT, RepresentationT, None]):
   def argument(self):
     # type: () -> ArgT
     return None
+
+  def _language_type(self):
+    # Since there's no argument, the language type is the same for all
+    # instances of the NoArgumentLogicalType
+    return self.language_type()
 
   @classmethod
   def _from_typing(cls, typ):
@@ -816,6 +851,11 @@ class PassThroughLogicalType(LogicalType[LanguageT, LanguageT, ArgT]):
   """
   def to_language_type(self, value):
     return value
+
+  def _language_type(self):
+    # Since there's no argument, the language type is the same for all
+    # instances of the NoArgumentLogicalType
+    return self.language_type()
 
   @classmethod
   def representation_type(cls):
@@ -1143,3 +1183,76 @@ class VariableString(PassThroughLogicalType[str, np.int32]):
 
   def argument(self):
     return self.max_length
+
+
+class EnumerationTypeType:
+  def __init__(self, values: dict):
+    self.values = frozenset(values.items())
+
+  def __call__(self):
+    """Makes this typing.Callable for <Python3.11
+    """
+    pass
+
+  def __hash__(self):
+    return hash((EnumerationTypeType, self.values))
+
+  def __eq__(self, other):
+    if not (isinstance(other, EnumerationTypeType)):
+      return False
+    return self.values == other.values
+
+  def __ne__(self, other):
+    return not (self == other)
+
+  def __str__(self):
+    return f"EnumerationTypeType({str(self.values)})"
+
+
+class EnumerationTypeValue(EnumerationTypeType):
+  def __init__(self, values, value):
+    super().__init__(values)
+    self.value = value
+
+
+@LogicalType.register_logical_type
+class EnumerationType(LogicalType[EnumerationTypeValue, np.int32, dict]):
+  def __init__(self, type_map):
+    self.to_rep_map = {v: k for k, v in type_map.items()}
+    self.to_value_map = type_map
+
+  @classmethod
+  def urn(cls):
+    return "beam:logical_type:pythonenum"
+
+  @classmethod
+  def language_type(cls):
+    return EnumerationTypeType
+
+  def _language_type(cls):
+    type_with_argument = EnumerationTypeType(cls.argument())
+    return type_with_argument
+
+  @classmethod
+  def argument_type(cls):
+    # type: () -> type
+    return Dict[np.int32, str]
+
+  def argument(self):
+    # type: () -> ArgT
+    return self.to_value_map
+
+  @classmethod
+  def _from_typing(cls, typ):
+    dictionary = {k: v for k, v in typ.values}
+    return cls(dictionary)
+
+  def to_language_type(self, value):
+    return EnumerationTypeValue(self.to_value_map, self.to_value_map[value])
+
+  @classmethod
+  def representation_type(cls):
+    return np.int32
+
+  def to_representation_type(self, value):
+    return self.to_rep_map[value]
