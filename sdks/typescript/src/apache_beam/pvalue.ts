@@ -90,7 +90,7 @@ export class PCollection<T> {
   }
 
   apply<OutputT extends PValue<any>>(
-    transform: PTransform<PCollection<T>, OutputT>,
+    transform: PTransform<PCollection<any>, OutputT>,
   ) {
     if (!(transform instanceof PTransformClass)) {
       transform = new PTransformClassFromCallable(transform);
@@ -99,7 +99,7 @@ export class PCollection<T> {
   }
 
   applyAsync<OutputT extends PValue<any>>(
-    transform: AsyncPTransform<PCollection<T>, OutputT>,
+    transform: AsyncPTransform<PCollection<any>, OutputT>,
   ) {
     if (!(transform instanceof AsyncPTransformClass)) {
       transform = new AsyncPTransformClassFromCallable(transform);

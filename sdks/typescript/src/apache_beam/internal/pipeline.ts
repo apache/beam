@@ -178,7 +178,7 @@ export class Pipeline {
   applyTransform<
     InputT extends pvalue.PValue<any>,
     OutputT extends pvalue.PValue<any>,
-  >(transform: PTransformClass<InputT, OutputT>, input: InputT) {
+  >(transform: PTransformClass<InputT, OutputT>, input: InputT): OutputT {
     const { id: transformId, proto: transformProto } = this.preApplyTransform(
       transform,
       input,

@@ -24,7 +24,10 @@ import { PortableRunner } from "../src/apache_beam/runners/portable_runner/runne
 
 function wordCount(
   lines: beam.PCollection<string>
-): beam.PCollection<beam.KV<string, number>> {
+): beam.PCollection<{
+  element: any;
+  count: number;
+}>{
   return lines
     .map((s: string) => s.toLowerCase())
     .flatMap(function* splitWords(line: string) {

@@ -259,7 +259,7 @@ export class JavaJarService extends SubprocessService {
       const tmp = dest + ".tmp" + Math.random();
       return new Promise((resolve, reject) => {
         const fout = fs.createWriteStream(tmp);
-        console.warn("Downloading", urlOrPath);
+        console.info("Downloading", urlOrPath);
         const request = https.get(urlOrPath, function (response) {
           if (response.statusCode !== 200) {
             reject(

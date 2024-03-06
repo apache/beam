@@ -118,7 +118,6 @@ export class Worker {
 
   async handleRequest(request) {
     try {
-      console.log(request);
       if (request.request.oneofKind === "processBundle") {
         return this.process(request);
       } else if (request.request.oneofKind === "processBundleProgress") {
@@ -215,7 +214,7 @@ export class Worker {
       request.request.processBundle.processBundleDescriptorId;
     try {
       if (!this.processBundleDescriptors.has(descriptorId)) {
-        const call = this.controlClient.getProcessBundleDescriptor(
+        return this.controlClient.getProcessBundleDescriptor(
           {
             processBundleDescriptorId: descriptorId,
           },
@@ -243,10 +242,9 @@ export class Worker {
             }
           },
         );
-        return;
       }
 
-      const processor = this.aquireBundleProcessor(descriptorId);
+      const processor = this.acquireBundleProcessor(descriptorId);
       this.activeBundleProcessors.set(request.instructionId, processor);
       await processor.process(request.instructionId);
       const monitoringData = processor.monitoringData(this.metricsShortIdCache);
@@ -279,7 +277,7 @@ export class Worker {
     }
   }
 
-  aquireBundleProcessor(descriptorId: string) {
+  acquireBundleProcessor(descriptorId: string) {
     if (!this.bundleProcessors.has(descriptorId)) {
       this.bundleProcessors.set(descriptorId, []);
     }
@@ -446,7 +444,6 @@ export class BundleProcessor {
 
   // Put this on a worker thread...
   async process(instructionId: string) {
-    console.debug("Processing ", this.descriptor.id, "for", instructionId);
     this.metricsContainer.reset();
     this.currentBundleId = instructionId;
     this.loggingStageInfo.instructionId = instructionId;

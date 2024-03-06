@@ -82,11 +82,7 @@ export interface DoFn<InputT, OutputT, ContextT = undefined> {
 /**
  * Creates a PTransform that applies a `DoFn` to a PCollection.
  */
-export function parDo<
-  InputT,
-  OutputT,
-  ContextT extends Object | undefined = undefined,
->(
+export function parDo<InputT, OutputT, ContextT = undefined>(
   doFn: DoFn<InputT, OutputT, ContextT>,
   context: ContextT = undefined!,
 ): PTransform<PCollection<InputT>, PCollection<OutputT>> {
@@ -104,7 +100,7 @@ export function parDo<
     if (typeof context === "object") {
       contextCopy = Object.create(context as Object) as any;
       const components = pipeline.context.components;
-      for (const [name, value] of Object.entries(context)) {
+      for (const [name, value] of Object.entries(context as object)) {
         if (value instanceof SideInputParam) {
           const inputName = "side." + name;
           transformProto.inputs[inputName] = value.pcoll.getId();
