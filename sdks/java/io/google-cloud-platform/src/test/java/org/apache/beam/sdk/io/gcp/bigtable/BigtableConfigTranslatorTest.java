@@ -511,7 +511,7 @@ public class BigtableConfigTranslatorTest {
 
     BigtableConfig finalConfig = config;
     assertThrows(
-        IllegalArgumentException.class,
+        IllegalStateException.class,
         () -> BigtableConfigTranslator.translateToVeneerSettings(finalConfig, pipelineOptions));
   }
 

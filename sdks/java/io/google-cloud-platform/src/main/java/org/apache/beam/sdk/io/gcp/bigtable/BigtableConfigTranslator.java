@@ -47,6 +47,8 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -161,7 +163,6 @@ class BigtableConfigTranslator {
     return configureSettingsOverride(overrideClassName, dataBuilder, pipelineOptions);
   }
 
-  @SuppressWarnings("unchecked")
   private static BigtableDataSettings.Builder configureSettingsOverride(
       @Nullable String override,
       BigtableDataSettings.Builder dataBuilder,
@@ -169,25 +170,22 @@ class BigtableConfigTranslator {
     if (override == null) {
       return dataBuilder;
     }
-    Object object;
+
+    BiFunction<BigtableDataSettings.Builder, PipelineOptions, BigtableDataSettings.Builder>
+        overrideFunction;
     try {
-      object = Class.forName(override).getConstructor().newInstance();
-    } catch (Exception e) {
+      overrideFunction =
+          InstanceBuilder.ofType(
+                  new TypeDescriptor<
+                      BiFunction<
+                          BigtableDataSettings.Builder,
+                          PipelineOptions,
+                          BigtableDataSettings.Builder>>() {})
+              .fromClassName(override)
+              .build();
+    } catch (ClassNotFoundException e) {
       throw new IllegalArgumentException("Failed to load class override " + override, e);
     }
-    if (!(object instanceof BiFunction<?, ?, ?>)) {
-      throw new IllegalArgumentException(
-          "Incorrect override class type for "
-              + override
-              + ", override class need to be a subclass of "
-              + "BiFunction<BigtableDataSettings.Builder, PipelineOptions, BigtableDataSettings.Builder>. Actual type is "
-              + object.getClass());
-    }
-    BiFunction<BigtableDataSettings.Builder, PipelineOptions, BigtableDataSettings.Builder>
-        overrideFunction =
-            (BiFunction<
-                    BigtableDataSettings.Builder, PipelineOptions, BigtableDataSettings.Builder>)
-                object;
     try {
       return overrideFunction.apply(dataBuilder, pipelineOptions);
     } catch (Exception e) {
