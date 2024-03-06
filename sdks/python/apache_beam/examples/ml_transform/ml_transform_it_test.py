@@ -57,6 +57,7 @@ def _publish_metrics(pipeline, metric_value, metrics_table, metric_name):
   )])
 
 
+@unittest.skip('Uncomment this line to run this test.')
 @pytest.mark.uses_tft
 class LargeMovieReviewDatasetProcessTest(unittest.TestCase):
   def test_process_large_movie_review_dataset(self):
