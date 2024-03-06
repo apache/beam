@@ -493,7 +493,12 @@ append an options block at the end of your yaml file. For example:</p><pre tabin
         topic: myPubSubTopic
         format: ...
         schema: ...
-    ...
+      windowing:
+        type: fixed
+        size: 60s
+    - type: Sql
+      config:
+        query: &#34;select col1, count(*) as c from PCOLLECTION&#34;
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
