@@ -61,7 +61,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
   private static final int DEFAULT_CHUNK_SIZE = 6;
   private final Map<StateKey, List<ByteString>> data;
   private int currentId;
-  private final Map<StateKey, NavigableSet<Long>> orderedListKeys;
+  private final Map<StateKey, NavigableSet<Long>> orderedListSortKeysFromStateKey;
 
   public <V> FakeBeamFnStateClient(Coder<V> valueCoder, Map<StateKey, List<V>> initialData) {
     this(valueCoder, initialData, DEFAULT_CHUNK_SIZE);
@@ -118,17 +118,17 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
             .filter((k) -> k.getTypeCase() == TypeCase.ORDERED_LIST_USER_STATE)
             .collect(Collectors.toList());
 
-    this.orderedListKeys = new HashMap<>();
+    this.orderedListSortKeysFromStateKey = new HashMap<>();
     for (StateKey key : orderedListStateKeys) {
       long sortKey = key.getOrderedListUserState().getRange().getStart();
 
       StateKey.Builder keyBuilder = key.toBuilder();
 
       // clear the range in the state key before using it as a key to store, because ordered list
-      // with different ranges would be mapped to the same set in orderedListKeys.
+      // with different ranges would be mapped to the same set of sort keys.
       keyBuilder.getOrderedListUserStateBuilder().clearRange();
 
-      this.orderedListKeys
+      this.orderedListSortKeysFromStateKey
           .computeIfAbsent(keyBuilder.build(), (unused) -> new TreeSet<>())
           .add(sortKey);
     }
@@ -226,7 +226,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
             StateKey.Builder stateKeyWithoutRange = request.getStateKey().toBuilder();
             stateKeyWithoutRange.getOrderedListUserStateBuilder().clearRange();
             NavigableSet<Long> subset =
-                orderedListKeys
+                orderedListSortKeysFromStateKey
                     .getOrDefault(stateKeyWithoutRange.build(), new TreeSet<>())
                     .subSet(sortKey, true, end, false);
 
@@ -285,14 +285,14 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
 
           List<Long> keysToRemove =
               new ArrayList<>(
-                  orderedListKeys
+                  orderedListSortKeysFromStateKey
                       .getOrDefault(stateKeyWithoutRange.build(), new TreeSet<>())
                       .subSet(r.getStart(), true, r.getEnd(), false));
           for (Long l : keysToRemove) {
             StateKey.Builder keyBuilder = request.getStateKey().toBuilder();
             keyBuilder.getOrderedListUserStateBuilder().getRangeBuilder().setStart(l).setEnd(l + 1);
             data.remove(keyBuilder.build());
-            orderedListKeys.get(stateKeyWithoutRange.build()).remove(l);
+            orderedListSortKeysFromStateKey.get(stateKeyWithoutRange.build()).remove(l);
           }
         }
         response = StateResponse.newBuilder().setClear(StateClearResponse.getDefaultInstance());
@@ -328,7 +328,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
 
               StateKey.Builder stateKeyWithoutRange = request.getStateKey().toBuilder();
               stateKeyWithoutRange.getOrderedListUserStateBuilder().clearRange();
-              orderedListKeys
+              orderedListSortKeysFromStateKey
                   .computeIfAbsent(stateKeyWithoutRange.build(), (unused) -> new TreeSet<>())
                   .add(sortKey);
             }
