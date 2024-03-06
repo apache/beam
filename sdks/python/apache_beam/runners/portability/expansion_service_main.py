@@ -55,7 +55,7 @@ def main(argv):
   print(dir_list)
   print2 = "******** xyz123 Files and directories in '" + path + "' :" + str(dir_list)
 
-  raise Exception(print1 + "    " + print2)
+#   raise Exception(print1 + "    " + print2)
 
   parser = argparse.ArgumentParser()
   parser.add_argument(

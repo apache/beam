@@ -131,7 +131,8 @@ public class TransformServiceLauncher {
     File dependenciesDir = Paths.get(tmpDir, "dependencies_dir").toFile();
     Path updatedRequirementsFilePath = Paths.get(dependenciesDir.toString(), "requirements.txt");
     if (dependenciesDir.exists()) {
-      LOG.info("Reusing the existing dependencies directory " + dependenciesDir.getAbsolutePath());
+      throw new RuntimeException("xyz123 Dependencies dir " + dependenciesDir.toString() + " exists.");
+      // LOG.info("Reusing the existing dependencies directory " + dependenciesDir.getAbsolutePath());
     } else {
       LOG.info(
           "Creating a temporary directory for storing dependencies: "

@@ -157,7 +157,13 @@ func launchExpansionServiceProcess() error {
 		return fmt.Errorf("Could not execute /usr/bin/ls -al /: %s", err)
 	}
 
-// 	if *requirements_file != "" {
+//   if _, err := os.Stat(*requirements_file); errors.Is(err, os.ErrNotExist) {
+//     requirement_file_exists = false
+//   } else {
+//     requirement_file_exists = true
+//   }
+//
+// 	if requirement_file_exists {
 // 		log.Printf("Received the requirements file %v", *requirements_file)
 // 		updatedRequirementsFileName, err := getUpdatedRequirementsFile(*requirements_file, *dependencies_dir)
 // 		if err != nil {
@@ -173,7 +179,10 @@ func launchExpansionServiceProcess() error {
 // 		if err != nil {
 // 			return err
 // 		}
+// 	} else if (*requirements_file) {
+// 	  log.Printf("Requirements file %s was provided but not available.", *requirements_file)
 // 	}
+
 	if err := execx.Execute(pythonVersion, args...); err != nil {
 	  log.Printf("****** xyz123 could not start the expansion service: %s", err)
 		return fmt.Errorf("could not start the expansion service: %s", err)
