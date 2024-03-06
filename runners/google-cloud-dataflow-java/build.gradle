@@ -180,8 +180,7 @@ def commonLegacyExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment',
   'org.apache.beam.sdk.testing.LargeKeys$Above10MB',
   'org.apache.beam.sdk.testing.UsesAttemptedMetrics',
-  'org.apache.beam.sdk.testing.UsesJavaExpansionService',
-  'org.apache.beam.sdk.testing.UsesPythonExpansionService',
+  'org.apache.beam.sdk.testing.UsesExternalService',
   'org.apache.beam.sdk.testing.UsesDistributionMetrics',
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
   'org.apache.beam.sdk.testing.UsesMultimapState',
@@ -192,6 +191,7 @@ def commonLegacyExcludeCategories = [
 ]
 
 def commonRunnerV2ExcludeCategories = [
+        'org.apache.beam.sdk.testing.UsesExternalService',
         'org.apache.beam.sdk.testing.UsesGaugeMetrics',
         'org.apache.beam.sdk.testing.UsesSetState',
         'org.apache.beam.sdk.testing.UsesMapState',

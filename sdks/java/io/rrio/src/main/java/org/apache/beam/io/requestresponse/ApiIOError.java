@@ -17,10 +17,6 @@
  */
 package org.apache.beam.io.requestresponse;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
 import java.util.Optional;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
@@ -36,19 +32,18 @@ import org.joda.time.Instant;
 @AutoValue
 public abstract class ApiIOError {
 
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
   /**
    * Instantiate an {@link ApiIOError} from an {@link ErrorT} {@link T} element. The {@link T}
-   * element is converted to a JSON string.
+   * element is converted to a string by calling {@link Object#toString()}.
    */
-  static <T, ErrorT extends Exception> ApiIOError of(ErrorT e, T element)
-      throws JsonProcessingException {
-
-    String json = OBJECT_MAPPER.writeValueAsString(checkStateNotNull(element));
+  static <T, ErrorT extends Exception> ApiIOError of(ErrorT e, T element) {
+    String request = "";
+    if (element != null) {
+      request = element.toString();
+    }
 
     return ApiIOError.builder()
-        .setRequestAsJsonString(json)
+        .setRequestAsString(request)
         .setMessage(Optional.ofNullable(e.getMessage()).orElse(""))
         .setObservedTimestamp(Instant.now())
         .setStackTrace(Throwables.getStackTraceAsString(e))
@@ -59,8 +54,8 @@ public abstract class ApiIOError {
     return new AutoValue_ApiIOError.Builder();
   }
 
-  /** The JSON string representation of the request associated with the error. */
-  public abstract String getRequestAsJsonString();
+  /** The string representation of the request associated with the error. */
+  public abstract String getRequestAsString();
 
   /** The observed timestamp of the error. */
   public abstract Instant getObservedTimestamp();
@@ -74,7 +69,7 @@ public abstract class ApiIOError {
   @AutoValue.Builder
   abstract static class Builder {
 
-    abstract Builder setRequestAsJsonString(String value);
+    abstract Builder setRequestAsString(String value);
 
     abstract Builder setObservedTimestamp(Instant value);
 

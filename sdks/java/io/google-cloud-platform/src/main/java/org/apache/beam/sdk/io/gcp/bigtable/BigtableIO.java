@@ -1419,6 +1419,23 @@ public class BigtableIO {
       }
     }
 
+    @Teardown
+    public void tearDown() throws IOException {
+      // in case of exception in processElement, finishBundle will not be called
+      // cleanup resources allocated in startBundle
+      try {
+        if (bigtableWriter != null) {
+          bigtableWriter.close();
+          bigtableWriter = null;
+        }
+      } finally {
+        if (serviceEntry != null) {
+          serviceEntry.close();
+          serviceEntry = null;
+        }
+      }
+    }
+
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       config.populateDisplayData(builder);

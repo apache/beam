@@ -413,10 +413,8 @@ def gcpProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing
 project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
     createCrossLanguageUsingJavaExpansionTask(
       name: taskMetadata.name,
-      expansionProjectPath: taskMetadata.expansionProjectPath,
+      expansionProjectPaths: taskMetadata.expansionProjectPaths,
       collectMarker: taskMetadata.collectMarker,
-      startJobServer: taskMetadata.startJobServer,
-      cleanupJobServer: taskMetadata.cleanupJobServer,
       numParallelTests: 1,
       pythonPipelineOptions: [
         "--runner=TestDirectRunner",
@@ -427,6 +425,8 @@ project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
         "--timeout=4500", // timeout of whole command execution
         "--color=yes", // console color
         "--log-cli-level=INFO" //log level info
-      ]
+      ],
+      additionalDeps: taskMetadata.additionalDeps,
+      additionalEnvs: taskMetadata.additionalEnvs
     )
 }

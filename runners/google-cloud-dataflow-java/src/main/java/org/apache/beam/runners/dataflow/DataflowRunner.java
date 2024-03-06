@@ -65,6 +65,7 @@ import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationConte
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.runners.dataflow.util.DataflowTemplateJob;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.PackageUtil.StagedFile;
@@ -1064,7 +1065,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private List<RunnerApi.ArtifactInformation> getDefaultArtifacts() {
     ImmutableList.Builder<String> pathsToStageBuilder = ImmutableList.builder();
     String windmillBinary =
-        options.as(DataflowPipelineDebugOptions.class).getOverrideWindmillBinary();
+        options.as(DataflowStreamingPipelineOptions.class).getOverrideWindmillBinary();
     String dataflowWorkerJar = options.getDataflowWorkerJar();
     if (dataflowWorkerJar != null && !dataflowWorkerJar.isEmpty() && !useUnifiedWorker(options)) {
       // Put the user specified worker jar at the start of the classpath, to be consistent with the
@@ -1687,7 +1688,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               String rootBigQueryTransform = "";
               if (transform.getClass().equals(StorageApiLoads.class)) {
                 StorageApiLoads<?, ?> storageLoads = (StorageApiLoads<?, ?>) transform;
-                failedTag = storageLoads.getFailedRowsTag();
+                // If the storage load is directing exceptions to an error handler, we don't need to
+                // warn for unconsumed rows
+                if (!storageLoads.usesErrorHandler()) {
+                  failedTag = storageLoads.getFailedRowsTag();
+                }
                 // For storage API the transform that outputs failed rows is nested one layer below
                 // BigQueryIO.
                 rootBigQueryTransform = node.getEnclosingNode().getFullName();

@@ -2,7 +2,7 @@ Prompt:
 Write the Python code to read data from Cloud Spanner using Apache Beam.
 
 Response:
-You can read data from [Cloud Spanner](https://cloud.google.com/spanner) using the Apache Beam [SpannerIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.spanner.html). The SpannerIO connector lets you read data from and write data to Cloud Spanner. Cloud Spanner is supported in both batch pipelines and streaming pipelines.
+Your Apache Beam pipeline can read data from [Cloud Spanner](https://cloud.google.com/spanner) using the Apache Beam [SpannerIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.spanner.html). The SpannerIO connector lets you read data from and write data to Cloud Spanner. Cloud Spanner is supported in both batch pipelines and streaming pipelines.
 
 ```python
 import logging
@@ -55,9 +55,10 @@ with beam.Pipeline(options=options) as p:
 The `ReadFromSpanner` transform is a built-in Apache Beam transform that reads data from a Cloud Spanner table. The `ReadFromSpanner` transform returns a `PCollection` of `NamedTuple` objects. The `NamedTuple` object is a Python class that represents a row in a Cloud Spanner table.
 
 Registering a coder for `NamedTuple` is required to use `NamedTuple` as a row type:
+
 ```python
  coders.registry.register_coder(ExampleRow, coders.RowCoder)
 ```
 For more information about how to register a coder for a custom type, see [Data encoding and type safety](https://beam.apache.org/documentation/programming-guide/#data-encoding-and-type-safety).
 
-The `SpannerOptions` class defines the command-line arguments `project_id`, `instance_id` and `database_id`, which are used to configure the `ReadFromSpanner` transform. These arguments are parsed from the command line using [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/).
+The `SpannerOptions` class defines the command-line arguments `project_id`, `instance_id`, and `database_id`, which are used to configure the `ReadFromSpanner` transform. These arguments are parsed from the command line using [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/).

@@ -144,7 +144,7 @@ class ExternalTransformProvider:
 
   A :class:`ExternalTransform` subclass is generated for each external
   transform, and is named based on what can be inferred from the URN
-  (see :param urn_pattern).
+  (see the `urn_pattern` parameter).
 
   These classes are generated when :class:`ExternalTransformProvider` is
   initialized. We need to give it one or more expansion service addresses that
@@ -256,7 +256,7 @@ class ExternalTransformProvider:
 
       if skipped_urns:
         logging.info(
-            "Skipped URN(s) in %s that don't follow the pattern [%s]: %s",
+            "Skipped URN(s) in %s that don't follow the pattern \"%s\": %s",
             target,
             self._urn_pattern,
             skipped_urns)
@@ -267,6 +267,10 @@ class ExternalTransformProvider:
   def get_available(self) -> List[Tuple[str, str]]:
     """Get a list of available ExternalTransform names and identifiers"""
     return list(self._name_to_urn.items())
+
+  def get_all(self) -> Dict[str, ExternalTransform]:
+    """Get all ExternalTransform"""
+    return self._transforms
 
   def get(self, name) -> ExternalTransform:
     """Get an ExternalTransform by its inferred class name"""

@@ -52,6 +52,7 @@ public interface DataflowPipelineOptions
         GcsOptions,
         StreamingOptions,
         DataflowWorkerLoggingOptions,
+        DataflowStreamingPipelineOptions,
         DataflowProfilingOptions,
         PubsubOptions {
 

@@ -85,8 +85,13 @@ python -m apache_beam.yaml.main --yaml_pipeline_file=/path/to/pipeline.yaml --ru
 
 (This requires [Graphviz](https://graphviz.org/download/) to be installed to render the pipeline.)
 
-We intend to support running a pipeline on Dataflow by directly passing the
-yaml specification to a template, no local installation of the Beam SDKs required.
+You can also submit a YAML pipeline directly by using the Dataflow CLI command
+[`gcloud beta dataflow yaml run`](https://cloud.google.com/sdk/gcloud/reference/beta/dataflow/yaml/run).
+When you use the `gcloud` CLI, you don't need to install the Beam SDKs locally.
+
+```
+gcloud beta dataflow yaml run job_name --yaml-pipeline-file=/path/to/pipeline.yaml --region=europe-west1
+```
 
 ## Example pipelines
 
@@ -361,6 +366,8 @@ pipeline:
       config:
         topic: anotherPubSubTopic
         format: json
+options:
+  streaming: true
 ```
 
 Rather than using an explicit `WindowInto` operation, one may instead tag a
@@ -387,6 +394,8 @@ pipeline:
       config:
         topic: anotherPubSubTopic
         format: json
+options:
+  streaming: true
 ```
 
 Note that the `Sql` operation itself is often a from of aggregation, and
@@ -412,6 +421,8 @@ pipeline:
       config:
         topic: anotherPubSubTopic
         format: json
+options:
+  streaming: true
 ```
 
 The specified windowing is applied to all inputs, in this case resulting in
@@ -443,6 +454,8 @@ pipeline:
       windowing:
         type: fixed
         size: 60s
+options:
+  streaming: true
 ```
 
 For a transform with no inputs, the specified windowing is instead applied to
@@ -468,6 +481,8 @@ pipeline:
       config:
         topic: anotherPubSubTopic
         format: json
+options:
+  streaming: true
 ```
 
 One can also specify windowing at the top level of a pipeline (or composite),
@@ -494,6 +509,8 @@ pipeline:
   windowing:
     type: fixed
     size: 60
+options:
+  streaming: true
 ```
 
 Note that all these windowing specifications are compatible with the `source`
@@ -525,6 +542,9 @@ pipeline:
     windowing:
       type: fixed
       size: 5m
+
+options:
+  streaming: true
 ```
 
 
@@ -560,7 +580,8 @@ pipeline:
 
 providers:
   - type: javaJar
-    jar: /path/or/url/to/myExpansionService.jar
+    config:
+       jar: /path/or/url/to/myExpansionService.jar
     transforms:
        MyCustomTransform: "urn:registered:in:expansion:service"
 ```
@@ -570,11 +591,37 @@ Arbitrary Python transforms can be provided as well, using the syntax
 ```
 providers:
   - type: pythonPackage
-    packages:
-        - my_pypi_package>=version
-        - /path/to/local/package.zip
+    config:
+       packages:
+           - my_pypi_package>=version
+           - /path/to/local/package.zip
     transforms:
        MyCustomTransform: "pkg.subpkg.PTransformClassOrCallable"
+```
+
+## Pipeline Options
+
+[Pipeline options](https://beam.apache.org/documentation/programming-guide/#configuring-pipeline-options)
+are used to configure different aspects of your pipeline, such as the pipeline runner that will execute
+your pipeline and any runner-specific configuration required by the chosen runner. To set pipeline options,
+append an options block at the end of your yaml file. For example:
+
+```
+pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromPubSub
+      config:
+        topic: myPubSubTopic
+        format: ...
+        schema: ...
+    ...
+    - type: WriteToPubSub
+      config:
+        topic: anotherPubSubTopic
+        format: json
+options:
+  streaming: true
 ```
 
 ## Other Resources
@@ -582,10 +629,3 @@ providers:
 * [Example pipelines](https://gist.github.com/robertwb/2cb26973f1b1203e8f5f8f88c5764da0)
 * [More examples](https://github.com/Polber/beam/tree/jkinard/bug-bash/sdks/python/apache_beam/yaml/examples)
 * [Transform glossary](https://gist.github.com/robertwb/64e2f51ff88320eeb6ffd96634202df7)
-
-Additional documentation in this directory
-
-* [Mapping](yaml_mapping.md)
-* [Aggregation](yaml_combine.md)
-* [Error handling](yaml_errors.md)
-* [Inlining Python](inline_python.md)
