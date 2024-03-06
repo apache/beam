@@ -119,6 +119,9 @@ public class PTransformTranslation {
   public static final String COMBINE_PER_KEY_TRANSFORM_URN = "beam:transform:combine_per_key:v1";
   public static final String COMBINE_GLOBALLY_TRANSFORM_URN = "beam:transform:combine_globally:v1";
   public static final String RESHUFFLE_URN = "beam:transform:reshuffle:v1";
+  public static final String REDISTRIBUTE_BY_KEY_URN = "beam:transform:redistribute_by_key:v1";
+  public static final String REDISTRIBUTE_ARBITRARILY_URN =
+      "beam:transform:redistribute_arbitrarily:v1";
   public static final String WRITE_FILES_TRANSFORM_URN = "beam:transform:write_files:v1";
   public static final String GROUP_INTO_BATCHES_WITH_SHARDED_KEY_URN =
       "beam:transform:group_into_batches_with_sharded_key:v1";
