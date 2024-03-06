@@ -122,7 +122,7 @@ public class Wait {
           // on combiner lifting.
           .apply(ParDo.of(new CollectWindowsFn<>()))
           .apply(Sample.any(1))
-          .apply(View.asList());
+          .apply(View.asIterable());
     }
   }
 
