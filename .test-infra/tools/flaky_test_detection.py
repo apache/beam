@@ -22,7 +22,7 @@ from github import Auth
 
 ALERT_NAME = "flaky_test"
 GIT_ORG = "apache"
-GRAFANA_URL = "https://metrics.beam.apache.org"
+GRAFANA_URL = "http://metrics.beam.apache.org"
 READ_ONLY = os.environ.get("READ_ONLY", "true")
 
 

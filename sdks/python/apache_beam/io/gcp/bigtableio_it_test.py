@@ -60,9 +60,10 @@ def instance_prefix(instance):
 @pytest.mark.uses_transform_service
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 @unittest.skipUnless(
-    os.environ.get('EXPANSION_JARS'),
-    "EXPANSION_JARS environment var is not provided, "
-    "indicating that jars have not been built")
+    os.environ.get('EXPANSION_JARS') or
+    os.environ.get('TRANSFORM_SERVICE_PORT'),
+    "A valid expansion service is not available for executing the "
+    "cross-language test.")
 class TestReadFromBigTableIT(unittest.TestCase):
   INSTANCE = "bt-read-tests"
   TABLE_ID = "test-table"
@@ -151,9 +152,10 @@ class TestReadFromBigTableIT(unittest.TestCase):
 @pytest.mark.uses_transform_service
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 @unittest.skipUnless(
-    os.environ.get('EXPANSION_JARS'),
-    "EXPANSION_JARS environment var is not provided, "
-    "indicating that jars have not been built")
+    os.environ.get('EXPANSION_JARS') or
+    os.environ.get('TRANSFORM_SERVICE_PORT'),
+    "A valid expansion service is not available for executing the "
+    "cross-language test.")
 class TestWriteToBigtableXlangIT(unittest.TestCase):
   # These are integration tests for the cross-language write transform.
   INSTANCE = "bt-write-xlang"

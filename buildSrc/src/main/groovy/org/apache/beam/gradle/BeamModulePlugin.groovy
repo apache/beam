@@ -2202,7 +2202,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // This sets the whole project Go version.
       // The latest stable Go version can be checked at https://go.dev/dl/
-      project.ext.goVersion = "go1.21.6"
+      project.ext.goVersion = "go1.21.8"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.
@@ -2890,7 +2890,8 @@ class BeamModulePlugin implements Plugin<Project> {
           def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
 
           project.exec {
-            environment "EXPANSION_PORT", externalPort
+            // Following env variable has to be set to make sure that the tests do not pass trivially.
+            environment "TRANSFORM_SERVICE_PORT", externalPort
             executable 'sh'
             args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           }
