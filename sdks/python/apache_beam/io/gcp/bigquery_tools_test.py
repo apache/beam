@@ -224,9 +224,11 @@ class TestBigQueryWrapper(unittest.TestCase):
     self.assertTrue(client.datasets.Delete.called)
 
   @mock.patch('time.sleep', return_value=None)
-  @mock.patch('apitools.base.py.base_api._SkipGetCredentials', return_value=True)
+  @mock.patch(
+      'apitools.base.py.base_api._SkipGetCredentials', return_value=True)
   @mock.patch('google.cloud._http.JSONConnection.http')
-  def test_user_agent_insert_all(self, http_mock, patched_skip_get_credentials, patched_sleep):
+  def test_user_agent_insert_all(
+      self, http_mock, patched_skip_get_credentials, patched_sleep):
     try:
       wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
     except:  # pylint: disable=bare-except
