@@ -39,6 +39,20 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def main(argv):
+
+  import os
+
+  path = "/"
+  dir_list = os.listdir(path)
+  print("******** xyz123 Files and directories in '", path, "' :")
+  print(dir_list)
+
+  path = "/dependencies_volume/"
+  dir_list = os.listdir(path)
+  print("******** xyz123 Files and directories in '", path, "' :")
+  print(dir_list)
+
+
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '-p', '--port', type=int, help='port on which to serve the job api')
