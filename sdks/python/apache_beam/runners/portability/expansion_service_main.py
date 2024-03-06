@@ -47,13 +47,13 @@ def main(argv):
   print("******** xyz123 Files and directories in '", path, "' :")
   print(dir_list)
 
-  print1 = "******** xyz123 Files and directories in '", path, "' :" + str(dir_list)
+  print1 = "******** xyz123 Files and directories in '" + path + "' :" + str(dir_list)
 
   path = "/dependencies_volume/"
   dir_list = os.listdir(path)
   print("******** xyz123 Files and directories in '", path, "' :")
   print(dir_list)
-  print2 = "******** xyz123 Files and directories in '", path, "' :" + str(dir_list)
+  print2 = "******** xyz123 Files and directories in '" + path + "' :" + str(dir_list)
 
   raise Exception(print1 + "    " + print2)
 
