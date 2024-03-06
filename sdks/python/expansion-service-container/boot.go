@@ -157,23 +157,23 @@ func launchExpansionServiceProcess() error {
 		return fmt.Errorf("Could not execute /usr/bin/ls -al /: %s", err)
 	}
 
-	if *requirements_file != "" {
-		log.Printf("Received the requirements file %v", *requirements_file)
-		updatedRequirementsFileName, err := getUpdatedRequirementsFile(*requirements_file, *dependencies_dir)
-		if err != nil {
-			return err
-		}
-		defer os.Remove(updatedRequirementsFileName)
-		log.Printf("Updated requirements file is %v", updatedRequirementsFileName)
-		// Provide the requirements file to the expansion service so that packages get staged by runners.
-		args = append(args, "--requirements_file", updatedRequirementsFileName)
-		// Install packages locally so that they can be used by the expansion service during transform
-		// expansion if needed.
-		err = installExtraPackages(updatedRequirementsFileName)
-		if err != nil {
-			return err
-		}
-	}
+// 	if *requirements_file != "" {
+// 		log.Printf("Received the requirements file %v", *requirements_file)
+// 		updatedRequirementsFileName, err := getUpdatedRequirementsFile(*requirements_file, *dependencies_dir)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		defer os.Remove(updatedRequirementsFileName)
+// 		log.Printf("Updated requirements file is %v", updatedRequirementsFileName)
+// 		// Provide the requirements file to the expansion service so that packages get staged by runners.
+// 		args = append(args, "--requirements_file", updatedRequirementsFileName)
+// 		// Install packages locally so that they can be used by the expansion service during transform
+// 		// expansion if needed.
+// 		err = installExtraPackages(updatedRequirementsFileName)
+// 		if err != nil {
+// 			return err
+// 		}
+// 	}
 	if err := execx.Execute(pythonVersion, args...); err != nil {
 		return fmt.Errorf("could not start the expansion service: %s", err)
 	}
