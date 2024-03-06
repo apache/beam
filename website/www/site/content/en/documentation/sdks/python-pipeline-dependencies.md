@@ -46,21 +46,21 @@ To supply a requirements.txt file:
 
     The runner will use the `requirements.txt` file to install your additional dependencies onto the remote workers.
 
-> **NOTE**: An alternative to `pip freeze` is to use a library like [pip-tools](https://github.com/jazzband/pip-tools) to compile all the dependencies required for the pipeline from a `requirements.in` file, where only the top-level dependencies are mentioned.
+> **NOTE**: As an alternative to `pip freeze`, use a library like [pip-tools](https://github.com/jazzband/pip-tools) to compile all of the dependencies required for the pipeline from a `requirements.in` file. In the `requirements.in` file, only the top-level dependencies are mentioned.
 
-When you supply the `--requirements_file` pipeline option, Beam downloads
-specified packages locally into a requirements cache directory during pipeline
-submission, and stages the requirements cache directory to the runner.
-At pipeline runtime, Beam prefers to install packages from requirements cache
-if available. This mechanism allows staging dependency packages to the runner
-at submission, and at runtime the runner workers might be able to install the
-packages from cache, without a connection to PyPI. To disable staging the
-requirements, supply the `--requirements_cache=skip` pipeline option.
+When you supply the `--requirements_file` pipeline option,  during pipeline submission, Beam downloads
+the specified packages locally into a requirements cache directory,
+and then stages the requirements cache directory to the runner.
+At runtime, when available, Beam installs packages from the requirements cache.
+This mechanism makes it possible to stage the dependency packages to the runner
+at submission. At runtime, the runner workers might be able to install the
+packages from the cache without needing a connection to PyPI. To disable staging the
+requirements, use the `--requirements_cache=skip` pipeline option.
 For more information, see the [help descriptions of these pipeline options](https://beam.apache.org/releases/pydoc/current/_modules/apache_beam/options/pipeline_options.html#SetupOptions).
 
 ## Custom Containers {#custom-containers}
 
-You can pass a [container](https://hub.docker.com/search?q=apache%2Fbeam&type=image) image with all the dependencies that are needed for the pipeline. [Follow the instructions on how to run pipeline with Custom Container images](/documentation/runtime/environments/#running-pipelines).
+You can pass a [container](https://hub.docker.com/search?q=apache%2Fbeam&type=image) image with all the dependencies that are needed for the pipeline. [Follow the instructions the show how to run the pipeline with custom container images](/documentation/runtime/environments/#running-pipelines).
 
 1. If you are using a custom container image, we recommend that you install the dependencies from the `--requirements_file` directly into your image at build time. In this case, you do not need to pass `--requirements_file` option at runtime, which will reduce the pipeline startup time.
 
@@ -128,10 +128,10 @@ Often, your pipeline code spans multiple files. To run your project remotely, yo
 
         --setup_file /path/to/setup.py
 
-**Note:** It is not necessary to supply the `--requirements_file` [option](#pypi-dependencies) if the dependenices of your package are defined in the `install_requires` field of the `setup.py` file (see step 1).
-However unlike the `--requirements_file` option, when  using the `--setup_file` option, Beam does not stage the dependent packages to the Runner,
-only the pipeline package is staged and its dependencies are installed from PyPI
-at runtime if not already provided in the runtime environment.
+**Note:** It is not necessary to supply the `--requirements_file` [option](#pypi-dependencies) if the dependencies of your package are defined in the `install_requires` field of the `setup.py` file (see step 1).
+However unlike with the `--requirements_file` option, when you use the `--setup_file` option, Beam doesn't stage the dependent packages to the runner.
+Only the pipeline package is staged. If they aren't already provided in the runtime environment,
+the package dependencies are installed from PyPI at runtime.
 
 
 ## Non-Python Dependencies or PyPI Dependencies with Non-Python Dependencies {#nonpython}
