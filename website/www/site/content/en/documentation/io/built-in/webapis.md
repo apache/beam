@@ -19,7 +19,7 @@ limitations under the License.
 
 # Web APIs I/O connector
 
-{{< language-switcher java py go >}}
+{{< language-switcher java >}}
 
 The Beam SDKs include a built-in transform, called RequestResponseIO that can read from and write to Web APIs such as
 REST or gRPC.
@@ -39,29 +39,11 @@ To use RequestResponseIO, add the Maven artifact dependency to your `pom.xml` fi
 </dependency>
 {{< /highlight >}}
 
-{{< paragraph class="language-py" >}}
-To use RequestResponseIO, install the Beam SDK by running `pip install apache-beam`
-{{< /paragraph >}}
-
-{{< paragraph class="language-go" wrap="span" >}}
-At this time the Go SDK implementation of RequestResponseIO is not available. See tracker issue:
-https://github.com/apache/beam/issues/30423.
-{{< /paragraph >}}
-
 ## Additional resources
 
 {{< paragraph class="language-java" wrap="span" >}}
 * [RequestResponseIO source code](https://github.com/apache/beam/tree/master/sdks/java/io/rrio)
 * [RequestResponseIO Javadoc](https://beam.apache.org/releases/javadoc/current/org/apache/beam/io/requestresponse/RequestResponseIO.html)
-{{< /paragraph >}}
-
-{{< paragraph class="language-py" wrap="span" >}}
-* [RequestResponseIO source code](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/requestresponse.py)
-* [RequestResponseIO PyDoc](https://beam.apache.org/releases/pydoc/current/apache_beam.io.requestresponse.html)
-{{< /paragraph >}}
-
-{{< paragraph class="language-go" wrap="span" >}}
-TODO: see https://github.com/apache/beam/issues/30423.
 {{< /paragraph >}}
 
 ## RequestResponseIO basics
@@ -75,20 +57,16 @@ The minimal code needed to read from or write to Web APIs is:
 2. Instantiate [RequestResponseIO](https://beam.apache.org/releases/javadoc/current/org/apache/beam/io/requestresponse/RequestResponseIO.html).
 {{< /paragraph >}}
 
-{{< paragraph class="language-py" wrap="span" >}}
-1. [Caller](https://beam.apache.org/releases/pydoc/current/apache_beam.io.requestresponse.html#apache_beam.io.requestresponse.Caller) implementation.
-2. Instantiate [RequestResponseIO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.requestresponse.html#apache_beam.io.requestresponse.RequestResponseIO).
-{{< /paragraph >}}
-
-{{< paragraph class="language-go" wrap="span" >}}
-TODO: see https://github.com/apache/beam/issues/30423.
-{{< /paragraph >}}
-
 #### Implementing the Caller
 
 {{< paragraph class="language-java" >}}
 [Caller](https://beam.apache.org/releases/javadoc/current/org/apache/beam/io/requestresponse/Caller.html) requires
-only one method override.
+only one method override, [call](https://beam.apache.org/releases/javadoc/current/org/apache/beam/io/requestresponse/Caller.html#call-RequestT-).
+[Caller::call](https://beam.apache.org/releases/javadoc/current/org/apache/beam/io/requestresponse/Caller.html#call-RequestT-)'s
+purpose is to interact with the API, converting a request into a response.
+The transform's DoFn invokes this method within its
+[DoFn.ProcessElement](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.ProcessElement.html)
+method.
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -98,14 +76,6 @@ class MyCaller<MyRequest, MyResponse> implements Caller<MyRequest, MyResponse> {
         // Do something with request and return the response.
     }
 }
-{{< /highlight >}}
-
-{{< highlight py >}}
-# Pending https://github.com/apache/beam/issues/30422
-{{< /highlight >}}
-
-{{< highlight go >}}
-// Pending https://github.com/apache/beam/issues/30423
 {{< /highlight >}}
 
 #### Instantiate RequestResponseIO
@@ -130,14 +100,6 @@ result.getResponses().apply( ... );
 // Apply failures to a dead letter sink.
 result.getFailures().apply( ... );
 
-{{< /highlight >}}
-
-{{< highlight py >}}
-# Pending https://github.com/apache/beam/issues/30422
-{{< /highlight >}}
-
-{{< highlight go >}}
-// Pending https://github.com/apache/beam/issues/30423
 {{< /highlight >}}
 
 {{< paragraph >}}
@@ -166,14 +128,6 @@ and [UserCodeTimeoutException](https://beam.apache.org/releases/javadoc/current/
 {{< code_sample "examples/java/webapis/src/main/java/org/apache/beam/examples/webapis/HttpImageClient.java" webapis_java_image_caller >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
-# Pending https://github.com/apache/beam/issues/30422
-{{< /highlight >}}
-
-{{< highlight go >}}
-// Pending https://github.com/apache/beam/issues/30423
-{{< /highlight >}}
-
 #### Define request
 
 `ImageRequest` is the custom request we provide the `HttpImageClient`, defined in the example above, to invoke the HTTP call
@@ -186,14 +140,6 @@ including inherent Java classes such as `String`, `Double`, etc.{{< /paragraph >
 {{< code_sample "examples/java/webapis/src/main/java/org/apache/beam/examples/webapis/ImageRequest.java" webapis_java_image_request >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
-# Pending https://github.com/apache/beam/issues/30422
-{{< /highlight >}}
-
-{{< highlight go >}}
-// Pending https://github.com/apache/beam/issues/30423
-{{< /highlight >}}
-
 #### Define response
 
 `ImageResponse` is the custom response we return from the `HttpImageClient`, defined in the example above, that contains the image data
@@ -204,14 +150,6 @@ including inherent Java classes such as `String`, `Double`, etc.{{< /paragraph >
 
 {{< highlight java >}}
 {{< code_sample "examples/java/webapis/src/main/java/org/apache/beam/examples/webapis/ImageResponse.java" webapis_java_image_response >}}
-{{< /highlight >}}
-
-{{< highlight py >}}
-# Pending https://github.com/apache/beam/issues/30422
-{{< /highlight >}}
-
-{{< highlight go >}}
-// Pending https://github.com/apache/beam/issues/30423
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -241,14 +179,6 @@ The pipeline outputs a summary of the downloaded image, its mimetype and size.
 {{< code_sample "examples/java/webapis/src/main/java/org/apache/beam/examples/webapis/UsingHttpClientExample.java" webapis_java_http_get >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
-# Pending https://github.com/apache/beam/issues/30422
-{{< /highlight >}}
-
-{{< highlight go >}}
-// Pending https://github.com/apache/beam/issues/30423
-{{< /highlight >}}
-
 {{< paragraph class="language-java" >}}
 The output of the pipeline is shown below, showing the image URL, its MIME type and size.
 {{< /paragraph >}}
@@ -260,14 +190,6 @@ KV{https://storage.googleapis.com/generativeai-downloads/images/cake.jpg, mimeTy
 KV{https://storage.googleapis.com/generativeai-downloads/images/chocolate.png, mimeType=image/png, size=29375}
 KV{https://storage.googleapis.com/generativeai-downloads/images/croissant.jpg, mimeType=image/jpeg, size=207281}
 KV{https://storage.googleapis.com/generativeai-downloads/images/dog_form.jpg, mimeType=image/jpeg, size=1121752}
-{{< /highlight >}}
-
-{{< highlight py >}}
-# Pending https://github.com/apache/beam/issues/30422
-{{< /highlight >}}
-
-{{< highlight go >}}
-// Pending https://github.com/apache/beam/issues/30423
 {{< /highlight >}}
 
 ### Using API client code
@@ -295,14 +217,6 @@ interface SetupTeardown {
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
-# Pending https://github.com/apache/beam/issues/30422
-{{< /highlight >}}
-
-{{< highlight go >}}
-// Pending https://github.com/apache/beam/issues/30423
-{{< /highlight >}}
-
 Below is an implementation of both `Caller` and `SetupTeardown` to interact with the
 [Gemini AI API](https://cloud.google.com/vertex-ai/docs/generative-ai/model-reference/gemini). It has a bit more
 boilerplate than the simple HTTP example above.
@@ -322,14 +236,6 @@ request, uses it to invoke an API, and returns the response.
 {{< code_sample "examples/java/webapis/src/main/java/org/apache/beam/examples/webapis/GeminiAIClient.java" webapis_java_gemini_ai_client >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
-# Pending https://github.com/apache/beam/issues/30422
-{{< /highlight >}}
-
-{{< highlight go >}}
-// Pending https://github.com/apache/beam/issues/30423
-{{< /highlight >}}
-
 #### Ask Gemini AI to identify the image
 
 Now let's combine the previous example of acquiring an image to this Gemini AI client to ask it to identify the image.
@@ -341,26 +247,10 @@ a `PCollection` of `ImageResponse`s containing the image data.
 {{< code_sample "examples/java/webapis/src/main/java/org/apache/beam/examples/webapis/Images.java" webapis_java_get_images >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
-# Pending https://github.com/apache/beam/issues/30422
-{{< /highlight >}}
-
-{{< highlight go >}}
-// Pending https://github.com/apache/beam/issues/30423
-{{< /highlight >}}
-
 Next we convert the `ImageResponse`s into a `PCollection` of `GenerateContentRequest`s.
 
 {{< highlight java >}}
 {{< code_sample "examples/java/webapis/src/main/java/org/apache/beam/examples/webapis/GeminiAIExample.java" webapis_java_build_ai_requests >}}
-{{< /highlight >}}
-
-{{< highlight py >}}
-# Pending https://github.com/apache/beam/issues/30422
-{{< /highlight >}}
-
-{{< highlight go >}}
-// Pending https://github.com/apache/beam/issues/30423
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -374,26 +264,10 @@ just tells the compiler that we are providing an implementation of both the `Cal
 {{< code_sample "examples/java/webapis/src/main/java/org/apache/beam/examples/webapis/GeminiAIExample.java" webapis_java_ask_ai >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
-# Pending https://github.com/apache/beam/issues/30422
-{{< /highlight >}}
-
-{{< highlight go >}}
-// Pending https://github.com/apache/beam/issues/30423
-{{< /highlight >}}
-
 The full end-to-end pipeline is shown below.
 
 {{< highlight java >}}
 {{< code_sample "examples/java/webapis/src/main/java/org/apache/beam/examples/webapis/GeminiAIExample.java" webapis_java_identify_image >}}
-{{< /highlight >}}
-
-{{< highlight py >}}
-# Pending https://github.com/apache/beam/issues/30422
-{{< /highlight >}}
-
-{{< highlight go >}}
-// Pending https://github.com/apache/beam/issues/30423
 {{< /highlight >}}
 
 Below shows an abbreviated output of running the full pipeline, where we see the result of Gemini AI identifying the images.
@@ -430,12 +304,4 @@ KV{https://storage.googleapis.com/generativeai-downloads/images/croissant.jpg
         }
     }
 }
-{{< /highlight >}}
-
-{{< highlight py >}}
-# Pending https://github.com/apache/beam/issues/30422
-{{< /highlight >}}
-
-{{< highlight go >}}
-// Pending https://github.com/apache/beam/issues/30423
 {{< /highlight >}}
