@@ -145,7 +145,7 @@ public class BigQueryAvroUtilsTest {
       }
       // After a Field is added to a Schema, it is assigned a position, so we can't simply reuse
       // the existing Field.
-      avroFields.add(new Schema.Field(field.name(), schema, field.doc(), field.defaultValue()));
+      avroFields.add(new Schema.Field(field.name(), schema, field.doc(), field.defaultVal()));
     }
     Schema avroSchema = Schema.createRecord(avroFields);
 
