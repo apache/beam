@@ -183,11 +183,8 @@ class BigtableConfigTranslator {
                           BigtableDataSettings.Builder>>() {})
               .fromClassName(override)
               .build();
-    } catch (Exception e) {
+    } catch (ClassNotFoundException e) {
       throw new IllegalArgumentException("Failed to load class override " + override, e);
-    }
-    if (overrideFunction == null) {
-      return dataBuilder;
     }
     try {
       return overrideFunction.apply(dataBuilder, pipelineOptions);
