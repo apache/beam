@@ -277,7 +277,7 @@ class IntervalWindow(windowed_value._IntervalWindowBase, BoundedWindow):
   def union(self, other):
     # type: (IntervalWindow) -> IntervalWindow
     return IntervalWindow(
-        min(self.start, other.start), max(self.end, other.end))
+        start=min(self.start, other.start), end=max(self.end, other.end))
 
 
 V = TypeVar("V")
@@ -447,7 +447,7 @@ class FixedWindows(NonMergingWindowFn):
     # type: (WindowFn.AssignContext) -> List[IntervalWindow]
     timestamp = context.timestamp
     start = timestamp - (timestamp - self.offset) % self.size
-    return [IntervalWindow(start, start + self.size)]
+    return [IntervalWindow(start=start, end=start + self.size)]
 
   def get_window_coder(self):
     # type: () -> coders.IntervalWindowCoder
@@ -476,8 +476,8 @@ class FixedWindows(NonMergingWindowFn):
   def from_runner_api_parameter(fn_parameter, unused_context):
     # type: (...) -> FixedWindows
     return FixedWindows(
-        size=Duration(micros=fn_parameter.size.ToMicroseconds()),
-        offset=Timestamp(micros=fn_parameter.offset.ToMicroseconds()))
+        size=Duration(micros=proto_utils.to_micros(fn_parameter.size)),
+        offset=Timestamp(micros=proto_utils.to_micros(fn_parameter.offset)))
 
 
 class SlidingWindows(NonMergingWindowFn):
@@ -512,8 +512,8 @@ class SlidingWindows(NonMergingWindowFn):
     start = timestamp - ((timestamp - self.offset) % self.period)
     return [
         IntervalWindow(
-            (interval_start := Timestamp(micros=s)),
-            interval_start + self.size,
+            start=(interval_start := Timestamp(micros=s)),
+            end=interval_start + self.size,
         ) for s in range(
             start.micros,
             timestamp.micros - self.size.micros,
@@ -551,9 +551,9 @@ class SlidingWindows(NonMergingWindowFn):
   def from_runner_api_parameter(fn_parameter, unused_context):
     # type: (...) -> SlidingWindows
     return SlidingWindows(
-        size=Duration(micros=fn_parameter.size.ToMicroseconds()),
-        offset=Timestamp(micros=fn_parameter.offset.ToMicroseconds()),
-        period=Duration(micros=fn_parameter.period.ToMicroseconds()))
+        size=Duration(micros=proto_utils.to_micros(fn_parameter.size)),
+        offset=Timestamp(micros=proto_utils.to_micros(fn_parameter.offset)),
+        period=Duration(micros=proto_utils.to_micros(fn_parameter.period)))
 
 
 class Sessions(WindowFn):
@@ -574,7 +574,7 @@ class Sessions(WindowFn):
   def assign(self, context):
     # type: (WindowFn.AssignContext) -> List[IntervalWindow]
     timestamp = context.timestamp
-    return [IntervalWindow(timestamp, timestamp + self.gap_size)]
+    return [IntervalWindow(start=timestamp, end=timestamp + self.gap_size)]
 
   def get_window_coder(self):
     # type: () -> coders.IntervalWindowCoder
@@ -593,14 +593,15 @@ class Sessions(WindowFn):
         else:
           if len(to_merge) > 1:
             merge_context.merge(
-                to_merge, IntervalWindow(to_merge[0].start, end))
+                to_merge, IntervalWindow(start=to_merge[0].start, end=end))
           to_merge = [w]
           end = w.end
       else:
         to_merge = [w]
         end = w.end
     if len(to_merge) > 1:
-      merge_context.merge(to_merge, IntervalWindow(to_merge[0].start, end))
+      merge_context.merge(
+          to_merge, IntervalWindow(start=to_merge[0].start, end=end))
 
   def __eq__(self, other):
     if type(self) == type(other) == Sessions:
@@ -623,4 +624,4 @@ class Sessions(WindowFn):
   def from_runner_api_parameter(fn_parameter, unused_context):
     # type: (...) -> Sessions
     return Sessions(
-        gap_size=Duration(micros=fn_parameter.gap_size.ToMicroseconds()))
+        gap_size=Duration(micros=proto_utils.to_micros(fn_parameter.gap_size)))
