@@ -151,7 +151,7 @@ class YamlMappingTest(unittest.TestCase):
             ''')
         self.assertEqual(result.element_type._fields[0][1], str)
 
-  def test_split(self):
+  def test_partition(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       elements = p | beam.Create([
@@ -161,10 +161,10 @@ class YamlMappingTest(unittest.TestCase):
       ])
       result = elements | YamlTransform(
           '''
-          type: Split
+          type: Partition
           input: input
           config:
-            on: "'even' if len(element) % 2 == 0 else 'odd'"
+            by: "'even' if len(element) % 2 == 0 else 'odd'"
             language: python
             outputs: [even, odd]
           ''')
@@ -177,7 +177,7 @@ class YamlMappingTest(unittest.TestCase):
           equal_to(['apple']),
           label='Odd')
 
-  def test_split_callable(self):
+  def test_partition_callable(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       elements = p | beam.Create([
@@ -187,10 +187,10 @@ class YamlMappingTest(unittest.TestCase):
       ])
       result = elements | YamlTransform(
           '''
-          type: Split
+          type: Partition
           input: input
           config:
-            on:
+            by:
               callable:
                 "lambda row: 'even' if len(row.element) % 2 == 0 else 'odd'"
             language: python
@@ -205,7 +205,7 @@ class YamlMappingTest(unittest.TestCase):
           equal_to(['apple']),
           label='Odd')
 
-  def test_split_with_unknown(self):
+  def test_partition_with_unknown(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       elements = p | beam.Create([
@@ -215,10 +215,10 @@ class YamlMappingTest(unittest.TestCase):
       ])
       result = elements | YamlTransform(
           '''
-          type: Split
+          type: Partition
           input: input
           config:
-            on: "element.lower()[0]"
+            by: "element.lower()[0]"
             language: python
             outputs: [a, b, c]
             unknown_output: other
@@ -238,7 +238,7 @@ class YamlMappingTest(unittest.TestCase):
           equal_to(['orange']),
           label='Other')
 
-  def test_split_without_unknown(self):
+  def test_partition_without_unknown(self):
     with self.assertRaisesRegex(ValueError, r'.*Unknown output name.*"o".*'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
@@ -249,15 +249,15 @@ class YamlMappingTest(unittest.TestCase):
         ])
         _ = elements | YamlTransform(
             '''
-            type: Split
+            type: Partition
             input: input
             config:
-              on: "element.lower()[0]"
+              by: "element.lower()[0]"
               language: python
               outputs: [a, b, c]
             ''')
 
-  def test_split_without_unknown_with_error(self):
+  def test_partition_without_unknown_with_error(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       elements = p | beam.Create([
@@ -267,10 +267,10 @@ class YamlMappingTest(unittest.TestCase):
       ])
       result = elements | YamlTransform(
           '''
-          type: Split
+          type: Partition
           input: input
           config:
-            on: "element.lower()[0]"
+            by: "element.lower()[0]"
             language: python
             outputs: [a, b, c]
             error_handling:
@@ -291,7 +291,7 @@ class YamlMappingTest(unittest.TestCase):
           equal_to(['orange']),
           label='Errors')
 
-  def test_split_with_actual_error(self):
+  def test_partition_with_actual_error(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       elements = p | beam.Create([
@@ -301,10 +301,10 @@ class YamlMappingTest(unittest.TestCase):
       ])
       result = elements | YamlTransform(
           '''
-          type: Split
+          type: Partition
           input: input
           config:
-            on: "element.lower()[5]"
+            by: "element.lower()[5]"
             language: python
             outputs: [a, b, c]
             unknown_output: other
@@ -325,7 +325,7 @@ class YamlMappingTest(unittest.TestCase):
           equal_to(['apple']),
           label='Errors')
 
-  def test_split_no_language(self):
+  def test_partition_no_language(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       elements = p | beam.Create([
@@ -335,10 +335,10 @@ class YamlMappingTest(unittest.TestCase):
       ])
       result = elements | YamlTransform(
           '''
-          type: Split
+          type: Partition
           input: input
           config:
-            on: texture
+            by: texture
             outputs: [bumpy, smooth]
           ''')
       assert_that(
@@ -350,7 +350,7 @@ class YamlMappingTest(unittest.TestCase):
           equal_to(['apple', 'banana']),
           label='Smooth')
 
-  def test_split_bad_static_type(self):
+  def test_partition_bad_static_type(self):
     with self.assertRaisesRegex(ValueError,
                                 r'.*Split function .*must return a string.*'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -362,15 +362,15 @@ class YamlMappingTest(unittest.TestCase):
         ])
         result = elements | YamlTransform(
             '''
-            type: Split
+            type: Partition
             input: input
             config:
-              on: len(texture)
+              by: len(texture)
               outputs: [bumpy, smooth]
               language: python
             ''')
 
-  def test_split_bad_runtime_type(self):
+  def test_partition_bad_runtime_type(self):
     with self.assertRaisesRegex(ValueError,
                                 r'.*Returned output name.*must be a string.*'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -382,10 +382,10 @@ class YamlMappingTest(unittest.TestCase):
         ])
         result = elements | YamlTransform(
             '''
-            type: Split
+            type: Partition
             input: input
             config:
-              on: print(texture)
+              by: print(texture)
               outputs: [bumpy, smooth]
               language: python
             ''')

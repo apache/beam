@@ -218,10 +218,10 @@ For example, this will send all elements where `col1` is equal to `"a"` to the
 output `Split.a`.
 
 ```
-- type: Split
+- type: Partition
   input: input
   config:
-    on: col1
+    by: col1
     outputs: ['a', 'b', 'c']
 
 - type: SomeTransform
@@ -238,10 +238,10 @@ output `Split.a`.
 One can also specify the destination as a function, e.g.
 
 ```
-- type: Split
+- type: Partition
   input: input
   config:
-    on: "'even' if col2 % 2 == 0 else 'odd'"
+    by: "'even' if col2 % 2 == 0 else 'odd'"
     language: python
     outputs: ['even', 'odd']
 ```
@@ -250,10 +250,10 @@ One can optionally provide a catch-all output which will capture all elements
 that are not in the named outputs (which would otherwise be an error):
 
 ```
-- type: Split
+- type: Partition
   input: input
   config:
-    on: col1
+    by: col1
     outputs: ['a', 'b', 'c']
     unknown_output: 'other'
 ```
@@ -268,10 +268,10 @@ one could use an iterable column and precede the `Split` with an `Explode`.
   config:
     fields: col1
 
-- type: Split
+- type: Partition
   input: Explode
   config:
-    on: col1
+    by: col1
     outputs: ['a', 'b', 'c']
 ```
 

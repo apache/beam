@@ -922,7 +922,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
                         'Combine',
                         'Filter',
                         'MapToFields',
-                        'Split'):
+                        'Partition'):
       language = spec.get('config', {}).get('language', 'generic')
       new_type = spec['type'] + '-' + language
       if known_transforms and new_type not in known_transforms:
@@ -962,8 +962,6 @@ def preprocess(spec, verbose=False, known_transforms=None):
 class YamlTransform(beam.PTransform):
   def __init__(self, spec, providers={}):  # pylint: disable=dangerous-default-value
     if isinstance(spec, str):
-      # DO NOT SUBMIT
-      spec = spec.replace(' on:', ' "on":')
       spec = yaml.load(spec, Loader=SafeLineLoader)
     if isinstance(providers, dict):
       providers = {

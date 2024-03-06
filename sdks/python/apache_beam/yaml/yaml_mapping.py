@@ -558,14 +558,14 @@ def _SqlMapToFieldsTransform(pcoll, sql_transform_constructor, **mapping_args):
 
 
 @beam.ptransform.ptransform_fn
-def _Split(
+def _Partition(
     pcoll,
     outputs: List[str],
-    on: Union[str, Dict[str, str]],
+    by: Union[str, Dict[str, str]],
     unknown_output: Optional[str] = None,
     error_handling: Optional[Mapping[str, Any]] = None,
     language: Optional[str] = 'generic'):
-  split_fn = _as_callable_for_pcoll(pcoll, on, 'on', language)
+  split_fn = _as_callable_for_pcoll(pcoll, by, 'by', language)
   try:
     split_fn_output_type = trivial_inference.infer_return_type(
         split_fn, [pcoll.element_type])
@@ -575,7 +575,7 @@ def _Split(
     if not typehints.is_consistent_with(split_fn_output_type,
                                         typehints.Optional[str]):
       raise ValueError(
-          f'Split function "{on}" must return a string type '
+          f'Split function "{by}" must return a string type '
           f'not {split_fn_output_type}')
   error_output = error_handling['output'] if error_handling else None
   if error_output in outputs:
@@ -586,15 +586,17 @@ def _Split(
 
   def split(element):
     tag = split_fn(element)
-    if not (tag is None or isinstance(tag, str)):
+    if tag is None:
+      tag = unknown_output
+    if not isinstance(tag, str):
       raise ValueError(
           f'Returned output name "{tag}" of type {type(tag)} '
-          f'from "{on}" must be a string.')
+          f'from "{by}" must be a string.')
     if tag not in outputs:
       if unknown_output:
         tag = unknown_output
       else:
-        raise ValueError(f'Unknown output name "{tag}" from {on}')
+        raise ValueError(f'Unknown output name "{tag}" from {by}')
     return beam.pvalue.TaggedOutput(tag, element)
 
   output_set = set(outputs)
@@ -612,7 +614,8 @@ def _Split(
   result = {out: getattr(splits, out) for out in output_set}
   if error_output:
     result[
-        error_output] = result[error_output] | _map_errors_to_standard_format()
+        error_output] = result[error_output] | _map_errors_to_standard_format(
+            pcoll.element_type)
   return result
 
 
@@ -642,9 +645,9 @@ def create_mapping_providers():
           'MapToFields-python': _PyJsMapToFields,
           'MapToFields-javascript': _PyJsMapToFields,
           'MapToFields-generic': _PyJsMapToFields,
-          'Split-python': _Split,
-          'Split-javascript': _Split,
-          'Split-generic': _Split,
+          'Partition-python': _Partition,
+          'Partition-javascript': _Partition,
+          'Partition-generic': _Partition,
       }),
       yaml_provider.SqlBackedProvider({
           'Filter-sql': _SqlFilterTransform,
