@@ -118,6 +118,32 @@ class YamlCombineTest(unittest.TestCase):
               beam.Row(a='y', min_c=103, max_c=104),
           ]))
 
+  def test_group(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['Combine'
+                                                                  ])) as p:
+      elements = p | beam.Create(DATA)
+      result = elements | YamlTransform(
+          '''
+          type: Combine
+          config:
+            language: python
+            group_by: a
+            combine:
+              b:
+                fn: sum
+                value: b
+              c:
+                fn: group
+                value: c
+          ''')
+      assert_that(
+          result | beam.Map(lambda x: beam.Row(**x._asdict())),
+          equal_to([
+              beam.Row(a='x', b=2, c=[101, 102]),
+              beam.Row(a='y', b=3, c=[103, 104]),
+          ]))
+
   def test_expression(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle', yaml_experimental_features=['Combine'

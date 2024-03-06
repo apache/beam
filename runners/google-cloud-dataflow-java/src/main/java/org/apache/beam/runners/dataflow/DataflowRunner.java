@@ -65,6 +65,7 @@ import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationConte
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.runners.dataflow.util.DataflowTemplateJob;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.PackageUtil.StagedFile;
@@ -1064,7 +1065,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private List<RunnerApi.ArtifactInformation> getDefaultArtifacts() {
     ImmutableList.Builder<String> pathsToStageBuilder = ImmutableList.builder();
     String windmillBinary =
-        options.as(DataflowPipelineDebugOptions.class).getOverrideWindmillBinary();
+        options.as(DataflowStreamingPipelineOptions.class).getOverrideWindmillBinary();
     String dataflowWorkerJar = options.getDataflowWorkerJar();
     if (dataflowWorkerJar != null && !dataflowWorkerJar.isEmpty() && !useUnifiedWorker(options)) {
       // Put the user specified worker jar at the start of the classpath, to be consistent with the

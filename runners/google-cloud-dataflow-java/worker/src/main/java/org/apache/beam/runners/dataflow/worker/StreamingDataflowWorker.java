@@ -64,6 +64,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.core.metrics.MetricsLogger;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.internal.CustomSources;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames;
@@ -79,7 +80,6 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
-import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOptions;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture;
@@ -118,6 +118,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmill
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.ActiveWorkRefresher;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.ActiveWorkRefreshers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
@@ -237,7 +239,7 @@ public class StreamingDataflowWorker {
   private final AtomicLong previousTimeAtMaxThreads = new AtomicLong();
   private final AtomicBoolean running = new AtomicBoolean();
   private final SideInputStateFetcher sideInputStateFetcher;
-  private final StreamingDataflowWorkerOptions options;
+  private final DataflowWorkerHarnessOptions options;
   private final boolean windmillServiceEnabled;
   private final long clientId;
   private final MetricTrackingWindmillServerStub metricTrackingWindmillServer;
@@ -293,6 +295,7 @@ public class StreamingDataflowWorker {
   private int maxWorkItemCommitBytes = Integer.MAX_VALUE;
 
   private final DataflowExecutionStateSampler sampler = DataflowExecutionStateSampler.instance();
+  private final ActiveWorkRefresher activeWorkRefresher;
 
   private StreamingDataflowWorker(
       WindmillServerStub windmillServer,
@@ -302,7 +305,7 @@ public class StreamingDataflowWorker {
       BoundedQueueExecutor workUnitExecutor,
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
       WorkUnitClient workUnitClient,
-      StreamingDataflowWorkerOptions options,
+      DataflowWorkerHarnessOptions options,
       boolean publishCounters,
       HotKeyLogger hotKeyLogger,
       Supplier<Instant> clock,
@@ -441,6 +444,20 @@ public class StreamingDataflowWorker {
 
     this.mapTaskToNetwork = mapTaskToBaseNetwork;
 
+    int stuckCommitDurationMillis =
+        windmillServiceEnabled && options.getStuckCommitDurationMillis() > 0
+            ? options.getStuckCommitDurationMillis()
+            : 0;
+    this.activeWorkRefresher =
+        ActiveWorkRefreshers.createDispatchedActiveWorkRefresher(
+            clock,
+            options.getActiveWorkRefreshPeriodMillis(),
+            stuckCommitDurationMillis,
+            () -> Collections.unmodifiableCollection(computationMap.values()),
+            sampler,
+            metricTrackingWindmillServer::refreshActiveWork,
+            executorSupplier.apply("RefreshWork"));
+
     LOG.debug("windmillServiceEnabled: {}", windmillServiceEnabled);
     LOG.debug("WindmillServiceEndpoint: {}", options.getWindmillServiceEndpoint());
     LOG.debug("WindmillServicePort: {}", options.getWindmillServicePort());
@@ -448,7 +465,7 @@ public class StreamingDataflowWorker {
     LOG.debug("maxWorkItemCommitBytes: {}", maxWorkItemCommitBytes);
   }
 
-  public static StreamingDataflowWorker fromOptions(StreamingDataflowWorkerOptions options) {
+  public static StreamingDataflowWorker fromOptions(DataflowWorkerHarnessOptions options) {
     ConcurrentMap<String, ComputationState> computationMap = new ConcurrentHashMap<>();
     long clientId = clientIdGenerator.nextLong();
     return new StreamingDataflowWorker(
@@ -479,7 +496,7 @@ public class StreamingDataflowWorker {
       List<MapTask> mapTasks,
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
       WorkUnitClient workUnitClient,
-      StreamingDataflowWorkerOptions options,
+      DataflowWorkerHarnessOptions options,
       boolean publishCounters,
       HotKeyLogger hotKeyLogger,
       Supplier<Instant> clock,
@@ -523,8 +540,7 @@ public class StreamingDataflowWorker {
         .collect(toConcurrentMap(ComputationState::getComputationId, Function.identity()));
   }
 
-  private static BoundedQueueExecutor createWorkUnitExecutor(
-      StreamingDataflowWorkerOptions options) {
+  private static BoundedQueueExecutor createWorkUnitExecutor(DataflowWorkerHarnessOptions options) {
     return new BoundedQueueExecutor(
         chooseMaxThreads(options),
         THREAD_EXPIRATION_TIME_SEC,
@@ -553,9 +569,9 @@ public class StreamingDataflowWorker {
     JvmInitializers.runOnStartup();
 
     DataflowWorkerHarnessHelper.initializeLogging(StreamingDataflowWorker.class);
-    StreamingDataflowWorkerOptions options =
+    DataflowWorkerHarnessOptions options =
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
-            StreamingDataflowWorker.class, StreamingDataflowWorkerOptions.class);
+            StreamingDataflowWorker.class, DataflowWorkerHarnessOptions.class);
     DataflowWorkerHarnessHelper.configureLogging(options);
     checkArgument(
         options.isStreaming(),
@@ -588,7 +604,7 @@ public class StreamingDataflowWorker {
   }
 
   private static WindmillServerStub createWindmillServerStub(
-      StreamingDataflowWorkerOptions options,
+      DataflowWorkerHarnessOptions options,
       long clientId,
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     if (options.getWindmillServiceEndpoint() != null
@@ -598,7 +614,7 @@ public class StreamingDataflowWorker {
         Duration maxBackoff =
             !options.isEnableStreamingEngine() && options.getLocalWindmillHostport() != null
                 ? GrpcWindmillServer.LOCALHOST_MAX_BACKOFF
-                : GrpcWindmillServer.MAX_BACKOFF;
+                : Duration.millis(options.getWindmillServiceStreamMaxBackoffMillis());
         GrpcWindmillStreamFactory windmillStreamFactory =
             GrpcWindmillStreamFactory.of(
                     JobHeader.newBuilder()
@@ -650,19 +666,19 @@ public class StreamingDataflowWorker {
     return chooseMaximumNumberOfThreads() + 100;
   }
 
-  private static int chooseMaxThreads(StreamingDataflowWorkerOptions options) {
+  private static int chooseMaxThreads(DataflowWorkerHarnessOptions options) {
     if (options.getNumberOfWorkerHarnessThreads() != 0) {
       return options.getNumberOfWorkerHarnessThreads();
     }
     return MAX_PROCESSING_THREADS;
   }
 
-  private static int chooseMaxBundlesOutstanding(StreamingDataflowWorkerOptions options) {
+  private static int chooseMaxBundlesOutstanding(DataflowWorkerHarnessOptions options) {
     int maxBundles = options.getMaxBundlesFromWindmillOutstanding();
     return maxBundles > 0 ? maxBundles : chooseMaxThreads(options) + 100;
   }
 
-  private static long chooseMaxBytesOutstanding(StreamingDataflowWorkerOptions options) {
+  private static long chooseMaxBytesOutstanding(DataflowWorkerHarnessOptions options) {
     long maxMem = options.getMaxBytesFromWindmillOutstanding();
     return maxMem > 0 ? maxMem : (Runtime.getRuntime().maxMemory() / 2);
   }
@@ -722,30 +738,7 @@ public class StreamingDataflowWorker {
       scheduledExecutors.add(workerMessageTimer);
     }
 
-    ScheduledExecutorService refreshWorkTimer = executorSupplier.apply("RefreshWork");
-    if (options.getActiveWorkRefreshPeriodMillis() > 0) {
-      refreshWorkTimer.scheduleWithFixedDelay(
-          new Runnable() {
-            @Override
-            public void run() {
-              try {
-                refreshActiveWork();
-              } catch (RuntimeException e) {
-                LOG.warn("Failed to refresh active work: ", e);
-              }
-            }
-          },
-          options.getActiveWorkRefreshPeriodMillis(),
-          options.getActiveWorkRefreshPeriodMillis(),
-          TimeUnit.MILLISECONDS);
-      scheduledExecutors.add(refreshWorkTimer);
-    }
-    if (windmillServiceEnabled && options.getStuckCommitDurationMillis() > 0) {
-      int periodMillis = Math.max(options.getStuckCommitDurationMillis() / 10, 100);
-      refreshWorkTimer.scheduleWithFixedDelay(
-          this::invalidateStuckCommits, periodMillis, periodMillis, TimeUnit.MILLISECONDS);
-      scheduledExecutors.add(refreshWorkTimer);
-    }
+    activeWorkRefresher.start();
 
     if (options.getPeriodicStatusPageOutputDirectory() != null) {
       ScheduledExecutorService statusPageTimer = executorSupplier.apply("DumpStatusPages");
@@ -832,6 +825,8 @@ public class StreamingDataflowWorker {
           timer.awaitTermination(300, TimeUnit.SECONDS);
         }
       }
+
+      activeWorkRefresher.stop();
       statusPages.stop();
       if (debugCaptureManager != null) {
         debugCaptureManager.stop();
@@ -2061,33 +2056,6 @@ public class StreamingDataflowWorker {
           new WorkItemStatus()
               .setWorkItemId(WINDMILL_COUNTER_UPDATE_WORK_ID)
               .setCounterUpdates(counterUpdates));
-    }
-  }
-
-  /**
-   * Sends a GetData request to Windmill for all sufficiently old active work.
-   *
-   * <p>This informs Windmill that processing is ongoing and the work should not be retried. The age
-   * threshold is determined by {@link
-   * StreamingDataflowWorkerOptions#getActiveWorkRefreshPeriodMillis}.
-   */
-  private void refreshActiveWork() {
-    Map<String, List<Windmill.HeartbeatRequest>> heartbeats = new HashMap<>();
-    Instant refreshDeadline =
-        clock.get().minus(Duration.millis(options.getActiveWorkRefreshPeriodMillis()));
-
-    for (Map.Entry<String, ComputationState> entry : computationMap.entrySet()) {
-      heartbeats.put(entry.getKey(), entry.getValue().getKeyHeartbeats(refreshDeadline, sampler));
-    }
-
-    metricTrackingWindmillServer.refreshActiveWork(heartbeats);
-  }
-
-  private void invalidateStuckCommits() {
-    Instant stuckCommitDeadline =
-        clock.get().minus(Duration.millis(options.getStuckCommitDurationMillis()));
-    for (Map.Entry<String, ComputationState> entry : computationMap.entrySet()) {
-      entry.getValue().invalidateStuckCommits(stuckCommitDeadline);
     }
   }
 

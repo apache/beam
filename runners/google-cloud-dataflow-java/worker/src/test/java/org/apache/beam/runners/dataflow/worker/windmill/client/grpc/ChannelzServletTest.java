@@ -21,8 +21,8 @@ import static org.junit.Assert.*;
 
 import java.io.*;
 import java.util.Optional;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.FakeWindmillServer;
-import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
@@ -49,8 +49,8 @@ public class ChannelzServletTest {
           InProcessChannelBuilder.forName(nonWindmill1).build(),
           InProcessChannelBuilder.forName(someOtherHost1).build()
         };
-    StreamingDataflowWorkerOptions options =
-        PipelineOptionsFactory.create().as(StreamingDataflowWorkerOptions.class);
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.create().as(DataflowWorkerHarnessOptions.class);
     FakeWindmillServer fakeWindmillServer =
         new FakeWindmillServer(new ErrorCollector(), s -> Optional.empty());
     fakeWindmillServer.setWindmillServiceEndpoints(
@@ -81,8 +81,8 @@ public class ChannelzServletTest {
           InProcessChannelBuilder.forName(nonWindmill1).build(),
           InProcessChannelBuilder.forName(someOtherHost1).build()
         };
-    StreamingDataflowWorkerOptions options =
-        PipelineOptionsFactory.create().as(StreamingDataflowWorkerOptions.class);
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.create().as(DataflowWorkerHarnessOptions.class);
     FakeWindmillServer fakeWindmillServer =
         new FakeWindmillServer(new ErrorCollector(), s -> Optional.empty());
     fakeWindmillServer.setWindmillServiceEndpoints(

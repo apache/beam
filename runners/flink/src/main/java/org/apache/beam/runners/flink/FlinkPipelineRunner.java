@@ -37,13 +37,7 @@ import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
-import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
-import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
-import org.apache.beam.sdk.util.construction.graph.GreedyPipelineFuser;
-import org.apache.beam.sdk.util.construction.graph.ProtoOverrides;
-import org.apache.beam.sdk.util.construction.graph.SplittableParDoExpander;
-import org.apache.beam.sdk.util.construction.graph.TrivialNativeTransformExpander;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -105,30 +99,10 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
           throws Exception {
     LOG.info("Translating pipeline to Flink program.");
 
-    // Expand any splittable ParDos within the graph to enable sizing and splitting of bundles.
-    Pipeline pipelineWithSdfExpanded =
-        ProtoOverrides.updateTransform(
-            PTransformTranslation.PAR_DO_TRANSFORM_URN,
-            pipeline,
-            SplittableParDoExpander.createSizedReplacement());
-
-    // Don't let the fuser fuse any subcomponents of native transforms.
-    Pipeline trimmedPipeline =
-        TrivialNativeTransformExpander.forKnownUrns(
-            pipelineWithSdfExpanded, translator.knownUrns());
-
-    // Fused pipeline proto.
-    // TODO: Consider supporting partially-fused graphs.
-    RunnerApi.Pipeline fusedPipeline =
-        trimmedPipeline.getComponents().getTransformsMap().values().stream()
-                .anyMatch(proto -> ExecutableStage.URN.equals(proto.getSpec().getUrn()))
-            ? trimmedPipeline
-            : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
-
     FlinkPortablePipelineTranslator.Executor executor =
         translator.translate(
             translator.createTranslationContext(jobInfo, pipelineOptions, confDir, filesToStage),
-            fusedPipeline);
+            translator.prepareForTranslation(pipeline));
     final JobExecutionResult result = executor.execute(pipelineOptions.getJobName());
 
     return createPortablePipelineResult(result, pipelineOptions);
