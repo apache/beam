@@ -27,6 +27,7 @@ Here is a simplified example of how to use the RunInference API to perform infer
         | "Tokenize" >> beam.ParDo(Tokenize(<TOKENIZER_NAME>))
         | "Inference" >> RunInference(<MODEL_HANDLER>))
 ```
+
 After running the pipeline, you can query the metrics using the following code:
 
 ```python

@@ -2,7 +2,7 @@ Prompt:
 How can I use custom remote inference calls in my Apache Beam pipeline?
 
 Response:
-The optimal approach for conducting inference within an Apache Beam pipeline is by leveraging the [RunInference API](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.html#apache_beam.ml.inference.RunInference) provided by the Apache Beam SDK. This feature allows you to seamlessly incorporate ML models into your pipeline or execute remote inference calls.
+The optimal approach for conducting inference within an Apache Beam pipeline is by leveraging the [RunInference API](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.html#apache_beam.ml.inference.RunInference) provided by the Apache Beam Python SDK. This feature allows you to seamlessly incorporate ML models into your pipeline or execute remote inference calls.
 
 When developing custom inference calls, consider the following factors:
 * **API quotas**: heavy loads may lead to reaching API quota limits. You can use [`PipelineOptions`](https://beam.apache.org/documentation/programming-guide/#configuring-pipeline-options) to specify the maximum number of parallel API calls. Use `direct_num_workers` for the [Direct Runner](https://beam.apache.org/documentation/runners/direct/) or `max_num_workers` for the [Google Cloud Dataflow Runner](https://beam.apache.org/documentation/runners/dataflow/). Refer to the [Beam Capability Matrix](https://beam.apache.org/documentation/runners/capability-matrix/) for information about other runners.
@@ -10,7 +10,7 @@ When developing custom inference calls, consider the following factors:
 * **Monitoring**: incorporate monitoring and performance metrics to track the performance of your inference calls and the health of your pipeline.
 * **Batching**: batching can be used to send multiple inputs in a single API call for improved efficiency.
 
-To execute external API calls with the `RunInference` transform, you'll need to create a `beam.DoFn` in the form of a custom model handler:
+To execute external API calls with the `RunInference` transform, you will need to create a `beam.DoFn` in the form of a custom model handler:
 
 ```python
 class CustomModelHandler(ModelHandler):

@@ -13,9 +13,9 @@ Key features of the RunInference API include:
 
 The RunInference API supports a variety of frameworks and model hubs, including [TensorFlow](https://www.tensorflow.org/), [PyTorch](https://pytorch.org/), [Scikit-learn](https://scikit-learn.org/), [XGBoost](https://xgboost.ai/), [Hugging Face](https://huggingface.co/), [TensorFlow Hub](https://www.tensorflow.org/hub), [Vertex AI](https://cloud.google.com/vertex-ai), [TensorRT](https://developer.nvidia.com/tensorrt), and [ONNX](https://onnx.ai/). Additionally, you can easily integrate custom model frameworks.
 
-To import a model into your Apache Beam pipeline, you'll need to configure the [`ModelHandler`](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.ModelHandler) object, which wraps the underlying model and allows you to set necessary environment variables for inference.
+To import a model into your Apache Beam pipeline, you will need to configure the [`ModelHandler`](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.ModelHandler) object, which wraps the underlying model and allows you to set necessary environment variables for inference.
 
-Following is an example importing a `Pytorch` model handler to use in your pipeline:
+Here is an example of importing a PyTorch model handler for use in your pipeline:
 
 ```python
 from apache_beam.ml.inference.pytorch_inference import PytorchModelHandlerTensor
