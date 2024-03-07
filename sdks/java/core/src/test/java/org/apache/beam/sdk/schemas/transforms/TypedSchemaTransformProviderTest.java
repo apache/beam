@@ -94,12 +94,17 @@ public class TypedSchemaTransformProviderTest {
     }
   }
 
-  private static class FakeMinimalTypedProvider extends TypedSchemaTransformProvider<Configuration> {
+  private static class FakeMinimalTypedProvider
+      extends TypedSchemaTransformProvider<Configuration> {
     @Override
-    public String identifier() {return "fake:v1";}
+    public String identifier() {
+      return "fake:v1";
+    }
 
     @Override
-    public SchemaTransform from(Configuration config) {return new FakeSchemaTransform(config);}
+    public SchemaTransform from(Configuration config) {
+      return new FakeSchemaTransform(config);
+    }
   }
 
   public static class FakeSchemaTransform extends SchemaTransform {
@@ -128,9 +133,10 @@ public class TypedSchemaTransformProviderTest {
             .build();
 
     Configuration outputConfig = ((FakeSchemaTransform) provider.from(inputConfig)).config;
-    Configuration minimalOutputConfig = ((FakeSchemaTransform) minimalProvider.from(inputConfig)).config;
+    Configuration minimalOutputConfig =
+        ((FakeSchemaTransform) minimalProvider.from(inputConfig)).config;
 
-    for (Configuration config: Arrays.asList(outputConfig, minimalOutputConfig)) {
+    for (Configuration config : Arrays.asList(outputConfig, minimalOutputConfig)) {
       assertEquals("field1", config.getField1());
       assertEquals(13, config.getField2().intValue());
     }
