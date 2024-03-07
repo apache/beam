@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+
+import java.lang.reflect.ParameterizedType;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.annotations.Internal;
@@ -39,7 +42,16 @@ import org.apache.beam.sdk.values.Row;
 @Internal
 public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTransformProvider {
 
-  protected abstract Class<ConfigT> configurationClass();
+  @SuppressWarnings("unchecked")
+  protected Class<ConfigT> configurationClass() {
+    Optional<ParameterizedType> parameterizedType =
+        Optional.ofNullable((ParameterizedType) getClass().getGenericSuperclass());
+    checkArgument(
+        parameterizedType.isPresent(),
+        "Could not get the TypedSchemaTransformProvider's parameterized type.");
+
+    return (Class<ConfigT>) parameterizedType.get().getActualTypeArguments()[0];
+  }
 
   /**
    * Produce a SchemaTransform from ConfigT. Can throw a {@link InvalidConfigurationException} or a
