@@ -119,14 +119,12 @@ public final class ChannelCache implements StatusDataProvider {
   @Override
   public void appendSummaryHtml(PrintWriter writer) {
     writer.write("Active gRPC Channels:<br>");
-    for (Map.Entry<WindmillServiceAddress, ManagedChannel> addressAndChannel :
-        channelCache.asMap().entrySet()) {
-      writer.format(
-          "Address: [%s]; Channel: [%s]; ChannelState: [%s]",
-          addressAndChannel.getKey(),
-          addressAndChannel.getValue(),
-          addressAndChannel.getValue().getState(false));
-      writer.write("<br>");
-    }
+    channelCache
+        .asMap()
+        .forEach(
+            (address, channel) -> {
+              writer.format("Address: [%s]; Channel: [%s].", address, channel);
+              writer.write("<br>");
+            });
   }
 }
