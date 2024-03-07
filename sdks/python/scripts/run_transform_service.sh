@@ -16,6 +16,8 @@
 #    limitations under the License.
 #
 
+echo "************ xyz123 run_transform_service.sh: 1"
+
 read -r -d '' USAGE <<END
 Usage: run_expansion_services.sh (start|stop) [options]
 Options:
@@ -25,6 +27,8 @@ Options:
   --start [command to start the transform service for the given group_id]
   --stop [command to stop the transform service for the given group_id]
 END
+
+echo "************ xyz123 run_transform_service.sh: 2"
 
 while [[ $# -gt 0 ]]; do
   key="$1"
@@ -66,6 +70,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+echo "************ xyz123 run_transform_service.sh: 3"
+
 FILE_BASE="beam-transform-service"
 if [ -n "$GROUP_ID" ]; then
   FILE_BASE="$FILE_BASE-$GROUP_ID"
@@ -73,10 +79,15 @@ fi
 
 TEMP_DIR=/tmp
 
+echo "************ xyz123 run_transform_service.sh: 4"
+
 case $STARTSTOP in
   start)
+    echo "************ xyz123 in script run_transform_service.sh: starting the service"
     echo "Starting the transform service for project $GROUP_ID at port $EXTERNAL_PORT for Beam version $BEAM_VERSION_DOCKER transform service startup jar is $TRANSFORM_SERVICE_LAUNCHER_JAR"
     java -jar $TRANSFORM_SERVICE_LAUNCHER_JAR --project_name $GROUP_ID --port $EXTERNAL_PORT --beam_version $BEAM_VERSION_DOCKER --command up  >$TEMP_DIR/$FILE_BASE-java1.log 2>&1 </dev/null
+    echo "************ xyz123 in script run_transform_service.sh: DONE the service"
+    return 2
     ;;
   stop)
     echo "Stopping the transform service for project $GROUP_ID at port $EXTERNAL_PORT for Beam version $BEAM_VERSION_DOCKER  transform service startup jar is $TRANSFORM_SERVICE_LAUNCHER_JAR"
@@ -88,3 +99,6 @@ case $STARTSTOP in
     fi
     ;;
 esac
+
+echo "************ xyz123 run_transform_service.sh: 5"
+
