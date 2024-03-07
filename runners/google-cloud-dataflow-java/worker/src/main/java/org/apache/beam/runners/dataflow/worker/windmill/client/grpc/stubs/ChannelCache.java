@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
 import java.io.PrintWriter;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import javax.annotation.concurrent.ThreadSafe;
@@ -29,6 +28,7 @@ import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,6 +49,10 @@ public final class ChannelCache implements StatusDataProvider {
       Function<WindmillServiceAddress, ManagedChannel> channelFactory) {
     this.channelCache =
         CacheBuilder.newBuilder()
+            .removalListener(
+                // Shutdown the channels as they get removed from the cache so they do not leak.
+                (RemovalListener<WindmillServiceAddress, ManagedChannel>)
+                    notification -> shutdownChannel(notification.getValue()))
             .build(
                 new CacheLoader<WindmillServiceAddress, ManagedChannel>() {
                   @Override
@@ -77,9 +81,7 @@ public final class ChannelCache implements StatusDataProvider {
     return channelCache.getUnchecked(windmillServiceAddress);
   }
 
-  public void removeAndClose(WindmillServiceAddress windmillServiceAddress) {
-    Optional.ofNullable(channelCache.getIfPresent(windmillServiceAddress))
-        .ifPresent(ChannelCache::shutdownChannel);
+  public void remove(WindmillServiceAddress windmillServiceAddress) {
     channelCache.invalidate(windmillServiceAddress);
   }
 

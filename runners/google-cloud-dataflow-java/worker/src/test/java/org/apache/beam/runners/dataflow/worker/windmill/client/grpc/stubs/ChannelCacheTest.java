@@ -149,7 +149,7 @@ public class ChannelCacheTest {
     cache = newCache(true, ignored -> newChannel(channelName));
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
     ManagedChannel cachedChannel = cache.get(someAddress);
-    cache.removeAndClose(someAddress);
+    cache.remove(someAddress);
     assertTrue(cachedChannel.isShutdown());
     assertTrue(cache.isEmpty());
   }

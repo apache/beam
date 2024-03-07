@@ -322,7 +322,7 @@ public final class StreamingEngineClient {
         .forEach(
             entry -> {
               entry.getValue().closeAllStreams();
-              entry.getKey().directEndpoint().ifPresent(channelCache::removeAndClose);
+              entry.getKey().directEndpoint().ifPresent(channelCache::remove);
             });
 
     return newWindmillConnections.stream()
