@@ -21,7 +21,6 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.github.benmanes.caffeine.cache.RemovalListener;
 import java.io.PrintWriter;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import javax.annotation.concurrent.ThreadSafe;
