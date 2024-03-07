@@ -371,4 +371,17 @@ public class TransformUpgraderTest {
             .get("TransformUpgraderTest-TestTransform2");
     validateTestParam(upgradedTransform2, 4);
   }
+
+  @Test
+  public void testVersionComparison() throws Exception {
+    assertTrue(TransformUpgrader.compareVersions("2.53.0", "2.53.0") == 0);
+
+    assertTrue(TransformUpgrader.compareVersions("2.53.0", "2.55.0") < 0);
+    assertTrue(TransformUpgrader.compareVersions("2.53.0", "2.55.0-SNAPSHOT") < 0);
+    assertTrue(TransformUpgrader.compareVersions("2.53.0", "2.55.0.dev") < 0);
+
+    assertTrue(TransformUpgrader.compareVersions("2.55.0", "2.53.0") > 0);
+    assertTrue(TransformUpgrader.compareVersions("2.55.0-SNAPSHOT", "2.53.0") > 0);
+    assertTrue(TransformUpgrader.compareVersions("2.55.0.dev", "2.53.0") > 0);
+  }
 }
