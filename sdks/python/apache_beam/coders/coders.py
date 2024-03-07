@@ -1482,6 +1482,9 @@ class LengthPrefixCoder(FastCoder):
   def __hash__(self):
     return hash((type(self), self._value_coder))
 
+  def to_type_hint(length_prefix_coder):
+    return length_prefix_coder.value_coder().to_type_hint()
+
 
 Coder.register_structured_urn(
     common_urns.coders.LENGTH_PREFIX.urn, LengthPrefixCoder)
