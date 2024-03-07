@@ -26,6 +26,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.util.concurrent.CountDownLatch;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
@@ -39,10 +40,10 @@ public class ChannelCacheTest {
 
   private ChannelCache cache;
 
-  private ChannelCache newCache(
+  private static ChannelCache newCache(
       boolean useIsolatedChannels,
       Function<WindmillServiceAddress, ManagedChannel> channelFactory) {
-    return new ChannelCache(useIsolatedChannels, channelFactory);
+    return ChannelCache.forTesting(useIsolatedChannels, channelFactory, () -> {});
   }
 
   @After
@@ -144,24 +145,32 @@ public class ChannelCacheTest {
   }
 
   @Test
-  public void testRemoveAndClose() {
+  public void testRemoveAndClose() throws InterruptedException {
     String channelName = "existingChannel";
-    cache = newCache(true, ignored -> newChannel(channelName));
+    CountDownLatch notifyWhenChannelClosed = new CountDownLatch(1);
+    cache =
+        ChannelCache.forTesting(
+            true, ignored -> newChannel(channelName), notifyWhenChannelClosed::countDown);
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
     ManagedChannel cachedChannel = cache.get(someAddress);
     cache.remove(someAddress);
-    assertTrue(cachedChannel.isShutdown());
     assertTrue(cache.isEmpty());
+    notifyWhenChannelClosed.await();
+    assertTrue(cachedChannel.isShutdown());
   }
 
   @Test
-  public void testClear() {
+  public void testClear() throws InterruptedException {
     String channelName = "existingChannel";
-    cache = newCache(true, ignored -> newChannel(channelName));
+    CountDownLatch notifyWhenChannelClosed = new CountDownLatch(1);
+    cache =
+        ChannelCache.forTesting(
+            true, ignored -> newChannel(channelName), notifyWhenChannelClosed::countDown);
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
     ManagedChannel cachedChannel = cache.get(someAddress);
     cache.clear();
-    assertTrue(cachedChannel.isShutdown());
+    notifyWhenChannelClosed.await();
     assertTrue(cache.isEmpty());
+    assertTrue(cachedChannel.isShutdown());
   }
 }

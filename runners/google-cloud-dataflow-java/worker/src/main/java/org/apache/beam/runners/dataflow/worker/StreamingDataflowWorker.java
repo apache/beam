@@ -473,7 +473,7 @@ public class StreamingDataflowWorker {
     ConcurrentMap<String, ComputationState> computationMap = new ConcurrentHashMap<>();
     long clientId = clientIdGenerator.nextLong();
     ChannelCache channelCache =
-        new ChannelCache(
+        ChannelCache.create(
             options.getUseWindmillIsolatedChannels(),
             serviceAddress ->
                 remoteChannel(
