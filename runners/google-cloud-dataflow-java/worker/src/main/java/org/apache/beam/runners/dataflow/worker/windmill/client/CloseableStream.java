@@ -32,10 +32,6 @@ public abstract class CloseableStream<StreamT extends WindmillStream> implements
     return new AutoValue_CloseableStream<>(stream, onClose);
   }
 
-  public static <StreamT extends WindmillStream> CloseableStream<StreamT> create(StreamT stream) {
-    return create(stream, () -> {});
-  }
-
   public abstract StreamT stream();
 
   abstract Runnable onClose();
