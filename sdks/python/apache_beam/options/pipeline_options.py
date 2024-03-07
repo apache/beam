@@ -216,7 +216,7 @@ class PipelineOptions(HasDisplayData):
     # self._flags stores a list of not yet parsed arguments, typically,
     # command-line flags. This list is shared across different views.
     # See: view_as().
-    self._flags = flags
+    self._flags = [] if flags is None else flags
 
     # Build parser that will parse options recognized by the [sub]class of
     # PipelineOptions whose object is being instantiated.
@@ -229,9 +229,7 @@ class PipelineOptions(HasDisplayData):
 
     # The _visible_options attribute will contain options that were recognized
     # by the parser.
-    self._visible_options = argparse.Namespace()
-    if self.flags:
-      self._visible_options, _ = parser.parse_known_args(flags)
+    self._visible_options, _ = parser.parse_known_args(flags)
 
     # self._all_options is initialized with overrides to flag values,
     # provided in kwargs, and will store key-value pairs for options recognized
