@@ -18,9 +18,7 @@
 """Unit tests for the DataflowRunner class."""
 # pytype: skip-file
 
-import tempfile
 import unittest
-from unittest.mock import MagicMock
 
 import mock
 
@@ -97,13 +95,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         '--dry_run=True',
         '--sdk_location=container'
     ]
-    self.tmp_dir = tempfile.TemporaryDirectory()
-    self.actual_mkdtemp = tempfile.mkdtemp
-    tempfile.mkdtemp = MagicMock(return_value=self.tmp_dir.name)
-
-  def tearDown(self) -> None:
-    tempfile.mkdtemp = self.actual_mkdtemp
-    self.tmp_dir.cleanup()
 
   @mock.patch('time.sleep', return_value=None)
   def test_wait_until_finish(self, patched_time_sleep):
