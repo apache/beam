@@ -44,7 +44,7 @@ public final class ChannelCache implements StatusDataProvider {
   private static final Logger LOG = LoggerFactory.getLogger(ChannelCache.class);
   private final LoadingCache<WindmillServiceAddress, ManagedChannel> channelCache;
 
-  public ChannelCache(
+  private ChannelCache(
       boolean useIsolatedChannels,
       Function<WindmillServiceAddress, ManagedChannel> channelFactory,
       RemovalListener<WindmillServiceAddress, ManagedChannel> onChannelRemoved) {
