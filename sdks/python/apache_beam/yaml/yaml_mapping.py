@@ -279,12 +279,13 @@ def _as_callable(original_fields, expr, transform_name, language):
 
   if language == "javascript":
     func = _expand_javascript_mapping_func(original_fields, **expr)
-  elif language == "python":
+  elif language == "python" or language == "generic":
     func = _expand_python_mapping_func(original_fields, **expr)
   else:
     raise ValueError(
         f'Unknown language for mapping transform: {language}. '
-        'Supported languages are "javascript" and "python."')
+        'Supported languages are "python", "java", "sql" and '
+        'experimental support for "javascript."')
 
   if explicit_type:
     if isinstance(explicit_type, str):
@@ -458,7 +459,9 @@ class _Explode(beam.PTransform):
 @beam.ptransform.ptransform_fn
 @maybe_with_exception_handling_transform_fn
 def _PyJsFilter(
-    pcoll, keep: Union[str, Dict[str, str]], language: Optional[str] = None):
+    pcoll,
+    keep: Union[str, Dict[str, str]],
+    language: Optional[str] = "generic"):
   keep_fn = _as_callable_for_pcoll(pcoll, keep, "keep", language)
   return pcoll | beam.Filter(keep_fn)
 
@@ -578,6 +581,7 @@ def create_mapping_providers():
           'Explode': _Explode,
           'Filter-python': _PyJsFilter,
           'Filter-javascript': _PyJsFilter,
+          'Filter-generic': _PyJsFilter,
           'MapToFields-python': _PyJsMapToFields,
           'MapToFields-javascript': _PyJsMapToFields,
           'MapToFields-generic': _PyJsMapToFields,
