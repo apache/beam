@@ -424,9 +424,9 @@ public class StreamingDataflowWorker {
                         NUM_COMMIT_STREAMS, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream)
                     ::getCloseableStream,
                 numCommitThreads,
-                this::onStreamingCommitComplete)
+                this::onCompleteCommit)
             : StreamingApplianceWorkCommitter.create(
-                windmillServer::commitWork, this::onStreamingCommitComplete);
+                windmillServer::commitWork, this::onCompleteCommit);
 
     // Register standard file systems.
     FileSystems.setDefaultPipelineOptions(options);
@@ -1433,7 +1433,7 @@ public class StreamingDataflowWorker {
     return outputBuilder.build();
   }
 
-  private void onStreamingCommitComplete(CompleteCommit completeCommit) {
+  private void onCompleteCommit(CompleteCommit completeCommit) {
     if (completeCommit.status() != Windmill.CommitStatus.OK) {
       readerCache.invalidateReader(
           WindmillComputationKey.create(

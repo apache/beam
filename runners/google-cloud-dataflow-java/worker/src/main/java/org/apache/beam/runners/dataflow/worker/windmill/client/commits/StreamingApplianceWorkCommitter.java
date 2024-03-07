@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
 public final class StreamingApplianceWorkCommitter implements WorkCommitter {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingApplianceWorkCommitter.class);
   private static final long TARGET_COMMIT_BUNDLE_BYTES = 32 << 20;
-  private static final int TARGET_COMMIT_BATCH_SIZE = 500 << 20; // 500MB
+  private static final int MAX_COMMIT_QUEUE_BYTES = 500 << 20; // 500MB
 
   private final Consumer<CommitWorkRequest> commitWorkFn;
   private final WeightedBoundedQueue<Commit> commitQueue;
@@ -55,8 +55,7 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
     this.commitWorkFn = commitWorkFn;
     this.commitQueue =
         WeightedBoundedQueue.create(
-            TARGET_COMMIT_BATCH_SIZE,
-            commit -> Math.min(TARGET_COMMIT_BATCH_SIZE, commit.getSize()));
+            MAX_COMMIT_QUEUE_BYTES, commit -> Math.min(MAX_COMMIT_QUEUE_BYTES, commit.getSize()));
     this.commitWorkers =
         Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder()
@@ -76,7 +75,7 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
   @Override
   @SuppressWarnings("FutureReturnValueIgnored")
   public void start() {
-    if (!commitWorkers.isTerminated() || !commitWorkers.isShutdown()) {
+    if (!commitWorkers.isShutdown()) {
       commitWorkers.submit(this::commitLoop);
     }
   }
@@ -152,6 +151,7 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
     for (Map.Entry<ComputationState, Windmill.ComputationCommitWorkRequest.Builder> entry :
         committedWork.entrySet()) {
       for (Windmill.WorkItemCommitRequest workRequest : entry.getValue().getRequestsList()) {
+        // Appliance errors are propagated by exception on entire batch.
         onCommitComplete.accept(
             CompleteCommit.create(
                 entry.getKey().getComputationId(),

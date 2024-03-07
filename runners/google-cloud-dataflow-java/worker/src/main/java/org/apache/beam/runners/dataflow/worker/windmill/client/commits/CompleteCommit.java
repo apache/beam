@@ -54,7 +54,7 @@ public abstract class CompleteCommit {
   }
 
   public static CompleteCommit forFailedWork(Commit commit) {
-    return create(commit, CommitStatus.DEFAULT);
+    return create(commit, CommitStatus.ABORTED);
   }
 
   public abstract String computationId();

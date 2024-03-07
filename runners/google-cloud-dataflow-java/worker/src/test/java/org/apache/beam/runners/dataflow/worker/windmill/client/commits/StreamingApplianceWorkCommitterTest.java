@@ -92,13 +92,6 @@ public class StreamingApplianceWorkCommitterTest {
   }
 
   @Test
-  public void testParallelism() {
-    workCommitter = createWorkCommitter(ignored -> {});
-    workCommitter.start();
-    assertThat(workCommitter.parallelism()).isEqualTo(1);
-  }
-
-  @Test
   public void testCommit() {
     List<CompleteCommit> completeCommits = new ArrayList<>();
     workCommitter = createWorkCommitter(completeCommits::add);

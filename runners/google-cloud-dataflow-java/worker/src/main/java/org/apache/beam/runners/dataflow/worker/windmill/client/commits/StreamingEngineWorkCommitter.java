@@ -43,8 +43,8 @@ import org.slf4j.LoggerFactory;
 @ThreadSafe
 public final class StreamingEngineWorkCommitter implements WorkCommitter {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingEngineWorkCommitter.class);
-  private static final int COMMIT_BATCH_SIZE = 5;
-  private static final int TARGET_COMMIT_BATCH_SIZE = 500 << 20; // 500MB
+  private static final int TARGET_COMMIT_BATCH_KEYS = 5;
+  private static final int MAX_COMMIT_QUEUE_BYTES = 500 << 20; // 500MB
 
   private final Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
   private final WeightedBoundedQueue<Commit> commitQueue;
@@ -60,8 +60,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
     this.commitWorkStreamFactory = commitWorkStreamFactory;
     this.commitQueue =
         WeightedBoundedQueue.create(
-            TARGET_COMMIT_BATCH_SIZE,
-            commit -> Math.min(TARGET_COMMIT_BATCH_SIZE, commit.getSize()));
+            MAX_COMMIT_QUEUE_BYTES, commit -> Math.min(MAX_COMMIT_QUEUE_BYTES, commit.getSize()));
     this.commitSenders =
         Executors.newFixedThreadPool(
             numCommitSenders,
@@ -86,7 +85,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   @Override
   @SuppressWarnings("FutureReturnValueIgnored")
   public void start() {
-    if (!commitSenders.isShutdown() || !commitSenders.isTerminated()) {
+    if (!commitSenders.isShutdown()) {
       for (int i = 0; i < numCommitSenders; i++) {
         commitSenders.submit(this::streamingCommitLoop);
       }
@@ -181,7 +180,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
     while (true) {
       Commit commit;
       try {
-        if (commits < COMMIT_BATCH_SIZE) {
+        if (commits < TARGET_COMMIT_BATCH_KEYS) {
           commit = commitQueue.poll(10 - 2L * commits, TimeUnit.MILLISECONDS);
         } else {
           commit = commitQueue.poll();

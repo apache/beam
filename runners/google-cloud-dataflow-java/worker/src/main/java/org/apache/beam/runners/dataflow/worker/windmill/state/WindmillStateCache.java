@@ -319,7 +319,7 @@ public class WindmillStateCache implements StatusDataProvider {
       keyIndex.remove(key);
     }
 
-    public void invalidate(ShardedKey shardedKey) {
+    public final void invalidate(ShardedKey shardedKey) {
       invalidate(shardedKey.key(), shardedKey.shardingKey());
     }
 
