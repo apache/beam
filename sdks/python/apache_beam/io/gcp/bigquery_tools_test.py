@@ -225,8 +225,9 @@ class TestBigQueryWrapper(unittest.TestCase):
 
   # the function _insert_all_rows() in the wrapper calls google.cloud.bigquery,
   # so we have to skip that when this library is not accessible
-  @unittest.skipIf(beam.io.gcp.bigquery_tools.gcp_bigquery is None,
-                   "bigquery library not available in this env")
+  @unittest.skipIf(
+      beam.io.gcp.bigquery_tools.gcp_bigquery is None,
+      "bigquery library not available in this env")
   @mock.patch('time.sleep', return_value=None)
   @mock.patch(
       'apitools.base.py.base_api._SkipGetCredentials', return_value=True)
