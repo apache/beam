@@ -400,7 +400,7 @@ public class StreamingDataflowWorker {
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
     StreamingCounters streamingCounters = StreamingCounters.create();
     ChannelCache channelCache =
-        new ChannelCache(
+        ChannelCache.create(
             options.getUseWindmillIsolatedChannels(),
             serviceAddress ->
                 remoteChannel(

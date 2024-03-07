@@ -100,7 +100,7 @@ public class StreamingEngineClientTest {
   private final GrpcWindmillStreamFactory streamFactory =
       spy(GrpcWindmillStreamFactory.of(JOB_HEADER).build());
   private final ChannelCache channelCache =
-      new ChannelCache(
+      ChannelCache.create(
           false,
           ignored ->
               grpcCleanup.register(

@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.RemovalListener;
 import java.io.PrintWriter;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -25,10 +28,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalListener;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,25 +46,19 @@ public final class ChannelCache implements StatusDataProvider {
 
   public ChannelCache(
       boolean useIsolatedChannels,
-      Function<WindmillServiceAddress, ManagedChannel> channelFactory) {
+      Function<WindmillServiceAddress, ManagedChannel> channelFactory,
+      RemovalListener<WindmillServiceAddress, ManagedChannel> onChannelRemoved) {
     this.channelCache =
-        CacheBuilder.newBuilder()
-            .removalListener(
-                // Shutdown the channels as they get removed from the cache so they do not leak.
-                (RemovalListener<WindmillServiceAddress, ManagedChannel>)
-                    notification -> shutdownChannel(notification.getValue()))
+        Caffeine.newBuilder()
+            .removalListener(onChannelRemoved)
             .build(
-                new CacheLoader<WindmillServiceAddress, ManagedChannel>() {
-                  @Override
-                  public ManagedChannel load(WindmillServiceAddress serviceAddress) {
+                serviceAddress ->
                     // IsolationChannel will create and manage separate RPC channels to the same
                     // serviceAddress via calling the channelFactory, else just directly return the
                     // RPC channel.
-                    return useIsolatedChannels
+                    useIsolatedChannels
                         ? IsolationChannel.create(() -> channelFactory.apply(serviceAddress))
-                        : channelFactory.apply(serviceAddress);
-                  }
-                });
+                        : channelFactory.apply(serviceAddress));
   }
 
   private static void shutdownChannel(ManagedChannel channel) {
@@ -77,8 +71,34 @@ public final class ChannelCache implements StatusDataProvider {
     channel.shutdownNow();
   }
 
+  public static ChannelCache create(
+      boolean useIsolatedChannels,
+      Function<WindmillServiceAddress, ManagedChannel> channelFactory) {
+    return new ChannelCache(
+        useIsolatedChannels,
+        channelFactory,
+        // Shutdown the channels as they get removed from the cache, so they do not leak.
+        (address, channel, cause) -> shutdownChannel(channel));
+  }
+
+  @VisibleForTesting
+  static ChannelCache forTesting(
+      boolean useIsolatedChannels,
+      Function<WindmillServiceAddress, ManagedChannel> channelFactory,
+      Runnable onChannelShutdown) {
+    return new ChannelCache(
+        useIsolatedChannels,
+        channelFactory,
+        // Shutdown the channels as they get removed from the cache, so they do not leak.
+        // For testing so that we don't have to sleep/wait for arbitrary time in test.
+        (address, channel, cause) -> {
+          shutdownChannel(channel);
+          onChannelShutdown.run();
+        });
+  }
+
   public ManagedChannel get(WindmillServiceAddress windmillServiceAddress) {
-    return channelCache.getUnchecked(windmillServiceAddress);
+    return channelCache.get(windmillServiceAddress);
   }
 
   public void remove(WindmillServiceAddress windmillServiceAddress) {
@@ -86,24 +106,14 @@ public final class ChannelCache implements StatusDataProvider {
   }
 
   public void clear() {
-    channelCache
-        .asMap()
-        .values()
-        .forEach(
-            channel -> {
-              channel.shutdown();
-              try {
-                channel.awaitTermination(10, TimeUnit.SECONDS);
-              } catch (InterruptedException e) {
-                LOG.error("Couldn't close gRPC channel={}", channel, e);
-              }
-              channel.shutdownNow();
-            });
     channelCache.invalidateAll();
   }
 
-  public boolean isEmpty() {
-    return channelCache.size() == 0;
+  @VisibleForTesting
+  boolean isEmpty() {
+    // Perform any pending removal/insert operations first.
+    channelCache.cleanUp();
+    return channelCache.estimatedSize() == 0;
   }
 
   @Override
