@@ -61,16 +61,6 @@ public final class ChannelCache implements StatusDataProvider {
                         : channelFactory.apply(serviceAddress));
   }
 
-  private static void shutdownChannel(ManagedChannel channel) {
-    channel.shutdown();
-    try {
-      channel.awaitTermination(10, TimeUnit.SECONDS);
-    } catch (InterruptedException e) {
-      LOG.error("Couldn't close gRPC channel={}", channel, e);
-    }
-    channel.shutdownNow();
-  }
-
   public static ChannelCache create(
       boolean useIsolatedChannels,
       Function<WindmillServiceAddress, ManagedChannel> channelFactory) {
@@ -90,11 +80,21 @@ public final class ChannelCache implements StatusDataProvider {
         useIsolatedChannels,
         channelFactory,
         // Shutdown the channels as they get removed from the cache, so they do not leak.
-        // For testing so that we don't have to sleep/wait for arbitrary time in test.
+        // Add hook testing so that we don't have to sleep/wait for arbitrary time in test.
         (address, channel, cause) -> {
           shutdownChannel(channel);
           onChannelShutdown.run();
         });
+  }
+
+  private static void shutdownChannel(ManagedChannel channel) {
+    channel.shutdown();
+    try {
+      channel.awaitTermination(10, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      LOG.error("Couldn't close gRPC channel={}", channel, e);
+    }
+    channel.shutdownNow();
   }
 
   public ManagedChannel get(WindmillServiceAddress windmillServiceAddress) {
