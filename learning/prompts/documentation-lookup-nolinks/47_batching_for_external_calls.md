@@ -9,7 +9,8 @@ Under the hood, the `GroupIntoBatches` transform utilizes state and timers to gr
 * `batchSize`: determines the maximum number of elements in each batch. Elements are buffered until the specified number is reached, then emitted as a batch.
 * `batchSizeBytes` (Java only): limits the byte size of a single batch, determined by the input coder.
 * `elementByteSize` (Java only): sets the byte size of a single batch using a user-defined function.
-* `withShardedKey()`: enhances parallelism by distributing a single key across multiple threads.
+
+Additionally, you can enhance parallelism by implementing the `withShardedKey()` function, which distributes a single key across multiple threads.
 
 The following sample code snippets illustrate the use of `GroupIntoBatches` to batch elements in an Apache Beam pipeline in Java and Python.
 
