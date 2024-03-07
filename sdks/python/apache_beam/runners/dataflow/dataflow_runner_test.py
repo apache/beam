@@ -19,7 +19,6 @@
 # pytype: skip-file
 
 import tempfile
-
 import unittest
 from unittest.mock import MagicMock
 
