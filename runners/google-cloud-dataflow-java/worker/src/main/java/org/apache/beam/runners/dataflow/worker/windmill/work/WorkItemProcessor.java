@@ -20,13 +20,14 @@ package org.apache.beam.runners.dataflow.worker.windmill.work;
 import java.util.Collection;
 import java.util.function.Consumer;
 import javax.annotation.CheckReturnValue;
+import org.apache.beam.runners.dataflow.worker.streaming.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
+import org.apache.beam.runners.dataflow.worker.windmill.client.CompleteCommit;
 import org.apache.beam.sdk.annotations.Internal;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
-@FunctionalInterface
 @CheckReturnValue
 @Internal
 public interface WorkItemProcessor {
@@ -54,4 +55,8 @@ public interface WorkItemProcessor {
       ProcessWorkItemClient wrappedWorkItem,
       Consumer<WorkItem> ackWorkItemQueued,
       Collection<LatencyAttribution> getWorkStreamLatencies);
+
+  void onFailedCommit(Commit commit);
+
+  void onCommitComplete(CompleteCommit completeCommit);
 }

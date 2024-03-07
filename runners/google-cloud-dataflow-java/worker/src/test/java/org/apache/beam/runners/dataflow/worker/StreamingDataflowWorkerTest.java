@@ -65,11 +65,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -123,6 +125,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer.Type;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WatermarkHold;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcDispatcherClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CollectionCoder;
@@ -168,6 +173,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheStats;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -274,6 +280,7 @@ public class StreamingDataflowWorkerTest {
   private final ConcurrentMap<String, ComputationState> computationMap = new ConcurrentHashMap<>();
   private final FakeWindmillServer server =
       new FakeWindmillServer(errorCollector, id -> Optional.ofNullable(computationMap.get(id)));
+  private final Set<ManagedChannel> channels = new HashSet<>();
 
   public StreamingDataflowWorkerTest(Boolean streamingEngine) {
     this.streamingEngine = streamingEngine;
@@ -297,6 +304,8 @@ public class StreamingDataflowWorkerTest {
   public void setUp() {
     computationMap.clear();
     server.clearCommitsReceived();
+    channels.forEach(ManagedChannel::shutdownNow);
+    channels.clear();
   }
 
   static Work createMockWork(long workToken) {
@@ -796,6 +805,14 @@ public class StreamingDataflowWorkerTest {
       boolean publishCounters,
       Supplier<Instant> clock,
       Function<String, ScheduledExecutorService> executorSupplier) {
+    FakeWindmillStubFactory fakeWindmillStubFactory =
+        new FakeWindmillStubFactory(
+            () -> {
+              ManagedChannel channel =
+                  WindmillChannelFactory.inProcessChannel("StreamingEngineClientTest");
+              channels.add(channel);
+              return channel;
+            });
     StreamingDataflowWorker worker =
         StreamingDataflowWorker.forTesting(
             computationMap,
@@ -807,7 +824,9 @@ public class StreamingDataflowWorkerTest {
             publishCounters,
             hotKeyLogger,
             clock,
-            executorSupplier);
+            executorSupplier,
+            fakeWindmillStubFactory,
+            GrpcDispatcherClient.create(fakeWindmillStubFactory));
     worker.addStateNameMappings(
         ImmutableMap.of(DEFAULT_PARDO_USER_NAME, DEFAULT_PARDO_STATE_FAMILY));
     return worker;

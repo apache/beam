@@ -236,6 +236,6 @@ public class WindmillStreamSenderTest {
   private WindmillStreamSender newWindmillStreamSender(
       GetWorkBudget budget, GrpcWindmillStreamFactory streamFactory) {
     return WindmillStreamSender.create(
-        stub, GET_WORK_REQUEST, budget, streamFactory, workItemProcessor);
+        stub, GET_WORK_REQUEST, budget, streamFactory, workItemProcessor, ignored -> {});
   }
 }
