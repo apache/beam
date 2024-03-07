@@ -80,7 +80,7 @@ public final class ChannelCache implements StatusDataProvider {
         useIsolatedChannels,
         channelFactory,
         // Shutdown the channels as they get removed from the cache, so they do not leak.
-        // Add hook testing so that we don't have to sleep/wait for arbitrary time in test.
+        // Add hook for testing so that we don't have to sleep/wait for arbitrary time in test.
         (address, channel, cause) -> {
           shutdownChannel(channel);
           onChannelShutdown.run();
