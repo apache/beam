@@ -372,7 +372,9 @@ class Stager(object):
                 pickled_session_file, names.PICKLED_MAIN_SESSION_FILE))
 
     # stage the submission environment dependencies, if enabled.
-    if log_submission_env_dependencies:
+    if (log_submission_env_dependencies and
+        not options.view_as(DebugOptions).lookup_experiment(
+            'disable_logging_submission_environment')):
       resources.extend(
           Stager._create_stage_submission_env_dependencies(temp_dir))
 

@@ -17,7 +17,6 @@
 
 """Unit tests for the DataflowRunner class."""
 # pytype: skip-file
-import os
 
 import tempfile
 
@@ -216,17 +215,13 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.default_properties.append('--worker_harness_container_image=LEGACY')
     remote_runner = DataflowRunner()
     options = PipelineOptions(self.default_properties)
+    options.view_as(DebugOptions).add_experiment(
+        'disable_logging_submission_environment')
     with Pipeline(remote_runner, options=options) as p:
       (  # pylint: disable=expression-not-assigned
           p | ptransform.Create([1, 2, 3])
           | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
           | ptransform.GroupByKey())
-
-    # check if the temp path got cleaned after the above
-    # pipeline completion. If it does not exist then create the same
-    # temp directory again to compare artifact information.
-    if not os.path.exists(self.tmp_dir.name):
-      os.makedirs(self.tmp_dir.name)
 
     self.assertEqual(
         list(remote_runner.proto_pipeline.components.environments.values()),
@@ -237,25 +232,21 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                     container_image='LEGACY').SerializeToString(),
                 capabilities=environments.python_sdk_docker_capabilities(),
                 dependencies=environments.python_sdk_dependencies(
-                    PipelineOptions()))
+                    options=options))
         ])
 
   def test_environment_override_translation_sdk_container_image(self):
     self.default_properties.append('--experiments=beam_fn_api')
     self.default_properties.append('--sdk_container_image=FOO')
     remote_runner = DataflowRunner()
-    with Pipeline(remote_runner,
-                  options=PipelineOptions(self.default_properties)) as p:
+    options = PipelineOptions(self.default_properties)
+    options.view_as(DebugOptions).add_experiment(
+        'disable_logging_submission_environment')
+    with Pipeline(remote_runner, options=options) as p:
       (  # pylint: disable=expression-not-assigned
           p | ptransform.Create([1, 2, 3])
           | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
           | ptransform.GroupByKey())
-
-    # check if the temp path got cleaned after the above
-    # pipeline completion. If it does not exist then create the same
-    # temp directory again to compare artifact information.
-    if not os.path.exists(self.tmp_dir.name):
-      os.makedirs(self.tmp_dir.name)
 
     self.assertEqual(
         list(remote_runner.proto_pipeline.components.environments.values()),
@@ -266,7 +257,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                     container_image='FOO').SerializeToString(),
                 capabilities=environments.python_sdk_docker_capabilities(),
                 dependencies=environments.python_sdk_dependencies(
-                    PipelineOptions()))
+                    options=options))
         ])
 
   def test_remote_runner_translation(self):
