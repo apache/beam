@@ -69,10 +69,14 @@ abstract class GeminiAIClient
     if (request.getContentsList().isEmpty()) {
       throw new UserCodeExecutionException("contentsList is empty");
     }
+
     try {
+
       GenerateContentResponse response =
           checkStateNotNull(client).generateContent(request.getContentsList());
+
       return KV.of(key, response);
+
     } catch (IOException e) {
       throw new UserCodeExecutionException(e);
     }
