@@ -1,8 +1,8 @@
 Prompt:
-How to reduce payload when calling external services from my Apache Beam pipeline?
+How to reduce the number of external calls when calling external services from my Apache Beam pipeline?
 
 Response:
-To reduce payload when calling external services from your Apache Beam pipeline, you can employ batching techniques by using the `GroupIntoBatches` transform. Batching involves aggregating multiple elements into a single payload, reducing the number of requests sent to the external service and minimizing overhead.
+To reduce the number of external calls when calling external services from your Apache Beam pipeline, you can employ batching techniques by using the `GroupIntoBatches` transform. Batching involves aggregating multiple elements into a single payload, reducing the number of requests sent to the external service and minimizing overhead.
 
 Under the hood, the `GroupIntoBatches` transform utilizes state and timers to grant users precise control over batch size and buffering duration parameters, while abstracting away the implementation details. Key parameters include:
 * `maxBufferDuration`: controls the maximum waiting time for a batch to be emitted.
