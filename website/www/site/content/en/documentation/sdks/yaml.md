@@ -615,7 +615,12 @@ pipeline:
         topic: myPubSubTopic
         format: ...
         schema: ...
-    ...
+      windowing:
+        type: fixed
+        size: 60s
+    - type: Sql
+      config:
+        query: "select col1, count(*) as c from PCOLLECTION"
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
