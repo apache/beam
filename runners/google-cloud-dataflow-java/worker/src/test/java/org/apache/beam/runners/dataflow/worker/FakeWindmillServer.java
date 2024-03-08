@@ -29,11 +29,11 @@ import static org.junit.Assert.assertFalse;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -46,6 +46,7 @@ import java.util.function.Function;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
+import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationCommitWorkRequest;
@@ -58,8 +59,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatReques
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitResponse;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
@@ -82,8 +81,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
   private final ResponseQueue<Windmill.GetWorkRequest, Windmill.GetWorkResponse> workToOffer;
   private final ResponseQueue<GetDataRequest, GetDataResponse> dataToOffer;
   private final ResponseQueue<Windmill.CommitWorkRequest, CommitWorkResponse> commitsToOffer;
-  private final ResponseQueue<StreamingCommitWorkRequest, StreamingCommitResponse>
-      streamingCommitsToOffer;
+  private final Map<WorkId, Windmill.CommitStatus> streamingCommitsToOffer;
   // Keys are work tokens.
   private final Map<Long, WorkItemCommitRequest> commitsReceived;
   private final ArrayList<Windmill.ReportStatsRequest> statsReceived;
@@ -95,7 +93,6 @@ public final class FakeWindmillServer extends WindmillServerStub {
   private final List<Windmill.GetDataRequest> getDataRequests = new ArrayList<>();
   private boolean isReady = true;
   private boolean dropStreamingCommits = false;
-  private boolean useInjectableStreamingCommitResponses = false;
   private final Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses;
 
   @GuardedBy("this")
@@ -115,9 +112,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
     commitsToOffer =
         new ResponseQueue<Windmill.CommitWorkRequest, CommitWorkResponse>()
             .returnByDefault(CommitWorkResponse.getDefaultInstance());
-    streamingCommitsToOffer =
-        new ResponseQueue<StreamingCommitWorkRequest, StreamingCommitResponse>()
-            .returnByDefault(StreamingCommitResponse.getDefaultInstance());
+    streamingCommitsToOffer = new HashMap<>();
     commitsReceived = new ConcurrentHashMap<>();
     exceptions = new LinkedBlockingQueue<>();
     expectedExceptionCount = new AtomicInteger();
@@ -129,11 +124,6 @@ public final class FakeWindmillServer extends WindmillServerStub {
 
   public void setDropStreamingCommits(boolean dropStreamingCommits) {
     this.dropStreamingCommits = dropStreamingCommits;
-  }
-
-  public void setUseInjectableStreamingCommitResponses(
-      boolean useInjectableStreamingCommitResponses) {
-    this.useInjectableStreamingCommitResponses = useInjectableStreamingCommitResponses;
   }
 
   public ResponseQueue<Windmill.GetWorkRequest, Windmill.GetWorkResponse> whenGetWorkCalled() {
@@ -153,8 +143,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
     return commitsToOffer;
   }
 
-  public ResponseQueue<StreamingCommitWorkRequest, StreamingCommitResponse>
-      whenCommitWorkStreamCalled() {
+  public Map<WorkId, Windmill.CommitStatus> whenCommitWorkStreamCalled() {
     return streamingCommitsToOffer;
   }
 
@@ -395,23 +384,15 @@ public final class FakeWindmillServer extends WindmillServerStub {
           droppedStreamingCommits.put(request.getWorkToken(), onDone);
         } else {
           commitsReceived.put(request.getWorkToken(), request);
-          if (useInjectableStreamingCommitResponses) {
-            StreamingCommitWorkRequest.Builder streamingRequestBuilder =
-                StreamingCommitWorkRequest.newBuilder();
-            streamingRequestBuilder.addCommitChunk(
-                Windmill.StreamingCommitRequestChunk.newBuilder()
-                    .setComputationId(computation)
-                    .setRequestId(new Random().nextLong())
-                    .setShardingKey(request.getShardingKey())
-                    .setSerializedWorkItemCommit(request.toByteString())
-                    .setRemainingBytesForWorkItem(0)
-                    .build());
-            StreamingCommitResponse response =
-                streamingCommitsToOffer.getOrDefault(streamingRequestBuilder.build());
-            response.getStatusList().forEach(onDone);
-          } else {
-            onDone.accept(Windmill.CommitStatus.OK);
-          }
+          onDone.accept(
+              Optional.ofNullable(
+                      streamingCommitsToOffer.remove(
+                          WorkId.builder()
+                              .setWorkToken(request.getWorkToken())
+                              .setCacheToken(request.getCacheToken())
+                              .build()))
+                  // Default to CommitStatus.OK
+                  .orElse(Windmill.CommitStatus.OK));
         }
         // Return true to indicate the request was accepted even if we are dropping the commit
         // to simulate a dropped commit.

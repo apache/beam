@@ -18,23 +18,27 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus.INVALID_TOKEN;
+import static org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus.OK;
 import static org.junit.Assert.assertNotNull;
 
 import com.google.api.services.dataflow.model.MapTask;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.FakeWindmillServer;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
@@ -115,7 +119,8 @@ public class StreamingEngineWorkCommitterTest {
 
   @Test
   public void testCommit_sendsCommitsToStreamingEngine() {
-    workCommitter = createWorkCommitter(ignored -> {});
+    Set<CompleteCommit> completeCommits = new HashSet<>();
+    workCommitter = createWorkCommitter(completeCommits::add);
     List<Commit> commits = new ArrayList<>();
     for (int i = 1; i <= 5; i++) {
       Work work = createMockWork(i, ignored -> {});
@@ -139,6 +144,7 @@ public class StreamingEngineWorkCommitterTest {
       WorkItemCommitRequest request = committed.get(commit.work().getWorkItem().getWorkToken());
       assertNotNull(request);
       assertThat(request).isEqualTo(commit.request());
+      assertThat(completeCommits).contains(asCompleteCommit(commit, Windmill.CommitStatus.OK));
     }
   }
 
@@ -183,43 +189,27 @@ public class StreamingEngineWorkCommitterTest {
   }
 
   @Test
-  public void testCommit_handlesCompleteCommits_commitStatusOK() {
-    Set<CompleteCommit> completeCommits = new HashSet<>();
-    workCommitter = createWorkCommitter(completeCommits::add);
-    List<Commit> commits = new ArrayList<>();
-    for (int i = 1; i <= 5; i++) {
-      Work work = createMockWork(i, ignored -> {});
-      WorkItemCommitRequest commitRequest =
-          WorkItemCommitRequest.newBuilder()
-              .setKey(work.getWorkItem().getKey())
-              .setShardingKey(work.getWorkItem().getShardingKey())
-              .setWorkToken(work.getWorkItem().getWorkToken())
-              .setCacheToken(work.getWorkItem().getCacheToken())
-              .build();
-      commits.add(Commit.create(commitRequest, createComputationState("computationId-" + i), work));
-    }
-
-    workCommitter.start();
-    commits.forEach(workCommitter::commit);
-
-    Map<Long, WorkItemCommitRequest> committed =
-        fakeWindmillServer.waitForAndGetCommits(commits.size());
-
-    for (Commit commit : commits) {
-      WorkItemCommitRequest request = committed.get(commit.work().getWorkItem().getWorkToken());
-      assertNotNull(request);
-      assertThat(request).isEqualTo(commit.request());
-      assertThat(completeCommits).contains(asCompleteCommit(commit, Windmill.CommitStatus.OK));
-    }
-  }
-
-  @Test
   public void testCommit_handlesCompleteCommits_commitStatusNotOK() {
-    fakeWindmillServer.setUseInjectableStreamingCommitResponses(true);
     Set<CompleteCommit> completeCommits = new HashSet<>();
     workCommitter = createWorkCommitter(completeCommits::add);
+    Map<WorkId, Windmill.CommitStatus> expectedCommitStatus = new HashMap<>();
+    Random commitStatusSelector = new Random();
+    int commitStatusSelectorBound = Windmill.CommitStatus.values().length - 1;
+    // Compute the CommitStatus randomly, to test plumbing of different commitStatuses to
+    // StreamingEngine.
+    Function<Work, Windmill.CommitStatus> computeCommitStatusForTest =
+        work -> {
+          Windmill.CommitStatus commitStatus =
+              work.getWorkItem().getWorkToken() % 2 == 0
+                  ? Windmill.CommitStatus.values()[
+                      commitStatusSelector.nextInt(commitStatusSelectorBound)]
+                  : OK;
+          expectedCommitStatus.put(work.id(), commitStatus);
+          return commitStatus;
+        };
+
     List<Commit> commits = new ArrayList<>();
-    for (int i = 1; i <= 5; i++) {
+    for (int i = 1; i <= 10; i++) {
       Work work = createMockWork(i, ignored -> {});
       WorkItemCommitRequest commitRequest =
           WorkItemCommitRequest.newBuilder()
@@ -231,7 +221,7 @@ public class StreamingEngineWorkCommitterTest {
       commits.add(Commit.create(commitRequest, createComputationState("computationId-" + i), work));
       fakeWindmillServer
           .whenCommitWorkStreamCalled()
-          .thenAnswer(request -> toResponse(request, INVALID_TOKEN));
+          .put(work.id(), computeCommitStatusForTest.apply(work));
     }
 
     workCommitter.start();
@@ -244,18 +234,9 @@ public class StreamingEngineWorkCommitterTest {
       WorkItemCommitRequest request = committed.get(commit.work().getWorkItem().getWorkToken());
       assertNotNull(request);
       assertThat(request).isEqualTo(commit.request());
-      assertThat(completeCommits).contains(asCompleteCommit(commit, INVALID_TOKEN));
+      assertThat(completeCommits)
+          .contains(asCompleteCommit(commit, expectedCommitStatus.get(commit.work().id())));
     }
-  }
-
-  private Windmill.StreamingCommitResponse toResponse(
-      Windmill.StreamingCommitWorkRequest request, Windmill.CommitStatus status) {
-    Windmill.StreamingCommitResponse.Builder response =
-        Windmill.StreamingCommitResponse.newBuilder();
-    for (Windmill.StreamingCommitRequestChunk chunk : request.getCommitChunkList()) {
-      response.addRequestId(chunk.getRequestId());
-      response.addStatus(status);
-    }
-    return response.build();
+    assertThat(completeCommits.size()).isEqualTo(commits.size());
   }
 }
