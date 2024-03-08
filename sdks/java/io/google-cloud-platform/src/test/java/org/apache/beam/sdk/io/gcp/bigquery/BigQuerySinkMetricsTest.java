@@ -20,12 +20,12 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.sameInstance;
 
-import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
 import io.grpc.Status;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -33,7 +33,6 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics.RowStatus;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.Operation.Context;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Histogram;
@@ -380,129 +379,18 @@ public class BigQuerySinkMetricsTest {
   }
 
   @Test
-  public void testUpdateStreamingInsertsMetrics_nullInput() throws Exception {
-    TestMetricsContainer testContainer = new TestMetricsContainer();
-    MetricsEnvironment.setCurrentContainer(testContainer);
-    BigQuerySinkMetrics.setSupportMetricsDeletion(true);
-
-    BigQuerySinkMetrics.StreamingInsertsResults results =
-        BigQuerySinkMetrics.StreamingInsertsResults.create();
-    results.updateInternalRetriedRows(10);
-    Instant t1 = Instant.now();
-    results.updateSuccessfulRpcMetrics(t1, t1.plus(Duration.ofMillis(10)));
-
-    results.updateStreamingInsertsMetrics(null);
-
-    assertThat(testContainer.perWorkerCounters.size(), equalTo(0));
-    assertThat(testContainer.perWorkerHistograms.size(), equalTo(0));
-  }
-
-  MetricName getAppendRowsCounterName(
-      BigQuerySinkMetrics.RowStatus rowStatus, String rpcStatus, String tableId) {
-    return BigQuerySinkMetrics.appendRowsRowStatusCounter(rowStatus, rpcStatus, tableId).getName();
-  }
-
-  MetricName getRpcRequestsCounterName(
-      BigQuerySinkMetrics.RpcMethod method, String rpcStatus, String tableId) {
-    return BigQuerySinkMetrics.createRPCRequestCounter(method, rpcStatus, tableId).getName();
+  public void testStreamingInsertsMetrics_disabled() {
+    BigQuerySinkMetrics.setSupportStreamingInsertsMetrics(false);
+    assertThat(
+        BigQuerySinkMetrics.streamingInsertsMetrics(),
+        sameInstance(StreamingInsertsMetrics.NoOpStreamingInsertsMetrics.getInstance()));
   }
 
   @Test
-  public void testUpdateStreamingInsertsMetrics_rowsAppendedCounter() throws Exception {
-    TestMetricsContainer testContainer = new TestMetricsContainer();
-    MetricsEnvironment.setCurrentContainer(testContainer);
-    BigQuerySinkMetrics.setSupportMetricsDeletion(true);
-    TableReference ref = new TableReference().setTableId("t").setDatasetId("d");
-
-    BigQuerySinkMetrics.StreamingInsertsResults results =
-        BigQuerySinkMetrics.StreamingInsertsResults.create();
-    results.updateInternalRetriedRows(10);
-    results.updateSuccessfulAndFailedRows(50, 30);
-    results.updateRetriedRowsWithStatus("QuotaLimits", 10);
-    results.updateRetriedRowsWithStatus("QuotaLimits", 5);
-    results.updateRetriedRowsWithStatus("ServiceUnavailable", 5);
-
-    results.updateStreamingInsertsMetrics(ref);
-
-    String tableId = "datasets/d/tables/t";
-    MetricName internalErrorRetriedMetricName =
-        getAppendRowsCounterName(RowStatus.RETRIED, "INTERNAL", tableId);
-    MetricName succssfulRowsMetricName =
-        getAppendRowsCounterName(RowStatus.SUCCESSFUL, "OK", tableId);
-    MetricName failedRowsMetricName =
-        getAppendRowsCounterName(RowStatus.FAILED, "INTERNAL", tableId);
-    MetricName retriedRowsQuotaMetricName =
-        getAppendRowsCounterName(RowStatus.RETRIED, "QuotaLimits", tableId);
-    MetricName retriedRowsUnavailableMetricName =
-        getAppendRowsCounterName(RowStatus.RETRIED, "ServiceUnavailable", tableId);
-
-    testContainer.assertPerWorkerCounterValue(internalErrorRetriedMetricName, 10L);
-    testContainer.assertPerWorkerCounterValue(succssfulRowsMetricName, 20L);
-    testContainer.assertPerWorkerCounterValue(failedRowsMetricName, 30L);
-    testContainer.assertPerWorkerCounterValue(retriedRowsQuotaMetricName, 15L);
-    testContainer.assertPerWorkerCounterValue(retriedRowsUnavailableMetricName, 5L);
-  }
-
-  @Test
-  public void testUpdateStreamingInsertsMetrics_rpcLatencyHistogram() throws Exception {
-    TestMetricsContainer testContainer = new TestMetricsContainer();
-    MetricsEnvironment.setCurrentContainer(testContainer);
-    BigQuerySinkMetrics.setSupportMetricsDeletion(true);
-    TableReference ref = new TableReference().setTableId("t").setDatasetId("d");
-
-    BigQuerySinkMetrics.StreamingInsertsResults results =
-        BigQuerySinkMetrics.StreamingInsertsResults.create();
-    Instant t1 = Instant.now();
-    results.updateSuccessfulRpcMetrics(t1, t1.plus(Duration.ofMillis(10)));
-    results.updateSuccessfulRpcMetrics(t1, t1.plus(Duration.ofMillis(20)));
-    results.updateFailedRpcMetrics(t1, t1.plus(Duration.ofMillis(30)), "PermissionDenied");
-    results.updateFailedRpcMetrics(t1, t1.plus(Duration.ofMillis(40)), "Unavailable");
-
-    results.updateStreamingInsertsMetrics(ref);
-
-    // Validate RPC latency metric.
-    MetricName histogramName =
-        MetricName.named("BigQuerySink", "RpcLatency*rpc_method:STREAMING_INSERTS;");
-    HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 34);
-    testContainer.assertPerWorkerHistogramValues(histogramName, bucketType, 10.0, 20.0, 30.0, 40.0);
-
-    // Validate RPC Status metric.
-    BigQuerySinkMetrics.RpcMethod m = BigQuerySinkMetrics.RpcMethod.STREAMING_INSERTS;
-    String tableId = "datasets/d/tables/t";
-    MetricName okMetricName = getRpcRequestsCounterName(m, "OK", tableId);
-    MetricName permissionDeniedMetricName =
-        getRpcRequestsCounterName(m, "PermissionDenied", tableId);
-    MetricName unavailableMetricName = getRpcRequestsCounterName(m, "Unavailable", tableId);
-
-    testContainer.assertPerWorkerCounterValue(okMetricName, 2L);
-    testContainer.assertPerWorkerCounterValue(permissionDeniedMetricName, 1L);
-    testContainer.assertPerWorkerCounterValue(unavailableMetricName, 1L);
-  }
-
-  @Test
-  public void testUpdateStreamingInsertsMetrics_multipleUpdateStreamingInsertsMetrics()
-      throws Exception {
-    TestMetricsContainer testContainer = new TestMetricsContainer();
-    MetricsEnvironment.setCurrentContainer(testContainer);
-    BigQuerySinkMetrics.setSupportMetricsDeletion(true);
-    TableReference ref = new TableReference().setTableId("t").setDatasetId("d");
-
-    BigQuerySinkMetrics.StreamingInsertsResults results =
-        BigQuerySinkMetrics.StreamingInsertsResults.create();
-    results.updateInternalRetriedRows(10);
-
-    results.updateStreamingInsertsMetrics(ref);
-
-    String tableId = "datasets/d/tables/t";
-    MetricName internalErrorRetriedMetricName =
-        getAppendRowsCounterName(RowStatus.RETRIED, "INTERNAL", tableId);
-
-    testContainer.assertPerWorkerCounterValue(internalErrorRetriedMetricName, 10L);
-
-    // Subsequent updates to this object should update the underyling metrics.
-    results.updateInternalRetriedRows(10);
-    results.updateStreamingInsertsMetrics(ref);
-
-    testContainer.assertPerWorkerCounterValue(internalErrorRetriedMetricName, 10L);
+  public void testStreamingInsertsMetrics_enabled() {
+    BigQuerySinkMetrics.setSupportStreamingInsertsMetrics(true);
+    assertThat(
+        BigQuerySinkMetrics.streamingInsertsMetrics(),
+        instanceOf(StreamingInsertsMetrics.StreamingInsertsMetricsImpl.class));
   }
 }

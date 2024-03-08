@@ -938,7 +938,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
       private final List<TableDataInsertAllRequest.Rows> rows;
       private final AtomicLong maxThrottlingMsec;
       private final Sleeper sleeper;
-      private final BigQuerySinkMetrics.StreamingInsertsResults result;
+      private final StreamingInsertsMetrics result;
 
       InsertBatchofRowsCallable(
           TableReference ref,
@@ -949,7 +949,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
           List<TableDataInsertAllRequest.Rows> rows,
           AtomicLong maxThrottlingMsec,
           Sleeper sleeper,
-          BigQuerySinkMetrics.StreamingInsertsResults result) {
+          StreamingInsertsMetrics result) {
         this.ref = ref;
         this.skipInvalidRows = skipInvalidRows;
         this.ignoreUnkownValues = ignoreUnknownValues;
@@ -1077,8 +1077,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
             "If insertIdList is not null it needs to have at least "
                 + "as many elements as rowList");
       }
-      BigQuerySinkMetrics.StreamingInsertsResults streamingInsertsResults =
-          BigQuerySinkMetrics.StreamingInsertsResults.create();
+      StreamingInsertsMetrics streamingInsertsResults =
+          BigQuerySinkMetrics.streamingInsertsMetrics();
       final Set<Integer> failedIndices = new HashSet<>();
       long retTotalDataSize = 0;
       List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
@@ -1227,9 +1227,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                 errorContainer.add(failedInserts, error, ref, rowsToPublish.get(errorIndex));
               }
             }
-            streamingInsertsResults.exportRpcLatencyMetrics();
           }
-          streamingInsertsResults.updateInternalRetriedRows(retryRows.size());
           // Accumulate the longest throttled time across all parallel threads
           throttlingMsecs.inc(maxThrottlingMsec.get());
         } catch (InterruptedException e) {
@@ -1255,6 +1253,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
         }
         rowsToPublish = retryRows;
         idsToPublish = retryIds;
+        streamingInsertsResults.updateRetriedRowsWithStatus(
+            BigQuerySinkMetrics.INTERNAL, retryRows.size());
         // print first 5 failures
         int numErrorToLog = Math.min(allErrors.size(), 5);
         LOG.info(

@@ -495,13 +495,10 @@ public class StreamingDataflowWorker {
     // metrics.
     MetricsEnvironment.setProcessWideContainer(new MetricsLogger(null));
 
-    // When enabled, the Pipeline will record Per-Worker metrics that will be piped to DFE.
-    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(
-        options.isEnableStreamingEngine()
-            && DataflowRunner.hasExperiment(options, "enable_per_worker_metrics"));
-    // StreamingStepMetricsContainer automatically deletes perWorkerCounters if they are zero-valued
-    // for longer than 5 minutes.
-    BigQuerySinkMetrics.setSupportMetricsDeletion(true);
+    if (options.isEnableStreamingEngine()
+        && DataflowRunner.hasExperiment(options, "enable_per_worker_metrics")) {
+      enableBigQueryMetrics();
+    }
 
     JvmInitializers.runBeforeProcessing(options);
     worker.startStatusPages();
@@ -555,6 +552,16 @@ public class StreamingDataflowWorker {
       return maxMem;
     }
     return Runtime.getRuntime().maxMemory() / 2;
+  }
+
+  private static void enableBigQueryMetrics() {
+    // When enabled, the Pipeline will record Per-Worker metrics that will be piped to DFE.
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
+    // StreamingStepMetricsContainer automatically deletes perWorkerCounters if they are zero-valued
+    // for longer than 5 minutes.
+    BigQuerySinkMetrics.setSupportMetricsDeletion(true);
+    // Support metrics for BigQuery's Streaming Inserts write method.
+    BigQuerySinkMetrics.setSupportStreamingInsertsMetrics(true);
   }
 
   void addStateNameMappings(Map<String, String> nameMap) {
