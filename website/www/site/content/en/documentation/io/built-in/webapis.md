@@ -423,7 +423,7 @@ in addition to the required `Caller`. It has a bit more boilerplate than the sim
 
 An abbreviated snippet showing the important parts is shown below.
 
-During the `setup` method is where the `GeminiAIClient` instantiates `VertexAI` and `GenerativeModel`, finally closing
+The `setup` method is where the `GeminiAIClient` instantiates `VertexAI` and `GenerativeModel`, finally closing
 `VertexAI` during `teardown`. Finally, its `call` method looks similar to the HTTP example above, where it takes a
 request, uses it to invoke an API, and returns the response.
 {{< /paragraph >}}
