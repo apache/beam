@@ -105,7 +105,6 @@ parameterized==0.9.0
 pluggy==1.4.0
 proto-plus==1.23.0
 protobuf==4.25.3
-psutil==5.9.8
 psycopg2-binary==2.9.9
 pyarrow==14.0.2
 pyarrow-hotfix==0.6
