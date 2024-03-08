@@ -22,6 +22,9 @@ import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Duration;
 
 /** [Internal] Options for configuring StreamingDataflowWorker. */
@@ -211,6 +214,14 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
   void setWindmillServiceStreamMaxBackoffMillis(int value);
 
+  @Description(
+      "If true, Dataflow streaming pipeline will be running in direct path mode."
+          + " VMs must have IPv6 enabled for this to work.")
+  @Default.InstanceFactory(IsDirectPathEnabled.class)
+  boolean getIsDirectPathEnabled();
+
+  void setIsDirectPathEnabled(boolean isDirectPathEnabled);
+
   /**
    * Factory for creating local Windmill address. Reads from system propery 'windmill.hostport' for
    * backwards compatibility.
@@ -282,6 +293,17 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
       DataflowWorkerHarnessOptions streamingOptions =
           options.as(DataflowWorkerHarnessOptions.class);
       return streamingOptions.isEnableStreamingEngine() ? Integer.MAX_VALUE : 1;
+    }
+  }
+
+  /**
+   * Reads is_direct_path_enabled from System properties, defaulting to false if there is no such
+   * property.
+   */
+  class IsDirectPathEnabled implements DefaultValueFactory<Boolean> {
+    @Override
+    public Boolean create(PipelineOptions options) {
+      return Boolean.parseBoolean(System.getProperty("windmill.is_direct_path_enabled"));
     }
   }
 }
