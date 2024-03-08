@@ -19,7 +19,7 @@ limitations under the License.
 In Apache Beam 2.40.0, Beam introduced the RunInference API, which lets you deploy a machine learning model in a Beam pipeline. A `RunInference` transform performs inference on a `PCollection` of examples using a machine learning (ML) model. The transform outputs a PCollection that contains the input examples and output predictions. For more information, see RunInference [here](/documentation/transforms/python/elementwise/runinference/). You can also find [inference examples on GitHub](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference).
 
 ## Using RunInference with very large models
-RunInference works well on arbitrarily large models as long as they can fit on your hardware (see `Memory Management` below).
+RunInference works well on arbitrarily large models as long as they can fit on your hardware.
 
 ### Memory Management
 
