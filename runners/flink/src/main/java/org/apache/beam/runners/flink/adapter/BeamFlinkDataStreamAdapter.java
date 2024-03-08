@@ -33,6 +33,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.values.PBegin;
@@ -41,7 +42,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -225,7 +225,9 @@ public class BeamFlinkDataStreamAdapter {
       RunnerApi.PTransform transform = p.getComponents().getTransformsOrThrow(id);
       String inputId = transform.getSpec().getPayload().toStringUtf8();
       DataStream<InputT> flinkInput =
-          Preconditions.checkNotNull((DataStream<InputT>) inputMap.get(inputId));
+          Preconditions.checkStateNotNull(
+              (DataStream<InputT>) inputMap.get(inputId),
+              "missing input referenced in proto: " + inputId);
       context.addDataStream(
           Iterables.getOnlyElement(transform.getOutputsMap().values()),
           flinkInput.process(
@@ -297,6 +299,6 @@ public class BeamFlinkDataStreamAdapter {
   }
 
   private <K, V> V getNonNull(Map<K, V> map, K key) {
-    return Preconditions.checkNotNull(map.get(Preconditions.checkNotNull(key)));
+    return Preconditions.checkStateNotNull(map.get(Preconditions.checkArgumentNotNull(key)));
   }
 }
