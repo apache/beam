@@ -214,10 +214,10 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   @Description(
       "If true, Dataflow streaming pipeline will be running in direct path mode."
           + " VMs must have IPv6 enabled for this to work.")
-  @Default.InstanceFactory(IsDirectPathEnabled.class)
-  boolean getIsDirectPathEnabled();
+  @Default.InstanceFactory(IsWindmillServiceDirectPathEnabled.class)
+  boolean isWindmillServiceDirectPathEnabled();
 
-  void setIsDirectPathEnabled(boolean isDirectPathEnabled);
+  void setIsWindmillServiceDirectPathEnabled(boolean isWindmillServiceDirectPathEnabled);
 
   /**
    * Factory for creating local Windmill address. Reads from system propery 'windmill.hostport' for
@@ -294,13 +294,14 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   }
 
   /**
-   * Reads is_direct_path_enabled from System properties, defaulting to false if there is no such
-   * property.
+   * Reads is_windmill_service_direct_path_enabled from System properties, defaulting to false if
+   * there is no such property.
    */
-  class IsDirectPathEnabled implements DefaultValueFactory<Boolean> {
+  class IsWindmillServiceDirectPathEnabled implements DefaultValueFactory<Boolean> {
     @Override
     public Boolean create(PipelineOptions options) {
-      return Boolean.parseBoolean(System.getProperty("windmill.is_direct_path_enabled"));
+      return Boolean.parseBoolean(
+          System.getProperty("windmill.is_windmill_service_direct_path_enabled"));
     }
   }
 }
