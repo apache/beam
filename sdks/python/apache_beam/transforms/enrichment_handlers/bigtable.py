@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 import logging
-from enum import Enum
 from typing import Any
 from typing import Dict
 from typing import Optional
@@ -28,34 +27,18 @@ from google.cloud.bigtable.row_filters import RowFilter
 
 import apache_beam as beam
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
+from apache_beam.transforms.enrichment_handlers.utils import ExceptionLevel
 
 __all__ = [
     'BigTableEnrichmentHandler',
-    'ExceptionLevel',
 ]
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class ExceptionLevel(Enum):
-  """ExceptionLevel defines the exception level options to either
-  log a warning, or raise an exception, or do nothing when a BigTable query
-  returns an empty row.
-
-  Members:
-    - RAISE: Raise the exception.
-    - WARN: Log a warning for exception without raising it.
-    - QUIET: Neither log nor raise the exception.
-  """
-  RAISE = 0
-  WARN = 1
-  QUIET = 2
-
-
 class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
-  """BigTableEnrichmentHandler is a handler for
-  :class:`apache_beam.transforms.enrichment.Enrichment` transform to interact
-  with GCP BigTable.
+  """A handler for :class:`apache_beam.transforms.enrichment.Enrichment`
+  transform to interact with GCP BigTable.
 
   Args:
     project_id (str): GCP project-id of the BigTable cluster.
@@ -71,7 +54,7 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     encoding (str): encoding type to convert the string to bytes and vice-versa
       from BigTable. Default is `utf-8`.
     exception_level: a `enum.Enum` value from
-      ``apache_beam.transforms.enrichment_handlers.bigtable.ExceptionLevel``
+      ``apache_beam.transforms.enrichment_handlers.utils.ExceptionLevel``
       to set the level when an empty row is returned from the BigTable query.
       Defaults to ``ExceptionLevel.WARN``.
     include_timestamp (bool): If enabled, the timestamp associated with the
@@ -161,3 +144,8 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     self.client = None
     self.instance = None
     self._table = None
+
+  def get_cache_key(self, request: beam.Row) -> str:
+    """Returns a string formatted with row key since it is unique to
+    a request made to `Bigtable`."""
+    return "%s: %s" % (self._row_key, request._asdict()[self._row_key])

@@ -71,11 +71,15 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.ErrorSinkTransform;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -483,6 +487,46 @@ public class PubsubIOTest {
   }
 
   @Test
+  public void testFailedParseWithErrorHandlerConfigured() throws Exception {
+    ByteString data = ByteString.copyFrom("Hello, World!".getBytes(StandardCharsets.UTF_8));
+    RuntimeException exception = new RuntimeException("Some error message");
+    ImmutableList<IncomingMessage> expectedReads =
+        ImmutableList.of(
+            IncomingMessage.of(
+                com.google.pubsub.v1.PubsubMessage.newBuilder().setData(data).build(),
+                1234L,
+                0,
+                UUID.randomUUID().toString(),
+                UUID.randomUUID().toString()));
+    ImmutableList<OutgoingMessage> expectedWrites = ImmutableList.of();
+    clientFactory =
+        PubsubTestClient.createFactoryForPullAndPublish(
+            SUBSCRIPTION, TOPIC, CLOCK, 60, expectedReads, expectedWrites, ImmutableList.of());
+
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        pipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
+    PCollection<String> read =
+        pipeline.apply(
+            PubsubIO.readStrings()
+                .fromSubscription(SUBSCRIPTION.getPath())
+                .withErrorHandler(errorHandler)
+                .withClock(CLOCK)
+                .withClientFactory(clientFactory)
+                .withCoderAndParseFn(
+                    StringUtf8Coder.of(),
+                    SimpleFunction.fromSerializableFunctionWithOutputType(
+                        message -> {
+                          throw exception;
+                        },
+                        TypeDescriptors.strings())));
+    errorHandler.close();
+
+    PAssert.thatSingleton(errorHandler.getOutput()).isEqualTo(1L);
+    PAssert.that(read).empty();
+    pipeline.run();
+  }
+
+  @Test
   public void testProto() {
     ProtoCoder<Primitive> coder = ProtoCoder.of(Primitive.class);
     ImmutableList<Primitive> inputs =
@@ -651,6 +695,66 @@ public class PubsubIOTest {
     @Override
     public String apply(PubsubMessage input) {
       return new String(input.getPayload(), StandardCharsets.UTF_8);
+    }
+  }
+
+  @Test
+  public void testWriteMalformedMessagesWithErrorHandler() throws Exception {
+    OutgoingMessage msg =
+        OutgoingMessage.of(
+            com.google.pubsub.v1.PubsubMessage.newBuilder()
+                .setData(ByteString.copyFromUtf8("foo"))
+                .build(),
+            0,
+            null,
+            "projects/project/topics/topic1");
+
+    try (PubsubTestClientFactory factory =
+        PubsubTestClient.createFactoryForPublish(null, ImmutableList.of(msg), ImmutableList.of())) {
+      TimestampedValue<PubsubMessage> pubsubMsg =
+          TimestampedValue.of(
+              new PubsubMessage(
+                      msg.getMessage().getData().toByteArray(),
+                      Collections.emptyMap(),
+                      msg.recordId())
+                  .withTopic(msg.topic()),
+              Instant.ofEpochMilli(msg.getTimestampMsSinceEpoch()));
+
+      TimestampedValue<PubsubMessage> failingPubsubMsg =
+          TimestampedValue.of(
+              new PubsubMessage(
+                      "foo".getBytes(StandardCharsets.UTF_8),
+                      Collections.emptyMap(),
+                      msg.recordId())
+                  .withTopic("badTopic"),
+              Instant.ofEpochMilli(msg.getTimestampMsSinceEpoch()));
+
+      PCollection<PubsubMessage> messages =
+          pipeline.apply(
+              Create.timestamped(ImmutableList.of(pubsubMsg, failingPubsubMsg))
+                  .withCoder(new PubsubMessageWithTopicCoder()));
+      messages.setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
+      ErrorHandler<BadRecord, PCollection<Long>> badRecordErrorHandler =
+          pipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
+      // The most straightforward method to simulate a bad message is to have a format function that
+      // deterministically fails based on some value
+      messages.apply(
+          PubsubIO.writeMessages()
+              .toBuilder()
+              .setFormatFn(
+                  (ValueInSingleWindow<PubsubMessage> messageAndWindow) -> {
+                    if (messageAndWindow.getValue().getTopic().equals("badTopic")) {
+                      throw new RuntimeException("expected exception");
+                    }
+                    return messageAndWindow.getValue();
+                  })
+              .build()
+              .to("projects/project/topics/topic1")
+              .withClientFactory(factory)
+              .withErrorHandler(badRecordErrorHandler));
+      badRecordErrorHandler.close();
+      PAssert.thatSingleton(badRecordErrorHandler.getOutput()).isEqualTo(1L);
+      pipeline.run();
     }
   }
 

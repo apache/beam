@@ -149,6 +149,16 @@ toxTask "testPy38embeddingsMLTransform", "py38-embeddings", "${posargs}"
 test.dependsOn "testPy38embeddingsMLTransform"
 preCommitPyCoverage.dependsOn "testPy38embeddingsMLTransform"
 
+// Part of MLTransform embeddings test suite but requires tensorflow hub, which we need to test on
+// mutliple versions so keeping this suite separate.
+toxTask "testPy38TensorflowHubEmbeddings-014", "py38-TFHubEmbeddings-014", "${posargs}"
+test.dependsOn "testPy38TensorflowHubEmbeddings-014"
+preCommitPyCoverage.dependsOn "testPy38TensorflowHubEmbeddings-014"
+
+toxTask "testPy38TensorflowHubEmbeddings-015", "py38-TFHubEmbeddings-015", "${posargs}"
+test.dependsOn "testPy38TensorflowHubEmbeddings-015"
+preCommitPyCoverage.dependsOn "testPy38TensorflowHubEmbeddings-015"
+
 toxTask "whitespacelint", "whitespacelint", "${posargs}"
 
 task archiveFilesToLint(type: Zip) {

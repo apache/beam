@@ -66,6 +66,25 @@ artifacts {
   distTarBall file: file("${buildDir}/${tarball}"), builtBy: sdist
 }
 
+tasks.register("generateExternalTransformsConfig") {
+  description "Discovers external transforms and regenerates the config at sdks/standard_expansion_services.yaml"
+
+  dependsOn buildPython
+  // Need to build all expansion services listed in sdks/standard_expansion_services.yaml
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+  dependsOn ":sdks:java:io:expansion-service:build"
+  // Keep this in-sync with pyproject.toml
+  def PyYaml = "'pyyaml>=3.12,<7.0.0'"
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "pip install $PyYaml && " +
+              "python gen_xlang_wrappers.py --cleanup --generate-config-only"
+    }
+  }
+}
+
 // Create Python wheels for given platform and Python version
 // build identifiers for cibuildwheel
 def platform_identifiers_map = [

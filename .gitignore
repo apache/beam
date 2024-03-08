@@ -52,7 +52,9 @@ sdks/python/**/*.egg
 sdks/python/LICENSE
 sdks/python/NOTICE
 sdks/python/README.md
+sdks/python/apache_beam/transforms/xlang/*
 sdks/python/apache_beam/portability/api/*
+sdks/python/apache_beam/yaml/docs/*
 sdks/python/nosetests*.xml
 sdks/python/pytest*.xml
 sdks/python/postcommit_requirements.txt
@@ -146,3 +148,7 @@ playground/cloudfunction.zip
 
 # Ignore .test-infra/mock-apis related files
 .test-infra/mock-apis/**/charts/
+
+# Ignore .test-infra/metrics/github_runs_prefetcher/code.zip
+# as its generated with terraform
+.test-infra/metrics/sync/github/github_runs_prefetcher/code.zip

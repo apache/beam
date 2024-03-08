@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.TestBigQueryOptions.BIGQUERY_EARLY_ROLLOUT_REGION;
 
+import com.google.api.services.bigquery.model.TableRow;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -33,6 +34,9 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.ErrorSinkTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
@@ -106,5 +110,47 @@ public class BigQueryIOStorageQueryIT {
   public void testBigQueryStorageQuery1G() throws Exception {
     setUpTestEnvironment("1G");
     runBigQueryIOStorageQueryPipeline();
+  }
+
+  static class FailingTableRowParser implements SerializableFunction<SchemaAndRecord, TableRow> {
+
+    public static final BigQueryIOStorageReadIT.FailingTableRowParser INSTANCE =
+        new BigQueryIOStorageReadIT.FailingTableRowParser();
+
+    private int parseCount = 0;
+
+    @Override
+    public TableRow apply(SchemaAndRecord schemaAndRecord) {
+      parseCount++;
+      if (parseCount % 50 == 0) {
+        throw new RuntimeException("ExpectedException");
+      }
+      return TableRowParser.INSTANCE.apply(schemaAndRecord);
+    }
+  }
+
+  @Test
+  public void testBigQueryStorageQueryWithErrorHandling1M() throws Exception {
+    setUpTestEnvironment("1M");
+    Pipeline p = Pipeline.create(options);
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        p.registerBadRecordErrorHandler(new ErrorSinkTransform());
+    PCollection<Long> count =
+        p.apply(
+                "Read",
+                BigQueryIO.read(FailingTableRowParser.INSTANCE)
+                    .fromQuery("SELECT * FROM `" + options.getInputTable() + "`")
+                    .usingStandardSql()
+                    .withMethod(Method.DIRECT_READ)
+                    .withErrorHandler(errorHandler))
+            .apply("Count", Count.globally());
+
+    errorHandler.close();
+
+    // When 1/50 elements fail sequentially, this is the expected success count
+    PAssert.thatSingleton(count).isEqualTo(10381L);
+    // this is the total elements, less the successful elements
+    PAssert.thatSingleton(errorHandler.getOutput()).isEqualTo(10592L - 10381L);
+    p.run().waitUntilFinish();
   }
 }

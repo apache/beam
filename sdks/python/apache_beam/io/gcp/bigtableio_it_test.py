@@ -58,10 +58,12 @@ def instance_prefix(instance):
 
 @pytest.mark.uses_gcp_java_expansion_service
 @pytest.mark.uses_transform_service
-@unittest.skipUnless(
-    os.environ.get('EXPANSION_PORT'),
-    "EXPANSION_PORT environment var is not provided.")
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_JARS') or
+    os.environ.get('TRANSFORM_SERVICE_PORT'),
+    "A valid expansion service is not available for executing the "
+    "cross-language test.")
 class TestReadFromBigTableIT(unittest.TestCase):
   INSTANCE = "bt-read-tests"
   TABLE_ID = "test-table"
@@ -70,7 +72,6 @@ class TestReadFromBigTableIT(unittest.TestCase):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.args = self.test_pipeline.get_full_options_as_args()
     self.project = self.test_pipeline.get_option('project')
-    self.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
     instance_id = instance_prefix(self.INSTANCE)
 
@@ -141,8 +142,7 @@ class TestReadFromBigTableIT(unittest.TestCase):
           | bigtableio.ReadFromBigtable(
               project_id=self.project,
               instance_id=self.instance.instance_id,
-              table_id=self.table.table_id,
-              expansion_service=self.expansion_service)
+              table_id=self.table.table_id)
           | "Extract cells" >> beam.Map(lambda row: row._cells))
 
       assert_that(cells, equal_to(expected_cells))
@@ -150,10 +150,12 @@ class TestReadFromBigTableIT(unittest.TestCase):
 
 @pytest.mark.uses_gcp_java_expansion_service
 @pytest.mark.uses_transform_service
-@unittest.skipUnless(
-    os.environ.get('EXPANSION_PORT'),
-    "EXPANSION_PORT environment var is not provided.")
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_JARS') or
+    os.environ.get('TRANSFORM_SERVICE_PORT'),
+    "A valid expansion service is not available for executing the "
+    "cross-language test.")
 class TestWriteToBigtableXlangIT(unittest.TestCase):
   # These are integration tests for the cross-language write transform.
   INSTANCE = "bt-write-xlang"
@@ -164,7 +166,6 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     cls.test_pipeline = TestPipeline(is_integration_test=True)
     cls.project = cls.test_pipeline.get_option('project')
     cls.args = cls.test_pipeline.get_full_options_as_args()
-    cls.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
     instance_id = instance_prefix(cls.INSTANCE)
 
@@ -215,8 +216,7 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
               project_id=self.project,
               instance_id=self.instance.instance_id,
               table_id=self.table.table_id,
-              use_cross_language=True,
-              expansion_service=self.expansion_service))
+              use_cross_language=True))
 
   def test_set_mutation(self):
     row1: DirectRow = DirectRow('key-1')

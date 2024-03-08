@@ -225,6 +225,8 @@ public class JmsIO {
 
     abstract Duration getCloseTimeout();
 
+    abstract @Nullable Duration getReceiveTimeout();
+
     abstract boolean isRequiresDeduping();
 
     abstract Builder<T> builder();
@@ -252,6 +254,8 @@ public class JmsIO {
       abstract Builder<T> setAutoScaler(AutoScaler autoScaler);
 
       abstract Builder<T> setCloseTimeout(Duration closeTimeout);
+
+      abstract Builder<T> setReceiveTimeout(Duration receiveTimeout);
 
       abstract Builder<T> setRequiresDeduping(boolean requiresDeduping);
 
@@ -402,6 +406,17 @@ public class JmsIO {
     }
 
     /**
+     * If set, block for the Duration of timeout for each poll to new JMS record if the previous
+     * poll returns no new record.
+     *
+     * <p>Use this option if the requirement for read latency is not a concern or excess client
+     * polling has resulted network issues.
+     */
+    public Read<T> withReceiveTimeout(Duration receiveTimeout) {
+      return builder().setReceiveTimeout(receiveTimeout).build();
+    }
+
+    /**
      * If set, requires runner deduplication for the messages. Each message is identified by its
      * {@code JMSMessageID}.
      */
@@ -522,6 +537,7 @@ public class JmsIO {
     private T currentMessage;
     private Instant currentTimestamp;
     private byte[] currentID;
+    private long receiveTimeoutMillis;
     private PipelineOptions options;
 
     public UnboundedJmsReader(UnboundedJmsSource<T> source, PipelineOptions options) {
@@ -541,6 +557,9 @@ public class JmsIO {
       }
 
       Read<T> spec = source.spec;
+      Duration receiveTimeout =
+          MoreObjects.firstNonNull(source.spec.getReceiveTimeout(), Duration.ZERO);
+      receiveTimeoutMillis = receiveTimeout.getMillis();
 
       try {
         if (source.spec.getTopic() != null) {
@@ -586,7 +605,11 @@ public class JmsIO {
       try {
         Message message;
         synchronized (this) {
-          message = this.consumer.receiveNoWait();
+          if (receiveTimeoutMillis == 0L) {
+            message = this.consumer.receiveNoWait();
+          } else {
+            message = this.consumer.receive(receiveTimeoutMillis);
+          }
           // put add in synchronized to make sure all messages in preparer are in same session
           if (message != null) {
             checkpointMarkPreparer.add(message);

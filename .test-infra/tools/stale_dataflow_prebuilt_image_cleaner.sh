@@ -56,6 +56,7 @@ done
 
 HAS_STALE_IMAGES=""
 FAILED_IMAGES=""
+FAILED_COUNT=0
 
 for image_name in ${IMAGE_NAMES[@]}; do
   echo IMAGES FOR image ${image_name}
@@ -99,6 +100,7 @@ for image_name in ${IMAGE_NAMES[@]}; do
           if [ -z "$MANIFEST" ]; then
             # Sometimes "no such manifest" seen. Skip current if command hit error
             FAILED_IMAGES+=" $current"
+            FAILED_COUNT=$(($FAILED_COUNT + 1))
             continue
           fi
           SHOULD_DELETE=0
@@ -129,7 +131,7 @@ for image_name in ${IMAGE_NAMES[@]}; do
     echo "Failed to delete the following images: ${FAILED_TO_DELETE}. Retrying each of them."
     for current in $RETRY_DELETE; do
       echo "Trying again to delete image ${image_name}@"${current}". Command: gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q"
-      gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q || FAILED_IMAGES+=" ${image_name}@${current}"
+      gcloud container images delete ${image_name}@"${current}" --force-delete-tags -q || (FAILED_IMAGES+=" ${image_name}@${current}" && FAILED_COUNT=$(($FAILED_COUNT + 1)))
     done
   fi
 done
@@ -142,5 +144,10 @@ fi
 
 if [ -n "$FAILED_IMAGES" ]; then
   echo "Failed delete images $FAILED_IMAGES"
-  exit 1
+  # Sometimes images may not be deleted on the first pass if they have dependencies on previous images. Only fail if we have a persistent leak
+  FAILED_THRESHOLD=10
+  if [ $FAILED_COUNT -gt $FAILED_THRESHOLD ]; then
+    echo "Failed delete at least $FAILED_THRESHOLD images, failing job."
+    exit 1
+  fi
 fi

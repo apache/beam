@@ -441,9 +441,12 @@ public class BigQueryUtilsTest {
   private static final Row ARRAY_ROW_ROW =
       Row.withSchema(ARRAY_ROW_TYPE).addValues((Object) Arrays.asList(FLAT_ROW)).build();
 
-  private static final TableRow BQ_ARRAY_ROW_ROW =
+  private static final TableRow BQ_ARRAY_ROW_ROW_V =
       new TableRow()
           .set("rows", Collections.singletonList(Collections.singletonMap("v", BQ_FLAT_ROW)));
+
+  private static final TableRow BQ_ARRAY_ROW_ROW =
+      new TableRow().set("rows", Collections.singletonList(BQ_FLAT_ROW));
 
   private static final TableSchema BQ_FLAT_TYPE =
       new TableSchema()
@@ -941,6 +944,12 @@ public class BigQueryUtilsTest {
   public void testToBeamRow_row() {
     Row beamRow = BigQueryUtils.toBeamRow(ROW_TYPE, BQ_ROW_ROW);
     assertEquals(ROW_ROW, beamRow);
+  }
+
+  @Test
+  public void testToBeamRow_array_row_v() {
+    Row beamRow = BigQueryUtils.toBeamRow(ARRAY_ROW_TYPE, BQ_ARRAY_ROW_ROW_V);
+    assertEquals(ARRAY_ROW_ROW, beamRow);
   }
 
   @Test

@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.twister2.Twister2TranslationContext;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
@@ -37,7 +38,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.ReadTranslation;
 import org.apache.beam.sdk.util.construction.SdkComponents;
-import org.apache.beam.sdk.util.construction.SerializablePipelineOptions;
 
 /** Twister2 wrapper for Bounded Source. */
 @SuppressWarnings({

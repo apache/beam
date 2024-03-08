@@ -1,7 +1,7 @@
 Prompt:
 Is Pub/Sub supported in Apache Beam?
 Response:
-[PubSub](https://cloud.google.com/pubsub) is a[ Google Cloud](https://cloud.google.com/) service that provides a simple, reliable, scalable, and secure real-time messaging service for sending and receiving messages between independent applications. Apache Beam provides a PubSubIO connector that allows you to read and write messages from and to Pub/Sub.
+[Pub/Sub](https://cloud.google.com/pubsub) is a [Google Cloud](https://cloud.google.com/) service that provides a simple, reliable, scalable, and secure real-time messaging service for sending and receiving messages between independent applications. Apache Beam provides a PubSubIO connector that allows you to read and write messages from and to Pub/Sub.
 Pub/Sub is currently supported only in streaming pipelines.
 
 
@@ -11,7 +11,7 @@ Pub/Sub is supported in the following Beam SDKs:
 * [Go](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/pubsubio)
 * [Typescript](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/io/pubsub.ts) through X Language.
 
-[Dataflow-cookbook repository](https://github.com/GoogleCloudPlatform/dataflow-cookbook) will help you to get started with Pub/Sub and Apache Beam. See here for [read](https://github.com/GoogleCloudPlatform/dataflow-cookbook/blob/main/Python/pubsub/read_pubsub_multiple.py) and [write](https://github.com/GoogleCloudPlatform/dataflow-cookbook/blob/main/Python/pubsub/write_pubsub.py) examples in Python.
+The [Dataflow Cookbook repository](https://github.com/GoogleCloudPlatform/dataflow-cookbook) will help you to get started with Pub/Sub and Apache Beam. See here for [read](https://github.com/GoogleCloudPlatform/dataflow-cookbook/blob/main/Python/pubsub/read_pubsub_multiple.py) and [write](https://github.com/GoogleCloudPlatform/dataflow-cookbook/blob/main/Python/pubsub/write_pubsub.py) examples in Python.
 
 Apache Beam pipeline code for reading data from Pub/Sub topic and writing it back to another topic might look like the following example:
 
