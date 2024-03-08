@@ -59,11 +59,9 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
-import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
 import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
-import org.apache.beam.sdk.util.construction.TransformUpgrader;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -201,14 +199,6 @@ public class BigQueryIOTranslation {
 
     @Override
     public TypedRead<?> fromConfigRow(Row configRow, PipelineOptions options) {
-      String updateCompatibilityBeamVersion =
-          options.as(StreamingOptions.class).getUpdateCompatibilityVersion();
-      // We need to set a default 'updateCompatibilityBeamVersion' here since this PipelineOption
-      // is not correctly passed in for pipelines that use Beam 2.53.0.
-      // This is fixed for Beam 2.54.0 and later.
-      updateCompatibilityBeamVersion =
-          (updateCompatibilityBeamVersion != null) ? updateCompatibilityBeamVersion : "2.53.0";
-
       try {
         BigQueryIO.TypedRead.Builder builder = new AutoValue_BigQueryIO_TypedRead.Builder<>();
 
@@ -322,20 +312,11 @@ public class BigQueryIOTranslation {
         if (projectionPushdownApplied != null) {
           builder = builder.setProjectionPushdownApplied(projectionPushdownApplied);
         }
-
-        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.55.0") < 0) {
-          // We need to use defaults here for BQ rear/write transforms upgraded
-          // from older Beam versions.
-          // See https://github.com/apache/beam/issues/30534.
-          builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
-          builder.setBadRecordErrorHandler(new BadRecordErrorHandler.DefaultErrorHandler<>());
-        } else {
-          byte[] badRecordRouter = configRow.getBytes("bad_record_router");
-          builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));
-          byte[] badRecordErrorHandler = configRow.getBytes("bad_record_error_handler");
-          builder.setBadRecordErrorHandler(
-              (ErrorHandler<BadRecord, ?>) fromByteArray(badRecordErrorHandler));
-        }
+        byte[] badRecordRouter = configRow.getBytes("bad_record_router");
+        builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));
+        byte[] badRecordErrorHandler = configRow.getBytes("bad_record_error_handler");
+        builder.setBadRecordErrorHandler(
+            (ErrorHandler<BadRecord, ?>) fromByteArray(badRecordErrorHandler));
 
         return builder.build();
       } catch (InvalidClassException e) {
@@ -592,14 +573,6 @@ public class BigQueryIOTranslation {
 
     @Override
     public Write<?> fromConfigRow(Row configRow, PipelineOptions options) {
-      String updateCompatibilityBeamVersion =
-          options.as(StreamingOptions.class).getUpdateCompatibilityVersion();
-      // We need to set a default 'updateCompatibilityBeamVersion' here since this PipelineOption
-      // is not correctly passed in for pipelines that use Beam 2.53.0.
-      // This is fixed for Beam 2.54.0 and later.
-      updateCompatibilityBeamVersion =
-          (updateCompatibilityBeamVersion != null) ? updateCompatibilityBeamVersion : "2.53.0";
-
       try {
         BigQueryIO.Write.Builder builder = new AutoValue_BigQueryIO_Write.Builder<>();
 
@@ -743,11 +716,20 @@ public class BigQueryIOTranslation {
           builder = builder.setMaxBytesPerPartition(maxBytesPerPartition);
         }
 
+        String updateCompatibilityBeamVersion =
+            options.as(StreamingOptions.class).getUpdateCompatibilityVersion();
+
         // We need to update the 'triggerring_frequency' field name for pipelines that are upgraded
         // from Beam 2.53.0 due to https://github.com/apache/beam/pull/29785.
-        // This is fixed for Beam 2.54.0 and later.
+        // We need to set a default 'updateCompatibilityBeamVersion' here since this PipelineOption
+        // is not correctly passed in for pipelines that use Beam 2.53.0.
+        // Both above issues are fixed for Beam 2.54.0 and later.
+        updateCompatibilityBeamVersion =
+            (updateCompatibilityBeamVersion != null) ? updateCompatibilityBeamVersion : "2.53.0";
+
         String triggeringFrequencyFieldName =
-            TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.53.0") == 0
+            (updateCompatibilityBeamVersion != null
+                    && updateCompatibilityBeamVersion.equals("2.53.0"))
                 ? "triggerring_frequency"
                 : "triggering_frequency";
 
@@ -858,20 +840,11 @@ public class BigQueryIOTranslation {
               builder.setRowMutationInformationFn(
                   (SerializableFunction) fromByteArray(rowMutationInformationFnBytes));
         }
-
-        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.55.0") < 0) {
-          // We need to use defaults here for BQ rear/write transforms upgraded
-          // from older Beam versions.
-          // See https://github.com/apache/beam/issues/30534.
-          builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
-          builder.setBadRecordErrorHandler(new BadRecordErrorHandler.DefaultErrorHandler<>());
-        } else {
-          byte[] badRecordRouter = configRow.getBytes("bad_record_router");
-          builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));
-          byte[] badRecordErrorHandler = configRow.getBytes("bad_record_error_handler");
-          builder.setBadRecordErrorHandler(
-              (ErrorHandler<BadRecord, ?>) fromByteArray(badRecordErrorHandler));
-        }
+        byte[] badRecordRouter = configRow.getBytes("bad_record_router");
+        builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));
+        byte[] badRecordErrorHandler = configRow.getBytes("bad_record_error_handler");
+        builder.setBadRecordErrorHandler(
+            (ErrorHandler<BadRecord, ?>) fromByteArray(badRecordErrorHandler));
 
         return builder.build();
       } catch (InvalidClassException e) {
