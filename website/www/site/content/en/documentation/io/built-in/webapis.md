@@ -175,7 +175,7 @@ advantage of this design for testing.
 
 As mentioned above, `RequestResponseIO` returns a
 [Result](https://beam.apache.org/releases/javadoc/current/org/apache/beam/io/requestresponse/Result.html)
-that bundles both the success and failure `PCollection`s resulting from you `Caller`. This section provides
+that bundles both the success and failure `PCollection`s resulting from your `Caller`. This section provides
 a little more detail about handling failures and specifics on API call repeats with backoff.
 
 #### Handling failures
