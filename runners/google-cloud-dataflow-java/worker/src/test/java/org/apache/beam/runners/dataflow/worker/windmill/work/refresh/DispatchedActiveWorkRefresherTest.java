@@ -19,9 +19,9 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.google.api.services.dataflow.model.MapTask;
@@ -50,7 +50,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBa
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -102,7 +101,29 @@ public class DispatchedActiveWorkRefresherTest {
         computations,
         DataflowExecutionStateSampler.instance(),
         activeWorkRefresherFn,
-        Executors.newSingleThreadScheduledExecutor());
+        Executors.newSingleThreadScheduledExecutor(),
+        ComputationState::invalidateStuckCommits);
+  }
+
+  private ActiveWorkRefresher createActiveWorkRefresher(
+      Supplier<Instant> clock,
+      int activeWorkRefreshPeriodMillis,
+      int stuckCommitDurationMillis,
+      Supplier<Collection<ComputationState>> computations,
+      Consumer<Map<String, List<HeartbeatRequest>>> activeWorkRefresherFn,
+      Runnable notifyInvalidateStuckCommitsFn) {
+    return new DispatchedActiveWorkRefresher(
+        clock,
+        activeWorkRefreshPeriodMillis,
+        stuckCommitDurationMillis,
+        computations,
+        DataflowExecutionStateSampler.instance(),
+        activeWorkRefresherFn,
+        Executors.newSingleThreadScheduledExecutor(),
+        (computationState, stuckCommitDeadline) -> {
+          computationState.invalidateStuckCommits(stuckCommitDeadline);
+          notifyInvalidateStuckCommitsFn.run();
+        });
   }
 
   private Work createOldWork(int workIds, Consumer<Work> processWork) {
@@ -192,11 +213,11 @@ public class DispatchedActiveWorkRefresherTest {
   }
 
   @Test
-  public void testInvalidateStuckCommits() {
+  public void testInvalidateStuckCommits() throws InterruptedException {
     int stuckCommitDurationMillis = 100;
     Table<ComputationState, Work, WindmillStateCache.ForComputation> computations =
         HashBasedTable.create();
-    WindmillStateCache stateCache = new WindmillStateCache(100);
+    WindmillStateCache stateCache = WindmillStateCache.ofSizeMbs(100);
     ByteString key = ByteString.EMPTY;
     for (int i = 0; i < 5; i++) {
       WindmillStateCache.ForComputation perComputationStateCache =
@@ -210,31 +231,32 @@ public class DispatchedActiveWorkRefresherTest {
 
     TestClock fakeClock = new TestClock(Instant.now());
 
+    CountDownLatch invalidateStuckCommitRan = new CountDownLatch(computations.size());
     ActiveWorkRefresher activeWorkRefresher =
         createActiveWorkRefresher(
             fakeClock::now,
             0,
             stuckCommitDurationMillis,
             computations.rowMap()::keySet,
-            ignored -> {});
+            ignored -> {},
+            invalidateStuckCommitRan::countDown);
 
     activeWorkRefresher.start();
     fakeClock.advance(Duration.millis(stuckCommitDurationMillis));
-    Uninterruptibles.sleepUninterruptibly(stuckCommitDurationMillis, TimeUnit.MILLISECONDS);
+    invalidateStuckCommitRan.await();
+    activeWorkRefresher.stop();
 
     for (Table.Cell<ComputationState, Work, WindmillStateCache.ForComputation> cell :
         computations.cellSet()) {
       ComputationState computation = cell.getRowKey();
       Work work = cell.getColumnKey();
       WindmillStateCache.ForComputation perComputationStateCache = cell.getValue();
-      verify(perComputationStateCache, after((long) (stuckCommitDurationMillis * 1.5)).times(1))
+      verify(perComputationStateCache, times(1))
           .invalidate(eq(key), eq(work.getWorkItem().getShardingKey()));
-      verify(computation, after((long) (stuckCommitDurationMillis * 1.5)).times(1))
+      verify(computation, times(1))
           .completeWorkAndScheduleNextWorkForKey(
               eq(ShardedKey.create(key, work.getWorkItem().getShardingKey())), eq(work.id()));
     }
-
-    activeWorkRefresher.stop();
   }
 
   static class TestClock implements Clock {

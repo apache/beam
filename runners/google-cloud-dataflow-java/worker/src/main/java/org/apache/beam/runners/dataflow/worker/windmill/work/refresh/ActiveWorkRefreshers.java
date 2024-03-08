@@ -45,6 +45,7 @@ public final class ActiveWorkRefreshers {
         computations,
         sampler,
         activeWorkRefresherFn,
-        scheduledExecutorService);
+        scheduledExecutorService,
+        ComputationState::invalidateStuckCommits);
   }
 }

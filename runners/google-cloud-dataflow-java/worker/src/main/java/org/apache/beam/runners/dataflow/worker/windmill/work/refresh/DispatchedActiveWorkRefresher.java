@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
@@ -41,14 +42,16 @@ final class DispatchedActiveWorkRefresher extends ActiveWorkRefresher {
       Supplier<Collection<ComputationState>> computations,
       DataflowExecutionStateSampler sampler,
       Consumer<Map<String, List<Windmill.HeartbeatRequest>>> activeWorkRefresherFn,
-      ScheduledExecutorService scheduledExecutorService) {
+      ScheduledExecutorService scheduledExecutorService,
+      BiConsumer<ComputationState, Instant> invalidateStuckCommitsFn) {
     super(
         clock,
         activeWorkRefreshPeriodMillis,
         stuckCommitDurationMillis,
         computations,
         sampler,
-        scheduledExecutorService);
+        scheduledExecutorService,
+        invalidateStuckCommitsFn);
     this.activeWorkRefresherFn = activeWorkRefresherFn;
   }
 
