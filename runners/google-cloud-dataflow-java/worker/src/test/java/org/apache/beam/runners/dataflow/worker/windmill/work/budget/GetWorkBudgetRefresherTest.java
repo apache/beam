@@ -18,9 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
+import static org.junit.Assert.assertFalse;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -52,10 +50,11 @@ public class GetWorkBudgetRefresherTest {
     budgetRefresher.start();
     budgetRefresher.stop();
     budgetRefresher.requestBudgetRefresh();
-    redistributeBudgetLatch.await(WAIT_BUFFER, TimeUnit.MILLISECONDS);
+    boolean redistributeBudgetRan =
+        redistributeBudgetLatch.await(WAIT_BUFFER, TimeUnit.MILLISECONDS);
     // Make sure that redistributeBudgetLatch.countDown() is never called.
-    verifyNoInteractions(redistributeBudget);
     assertThat(redistributeBudgetLatch.getCount()).isEqualTo(1);
+    assertFalse(redistributeBudgetRan);
   }
 
   @Test
@@ -67,7 +66,7 @@ public class GetWorkBudgetRefresherTest {
     budgetRefresher.requestBudgetRefresh();
     // Wait a bit for redistribute budget to run.
     redistributeBudgetLatch.await();
-    verify(redistributeBudget, times(1)).run();
+    assertThat(redistributeBudgetLatch.getCount()).isEqualTo(0);
   }
 
   @Test
@@ -76,8 +75,9 @@ public class GetWorkBudgetRefresherTest {
     Runnable redistributeBudget = redistributeBudgetLatch::countDown;
     GetWorkBudgetRefresher budgetRefresher = createBudgetRefresher(redistributeBudget);
     budgetRefresher.start();
+    // Wait a bit for scheduled redistribute budget to run.
     redistributeBudgetLatch.await();
-    verify(redistributeBudget, times(1)).run();
+    assertThat(redistributeBudgetLatch.getCount()).isEqualTo(0);
   }
 
   @Test
@@ -89,9 +89,9 @@ public class GetWorkBudgetRefresherTest {
     Thread budgetRefreshTriggerThread = new Thread(budgetRefresher::requestBudgetRefresh);
     budgetRefreshTriggerThread.start();
     budgetRefreshTriggerThread.join();
-
     // Wait a bit for triggered and scheduled redistribute budget to run.
-    verify(redistributeBudget, times(2)).run();
+    redistributeBudgetLatch.await();
+    assertThat(redistributeBudgetLatch.getCount()).isEqualTo(0);
   }
 
   @Test
@@ -102,8 +102,11 @@ public class GetWorkBudgetRefresherTest {
     GetWorkBudgetRefresher budgetRefresher = createBudgetRefresher(true, redistributeBudget);
     budgetRefresher.start();
     budgetRefresher.requestBudgetRefresh();
-    redistributeBudgetLatch.await(WAIT_BUFFER, TimeUnit.MILLISECONDS);
-    verifyNoInteractions(redistributeBudget);
+    boolean redistributeBudgetRan =
+        redistributeBudgetLatch.await(WAIT_BUFFER, TimeUnit.MILLISECONDS);
+    // Make sure that redistributeBudgetLatch.countDown() is never called.
+    assertThat(redistributeBudgetLatch.getCount()).isEqualTo(1);
+    assertFalse(redistributeBudgetRan);
   }
 
   @Test
@@ -113,9 +116,12 @@ public class GetWorkBudgetRefresherTest {
     Runnable redistributeBudget = redistributeBudgetLatch::countDown;
     GetWorkBudgetRefresher budgetRefresher = createBudgetRefresher(true, redistributeBudget);
     budgetRefresher.start();
-    redistributeBudgetLatch.await(
-        GetWorkBudgetRefresher.SCHEDULED_BUDGET_REFRESH_MILLIS + WAIT_BUFFER,
-        TimeUnit.MILLISECONDS);
-    verifyNoInteractions(redistributeBudget);
+    boolean redistributeBudgetRan =
+        redistributeBudgetLatch.await(
+            GetWorkBudgetRefresher.SCHEDULED_BUDGET_REFRESH_MILLIS + WAIT_BUFFER,
+            TimeUnit.MILLISECONDS);
+    // Make sure that redistributeBudgetLatch.countDown() is never called.
+    assertThat(redistributeBudgetLatch.getCount()).isEqualTo(1);
+    assertFalse(redistributeBudgetRan);
   }
 }
