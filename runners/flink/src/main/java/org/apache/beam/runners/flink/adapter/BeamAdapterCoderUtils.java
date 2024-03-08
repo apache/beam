@@ -80,25 +80,4 @@ class BeamAdapterCoderUtils {
       throw new RuntimeException(exn);
     }
   }
-  //
-  //  static <T> Coder<T> lookupWindowedCoder(RunnerApi.Pipeline p, String pCollectionId) {
-  //    try {
-  //      RehydratedComponents components = RehydratedComponents.forComponents(p.getComponents());
-  //      RunnerApi.PCollection pCollection =
-  // p.getComponents().getPcollectionsOrThrow(pCollectionId);
-  //      return WindowedValue.getFullCoder(
-  //          (Coder<T>)
-  //              CoderTranslation.fromProto(
-  //                  p.getComponents().getCodersOrThrow(pCollection.getCoderId()),
-  //                  components,
-  //                  CoderTranslation.TranslationContext.DEFAULT),
-  //          components
-  //              .getWindowingStrategy(pCollection.getWindowingStrategy())
-  //              .getWindowFn()
-  //              .windowCoder());
-  //      components.getWindowingStrategy("x").getWindowFn().windowCoder();
-  //    } catch (IOException exn) {
-  //      throw new RuntimeException(exn);
-  //    }
-  //  }
 }

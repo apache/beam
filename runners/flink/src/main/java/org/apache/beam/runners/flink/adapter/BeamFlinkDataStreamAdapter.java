@@ -192,13 +192,13 @@ public class BeamFlinkDataStreamAdapter {
         dataStream -> dataStream.getType(),
         pipelineOptions,
         coderRegistry,
-        (inputs1, pipelineProto, executionEnvironment1) -> {
-          Map<String, DataStream<?>> outputs = new HashMap<>();
+        (flinkInputs, pipelineProto, env) -> {
+          Map<String, DataStream<?>> flinkOutputs = new HashMap<>();
           FlinkStreamingPortablePipelineTranslator translator =
               new FlinkStreamingPortablePipelineTranslator(
                   ImmutableMap.of(
-                      FlinkInput.URN, flinkInputTranslator(inputs1),
-                      FlinkOutput.URN, flinkOutputTranslator(outputs)));
+                      FlinkInput.URN, flinkInputTranslator(flinkInputs),
+                      FlinkOutput.URN, flinkOutputTranslator(flinkOutputs)));
           FlinkStreamingPortablePipelineTranslator.StreamingTranslationContext context =
               translator.createTranslationContext(
                   JobInfo.create(
@@ -207,9 +207,9 @@ public class BeamFlinkDataStreamAdapter {
                       "unusedRetrievalToken",
                       PipelineOptionsTranslation.toProto(pipelineOptions)),
                   pipelineOptions.as(FlinkPipelineOptions.class),
-                  executionEnvironment1);
+                  env);
           translator.translate(context, translator.prepareForTranslation(pipelineProto));
-          return outputs;
+          return flinkOutputs;
         });
   }
 
