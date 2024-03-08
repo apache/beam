@@ -19,10 +19,26 @@ package org.apache.beam.sdk.transforms;
 
 import java.io.Serializable;
 import java.util.Comparator;
+import java.util.Objects;
 
 /**
  * A {@code Comparator} that is also {@code Serializable}.
  *
  * @param <T> type of values being compared
  */
-public interface SerializableComparator<T> extends Comparator<T>, Serializable {}
+public interface SerializableComparator<T> extends Comparator<T>, Serializable {
+	/**
+	 * Returns a {@code SerializableComparator} that compares two objects by applying a key extractor function on them
+	 * and comparing the results using their natural ordering. This is analogous to {@code Comparator.comparing()}.
+	 *
+	 * @param <T> the type of objects to be compared
+	 * @param <U> the type of the Comparable keys to be extracted from the objects
+	 * @param keyExtractor the function used to extract the Comparable keys from the objects
+	 * @return a {@code SerializableComparator} that compares the objects by comparing the keys extracted from them
+	 * @throws NullPointerException if the argument is null
+	 */
+	public static <T, U extends Comparable<U>> SerializableComparator<T> comparing(SerializableFunction<T, U> keyExtractor) {
+		Objects.requireNonNull(keyExtractor);
+		return (c1, c2) -> keyExtractor.apply(c1).compareTo(keyExtractor.apply(c2));
+	}
+}
