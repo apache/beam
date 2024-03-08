@@ -98,6 +98,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.appliance.JniWindmillApplianceServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
@@ -112,6 +113,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmill
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingRemoteStubFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
@@ -136,6 +139,7 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
@@ -399,12 +403,16 @@ public class StreamingDataflowWorker {
     ConcurrentMap<String, ComputationState> computationMap = new ConcurrentHashMap<>();
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
     StreamingCounters streamingCounters = StreamingCounters.create();
+    Function<WindmillServiceAddress, ManagedChannel> channelFactory =
+        serviceAddress ->
+            remoteChannel(serviceAddress, options.getWindmillServiceRpcChannelAliveTimeoutSec());
+
     ChannelCache channelCache =
         ChannelCache.create(
-            options.getUseWindmillIsolatedChannels(),
             serviceAddress ->
-                remoteChannel(
-                    serviceAddress, options.getWindmillServiceRpcChannelAliveTimeoutSec()));
+                options.getUseWindmillIsolatedChannels()
+                    ? IsolationChannel.create(() -> channelFactory.apply(serviceAddress))
+                    : channelFactory.apply(serviceAddress));
 
     WindmillServerStub windmillServer =
         createWindmillServerStub(
@@ -442,8 +450,17 @@ public class StreamingDataflowWorker {
             streamingCounters,
             memoryMonitor,
             workExecutor);
+
+    WindmillStubFactory stubFactory =
+        new ChannelCachingRemoteStubFactory(options.getGcpCredential(), channelCache);
+    GrpcDispatcherClient dispatcherClient = GrpcDispatcherClient.create(stubFactory);
+    Consumer<List<Windmill.ComputationHeartbeatResponse>> workHeartbeatResponseProcessor =
+        new WorkHeartbeatResponseProcessor(
+            computationId -> Optional.ofNullable(computationMap.get(computationId)));
+
     return new StreamingDataflowWorker(
-        windmillServer,
+        createWindmillServerStub(
+            options, clientId, dispatcherClient, workHeartbeatResponseProcessor),
         clientId,
         computationMap,
         stageInfo,

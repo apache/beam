@@ -47,9 +47,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataR
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
@@ -99,14 +98,11 @@ public class StreamingEngineClientTest {
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   private final GrpcWindmillStreamFactory streamFactory =
       spy(GrpcWindmillStreamFactory.of(JOB_HEADER).build());
-  private final ChannelCache channelCache =
-      ChannelCache.create(
-          false,
-          ignored ->
+  private final ChannelCachingStubFactory stubFactory =
+      new FakeWindmillStubFactory(
+          () ->
               grpcCleanup.register(
                   WindmillChannelFactory.inProcessChannel("StreamingEngineClientTest")));
-  private final WindmillStubFactory stubFactory =
-      new FakeWindmillStubFactory(() -> channelCache.get(DEFAULT_WINDMILL_SERVICE_ADDRESS));
   private final GrpcDispatcherClient dispatcherClient =
       GrpcDispatcherClient.forTesting(
           stubFactory, new ArrayList<>(), new ArrayList<>(), new HashSet<>());
@@ -148,7 +144,7 @@ public class StreamingEngineClientTest {
 
   @Before
   public void setUp() throws IOException {
-    channelCache.clear();
+    stubFactory.shutdown();
     fakeStreamingEngineServer =
         grpcCleanup.register(
             InProcessServerBuilder.forName("StreamingEngineClientTest")
@@ -171,7 +167,7 @@ public class StreamingEngineClientTest {
     Preconditions.checkNotNull(streamingEngineClient).finish();
     fakeGetWorkerMetadataStub.close();
     fakeStreamingEngineServer.shutdownNow();
-    channelCache.clear();
+    stubFactory.shutdown();
   }
 
   private StreamingEngineClient newStreamingEngineClient(
@@ -187,8 +183,7 @@ public class StreamingEngineClientTest {
         stubFactory,
         getWorkBudgetDistributor,
         dispatcherClient,
-        CLIENT_ID,
-        channelCache);
+        CLIENT_ID);
   }
 
   @Test
