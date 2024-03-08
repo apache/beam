@@ -27,6 +27,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.util.construction.SdkComponents;
@@ -35,7 +36,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -80,7 +80,8 @@ class BeamAdapterUtils {
                         new FlinkInput<>(
                             key,
                             BeamAdapterCoderUtils.typeInformationToCoder(
-                                getTypeInformation.apply(Preconditions.checkNotNull(flinkInput)),
+                                getTypeInformation.apply(
+                                    Preconditions.checkArgumentNotNull(flinkInput)),
                                 coderRegistry),
                             isBounded))));
 
