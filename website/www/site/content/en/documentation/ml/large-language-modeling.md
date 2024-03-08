@@ -27,7 +27,7 @@ RunInference has several mechanisms for reducing memory utilization. For example
 
 Many Beam runners, however, run multiple Beam processes per machine at once. This can cause problems since the memory footprint of loading large models like LLMs multiple times can be too large to fit into a single machine.
 For memory-intensive models, RunInference provides a mechanism for more intelligently sharing memory across multiple processes to reduce the overall memory footprint. To enable this mode, users just have
-to set the parameter `large_model=True` to True in their model configuration (see below for an example), and Beam will take care of the memory management.
+to set the parameter `large_model` to True in their model configuration (see below for an example), and Beam will take care of the memory management.
 
 ### Running an Example Pipeline with T5
 
