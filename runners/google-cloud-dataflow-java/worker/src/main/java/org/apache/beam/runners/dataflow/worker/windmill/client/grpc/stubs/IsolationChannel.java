@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * that each active rpc has its own channel.
  */
 @Internal
-class IsolationChannel extends ManagedChannel {
+public class IsolationChannel extends ManagedChannel {
   private static final Logger LOG = LoggerFactory.getLogger(IsolationChannel.class);
 
   private final Supplier<ManagedChannel> channelFactory;
@@ -61,7 +61,7 @@ class IsolationChannel extends ManagedChannel {
   private final String authority;
 
   // Expected that supplier returns channels to the same endpoint with the same authority.
-  static IsolationChannel create(Supplier<ManagedChannel> channelFactory) {
+  public static IsolationChannel create(Supplier<ManagedChannel> channelFactory) {
     return new IsolationChannel(channelFactory);
   }
 

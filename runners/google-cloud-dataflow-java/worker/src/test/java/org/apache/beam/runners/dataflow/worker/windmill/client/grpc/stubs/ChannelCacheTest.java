@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
@@ -41,9 +40,8 @@ public class ChannelCacheTest {
   private ChannelCache cache;
 
   private static ChannelCache newCache(
-      boolean useIsolatedChannels,
       Function<WindmillServiceAddress, ManagedChannel> channelFactory) {
-    return ChannelCache.forTesting(useIsolatedChannels, channelFactory, () -> {});
+    return ChannelCache.forTesting(channelFactory, () -> {});
   }
 
   @After
@@ -58,7 +56,7 @@ public class ChannelCacheTest {
   }
 
   @Test
-  public void testLoadingCacheReturnsExistingChannel_noIsolatedChannels() {
+  public void testLoadingCacheReturnsExistingChannel() {
     String channelName = "existingChannel";
     ManagedChannel channel = newChannel(channelName);
     Function<WindmillServiceAddress, ManagedChannel> channelFactory =
@@ -70,7 +68,7 @@ public class ChannelCacheTest {
               }
             });
 
-    cache = newCache(false, channelFactory);
+    cache = newCache(channelFactory);
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
     // Initial call to load the cache.
     cache.get(someAddress);
@@ -78,11 +76,10 @@ public class ChannelCacheTest {
     ManagedChannel cachedChannel = cache.get(someAddress);
     assertSame(channel, cachedChannel);
     verify(channelFactory, times(1)).apply(eq(someAddress));
-    assertFalse(cachedChannel instanceof IsolationChannel);
   }
 
   @Test
-  public void testLoadingCacheReturnsExistingChannel_useIsolatedChannels() {
+  public void testLoadingCacheReturnsLoadsChannelWhenNotPresent() {
     String channelName = "existingChannel";
     ManagedChannel channel = newChannel(channelName);
     Function<WindmillServiceAddress, ManagedChannel> channelFactory =
@@ -94,54 +91,11 @@ public class ChannelCacheTest {
               }
             });
 
-    cache = newCache(true, channelFactory);
-    WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
-    // First get loads the cache.
-    ManagedChannel loadedChannel = cache.get(someAddress);
-    // Second get should return loaded value.
-    ManagedChannel cachedChannel = cache.get(someAddress);
-    assertSame(loadedChannel, cachedChannel);
-    verify(channelFactory, times(1)).apply(eq(someAddress));
-  }
-
-  @Test
-  public void testLoadingCacheReturnsLoadsChannelWhenNotPresent_noIsolationChannel() {
-    String channelName = "existingChannel";
-    ManagedChannel channel = newChannel(channelName);
-    Function<WindmillServiceAddress, ManagedChannel> channelFactory =
-        spy(
-            new Function<WindmillServiceAddress, ManagedChannel>() {
-              @Override
-              public ManagedChannel apply(WindmillServiceAddress windmillServiceAddress) {
-                return channel;
-              }
-            });
-
-    cache = newCache(false, channelFactory);
+    cache = newCache(channelFactory);
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
     ManagedChannel cachedChannel = cache.get(someAddress);
     assertSame(channel, cachedChannel);
     verify(channelFactory, times(1)).apply(eq(someAddress));
-    assertFalse(cachedChannel instanceof IsolationChannel);
-  }
-
-  @Test
-  public void testLoadingCacheReturnsLoadsChannelWhenNotPresent_useIsolationChannel() {
-    String channelName = "existingChannel";
-    Function<WindmillServiceAddress, ManagedChannel> channelFactory =
-        spy(
-            new Function<WindmillServiceAddress, ManagedChannel>() {
-              @Override
-              public ManagedChannel apply(WindmillServiceAddress windmillServiceAddress) {
-                return newChannel(channelName);
-              }
-            });
-
-    cache = newCache(true, channelFactory);
-    WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
-    ManagedChannel cachedChannel = cache.get(someAddress);
-    verify(channelFactory, times(1)).apply(eq(someAddress));
-    assertTrue(cachedChannel instanceof IsolationChannel);
   }
 
   @Test
@@ -150,7 +104,7 @@ public class ChannelCacheTest {
     CountDownLatch notifyWhenChannelClosed = new CountDownLatch(1);
     cache =
         ChannelCache.forTesting(
-            true, ignored -> newChannel(channelName), notifyWhenChannelClosed::countDown);
+            ignored -> newChannel(channelName), notifyWhenChannelClosed::countDown);
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
     ManagedChannel cachedChannel = cache.get(someAddress);
     cache.remove(someAddress);
@@ -165,7 +119,7 @@ public class ChannelCacheTest {
     CountDownLatch notifyWhenChannelClosed = new CountDownLatch(1);
     cache =
         ChannelCache.forTesting(
-            true, ignored -> newChannel(channelName), notifyWhenChannelClosed::countDown);
+            ignored -> newChannel(channelName), notifyWhenChannelClosed::countDown);
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
     ManagedChannel cachedChannel = cache.get(someAddress);
     cache.clear();

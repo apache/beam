@@ -44,27 +44,15 @@ public final class ChannelCache implements StatusDataProvider {
   private final LoadingCache<WindmillServiceAddress, ManagedChannel> channelCache;
 
   private ChannelCache(
-      boolean useIsolatedChannels,
       Function<WindmillServiceAddress, ManagedChannel> channelFactory,
       RemovalListener<WindmillServiceAddress, ManagedChannel> onChannelRemoved) {
     this.channelCache =
-        Caffeine.newBuilder()
-            .removalListener(onChannelRemoved)
-            .build(
-                serviceAddress ->
-                    // IsolationChannel will create and manage separate RPC channels to the same
-                    // serviceAddress via calling the channelFactory, else just directly return the
-                    // RPC channel.
-                    useIsolatedChannels
-                        ? IsolationChannel.create(() -> channelFactory.apply(serviceAddress))
-                        : channelFactory.apply(serviceAddress));
+        Caffeine.newBuilder().removalListener(onChannelRemoved).build(channelFactory::apply);
   }
 
   public static ChannelCache create(
-      boolean useIsolatedChannels,
       Function<WindmillServiceAddress, ManagedChannel> channelFactory) {
     return new ChannelCache(
-        useIsolatedChannels,
         channelFactory,
         // Shutdown the channels as they get removed from the cache, so they do not leak.
         (address, channel, cause) -> shutdownChannel(channel));
@@ -72,11 +60,8 @@ public final class ChannelCache implements StatusDataProvider {
 
   @VisibleForTesting
   static ChannelCache forTesting(
-      boolean useIsolatedChannels,
-      Function<WindmillServiceAddress, ManagedChannel> channelFactory,
-      Runnable onChannelShutdown) {
+      Function<WindmillServiceAddress, ManagedChannel> channelFactory, Runnable onChannelShutdown) {
     return new ChannelCache(
-        useIsolatedChannels,
         channelFactory,
         // Shutdown the channels as they get removed from the cache, so they do not leak.
         // Add hook for testing so that we don't have to sleep/wait for arbitrary time in test.
