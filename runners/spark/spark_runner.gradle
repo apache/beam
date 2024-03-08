@@ -419,6 +419,8 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
     excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenMultipleCoders'
     // SDF
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testLifecycleMethodsBounded'
+    // https://github.com/apache/beam/issues/29972
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$CombineWithContextTests.testHotKeyCombineWithSideInputs'
   }
 }
 
