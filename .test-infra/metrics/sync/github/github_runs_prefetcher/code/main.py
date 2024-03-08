@@ -146,9 +146,8 @@ def enhance_workflow(workflow):
 
 async def check_workflow_flakiness(workflow):
     def filter_workflow_runs(run, issue):
-        started_at = datetime.strptime(run.started_at, "%Y-%m-%dT%H:%M:%SZ")
         closed_at = datetime.strptime(issue["closed_at"], "%Y-%m-%dT%H:%M:%SZ")
-        if started_at > closed_at:
+        if run.started_at > closed_at:
             return True
         return False
 
@@ -281,11 +280,11 @@ async def fetch_workflow_runs():
                     status = run["status"]
                 workflow.runs.append(
                     WorkflowRun(
-                        int(run["id"]),
+                        run["id"],
                         status,
                         run["html_url"],
                         workflow.id,
-                        run["run_started_at"],
+                        datetime.strptime(run["run_started_at"], "%Y-%m-%dT%H:%M:%SZ"),
                     )
                 )
 
@@ -395,7 +394,7 @@ async def fetch_workflow_runs():
                             "None",
                             "None",
                             workflow.id,
-                            "0001-01-01T00:00:00Z"
+                            datetime.strptime("0001-01-01T00:00:00Z", "%Y-%m-%dT%H:%M:%SZ"),
                         )
                     )
             if len(workflow.runs) >= int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH):
@@ -405,7 +404,7 @@ async def fetch_workflow_runs():
     print("Successfully fetched workflow runs details")
 
     for workflow in list(workflows.values()):
-        runs = sorted(workflow.runs, key=lambda r: r.id, reverse=True)
+        runs = sorted(workflow.runs, key=lambda r: r.started_at, reverse=True)
         workflow.runs = runs[:int(GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH)]
 
     return list(workflows.values())

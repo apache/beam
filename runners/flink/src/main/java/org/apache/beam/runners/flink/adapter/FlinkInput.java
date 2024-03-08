@@ -64,7 +64,6 @@ import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
   }
 
   // This Translator translates this kind of PTransform into a Beam proto representation.
-  @SuppressWarnings("nullness")
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class Translator
       implements PTransformTranslation.TransformPayloadTranslator<FlinkInput<?>>,
@@ -75,6 +74,7 @@ import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
     }
 
     @Override
+    @SuppressWarnings("nullness") // TODO(https://github.com/apache/beam/issues/20497)
     public RunnerApi.FunctionSpec translate(
         AppliedPTransform<?, ?, FlinkInput<?>> application, SdkComponents components)
         throws IOException {

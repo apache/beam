@@ -35,6 +35,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -49,7 +50,7 @@ class BeamAdapterUtils {
         ExecutionEnvironmentT executionEnvironment);
   }
 
-  @SuppressWarnings({"nullness", "rawtypes"})
+  @SuppressWarnings({"rawtypes"})
   static <
           DataSetOrStreamT,
           ExecutionEnvironmentT,
@@ -79,7 +80,7 @@ class BeamAdapterUtils {
                         new FlinkInput<>(
                             key,
                             BeamAdapterCoderUtils.typeInformationToCoder(
-                                getTypeInformation.apply(flinkInput), coderRegistry),
+                                getTypeInformation.apply(Preconditions.checkNotNull(flinkInput)), coderRegistry),
                             isBounded))));
 
     // Actually apply the transform to create Beam outputs.

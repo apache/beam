@@ -756,6 +756,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.32.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
+        google_cloud_vertexai                       : "com.google.cloud:google-cloud-vertexai", // google_cloud_platform_libraries_bom sets version
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
         // google-http-client's version is explicitly declared for sdks/java/maven-archetypes/examples
         // This version should be in line with the one in com.google.cloud:libraries-bom.
@@ -2202,7 +2203,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // This sets the whole project Go version.
       // The latest stable Go version can be checked at https://go.dev/dl/
-      project.ext.goVersion = "go1.21.6"
+      project.ext.goVersion = "go1.21.8"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.
@@ -2890,7 +2891,8 @@ class BeamModulePlugin implements Plugin<Project> {
           def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
 
           project.exec {
-            environment "EXPANSION_PORT", externalPort
+            // Following env variable has to be set to make sure that the tests do not pass trivially.
+            environment "TRANSFORM_SERVICE_PORT", externalPort
             executable 'sh'
             args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           }
