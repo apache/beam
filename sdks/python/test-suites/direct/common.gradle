@@ -42,6 +42,7 @@ tasks.register("postCommitIT") {
         "apache_beam/io/gcp/bigquery_read_it_test.py",
         "apache_beam/io/gcp/bigquery_write_it_test.py",
         "apache_beam/io/gcp/datastore/v1new/datastore_write_it_test.py",
+        "apache_beam/testing/test_memory_it.py"
     ]
     def testOpts = basicTestOpts + ["${batchTests.join(' ')}"]
     def argMap = ["runner": "TestDirectRunner",
@@ -143,6 +144,7 @@ tasks.register("directRunnerIT") {
         "apache_beam/io/gcp/bigquery_read_it_test.py",
         "apache_beam/io/gcp/bigquery_write_it_test.py",
         "apache_beam/io/gcp/datastore/v1new/datastore_write_it_test.py",
+        "apache_beam/testing/test_memory_it.py"
     ]
     def batchTestOpts = basicTestOpts + ["${tests.join(' ')}"]
     def argMap = ["runner": "TestDirectRunner",
@@ -376,6 +378,34 @@ project.tasks.register("inferencePostCommitIT") {
    // uncomment tfx bsl tests once tfx supports protobuf 4.x
   // 'tfxInferenceTest',
   ]
+}
+
+// Protobuf memory leak integration tests.
+task protobufIntegrationTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/testing/test_memory_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "it_postcommit",
+          "runner": "TestDirectRunner"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+
 }
 
 // Create cross-language tasks for running tests against Java expansion service(s)
