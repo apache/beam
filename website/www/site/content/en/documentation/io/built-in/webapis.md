@@ -358,7 +358,7 @@ the example builds the `PCollection` of `ImageRequest`s that is applied to an in
 using the `HttpImageClient` `Caller` implementation.
 
 {{< paragraph class="language-java" >}}
-Any failures, accessible from the `Result`'s `getFailures` getter, is outputted to logs. As already discussed above,
+Any failures, accessible from the `Result`'s `getFailures` getter, are outputted to logs. As already discussed above,
 one could write these failures to a database or filesystem.
 {{< /paragraph >}}
 
