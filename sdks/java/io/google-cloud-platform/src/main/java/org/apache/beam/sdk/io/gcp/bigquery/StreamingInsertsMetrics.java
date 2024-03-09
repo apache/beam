@@ -34,20 +34,20 @@ import org.apache.beam.sdk.values.KV;
 /** Stores and exports metrics for a batch of Streaming Inserts RPCs. */
 public interface StreamingInsertsMetrics {
 
-  public void updateRetriedRowsWithStatus(String status, int retriedRows);
+  void updateRetriedRowsWithStatus(String status, int retriedRows);
 
-  public void updateFailedRpcMetrics(Instant start, Instant end, String status);
+  void updateFailedRpcMetrics(Instant start, Instant end, String status);
 
-  public void updateSuccessfulRpcMetrics(Instant start, Instant end);
+  void updateSuccessfulRpcMetrics(Instant start, Instant end);
 
-  public void incrementFailedRows();
+  void incrementFailedRows();
 
-  public void updateSuccessfulAndFailedRows(int totalRows, int failedRows);
+  void updateSuccessfulAndFailedRows(int totalRows, int failedRows);
 
-  public void updateStreamingInsertsMetrics(@Nullable TableReference tableRef);
+  void updateStreamingInsertsMetrics(@Nullable TableReference tableRef);
 
   /** No-op implementation of {@code StreamingInsertsResults}. */
-  static class NoOpStreamingInsertsMetrics implements StreamingInsertsMetrics {
+  class NoOpStreamingInsertsMetrics implements StreamingInsertsMetrics {
     private NoOpStreamingInsertsMetrics() {}
 
     @Override
@@ -68,10 +68,10 @@ public interface StreamingInsertsMetrics {
     @Override
     public void updateStreamingInsertsMetrics(@Nullable TableReference tableRef) {}
 
-    private static NoOpStreamingInsertsMetrics INSTANCE = new NoOpStreamingInsertsMetrics();
+    private static NoOpStreamingInsertsMetrics singleton = new NoOpStreamingInsertsMetrics();
 
     static NoOpStreamingInsertsMetrics getInstance() {
-      return INSTANCE;
+      return singleton;
     }
   }
 
@@ -86,7 +86,7 @@ public interface StreamingInsertsMetrics {
    * object.
    */
   @AutoValue
-  abstract static class StreamingInsertsMetricsImpl implements StreamingInsertsMetrics {
+  abstract class StreamingInsertsMetricsImpl implements StreamingInsertsMetrics {
     abstract ConcurrentLinkedQueue<java.time.Duration> rpcLatencies();
 
     abstract ConcurrentLinkedQueue<String> rpcErrorStatus();
