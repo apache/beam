@@ -127,12 +127,17 @@ public class TransformServiceLauncher {
       }
     }
 
+    LOG.error("TransformServiceLauncher constructor: 1");
+
     // Setting up the dependencies directory.
     File dependenciesDir = Paths.get(tmpDir, "dependencies_dir").toFile();
     Path updatedRequirementsFilePath = Paths.get(dependenciesDir.toString(), "requirements.txt");
     if (dependenciesDir.exists()) {
-      throw new RuntimeException(
-          "xyz123 Dependencies dir " + dependenciesDir.toString() + " exists.");
+      LOG.error("TransformServiceLauncher constructor: 2");
+      LOG.error(
+          "TransformServiceLauncher constructor: Dependencies dir "
+              + dependenciesDir.toString()
+              + " exists.");
       // LOG.info("Reusing the existing dependencies directory " +
       // dependenciesDir.getAbsolutePath());
     } else {
@@ -153,11 +158,13 @@ public class TransformServiceLauncher {
             "Could not create the new requirements file " + updatedRequirementsFilePath);
       }
 
-      boolean pythonRequirementsFileNull = true;
+      LOG.error(
+          "TransformServiceLauncher constructor: Created  updatedRequirementsFilePath: "
+              + updatedRequirementsFilePath);
 
       // Updating dependencies.
       if (pythonRequirementsFile != null) {
-        pythonRequirementsFileNull = false;
+        LOG.error("TransformServiceLauncher constructor: 3");
         Path requirementsFilePath = Paths.get(pythonRequirementsFile);
         List<String> updatedLines = new ArrayList<>();
 
@@ -194,16 +201,13 @@ public class TransformServiceLauncher {
           }
           writer.flush();
         }
+
+        LOG.error("TransformServiceLauncher constructor: wrote to new requirements file");
+      } else {
+        LOG.error("TransformServiceLauncher constructor: 4");
       }
 
-      boolean b = true;
-      if (b) {
-        throw new RuntimeException(
-            "******* xyz123 requirements file name: "
-                + file.getAbsolutePath()
-                + " pythonRequirementsFileNull: "
-                + pythonRequirementsFileNull);
-      }
+      LOG.error("TransformServiceLauncher constructor: 5");
     }
 
     // Setting environment variables used by the docker-compose.yml file.
@@ -369,12 +373,7 @@ public class TransformServiceLauncher {
 
   public static void main(String[] args) throws IOException, TimeoutException {
 
-    LOG.error("launching the service 1");
-
-    boolean b = true;
-    if (b) {
-      throw new RuntimeException("******* xyz123 launching the service");
-    }
+    LOG.error("TransformServiceLauncher: launching the service 1");
 
     ArgConfig config = new ArgConfig();
     CmdLineParser parser = new CmdLineParser(config);
@@ -413,6 +412,9 @@ public class TransformServiceLauncher {
 
     String pythonRequirementsFile =
         !config.pythonRequirementsFile.isEmpty() ? config.pythonRequirementsFile : null;
+
+    LOG.error(
+        "TransformServiceLauncher: pythonRequirementsFile at main: " + pythonRequirementsFile);
 
     TransformServiceLauncher service =
         TransformServiceLauncher.forProject(
