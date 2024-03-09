@@ -86,6 +86,9 @@ case $STARTSTOP in
     echo "************ xyz123 in script run_transform_service.sh: starting the service"
     echo "Starting the transform service for project $GROUP_ID at port $EXTERNAL_PORT for Beam version $BEAM_VERSION_DOCKER transform service startup jar is $TRANSFORM_SERVICE_LAUNCHER_JAR"
     java -jar $TRANSFORM_SERVICE_LAUNCHER_JAR --project_name $GROUP_ID --port $EXTERNAL_PORT --beam_version $BEAM_VERSION_DOCKER --command up  >$TEMP_DIR/$FILE_BASE-java1.log 2>&1 </dev/null
+    echo "************ xyz123 printing launcher app startup error log"
+    cat $TEMP_DIR/$FILE_BASE-java1.log
+    echo "************ xyz123 DONE printing launcher app startup error log"
     echo "************ xyz123 in script run_transform_service.sh: DONE starting the service"
     ;;
   stop)
@@ -110,6 +113,13 @@ case $STARTSTOP in
     echo "************ xyz123 run_transform_service.sh: DONE printing docker logs"
     echo "Stopping the transform service for project $GROUP_ID at port $EXTERNAL_PORT for Beam version $BEAM_VERSION_DOCKER  transform service startup jar is $TRANSFORM_SERVICE_LAUNCHER_JAR"
     java -jar $TRANSFORM_SERVICE_LAUNCHER_JAR --project_name $GROUP_ID --port $EXTERNAL_PORT --beam_version $BEAM_VERSION_DOCKER --command down  >$TEMP_DIR/$FILE_BASE-java2.log 2>&1 </dev/null
+
+    echo "************ xyz123 printing launcher app shutdown error log"
+    cat $TEMP_DIR/$FILE_BASE-java2.log
+    echo "************ xyz123 DONE printing launcher app shutdown error log"
+
+    echo "************ xyz123 run_transform_service.sh: DONE printing docker logs"
+
     TRANSFORM_SERVICE_TEMP_DIR=$TEMP_DIR/$GROUP_ID
     if [[ -d ${TRANSFORM_SERVICE_TEMP_DIR} ]]; then
       echo "Removing transform service temporary directory $TRANSFORM_SERVICE_TEMP_DIR"
