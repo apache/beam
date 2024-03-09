@@ -153,8 +153,11 @@ public class TransformServiceLauncher {
             "Could not create the new requirements file " + updatedRequirementsFilePath);
       }
 
+      boolean pythonRequirementsFileNull = true;
+
       // Updating dependencies.
       if (pythonRequirementsFile != null) {
+        pythonRequirementsFileNull = false;
         Path requirementsFilePath = Paths.get(pythonRequirementsFile);
         List<String> updatedLines = new ArrayList<>();
 
@@ -191,8 +194,15 @@ public class TransformServiceLauncher {
           }
           writer.flush();
         }
+      }
 
-        throw new RuntimeException("xyz123 write the requirements file " + file.getAbsolutePath());
+      boolean b = true;
+      if (b) {
+        throw new RuntimeException(
+            "******* xyz123 requirements file name: "
+                + file.getAbsolutePath()
+                + " pythonRequirementsFileNull: "
+                + pythonRequirementsFileNull);
       }
     }
 
