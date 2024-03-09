@@ -20,8 +20,8 @@
 # pytype: skip-file
 import argparse
 import unittest
-import psutil
 
+import psutil
 import pytest
 
 import apache_beam as beam
