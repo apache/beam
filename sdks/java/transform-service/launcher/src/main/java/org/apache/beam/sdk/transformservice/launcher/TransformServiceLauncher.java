@@ -369,6 +369,13 @@ public class TransformServiceLauncher {
 
   public static void main(String[] args) throws IOException, TimeoutException {
 
+    LOG.error("launching the service 1");
+
+    boolean b = true;
+    if (b) {
+      throw new RuntimeException("******* xyz123 launching the service");
+    }
+
     ArgConfig config = new ArgConfig();
     CmdLineParser parser = new CmdLineParser(config);
 
