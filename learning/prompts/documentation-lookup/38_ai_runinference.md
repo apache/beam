@@ -27,7 +27,7 @@ from apache_beam.ml.inference.base import RunInference
 
 with pipeline as p:
     predictions = p |  'Read' >> beam.ReadFromSource('a_source')
-                    | 'RunInference' >> RunInference(model_handler)
+                    |  'RunInference' >> RunInference(model_handler)
 ```
 
 For comprehensive end-to-end examples of inference with supported model frameworks and model hubs, refer to the [Apache Beam GitHub repository](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference).

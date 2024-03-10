@@ -27,7 +27,7 @@ from apache_beam.ml.inference.base import RunInference
 
 with pipeline as p:
     predictions = p |  'Read' >> beam.ReadFromSource('a_source')
-                    | 'RunInference' >> RunInference(model_handler)
+                    |  'RunInference' >> RunInference(model_handler)
 ```
 
 If you need to run inference on a model that isn't explicitly supported, you can create your own `ModelHandler` or `KeyedModelHandler` with custom logic to load and use your model. For an example of running inference on a custom model loaded with spaCy, refer to the examples in the Apache Beam GitHub repository.

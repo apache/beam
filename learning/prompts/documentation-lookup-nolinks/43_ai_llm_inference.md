@@ -1,10 +1,12 @@
 Prompt:
-Ho can I use Apache Beam to run inference on Large Language Models (LLMs)?
+How can I use Apache Beam to run inference on Large Language Models (LLMs)?
 
 Response:
 The optimal approach for conducting inference within an Apache Beam pipeline is by leveraging the RunInference API provided by the Apache Beam Python SDK. This feature allows you to seamlessly incorporate ML models into your pipeline or execute remote inference calls.
 
-You can use the `RunInference` transform with large models as long as they fit into memory.
+You can use the `RunInference` transform with large models as long as they fit on your hardware. In addition, RunInference has several mechanisms for reducing memory usage. For example, `RunInference` by default will load at most a single copy of each model per process (rather than one per thread).
+
+Many Beam runners run multiple Beam processes per machine at once. Loading large models like LLMs multiple times might cause problems because of the negative impact on memory footprint. For memory-intensive models, `RunInference` provides a mechanism for more intelligently sharing memory across multiple processes to reduce the overall memory footprint. To enable this mode, set the parameter `large_model` to True in model configuration and Beam will take care of the memory management.
 
 The typical workflow for conducting inference on Large Language Models (LLMs) within an Apache Beam pipeline involves the following steps:
 1. Read the input text data from a source such as a file or a Pub/Sub topic.
@@ -41,7 +43,8 @@ model_handler = PytorchModelHandlerTensor(
         "config": AutoConfig.from_pretrained(known_args.model_name)
     },
     device="cpu",
-    inference_fn=gen_fn)
+    inference_fn=gen_fn,
+    large_model=True)
 ```
 
 Each specific model handler has its own configuration parameters. For example, the `PytorchModelHandlerTensor` requires the following parameters:
@@ -50,6 +53,7 @@ Each specific model handler has its own configuration parameters. For example, t
 * `model_params`: the dictionary of model parameters.
 * `device`: the device to run the model on (e.g. "cpu" or "gpu").
 * `inference_fn`: the function to run the inference during RunInference.
+* `large_model`: whether to use the memory minimization mode for large models.
 
 For information on supported popular frameworks and models, refer to the reference documentation for the `apache_beam.ml.inference` package.
 

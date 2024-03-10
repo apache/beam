@@ -16,12 +16,15 @@ To execute external API calls with the `RunInference` transform, you will need t
 class CustomModelHandler(ModelHandler):
   """DoFn that accepts a batch of inputs and sends that batch to the remote API for inference"""
 
-  def load_model(self):
+  def initialize_client(self):
     """Initiate the Custom remote API client."""
     client = ... # Initialize the client
     return client
 
   def run_inference(self, batch, model, inference):
+
+    # Initialize the client.
+    client = self.initialize_client()
 
     # Prepare a batch request for all inputs in the batch.
     inputs = ... # Process inputs from the batch
@@ -29,7 +32,7 @@ class CustomModelHandler(ModelHandler):
     batch_request = ... # Prepare batch request for the model
 
     # Send the batch request to the remote endpoint.
-    responses = model.(request=batch_request).responses
+    responses = client.(request=batch_request).responses
 
     return responses
 ```
