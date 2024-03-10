@@ -98,8 +98,8 @@ func installExtraPackages(requirementsFile string) error {
 	return nil
 }
 
-func getUpdatedRequirementsFile(oldRequirementsFileName string, dependenciesDir string) (string, error) {
-	oldExtraPackages, err := getLines(filepath.Join(dependenciesDir, oldRequirementsFileName))
+func getUpdatedRequirementsFile(oldDependenciesRequirementsFile string, dependenciesDir string) (string, error) {
+	oldExtraPackages, err := getLines(oldDependenciesRequirementsFile)
 	if err != nil {
 		return "", err
 	}
@@ -157,16 +157,22 @@ func launchExpansionServiceProcess() error {
 		return fmt.Errorf("Could not execute /usr/bin/ls -al /: %s", err)
 	}
 
-  requirement_file_exists := false
-  if _, err := os.Stat(*requirements_file); err == nil {
-    requirement_file_exists = true
+  // Requirements file with dependencies to install.
+  // Note that we have to look for the requirements file in the dependencies
+  // volume here not the requirements file at the top level. Latter provides
+  // Beam dependencies.
+	dependencies_requirements_file := filepath.Join(*dependencies_dir, *requirements_file)
+  dependencies_requirements_file_exists := false
+  if _, err := os.Stat(dependencies_requirements_file); err == nil {
+    dependencies_requirements_file_exists = true
   }
 
-  log.Printf("boot.go requirement_file_exists: %v", requirement_file_exists)
+  log.Printf("boot.go requirements_file: %v", )
+  log.Printf("boot.go requirement_file_exists: %v", dependencies_requirements_file_exists)
 
-	if requirement_file_exists {
+	if dependencies_requirements_file_exists {
 		log.Printf("boot.go Received the requirements file %v", *requirements_file)
-		updatedRequirementsFileName, err := getUpdatedRequirementsFile(*requirements_file, *dependencies_dir)
+		updatedRequirementsFileName, err := getUpdatedRequirementsFile(dependencies_requirements_file, *dependencies_dir)
 		if err != nil {
 			return err
 		}
@@ -181,7 +187,7 @@ func launchExpansionServiceProcess() error {
 			return err
 		}
 	} else {
-	  log.Printf("Requirements file %s was provided but not available.", *requirements_file)
+	  log.Printf("Requirements file %s was provided but not available.", dependencies_requirements_file)
 	}
 
 	if err := execx.Execute(pythonVersion, args...); err != nil {
