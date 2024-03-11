@@ -214,7 +214,7 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   @Description(
       "If true, Dataflow streaming pipeline will be running in direct path mode."
           + " VMs must have IPv6 enabled for this to work.")
-  @Default.InstanceFactory(IsWindmillServiceDirectPathEnabled.class)
+  @Default.Boolean(false)
   boolean isWindmillServiceDirectPathEnabled();
 
   void setIsWindmillServiceDirectPathEnabled(boolean isWindmillServiceDirectPathEnabled);
@@ -290,18 +290,6 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
       DataflowWorkerHarnessOptions streamingOptions =
           options.as(DataflowWorkerHarnessOptions.class);
       return streamingOptions.isEnableStreamingEngine() ? Integer.MAX_VALUE : 1;
-    }
-  }
-
-  /**
-   * Reads is_windmill_service_direct_path_enabled from System properties, defaulting to false if
-   * there is no such property.
-   */
-  class IsWindmillServiceDirectPathEnabled implements DefaultValueFactory<Boolean> {
-    @Override
-    public Boolean create(PipelineOptions options) {
-      return Boolean.parseBoolean(
-          System.getProperty("windmill.is_windmill_service_direct_path_enabled"));
     }
   }
 }
