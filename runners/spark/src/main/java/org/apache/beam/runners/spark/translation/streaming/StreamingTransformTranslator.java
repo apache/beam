@@ -64,6 +64,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -554,6 +555,73 @@ public final class StreamingTransformTranslator {
     };
   }
 
+  private static <K, V, W extends BoundedWindow>
+      TransformEvaluator<Redistribute.RedistributeByKey<K, V>> redistributeByKey() {
+    return new TransformEvaluator<Redistribute.RedistributeByKey<K, V>>() {
+      @Override
+      public void evaluate(
+          Redistribute.RedistributeByKey<K, V> transform, EvaluationContext context) {
+        @SuppressWarnings("unchecked")
+        UnboundedDataset<KV<K, V>> inputDataset =
+            (UnboundedDataset<KV<K, V>>) context.borrowDataset(transform);
+        List<Integer> streamSources = inputDataset.getStreamSources();
+        JavaDStream<WindowedValue<KV<K, V>>> dStream = inputDataset.getDStream();
+        final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
+        @SuppressWarnings("unchecked")
+        final WindowingStrategy<?, W> windowingStrategy =
+            (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
+        @SuppressWarnings("unchecked")
+        final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
+
+        final WindowedValue.WindowedValueCoder<KV<K, V>> wvCoder =
+            WindowedValue.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
+
+        JavaDStream<WindowedValue<KV<K, V>>> reshuffledStream =
+            dStream.transform(rdd -> GroupCombineFunctions.reshuffle(rdd, wvCoder));
+
+        context.putDataset(transform, new UnboundedDataset<>(reshuffledStream, streamSources));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "repartition(...)";
+      }
+    };
+  }
+
+  private static <T, W extends BoundedWindow>
+      TransformEvaluator<Redistribute.RedistributeArbitrarily<T>> redistributeArbitrarily() {
+    return new TransformEvaluator<Redistribute.RedistributeArbitrarily<T>>() {
+      @Override
+      public void evaluate(
+          Redistribute.RedistributeArbitrarily<T> transform, EvaluationContext context) {
+        @SuppressWarnings("unchecked")
+        UnboundedDataset<T> inputDataset = (UnboundedDataset<T>) context.borrowDataset(transform);
+        List<Integer> streamSources = inputDataset.getStreamSources();
+        JavaDStream<WindowedValue<T>> dStream = inputDataset.getDStream();
+        final Coder<T> coder = context.getInput(transform).getCoder();
+        @SuppressWarnings("unchecked")
+        final WindowingStrategy<?, W> windowingStrategy =
+            (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
+        @SuppressWarnings("unchecked")
+        final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
+
+        final WindowedValue.WindowedValueCoder<T> wvCoder =
+            WindowedValue.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
+
+        JavaDStream<WindowedValue<T>> reshuffledStream =
+            dStream.transform(rdd -> GroupCombineFunctions.reshuffle(rdd, wvCoder));
+
+        context.putDataset(transform, new UnboundedDataset<>(reshuffledStream, streamSources));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "repartition(...)";
+      }
+    };
+  }
+
   private static final Map<String, TransformEvaluator<?>> EVALUATORS = new HashMap<>();
 
   static {
@@ -566,6 +634,8 @@ public final class StreamingTransformTranslator {
     EVALUATORS.put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, window());
     EVALUATORS.put(PTransformTranslation.FLATTEN_TRANSFORM_URN, flattenPColl());
     EVALUATORS.put(PTransformTranslation.RESHUFFLE_URN, reshuffle());
+    EVALUATORS.put(PTransformTranslation.REDISTRIBUTE_BY_KEY_URN, redistributeByKey());
+    EVALUATORS.put(PTransformTranslation.REDISTRIBUTE_ARBITRARILY_URN, redistributeArbitrarily());
     // For testing only
     EVALUATORS.put(CreateStream.TRANSFORM_URN, createFromQueue());
     EVALUATORS.put(PTransformTranslation.TEST_STREAM_TRANSFORM_URN, createFromTestStream());
