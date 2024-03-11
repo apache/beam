@@ -51,7 +51,7 @@ public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTra
     checkStateNotNull(
         parameterizedType, "Could not get the TypedSchemaTransformProvider's parameterized type.");
     checkArgument(
-        parameterizedType.getActualTypeArguments().length == 0,
+        parameterizedType.getActualTypeArguments().length == 1,
         String.format(
             "Expected one parameterized type, but got %s.",
             parameterizedType.getActualTypeArguments().length));
