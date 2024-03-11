@@ -15484,10 +15484,11 @@ $ jar -jar /path/to/expansion_service.jar &amp;lt;PORT_NUMBER&amp;gt;&lt;/code>&
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">PythonExternalTransform&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">PBegin&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span>&lt;span class="n">from&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;apache_beam.io.ReadFromText&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">withKwarg&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;file_pattern&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getInputFile&lt;/span>&lt;span class="o">())&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">withKwarg&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;validate&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="kc">false&lt;/span>&lt;span class="o">))&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;blockquote>
-&lt;p>&lt;strong>Note:&lt;/strong> &lt;code>PythonExternalTransform&lt;/code> has other useful methods such as &lt;code>withExtraPackages&lt;/code> for staging PyPI package dependencies and &lt;code>withOutputCoder&lt;/code> for setting an output coder.&lt;/p>
-&lt;/blockquote>
-&lt;p>Alternatively, you may want to create a Python module that registers an existing Python transform as a cross-language transform for use with the Python expansion service and calls into that existing transform to perform its intended operation. A registered URN can be used later in an expansion request for indicating an expansion target.&lt;/p>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;code>PythonExternalTransform&lt;/code> has other useful methods such as &lt;code>withExtraPackages&lt;/code> for staging PyPI package dependencies and &lt;code>withOutputCoder&lt;/code> for setting an output coder. If your transform exists in an external package, make sure to specify that package using &lt;code>withExtraPackages&lt;/code>, for example:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;Read&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">PythonExternalTransform&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">PBegin&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span>&lt;span class="n">from&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;my_python_package.BeamReadPTransform&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">.&lt;/span>&lt;span class="na">withExtraPackages&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ImmutableList&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;my_python_package&amp;#34;&lt;/span>&lt;span class="o">)))&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Alternatively, you may want to create a Python module that registers an existing Python transform as a cross-language transform for use with the Python expansion service and calls into that existing transform to perform its intended operation. A registered URN can be used later in an expansion request for indicating an expansion target.&lt;/p>
 &lt;p>&lt;strong>Defining the Python module&lt;/strong>&lt;/p>
 &lt;ol>
 &lt;li>
@@ -15551,11 +15552,9 @@ $ jar -jar /path/to/expansion_service.jar &amp;lt;PORT_NUMBER&amp;gt;&lt;/code>&
 &lt;/div>
 &lt;/li>
 &lt;li>
-&lt;p>This expansion service is now ready to serve up transforms on the address &lt;code>localhost:$PORT_FOR_EXPANSION_SERVICE&lt;/code>.&lt;/p>
+&lt;p>This expansion service is now ready to serve up transforms on the address `localhost:$PORT_FOR_EXPANSION_SERVICE&lt;/p>
 &lt;/li>
 &lt;/ol>
-&lt;p>&lt;strong>Including dependencies&lt;/strong>&lt;/p>
-&lt;p>Currently Python external transforms are limited to dependencies available in the core Beam SDK harness.&lt;/p>
 &lt;h4 id="1313-creating-cross-language-go-transforms">13.1.3. Creating cross-language Go transforms&lt;/h4>
 &lt;p>Go currently does not support creating cross-language transforms, only using cross-language
 transforms from other languages; see more at &lt;a href="https://github.com/apache/beam/issues/21767">Issue 21767&lt;/a>.&lt;/p>
