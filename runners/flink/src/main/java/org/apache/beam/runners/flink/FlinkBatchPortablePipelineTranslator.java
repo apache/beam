@@ -166,6 +166,9 @@ public class FlinkBatchPortablePipelineTranslator
     translatorMap.put(
         PTransformTranslation.RESHUFFLE_URN,
         FlinkBatchPortablePipelineTranslator::translateReshuffle);
+    translatorMap.put(
+        PTransformTranslation.REDISTRIBUTE_BY_KEY_URN,
+        FlinkBatchPortablePipelineTranslator::translateRedistributeByKey);
     translatorMap.putAll(extraTranslations);
 
     return new FlinkBatchPortablePipelineTranslator(translatorMap.build());
@@ -263,7 +266,9 @@ public class FlinkBatchPortablePipelineTranslator
     @Override
     public boolean test(RunnerApi.PTransform pTransform) {
       return PTransformTranslation.RESHUFFLE_URN.equals(
-          PTransformTranslation.urnForTransformOrNull(pTransform));
+              PTransformTranslation.urnForTransformOrNull(pTransform))
+          || PTransformTranslation.REDISTRIBUTE_BY_KEY_URN.equals(
+              PTransformTranslation.urnForTransformOrNull(pTransform));
     }
   }
 
@@ -288,6 +293,16 @@ public class FlinkBatchPortablePipelineTranslator
     }
 
     return context;
+  }
+
+  private static <K, V> void translateRedistributeByKey(
+      PTransformNode transform, RunnerApi.Pipeline pipeline, BatchTranslationContext context) {
+    DataSet<WindowedValue<KV<K, V>>> inputDataSet =
+        context.getDataSetOrThrow(
+            Iterables.getOnlyElement(transform.getTransform().getInputsMap().values()));
+    context.addDataSet(
+        Iterables.getOnlyElement(transform.getTransform().getOutputsMap().values()),
+        inputDataSet.rebalance());
   }
 
   private static <K, V> void translateReshuffle(
