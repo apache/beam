@@ -1,21 +1,19 @@
 Prompt:
-What is SDK Harness in Apache Beam?
+What is SDK harness in Apache Beam?
 
 Response:
-Interoperability between Apache Beam SDKs and runners is a key aspect of Apache Beam. The [portability framework](https://beam.apache.org/roadmap/portability/) introduces well-defined, language-neutral data structures and protocols between the SDK and runner. This interop layer – called the `Portability API` – ensures that SDKs and runners can work with each other uniformly, reducing the interoperability burden for both SDKs and runners to a constant effort.
+Interoperability between Apache Beam SDKs and runners is a key aspect of Apache Beam. The [portability framework](https://beam.apache.org/roadmap/portability/) introduces well-defined, language-neutral data structures and protocols between the SDK and runner. This interoperability layer, known as the 'portability API', ensures that SDKs and runners can seamlessly work with each other, reducing the interoperability burden for both SDKs and runners to a constant effort.
 
-The portability API consists of a set of smaller contracts that isolate SDKs and runners for job submission, management and execution. These contracts use `protobuf`s and `gRPC` for broad language support.
+The portability API consists of a set of smaller contracts that isolate SDKs and runners for job submission, management, and execution. These contracts utilize protocols like `protobuf` and `gRPC` to provide broad language support.
 
-All SDKs currently support the portability framework. See the [Portability support table](https://docs.google.com/spreadsheets/d/1KDa_FGn1ShjomGd-UUDOhuh2q73de2tPz6BqHpzqvNI/edit#gid=0) for details.
+Currently, all SDKs support the portability framework. For the latest information on portability support across SDKs, features, and runners, refer to the [Apache Beam Portability Support Matrix](https://docs.google.com/spreadsheets/d/1KDa_FGn1ShjomGd-UUDOhuh2q73de2tPz6BqHpzqvNI/edit#gid=0).
 
-The SDK harness is a SDK-provided program responsible for executing user code and is run separately from the runner. SDK harness initialization relies on the Provision and `Artifact API`s for obtaining staged files, pipeline options and environment information.
+The SDK harness is a program responsible for executing user code. This program is provided by an SDK and runs separately from the runner. SDK harness initialization relies on the provision and artifact APIs for obtaining staged files, pipeline options, and environment information.
 
-Apache Beam allows configuration of the SDK harness to accommodate varying cluster setups:
-
-* **environment_type**: determines where user code will be executed:
-  * **DOCKER**: User code is executed within a container started on each worker node. This requires docker to be installed on worker nodes (default). Use `environment_config`  to specify the Docker image URL. Official Docker images are used by default. Alternatively, you can build your own image by following the instructions [here](https://beam.apache.org/documentation/runtime/environments/). Prebuilt SDK container images are released per supported language during Beam releases and pushed to [Docker Hub](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
-  * **PROCESS**: User code is executed by processes that are automatically started by the runner on each worker node.
-  * **EXTERNAL**: User code will be dispatched to an external service. Use `environment_config` to specify the address for the external service, e.g. `localhost:50000`.
-  * **LOOPBACK**: User code is executed within the same process that submitted the pipeline.
-
-* **sdk_worker_parallelism**:  sets the number of SDK workers that run on each worker node. The default is 1. If 0, the value is automatically set by the runner by looking at different parameters, such as the number of CPU cores on the worker machine.
+Apache Beam offers configuration options for the SDK harness to cater to diverse cluster setups. These options include:
+1. **`environment_type`**: determines where user code is executed. The `environment_config` parameter configures the environment based on the value of `environment_type`:
+  * `DOCKER`: executes user code within a container on each worker node. Docker must be installed on worker nodes. You can specify the Docker image URL using the `environment_config` parameter. Prebuilt SDK container images are available with each Apache Beam release and pushed to [Docker Hub](https://hub.docker.com/search?q=apache%2Fbeam&type=image). You can also [build your custom image](https://beam.apache.org/documentation/runtime/environments/).
+  * `PROCESS`: executes user code through processes that are automatically initiated by the runner on each worker node.
+  * `EXTERNAL`: dispatches user code to an external service. Use the `environment_config` parameter to specify the service address, for example, `localhost:50000`.
+  * `LOOPBACK`: executes user code within the same process that submitted the pipeline.
+2. **`sdk_worker_parallelism`**: determines the number of SDK workers per worker node. The default value is 1, but setting it to 0 enables automatic determination by the runner based on factors like the number of CPU cores on the worker machine.
