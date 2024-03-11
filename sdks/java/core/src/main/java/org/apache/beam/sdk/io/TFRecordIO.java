@@ -237,7 +237,7 @@ public class TFRecordIO {
     public PCollection<byte[]> expand(PCollection<FileIO.ReadableFile> input) {
       return input.apply(
           "Read all via FileBasedSource",
-          new ReadAllViaFileBasedSource<>(
+          ReadAllViaFileBasedSource.create(
               Long.MAX_VALUE, new CreateSourceFn(), DEFAULT_BYTE_ARRAY_CODER));
     }
 

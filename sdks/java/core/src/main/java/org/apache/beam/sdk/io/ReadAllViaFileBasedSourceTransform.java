@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
+import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -101,11 +102,11 @@ public abstract class ReadAllViaFileBasedSourceTransform<InT, T>
   public abstract static class AbstractReadFileRangesFn<InT, T>
       extends DoFn<KV<FileIO.ReadableFile, OffsetRange>, T> {
     private final SerializableFunction<String, ? extends FileBasedSource<InT>> createSource;
-    private final ReadAllViaFileBasedSource.ReadFileRangesFnExceptionHandler exceptionHandler;
+    private final ReadFileRangesFnExceptionHandler exceptionHandler;
 
     public AbstractReadFileRangesFn(
         SerializableFunction<String, ? extends FileBasedSource<InT>> createSource,
-        ReadAllViaFileBasedSource.ReadFileRangesFnExceptionHandler exceptionHandler) {
+        ReadFileRangesFnExceptionHandler exceptionHandler) {
       this.createSource = createSource;
       this.exceptionHandler = exceptionHandler;
     }
@@ -138,6 +139,18 @@ public abstract class ReadAllViaFileBasedSourceTransform<InT, T>
           throw e;
         }
       }
+    }
+  }
+
+  /** A class to handle errors which occur during file reads. */
+  public static class ReadFileRangesFnExceptionHandler implements Serializable {
+
+    /*
+     * Applies the desired handler logic to the given exception and returns
+     * if the exception should be thrown.
+     */
+    public boolean apply(FileIO.ReadableFile file, OffsetRange range, Exception e) {
+      return true;
     }
   }
 }

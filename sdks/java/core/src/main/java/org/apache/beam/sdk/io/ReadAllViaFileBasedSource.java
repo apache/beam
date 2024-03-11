@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
-import java.io.Serializable;
+import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.FileIO.ReadableFile;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -35,59 +35,114 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>To obtain the collection of {@link ReadableFile} from a filepattern, use {@link
  * FileIO#readMatches()}.
  */
-public class ReadAllViaFileBasedSource<T> extends ReadAllViaFileBasedSourceTransform<T, T> {
+public class ReadAllViaFileBasedSource<T, K> extends ReadAllViaFileBasedSourceTransform<T, K> {
+
+  private final SerializableFunction<OutputContextFromFile<T>, K> outputFn;
+
   public ReadAllViaFileBasedSource(
       long desiredBundleSizeBytes,
       SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
-      Coder<T> coder) {
+      Coder<K> coder,
+      SerializableFunction<OutputContextFromFile<T>, K> outputFn) {
     super(
         desiredBundleSizeBytes,
         createSource,
         coder,
         DEFAULT_USES_RESHUFFLE,
-        new ReadFileRangesFnExceptionHandler());
+        new ReadAllViaFileBasedSourceTransform.ReadFileRangesFnExceptionHandler());
+    this.outputFn = outputFn;
   }
 
   public ReadAllViaFileBasedSource(
       long desiredBundleSizeBytes,
       SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
-      Coder<T> coder,
+      Coder<K> coder,
       boolean usesReshuffle,
-      ReadFileRangesFnExceptionHandler exceptionHandler) {
+      ReadAllViaFileBasedSourceTransform.ReadFileRangesFnExceptionHandler exceptionHandler,
+      SerializableFunction<OutputContextFromFile<T>, K> outputFn) {
     super(desiredBundleSizeBytes, createSource, coder, usesReshuffle, exceptionHandler);
+    this.outputFn = outputFn;
+  }
+
+  public static <InputT> ReadAllViaFileBasedSource<InputT, InputT> create(
+      long desiredBundleSizeBytes,
+      SerializableFunction<String, ? extends FileBasedSource<InputT>> createSource,
+      Coder<InputT> coder,
+      boolean usesReshuffle,
+      ReadAllViaFileBasedSourceTransform.ReadFileRangesFnExceptionHandler exceptionHandler) {
+    return new ReadAllViaFileBasedSource<>(
+        desiredBundleSizeBytes,
+        createSource,
+        coder,
+        usesReshuffle,
+        exceptionHandler,
+        outputArguments -> outputArguments.reader().getCurrent());
+  }
+
+  public static <InputT> ReadAllViaFileBasedSource<InputT, InputT> create(
+      long desiredBundleSizeBytes,
+      SerializableFunction<String, ? extends FileBasedSource<InputT>> createSource,
+      Coder<InputT> coder) {
+    return create(
+        desiredBundleSizeBytes,
+        createSource,
+        coder,
+        outputArguments -> outputArguments.reader().getCurrent());
+  }
+
+  public static <InputT, OutputT> ReadAllViaFileBasedSource<InputT, OutputT> create(
+      long desiredBundleSizeBytes,
+      SerializableFunction<String, ? extends FileBasedSource<InputT>> createSource,
+      Coder<OutputT> coder,
+      SerializableFunction<OutputContextFromFile<InputT>, OutputT> outputFn) {
+    return new ReadAllViaFileBasedSource<>(desiredBundleSizeBytes, createSource, coder, outputFn);
   }
 
   @Override
-  protected DoFn<KV<ReadableFile, OffsetRange>, T> readRangesFn() {
-    return new ReadFileRangesFn<>(createSource, exceptionHandler);
+  protected DoFn<KV<ReadableFile, OffsetRange>, K> readRangesFn() {
+    return new ReadFileRangesFn<>(outputFn, createSource, exceptionHandler);
   }
 
-  private static class ReadFileRangesFn<T> extends AbstractReadFileRangesFn<T, T> {
+  private static class ReadFileRangesFn<T, K> extends AbstractReadFileRangesFn<T, K> {
+    private final SerializableFunction<OutputContextFromFile<T>, K> outputFn;
+
     public ReadFileRangesFn(
+        final SerializableFunction<OutputContextFromFile<T>, K> outputFn,
         final SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
-        final ReadFileRangesFnExceptionHandler exceptionHandler) {
+        final ReadAllViaFileBasedSourceTransform.ReadFileRangesFnExceptionHandler
+            exceptionHandler) {
       super(createSource, exceptionHandler);
+      this.outputFn = outputFn;
     }
 
     @Override
-    protected T makeOutput(
+    protected K makeOutput(
         final ReadableFile file,
         final OffsetRange range,
         final FileBasedSource<T> fileBasedSource,
         final BoundedSource.BoundedReader<T> reader) {
-      return reader.getCurrent();
+      return outputFn.apply(OutputContextFromFile.create(file, range, fileBasedSource, reader));
     }
   }
 
-  /** A class to handle errors which occur during file reads. */
-  public static class ReadFileRangesFnExceptionHandler implements Serializable {
+  /** Data carrier for the arguments of the {@link ReadFileRangesFn#makeOutput} method. */
+  @AutoValue
+  public abstract static class OutputContextFromFile<ReadT> {
+    public abstract FileIO.ReadableFile file();
 
-    /*
-     * Applies the desired handler logic to the given exception and returns
-     * if the exception should be thrown.
-     */
-    public boolean apply(ReadableFile file, OffsetRange range, Exception e) {
-      return true;
+    public abstract OffsetRange range();
+
+    public abstract FileBasedSource<ReadT> fileBasedSource();
+
+    public abstract BoundedSource.BoundedReader<ReadT> reader();
+
+    public static <ReadT> OutputContextFromFile<ReadT> create(
+        final ReadableFile file,
+        final OffsetRange range,
+        final FileBasedSource<ReadT> fileBasedSource,
+        final BoundedSource.BoundedReader<ReadT> reader) {
+      return new AutoValue_ReadAllViaFileBasedSource_OutputContextFromFile<>(
+          file, range, fileBasedSource, reader);
     }
   }
 }
