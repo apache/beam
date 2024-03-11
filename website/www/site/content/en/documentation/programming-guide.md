@@ -7756,7 +7756,13 @@ p.apply("Read",
     .withKwarg("validate", false))
 ```
 
-  > **Note:** `PythonExternalTransform` has other useful methods such as `withExtraPackages` for staging PyPI package dependencies and `withOutputCoder` for setting an output coder.
+`PythonExternalTransform` has other useful methods such as `withExtraPackages` for staging PyPI package dependencies and `withOutputCoder` for setting an output coder. If your transform exists in an external package, make sure to specify that package using `withExtraPackages`, for example:
+
+```java
+p.apply("Read",
+    PythonExternalTransform.<PBegin, PCollection<String>>from("my_python_package.BeamReadPTransform")
+    .withExtraPackages(ImmutableList.of("my_python_package")))
+```
 
 Alternatively, you may want to create a Python module that registers an existing Python transform as a cross-language transform for use with the Python expansion service and calls into that existing transform to perform its intended operation. A registered URN can be used later in an expansion request for indicating an expansion target.
 
@@ -7815,11 +7821,7 @@ $ export PORT_FOR_EXPANSION_SERVICE=12345
 $ python -m apache_beam.runners.portability.expansion_service_test -p $PORT_FOR_EXPANSION_SERVICE --pickle_library=cloudpickle
     {{< /highlight >}}
 
-4. This expansion service is now ready to serve up transforms on the address `localhost:$PORT_FOR_EXPANSION_SERVICE`.
-
-**Including dependencies**
-
-Currently Python external transforms are limited to dependencies available in the core Beam SDK harness.
+4. This expansion service is now ready to serve up transforms on the address `localhost:$PORT_FOR_EXPANSION_SERVICE
 
 #### 13.1.3. Creating cross-language Go transforms
 
