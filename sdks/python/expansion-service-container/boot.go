@@ -149,7 +149,7 @@ func launchExpansionServiceProcess() error {
   // Note that we have to look for the requirements file in the dependencies
   // volume here not the requirements file at the top level. Latter provides
   // Beam dependencies.
-	dependencies_requirements_file := filepath.Join(*dependencies_dir, *requirements_file)
+  dependencies_requirements_file := filepath.Join(*dependencies_dir, *requirements_file)
   dependencies_requirements_file_exists := false
   if _, err := os.Stat(dependencies_requirements_file); err == nil {
     dependencies_requirements_file_exists = true
