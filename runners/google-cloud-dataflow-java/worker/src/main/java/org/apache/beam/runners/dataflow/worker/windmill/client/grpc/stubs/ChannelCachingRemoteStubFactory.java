@@ -31,13 +31,18 @@ import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.auth.MoreCallCredentials;
 /** Creates remote stubs to talk to Streaming Engine. */
 @Internal
 @ThreadSafe
-public final class ChannelCachingRemoteStubFactory implements WindmillStubFactory {
+public final class ChannelCachingRemoteStubFactory implements ChannelCachingStubFactory {
   private final Credentials gcpCredentials;
   private final ChannelCache channelCache;
 
-  public ChannelCachingRemoteStubFactory(Credentials gcpCredentials, ChannelCache channelCache) {
+  private ChannelCachingRemoteStubFactory(Credentials gcpCredentials, ChannelCache channelCache) {
     this.gcpCredentials = gcpCredentials;
     this.channelCache = channelCache;
+  }
+
+  public static ChannelCachingRemoteStubFactory create(
+      Credentials gcpCredentials, ChannelCache channelCache) {
+    return new ChannelCachingRemoteStubFactory(gcpCredentials, channelCache);
   }
 
   @Override
@@ -57,5 +62,15 @@ public final class ChannelCachingRemoteStubFactory implements WindmillStubFactor
     return CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(channelCache.get(serviceAddress))
         .withCallCredentials(
             MoreCallCredentials.from(new VendoredCredentialsAdapter(gcpCredentials)));
+  }
+
+  @Override
+  public void remove(WindmillServiceAddress windmillServiceAddress) {
+    channelCache.remove(windmillServiceAddress);
+  }
+
+  @Override
+  public void shutdown() {
+    channelCache.clear();
   }
 }

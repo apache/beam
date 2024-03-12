@@ -72,8 +72,8 @@ def excluded_dependencies = [
 ]
 
 // For Java8+ and less than Java11, use versions 2.x.x.
-// For Java11+ use versions 3.x.x per https://github.com/ben-manes/caffeine.
-def caffeine_cache_version = project.javaVersion < "11" ? "2.9.3" : "3.1.8"
+// Java11+ can use versions 3.x.x per https://github.com/ben-manes/caffeine.
+def caffeine_cache_version = "2.9.3"
 
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.runners.dataflow.worker',

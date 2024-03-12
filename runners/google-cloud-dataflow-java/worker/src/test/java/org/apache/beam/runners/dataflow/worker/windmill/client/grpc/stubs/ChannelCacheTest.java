@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
@@ -71,7 +72,7 @@ public class ChannelCacheTest {
     cache = newCache(channelFactory);
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
     // Initial call to load the cache.
-    cache.get(someAddress);
+    assertThat(cache.get(someAddress)).isEqualTo(channel);
 
     ManagedChannel cachedChannel = cache.get(someAddress);
     assertSame(channel, cachedChannel);
@@ -101,16 +102,35 @@ public class ChannelCacheTest {
   @Test
   public void testRemoveAndClose() throws InterruptedException {
     String channelName = "existingChannel";
+    CountDownLatch verifyRemovalListenerAsync = new CountDownLatch(1);
     CountDownLatch notifyWhenChannelClosed = new CountDownLatch(1);
     cache =
         ChannelCache.forTesting(
-            ignored -> newChannel(channelName), notifyWhenChannelClosed::countDown);
+            ignored -> newChannel(channelName),
+            () -> {
+              try {
+                verifyRemovalListenerAsync.await();
+                notifyWhenChannelClosed.countDown();
+              } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+            });
+
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
     ManagedChannel cachedChannel = cache.get(someAddress);
     cache.remove(someAddress);
+    // Assert that the removal happened before we check to see if the shutdowns happen to confirm
+    // that removals are async.
     assertTrue(cache.isEmpty());
+    verifyRemovalListenerAsync.countDown();
+
+    // Assert that the channel gets shutdown.
     notifyWhenChannelClosed.await();
     assertTrue(cachedChannel.isShutdown());
+
+    // Get should return a new channel, since we removed the last one.
+    ManagedChannel newChannel = cache.get(someAddress);
+    assertThat(newChannel).isNotSameInstanceAs(cachedChannel);
   }
 
   @Test

@@ -18,12 +18,18 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Channel;
 
 public interface ChannelCachingStubFactory extends WindmillStubFactory {
 
   /**
    * Remove and close the gRPC channel used to communicate with the given {@link
    * WindmillServiceAddress}.
+   *
+   * <p>Subsequent calls to {@link
+   * WindmillStubFactory#createWindmillServiceStub(WindmillServiceAddress)} will get a stub backed
+   * by a new {@link Channel} instance to the {@link WindmillServiceAddress}. Users of stubs backed
+   * by the previously vended {@link Channel} will start to receive errors.
    */
   void remove(WindmillServiceAddress windmillServiceAddress);
 
