@@ -21,6 +21,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Bounded set of queues, with a maximum total weight. */
@@ -97,5 +98,13 @@ public final class WeightedBoundedQueue<V> {
 
   public int size() {
     return queue.size();
+  }
+
+  public Stream<V> stream() {
+    return queue.stream();
+  }
+
+  public void clear() {
+    queue.clear();
   }
 }

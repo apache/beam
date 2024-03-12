@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 import static com.google.common.truth.Truth.assertThat;
 import static org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus.OK;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.dataflow.model.MapTask;
 import java.io.IOException;
@@ -32,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -238,5 +240,69 @@ public class StreamingEngineWorkCommitterTest {
           .contains(asCompleteCommit(commit, expectedCommitStatus.get(commit.work().id())));
     }
     assertThat(completeCommits.size()).isEqualTo(commits.size());
+  }
+
+  @Test
+  public void testStop_drainsCommitQueue() {
+    // Use this fake to queue up commits on the committer.
+    Supplier<CommitWorkStream> fakeCommitWorkStream =
+        () ->
+            new CommitWorkStream() {
+              @Override
+              public boolean commitWorkItem(
+                  String computation,
+                  WorkItemCommitRequest request,
+                  Consumer<Windmill.CommitStatus> onDone) {
+                return false;
+              }
+
+              @Override
+              public void flush() {}
+
+              @Override
+              public void close() {}
+
+              @Override
+              public boolean awaitTermination(int time, TimeUnit unit) {
+                return false;
+              }
+
+              @Override
+              public Instant startTime() {
+                return Instant.now();
+              }
+            };
+    commitWorkStreamFactory =
+        WindmillStreamPool.create(1, Duration.standardMinutes(1), fakeCommitWorkStream)
+            ::getCloseableStream;
+
+    Set<CompleteCommit> completeCommits = new HashSet<>();
+    workCommitter = createWorkCommitter(completeCommits::add);
+
+    List<Commit> commits = new ArrayList<>();
+    for (int i = 1; i <= 10; i++) {
+      Work work = createMockWork(i, ignored -> {});
+      WorkItemCommitRequest commitRequest =
+          WorkItemCommitRequest.newBuilder()
+              .setKey(work.getWorkItem().getKey())
+              .setShardingKey(work.getWorkItem().getShardingKey())
+              .setWorkToken(work.getWorkItem().getWorkToken())
+              .setCacheToken(work.getWorkItem().getCacheToken())
+              .build();
+      commits.add(Commit.create(commitRequest, createComputationState("computationId-" + i), work));
+    }
+
+    workCommitter.start();
+    commits.parallelStream().forEach(workCommitter::commit);
+    workCommitter.stop();
+
+    assertThat(commits.size()).isEqualTo(completeCommits.size());
+    for (CompleteCommit completeCommit : completeCommits) {
+      assertThat(completeCommit.status()).isEqualTo(Windmill.CommitStatus.ABORTED);
+    }
+
+    for (Commit commit : commits) {
+      assertTrue(commit.work().isFailed());
+    }
   }
 }

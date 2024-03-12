@@ -113,6 +113,17 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
       }
       commitSenders.shutdownNow();
     }
+    drainCommitQueue();
+  }
+
+  private void drainCommitQueue() {
+    commitQueue.stream().forEach(this::failCommit);
+    commitQueue.clear();
+  }
+
+  private void failCommit(Commit commit) {
+    commit.work().setFailed();
+    onCommitComplete.accept(CompleteCommit.forFailedWork(commit));
   }
 
   @Override
@@ -122,34 +133,40 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
 
   private void streamingCommitLoop() {
     @Nullable Commit initialCommit = null;
-    while (true) {
-      if (initialCommit == null) {
-        try {
-          // Block until we have a commit or are shutting down.
-          initialCommit = commitQueue.take();
-        } catch (InterruptedException e) {
+    try {
+      while (true) {
+        if (initialCommit == null) {
+          try {
+            // Block until we have a commit or are shutting down.
+            initialCommit = commitQueue.take();
+          } catch (InterruptedException e) {
+            continue;
+          }
+        }
+
+        if (initialCommit.work().isFailed()) {
+          onCommitComplete.accept(CompleteCommit.forFailedWork(initialCommit));
+          initialCommit = null;
           continue;
         }
-      }
 
-      if (initialCommit.work().isFailed()) {
-        onCommitComplete.accept(CompleteCommit.forFailedWork(initialCommit));
-        initialCommit = null;
-        continue;
-      }
-
-      try (CloseableStream<CommitWorkStream> closeableCommitStream =
-          commitWorkStreamFactory.get()) {
-        CommitWorkStream commitStream = closeableCommitStream.stream();
-        if (!tryAddToCommitStream(initialCommit, commitStream)) {
-          throw new AssertionError("Initial commit on flushed stream should always be accepted.");
+        try (CloseableStream<CommitWorkStream> closeableCommitStream =
+            commitWorkStreamFactory.get()) {
+          CommitWorkStream commitStream = closeableCommitStream.stream();
+          if (!tryAddToCommitStream(initialCommit, commitStream)) {
+            throw new AssertionError("Initial commit on flushed stream should always be accepted.");
+          }
+          // Batch additional commits to the stream and possibly make an un-batched commit the next
+          // initial commit.
+          initialCommit = batchCommitsToStream(commitStream);
+          commitStream.flush();
+        } catch (Exception e) {
+          LOG.error("Error occurred fetching a CommitWorkStream.", e);
         }
-        // Batch additional commits to the stream and possibly make an un-batched commit the next
-        // initial commit.
-        initialCommit = batchCommitsToStream(commitStream);
-        commitStream.flush();
-      } catch (Exception e) {
-        LOG.error("Error occurred fetching a CommitWorkStream.", e);
+      }
+    } finally {
+      if (initialCommit != null) {
+        failCommit(initialCommit);
       }
     }
   }
