@@ -2406,9 +2406,7 @@ public class DataflowRunnerTest implements Serializable {
     List<String> experiments =
         new ArrayList<>(
             ImmutableList.of(
-                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
-                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
-                "use_runner_v2"));
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT, GcpOptions.WINDMILL_SERVICE_EXPERIMENT));
     DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
     dataflowOptions.setExperiments(experiments);
     dataflowOptions.setStreaming(true);
@@ -2422,9 +2420,7 @@ public class DataflowRunnerTest implements Serializable {
     List<String> experiments =
         new ArrayList<>(
             ImmutableList.of(
-                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
-                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
-                "use_runner_v2"));
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT, GcpOptions.WINDMILL_SERVICE_EXPERIMENT));
     DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
     dataflowOptions.setExperiments(experiments);
     dataflowOptions.setStreaming(true);
