@@ -163,13 +163,16 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
         commitStream.commitWorkItem(
             commit.computationId(),
             commit.request(),
-            (commitStatus) -> onCommitComplete.accept(CompleteCommit.create(commit, commitStatus)));
+            (commitStatus) -> {
+              onCommitComplete.accept(CompleteCommit.create(commit, commitStatus));
+              activeCommitBytes.addAndGet(-commit.getSize());
+            });
 
     if (!isCommitSuccessful) {
       commit.work().setState(Work.State.COMMIT_QUEUED);
+      activeCommitBytes.addAndGet(-commit.getSize());
     }
 
-    activeCommitBytes.addAndGet(-commit.getSize());
     return isCommitSuccessful;
   }
 

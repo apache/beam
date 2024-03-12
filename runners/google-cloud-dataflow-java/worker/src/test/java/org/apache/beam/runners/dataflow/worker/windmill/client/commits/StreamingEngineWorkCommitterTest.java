@@ -135,7 +135,7 @@ public class StreamingEngineWorkCommitterTest {
     }
 
     workCommitter.start();
-    commits.forEach(workCommitter::commit);
+    commits.parallelStream().forEach(workCommitter::commit);
 
     Map<Long, WorkItemCommitRequest> committed =
         fakeWindmillServer.waitForAndGetCommits(commits.size());
@@ -170,7 +170,7 @@ public class StreamingEngineWorkCommitterTest {
     }
 
     workCommitter.start();
-    commits.forEach(workCommitter::commit);
+    commits.parallelStream().forEach(workCommitter::commit);
 
     Map<Long, WorkItemCommitRequest> committed =
         fakeWindmillServer.waitForAndGetCommits(commits.size() / 2);
@@ -225,7 +225,7 @@ public class StreamingEngineWorkCommitterTest {
     }
 
     workCommitter.start();
-    commits.forEach(workCommitter::commit);
+    commits.parallelStream().forEach(workCommitter::commit);
 
     Map<Long, WorkItemCommitRequest> committed =
         fakeWindmillServer.waitForAndGetCommits(commits.size());
