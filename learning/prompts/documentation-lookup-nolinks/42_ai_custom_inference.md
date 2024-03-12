@@ -32,7 +32,7 @@ class CustomModelHandler(ModelHandler):
     batch_request = ... # Prepare batch request for the model
 
     # Send the batch request to the remote endpoint.
-    responses = client.(request=batch_request).responses
+    responses = client.request(request=batch_request).responses
 
     return responses
 ```
