@@ -117,8 +117,11 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   }
 
   private void drainCommitQueue() {
-    commitQueue.stream().forEach(this::failCommit);
-    commitQueue.clear();
+    Commit queuedCommit = commitQueue.poll();
+    while (queuedCommit != null) {
+      failCommit(queuedCommit);
+      queuedCommit = commitQueue.poll();
+    }
   }
 
   private void failCommit(Commit commit) {
@@ -176,7 +179,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
     Preconditions.checkNotNull(commit);
     commit.work().setState(Work.State.COMMITTING);
     activeCommitBytes.addAndGet(commit.getSize());
-    boolean isCommitSuccessful =
+    boolean isCommitAccepted =
         commitStream.commitWorkItem(
             commit.computationId(),
             commit.request(),
@@ -185,12 +188,13 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
               activeCommitBytes.addAndGet(-commit.getSize());
             });
 
-    if (!isCommitSuccessful) {
+    // Since the commit was not accepted, revert the changes made above.
+    if (!isCommitAccepted) {
       commit.work().setState(Work.State.COMMIT_QUEUED);
       activeCommitBytes.addAndGet(-commit.getSize());
     }
 
-    return isCommitSuccessful;
+    return isCommitAccepted;
   }
 
   // Helper to batch additional commits into the commit stream as long as they fit.
