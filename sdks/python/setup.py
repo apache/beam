@@ -412,6 +412,7 @@ if __name__ == '__main__':
               'pandas<2.1.0',
           ],
           'test': [
+              'apache-beam<=2.46.0',
               'docstring-parser>=0.15,<1.0',
               'freezegun>=0.3.12',
               'joblib>=1.0.1',
