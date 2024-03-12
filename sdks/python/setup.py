@@ -412,7 +412,7 @@ if __name__ == '__main__':
               'pandas<2.1.0',
           ],
           'test': [
-              'apache-beam==2.54.0',  # remove when submitting PR
+              'apache-beam==2.56.0.dev0',  # remove when submitting PR
               'docstring-parser>=0.15,<1.0',
               'freezegun>=0.3.12',
               'joblib>=1.0.1',
