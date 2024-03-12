@@ -93,9 +93,12 @@ public final class ChannelCache implements StatusDataProvider {
     channelCache.invalidateAll();
   }
 
+  /**
+   * Checks to see if the cache is empty. May block the calling thread to perform any pending
+   * removal/insert operations first before checking the size. Should be only used for testing.
+   */
   @VisibleForTesting
   boolean isEmpty() {
-    // Perform any pending removal/insert operations first.
     channelCache.cleanUp();
     return channelCache.estimatedSize() == 0;
   }
