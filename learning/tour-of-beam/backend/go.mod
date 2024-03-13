@@ -28,5 +28,5 @@ require (
 	firebase.google.com/go/v4 v4.9.0
 	github.com/stretchr/testify v1.8.0
 	google.golang.org/grpc v1.49.0
-	google.golang.org/protobuf v1.28.1
+	google.golang.org/protobuf v1.33.0
 )
