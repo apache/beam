@@ -17,50 +17,50 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
-import org.apache.beam.runners.dataflow.worker.streaming.Work;
-import org.joda.time.Instant;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor}. */
-@RunWith(Parameterized.class)
+@RunWith(JUnit4.class)
 // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
 // released (2.11.0)
 @SuppressWarnings("unused")
 public class BoundedQueueExecutorTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(300);
   private static final long MAXIMUM_BYTES_OUTSTANDING = 10000000;
   private static final int DEFAULT_MAX_THREADS = 2;
-  private static final int DEFAULT_THREAD_EXPIRATION_SEC = 300;
+  private static final int DEFAULT_THREAD_EXPIRATION_SEC = 60;
 
   private BoundedQueueExecutor executor;
 
-  static Work createMockWork(long workToken, Consumer<Work> processWorkFn) {
-    return Work.create(
-        Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(workToken).build(),
-        Instant::now,
-        Collections.emptyList(),
-        processWorkFn);
+  private Runnable createSleepProcessWorkFn(CountDownLatch latch, AtomicBoolean stop) {
+    Runnable runnable =
+        () -> {
+          try {
+            Thread.sleep(1000);
+          } catch (InterruptedException e) {
+            return;
+          }
+          latch.countDown();
+          int count = 0;
+          while (!stop.get()) {
+            count += 1;
+          }
+        };
+    return runnable;
   }
-
-  static Consumer<Work> sleepProcessWorkFn =
-      (CountDownLatch latch, AtomicBoolean stop) -> {
-        latch.countDown();
-        int count = 0;
-        while (!stop.get()) {
-          count += 1;
-        }
-      };
 
   @Before
   public void setUp() {
@@ -69,7 +69,7 @@ public class BoundedQueueExecutorTest {
             DEFAULT_MAX_THREADS,
             DEFAULT_THREAD_EXPIRATION_SEC,
             TimeUnit.SECONDS,
-            DEFAULT_MAX_THREADS,
+            DEFAULT_MAX_THREADS + 100,
             MAXIMUM_BYTES_OUTSTANDING,
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
@@ -83,32 +83,32 @@ public class BoundedQueueExecutorTest {
     CountDownLatch processStart2 = new CountDownLatch(1);
     CountDownLatch processStart3 = new CountDownLatch(1);
     AtomicBoolean stop = new AtomicBoolean(false);
-    Work m1 = createMockWork(1, sleepProcessWorkFn(processStart1, stop));
-    Work m2 = createMockWork(2, sleepProcessWorkFn(processStart2, stop));
-    Work m3 = createMockWork(3, sleepProcessWorkFn(processStart3, stop));
+    Runnable m1 = createSleepProcessWorkFn(processStart1, stop);
+    Runnable m2 = createSleepProcessWorkFn(processStart2, stop);
+    Runnable m3 = createSleepProcessWorkFn(processStart3, stop);
 
     // Initial state.
     assertEquals(0, executor.activeCount());
     assertEquals(2, executor.maximumThreadCount());
 
     // m1 and m2 are accepted.
-    executor.execute(m1, m1.getWorkItem().getSerializedSize());
+    executor.execute(m1, 1);
     processStart1.await();
     assertEquals(1, executor.activeCount());
-    executor.execute(m2, m2.getWorkItem().getSerializedSize());
+    executor.execute(m2, 1);
     processStart2.await();
     assertEquals(2, executor.activeCount());
 
     // Max pool size was reached so no new work is accepted.
-    executor.execute(m3, m3.getWorkItem().getSerializedSize());
+    executor.execute(m3, 1);
     assertEquals(1, processStart3.getCount());
 
     // Increase the max thread count
-    executor.setMaximumPoolSize(3);
+    executor.setMaximumPoolSize(3, 103);
     assertEquals(3, executor.maximumThreadCount());
 
     // m3 is accepted
-    executor.execute(m3, m3.getWorkItem().getSerializedSize());
+    executor.execute(m3, 1);
     processStart3.await();
     assertEquals(3, executor.activeCount());
 
@@ -122,67 +122,74 @@ public class BoundedQueueExecutorTest {
     CountDownLatch processStart2 = new CountDownLatch(1);
     CountDownLatch processStart3 = new CountDownLatch(1);
     AtomicBoolean stop = new AtomicBoolean(false);
-    Work m1 = createMockWork(1, sleepProcessWorkFn(processStart1, stop));
-    Work m2 = createMockWork(2, sleepProcessWorkFn(processStart2, stop));
-    Work m3 = createMockWork(3, sleepProcessWorkFn(processStart3, stop));
+    Runnable m1 = createSleepProcessWorkFn(processStart1, stop);
+    Runnable m2 = createSleepProcessWorkFn(processStart2, stop);
+    Runnable m3 = createSleepProcessWorkFn(processStart3, stop);
 
     // Initial state.
     assertEquals(0, executor.activeCount());
     assertEquals(2, executor.maximumThreadCount());
 
     // m1 and m2 are accepted.
-    executor.execute(m1, m1.getWorkItem().getSerializedSize());
+    executor.execute(m1, 1);
     processStart1.await();
     assertEquals(1, executor.activeCount());
-    executor.execute(m2, m2.getWorkItem().getSerializedSize());
+    executor.execute(m2, 1);
     processStart2.await();
     assertEquals(2, executor.activeCount());
 
     // Max pool size was reached so no new work is accepted.
-    executor.execute(m3, m3.getWorkItem().getSerializedSize());
+    executor.execute(m3, 1);
     assertEquals(1, processStart3.getCount());
 
-    assertEquals(0, executor.allThreadsActiveTime());
+    assertEquals(0l, executor.allThreadsActiveTime());
     stop.set(true);
+    while (executor.activeCount() != 0) {
+      // Waiting for all threads to be ended.
+    }
     // Max pool size was reached so the allThreadsActiveTime() was updated.
-    assertThat(executor.allThreadsActiveTime(), greaterThan(0));
+    assertThat(executor.allThreadsActiveTime(), greaterThan(0l));
 
     executor.shutdown();
   }
 
   @Test
-  public void testTotalTimeMaxActiveThreadsUsedRemainUnchangedWithIncreasingMaximumThreadCount()
+  public void testRecordTotalTimeMaxActiveThreadsUsedWhenMaximumThreadCountUpdated()
       throws Exception {
     CountDownLatch processStart1 = new CountDownLatch(1);
     CountDownLatch processStart2 = new CountDownLatch(1);
     CountDownLatch processStart3 = new CountDownLatch(1);
     AtomicBoolean stop = new AtomicBoolean(false);
-    Work m1 = createMockWork(1, sleepProcessWorkFn(processStart1, stop));
-    Work m2 = createMockWork(2, sleepProcessWorkFn(processStart2, stop));
-    Work m3 = createMockWork(3, sleepProcessWorkFn(processStart3, stop));
+    Runnable m1 = createSleepProcessWorkFn(processStart1, stop);
+    Runnable m2 = createSleepProcessWorkFn(processStart2, stop);
+    Runnable m3 = createSleepProcessWorkFn(processStart3, stop);
 
     // Initial state.
     assertEquals(0, executor.activeCount());
     assertEquals(2, executor.maximumThreadCount());
 
     // m1 and m2 are accepted.
-    executor.execute(m1, m1.getWorkItem().getSerializedSize());
+    executor.execute(m1, 1);
     processStart1.await();
     assertEquals(1, executor.activeCount());
-    executor.execute(m2, m2.getWorkItem().getSerializedSize());
+    executor.execute(m2, 1);
     processStart2.await();
     assertEquals(2, executor.activeCount());
 
     // Max pool size was reached so no new work is accepted.
-    executor.execute(m3, m3.getWorkItem().getSerializedSize());
+    executor.execute(m3, 1);
     assertEquals(1, processStart3.getCount());
 
-    assertEquals(0, executor.allThreadsActiveTime());
+    assertEquals(0l, executor.allThreadsActiveTime());
     // Increase the max thread count
-    executor.setMaximumPoolSize(5);
+    executor.setMaximumPoolSize(5, 105);
     stop.set(true);
-    // Max pool size was updated during execution so allThreadsActiveTime() remains unchanged.
-    assertThat(executor.allThreadsActiveTime(), equalTo(0));
+    while (executor.activeCount() != 0) {
+      // Waiting for all threads to be ended.
+    }
+    // Max pool size was updated during execution but allThreadsActiveTime() was still recorded
+    // for the thread which reached the old max pool size.
+    assertThat(executor.allThreadsActiveTime(), greaterThan(0l));
 
     executor.shutdown();
   }

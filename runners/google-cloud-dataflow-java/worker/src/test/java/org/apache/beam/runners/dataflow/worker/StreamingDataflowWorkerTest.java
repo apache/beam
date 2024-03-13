@@ -2941,7 +2941,7 @@ public class StreamingDataflowWorkerTest {
     when(mockWorkUnitClient.reportWorkerMessage(any()))
         .thenReturn(Collections.singletonList(workerMessageResponse));
     worker.reportPeriodicWorkerMessage();
-    Mockito.verify(mockExecutor).setMaximumPoolSize(10);
+    Mockito.verify(mockExecutor).setMaximumPoolSize(10, 110);
   }
 
   @Test

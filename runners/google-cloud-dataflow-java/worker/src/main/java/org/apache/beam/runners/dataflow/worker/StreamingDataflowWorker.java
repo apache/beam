@@ -493,17 +493,19 @@ public class StreamingDataflowWorker {
       HotKeyLogger hotKeyLogger,
       Supplier<Instant> clock,
       Function<String, ScheduledExecutorService> executorSupplier,
-      BoundedQueueExecutor executor) {
-    BoundedQueueExecutor boundedQueueExecutor = executor == null ? createWorkUnitExecutor(options) : executor;
+      BoundedQueueExecutor workUnitExecutor) {
+    if (workUnitExecutor == null) {
+      workUnitExecutor = createWorkUnitExecutor(options);
+    }
     WindmillStateCache stateCache = WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb());
     computationMap.putAll(
-        createComputationMapForTesting(mapTasks, boundedQueueExecutor, stateCache::forComputation));
+        createComputationMapForTesting(mapTasks, workUnitExecutor, stateCache::forComputation));
     return new StreamingDataflowWorker(
         windmillServer,
         1L,
         computationMap,
         stateCache,
-        boundedQueueExecutor,
+        workUnitExecutor,
         mapTaskExecutorFactory,
         workUnitClient,
         options,
@@ -1773,21 +1775,22 @@ public class StreamingDataflowWorker {
 
   private void readAndSaveWorkerMessageResponseForStreamingScalingReportResponse(
       List<WorkerMessageResponse> responses) {
+    int oldMaximumThreadCount = chooseMaximumNumberOfThreads();
+    int maximumThreadCountFromResponse = 0;
     for (WorkerMessageResponse response : responses) {
       if (response.getStreamingScalingReportResponse() != null) {
-        int oldMaximumThreadCount = chooseMaximumNumberOfThreads();
-        maxThreadCountOverride.set(
-            response.getStreamingScalingReportResponse().getMaximumThreadCount());
-        int newMaximumThreadCount = chooseMaximumNumberOfThreads();
-
-        if (newMaximumThreadCount != oldMaximumThreadCount) {
-          LOG.info(
-              "Setting maximum thread count to {}, old value is {}",
-              newMaximumThreadCount,
-              oldMaximumThreadCount);
-          workUnitExecutor.setMaximumPoolSize(newMaximumThreadCount);
-        }
+        maximumThreadCountFromResponse =
+            response.getStreamingScalingReportResponse().getMaximumThreadCount();
       }
+    }
+    maxThreadCountOverride.set(maximumThreadCountFromResponse);
+    int newMaximumThreadCount = chooseMaximumNumberOfThreads();
+    if (newMaximumThreadCount != oldMaximumThreadCount) {
+      LOG.info(
+          "Setting maximum thread count to {}, old value is {}",
+          newMaximumThreadCount,
+          oldMaximumThreadCount);
+      workUnitExecutor.setMaximumPoolSize(newMaximumThreadCount, chooseMaximumBundlesOutstanding());
     }
   }
 
