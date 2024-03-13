@@ -1909,15 +1909,6 @@ public class DataflowRunnerTest implements Serializable {
     verifyMapStateUnsupported(options);
   }
 
-  @Test
-  public void testMapStateUnsupportedStreamingUnifiedRunner() throws Exception {
-    PipelineOptions options = buildPipelineOptions();
-    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_unified_worker");
-    options.as(DataflowPipelineOptions.class).setStreaming(true);
-
-    verifyMapStateUnsupported(options);
-  }
-
   private void verifySetStateUnsupported(PipelineOptions options) throws Exception {
     Pipeline p = Pipeline.create(options);
     p.apply(Create.of(KV.of(13, 42)))
@@ -1942,14 +1933,6 @@ public class DataflowRunnerTest implements Serializable {
     PipelineOptions options = buildPipelineOptions();
     ExperimentalOptions.addExperiment(
         options.as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
-    options.as(DataflowPipelineOptions.class).setStreaming(true);
-    verifySetStateUnsupported(options);
-  }
-
-  @Test
-  public void testSetStateUnsupportedStreamingUnifiedWorker() throws Exception {
-    PipelineOptions options = buildPipelineOptions();
-    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_unified_worker");
     options.as(DataflowPipelineOptions.class).setStreaming(true);
     verifySetStateUnsupported(options);
   }
@@ -2423,9 +2406,7 @@ public class DataflowRunnerTest implements Serializable {
     List<String> experiments =
         new ArrayList<>(
             ImmutableList.of(
-                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
-                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
-                "use_runner_v2"));
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT, GcpOptions.WINDMILL_SERVICE_EXPERIMENT));
     DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
     dataflowOptions.setExperiments(experiments);
     dataflowOptions.setStreaming(true);
@@ -2439,9 +2420,7 @@ public class DataflowRunnerTest implements Serializable {
     List<String> experiments =
         new ArrayList<>(
             ImmutableList.of(
-                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
-                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
-                "use_runner_v2"));
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT, GcpOptions.WINDMILL_SERVICE_EXPERIMENT));
     DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
     dataflowOptions.setExperiments(experiments);
     dataflowOptions.setStreaming(true);
@@ -2455,9 +2434,7 @@ public class DataflowRunnerTest implements Serializable {
     List<String> experiments =
         new ArrayList<>(
             ImmutableList.of(
-                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
-                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
-                "use_runner_v2"));
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT, GcpOptions.WINDMILL_SERVICE_EXPERIMENT));
     DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
     dataflowOptions.setExperiments(experiments);
     dataflowOptions.setStreaming(true);
