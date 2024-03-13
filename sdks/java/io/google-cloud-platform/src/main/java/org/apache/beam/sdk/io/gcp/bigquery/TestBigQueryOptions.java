@@ -23,7 +23,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 
 /** {@link TestPipelineOptions} for {@link TestBigQuery}. */
-public interface TestBigQueryOptions extends TestPipelineOptions, BigQueryOptions, GcpOptions {
+public interface TestBigQueryOptions extends BigQueryOptions, GcpOptions {
   String BIGQUERY_EARLY_ROLLOUT_REGION = "us-east7";
 
   @Description("Dataset used in the integration tests. Default is integ_test")
