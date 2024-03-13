@@ -61,7 +61,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class BigQueryStorageWriteApiSchemaTransformProviderIT {
+public class BigQueryStorageWriteApiSchemaTransformProviderTest {
 
   private FakeDatasetService fakeDatasetService = new FakeDatasetService();
   private FakeJobService fakeJobService = new FakeJobService();
