@@ -15,21 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.bigquery;
+package org.apache.beam.sdk.io.gcp;
 
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.io.gcp.bigquery.TestBigQueryOptions;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.BigtableChangeStreamTestOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 @AutoService(PipelineOptionsRegistrar.class)
 @Internal
-public class TestBigQueryOptionsRegistrar implements PipelineOptionsRegistrar {
+public class TestGcpIoPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
   @Override
   public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
     return ImmutableList.<Class<? extends PipelineOptions>>builder()
         .add(TestBigQueryOptions.class)
+        .add(BigtableChangeStreamTestOptions.class)
         .build();
   }
 }
