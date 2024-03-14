@@ -116,8 +116,8 @@ dependencies {
   permitUnusedDeclared library.java.grpc_google_cloud_pubsublite_v1 // BEAM-11761
   implementation library.java.guava
   implementation library.java.http_client
-  provided library.java.hamcrest
-  permitUnusedDeclared library.java.hamcrest // BEAM-11761
+  implementation library.java.hamcrest
+  permitUnusedDeclared library.java.hamcrest // Needed for PipelineOptionRegistrar auto-service that registered TestPipelineOptions interfaces
   implementation library.java.http_core
   implementation library.java.jackson_core
   implementation library.java.jackson_databind
