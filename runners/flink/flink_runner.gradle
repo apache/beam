@@ -192,13 +192,11 @@ dependencies {
 
   if (flink_version.compareTo("1.14") >= 0) {
     implementation "org.apache.flink:flink-runtime:$flink_version"
-    implementation "org.apache.flink:flink-optimizer:$flink_version"
     implementation "org.apache.flink:flink-metrics-core:$flink_version"
     testImplementation "org.apache.flink:flink-runtime:$flink_version:tests"
     testImplementation "org.apache.flink:flink-rpc-akka:$flink_version"
   } else {
     implementation "org.apache.flink:flink-runtime_2.12:$flink_version"
-    implementation "org.apache.flink:flink-optimizer_2.12:$flink_version"
     testImplementation "org.apache.flink:flink-runtime_2.12:$flink_version:tests"
   }
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
