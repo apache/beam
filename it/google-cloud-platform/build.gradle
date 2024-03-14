@@ -32,6 +32,7 @@ dependencies {
     implementation project(path: ":runners:google-cloud-dataflow-java")
     implementation project(path: ":it:conditions", configuration: "shadow")
     implementation project(path: ":it:truthmatchers", configuration: "shadow")
+    implementation project(path: ":sdks:java:testing:test-utils")
     implementation library.java.slf4j_api
     implementation library.java.vendored_guava_32_1_2_jre
     implementation library.java.jackson_core
@@ -42,13 +43,13 @@ dependencies {
     implementation 'org.apache.parquet:parquet-common:1.12.0'
     implementation 'org.apache.parquet:parquet-hadoop:1.12.0'
     implementation 'org.apache.commons:commons-lang3:3.9'
-    implementation 'joda-time:joda-time:2.10.10'
     implementation library.java.gax
     implementation library.java.google_api_common
     implementation library.java.protobuf_java_util
     implementation library.java.protobuf_java
     implementation library.java.threetenbp
     implementation 'org.awaitility:awaitility:4.2.0'
+    implementation 'joda-time:joda-time:2.10.10'
     // Google Cloud Dependencies
     implementation library.java.google_api_services_bigquery
     implementation library.java.google_cloud_core
@@ -72,7 +73,6 @@ dependencies {
     implementation 'com.google.cloud:google-cloud-secretmanager'
     provided 'com.google.api.grpc:proto-google-cloud-secretmanager-v1'
 
-    testImplementation project(path: ":sdks:java:testing:test-utils")
     testImplementation project(path: ":sdks:java:io:google-cloud-platform")
     testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
     testImplementation project(path: ":sdks:java:io:synthetic")

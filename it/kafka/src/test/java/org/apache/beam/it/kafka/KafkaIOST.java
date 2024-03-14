@@ -21,14 +21,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.cloud.Timestamp;
 import java.io.IOException;
 import java.text.ParseException;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -43,8 +40,6 @@ import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -226,8 +221,10 @@ public final class KafkaIOST extends IOStressTestBase {
             .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
             .build();
 
-    exportMetrics(writeInfo, writeMetricsConfig);
-    exportMetrics(readInfo, readMetricsConfig);
+    exportMetrics(
+        writeInfo, writeMetricsConfig, configuration.exportMetricsToInfluxDB, influxDBSettings);
+    exportMetrics(
+        readInfo, readMetricsConfig, configuration.exportMetricsToInfluxDB, influxDBSettings);
   }
 
   /**
@@ -318,27 +315,6 @@ public final class KafkaIOST extends IOStressTestBase {
             .build();
 
     return pipelineLauncher.launch(project, region, options);
-  }
-
-  private void exportMetrics(
-      PipelineLauncher.LaunchInfo launchInfo, MetricsConfiguration metricsConfig)
-      throws IOException, ParseException, InterruptedException {
-
-    Map<String, Double> metrics = getMetrics(launchInfo, metricsConfig);
-    String testId = UUID.randomUUID().toString();
-    String testTimestamp = Timestamp.now().toString();
-
-    if (configuration.exportMetricsToInfluxDB) {
-      Collection<NamedTestResult> namedTestResults = new ArrayList<>();
-      for (Map.Entry<String, Double> entry : metrics.entrySet()) {
-        NamedTestResult metricResult =
-            NamedTestResult.create(testId, testTimestamp, entry.getKey(), entry.getValue());
-        namedTestResults.add(metricResult);
-      }
-      IOITMetrics.publishToInflux(testId, testTimestamp, namedTestResults, influxDBSettings);
-    } else {
-      exportMetricsToBigQuery(launchInfo, metrics);
-    }
   }
 
   /** Options for Kafka IO stress test. */

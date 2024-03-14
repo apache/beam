@@ -23,14 +23,11 @@ import static org.junit.Assert.assertNotEquals;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.bigtable.v2.Mutation;
-import com.google.cloud.Timestamp;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
 import java.text.ParseException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -47,8 +44,6 @@ import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -213,8 +208,10 @@ public final class BigTableIOST extends IOStressTestBase {
             .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
             .build();
 
-    exportMetrics(writeInfo, writeMetricsConfig);
-    exportMetrics(readInfo, readMetricsConfig);
+    exportMetrics(
+        writeInfo, writeMetricsConfig, configuration.exportMetricsToInfluxDB, influxDBSettings);
+    exportMetrics(
+        readInfo, readMetricsConfig, configuration.exportMetricsToInfluxDB, influxDBSettings);
   }
 
   /**
@@ -299,31 +296,9 @@ public final class BigTableIOST extends IOStressTestBase {
                     .toString())
             .addParameter("numWorkers", String.valueOf(configuration.numWorkers))
             .addParameter("maxNumWorkers", String.valueOf(configuration.maxNumWorkers))
-            .addParameter("experiments", "use_runner_v2")
             .build();
 
     return pipelineLauncher.launch(project, region, options);
-  }
-
-  private void exportMetrics(
-      PipelineLauncher.LaunchInfo launchInfo, MetricsConfiguration metricsConfig)
-      throws IOException, ParseException, InterruptedException {
-
-    Map<String, Double> metrics = getMetrics(launchInfo, metricsConfig);
-    String testId = UUID.randomUUID().toString();
-    String testTimestamp = Timestamp.now().toString();
-
-    if (configuration.exportMetricsToInfluxDB) {
-      Collection<NamedTestResult> namedTestResults = new ArrayList<>();
-      for (Map.Entry<String, Double> entry : metrics.entrySet()) {
-        NamedTestResult metricResult =
-            NamedTestResult.create(testId, testTimestamp, entry.getKey(), entry.getValue());
-        namedTestResults.add(metricResult);
-      }
-      IOITMetrics.publishToInflux(testId, testTimestamp, namedTestResults, influxDBSettings);
-    } else {
-      exportMetricsToBigQuery(launchInfo, metrics);
-    }
   }
 
   /** Options for BigTableIO stress test. */
