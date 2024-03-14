@@ -42,6 +42,7 @@ dependencies {
     implementation 'org.apache.parquet:parquet-common:1.12.0'
     implementation 'org.apache.parquet:parquet-hadoop:1.12.0'
     implementation 'org.apache.commons:commons-lang3:3.9'
+    implementation 'joda-time:joda-time:2.10.10'
     implementation library.java.gax
     implementation library.java.google_api_common
     implementation library.java.protobuf_java_util
