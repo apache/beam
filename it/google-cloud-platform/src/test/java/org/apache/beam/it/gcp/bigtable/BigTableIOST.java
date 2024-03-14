@@ -58,7 +58,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -235,7 +234,7 @@ public final class BigTableIOST extends IOStressTestBase {
     List<LoadPeriod> loadPeriods =
         getLoadPeriods(configuration.minutes, DEFAULT_LOAD_INCREASE_ARRAY);
 
-    PCollection<Instant> source =
+    PCollection<org.joda.time.Instant> source =
         writePipeline.apply(
             PeriodicImpulse.create()
                 .stopAfter(org.joda.time.Duration.millis(stopAfterMillis - 1))
@@ -368,7 +367,8 @@ public final class BigTableIOST extends IOStressTestBase {
   }
 
   /** Maps Instant to the BigTable format record. */
-  private static class MapToBigTableFormat extends DoFn<Instant, KV<ByteString, Iterable<Mutation>>>
+  private static class MapToBigTableFormat
+      extends DoFn<org.joda.time.Instant, KV<ByteString, Iterable<Mutation>>>
       implements Serializable {
 
     private final int valueSizeBytes;
@@ -393,7 +393,7 @@ public final class BigTableIOST extends IOStressTestBase {
                       + "-"
                       + UUID.randomUUID()
                       + "-"
-                      + Instant.now().getMillis()));
+                      + org.joda.time.Instant.now().getMillis()));
       Random random = new Random(index);
       byte[] valBytes = new byte[this.valueSizeBytes];
       random.nextBytes(valBytes);
