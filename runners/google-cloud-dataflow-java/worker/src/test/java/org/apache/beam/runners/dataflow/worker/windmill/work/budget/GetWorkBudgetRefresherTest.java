@@ -64,7 +64,7 @@ public class GetWorkBudgetRefresherTest {
     GetWorkBudgetRefresher budgetRefresher = createBudgetRefresher(redistributeBudget);
     budgetRefresher.start();
     budgetRefresher.requestBudgetRefresh();
-    // Wait a bit for redistribute budget to run.
+    // Wait for redistribute budget to run.
     redistributeBudgetLatch.await();
     assertThat(redistributeBudgetLatch.getCount()).isEqualTo(0);
   }
@@ -75,7 +75,7 @@ public class GetWorkBudgetRefresherTest {
     Runnable redistributeBudget = redistributeBudgetLatch::countDown;
     GetWorkBudgetRefresher budgetRefresher = createBudgetRefresher(redistributeBudget);
     budgetRefresher.start();
-    // Wait a bit for scheduled redistribute budget to run.
+    // Wait for scheduled redistribute budget to run.
     redistributeBudgetLatch.await();
     assertThat(redistributeBudgetLatch.getCount()).isEqualTo(0);
   }
@@ -89,7 +89,7 @@ public class GetWorkBudgetRefresherTest {
     Thread budgetRefreshTriggerThread = new Thread(budgetRefresher::requestBudgetRefresh);
     budgetRefreshTriggerThread.start();
     budgetRefreshTriggerThread.join();
-    // Wait a bit for triggered and scheduled redistribute budget to run.
+    // Wait for triggered and scheduled redistribute budget to run.
     redistributeBudgetLatch.await();
     assertThat(redistributeBudgetLatch.getCount()).isEqualTo(0);
   }

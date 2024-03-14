@@ -18,7 +18,9 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -101,29 +103,7 @@ public class DispatchedActiveWorkRefresherTest {
         computations,
         DataflowExecutionStateSampler.instance(),
         activeWorkRefresherFn,
-        Executors.newSingleThreadScheduledExecutor(),
-        ComputationState::invalidateStuckCommits);
-  }
-
-  private ActiveWorkRefresher createActiveWorkRefresher(
-      Supplier<Instant> clock,
-      int activeWorkRefreshPeriodMillis,
-      int stuckCommitDurationMillis,
-      Supplier<Collection<ComputationState>> computations,
-      Consumer<Map<String, List<HeartbeatRequest>>> activeWorkRefresherFn,
-      Runnable notifyInvalidateStuckCommitsFn) {
-    return new DispatchedActiveWorkRefresher(
-        clock,
-        activeWorkRefreshPeriodMillis,
-        stuckCommitDurationMillis,
-        computations,
-        DataflowExecutionStateSampler.instance(),
-        activeWorkRefresherFn,
-        Executors.newSingleThreadScheduledExecutor(),
-        (computationState, stuckCommitDeadline) -> {
-          computationState.invalidateStuckCommits(stuckCommitDeadline);
-          notifyInvalidateStuckCommitsFn.run();
-        });
+        Executors.newSingleThreadScheduledExecutor());
   }
 
   private Work createOldWork(int workIds, Consumer<Work> processWork) {
@@ -230,16 +210,27 @@ public class DispatchedActiveWorkRefresherTest {
     }
 
     TestClock fakeClock = new TestClock(Instant.now());
-
     CountDownLatch invalidateStuckCommitRan = new CountDownLatch(computations.size());
+
+    // Count down the latch every time to avoid waiting/sleeping arbitrarily.
+    for (ComputationState computation : computations.rowKeySet()) {
+      doAnswer(
+              invocation -> {
+                invocation.callRealMethod();
+                invalidateStuckCommitRan.countDown();
+                return null;
+              })
+          .when(computation)
+          .invalidateStuckCommits(any(Instant.class));
+    }
+
     ActiveWorkRefresher activeWorkRefresher =
         createActiveWorkRefresher(
             fakeClock::now,
             0,
             stuckCommitDurationMillis,
             computations.rowMap()::keySet,
-            ignored -> {},
-            invalidateStuckCommitRan::countDown);
+            ignored -> {});
 
     activeWorkRefresher.start();
     fakeClock.advance(Duration.millis(stuckCommitDurationMillis));

@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
@@ -47,7 +46,6 @@ public abstract class ActiveWorkRefresher {
   protected final DataflowExecutionStateSampler sampler;
   private final int stuckCommitDurationMillis;
   private final ScheduledExecutorService activeWorkRefreshExecutor;
-  private final BiConsumer<ComputationState, Instant> invalidateStuckCommitsFn;
 
   protected ActiveWorkRefresher(
       Supplier<Instant> clock,
@@ -55,15 +53,13 @@ public abstract class ActiveWorkRefresher {
       int stuckCommitDurationMillis,
       Supplier<Collection<ComputationState>> computations,
       DataflowExecutionStateSampler sampler,
-      ScheduledExecutorService activeWorkRefreshExecutor,
-      BiConsumer<ComputationState, Instant> invalidateStuckCommitsFn) {
+      ScheduledExecutorService activeWorkRefreshExecutor) {
     this.clock = clock;
     this.activeWorkRefreshPeriodMillis = activeWorkRefreshPeriodMillis;
     this.stuckCommitDurationMillis = stuckCommitDurationMillis;
     this.computations = computations;
     this.sampler = sampler;
     this.activeWorkRefreshExecutor = activeWorkRefreshExecutor;
-    this.invalidateStuckCommitsFn = invalidateStuckCommitsFn;
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
@@ -103,7 +99,7 @@ public abstract class ActiveWorkRefresher {
   private void invalidateStuckCommits() {
     Instant stuckCommitDeadline = clock.get().minus(Duration.millis(stuckCommitDurationMillis));
     for (ComputationState computationState : computations.get()) {
-      invalidateStuckCommitsFn.accept(computationState, stuckCommitDeadline);
+      computationState.invalidateStuckCommits(stuckCommitDeadline);
     }
   }
 
