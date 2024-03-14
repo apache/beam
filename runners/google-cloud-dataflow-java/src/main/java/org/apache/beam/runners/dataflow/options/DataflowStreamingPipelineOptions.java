@@ -215,7 +215,7 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
       "If true, Dataflow streaming pipeline will be running in direct path mode."
           + " VMs must have IPv6 enabled for this to work.")
   @Default.Boolean(false)
-  boolean isWindmillServiceDirectPathEnabled();
+  boolean getIsWindmillServiceDirectPathEnabled();
 
   void setIsWindmillServiceDirectPathEnabled(boolean isWindmillServiceDirectPathEnabled);
 
