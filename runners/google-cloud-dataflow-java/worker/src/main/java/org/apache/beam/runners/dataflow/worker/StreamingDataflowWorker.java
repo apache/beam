@@ -647,8 +647,9 @@ public class StreamingDataflowWorker {
   }
 
   private int chooseMaximumNumberOfThreads() {
-    if (maxThreadCountOverride.get() != 0) {
-      return maxThreadCountOverride.get();
+    int currentMaxThreadCountOverride = maxThreadCountOverride.get();
+    if (currentMaxThreadCountOverride != 0) {
+      return currentMaxThreadCountOverride;
     }
     if (options.getNumberOfWorkerHarnessThreads() != 0) {
       return options.getNumberOfWorkerHarnessThreads();

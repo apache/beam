@@ -156,11 +156,21 @@ public class BoundedQueueExecutor {
   }
 
   public long bytesOutstanding() {
-    return bytesOutstanding;
+    monitor.enter();
+    try {
+      return bytesOutstanding;
+    } finally {
+      monitor.leave();
+    }
   }
 
   public int elementsOutstanding() {
-    return elementsOutstanding;
+    monitor.enter();
+    try {
+      return elementsOutstanding;
+    } finally {
+      monitor.leave();
+    }
   }
 
   public long maximumBytesOutstanding() {
@@ -190,13 +200,13 @@ public class BoundedQueueExecutor {
       builder.append("<br>/n");
 
       builder.append("Work Queue Size: ");
-      builder.append(elementsOutstanding);
+      builder.append(elementsOutstanding());
       builder.append("/");
       builder.append(maximumElementsOutstanding());
       builder.append("<br>/n");
 
       builder.append("Work Queue Bytes: ");
-      builder.append(bytesOutstanding);
+      builder.append(bytesOutstanding());
       builder.append("/");
       builder.append(maximumBytesOutstanding);
       builder.append("<br>/n");
