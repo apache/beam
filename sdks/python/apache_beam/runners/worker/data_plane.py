@@ -63,6 +63,7 @@ _LOGGER = logging.getLogger(__name__)
 
 _DEFAULT_SIZE_FLUSH_THRESHOLD = 10 << 20  # 10MB
 _DEFAULT_TIME_FLUSH_THRESHOLD_MS = 0  # disable time-based flush by default
+_FLUSH_MAX_SIZE = 2 << 30 - 100  # 2GB less some overhead, protobuf/grcp limit
 
 # Keep a set of completed instructions to discard late received data. The set
 # can have up to _MAX_CLEANED_INSTRUCTIONS items. See _GrpcDataChannel.
@@ -147,6 +148,10 @@ class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
   def flush(self):
     # type: () -> None
     if self._flush_callback:
+      if self.size() > _FLUSH_MAX_SIZE:
+        raise ValueError(
+            f'Buffer size {self.size()} exceeds GRPC limit {_FLUSH_MAX_SIZE}. '
+            'This is likely due to a single element that is too large.')
       self._flush_callback(self.get())
       self._clear()
 
