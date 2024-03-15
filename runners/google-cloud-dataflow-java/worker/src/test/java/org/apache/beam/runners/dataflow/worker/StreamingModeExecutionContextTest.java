@@ -107,7 +107,7 @@ public class StreamingModeExecutionContextTest {
             "computationId",
             new ReaderCache(Duration.standardMinutes(1), Executors.newCachedThreadPool()),
             stateNameMap,
-            new WindmillStateCache(options.getWorkerCacheMb()).forComputation("comp"),
+            WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb()).forComputation("comp"),
             StreamingStepMetricsContainer.createRegistry(),
             new DataflowExecutionStateTracker(
                 ExecutionStateSampler.newForTest(),

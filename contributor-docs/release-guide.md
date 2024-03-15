@@ -742,6 +742,8 @@ as an example.
     * {$KNOWN_ISSUE_1}
     * {$KNOWN_ISSUE_2}
 
+    For the most up to date list of known issues, see https://github.com/apache/beam/blob/master/CHANGES.md
+
     ## List of Contributors
 
     According to git shortlog, the following people contributed to the {$RELEASE_VERSION} release. Thank you to all contributors!

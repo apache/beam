@@ -948,7 +948,8 @@ public class WorkerCustomSourcesTest {
             "computationId",
             new ReaderCache(Duration.standardMinutes(1), Runnable::run),
             /*stateNameMap=*/ ImmutableMap.of(),
-            new WindmillStateCache(options.getWorkerCacheMb()).forComputation("computationId"),
+            WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb())
+                .forComputation("computationId"),
             StreamingStepMetricsContainer.createRegistry(),
             new DataflowExecutionStateTracker(
                 ExecutionStateSampler.newForTest(),

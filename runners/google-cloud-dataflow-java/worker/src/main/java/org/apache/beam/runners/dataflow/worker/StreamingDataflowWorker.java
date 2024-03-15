@@ -476,7 +476,7 @@ public class StreamingDataflowWorker {
                 computationId -> Optional.ofNullable(computationMap.get(computationId)))),
         clientId,
         computationMap,
-        new WindmillStateCache(options.getWorkerCacheMb()),
+        WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb()),
         createWorkUnitExecutor(options),
         IntrinsicMapTaskExecutorFactory.defaultFactory(),
         new DataflowWorkUnitClient(options, LOG),
@@ -502,7 +502,7 @@ public class StreamingDataflowWorker {
       Supplier<Instant> clock,
       Function<String, ScheduledExecutorService> executorSupplier) {
     BoundedQueueExecutor boundedQueueExecutor = createWorkUnitExecutor(options);
-    WindmillStateCache stateCache = new WindmillStateCache(options.getWorkerCacheMb());
+    WindmillStateCache stateCache = WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb());
     computationMap.putAll(
         createComputationMapForTesting(mapTasks, boundedQueueExecutor, stateCache::forComputation));
     return new StreamingDataflowWorker(

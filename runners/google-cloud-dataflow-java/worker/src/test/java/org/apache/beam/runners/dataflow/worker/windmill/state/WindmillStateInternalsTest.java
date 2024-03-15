@@ -206,7 +206,7 @@ public class WindmillStateInternalsTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
-    cache = new WindmillStateCache(options.getWorkerCacheMb());
+    cache = WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb());
     resetUnderTest();
   }
 
