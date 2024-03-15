@@ -34,6 +34,7 @@ import org.apache.beam.runners.dataflow.worker.Weighers;
 import org.apache.beam.runners.dataflow.worker.WindmillComputationKey;
 import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
+import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
@@ -316,6 +317,10 @@ public class WindmillStateCache implements StatusDataProvider {
       // By removing the ForKey object, all state for the key is orphaned in the cache and will
       // be removed by normal cache cleanup.
       keyIndex.remove(key);
+    }
+
+    public final void invalidate(ShardedKey shardedKey) {
+      invalidate(shardedKey.key(), shardedKey.shardingKey());
     }
 
     /**
