@@ -41,6 +41,7 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
@@ -263,6 +264,8 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     private final ContextActivationObserverRegistry contextActivationObserverRegistry;
     private final String workItemId;
 
+    private final boolean isStreaming;
+
     /**
      * Metadata on the message whose processing is currently being managed by this tracker. If no
      * message is actively being processed, activeMessageMetadata will be null.
@@ -323,6 +326,11 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       this.workItemId = workItemId;
       this.contextActivationObserverRegistry = ContextActivationObserverRegistry.createDefault();
       this.clock = clock;
+      if (options instanceof DataflowPipelineOptions) {
+        this.isStreaming = ((DataflowPipelineOptions) options).isStreaming();
+      } else {
+        this.isStreaming = false;
+      }
       DataflowWorkerLoggingInitializer.initialize();
     }
 
@@ -367,6 +375,9 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
           .append(DURATION_FORMATTER.print(lullDuration.toPeriod()))
           .append(" without completing")
           .append("\n");
+      if (!isStreaming) {
+        return message.toString();
+      }
       synchronized (this) {
         if (this.activeMessageMetadata != null) {
           message.append(
@@ -429,12 +440,14 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
           newState.isProcessElementState && newState instanceof DataflowExecutionState;
       if (isDataflowProcessElementState) {
         DataflowExecutionState newDFState = (DataflowExecutionState) newState;
-        if (newDFState.getStepName() != null && newDFState.getStepName().userName() != null) {
-          recordActiveMessageInProcessingTimesMap();
-          synchronized (this) {
-            this.activeMessageMetadata =
-                ActiveMessageMetadata.create(
-                    newDFState.getStepName().userName(), clock.currentTimeMillis());
+        if (isStreaming) {
+          if (newDFState.getStepName() != null && newDFState.getStepName().userName() != null) {
+            recordActiveMessageInProcessingTimesMap();
+            synchronized (this) {
+              this.activeMessageMetadata =
+                  ActiveMessageMetadata.create(
+                      newDFState.getStepName().userName(), clock.currentTimeMillis());
+            }
           }
         }
         elementExecutionTracker.enter(newDFState.getStepName());
@@ -442,7 +455,9 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
 
       return () -> {
         if (isDataflowProcessElementState) {
-          recordActiveMessageInProcessingTimesMap();
+          if (isStreaming) {
+            recordActiveMessageInProcessingTimesMap();
+          }
           elementExecutionTracker.exit();
         }
         baseCloseable.close();
