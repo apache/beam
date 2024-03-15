@@ -15,13 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.streaming;
+package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
 import com.google.auto.value.AutoValue;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 /** Value class for a queued commit. */
+@Internal
 @AutoValue
 public abstract class Commit {
 
@@ -29,6 +33,10 @@ public abstract class Commit {
       WorkItemCommitRequest request, ComputationState computationState, Work work) {
     Preconditions.checkArgument(request.getSerializedSize() > 0);
     return new AutoValue_Commit(request, computationState, work);
+  }
+
+  public final String computationId() {
+    return computationState().getComputationId();
   }
 
   public abstract WorkItemCommitRequest request();
