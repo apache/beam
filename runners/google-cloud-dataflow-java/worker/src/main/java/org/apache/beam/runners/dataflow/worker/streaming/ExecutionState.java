@@ -23,9 +23,16 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.DataflowWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
 import org.apache.beam.sdk.coders.Coder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoValue
-public abstract class ExecutionState {
+public abstract class ExecutionState implements AutoCloseable {
+  private static final Logger LOG = LoggerFactory.getLogger(ExecutionState.class);
+
+  public static ExecutionState.Builder builder() {
+    return new AutoValue_ExecutionState.Builder();
+  }
 
   public abstract DataflowWorkExecutor workExecutor();
 
@@ -35,8 +42,14 @@ public abstract class ExecutionState {
 
   public abstract ExecutionStateTracker executionStateTracker();
 
-  public static ExecutionState.Builder builder() {
-    return new AutoValue_ExecutionState.Builder();
+  @Override
+  public void close() throws Exception {
+    try {
+      context().invalidateCache();
+      workExecutor().close();
+    } catch (Exception e) {
+      LOG.warn("Failed to close map task executor: ", e);
+    }
   }
 
   @AutoValue.Builder
@@ -46,6 +59,8 @@ public abstract class ExecutionState {
     public abstract Builder setContext(StreamingModeExecutionContext context);
 
     public abstract Builder setKeyCoder(Coder<?> keyCoder);
+
+    public abstract Builder setKeyCoder(Optional<Coder<?>> maybeKeyCoder);
 
     public abstract Builder setExecutionStateTracker(ExecutionStateTracker executionStateTracker);
 

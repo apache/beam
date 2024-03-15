@@ -3894,7 +3894,7 @@ public class StreamingDataflowWorkerTest {
     options.setWindmillServiceCommitThreads(configNumCommitThreads);
     StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
-    assertEquals(expectedNumCommitThreads, worker.commitThreads.size());
+    assertEquals(expectedNumCommitThreads, worker.numCommitThreads());
     worker.stop();
   }
 

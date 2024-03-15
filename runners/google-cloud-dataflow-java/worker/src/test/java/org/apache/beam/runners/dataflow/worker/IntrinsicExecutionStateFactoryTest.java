@@ -119,7 +119,7 @@ import org.mockito.MockitoAnnotations;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "DoNotMock", // TODO: Use NetworkBuilder to create a real instance
 })
-public class IntrinsicMapTaskExecutorFactoryTest {
+public class IntrinsicExecutionStateFactoryTest {
   private static final String STAGE = "test";
 
   private static final IdGenerator idGenerator = IdGenerators.decrementingLongs();
@@ -365,7 +365,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
     cloudInput.setOutputNum(producerOutputNum);
 
     CloudObject spec =
-        CloudObject.forClass(IntrinsicMapTaskExecutorFactoryTest.TestSinkFactory.class);
+        CloudObject.forClass(IntrinsicExecutionStateFactoryTest.TestSinkFactory.class);
 
     com.google.api.services.dataflow.model.Sink cloudSink =
         new com.google.api.services.dataflow.model.Sink();

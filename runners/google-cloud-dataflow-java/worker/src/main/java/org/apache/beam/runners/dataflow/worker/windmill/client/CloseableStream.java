@@ -15,29 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.streaming;
+package org.apache.beam.runners.dataflow.worker.windmill.client;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.sdk.annotations.Internal;
 
-/** Value class for a queued commit. */
+/**
+ * Wrapper for a {@link WindmillStream} that allows callers to tie an action after the stream is
+ * finished being used. Has an option for closing code to be a no-op.
+ */
+@Internal
 @AutoValue
-public abstract class Commit {
-
-  public static Commit create(
-      WorkItemCommitRequest request, ComputationState computationState, Work work) {
-    Preconditions.checkArgument(request.getSerializedSize() > 0);
-    return new AutoValue_Commit(request, computationState, work);
+public abstract class CloseableStream<StreamT extends WindmillStream> implements AutoCloseable {
+  public static <StreamT extends WindmillStream> CloseableStream<StreamT> create(
+      StreamT stream, Runnable onClose) {
+    return new AutoValue_CloseableStream<>(stream, onClose);
   }
 
-  public abstract WorkItemCommitRequest request();
+  public static <StreamT extends WindmillStream> CloseableStream<StreamT> create(StreamT stream) {
+    return create(stream, () -> {});
+  }
 
-  public abstract ComputationState computationState();
+  public abstract StreamT stream();
 
-  public abstract Work work();
+  abstract Runnable onClose();
 
-  public final int getSize() {
-    return request().getSerializedSize();
+  @Override
+  public void close() throws Exception {
+    onClose().run();
   }
 }

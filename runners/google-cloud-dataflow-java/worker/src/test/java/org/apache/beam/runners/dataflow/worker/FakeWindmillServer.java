@@ -74,7 +74,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** An in-memory Windmill server that offers provided work and data. */
-public class FakeWindmillServer extends WindmillServerStub {
+public final class FakeWindmillServer extends WindmillServerStub {
   private static final Logger LOG = LoggerFactory.getLogger(FakeWindmillServer.class);
   private final ResponseQueue<Windmill.GetWorkRequest, Windmill.GetWorkResponse> workToOffer;
   private final ResponseQueue<GetDataRequest, GetDataResponse> dataToOffer;
@@ -502,32 +502,32 @@ public class FakeWindmillServer extends WindmillServerStub {
     this.isReady = ready;
   }
 
-  static class ResponseQueue<T, U> {
+  public static class ResponseQueue<T, U> {
     private final Queue<Function<T, U>> responses = new ConcurrentLinkedQueue<>();
     Duration sleep = Duration.ZERO;
     private Function<T, U> defaultResponse;
 
     // (Fluent) interface for response producers, accessible from tests.
 
-    ResponseQueue<T, U> thenAnswer(Function<T, U> mapFun) {
+    public ResponseQueue<T, U> thenAnswer(Function<T, U> mapFun) {
       responses.add(mapFun);
       return this;
     }
 
-    ResponseQueue<T, U> thenReturn(U response) {
+    public ResponseQueue<T, U> thenReturn(U response) {
       return thenAnswer((request) -> response);
     }
 
-    ResponseQueue<T, U> answerByDefault(Function<T, U> mapFun) {
+    public ResponseQueue<T, U> answerByDefault(Function<T, U> mapFun) {
       defaultResponse = mapFun;
       return this;
     }
 
-    ResponseQueue<T, U> returnByDefault(U response) {
+    public ResponseQueue<T, U> returnByDefault(U response) {
       return answerByDefault((request) -> response);
     }
 
-    ResponseQueue<T, U> delayEachResponseBy(Duration sleep) {
+    public ResponseQueue<T, U> delayEachResponseBy(Duration sleep) {
       this.sleep = sleep;
       return this;
     }
