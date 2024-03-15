@@ -65,7 +65,6 @@ dependencies {
   }
   implementation library.java.error_prone_annotations
   implementation library.java.avro
-  implementation "org.tukaani:xz:1.9" // marked as optional in avro
   implementation library.java.joda_time
   testImplementation(project(path: ":sdks:java:core", configuration: "shadowTest")) {
     // Exclude Avro dependencies from "core" since Avro support moved to this extension
@@ -73,6 +72,7 @@ dependencies {
   }
   testImplementation library.java.avro_tests
   testImplementation library.java.junit
+  testImplementation "org.tukaani:xz:1.9" // marked as optional in avro
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   testRuntimeOnly library.java.slf4j_jdk14
   avroVersions.each { k,v ->
