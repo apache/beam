@@ -63,7 +63,7 @@ _LOGGER = logging.getLogger(__name__)
 
 _DEFAULT_SIZE_FLUSH_THRESHOLD = 10 << 20  # 10MB
 _DEFAULT_TIME_FLUSH_THRESHOLD_MS = 0  # disable time-based flush by default
-_FLUSH_MAX_SIZE = 2 << 30 - 100  # 2GB less some overhead, protobuf/grcp limit
+_FLUSH_MAX_SIZE = (2 << 30) - 100  # 2GB less some overhead, protobuf/grpc limit
 
 # Keep a set of completed instructions to discard late received data. The set
 # can have up to _MAX_CLEANED_INSTRUCTIONS items. See _GrpcDataChannel.
