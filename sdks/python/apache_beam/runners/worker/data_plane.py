@@ -152,9 +152,10 @@ class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
         raise ValueError(
             f'Buffer size {self.size()} exceeds GRPC limit {_FLUSH_MAX_SIZE}. '
             'This is likely due to a single element that is too large. '
-            'To mitigate, store large elements in external storage systems, '
-            'and use PCollections to pass their metadata, '
-            'or use a custom coder that reduces the element's size.')
+            'To resolve, prefer multiple small elements over single large '
+            'elements in PCollections. If needed, store large blobs in '
+            'external storage systems, and use PCollections to pass their '
+            'metadata, or use a custom coder that reduces the element\'s size.')
       self._flush_callback(self.get())
       self._clear()
 
