@@ -83,6 +83,7 @@ dependencies {
     "avroVersion$k" library.java.junit
     "avroVersion$k" project(path: ":runners:direct-java", configuration: "shadow")
     "avroVersion$k" library.java.slf4j_jdk14
+    "avroVersion$k" "org.tukaani:xz:1.9" // marked as optional in avro
     "avroVersion$k" library.java.zstd_jni // marked as optional in avro
     "avroVersion${k}Generate" "org.apache.avro:avro-tools:$v"
   }
