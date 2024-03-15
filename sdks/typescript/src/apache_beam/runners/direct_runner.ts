@@ -159,7 +159,7 @@ class DirectImpulseOperator implements operators.IOperator {
   }
 
   process(wvalue: WindowedValue<unknown>) {
-    return operators.NonPromise;
+    return;
   }
 
   async startBundle() {
@@ -231,7 +231,7 @@ class DirectGbkOperator implements operators.IOperator {
       }
       this.groups.get(wkey)!.push(wvalue.value.value);
     }
-    return operators.NonPromise;
+    return;
   }
 
   async startBundle() {
@@ -256,7 +256,7 @@ class DirectGbkOperator implements operators.IOperator {
         timestamp: window.maxTimestamp(),
         pane: PaneInfoCoder.ONE_AND_ONLY_FIRING,
       });
-      if (maybePromise !== operators.NonPromise) {
+      if (operators.isPromise(maybePromise)) {
         await maybePromise;
       }
     }
@@ -449,7 +449,7 @@ class CollectSideOperator implements operators.IOperator {
         encodedElement,
       );
     }
-    return operators.NonPromise;
+    return;
   }
 
   async finishBundle() {}
@@ -474,7 +474,7 @@ class BufferOperator implements operators.IOperator {
 
   process(wvalue: WindowedValue<unknown>) {
     this.elements.push(wvalue);
-    return operators.NonPromise;
+    return;
   }
 
   async startBundle() {
@@ -484,7 +484,7 @@ class BufferOperator implements operators.IOperator {
   async finishBundle() {
     for (const element of this.elements) {
       const maybePromise = this.receiver.receive(element);
-      if (maybePromise !== operators.NonPromise) {
+      if (operators.isPromise(maybePromise)) {
         await maybePromise;
       }
     }

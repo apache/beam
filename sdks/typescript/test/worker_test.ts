@@ -58,7 +58,7 @@ class Create implements operators.IOperator {
   }
 
   process(wvalue: WindowedValue<any>) {
-    return operators.NonPromise;
+    return;
   }
 
   async startBundle() {
@@ -105,10 +105,10 @@ class Recording implements operators.IOperator {
   process(wvalue: WindowedValue<any>) {
     Recording.log.push(this.transformId + ".process(" + wvalue.value + ")");
     const results = this.receivers.map((receiver) => receiver.receive(wvalue));
-    if (!results.every((r) => r === operators.NonPromise)) {
+    if (!results.every((r) => !operators.isPromise(r))) {
       throw new Error("Unexpected non-promise: " + results);
     }
-    return operators.NonPromise;
+    return
   }
 
   async finishBundle() {
@@ -134,13 +134,13 @@ class Partition implements operators.IOperator {
 
   process(wvalue: WindowedValue<any>) {
     const a = this.all.receive(wvalue);
-    if (a !== operators.NonPromise) throw new Error("Unexpected promise: " + a);
+    if (operators.isPromise(a)) throw new Error("Unexpected promise: " + a);
     if (wvalue.value.length > 3) {
       const b = this.big.receive(wvalue);
-      if (b !== operators.NonPromise)
+      if (operators.isPromise(b))
         throw new Error("Unexpected promise: " + b);
     }
-    return operators.NonPromise;
+    return
   }
 
   async startBundle() {}
