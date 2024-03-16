@@ -1,6 +1,11 @@
 Prompt:
 Write the Java code to write data to JSON files using Apache Beam.
+
 Response:
+
+Your Apache Beam pipeline can write data to [JSON](https://www.json.org/) files using the Apache Beam [JsonIO](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/json/JsonIO.html) connector.
+
+Here is an example of how to use the `JsonIO` connector to write data to JSON files:
 
 ```java
 package gcs;
@@ -19,60 +24,65 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Pipeline for writing data to JSON files using the {@code JsonIO.write()} transform.
- */
+// Pipeline for writing data to JSON files using the `JsonIO.write()` transform.
 public class WriteJsonIO {
 
-    /** Represents an Example JSON record. */
+    // Represents an Example JSON record.
     @DefaultSchema(JavaFieldSchema.class)
-    public static class ExampleRecord implements Serializable {
+    public static class SampleRecord implements Serializable {
         public int id;
-        public String name;
+        public String month;
+        public String amount
 
-        public ExampleRecord() {
+        public SampleRecord() {
         }
 
-        public ExampleRecord(int id, String name) {
+        public SampleRecord(int id, String month, String amount) {
             this.id = id;
-            this.name = name;
+            this.month = month;
+            this.amount = amount;
         }
     }
 
-    /**
-     * Pipeline options for write to JSON files.
-     */
+    // Pipeline options for writing to JSON files.
     public interface WriteJsonOptions extends PipelineOptions {
 
-        @Description("A file path prefix to write JSON files to")
+        @Description("A file path to write JSON files to")
         @Validation.Required
-        String getFilePathPrefix();
+        String getFilePath();
 
-        void setFilePathPrefix(String filePathPrefix);
+        // Set the file path.
+        void setFilePath(String filePath);
     }
 
+    // Main entry point.
     public static void main(String[] args) {
+
+        // Get the pipeline options.
         WriteJsonOptions options =
                 PipelineOptionsFactory.fromArgs(args)
                         .withValidation().as(WriteJsonOptions.class);
 
+        // Create the pipeline.
         Pipeline p = Pipeline.create(options);
 
-        List<ExampleRecord> rows =
+        // Create a list of SampleRecord objects.
+        List<SampleRecord> rows =
             Arrays.asList(
-                new ExampleRecord(1, "Charles"),
-                new ExampleRecord(2, "Alice"),
-                new ExampleRecord(3, "Bob"),
-                new ExampleRecord(4, "Amanda"),
-                new ExampleRecord(5, "Alex"),
-                new ExampleRecord(6, "Eliza"));
+                new SampleRecord(1, "January", "$1000"),
+                new SampleRecord(2, "February", "$2000"),
+                new SampleRecord(3, "March", "$3000"));
 
-        p.apply("Create", Create.of(rows))
+        // Write the records to JSON files
+        p.apply("Create Records", Create.of(rows))
             .apply(
-                "Write to JSON",
-                    JsonIO.<ExampleRecord>write(options.getFilePathPrefix())
+                "Write Records to JSON File",
+                    JsonIO.<SampleRecord>write(options.getFilePath())
                         .withNumShards(1));
+        // Run the pipeline.
         p.run();
     }
 }
 ```
+
+This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) pattern to parse command line arguments.

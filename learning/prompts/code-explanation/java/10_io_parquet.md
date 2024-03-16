@@ -75,9 +75,12 @@ public class ReadParquetFile {
 }
 
 ```
+
 Response:
+
 This code reads data from [Apache Parquet](https://parquet.apache.org/) files using the `ParquetIO.read` transform from the built-in [ParquetIO connector](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/parquet/ParquetIO.html).
 
+The `ExampleRecord` class defines the schema of the data in the Parquet file.
 ```java
     public static class ExampleRecord implements Serializable {
         public static final String COLUMN_ID = "id";
@@ -90,7 +93,7 @@ This code reads data from [Apache Parquet](https://parquet.apache.org/) files us
     }
 ```
 
-The `ReadParquetOptions` class defines the command-line argument `--path`, which specifies the path to the Parquet file. To parse command-line arguments, this code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/).
+The `ReadParquetFileOptions` class defines the command-line argument `--path`, which specifies the path to the Parquet file. To parse command-line arguments, this code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) pattern.
 
 ```java
     public interface ReadParquetFileOptions extends PipelineOptions {
@@ -102,15 +105,17 @@ The `ReadParquetOptions` class defines the command-line argument `--path`, which
     }
 ```
 
+ The `PipelineOptionsFactory` is used to parse the command-line arguments and create a `PipelineOptions` object. The `ReflectData` class is used to get the `Schema` object that represents the Avro schema of the `ExampleRecord` class. The `Pipeline` object is created using the `PipelineOptions` object.
 ```java
         ReadParquetFileOptions options =
             PipelineOptionsFactory.fromArgs(args).withValidation().as(ReadParquetFileOptions.class);
 
         Schema exampleRecordSchema = ReflectData.get().getSchema(ExampleRecord.class);
-
+        
         Pipeline p = Pipeline.create(options);
 ```
 
+The `ParquetIO.read` transform is used to read data from the Parquet file. The `withAvroDataModel` method specifies that the data should be decoded using the Avro data model. The `from` method specifies the path to the Parquet file.
 ```java
         p.apply(
                 "Read from Parquet file",
@@ -119,6 +124,7 @@ The `ReadParquetOptions` class defines the command-line argument `--path`, which
                     .from(options.getFilePattern()))
 ```
 
+The `ParDo` transform is used to log the records read from the Parquet file. The `DoFn` processes each element and logs the values of the fields in the `ExampleRecord` class.
 ```java
             .apply(
                 "Log records",
@@ -136,6 +142,8 @@ The `ReadParquetOptions` class defines the command-line argument `--path`, which
                         }
                     }));
 ```
+
+The `Pipeline.run` method is used to execute the pipeline.
 
 ```java
         p.run();

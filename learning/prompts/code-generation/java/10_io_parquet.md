@@ -28,7 +28,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 
 public class WriteSampleParquetFile {
 
-    // Represents an example DTO to be written to Parquet.
+    // Represents a DTO to be written to Parquet.
     public static class SampleRecord implements Serializable {
         public static final String COLUMN_ID = "id";
         public static final String COLUMN_MONTH = "month";
@@ -72,6 +72,7 @@ public class WriteSampleParquetFile {
         WriteSampleParquetFileOptions options =
             PipelineOptionsFactory.fromArgs(args).withValidation().as(WriteSampleParquetFileOptions.class);
 
+        // Get the Avro schema for the SampleRecord object.
         Schema sampleRecordSchema = ReflectData.get().getSchema(SampleRecord.class);
 
         // Create a pipeline.
