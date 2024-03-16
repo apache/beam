@@ -124,7 +124,7 @@ public class WindmillValue<T> extends SimpleWindmillState implements ValueState<
         coder.encode(value, stream, Coder.Context.OUTER);
       }
       encoded = stream.toByteString();
-      cachedSize = (long)encoded.size() + stateKey.size();
+      cachedSize = (long) encoded.size() + stateKey.size();
     }
 
     // Place in cache to avoid a future read.
