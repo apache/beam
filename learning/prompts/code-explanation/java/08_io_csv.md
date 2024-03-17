@@ -19,7 +19,7 @@ public class WriteCsvFile {
             this.amount = amount
         }
     }
-    
+
     public interface WriteCsvFileOptions extends PipelineOptions {
 
         @Description("A file path to write CSV files to")
@@ -132,6 +132,6 @@ The code applies the `Create` transform to generate a collection of `ExampleReco
 
 ```java
         p.run();
-``` 
+```
 
 Finally, the code snippet invokes the `Pipeline.run` method to execute the pipeline.

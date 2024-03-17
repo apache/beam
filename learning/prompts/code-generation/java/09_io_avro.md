@@ -32,7 +32,7 @@ public class ReadGenericAvroIO {
     }
 
     public static void main(String[] args) {
-        
+
         // Create pipeline options to parse command-line arguments
         ReadAvroOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(ReadAvroOptions.class);
 

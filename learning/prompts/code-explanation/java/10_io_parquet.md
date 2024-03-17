@@ -113,7 +113,7 @@ The `PipelineOptionsFactory` class parses the command-line arguments and instant
             PipelineOptionsFactory.fromArgs(args).withValidation().as(ReadParquetFileOptions.class);
 
         Schema exampleRecordSchema = ReflectData.get().getSchema(ExampleRecord.class);
-        
+
         Pipeline p = Pipeline.create(options);
 ```
 

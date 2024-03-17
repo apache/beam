@@ -39,7 +39,7 @@ public class WriteCsvFile {
             this.amount = amount;
         }
     }
-    
+
     public interface WriteCsvFileOptions extends PipelineOptions {
 
         @Description("A file path to write CSV files to")
