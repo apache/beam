@@ -193,7 +193,7 @@ public class WindmillBag<T> extends SimpleWindmillState implements BagState<T> {
       }
       // We now know the complete bag contents, and any read on it will yield a
       // cached value, so cache it for future reads.
-      cache.put(namespace, address, this, encodedSize);
+      cache.put(namespace, address, this, encodedSize + stateKey.size());
     }
 
     // Don't reuse the localAdditions object; we don't want future changes to it to
