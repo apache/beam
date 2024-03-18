@@ -77,7 +77,7 @@ resource "google_cloudfunctions_function" "prefetcher" {
 
 resource "google_cloud_scheduler_job" "job" {
   name             = "github_workflow_prefetcher-scheduler"
-  description      = "Trigger the ${google_cloudfunctions_function.prefetcher.name} Cloud Function every 10 mins."
+  description      = "Trigger the ${google_cloudfunctions_function.prefetcher.name} Cloud Function every 3 hours."
   schedule         = "0 */3 * * *" # Every 3 hrs
   time_zone        = "Europe/Dublin"
   attempt_deadline = "320s"

@@ -49,7 +49,7 @@ RUN mvn archetype:generate \
     -DartifactId=pipeline-dependencies \
     -DgroupId=org.apache.beam.samples
 WORKDIR /pipeline-dependencies/
-RUN mvn dependency:resolve && mvn -o dependency:list
+RUN mvn dependency:resolve && mvn dependency:go-offline &&  mvn -o dependency:list
 RUN mvn dependency:copy-dependencies
 
 FROM apache/beam_java11_sdk:$BEAM_VERSION

@@ -18,7 +18,7 @@
 -->
 # Github Workflows Prefetcher
 Github Workflows Prefetcher is a script used to fetch workflow run data and store it in CloudSQL for further use.
-It is used by Grafana (https://metrics.beam.apache.org) to display status dashboards and for alerting which is further used for failing test issue creation.
+It is used by Grafana (http://metrics.beam.apache.org) to display status dashboards and for alerting which is further used for failing test issue creation.
 
 ## Setup
 

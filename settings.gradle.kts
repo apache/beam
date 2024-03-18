@@ -62,8 +62,9 @@ buildCache {
       username = System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME")
       password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
     }
-    isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
-    isPush = isCi
+    // TODO(yathu) re-enable when remote gradle cache cleaned up
+    isEnabled = false // !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
+    isPush = false
   }
 }
 
@@ -81,6 +82,7 @@ include(":examples:java:cdap:hubspot")
 include(":examples:java:cdap:salesforce")
 include(":examples:java:cdap:servicenow")
 include(":examples:java:cdap:zendesk")
+include(":examples:java:webapis")
 include(":examples:kotlin")
 include(":examples:multi-language")
 include(":learning")

@@ -29,6 +29,7 @@ import static org.junit.Assert.assertFalse;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -45,6 +46,7 @@ import java.util.function.Function;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
+import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationCommitWorkRequest;
@@ -74,11 +76,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** An in-memory Windmill server that offers provided work and data. */
-public class FakeWindmillServer extends WindmillServerStub {
+public final class FakeWindmillServer extends WindmillServerStub {
   private static final Logger LOG = LoggerFactory.getLogger(FakeWindmillServer.class);
   private final ResponseQueue<Windmill.GetWorkRequest, Windmill.GetWorkResponse> workToOffer;
   private final ResponseQueue<GetDataRequest, GetDataResponse> dataToOffer;
   private final ResponseQueue<Windmill.CommitWorkRequest, CommitWorkResponse> commitsToOffer;
+  private final Map<WorkId, Windmill.CommitStatus> streamingCommitsToOffer;
   // Keys are work tokens.
   private final Map<Long, WorkItemCommitRequest> commitsReceived;
   private final ArrayList<Windmill.ReportStatsRequest> statsReceived;
@@ -109,6 +112,7 @@ public class FakeWindmillServer extends WindmillServerStub {
     commitsToOffer =
         new ResponseQueue<Windmill.CommitWorkRequest, CommitWorkResponse>()
             .returnByDefault(CommitWorkResponse.getDefaultInstance());
+    streamingCommitsToOffer = new HashMap<>();
     commitsReceived = new ConcurrentHashMap<>();
     exceptions = new LinkedBlockingQueue<>();
     expectedExceptionCount = new AtomicInteger();
@@ -137,6 +141,10 @@ public class FakeWindmillServer extends WindmillServerStub {
   public ResponseQueue<Windmill.CommitWorkRequest, Windmill.CommitWorkResponse>
       whenCommitWorkCalled() {
     return commitsToOffer;
+  }
+
+  public Map<WorkId, Windmill.CommitStatus> whenCommitWorkStreamCalled() {
+    return streamingCommitsToOffer;
   }
 
   @Override
@@ -376,7 +384,15 @@ public class FakeWindmillServer extends WindmillServerStub {
           droppedStreamingCommits.put(request.getWorkToken(), onDone);
         } else {
           commitsReceived.put(request.getWorkToken(), request);
-          onDone.accept(Windmill.CommitStatus.OK);
+          onDone.accept(
+              Optional.ofNullable(
+                      streamingCommitsToOffer.remove(
+                          WorkId.builder()
+                              .setWorkToken(request.getWorkToken())
+                              .setCacheToken(request.getCacheToken())
+                              .build()))
+                  // Default to CommitStatus.OK
+                  .orElse(Windmill.CommitStatus.OK));
         }
         // Return true to indicate the request was accepted even if we are dropping the commit
         // to simulate a dropped commit.
@@ -502,32 +518,32 @@ public class FakeWindmillServer extends WindmillServerStub {
     this.isReady = ready;
   }
 
-  static class ResponseQueue<T, U> {
+  public static class ResponseQueue<T, U> {
     private final Queue<Function<T, U>> responses = new ConcurrentLinkedQueue<>();
     Duration sleep = Duration.ZERO;
     private Function<T, U> defaultResponse;
 
     // (Fluent) interface for response producers, accessible from tests.
 
-    ResponseQueue<T, U> thenAnswer(Function<T, U> mapFun) {
+    public ResponseQueue<T, U> thenAnswer(Function<T, U> mapFun) {
       responses.add(mapFun);
       return this;
     }
 
-    ResponseQueue<T, U> thenReturn(U response) {
+    public ResponseQueue<T, U> thenReturn(U response) {
       return thenAnswer((request) -> response);
     }
 
-    ResponseQueue<T, U> answerByDefault(Function<T, U> mapFun) {
+    public ResponseQueue<T, U> answerByDefault(Function<T, U> mapFun) {
       defaultResponse = mapFun;
       return this;
     }
 
-    ResponseQueue<T, U> returnByDefault(U response) {
+    public ResponseQueue<T, U> returnByDefault(U response) {
       return answerByDefault((request) -> response);
     }
 
-    ResponseQueue<T, U> delayEachResponseBy(Duration sleep) {
+    public ResponseQueue<T, U> delayEachResponseBy(Duration sleep) {
       this.sleep = sleep;
       return this;
     }
