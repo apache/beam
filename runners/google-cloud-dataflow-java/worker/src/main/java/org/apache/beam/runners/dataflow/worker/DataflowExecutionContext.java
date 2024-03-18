@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.dataflow.model.SideInputInfo;
+import com.google.common.base.Stopwatch;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
@@ -260,8 +261,6 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     @Nullable
     private ActiveMessageMetadata activeMessageMetadata = null;
 
-    private final MillisProvider clock = System::currentTimeMillis;
-
     @GuardedBy("this")
     private final Map<String, IntSummaryStatistics> processingTimesByStep = new HashMap<>();
 
@@ -323,7 +322,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
           synchronized (this) {
             this.activeMessageMetadata =
                 ActiveMessageMetadata.create(
-                    newDFState.getStepName().userName(), clock.getMillis());
+                    newDFState.getStepName().userName(), Stopwatch.createStarted());
           }
         }
         elementExecutionTracker.enter(newDFState.getStepName());
@@ -370,7 +369,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         return;
       }
       int processingTime =
-          (int) (System.currentTimeMillis() - this.activeMessageMetadata.startTime());
+          (int) (this.activeMessageMetadata.stopwatch().elapsed().toMillis());
       this.processingTimesByStep.compute(
           this.activeMessageMetadata.userStepName(),
           (k, v) -> {

@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
+import com.google.common.base.Stopwatch;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
@@ -137,7 +138,7 @@ public class DataflowExecutionContextTest {
 
     // After entering a process state, we should have an active message tracked.
     ActiveMessageMetadata expectedMetadata =
-        ActiveMessageMetadata.create(NameContextsForTests.nameContextForTest().userName(), 1l);
+        ActiveMessageMetadata.create(NameContextsForTests.nameContextForTest().userName(), Stopwatch.createStarted());
     assertTrue(tracker.getActiveMessageMetadata().isPresent());
     Assert.assertEquals(
         expectedMetadata.userStepName(), tracker.getActiveMessageMetadata().get().userStepName());
@@ -179,7 +180,7 @@ public class DataflowExecutionContextTest {
         new HashSet<>(Arrays.asList(NameContextsForTests.nameContextForTest().userName())),
         gotProcessingTimes.keySet());
     ActiveMessageMetadata expectedMetadata =
-        ActiveMessageMetadata.create(NameContextsForTests.nameContextForTest().userName(), 1l);
+        ActiveMessageMetadata.create(NameContextsForTests.nameContextForTest().userName(), Stopwatch.createStarted());
     assertTrue(tracker.getActiveMessageMetadata().isPresent());
     Assert.assertEquals(
         expectedMetadata.userStepName(), tracker.getActiveMessageMetadata().get().userStepName());

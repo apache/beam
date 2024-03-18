@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.common.base.Stopwatch;
 import java.util.HashMap;
 import java.util.IntSummaryStatistics;
 import java.util.Map;
@@ -59,7 +60,7 @@ public class DataflowExecutionStateSamplerTest {
   public void testAddTrackerRemoveTrackerActiveMessageMetadataGetsUpdated() {
     String workId = "work-item-id1";
     ActiveMessageMetadata testMetadata =
-        ActiveMessageMetadata.create(step1act1.getStepName().userName(), clock.getMillis());
+        ActiveMessageMetadata.create(step1act1.getStepName().userName(), Stopwatch.createStarted());
     DataflowExecutionStateTracker trackerMock = createMockTracker(workId);
     when(trackerMock.getActiveMessageMetadata()).thenReturn(Optional.of(testMetadata));
 
@@ -95,7 +96,7 @@ public class DataflowExecutionStateSamplerTest {
     testSummaryStats.accept(5);
     testCompletedProcessingTimes.put("some-step", testSummaryStats);
     ActiveMessageMetadata testMetadata =
-        ActiveMessageMetadata.create(step1act1.getStepName().userName(), clock.getMillis());
+        ActiveMessageMetadata.create(step1act1.getStepName().userName(), Stopwatch.createStarted());
     DataflowExecutionStateTracker trackerMock = createMockTracker(workId);
     when(trackerMock.getActiveMessageMetadata()).thenReturn(Optional.of(testMetadata));
     when(trackerMock.getProcessingTimesByStepCopy()).thenReturn(testCompletedProcessingTimes);
