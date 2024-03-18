@@ -492,6 +492,13 @@ class BeamModulePlugin implements Plugin<Project> {
     }
   }
 
+  def jacocoExcludes = [
+          '**/org/apache/beam/gradle/**',
+          '**/org/apache/beam/model/**',
+          '**/org/apache/beam/runners/dataflow/worker/windmill/**',
+          '**/AutoValue_*'
+  ]
+
   void apply(Project project) {
 
     /** ***********************************************************************************************/
@@ -1180,6 +1187,34 @@ class BeamModulePlugin implements Plugin<Project> {
         maxHeapSize = '2g'
       }
 
+      def jacocoEnabled = project.hasProperty('enableJacocoReport') || graph.allTasks.any { it.name.contains('javaPreCommit') }
+      if (jacocoEnabled) {
+        def jacocoCoverageTask = project.tasks.register("jacocoCodeCoverageReport", JacocoReport) {
+          getClassDirectories().setFrom(project.files(
+                  project.fileTree(
+                          dir: project.getLayout().getBuildDirectory().dir("classes/java/main"),
+                          excludes: jacocoExcludes
+                  )
+          ))
+          getSourceDirectories().setFrom(
+                  project.files(project.sourceSets.main.allSource.srcDirs)
+          )
+          getExecutionData().setFrom(project.file(
+                  project.getLayout().getBuildDirectory().file("jacoco/test.exec")
+          ))
+          reports {
+            html.required = true
+            xml.required = true
+            html.outputLocation = project.file(
+                    project.getLayout().getBuildDirectory().dir("jacoco/report")
+            )
+          }
+        }
+        project.tasks.withType(Test) {
+          finalizedBy jacocoCoverageTask
+        }
+      }
+
       List<String> skipDefRegexes = []
       skipDefRegexes << "AutoValue_.*"
       skipDefRegexes << "AutoOneOf_.*"
@@ -1271,13 +1306,6 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      def jacocoExcludes = [
-        '**/org/apache/beam/gradle/**',
-        '**/org/apache/beam/model/**',
-        '**/org/apache/beam/runners/dataflow/worker/windmill/**',
-        '**/AutoValue_*'
-      ]
-
       project.test {
         jacoco {
           excludes = jacocoExcludes
@@ -1285,15 +1313,25 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       project.jacocoTestReport {
-        doFirst {
           getClassDirectories().setFrom(project.files(
-              project.fileTree(
-              dir: "${project.rootDir}",
-              exclude: jacocoExcludes
-              )
-              )
-              )
-        }
+                  project.fileTree(
+                          dir: project.getLayout().getBuildDirectory().dir("classes/java/main"),
+                          excludes: jacocoExcludes
+                  )
+          ))
+          getSourceDirectories().setFrom(
+                  project.files(project.sourceSets.main.allSource.srcDirs)
+          )
+          getExecutionData().setFrom(project.file(
+                  project.getLayout().getBuildDirectory().file("jacoco/test.exec")
+          ))
+          reports {
+            html.required = true
+            xml.required = true
+            html.outputLocation = project.file(
+                    project.getLayout().getBuildDirectory().dir("jacoco/report")
+            )
+          }
       }
 
       if (configuration.shadowClosure) {
