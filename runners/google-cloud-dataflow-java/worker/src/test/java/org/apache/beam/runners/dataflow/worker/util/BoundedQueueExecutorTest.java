@@ -19,11 +19,12 @@ package org.apache.beam.runners.dataflow.worker.util;
 
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.junit.Before;
 import org.junit.Rule;
@@ -45,18 +46,14 @@ public class BoundedQueueExecutorTest {
 
   private BoundedQueueExecutor executor;
 
-  private Runnable createSleepProcessWorkFn(CountDownLatch latch, AtomicBoolean stop) {
+  private Runnable createSleepProcessWorkFn(CountDownLatch start, CountDownLatch stop) {
     Runnable runnable =
         () -> {
+          start.countDown();
           try {
-            Thread.sleep(1000);
-          } catch (InterruptedException e) {
-            return;
-          }
-          latch.countDown();
-          int count = 0;
-          while (!stop.get()) {
-            count += 1;
+            stop.await();
+          } catch (Exception e) {
+            throw new RuntimeException(e);
           }
         };
     return runnable;
@@ -78,11 +75,40 @@ public class BoundedQueueExecutorTest {
   }
 
   @Test
+  public void testScheduleWork() throws Exception {
+    CountDownLatch processStart1 = new CountDownLatch(1);
+    CountDownLatch processStop1 = new CountDownLatch(1);
+    CountDownLatch processStart2 = new CountDownLatch(1);
+    CountDownLatch processStop2 = new CountDownLatch(1);
+    CountDownLatch processStart3 = new CountDownLatch(1);
+    CountDownLatch processStop3 = new CountDownLatch(1);
+    Runnable m1 = createSleepProcessWorkFn(processStart1, processStop1);
+    Runnable m2 = createSleepProcessWorkFn(processStart2, processStop2);
+    Runnable m3 = createSleepProcessWorkFn(processStart3, processStop3);
+
+    executor.execute(m1, 1);
+    assertTrue(processStart1.await(1000, TimeUnit.MILLISECONDS));
+    executor.execute(m2, 1);
+    assertTrue(processStart2.await(1000, TimeUnit.MILLISECONDS));
+    // m1 and m2 have started and all threads are occupied so m3 will be queued and not executed.
+    executor.execute(m3, 1);
+    assertFalse(processStart3.await(1000, TimeUnit.MILLISECONDS));
+
+    // Stop m1 so there is an available thread for m3 to run.
+    processStop1.countDown();
+    assertTrue(processStart3.await(1000, TimeUnit.MILLISECONDS));
+    // m3 started.
+    processStop2.countDown();
+    processStop3.countDown();
+    executor.shutdown();
+  }
+
+  @Test
   public void testOverrideMaximumThreadCount() throws Exception {
     CountDownLatch processStart1 = new CountDownLatch(1);
     CountDownLatch processStart2 = new CountDownLatch(1);
     CountDownLatch processStart3 = new CountDownLatch(1);
-    AtomicBoolean stop = new AtomicBoolean(false);
+    CountDownLatch stop = new CountDownLatch(1);
     Runnable m1 = createSleepProcessWorkFn(processStart1, stop);
     Runnable m2 = createSleepProcessWorkFn(processStart2, stop);
     Runnable m3 = createSleepProcessWorkFn(processStart3, stop);
@@ -101,18 +127,17 @@ public class BoundedQueueExecutorTest {
 
     // Max pool size was reached so no new work is accepted.
     executor.execute(m3, 1);
-    assertEquals(1, processStart3.getCount());
+    assertFalse(processStart3.await(1000, TimeUnit.MILLISECONDS));
 
     // Increase the max thread count
     executor.setMaximumPoolSize(3, 103);
     assertEquals(3, executor.maximumThreadCount());
 
     // m3 is accepted
-    executor.execute(m3, 1);
     processStart3.await();
     assertEquals(3, executor.activeCount());
 
-    stop.set(true);
+    stop.countDown();
     executor.shutdown();
   }
 
@@ -121,7 +146,7 @@ public class BoundedQueueExecutorTest {
     CountDownLatch processStart1 = new CountDownLatch(1);
     CountDownLatch processStart2 = new CountDownLatch(1);
     CountDownLatch processStart3 = new CountDownLatch(1);
-    AtomicBoolean stop = new AtomicBoolean(false);
+    CountDownLatch stop = new CountDownLatch(1);
     Runnable m1 = createSleepProcessWorkFn(processStart1, stop);
     Runnable m2 = createSleepProcessWorkFn(processStart2, stop);
     Runnable m3 = createSleepProcessWorkFn(processStart3, stop);
@@ -140,10 +165,10 @@ public class BoundedQueueExecutorTest {
 
     // Max pool size was reached so no new work is accepted.
     executor.execute(m3, 1);
-    assertEquals(1, processStart3.getCount());
+    assertFalse(processStart3.await(1000, TimeUnit.MILLISECONDS));
 
     assertEquals(0l, executor.allThreadsActiveTime());
-    stop.set(true);
+    stop.countDown();
     while (executor.activeCount() != 0) {
       // Waiting for all threads to be ended.
     }
@@ -159,7 +184,7 @@ public class BoundedQueueExecutorTest {
     CountDownLatch processStart1 = new CountDownLatch(1);
     CountDownLatch processStart2 = new CountDownLatch(1);
     CountDownLatch processStart3 = new CountDownLatch(1);
-    AtomicBoolean stop = new AtomicBoolean(false);
+    CountDownLatch stop = new CountDownLatch(1);
     Runnable m1 = createSleepProcessWorkFn(processStart1, stop);
     Runnable m2 = createSleepProcessWorkFn(processStart2, stop);
     Runnable m3 = createSleepProcessWorkFn(processStart3, stop);
@@ -178,12 +203,12 @@ public class BoundedQueueExecutorTest {
 
     // Max pool size was reached so no new work is accepted.
     executor.execute(m3, 1);
-    assertEquals(1, processStart3.getCount());
+    assertFalse(processStart3.await(1000, TimeUnit.MILLISECONDS));
 
     assertEquals(0l, executor.allThreadsActiveTime());
     // Increase the max thread count
     executor.setMaximumPoolSize(5, 105);
-    stop.set(true);
+    stop.countDown();
     while (executor.activeCount() != 0) {
       // Waiting for all threads to be ended.
     }
@@ -192,5 +217,16 @@ public class BoundedQueueExecutorTest {
     assertThat(executor.allThreadsActiveTime(), greaterThan(0l));
 
     executor.shutdown();
+  }
+
+  @Test
+  public void testRenderSummaryHtml() throws Exception {
+    String expectedSummaryHtml =
+        "Worker Threads: 0/2<br>/n"
+            + "Maximum Threads: 2<br>/n"
+            + "Active Threads: 0<br>/n"
+            + "Work Queue Size: 0/102<br>/n"
+            + "Work Queue Bytes: 0/10000000<br>/n";
+    assertEquals(expectedSummaryHtml, executor.summaryHtml());
   }
 }
