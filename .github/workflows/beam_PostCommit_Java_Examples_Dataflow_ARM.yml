@@ -55,7 +55,7 @@ permissions:
 jobs:
   beam_PostCommit_Java_Examples__Dataflow_ARM:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.java_version }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: ubuntu-latest
     timeout-minutes: 120
     strategy:
       fail-fast: false

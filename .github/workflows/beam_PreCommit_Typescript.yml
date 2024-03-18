@@ -60,7 +60,7 @@ jobs:
   beam_PreCommit_Typescript:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     timeout-minutes: 120
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         job_name: [beam_PreCommit_Typescript]

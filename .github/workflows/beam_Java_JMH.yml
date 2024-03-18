@@ -58,7 +58,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: ubuntu-latest
     timeout-minutes: 900
     name: "beam_Java_JMH"
     steps:

@@ -57,7 +57,7 @@ env:
 jobs:
   beam_PreCommit_PythonDocker:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false

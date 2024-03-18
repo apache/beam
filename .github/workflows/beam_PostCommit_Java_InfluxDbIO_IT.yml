@@ -53,7 +53,7 @@ permissions:
 jobs:
   beam_PostCommit_Java_InfluxDbIO_IT:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: ubuntu-latest
     timeout-minutes: 100
     strategy:
       matrix: 

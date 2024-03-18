@@ -55,7 +55,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       (contains(github.event.comment.body, 'Run Load Tests Java') &&
          contains(github.event.comment.body, 'ParDo Dataflow V2 Batch'))
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: ubuntu-latest
     timeout-minutes: 720
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }})
     strategy:

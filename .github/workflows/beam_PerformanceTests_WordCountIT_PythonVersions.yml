@@ -55,7 +55,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       (startswith(github.event.comment.body, 'Run Python') &&
         endswith(github.event.comment.body, 'WordCountIT Performance Test'))
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: ubuntu-latest
     timeout-minutes: 100
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.python_version }} ${{ matrix.job_phrase_2 }})
     strategy:

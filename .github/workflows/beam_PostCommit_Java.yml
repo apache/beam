@@ -53,7 +53,7 @@ env:
 jobs:
   beam_PostCommit_Java:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: ubuntu-latest
     timeout-minutes: 240
     strategy:
       matrix:

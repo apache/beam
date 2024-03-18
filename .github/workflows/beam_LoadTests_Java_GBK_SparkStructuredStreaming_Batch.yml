@@ -54,7 +54,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Java GBK SparkStructuredStreaming Batch'
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: ubuntu-latest
     timeout-minutes: 100
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:

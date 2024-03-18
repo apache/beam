@@ -52,7 +52,7 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: ubuntu-latest
     timeout-minutes: 100
     name: ${{ matrix.job_name }} (${{ matrix.container_task }})
     strategy:

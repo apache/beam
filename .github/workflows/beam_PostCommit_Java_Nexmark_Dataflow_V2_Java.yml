@@ -78,7 +78,7 @@ env:
 jobs:
   beam_PostCommit_Java_Nexmark_Dataflow_V2_Java:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: ubuntu-latest
     timeout-minutes: 240
     strategy:
       fail-fast: false

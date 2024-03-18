@@ -67,7 +67,7 @@ And in case when the workflow already utilizes matrix do the following:
 jobs:
   beam_job_with_matrix:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -156,7 +156,7 @@ Note: most workflows use [self-hosted runners](https://docs.github.com/en/action
 with the main and ubuntu labels to execute ([example](https://github.com/apache/beam/blob/5a54ee6ddd8cb8444c41802929a364fe2561001e/.github/workflows/beam_PostCommit_Go_Dataflow_ARM.yml#L41)).
 If you are testing on a fork, you likely will not have self-hosted runners set up.
 To work around this, you can start using hosted runners and then switch over when you're ready to create a PR.
-You can do this by changing `runs-on: [self-hosted, ubuntu-20.04, main]` (self-hosted, use in your PR) to `runs-on: ubuntu-20.04` (GitHub hosted, use for local testing).
+You can do this by changing `runs-on: ubuntu-latest` (self-hosted, use in your PR) to `runs-on: ubuntu-20.04` (GitHub hosted, use for local testing).
 
 Note when using `ubuntu-20.04` as the host, you might need to choose the Java version since some gradle tasks only work with a certain Java version.
 One example is below to use Java 8 when testing your workflow:
@@ -187,7 +187,7 @@ If you run into this issue, you can either:
 
 Additionally, as mentioned above your fork likely will not have self-hosted runners set up.
 To work around this, you can start using hosted runners and then switch over when you're ready to create a PR.
-You can do this by changing runs-on: [self-hosted, ubuntu-20.04, main] (self-hosted, use in your PR) to runs-on: ubuntu-20.04 (GitHub hosted, use for local testing).
+You can do this by changing runs-on: ubuntu-latest (self-hosted, use in your PR) to runs-on: ubuntu-20.04 (GitHub hosted, use for local testing).
 
 # Workflows
 Please note that jobs with matrix need to have matrix element in the comment. Example:
