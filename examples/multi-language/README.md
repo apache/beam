@@ -28,6 +28,8 @@ This project provides examples of Apache Beam
 * **python/javacount** - A Python pipeline that counts words using the Java `Count.perElement()` transform.
 * **python/javadatagenerator** - A Python pipeline that produces a set of strings generated from Java.
                                   This example demonstrates the `JavaExternalTransform` API.
+* **python/wordcount_external** - A Python pipeline that runs the Word Count workflow using three external Java
+                transforms. This example demonstrates the simpler `ExternalTransformProvider` API.
 
 ### Instructions for running the pipelines
 
