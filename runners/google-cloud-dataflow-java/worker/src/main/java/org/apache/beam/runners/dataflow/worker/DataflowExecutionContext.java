@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.api.client.util.Clock;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.io.Closeable;
 import java.io.IOException;
@@ -30,8 +29,6 @@ import java.util.IntSummaryStatistics;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
 import java.util.stream.Collectors;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.NullSideInputReader;
@@ -40,13 +37,10 @@ import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
-import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingHandler;
-import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementExecutionTracker;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.MetricsContainer;
@@ -54,16 +48,11 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closer;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
+import org.joda.time.DateTimeUtils.MillisProvider;
 import org.joda.time.Instant;
-import org.joda.time.format.PeriodFormatter;
-import org.joda.time.format.PeriodFormatterBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Execution context for the Dataflow worker. */
 @SuppressWarnings({
@@ -271,33 +260,10 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     @Nullable
     private ActiveMessageMetadata activeMessageMetadata = null;
 
-    /** Clock used to either provide real system time or mocked to virtualize time for testing. */
-    private final Clock clock;
+    private final MillisProvider clock = System::currentTimeMillis;
 
     @GuardedBy("this")
     private final Map<String, IntSummaryStatistics> processingTimesByStep = new HashMap<>();
-
-    /** Last milliseconds since epoch when a full thread dump was performed. */
-    private long lastFullThreadDumpMillis = 0;
-
-    /** The minimum lull duration in milliseconds to perform a full thread dump. */
-    private static final long LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS = 20 * 60 * 1000;
-
-    private static final Logger LOG = LoggerFactory.getLogger(DataflowExecutionStateTracker.class);
-
-    private static final PeriodFormatter DURATION_FORMATTER =
-        new PeriodFormatterBuilder()
-            .appendDays()
-            .appendSuffix("d")
-            .minimumPrintedDigits(2)
-            .appendHours()
-            .appendSuffix("h")
-            .printZeroAlways()
-            .appendMinutes()
-            .appendSuffix("m")
-            .appendSeconds()
-            .appendSuffix("s")
-            .toFormatter();
 
     public DataflowExecutionStateTracker(
         ExecutionStateSampler sampler,
@@ -305,25 +271,12 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         CounterFactory counterFactory,
         PipelineOptions options,
         String workItemId) {
-      this(sampler, otherState, counterFactory, options, workItemId, Clock.SYSTEM);
-    }
-
-    @VisibleForTesting
-    public DataflowExecutionStateTracker(
-        ExecutionStateSampler sampler,
-        DataflowOperationContext.DataflowExecutionState otherState,
-        CounterFactory counterFactory,
-        PipelineOptions options,
-        String workItemId,
-        Clock clock) {
       super(sampler);
       this.elementExecutionTracker =
           DataflowElementExecutionTracker.create(counterFactory, options);
       this.otherState = otherState;
       this.workItemId = workItemId;
       this.contextActivationObserverRegistry = ContextActivationObserverRegistry.createDefault();
-      this.clock = clock;
-      DataflowWorkerLoggingInitializer.initialize();
     }
 
     @Override
@@ -348,74 +301,10 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       }
     }
 
-    private boolean shouldLogFullThreadDumpForBundle(Duration lullDuration) {
-      if (lullDuration.getMillis() < LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS) {
-        return false;
-      }
-      long now = clock.currentTimeMillis();
-      if (lastFullThreadDumpMillis + LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS < now) {
-        lastFullThreadDumpMillis = now;
-        return true;
-      }
-      return false;
-    }
-
-    private String getBundleLullMessage(Duration lullDuration) {
-      StringBuilder message = new StringBuilder();
-      message
-          .append("Operation ongoing in bundle for at least ")
-          .append(DURATION_FORMATTER.print(lullDuration.toPeriod()))
-          .append(" without completing")
-          .append("\n");
-      synchronized (this) {
-        if (this.activeMessageMetadata != null) {
-          message.append(
-              "Current user step name: " + getActiveMessageMetadata().get().userStepName() + "\n");
-          message.append(
-              "Time spent in this step(millis): "
-                  + (clock.currentTimeMillis() - getActiveMessageMetadata().get().startTime())
-                  + "\n");
-        }
-        message.append("Processing times in each step(millis)\n");
-        for (Map.Entry<String, IntSummaryStatistics> entry :
-            this.processingTimesByStep.entrySet()) {
-          message.append("Step name: " + entry.getKey() + "\n");
-          message.append("Time spent in this step: " + entry.getValue().toString() + "\n");
-        }
-      }
-
-      return message.toString();
-    }
-
     @Override
     protected void takeSampleOnce(long millisSinceLastSample) {
       elementExecutionTracker.takeSample(millisSinceLastSample);
       super.takeSampleOnce(millisSinceLastSample);
-    }
-
-    @Override
-    protected void reportBundleLull(long millisElapsedSinceBundleStart) {
-      // If we're not logging warnings, nothing to report.
-      if (!LOG.isWarnEnabled()) {
-        return;
-      }
-
-      Duration lullDuration = Duration.millis(millisElapsedSinceBundleStart);
-
-      // Since the lull reporting executes in the sampler thread, it won't automatically inherit the
-      // context of the current step. To ensure things are logged correctly, we get the currently
-      // registered DataflowWorkerLoggingHandler and log directly in the desired context.
-      LogRecord logRecord = new LogRecord(Level.WARNING, getBundleLullMessage(lullDuration));
-      logRecord.setLoggerName(DataflowExecutionStateTracker.LOG.getName());
-
-      // Publish directly in the context of this specific ExecutionState.
-      DataflowWorkerLoggingHandler dataflowLoggingHandler =
-          DataflowWorkerLoggingInitializer.getLoggingHandler();
-      dataflowLoggingHandler.publish(logRecord);
-
-      if (shouldLogFullThreadDumpForBundle(lullDuration)) {
-        StackTraceUtil.logAllStackTraces();
-      }
     }
 
     /**
@@ -434,7 +323,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
           synchronized (this) {
             this.activeMessageMetadata =
                 ActiveMessageMetadata.create(
-                    newDFState.getStepName().userName(), clock.currentTimeMillis());
+                    newDFState.getStepName().userName(), clock.getMillis());
           }
         }
         elementExecutionTracker.enter(newDFState.getStepName());
