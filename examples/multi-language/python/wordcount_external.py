@@ -28,14 +28,10 @@ This pipeline reads an input text file then extracts and counts the words using 
 `ExtractWordsProvider`, `JavaCountProvider`, and `WriteWordsProvider`. Wrappers for these transforms are dynamically
 provided in Python via the `ExternalTransformProvider` API.
 
-Before running this program, make sure the expansion service is up and running. You can do so with the command:
-$ ./gradlew examples:multi-language:runExpansionService -PexpansionPort=<PORT>
-
-
 Example commands for executing this program:
 
 DirectRunner:
-$ python wordcount_external.py --runner DirectRunner --environment_type=DOCKER --input <INPUT FILE> --output output --expansion_service_port <PORT>
+$ python wordcount_external.py --runner DirectRunner --input <INPUT FILE> --output <OUTPUT FILE> --expansion_service_port <PORT>
 
 DataflowRunner:
 $ python wordcount_external.py \
