@@ -30,6 +30,7 @@ import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.StreamingScalingReport;
+import com.google.api.services.dataflow.model.StreamingScalingReportResponse;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.api.services.dataflow.model.WorkerMessage;
@@ -1776,22 +1777,24 @@ public class StreamingDataflowWorker {
 
   private void readAndSaveWorkerMessageResponseForStreamingScalingReportResponse(
       List<WorkerMessageResponse> responses) {
-    int oldMaximumThreadCount = chooseMaximumNumberOfThreads();
-    int maximumThreadCountFromResponse = 0;
+    Optional<StreamingScalingReportResponse> streamingScalingReportResponse = Optional.empty();
     for (WorkerMessageResponse response : responses) {
       if (response.getStreamingScalingReportResponse() != null) {
-        maximumThreadCountFromResponse =
-            response.getStreamingScalingReportResponse().getMaximumThreadCount();
+        streamingScalingReportResponse = Optional.of(response.getStreamingScalingReportResponse());
       }
     }
-    maxThreadCountOverride.set(maximumThreadCountFromResponse);
-    int newMaximumThreadCount = chooseMaximumNumberOfThreads();
-    if (newMaximumThreadCount != oldMaximumThreadCount) {
-      LOG.info(
-          "Setting maximum thread count to {}, old value is {}",
-          newMaximumThreadCount,
-          oldMaximumThreadCount);
-      workUnitExecutor.setMaximumPoolSize(newMaximumThreadCount, chooseMaximumBundlesOutstanding());
+    if (streamingScalingReportResponse.isPresent()) {
+      int oldMaximumThreadCount = chooseMaximumNumberOfThreads();
+      maxThreadCountOverride.set(streamingScalingReportResponse.get().getMaximumThreadCount());
+      int newMaximumThreadCount = chooseMaximumNumberOfThreads();
+      if (newMaximumThreadCount != oldMaximumThreadCount) {
+        LOG.info(
+            "Setting maximum thread count to {}, old value is {}",
+            newMaximumThreadCount,
+            oldMaximumThreadCount);
+        workUnitExecutor.setMaximumPoolSize(
+            newMaximumThreadCount, chooseMaximumBundlesOutstanding());
+      }
     }
   }
 

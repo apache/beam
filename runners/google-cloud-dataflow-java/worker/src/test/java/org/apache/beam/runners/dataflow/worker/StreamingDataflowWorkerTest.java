@@ -36,6 +36,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
@@ -2942,6 +2943,29 @@ public class StreamingDataflowWorkerTest {
         .thenReturn(Collections.singletonList(workerMessageResponse));
     worker.reportPeriodicWorkerMessage();
     Mockito.verify(mockExecutor).setMaximumPoolSize(10, 110);
+  }
+
+  @Test
+  public void testHandleEmptyWorkerMessageResponse() throws Exception {
+    BoundedQueueExecutor mockExecutor = Mockito.mock(BoundedQueueExecutor.class);
+    StreamingDataflowWorker worker =
+        StreamingDataflowWorker.forTesting(
+            computationMap,
+            server,
+            Collections.emptyList(),
+            IntrinsicMapTaskExecutorFactory.defaultFactory(),
+            mockWorkUnitClient,
+            createTestingPipelineOptions(),
+            false,
+            hotKeyLogger,
+            Instant::now,
+            (threadName) -> Executors.newSingleThreadScheduledExecutor(),
+            mockExecutor);
+    WorkerMessageResponse workerMessageResponse = new WorkerMessageResponse();
+    when(mockWorkUnitClient.reportWorkerMessage(any()))
+        .thenReturn(Collections.singletonList(workerMessageResponse));
+    worker.reportPeriodicWorkerMessage();
+    Mockito.verify(mockExecutor, Mockito.times(0)).setMaximumPoolSize(anyInt(), anyInt());
   }
 
   @Test
