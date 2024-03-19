@@ -130,7 +130,7 @@ public class BoundedQueueExecutorTest {
     assertEquals(Thread.State.WAITING, m2Runner.getState());
     assertTrue(executor.executorQueueIsEmpty());
 
-    // Stop m1 so there is an available bytes for m2 to run.
+    // Stop m1 so there are available bytes for m2 to run.
     processStop1.countDown();
     processStart2.await();
     // m2 started.
