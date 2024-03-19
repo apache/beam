@@ -71,6 +71,10 @@ def excluded_dependencies = [
         library.java.truth                           // Test only
 ]
 
+// For Java8+ and less than Java11, use versions 2.x.x.
+// Java11+ can use versions 3.x.x per https://github.com/ben-manes/caffeine.
+def caffeine_cache_version = "2.9.3"
+
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.runners.dataflow.worker',
         archivesBaseName: 'beam-runners-google-cloud-dataflow-java-legacy-worker',
@@ -137,6 +141,13 @@ applyJavaNature(
             relocate("org.eclipse.jetty", getWorkerRelocatedPath("org.eclipse.jetty"))
             relocate("javax.servlet", getWorkerRelocatedPath("javax.servlet"))
 
+            // Use Caffeine cache instead of Guava cache.
+            // Context: https://guava.dev/releases/snapshot/api/docs/com/google/common/cache/CacheBuilder
+            dependencies {
+                include(dependency("com.github.ben-manes.caffeine:caffeine:${caffeine_cache_version}}"))
+            }
+            relocate("com.github.ben-manes.caffeine", getWorkerRelocatedPath("com.github.ben-manes.caffeine"))
+
             // We don't relocate windmill since it is already underneath the org.apache.beam.runners.dataflow.worker namespace and never
             // expect a user pipeline to include it. There is also a JNI component that windmill server relies on which makes
             // arbitrary relocation more difficult.
@@ -202,6 +213,7 @@ dependencies {
     implementation "javax.servlet:javax.servlet-api:3.1.0"
     implementation "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
     implementation "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
+    implementation "com.github.ben-manes.caffeine:caffeine:${caffeine_cache_version}"
     implementation library.java.avro
     implementation library.java.jackson_annotations
     implementation library.java.jackson_core

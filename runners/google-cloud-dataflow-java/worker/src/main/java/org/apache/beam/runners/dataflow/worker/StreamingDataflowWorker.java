@@ -457,12 +457,13 @@ public class StreamingDataflowWorker {
   public static StreamingDataflowWorker fromOptions(DataflowWorkerHarnessOptions options) {
     ConcurrentMap<String, ComputationState> computationMap = new ConcurrentHashMap<>();
     long clientId = clientIdGenerator.nextLong();
+
+    Consumer<List<Windmill.ComputationHeartbeatResponse>> workHeartbeatResponseProcessor =
+        new WorkHeartbeatResponseProcessor(
+            computationId -> Optional.ofNullable(computationMap.get(computationId)));
+
     return new StreamingDataflowWorker(
-        createWindmillServerStub(
-            options,
-            clientId,
-            new WorkHeartbeatResponseProcessor(
-                computationId -> Optional.ofNullable(computationMap.get(computationId)))),
+        createWindmillServerStub(options, clientId, workHeartbeatResponseProcessor),
         clientId,
         computationMap,
         WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb()),
