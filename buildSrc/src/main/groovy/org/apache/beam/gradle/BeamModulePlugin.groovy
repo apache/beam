@@ -1280,29 +1280,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
       def jacocoEnabled = project.hasProperty('enableJacocoReport')
       if (jacocoEnabled) {
-        def jacocoCoverageTask = project.tasks.register("jacocoCodeCoverageReport", JacocoReport) {
-          getClassDirectories().setFrom(project.files(
-            project.fileTree(
-              dir: project.getLayout().getBuildDirectory().dir("classes/java/main"),
-              excludes: jacocoExcludes
-            )
-          ))
-          getSourceDirectories().setFrom(
-            project.files(project.sourceSets.main.allSource.srcDirs)
-          )
-          getExecutionData().setFrom(project.file(
-            project.getLayout().getBuildDirectory().file("jacoco/test.exec")
-          ))
-          reports {
-            html.required = true
-            xml.required = true
-            html.outputLocation = project.file(
-              project.getLayout().getBuildDirectory().dir("jacoco/report")
-            )
-          }
-        }
         project.tasks.withType(Test) {
-          finalizedBy jacocoCoverageTask
+          finalizedBy project.jacocoTestReport
         }
       }
 
