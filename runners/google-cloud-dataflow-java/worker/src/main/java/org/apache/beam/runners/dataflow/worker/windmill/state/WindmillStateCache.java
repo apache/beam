@@ -64,7 +64,8 @@ public class WindmillStateCache implements StatusDataProvider {
   // Initial size of hash tables per entry.
   private static final int INITIAL_HASH_MAP_CAPACITY = 4;
   // Overhead of each hash map entry.
-  private static final int HASH_MAP_ENTRY_OVERHEAD = 16;
+  // https://appsintheopen.com/posts/52-the-memory-overhead-of-java-ojects
+  private static final int HASH_MAP_ENTRY_OVERHEAD = 32;
   // Overhead of each StateCacheEntry.  One long, plus a hash table.
   private static final int PER_CACHE_ENTRY_OVERHEAD =
       8 + HASH_MAP_ENTRY_OVERHEAD * INITIAL_HASH_MAP_CAPACITY;
