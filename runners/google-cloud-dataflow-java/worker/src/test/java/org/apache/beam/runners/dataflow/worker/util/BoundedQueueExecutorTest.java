@@ -75,7 +75,7 @@ public class BoundedQueueExecutorTest {
   }
 
   @Test
-  public void testScheduleWork() throws Exception {
+  public void testScheduleWorkWhenExceedMaximumThreadCount() throws Exception {
     CountDownLatch processStart1 = new CountDownLatch(1);
     CountDownLatch processStop1 = new CountDownLatch(1);
     CountDownLatch processStart2 = new CountDownLatch(1);
@@ -87,19 +87,55 @@ public class BoundedQueueExecutorTest {
     Runnable m3 = createSleepProcessWorkFn(processStart3, processStop3);
 
     executor.execute(m1, 1);
-    assertTrue(processStart1.await(1000, TimeUnit.MILLISECONDS));
+    processStart1.await();
     executor.execute(m2, 1);
-    assertTrue(processStart2.await(1000, TimeUnit.MILLISECONDS));
+    processStart2.await();
     // m1 and m2 have started and all threads are occupied so m3 will be queued and not executed.
     executor.execute(m3, 1);
     assertFalse(processStart3.await(1000, TimeUnit.MILLISECONDS));
+    assertFalse(executor.executorQueueIsEmpty());
 
     // Stop m1 so there is an available thread for m3 to run.
     processStop1.countDown();
-    assertTrue(processStart3.await(1000, TimeUnit.MILLISECONDS));
+    processStart3.await();
     // m3 started.
+    assertTrue(executor.executorQueueIsEmpty());
     processStop2.countDown();
     processStop3.countDown();
+    executor.shutdown();
+  }
+
+  @Test
+  public void testScheduleWorkWhenExceedMaximumBytesOutstanding() throws Exception {
+    CountDownLatch processStart1 = new CountDownLatch(1);
+    CountDownLatch processStop1 = new CountDownLatch(1);
+    CountDownLatch processStart2 = new CountDownLatch(1);
+    CountDownLatch processStop2 = new CountDownLatch(1);
+    Runnable m1 = createSleepProcessWorkFn(processStart1, processStop1);
+    Runnable m2 = createSleepProcessWorkFn(processStart2, processStop2);
+
+    executor.execute(m1, 10000000);
+    processStart1.await();
+    // m1 has started and reached the maximumBytesOutstanding. Though the executor has available
+    // threads, the new task will be blocked until the bytes are available.
+    // Start a new thread since executor.execute() is a blocking function.
+    Thread m2Runner =
+        new Thread(
+            () -> {
+              executor.execute(m2, 1000);
+            });
+    m2Runner.start();
+    assertFalse(processStart2.await(1000, TimeUnit.MILLISECONDS));
+    // m2 will wait for monitor instead of being queued.
+    assertEquals(Thread.State.WAITING, m2Runner.getState());
+    assertTrue(executor.executorQueueIsEmpty());
+
+    // Stop m1 so there is an available bytes for m2 to run.
+    processStop1.countDown();
+    processStart2.await();
+    // m2 started.
+    assertEquals(Thread.State.TERMINATED, m2Runner.getState());
+    processStop2.countDown();
     executor.shutdown();
   }
 
@@ -125,7 +161,7 @@ public class BoundedQueueExecutorTest {
     processStart2.await();
     assertEquals(2, executor.activeCount());
 
-    // Max pool size was reached so no new work is accepted.
+    // Max pool size was reached so new work is queued.
     executor.execute(m3, 1);
     assertFalse(processStart3.await(1000, TimeUnit.MILLISECONDS));
 
@@ -171,6 +207,7 @@ public class BoundedQueueExecutorTest {
     stop.countDown();
     while (executor.activeCount() != 0) {
       // Waiting for all threads to be ended.
+      Thread.sleep(200);
     }
     // Max pool size was reached so the allThreadsActiveTime() was updated.
     assertThat(executor.allThreadsActiveTime(), greaterThan(0l));
@@ -211,6 +248,7 @@ public class BoundedQueueExecutorTest {
     stop.countDown();
     while (executor.activeCount() != 0) {
       // Waiting for all threads to be ended.
+      Thread.sleep(200);
     }
     // Max pool size was updated during execution but allThreadsActiveTime() was still recorded
     // for the thread which reached the old max pool size.

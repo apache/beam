@@ -73,7 +73,7 @@ public class BoundedQueueExecutor {
           protected void beforeExecute(Thread t, Runnable r) {
             super.beforeExecute(t, r);
             synchronized (BoundedQueueExecutor.this) {
-              if (activeCount++ >= maximumThreadCount - 1 && startTimeMaxActiveThreadsUsed == 0) {
+              if (++activeCount >= maximumThreadCount && startTimeMaxActiveThreadsUsed == 0) {
                 startTimeMaxActiveThreadsUsed = System.currentTimeMillis();
               }
             }
@@ -83,7 +83,7 @@ public class BoundedQueueExecutor {
           protected void afterExecute(Runnable r, Throwable t) {
             super.afterExecute(r, t);
             synchronized (BoundedQueueExecutor.this) {
-              if (activeCount-- <= maximumThreadCount && startTimeMaxActiveThreadsUsed > 0) {
+              if (--activeCount < maximumThreadCount && startTimeMaxActiveThreadsUsed > 0) {
                 totalTimeMaxActiveThreadsUsed +=
                     (System.currentTimeMillis() - startTimeMaxActiveThreadsUsed);
                 startTimeMaxActiveThreadsUsed = 0;
@@ -108,13 +108,13 @@ public class BoundedQueueExecutor {
                     && elementsOutstanding < maximumElementsOutstanding());
           }
         });
-    executeLockHeld(work, workBytes);
+    executeMonitorHeld(work, workBytes);
   }
 
   // Forcibly add something to the queue, ignoring the length limit.
   public void forceExecute(Runnable work, long workBytes) {
     monitor.enter();
-    executeLockHeld(work, workBytes);
+    executeMonitorHeld(work, workBytes);
   }
 
   // Set the maximum/core pool size of the executor.
@@ -217,7 +217,7 @@ public class BoundedQueueExecutor {
     }
   }
 
-  private void executeLockHeld(Runnable work, long workBytes) {
+  private void executeMonitorHeld(Runnable work, long workBytes) {
     bytesOutstanding += workBytes;
     ++elementsOutstanding;
     monitor.leave();
