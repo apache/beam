@@ -26,6 +26,10 @@ from typing import List
 from typing import Optional
 from typing import Sequence
 
+from google.api_core.exceptions import Aborted
+from google.api_core.exceptions import DeadlineExceeded
+from google.api_core.exceptions import ResourceExhausted
+from google.api_core.exceptions import ServiceUnavailable
 from google.auth.credentials import Credentials
 
 import apache_beam as beam
@@ -34,6 +38,7 @@ from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
+from apache_beam.utils import retry
 from vertexai.language_models import TextEmbeddingInput
 from vertexai.language_models import TextEmbeddingModel
 
@@ -49,7 +54,18 @@ TASK_TYPE_INPUTS = [
     "CLASSIFICATION",
     "CLUSTERING"
 ]
+
+errors = (
+    ResourceExhausted,
+    ServiceUnavailable,
+    Aborted,
+    DeadlineExceeded,
+)
 _BATCH_SIZE = 5  # Vertex AI limits requests to 5 at a time.
+
+
+def retry_on_vertex_ai_errors(exception):
+  return isinstance(exception, errors)
 
 
 class _VertexAITextEmbeddingHandler(ModelHandler):
@@ -73,6 +89,8 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
     self.task_type = task_type
     self.title = title
 
+  @retry.with_exponential_backoff(
+      retry_filter=retry_on_vertex_ai_errors, num_retries=5)
   def run_inference(
       self,
       batch: Sequence[str],
