@@ -840,6 +840,7 @@ public class BigQueryServicesImplTest {
    */
   @Test
   public void testInsertAll_InternalBigQueryErrors() throws Exception {
+    BigQuerySinkMetrics.setSupportStreamingInsertsMetrics(true);
     BigQuerySinkMetricsTest.TestMetricsContainer testMetricsContainer =
         new BigQuerySinkMetricsTest.TestMetricsContainer();
     MetricsEnvironment.setCurrentContainer(testMetricsContainer);
@@ -926,7 +927,7 @@ public class BigQueryServicesImplTest {
     testMetricsContainer.assertPerWorkerCounterValue(okRpcRequestName, 4L);
     testMetricsContainer.assertPerWorkerCounterValue(rateLimitRpcRequestName, 1L);
     testMetricsContainer.assertPerWorkerCounterValue(okRowsAppendedName, 1L);
-    testMetricsContainer.assertPerWorkerCounterValue(internalRowsAppendedName, 4L);
+    testMetricsContainer.assertPerWorkerCounterValue(internalRowsAppendedName, 3L);
     testMetricsContainer.assertPerWorkerCounterValue(rateLimitRowsAppendedName, 2L);
     testMetricsContainer.assertPerWorkerCounterValue(failedRowsName, 1L);
 
@@ -939,6 +940,7 @@ public class BigQueryServicesImplTest {
    */
   @Test
   public void testInsertAll_RpcErrors() throws Exception {
+    BigQuerySinkMetrics.setSupportStreamingInsertsMetrics(true);
     BigQuerySinkMetricsTest.TestMetricsContainer testMetricsContainer =
         new BigQuerySinkMetricsTest.TestMetricsContainer();
     MetricsEnvironment.setCurrentContainer(testMetricsContainer);
