@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.expansion;
 
 import com.google.auto.service.AutoService;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
@@ -49,6 +50,9 @@ public class ExternalSqlTransformRegistrar implements ExternalTransformRegistrar
 
   public static class Configuration {
     String query = "";
+
+    @Nullable List<String> ddlQueries;
+
     @Nullable String dialect;
 
     public void setQuery(String query) {
@@ -58,6 +62,12 @@ public class ExternalSqlTransformRegistrar implements ExternalTransformRegistrar
     public void setDialect(@Nullable String dialect) {
       this.dialect = dialect;
     }
+
+    public void setDdlQuery(@Nullable List<String> ddlQuery) {
+      if (ddlQuery != null) {
+        this.ddlQueries = ddlQuery;
+      }
+    }
   }
 
   private static class Builder
@@ -65,6 +75,13 @@ public class ExternalSqlTransformRegistrar implements ExternalTransformRegistrar
     @Override
     public PTransform<PInput, PCollection<Row>> buildExternal(Configuration configuration) {
       SqlTransform transform = SqlTransform.query(configuration.query);
+
+      if (configuration.ddlQueries != null) {
+        for (String ddlString : configuration.ddlQueries) {
+          transform = transform.withDdlString(ddlString);
+        }
+      }
+
       if (configuration.dialect != null) {
         Class<? extends QueryPlanner> queryPlanner =
             DIALECTS.get(configuration.dialect.toLowerCase());
