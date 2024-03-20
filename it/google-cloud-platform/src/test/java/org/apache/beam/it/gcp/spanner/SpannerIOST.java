@@ -43,9 +43,12 @@ import org.apache.beam.it.common.TestProperties;
 import org.apache.beam.it.common.utils.ResourceManagerUtils;
 import org.apache.beam.it.gcp.IOStressTestBase;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
+import org.apache.beam.sdk.io.synthetic.SyntheticUnboundedSource;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -127,6 +130,7 @@ public final class SpannerIOST extends IOStressTestBase {
         }
         // Use streaming pipeline to write records
         writePipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
+        writePipeline.getOptions().as(DataflowStreamingPipelineOptions.class);
 
         // prepare schema
         String createTable =
@@ -149,7 +153,7 @@ public final class SpannerIOST extends IOStressTestBase {
                     ImmutableMap.of(
                             "medium",
                             Configuration.fromJsonString(
-                                    "{\"rowsPerSecond\":25000,\"minutes\":2,\"pipelineTimeout\":80,\"valueSizeBytes\":1000,\"runner\":\"DataflowRunner\"}",
+                                    "{\"numRecords\":10000000,\"rowsPerSecond\":25000,\"minutes\":10,\"pipelineTimeout\":80,\"valueSizeBytes\":1000,\"runner\":\"DataflowRunner\"}",
                                     Configuration.class),
                             "large",
                             Configuration.fromJsonString(
@@ -233,21 +237,18 @@ public final class SpannerIOST extends IOStressTestBase {
      */
     private PipelineLauncher.LaunchInfo generateDataAndWrite() throws IOException {
         // The PeriodicImpulse source will generate an element every this many millis:
-        int fireInterval = 1;
+//        int fireInterval = 1;
         // Each element from PeriodicImpulse will fan out to this many elements:
         int startMultiplier =
                 Math.max(configuration.rowsPerSecond, DEFAULT_ROWS_PER_SECOND) / DEFAULT_ROWS_PER_SECOND;
-        long stopAfterMillis =
-                org.joda.time.Duration.standardMinutes(configuration.minutes).getMillis();
-        long totalRows = startMultiplier * stopAfterMillis / fireInterval;
+//        long stopAfterMillis =
+//                org.joda.time.Duration.standardMinutes(configuration.minutes).getMillis();
+//        long totalRows = startMultiplier * stopAfterMillis / fireInterval;
         List<LoadPeriod> loadPeriods =
                 getLoadPeriods(configuration.minutes, DEFAULT_LOAD_INCREASE_ARRAY);
 
-        PCollection<Instant> source =
-                writePipeline.apply(
-                        PeriodicImpulse.create()
-                                .stopAfter(org.joda.time.Duration.millis(stopAfterMillis - 1))
-                                .withInterval(org.joda.time.Duration.millis(fireInterval)));
+        PCollection<KV<byte[], byte[]>> source =
+                writePipeline.apply(Read.from(new SyntheticUnboundedSource(configuration)));
         if (startMultiplier > 1) {
             source =
                     source
@@ -257,10 +258,10 @@ public final class SpannerIOST extends IOStressTestBase {
                             .apply("Counting element", ParDo.of(new CountingFn<>(WRITE_ELEMENT_METRIC_NAME)));
         }
         source
-                .apply(
+                        .apply(
                         "Map records to Spanner mutations",
                         ParDo.of(new GenerateMutations(
-                                tableName, configuration.numColumns, (int) configuration.valueSizeBytes, (int) totalRows
+                                tableName, configuration.numColumns, (int) configuration.valueSizeBytes
                         )))
                 .apply(
                         "Write to Spanner",
@@ -282,7 +283,6 @@ public final class SpannerIOST extends IOStressTestBase {
                                         .toString())
                         .addParameter("numWorkers", String.valueOf(configuration.numWorkers))
                         .addParameter("maxNumWorkers", String.valueOf(configuration.maxNumWorkers))
-                        .addParameter("experiments", "use_runner_v2")
                         .build();
 
         return pipelineLauncher.launch(project, region, options);
@@ -318,31 +318,31 @@ public final class SpannerIOST extends IOStressTestBase {
     }
 
     /** Maps long number to the Spanner format record. */
-    private static class GenerateMutations extends DoFn<Instant, Mutation> implements Serializable {
+    private static class GenerateMutations extends DoFn<KV<byte[], byte[]>, Mutation> implements Serializable {
         private final String table;
         private final int numBytesCol;
         private final int sizePerCol;
-        private final int totalRows;
+//        private final int totalRows;
 
-        public GenerateMutations(String tableId, int numBytesCol, int valueSizeBytes, int totalRows) {
+        public GenerateMutations(String tableId, int numBytesCol, int valueSizeBytes) {
             checkArgument(valueSizeBytes >= numBytesCol);
             this.table = tableId;
             this.numBytesCol = numBytesCol;
             this.sizePerCol = valueSizeBytes / numBytesCol;
-            this.totalRows = totalRows;
+//            this.totalRows = totalRows;
         }
 
         @ProcessElement
         public void processElement(ProcessContext c) {
             Mutation.WriteBuilder builder = Mutation.newInsertOrUpdateBuilder(table);
-            long index = Objects.requireNonNull(c.element()).getMillis() % totalRows;
+//            long index = Objects.requireNonNull(c.element()).getMillis() % totalRows;
             String key = String.format(
                     "key%s",
-                    index
-                            + "-" + UUID.randomUUID() + "-" + UUID.randomUUID()
+//                    index
+                            "-" + UUID.randomUUID() + "-" + UUID.randomUUID()
                             + "-" + Instant.now().getMillis());
             builder.set("Id").to(key);
-            Random random = new Random(index);
+            Random random = new Random();
             byte[] value = new byte[sizePerCol];
             for (int col = 0; col < numBytesCol; ++col) {
                 String name = String.format("COL%d", col + 1);
