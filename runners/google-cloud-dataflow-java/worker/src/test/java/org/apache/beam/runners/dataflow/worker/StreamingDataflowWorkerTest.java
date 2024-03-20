@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.addObject;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
+import static org.apache.beam.runners.dataflow.worker.StreamingDataflowWorker.DEFAULT_RETRY_LOCALLY_MS;
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.splitIntToLong;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.both;
@@ -795,7 +796,8 @@ public class StreamingDataflowWorkerTest {
       DataflowWorkerHarnessOptions options,
       boolean publishCounters,
       Supplier<Instant> clock,
-      Function<String, ScheduledExecutorService> executorSupplier) {
+      Function<String, ScheduledExecutorService> executorSupplier,
+      int localRetryTimeoutMs) {
     StreamingDataflowWorker worker =
         StreamingDataflowWorker.forTesting(
             computationMap,
@@ -807,10 +809,21 @@ public class StreamingDataflowWorkerTest {
             publishCounters,
             hotKeyLogger,
             clock,
-            executorSupplier);
+            executorSupplier,
+            localRetryTimeoutMs);
     worker.addStateNameMappings(
         ImmutableMap.of(DEFAULT_PARDO_USER_NAME, DEFAULT_PARDO_STATE_FAMILY));
     return worker;
+  }
+
+  private StreamingDataflowWorker makeWorker(
+      List<ParallelInstruction> instructions,
+      DataflowWorkerHarnessOptions options,
+      boolean publishCounters,
+      Supplier<Instant> clock,
+      Function<String, ScheduledExecutorService> executorSupplier) {
+    return makeWorker(
+        instructions, options, publishCounters, clock, executorSupplier, DEFAULT_RETRY_LOCALLY_MS);
   }
 
   private StreamingDataflowWorker makeWorker(
@@ -822,7 +835,22 @@ public class StreamingDataflowWorkerTest {
         options,
         publishCounters,
         Instant::now,
-        (threadName) -> Executors.newSingleThreadScheduledExecutor());
+        (threadName) -> Executors.newSingleThreadScheduledExecutor(),
+        DEFAULT_RETRY_LOCALLY_MS);
+  }
+
+  private StreamingDataflowWorker makeWorker(
+      List<ParallelInstruction> instructions,
+      DataflowWorkerHarnessOptions options,
+      boolean publishCounters,
+      int localRetryTimeoutMs) {
+    return makeWorker(
+        instructions,
+        options,
+        publishCounters,
+        Instant::now,
+        (threadName) -> Executors.newSingleThreadScheduledExecutor(),
+        localRetryTimeoutMs);
   }
 
   @Test
@@ -1218,7 +1246,7 @@ public class StreamingDataflowWorkerTest {
     // Spam worker updates a few times.
     int maxTries = 10;
     while (--maxTries > 0) {
-      worker.reportPeriodicWorkerUpdates();
+      worker.reportPeriodicWorkerUpdatesForTest();
       Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
     }
 
@@ -1299,6 +1327,7 @@ public class StreamingDataflowWorkerTest {
       // TODO: This test needs to be adapted to work with streamingEngine=true.
       return;
     }
+
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),
@@ -1353,7 +1382,7 @@ public class StreamingDataflowWorkerTest {
     // Spam worker updates a few times.
     maxTries = 10;
     while (maxTries-- > 0) {
-      worker.reportPeriodicWorkerUpdates();
+      worker.reportPeriodicWorkerUpdatesForTest();
       Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
     }
 
@@ -3133,8 +3162,8 @@ public class StreamingDataflowWorkerTest {
         makeWorker(
             instructions,
             options.as(DataflowWorkerHarnessOptions.class),
-            true /* publishCounters */);
-    worker.setRetryLocallyDelayMs(100);
+            true /* publishCounters */,
+            100);
     worker.start();
 
     // Three GetData requests
