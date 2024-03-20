@@ -611,7 +611,7 @@ class BundleProcessorCache(object):
       cur_time = time.time()
       with self._lock:
         # Shutdown can be expensive, keep out of lock
-        for descriptor_id, last_access_time in access_times:
+        for descriptor_id, last_access_time in self.last_access_times.items():
           if (cur_time - last_access_time > 
               DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S):
             inactive_descriptor_ids.append(descriptor_id)
