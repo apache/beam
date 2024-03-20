@@ -17,7 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
+import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.remoteChannel;
+
 import com.google.auth.Credentials;
+import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc.CloudWindmillMetadataServiceV1Alpha1Stub;
@@ -26,30 +29,29 @@ import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Al
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.auth.VendoredCredentialsAdapter;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.auth.MoreCallCredentials;
 
 /** Creates remote stubs to talk to Streaming Engine. */
 @Internal
 @ThreadSafe
-public final class ChannelCachingRemoteStubFactory implements ChannelCachingStubFactory {
+public final class RemoteWindmillStubFactory implements WindmillStubFactory {
+  private final int rpcChannelTimeoutSec;
   private final Credentials gcpCredentials;
-  private final ChannelCache channelCache;
+  private final boolean useIsolatedChannels;
 
-  private ChannelCachingRemoteStubFactory(Credentials gcpCredentials, ChannelCache channelCache) {
+  public RemoteWindmillStubFactory(
+      int rpcChannelTimeoutSec, Credentials gcpCredentials, boolean useIsolatedChannels) {
+    this.rpcChannelTimeoutSec = rpcChannelTimeoutSec;
     this.gcpCredentials = gcpCredentials;
-    this.channelCache = channelCache;
-  }
-
-  public static ChannelCachingRemoteStubFactory create(
-      Credentials gcpCredentials, ChannelCache channelCache) {
-    return new ChannelCachingRemoteStubFactory(gcpCredentials, channelCache);
+    this.useIsolatedChannels = useIsolatedChannels;
   }
 
   @Override
   public CloudWindmillServiceV1Alpha1Stub createWindmillServiceStub(
       WindmillServiceAddress serviceAddress) {
     CloudWindmillServiceV1Alpha1Stub windmillServiceStub =
-        CloudWindmillServiceV1Alpha1Grpc.newStub(channelCache.get(serviceAddress));
+        CloudWindmillServiceV1Alpha1Grpc.newStub(createChannel(serviceAddress));
     return serviceAddress.getKind() != WindmillServiceAddress.Kind.AUTHENTICATED_GCP_SERVICE_ADDRESS
         ? windmillServiceStub.withCallCredentials(
             MoreCallCredentials.from(new VendoredCredentialsAdapter(gcpCredentials)))
@@ -59,18 +61,16 @@ public final class ChannelCachingRemoteStubFactory implements ChannelCachingStub
   @Override
   public CloudWindmillMetadataServiceV1Alpha1Stub createWindmillMetadataServiceStub(
       WindmillServiceAddress serviceAddress) {
-    return CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(channelCache.get(serviceAddress))
+    return CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(createChannel(serviceAddress))
         .withCallCredentials(
             MoreCallCredentials.from(new VendoredCredentialsAdapter(gcpCredentials)));
   }
 
-  @Override
-  public void remove(WindmillServiceAddress windmillServiceAddress) {
-    channelCache.remove(windmillServiceAddress);
-  }
-
-  @Override
-  public void shutdown() {
-    channelCache.clear();
+  private ManagedChannel createChannel(WindmillServiceAddress serviceAddress) {
+    Supplier<ManagedChannel> channelFactory =
+        () -> remoteChannel(serviceAddress, rpcChannelTimeoutSec);
+    // IsolationChannel will create and manage separate RPC channels to the same serviceAddress via
+    // calling the channelFactory, else just directly return the RPC channel.
+    return useIsolatedChannels ? IsolationChannel.create(channelFactory) : channelFactory.get();
   }
 }
