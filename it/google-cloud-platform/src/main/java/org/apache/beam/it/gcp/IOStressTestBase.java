@@ -17,20 +17,10 @@
  */
 package org.apache.beam.it.gcp;
 
-import com.google.cloud.Timestamp;
-import java.io.IOException;
 import java.io.Serializable;
-import java.text.ParseException;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import org.apache.beam.it.common.PipelineLauncher;
-import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
-import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.joda.time.Instant;
 
@@ -128,31 +118,6 @@ public class IOStressTestBase extends IOLoadTestBase {
       for (int i = 0; i < multiplier; i++) {
         outputReceiver.output(element);
       }
-    }
-  }
-
-  /** Exports test metrics to InfluxDB or BigQuery depending on the configuration. */
-  protected void exportMetrics(
-      PipelineLauncher.LaunchInfo launchInfo,
-      MetricsConfiguration metricsConfig,
-      boolean exportToInfluxDB,
-      InfluxDBSettings influxDBSettings)
-      throws IOException, ParseException, InterruptedException {
-
-    Map<String, Double> metrics = getMetrics(launchInfo, metricsConfig);
-    String testId = UUID.randomUUID().toString();
-    String testTimestamp = Timestamp.now().toString();
-
-    if (exportToInfluxDB) {
-      Collection<NamedTestResult> namedTestResults = new ArrayList<>();
-      for (Map.Entry<String, Double> entry : metrics.entrySet()) {
-        NamedTestResult metricResult =
-            NamedTestResult.create(testId, testTimestamp, entry.getKey(), entry.getValue());
-        namedTestResults.add(metricResult);
-      }
-      IOITMetrics.publishToInflux(testId, testTimestamp, namedTestResults, influxDBSettings);
-    } else {
-      exportMetricsToBigQuery(launchInfo, metrics);
     }
   }
 }
