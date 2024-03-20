@@ -31,7 +31,7 @@ limitations under the License.
 
 
 The enrichment transform lets you dynamically enrich data in a pipeline by doing a key-value lookup to a remote service. The transform uses [`RequestResponeIO`](https://beam.apache.org/releases/pydoc/current/apache_beam.io.requestresponseio.html#apache_beam.io.requestresponseio.RequestResponseIO) internally. This feature uses client-side throttling to ensure that the remote service isn't overloaded with requests. If service-side errors occur, like `TooManyRequests` and `Timeout` exceptions, it retries the requests by using exponential backoff.
- 
+
 This transform is available in Apache Beam 2.54.0 and later versions.
 
 ## Examples
@@ -39,11 +39,11 @@ This transform is available in Apache Beam 2.54.0 and later versions.
 The following examples demonstrates how to create a pipeline that use the enrichment transform to enrich data from external services.
 
 {{< table >}}
-| Service                                       | Beam version | Example                                     |
-|:----------------------------------------------|:-------------|:--------------------------------------------|
-| Google Cloud Bigtable                         | \>= 2.54.0   | Bigtable Enrichment                         |
-| Google Cloud Vertex AI Feature Store          | \>= 2.55.0   | Vertex AI Feature Store Enrichment          |
-| Google Cloud Vertex AI Feature Store (Legacy) | \>= 2.55.0   | Vertex AI Feature Store (Legacy) Enrichment |
+| Service                                       | Example                                                                                                                                                                    |
+|:----------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Google Cloud Bigtable                         | [Bigtable Enrichment](/documentation/transforms/python/elementwise/enrichment-bigtable/#example)                                                                           |
+| Google Cloud Vertex AI Feature Store          | [Vertex AI Feature Store Enrichment](/documentation/transforms/python/elementwise/enrichment-vertexai/#example-1-enrichment-with-vertex-ai-feature-store)                  |
+| Google Cloud Vertex AI Feature Store (Legacy) | [Vertex AI Feature Store (Legacy) Enrichment](/documentation/transforms/python/elementwise/enrichment-vertexai/#example-2-enrichment-with-vertex-ai-feature-store-legacy)  |
 {{< /table >}}
 
 ## Related transforms

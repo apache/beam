@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Enrichment transform
+# Use Bigtable to enrich data
 
 {{< localstorage language language-py >}}
 
@@ -29,21 +29,20 @@ limitations under the License.
   </tr>
 </table>
 
-
-The following example demonstrates how to create a pipeline that does data enrichment with Cloud Bigtable.
-
-## Example: BigTableEnrichmentHandler
+In Apache Beam 2.54.0 and later versions, the enrichment transform includes a built-in enrichment handler for [Bigtable](https://cloud.google.com/bigtable/docs/overview).
+The following example demonstrates how to create a pipeline that use the enrichment transform with `BigTableEnrichmentHandler`.
 
 The data stored in the Bigtable cluster uses the following format:
 
-{{ table }}
-|  Row key  |  product:product_id  |  product:product_name  |  product:product_stock  |
-|:---------:|:--------------------:|:----------------------:|:-----------------------:|
-|     1     |          1           |        pixel 5         |            2            |
-|     2     |          2           |        pixel 6         |            4            |
-|     3     |          3           |        pixel 7         |           20            |
-|     4     |          4           |        pixel 8         |           10            |
-{{ /table }}
+{{< table >}}
+|  Row key    |  product:product_id  |  product:product_name  |  product:product_stock  |
+|:-----------:|:--------------------:|:----------------------:|:-----------------------:|
+|     1       |          1           |        pixel 5         |            2            |
+|     2       |          2           |        pixel 6         |            4            |
+|     3       |          3           |        pixel 7         |           20            |
+|     4       |          4           |        pixel 8         |           10            |
+{{< /table >}}
+
 
 {{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/enrichment.py" enrichment_with_bigtable >}}
