@@ -147,7 +147,6 @@ dependencies {
   implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":runners:core-java")
-  implementation project(":runners:core-construction-java")
   implementation project(":runners:java-fn-execution")
   implementation project(":runners:java-job-service")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
@@ -193,13 +192,11 @@ dependencies {
 
   if (flink_version.compareTo("1.14") >= 0) {
     implementation "org.apache.flink:flink-runtime:$flink_version"
-    implementation "org.apache.flink:flink-optimizer:$flink_version"
     implementation "org.apache.flink:flink-metrics-core:$flink_version"
     testImplementation "org.apache.flink:flink-runtime:$flink_version:tests"
     testImplementation "org.apache.flink:flink-rpc-akka:$flink_version"
   } else {
     implementation "org.apache.flink:flink-runtime_2.12:$flink_version"
-    implementation "org.apache.flink:flink-optimizer_2.12:$flink_version"
     testImplementation "org.apache.flink:flink-runtime_2.12:$flink_version:tests"
   }
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
@@ -280,6 +277,7 @@ def createValidatesRunnerTask(Map m) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       } else {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
         // Should be run only in a properly configured SDK harness environment
         excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'

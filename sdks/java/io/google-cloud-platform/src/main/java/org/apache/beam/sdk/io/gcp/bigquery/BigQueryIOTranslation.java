@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.runners.core.construction.TransformUpgrader.fromByteArray;
-import static org.apache.beam.runners.core.construction.TransformUpgrader.toByteArray;
+import static org.apache.beam.sdk.util.construction.TransformUpgrader.fromByteArray;
+import static org.apache.beam.sdk.util.construction.TransformUpgrader.toByteArray;
 
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.TableRow;
@@ -37,9 +37,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.FromBeamRowFunction;
@@ -59,6 +56,14 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
+import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.sdk.util.construction.TransformUpgrader;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -101,6 +106,8 @@ public class BigQueryIOTranslation {
             .addNullableStringField("from_beam_row_fn")
             .addNullableBooleanField("use_avro_logical_types")
             .addNullableBooleanField("projection_pushdown_applied")
+            .addNullableByteArrayField("bad_record_router")
+            .addNullableByteArrayField("bad_record_error_handler")
             .build();
 
     public static final String BIGQUERY_READ_TRANSFORM_URN =
@@ -185,12 +192,23 @@ public class BigQueryIOTranslation {
         fieldValues.put("use_avro_logical_types", transform.getUseAvroLogicalTypes());
       }
       fieldValues.put("projection_pushdown_applied", transform.getProjectionPushdownApplied());
+      fieldValues.put("bad_record_router", toByteArray(transform.getBadRecordRouter()));
+      fieldValues.put(
+          "bad_record_error_handler", toByteArray(transform.getBadRecordErrorHandler()));
 
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
     }
 
     @Override
     public TypedRead<?> fromConfigRow(Row configRow, PipelineOptions options) {
+      String updateCompatibilityBeamVersion =
+          options.as(StreamingOptions.class).getUpdateCompatibilityVersion();
+      // We need to set a default 'updateCompatibilityBeamVersion' here since this PipelineOption
+      // is not correctly passed in for pipelines that use Beam 2.53.0.
+      // This is fixed for Beam 2.54.0 and later.
+      updateCompatibilityBeamVersion =
+          (updateCompatibilityBeamVersion != null) ? updateCompatibilityBeamVersion : "2.53.0";
+
       try {
         BigQueryIO.TypedRead.Builder builder = new AutoValue_BigQueryIO_TypedRead.Builder<>();
 
@@ -305,6 +323,20 @@ public class BigQueryIOTranslation {
           builder = builder.setProjectionPushdownApplied(projectionPushdownApplied);
         }
 
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.55.0") < 0) {
+          // We need to use defaults here for BQ rear/write transforms upgraded
+          // from older Beam versions.
+          // See https://github.com/apache/beam/issues/30534.
+          builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
+          builder.setBadRecordErrorHandler(new BadRecordErrorHandler.DefaultErrorHandler<>());
+        } else {
+          byte[] badRecordRouter = configRow.getBytes("bad_record_router");
+          builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));
+          byte[] badRecordErrorHandler = configRow.getBytes("bad_record_error_handler");
+          builder.setBadRecordErrorHandler(
+              (ErrorHandler<BadRecord, ?>) fromByteArray(badRecordErrorHandler));
+        }
+
         return builder.build();
       } catch (InvalidClassException e) {
         throw new RuntimeException(e);
@@ -378,6 +410,8 @@ public class BigQueryIOTranslation {
             .addNullableByteArrayField("deterministic_record_id_fn")
             .addNullableStringField("write_temp_dataset")
             .addNullableByteArrayField("row_mutation_information_fn")
+            .addNullableByteArrayField("bad_record_error_handler")
+            .addNullableByteArrayField("bad_record_router")
             .build();
 
     public static final String BIGQUERY_WRITE_TRANSFORM_URN =
@@ -549,12 +583,23 @@ public class BigQueryIOTranslation {
         fieldValues.put(
             "row_mutation_information_fn", toByteArray(transform.getRowMutationInformationFn()));
       }
+      fieldValues.put("bad_record_router", toByteArray(transform.getBadRecordRouter()));
+      fieldValues.put(
+          "bad_record_error_handler", toByteArray(transform.getBadRecordErrorHandler()));
 
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
     }
 
     @Override
     public Write<?> fromConfigRow(Row configRow, PipelineOptions options) {
+      String updateCompatibilityBeamVersion =
+          options.as(StreamingOptions.class).getUpdateCompatibilityVersion();
+      // We need to set a default 'updateCompatibilityBeamVersion' here since this PipelineOption
+      // is not correctly passed in for pipelines that use Beam 2.53.0.
+      // This is fixed for Beam 2.54.0 and later.
+      updateCompatibilityBeamVersion =
+          (updateCompatibilityBeamVersion != null) ? updateCompatibilityBeamVersion : "2.53.0";
+
       try {
         BigQueryIO.Write.Builder builder = new AutoValue_BigQueryIO_Write.Builder<>();
 
@@ -698,20 +743,11 @@ public class BigQueryIOTranslation {
           builder = builder.setMaxBytesPerPartition(maxBytesPerPartition);
         }
 
-        String updateCompatibilityBeamVersion =
-            options.as(StreamingOptions.class).getUpdateCompatibilityVersion();
-
         // We need to update the 'triggerring_frequency' field name for pipelines that are upgraded
         // from Beam 2.53.0 due to https://github.com/apache/beam/pull/29785.
-        // We need to set a default 'updateCompatibilityBeamVersion' here since this PipelineOption
-        // is not correctly passed in for pipelines that use Beam 2.53.0.
-        // Both above issues are fixed for Beam 2.54.0 and later.
-        updateCompatibilityBeamVersion =
-            (updateCompatibilityBeamVersion != null) ? updateCompatibilityBeamVersion : "2.53.0";
-
+        // This is fixed for Beam 2.54.0 and later.
         String triggeringFrequencyFieldName =
-            (updateCompatibilityBeamVersion != null
-                    && updateCompatibilityBeamVersion.equals("2.53.0"))
+            TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.53.0") == 0
                 ? "triggerring_frequency"
                 : "triggering_frequency";
 
@@ -821,6 +857,20 @@ public class BigQueryIOTranslation {
           builder =
               builder.setRowMutationInformationFn(
                   (SerializableFunction) fromByteArray(rowMutationInformationFnBytes));
+        }
+
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.55.0") < 0) {
+          // We need to use defaults here for BQ rear/write transforms upgraded
+          // from older Beam versions.
+          // See https://github.com/apache/beam/issues/30534.
+          builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
+          builder.setBadRecordErrorHandler(new BadRecordErrorHandler.DefaultErrorHandler<>());
+        } else {
+          byte[] badRecordRouter = configRow.getBytes("bad_record_router");
+          builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));
+          byte[] badRecordErrorHandler = configRow.getBytes("bad_record_error_handler");
+          builder.setBadRecordErrorHandler(
+              (ErrorHandler<BadRecord, ?>) fromByteArray(badRecordErrorHandler));
         }
 
         return builder.build();

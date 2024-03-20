@@ -247,7 +247,6 @@ tasks.register("javaPreCommit") {
   dependsOn(":model:fn-execution:build")
   dependsOn(":model:job-management:build")
   dependsOn(":model:pipeline:build")
-  dependsOn(":runners:core-construction-java:build")
   dependsOn(":runners:core-java:build")
   dependsOn(":runners:direct-java:build")
   dependsOn(":runners:direct-java:needsRunnerTests")
@@ -505,6 +504,7 @@ tasks.register("python38PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py38:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py38:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py38:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:direct:py38:azureIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py38:postCommitPy38")
   // TODO: https://github.com/apache/beam/issues/22651
   // The default container uses Python 3.8. The goal here is to
@@ -517,7 +517,6 @@ tasks.register("python38PostCommit") {
 tasks.register("python39PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
   // TODO (https://github.com/apache/beam/issues/23966)
   // Move this to Python 3.10 test suite once tfx-bsl has python 3.10 wheel.
@@ -527,7 +526,6 @@ tasks.register("python39PostCommit") {
 tasks.register("python310PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py310:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py310:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py310:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
 }
 
@@ -646,6 +644,11 @@ tasks.register("checkSetup") {
   dependsOn(":sdks:go:examples:wordCount")
   dependsOn(":sdks:python:wordCount")
   dependsOn(":examples:java:wordCount")
+}
+
+// Generates external transform config
+project.tasks.register("generateExternalTransformsConfig") {
+  dependsOn(":sdks:python:generateExternalTransformsConfig")
 }
 
 // Configure the release plugin to do only local work; the release manager determines what, if

@@ -63,7 +63,6 @@ dependencies {
     // Exclude Avro dependencies from "core" since Avro support moved to this extension
     exclude group: "org.apache.avro", module: "avro"
   }
-  implementation(project(path: ":runners:core-construction-java"))
   implementation library.java.error_prone_annotations
   implementation library.java.avro
   implementation library.java.joda_time
@@ -73,6 +72,7 @@ dependencies {
   }
   testImplementation library.java.avro_tests
   testImplementation library.java.junit
+  testImplementation "org.tukaani:xz:1.9" // marked as optional in avro
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   testRuntimeOnly library.java.slf4j_jdk14
   avroVersions.each { k,v ->
@@ -101,9 +101,9 @@ avroVersions.each { k, v ->
       }
 
       // only use compileClasspath on purpose to not include generated test files
-      // will recompile with the propper generated sources
+      // will recompile with the proper generated sources
       compileClasspath += sourceSets.main.output + configurations."avroVersion$k"
-      runtimeClasspath += configurations."avroVersion$k"
+      runtimeClasspath += sourceSets.main.output + configurations."avroVersion$k"
     }
   }
 

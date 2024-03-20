@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -141,36 +142,35 @@ public class JmsIO {
         .setMaxNumRecords(Long.MAX_VALUE)
         .setCoder(SerializableCoder.of(JmsRecord.class))
         .setCloseTimeout(DEFAULT_CLOSE_TIMEOUT)
+        .setRequiresDeduping(false)
         .setMessageMapper(
-            (MessageMapper<JmsRecord>)
-                new MessageMapper<JmsRecord>() {
+            new MessageMapper<JmsRecord>() {
+              @Override
+              public JmsRecord mapMessage(Message message) throws Exception {
+                TextMessage textMessage = (TextMessage) message;
+                Map<String, Object> properties = new HashMap<>();
+                @SuppressWarnings("rawtypes")
+                Enumeration propertyNames = textMessage.getPropertyNames();
+                while (propertyNames.hasMoreElements()) {
+                  String propertyName = (String) propertyNames.nextElement();
+                  properties.put(propertyName, textMessage.getObjectProperty(propertyName));
+                }
 
-                  @Override
-                  public JmsRecord mapMessage(Message message) throws Exception {
-                    TextMessage textMessage = (TextMessage) message;
-                    Map<String, Object> properties = new HashMap<>();
-                    @SuppressWarnings("rawtypes")
-                    Enumeration propertyNames = textMessage.getPropertyNames();
-                    while (propertyNames.hasMoreElements()) {
-                      String propertyName = (String) propertyNames.nextElement();
-                      properties.put(propertyName, textMessage.getObjectProperty(propertyName));
-                    }
-
-                    return new JmsRecord(
-                        textMessage.getJMSMessageID(),
-                        textMessage.getJMSTimestamp(),
-                        textMessage.getJMSCorrelationID(),
-                        textMessage.getJMSReplyTo(),
-                        textMessage.getJMSDestination(),
-                        textMessage.getJMSDeliveryMode(),
-                        textMessage.getJMSRedelivered(),
-                        textMessage.getJMSType(),
-                        textMessage.getJMSExpiration(),
-                        textMessage.getJMSPriority(),
-                        properties,
-                        textMessage.getText());
-                  }
-                })
+                return new JmsRecord(
+                    textMessage.getJMSMessageID(),
+                    textMessage.getJMSTimestamp(),
+                    textMessage.getJMSCorrelationID(),
+                    textMessage.getJMSReplyTo(),
+                    textMessage.getJMSDestination(),
+                    textMessage.getJMSDeliveryMode(),
+                    textMessage.getJMSRedelivered(),
+                    textMessage.getJMSType(),
+                    textMessage.getJMSExpiration(),
+                    textMessage.getJMSPriority(),
+                    properties,
+                    textMessage.getText());
+              }
+            })
         .build();
   }
 
@@ -178,6 +178,7 @@ public class JmsIO {
     return new AutoValue_JmsIO_Read.Builder<T>()
         .setMaxNumRecords(Long.MAX_VALUE)
         .setCloseTimeout(DEFAULT_CLOSE_TIMEOUT)
+        .setRequiresDeduping(false)
         .build();
   }
 
@@ -224,6 +225,10 @@ public class JmsIO {
 
     abstract Duration getCloseTimeout();
 
+    abstract @Nullable Duration getReceiveTimeout();
+
+    abstract boolean isRequiresDeduping();
+
     abstract Builder<T> builder();
 
     @AutoValue.Builder
@@ -249,6 +254,10 @@ public class JmsIO {
       abstract Builder<T> setAutoScaler(AutoScaler autoScaler);
 
       abstract Builder<T> setCloseTimeout(Duration closeTimeout);
+
+      abstract Builder<T> setReceiveTimeout(Duration receiveTimeout);
+
+      abstract Builder<T> setRequiresDeduping(boolean requiresDeduping);
 
       abstract Read<T> build();
     }
@@ -396,6 +405,25 @@ public class JmsIO {
       return builder().setCloseTimeout(closeTimeout).build();
     }
 
+    /**
+     * If set, block for the Duration of timeout for each poll to new JMS record if the previous
+     * poll returns no new record.
+     *
+     * <p>Use this option if the requirement for read latency is not a concern or excess client
+     * polling has resulted network issues.
+     */
+    public Read<T> withReceiveTimeout(Duration receiveTimeout) {
+      return builder().setReceiveTimeout(receiveTimeout).build();
+    }
+
+    /**
+     * If set, requires runner deduplication for the messages. Each message is identified by its
+     * {@code JMSMessageID}.
+     */
+    public Read<T> withRequiresDeduping() {
+      return builder().setRequiresDeduping(true).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
@@ -490,6 +518,11 @@ public class JmsIO {
     public Coder<T> getOutputCoder() {
       return this.spec.getCoder();
     }
+
+    @Override
+    public boolean requiresDeduping() {
+      return this.spec.isRequiresDeduping();
+    }
   }
 
   static class UnboundedJmsReader<T> extends UnboundedReader<T> {
@@ -503,12 +536,15 @@ public class JmsIO {
 
     private T currentMessage;
     private Instant currentTimestamp;
+    private byte[] currentID;
+    private long receiveTimeoutMillis;
     private PipelineOptions options;
 
     public UnboundedJmsReader(UnboundedJmsSource<T> source, PipelineOptions options) {
       this.source = source;
       this.checkpointMarkPreparer = JmsCheckpointMark.newPreparer();
       this.currentMessage = null;
+      this.currentID = new byte[0];
       this.options = options;
     }
 
@@ -521,6 +557,9 @@ public class JmsIO {
       }
 
       Read<T> spec = source.spec;
+      Duration receiveTimeout =
+          MoreObjects.firstNonNull(source.spec.getReceiveTimeout(), Duration.ZERO);
+      receiveTimeoutMillis = receiveTimeout.getMillis();
 
       try {
         if (source.spec.getTopic() != null) {
@@ -566,7 +605,11 @@ public class JmsIO {
       try {
         Message message;
         synchronized (this) {
-          message = this.consumer.receiveNoWait();
+          if (receiveTimeoutMillis == 0L) {
+            message = this.consumer.receiveNoWait();
+          } else {
+            message = this.consumer.receive(receiveTimeoutMillis);
+          }
           // put add in synchronized to make sure all messages in preparer are in same session
           if (message != null) {
             checkpointMarkPreparer.add(message);
@@ -579,6 +622,20 @@ public class JmsIO {
 
         currentMessage = this.source.spec.getMessageMapper().mapMessage(message);
         currentTimestamp = new Instant(message.getJMSTimestamp());
+
+        String messageID = message.getJMSMessageID();
+        if (this.source.spec.isRequiresDeduping()) {
+          // per JMS specification, message ID has prefix "id:". The runner use it to dedup message.
+          // Empty or non-exist message id (possible for optimization configuration set) will induce
+          // data loss.
+          if (messageID.length() <= 3) {
+            throw new RuntimeException(
+                String.format(
+                    "Invalid JMSMessageID %s while requiresDeduping is set. Data loss possible.",
+                    messageID));
+          }
+        }
+        currentID = messageID.getBytes(StandardCharsets.UTF_8);
 
         return true;
       } catch (Exception e) {
@@ -605,6 +662,14 @@ public class JmsIO {
         throw new NoSuchElementException();
       }
       return currentTimestamp;
+    }
+
+    @Override
+    public byte[] getCurrentRecordId() {
+      if (currentMessage == null) {
+        throw new NoSuchElementException();
+      }
+      return currentID;
     }
 
     @Override

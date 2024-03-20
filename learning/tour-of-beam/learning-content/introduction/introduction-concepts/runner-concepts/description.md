@@ -210,7 +210,7 @@ with beam.Pipeline(options) as p:
 
 ##### Non portable
 
-When using Java, you must specify your dependency on the Cloud Dataflow Runner in your `pom.xml`.
+When using Java, you must specify your dependency on the Apache Flink Runner in your `pom.xml`.
 
 ```
 <dependency>

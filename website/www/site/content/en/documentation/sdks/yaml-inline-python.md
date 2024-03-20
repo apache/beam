@@ -21,7 +21,7 @@ title: "Apache Beam YAML Inline Python"
     under the License.
 -->
 
-# Using PyTransform form YAML
+# Using PyTransform from YAML
 
 Beam YAML provides the ability to easily invoke Python transforms via the
 `PyTransform` type, simply referencing them by fully qualified name.

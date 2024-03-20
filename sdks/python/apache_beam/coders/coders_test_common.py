@@ -164,6 +164,7 @@ class CodersTest(unittest.TestCase):
         coders.SinglePrecisionFloatCoder,
         coders.ToBytesCoder,
         coders.BigIntegerCoder, # tested in DecimalCoder
+        coders.TimestampPrefixingOpaqueWindowCoder,
     ])
     cls.seen_nested -= set(
         [coders.ProtoCoder, coders.ProtoPlusCoder, CustomCoder])
@@ -738,6 +739,15 @@ class CodersTest(unittest.TestCase):
             coders.TimestampPrefixingWindowCoder(
                 coders.IntervalWindowCoder()), )),
         (window.IntervalWindow(0, 10), ))
+
+  def test_timestamp_prefixing_opaque_window_coder(self):
+    sdk_coder = coders.TimestampPrefixingWindowCoder(
+        coders.LengthPrefixCoder(coders.PickleCoder()))
+    safe_coder = coders.TimestampPrefixingOpaqueWindowCoder()
+    for w in [window.IntervalWindow(1, 123), window.GlobalWindow()]:
+      round_trip = sdk_coder.decode(
+          safe_coder.encode(safe_coder.decode(sdk_coder.encode(w))))
+      self.assertEqual(w, round_trip)
 
   def test_decimal_coder(self):
     test_coder = coders.DecimalCoder()

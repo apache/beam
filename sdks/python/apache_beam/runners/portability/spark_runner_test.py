@@ -180,6 +180,9 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_custom_merging_window(self):
     raise unittest.SkipTest("https://github.com/apache/beam/issues/20641")
 
+  def test_custom_window_type(self):
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/20641")
+
   # Inherits all other tests from PortableRunnerTest.
 
 

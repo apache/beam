@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.annotations.Internal;
@@ -58,10 +59,14 @@ public interface SchemaTransformProvider {
   SchemaTransform from(Row configuration);
 
   /** Returns the input collection names of this transform. */
-  List<String> inputCollectionNames();
+  default List<String> inputCollectionNames() {
+    return Collections.emptyList();
+  }
 
   /** Returns the output collection names of this transform. */
-  List<String> outputCollectionNames();
+  default List<String> outputCollectionNames() {
+    return Collections.emptyList();
+  }
 
   /**
    * List the dependencies needed for this transform. Jars from classpath are used by default when

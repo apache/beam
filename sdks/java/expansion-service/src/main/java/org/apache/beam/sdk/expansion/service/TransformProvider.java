@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.expansion.service;
 
-import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
-import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.util.Collections;
@@ -28,11 +26,13 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.construction.BeamUrns;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.resources.PipelineResources;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -122,7 +122,8 @@ public interface TransformProvider<InputT extends PInput, OutputT extends POutpu
   }
 
   default String getTransformUniqueID(RunnerApi.FunctionSpec spec) {
-    if (getUrn(ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM).equals(spec.getUrn())) {
+    if (BeamUrns.getUrn(ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM)
+        .equals(spec.getUrn())) {
       ExternalTransforms.SchemaTransformPayload payload;
       try {
         payload = ExternalTransforms.SchemaTransformPayload.parseFrom(spec.getPayload());
@@ -130,7 +131,7 @@ public interface TransformProvider<InputT extends PInput, OutputT extends POutpu
       } catch (InvalidProtocolBufferException e) {
         throw new IllegalArgumentException(
             "Invalid payload type for URN "
-                + getUrn(ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM),
+                + BeamUrns.getUrn(ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM),
             e);
       }
     }
@@ -157,7 +158,7 @@ public interface TransformProvider<InputT extends PInput, OutputT extends POutpu
         throw new RuntimeException(
             "Cannot detect classpath: classloader is null (is it the bootstrap classloader?)");
       }
-      filesToStage = detectClassPathResourcesToStage(classLoader, options);
+      filesToStage = PipelineResources.detectClassPathResourcesToStage(classLoader, options);
       if (filesToStage.isEmpty()) {
         throw new IllegalArgumentException("No classpath elements found.");
       }

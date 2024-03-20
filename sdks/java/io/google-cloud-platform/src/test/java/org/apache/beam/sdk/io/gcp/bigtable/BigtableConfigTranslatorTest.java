@@ -19,7 +19,9 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.auth.Credentials;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.BulkOptions;
@@ -28,9 +30,13 @@ import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.stub.EnhancedBigtableStubSettings;
+import java.util.Arrays;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -418,5 +424,115 @@ public class BigtableConfigTranslatorTest {
 
     assertEquals(
         testCredential, veneerSettings.getStubSettings().getCredentialsProvider().getCredentials());
+  }
+
+  @Test
+  public void testSettingsOverride() throws Exception {
+    ExperimentalOptions pipelineOptions = PipelineOptionsFactory.as(ExperimentalOptions.class);
+    pipelineOptions.setExperiments(
+        Arrays.asList(
+            String.format(
+                "%s=%s",
+                BigtableConfigTranslator.BIGTABLE_SETTINGS_OVERRIDE,
+                MySettingsOverride.class.getName())));
+    BigtableOptions options = BigtableOptions.builder().build();
+    BigtableConfig config =
+        BigtableConfig.builder()
+            .setProjectId(ValueProvider.StaticValueProvider.of("project"))
+            .setInstanceId(ValueProvider.StaticValueProvider.of("instance"))
+            .setValidate(true)
+            .build();
+
+    config = BigtableConfigTranslator.translateToBigtableConfig(config, options);
+
+    BigtableDataSettings veneerSettings =
+        BigtableConfigTranslator.translateToVeneerSettings(config, pipelineOptions);
+
+    assertEquals("test-endpoint:123", veneerSettings.getStubSettings().getEndpoint());
+    assertEquals(
+        Duration.ofSeconds(1),
+        veneerSettings
+            .getStubSettings()
+            .readRowsSettings()
+            .getRetrySettings()
+            .getInitialRpcTimeout());
+    assertEquals(
+        Duration.ofSeconds(1),
+        veneerSettings.getStubSettings().readRowsSettings().getRetrySettings().getMaxRpcTimeout());
+    assertEquals(
+        Duration.ofSeconds(2),
+        veneerSettings.getStubSettings().readRowsSettings().getRetrySettings().getTotalTimeout());
+  }
+
+  @Test
+  public void testSettingsOverrideNoOverrideClass() {
+    ExperimentalOptions pipelineOptions = PipelineOptionsFactory.as(ExperimentalOptions.class);
+    pipelineOptions.setExperiments(
+        Arrays.asList(
+            String.format(
+                "%s=%s", BigtableConfigTranslator.BIGTABLE_SETTINGS_OVERRIDE, "FakeSettings")));
+
+    BigtableOptions options = BigtableOptions.builder().build();
+    BigtableConfig config =
+        BigtableConfig.builder()
+            .setProjectId(ValueProvider.StaticValueProvider.of("project"))
+            .setInstanceId(ValueProvider.StaticValueProvider.of("instance"))
+            .setValidate(true)
+            .build();
+
+    config = BigtableConfigTranslator.translateToBigtableConfig(config, options);
+
+    BigtableConfig finalConfig = config;
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> BigtableConfigTranslator.translateToVeneerSettings(finalConfig, pipelineOptions));
+  }
+
+  @Test
+  public void testSettingsOverrideWrongType() {
+    ExperimentalOptions pipelineOptions = PipelineOptionsFactory.as(ExperimentalOptions.class);
+    Function<String, String> mockFunction = Mockito.mock(Function.class);
+    pipelineOptions.setExperiments(
+        Arrays.asList(
+            String.format(
+                "%s=%s",
+                BigtableConfigTranslator.BIGTABLE_SETTINGS_OVERRIDE,
+                mockFunction.getClass().getName())));
+
+    BigtableOptions options = BigtableOptions.builder().build();
+    BigtableConfig config =
+        BigtableConfig.builder()
+            .setProjectId(ValueProvider.StaticValueProvider.of("project"))
+            .setInstanceId(ValueProvider.StaticValueProvider.of("instance"))
+            .setValidate(true)
+            .build();
+
+    config = BigtableConfigTranslator.translateToBigtableConfig(config, options);
+
+    BigtableConfig finalConfig = config;
+    assertThrows(
+        IllegalStateException.class,
+        () -> BigtableConfigTranslator.translateToVeneerSettings(finalConfig, pipelineOptions));
+  }
+
+  public static class MySettingsOverride
+      implements BiFunction<
+          BigtableDataSettings.Builder, PipelineOptions, BigtableDataSettings.Builder> {
+
+    @Override
+    public BigtableDataSettings.Builder apply(
+        BigtableDataSettings.Builder builder, PipelineOptions pipelineOptions) {
+      builder
+          .stubSettings()
+          .setEndpoint("test-endpoint:123")
+          .readRowsSettings()
+          .setRetrySettings(
+              RetrySettings.newBuilder()
+                  .setInitialRpcTimeout(Duration.ofSeconds(1))
+                  .setMaxRpcTimeout(Duration.ofSeconds(1))
+                  .setTotalTimeout(Duration.ofSeconds(2))
+                  .build());
+      return builder;
+    }
   }
 }

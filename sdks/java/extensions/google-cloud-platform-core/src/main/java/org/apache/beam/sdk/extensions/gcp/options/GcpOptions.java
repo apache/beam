@@ -220,7 +220,6 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
           + " either a single service account as the impersonator, or a"
           + " comma-separated list of service accounts to create an"
           + " impersonation delegation chain.")
-  @JsonIgnore
   @Nullable
   String getImpersonateServiceAccount();
 

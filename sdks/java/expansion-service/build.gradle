@@ -39,7 +39,6 @@ dependencies {
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation project(path: ":runners:core-construction-java")
   implementation project(path: ":runners:java-fn-execution")
   implementation project(path: ":sdks:java:harness")
   permitUnusedDeclared project(path: ":model:fn-execution")

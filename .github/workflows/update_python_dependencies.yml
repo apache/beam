@@ -88,7 +88,7 @@ jobs:
             echo "Changes are ready to commit"
             git commit -m "Update Python Dependencies" --quiet
             git push origin $branchName --quiet
-            GITHUB_PR_URL=$(gh pr create --title "Update Python Dependencies from BRANCH $branchName" --body "This PR was create using the update python dependencies from branch $branchName")
+            GITHUB_PR_URL=$(gh pr create --title "Update Python Dependencies from BRANCH $branchName" --body "This PR was create using the update python dependencies from branch $branchName - by default this does not execute tests due to a limitation in GitHub Actions. To review this PR, please (1) review the contents to make sure all dependency upgrades are formatted correctly, (2) close and reopen the PR (3) Approve/merge if tests pass successfully.")
             echo "Link of the new PR  $GITHUB_PR_URL"
           else
             echo "No changes on the files"

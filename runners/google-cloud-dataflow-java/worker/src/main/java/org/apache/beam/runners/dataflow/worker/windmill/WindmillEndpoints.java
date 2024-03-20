@@ -26,6 +26,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress.AuthenticatedGcpServiceAddress;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
@@ -39,6 +40,88 @@ import org.slf4j.LoggerFactory;
 @AutoValue
 public abstract class WindmillEndpoints {
   private static final Logger LOG = LoggerFactory.getLogger(WindmillEndpoints.class);
+
+  public static WindmillEndpoints from(
+      Windmill.WorkerMetadataResponse workerMetadataResponseProto) {
+    ImmutableMap<String, WindmillEndpoints.Endpoint> globalDataServers =
+        workerMetadataResponseProto.getGlobalDataEndpointsMap().entrySet().stream()
+            .collect(
+                toImmutableMap(
+                    Map.Entry::getKey, // global data key
+                    endpoint ->
+                        WindmillEndpoints.Endpoint.from(
+                            endpoint.getValue(),
+                            workerMetadataResponseProto.getExternalEndpoint())));
+
+    ImmutableList<WindmillEndpoints.Endpoint> windmillServers =
+        workerMetadataResponseProto.getWorkEndpointsList().stream()
+            .map(
+                endpointProto ->
+                    Endpoint.from(endpointProto, workerMetadataResponseProto.getExternalEndpoint()))
+            .collect(toImmutableList());
+
+    return WindmillEndpoints.builder()
+        .setGlobalDataEndpoints(globalDataServers)
+        .setWindmillEndpoints(windmillServers)
+        .build();
+  }
+
+  public static WindmillEndpoints.Builder builder() {
+    return new AutoValue_WindmillEndpoints.Builder();
+  }
+
+  private static Optional<WindmillServiceAddress> parseDirectEndpoint(
+      Windmill.WorkerMetadataResponse.Endpoint endpointProto, String authenticatingService) {
+    Optional<WindmillServiceAddress> directEndpointIpV6Address =
+        tryParseDirectEndpointIntoIpV6Address(endpointProto)
+            .map(address -> AuthenticatedGcpServiceAddress.create(authenticatingService, address))
+            .map(WindmillServiceAddress::create);
+
+    return directEndpointIpV6Address.isPresent()
+        ? directEndpointIpV6Address
+        : tryParseEndpointIntoHostAndPort(endpointProto.getDirectEndpoint())
+            .map(WindmillServiceAddress::create);
+  }
+
+  private static Optional<HostAndPort> tryParseEndpointIntoHostAndPort(String directEndpoint) {
+    try {
+      return Optional.of(HostAndPort.fromString(directEndpoint));
+    } catch (IllegalArgumentException e) {
+      LOG.warn("{} cannot be parsed into a gcpServiceAddress", directEndpoint);
+      return Optional.empty();
+    }
+  }
+
+  private static Optional<HostAndPort> tryParseDirectEndpointIntoIpV6Address(
+      Windmill.WorkerMetadataResponse.Endpoint endpointProto) {
+    if (!endpointProto.hasDirectEndpoint()) {
+      return Optional.empty();
+    }
+
+    InetAddress directEndpointAddress;
+    try {
+      directEndpointAddress = Inet6Address.getByName(endpointProto.getDirectEndpoint());
+    } catch (UnknownHostException e) {
+      LOG.warn(
+          "Error occurred trying to parse direct_endpoint={} into IPv6 address. Exception={}",
+          endpointProto.getDirectEndpoint(),
+          e.toString());
+      return Optional.empty();
+    }
+
+    // Inet6Address.getByAddress returns either an IPv4 or an IPv6 address depending on the format
+    // of the direct_endpoint string.
+    if (!(directEndpointAddress instanceof Inet6Address)) {
+      LOG.warn(
+          "{} is not an IPv6 address. Direct endpoints are expected to be in IPv6 format.",
+          endpointProto.getDirectEndpoint());
+      return Optional.empty();
+    }
+
+    return Optional.of(
+        HostAndPort.fromParts(
+            directEndpointAddress.getHostAddress(), (int) endpointProto.getPort()));
+  }
 
   /**
    * Used by GetData GlobalDataRequest(s) to support Beam side inputs. Returns a map where the key
@@ -57,30 +140,6 @@ public abstract class WindmillEndpoints {
    */
   public abstract ImmutableList<Endpoint> windmillEndpoints();
 
-  public static WindmillEndpoints from(
-      Windmill.WorkerMetadataResponse workerMetadataResponseProto) {
-    ImmutableMap<String, WindmillEndpoints.Endpoint> globalDataServers =
-        workerMetadataResponseProto.getGlobalDataEndpointsMap().entrySet().stream()
-            .collect(
-                toImmutableMap(
-                    Map.Entry::getKey, // global data key
-                    endpoint -> WindmillEndpoints.Endpoint.from(endpoint.getValue())));
-
-    ImmutableList<WindmillEndpoints.Endpoint> windmillServers =
-        workerMetadataResponseProto.getWorkEndpointsList().stream()
-            .map(WindmillEndpoints.Endpoint::from)
-            .collect(toImmutableList());
-
-    return WindmillEndpoints.builder()
-        .setGlobalDataEndpoints(globalDataServers)
-        .setWindmillEndpoints(windmillServers)
-        .build();
-  }
-
-  public static WindmillEndpoints.Builder builder() {
-    return new AutoValue_WindmillEndpoints.Builder();
-  }
-
   /**
    * Representation of an endpoint in {@link Windmill.WorkerMetadataResponse.Endpoint} proto with
    * the worker_token field, and direct_endpoint field parsed into a {@link WindmillServiceAddress}
@@ -90,31 +149,21 @@ public abstract class WindmillEndpoints {
    */
   @AutoValue
   public abstract static class Endpoint {
-    /**
-     * {@link WindmillServiceAddress} representation of {@link
-     * Windmill.WorkerMetadataResponse.Endpoint#getDirectEndpoint()}. The proto's direct_endpoint
-     * string can be converted to either {@link Inet6Address} or {@link HostAndPort}.
-     */
-    public abstract Optional<WindmillServiceAddress> directEndpoint();
-
-    /**
-     * Corresponds to {@link Windmill.WorkerMetadataResponse.Endpoint#getWorkerToken()} in the
-     * windmill.proto file.
-     */
-    public abstract Optional<String> workerToken();
-
     public static Endpoint.Builder builder() {
       return new AutoValue_WindmillEndpoints_Endpoint.Builder();
     }
 
-    public static Endpoint from(Windmill.WorkerMetadataResponse.Endpoint endpointProto) {
+    public static Endpoint from(
+        Windmill.WorkerMetadataResponse.Endpoint endpointProto, String authenticatingService) {
       Endpoint.Builder endpointBuilder = Endpoint.builder();
-      if (endpointProto.hasDirectEndpoint() && !endpointProto.getDirectEndpoint().isEmpty()) {
-        parseDirectEndpoint(endpointProto.getDirectEndpoint())
+
+      if (!endpointProto.getDirectEndpoint().isEmpty()) {
+        parseDirectEndpoint(endpointProto, authenticatingService)
             .ifPresent(endpointBuilder::setDirectEndpoint);
       }
-      if (endpointProto.hasWorkerToken() && !endpointProto.getWorkerToken().isEmpty()) {
-        endpointBuilder.setWorkerToken(endpointProto.getWorkerToken());
+
+      if (!endpointProto.getBackendWorkerToken().isEmpty()) {
+        endpointBuilder.setWorkerToken(endpointProto.getBackendWorkerToken());
       }
 
       Endpoint endpoint = endpointBuilder.build();
@@ -129,6 +178,19 @@ public abstract class WindmillEndpoints {
 
       return endpoint;
     }
+
+    /**
+     * {@link WindmillServiceAddress} representation of {@link
+     * Windmill.WorkerMetadataResponse.Endpoint#getDirectEndpoint()}. The proto's direct_endpoint
+     * string can be converted to either {@link Inet6Address} or {@link HostAndPort}.
+     */
+    public abstract Optional<WindmillServiceAddress> directEndpoint();
+
+    /**
+     * Corresponds to {@link Windmill.WorkerMetadataResponse.Endpoint#getBackendWorkerToken()} ()}
+     * in the windmill.proto file.
+     */
+    public abstract Optional<String> workerToken();
 
     @AutoValue.Builder
     public abstract static class Builder {
@@ -175,47 +237,5 @@ public abstract class WindmillEndpoints {
     }
 
     public abstract WindmillEndpoints build();
-  }
-
-  private static Optional<WindmillServiceAddress> parseDirectEndpoint(String directEndpoint) {
-    Optional<WindmillServiceAddress> directEndpointIpV6Address =
-        tryParseDirectEndpointIntoIpV6Address(directEndpoint).map(WindmillServiceAddress::create);
-
-    return directEndpointIpV6Address.isPresent()
-        ? directEndpointIpV6Address
-        : tryParseEndpointIntoHostAndPort(directEndpoint).map(WindmillServiceAddress::create);
-  }
-
-  private static Optional<HostAndPort> tryParseEndpointIntoHostAndPort(String directEndpoint) {
-    try {
-      return Optional.of(HostAndPort.fromString(directEndpoint));
-    } catch (IllegalArgumentException e) {
-      LOG.warn("{} cannot be parsed into a gcpServiceAddress", directEndpoint);
-      return Optional.empty();
-    }
-  }
-
-  private static Optional<Inet6Address> tryParseDirectEndpointIntoIpV6Address(
-      String directEndpoint) {
-    InetAddress directEndpointAddress = null;
-    try {
-      directEndpointAddress = Inet6Address.getByName(directEndpoint);
-    } catch (UnknownHostException e) {
-      LOG.warn(
-          "Error occurred trying to parse direct_endpoint={} into IPv6 address. Exception={}",
-          directEndpoint,
-          e.toString());
-    }
-
-    // Inet6Address.getByAddress returns either an IPv4 or an IPv6 address depending on the format
-    // of the direct_endpoint string.
-    if (!(directEndpointAddress instanceof Inet6Address)) {
-      LOG.warn(
-          "{} is not an IPv6 address. Direct endpoints are expected to be in IPv6 format.",
-          directEndpoint);
-      return Optional.empty();
-    }
-
-    return Optional.ofNullable((Inet6Address) directEndpointAddress);
   }
 }

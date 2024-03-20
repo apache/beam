@@ -19,10 +19,10 @@ package org.apache.beam.sdk.extensions.avro;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.CoderTranslator;
-import org.apache.beam.runners.core.construction.CoderTranslatorRegistrar;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
+import org.apache.beam.sdk.util.construction.CoderTranslator;
+import org.apache.beam.sdk.util.construction.CoderTranslatorRegistrar;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /** Coder registrar for AvroGenericCoder. */
