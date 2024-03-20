@@ -170,7 +170,8 @@ public class Work implements Runnable {
       }
       stepBuilder.setUserStepName(activeMessage.get().userStepName());
       ActiveElementMetadata.Builder activeElementBuilder = ActiveElementMetadata.newBuilder();
-      activeElementBuilder.setProcessingTimeMillis(activeMessage.get().stopwatch().elapsed().toMillis());
+      activeElementBuilder.setProcessingTimeMillis(
+          activeMessage.get().stopwatch().elapsed().toMillis());
       stepBuilder.setActiveMessageMetadata(activeElementBuilder);
       builder.addActiveLatencyBreakdown(stepBuilder.build());
       return builder;

@@ -52,7 +52,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closer;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.DateTimeUtils.MillisProvider;
 import org.joda.time.Instant;
 
 /** Execution context for the Dataflow worker. */
@@ -368,8 +367,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       if (this.activeMessageMetadata == null) {
         return;
       }
-      int processingTime =
-          (int) (this.activeMessageMetadata.stopwatch().elapsed().toMillis());
+      int processingTime = (int) (this.activeMessageMetadata.stopwatch().elapsed().toMillis());
       this.processingTimesByStep.compute(
           this.activeMessageMetadata.userStepName(),
           (k, v) -> {
