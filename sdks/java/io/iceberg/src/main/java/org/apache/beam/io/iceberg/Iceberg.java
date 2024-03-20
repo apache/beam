@@ -4,15 +4,25 @@ import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.io.iceberg.util.PropertyBuilder;
+import org.apache.beam.io.iceberg.util.RowHelper;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.Record;
 import org.apache.iceberg.expressions.Expression;
 
+@SuppressWarnings("all") //TODO: Remove this once development is stable.
 public class Iceberg {
 
   public static String DEFAULT_CATALOG_NAME = "default";
@@ -229,6 +239,10 @@ public class Iceberg {
       return CatalogUtil.buildIcebergCatalog(getName(),properties(),conf);
     }
 
+    public Table.Builder table() {
+      return new AutoValue_Iceberg_Table.Builder().catalog(this);
+    }
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder name(String name);
@@ -285,6 +299,70 @@ public class Iceberg {
 
       public Builder withProperties(Map<String,Object> properties) {
         return this;
+      }
+    }
+  }
+
+  @AutoValue
+  public static abstract class Table implements Serializable {
+
+    public abstract @Nullable Catalog catalog();
+    public abstract @Nullable List<String> tablePath();
+
+    public TableIdentifier identifier() { return TableIdentifier.of(tablePath().toArray(new String[0])); }
+
+    public org.apache.iceberg.Table table() {
+      return catalog().catalog().loadTable(identifier());
+    }
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+
+      public abstract Builder catalog(Catalog catalog);
+
+      public abstract Builder tablePath(List<String> tablePath);
+
+      public abstract Table build();
+    }
+  }
+
+  public static class Write extends PTransform<PCollection<Row>,IcebergWriteResult> {
+
+    private final DynamicDestinations<Row,String> dynamicDestinations;
+    private final Catalog catalog;
+
+    public Write(
+        Catalog catalog,
+        DynamicDestinations<Row,String> dynamicDestinations
+    ) {
+      this.catalog = catalog;
+      this.dynamicDestinations = dynamicDestinations;
+    }
+
+    @Override
+    public IcebergWriteResult expand(PCollection<Row> input) {
+      try {
+        return input.apply("Set Output Location",
+                new PrepareWrite<Row, String, Row>(
+                dynamicDestinations,
+                SerializableFunctions.identity(),input.getCoder()))
+            .apply("Dynamic Write", new IcebergSink<String,Row>(
+                dynamicDestinations,
+                dynamicDestinations.getDestinationCoderWithDefault(input.getPipeline().getCoderRegistry()),
+                RecordWriterFactory.tableRecords(
+                    new SerializableBiFunction<Record, Row, Record>() {
+                      @Override
+                      public Record apply(Record record, Row row) {
+                        return RowHelper.copy(record,row);
+                      }
+                    },
+                    dynamicDestinations),
+                TableFactory.forCatalog(catalog)
+          ));
+      } catch(Exception e) {
+        RuntimeException e1 = new RuntimeException("Unable to expand transforms");
+        e1.addSuppressed(e);
+        throw e1;
       }
     }
   }

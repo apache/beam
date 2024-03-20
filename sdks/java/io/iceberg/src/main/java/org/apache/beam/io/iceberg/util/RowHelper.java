@@ -9,7 +9,7 @@ import org.apache.iceberg.types.Types.NestedField;
 public class RowHelper {
   private RowHelper() { }
 
-  public static void copyInto(GenericRecord rec,NestedField field,Row value) {
+  public static void copyInto(Record rec,NestedField field,Row value) {
     String name = field.name();
     switch(field.type().typeId()) {
       case BOOLEAN:
@@ -56,8 +56,8 @@ public class RowHelper {
     }
   }
 
-  public static Record copy(GenericRecord baseRecord, Row value) {
-    GenericRecord rec = baseRecord.copy();
+  public static Record copy(Record baseRecord, Row value) {
+    Record rec = baseRecord.copy();
     for(NestedField f : rec.struct().fields()) {
       copyInto(rec,f,value);
     }

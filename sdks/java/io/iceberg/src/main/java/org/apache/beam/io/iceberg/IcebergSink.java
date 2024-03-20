@@ -1,268 +1,194 @@
 package org.apache.beam.io.iceberg;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.WritableByteChannel;
-import javax.annotation.Nullable;
-import org.apache.beam.io.iceberg.util.RowHelper;
-import org.apache.beam.sdk.io.DefaultFilenamePolicy;
-import org.apache.beam.sdk.io.DynamicFileDestinations;
-import org.apache.beam.sdk.io.FileBasedSink;
-import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.transforms.SerializableBiConsumer;
-import org.apache.beam.sdk.util.MimeTypes;
+import com.google.common.collect.ImmutableList;
+import java.util.UUID;
+import org.apache.beam.io.iceberg.WriteBundlesToFiles.Result;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.ShardedKeyCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.Row;
-import org.apache.iceberg.DataFile;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Table;
-import org.apache.iceberg.avro.Avro;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.ShardedKey;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.commons.lang.NotImplementedException;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.data.GenericRecord;
-import org.apache.iceberg.data.Record;
-import org.apache.iceberg.data.orc.GenericOrcWriter;
-import org.apache.iceberg.data.parquet.GenericParquetWriter;
-import org.apache.iceberg.io.DataWriter;
-import org.apache.iceberg.io.InputFile;
-import org.apache.iceberg.io.OutputFile;
-import org.apache.iceberg.io.PositionOutputStream;
-import org.apache.iceberg.io.SeekableInputStream;
-import org.apache.iceberg.orc.ORC;
-import org.apache.iceberg.parquet.Parquet;
 import org.apache.log4j.Logger;
 
-@SuppressWarnings("all")
-public class IcebergSink extends FileBasedSink<Row,Void,Row> {
+public class IcebergSink<DestinationT extends Object,ElementT>
+    extends PTransform<PCollection<KV<DestinationT,ElementT>>,IcebergWriteResult> {
 
   private static final Logger LOG = Logger.getLogger(IcebergSink.class);
 
-  Iceberg.Catalog catalog;
-  String tableId;
+  @VisibleForTesting static final int DEFAULT_MAX_WRITERS_PER_BUNDLE = 20;
+  @VisibleForTesting static final int DEFAULT_MAX_FILES_PER_PARTITION = 10_000;
+  @VisibleForTesting static final long DEFAULT_MAX_BYTES_PER_PARTITION = 10L*(1L << 40); //10TB
+  static final long DEFAULT_MAX_BYTES_PER_FILE = (1L << 40); // 1TB
+  static final int DEFAULT_NUM_FILE_SHARDS = 0;
+  static final int FILE_TRIGGERING_RECORD_COUNT = 50_000;
 
-  Iceberg.WriteFormat format;
 
-  SerializableBiConsumer<String,KV<DataFile,ResourceId>> metadataFn;
+  final DynamicDestinations<?,DestinationT> dynamicDestinations;
+  final Coder<DestinationT> destinationCoder;
 
-  private static ValueProvider<ResourceId> constantResourceId(String value) {
-    final ResourceId resource = FileBasedSink.convertToFileResourceIfPossible(value);
-    return new ValueProvider<ResourceId>() {
-      @Override
-      public ResourceId get() {
-        return resource;
-      }
+  final RecordWriterFactory<ElementT,DestinationT> recordWriterFactory;
+  final TableFactory<String> tableFactory;
 
-      @Override
-      public boolean isAccessible() {
-        return false;
-      }
-    };
-  }
-
-  private static String tableLocation(Iceberg.Catalog catalog,String tableId) {
-    return catalog.catalog().loadTable(TableIdentifier.parse(tableId)).location();
-  }
-
+  boolean triggered;
 
   public IcebergSink(
-      Iceberg.Catalog catalog,
-      String tableId,
-      Iceberg.WriteFormat format,
-      SerializableBiConsumer<String, KV<DataFile,ResourceId>> metadataFn) {
-
-    super(
-        constantResourceId(tableLocation(catalog,tableId)),
-        DynamicFileDestinations.constant(DefaultFilenamePolicy.fromStandardParameters(
-            constantResourceId(tableLocation(catalog,tableId)),
-            DefaultFilenamePolicy.DEFAULT_WINDOWED_SHARD_TEMPLATE,
-            "",false)
-        ));
-    this.catalog = catalog;
-    this.tableId = tableId;
-    this.format = format;
-    this.metadataFn = metadataFn;
+      DynamicDestinations<?,DestinationT> dynamicDestinations,
+      Coder<DestinationT> destinationCoder,
+      RecordWriterFactory<ElementT,DestinationT> recordWriterFactory,
+      TableFactory<String> tableFactory
+  ) {
+    this.dynamicDestinations = dynamicDestinations;
+    this.destinationCoder = destinationCoder;
+    this.triggered  = false;
+    this.recordWriterFactory = recordWriterFactory;
+    this.tableFactory = tableFactory;
   }
 
-  public Table getTable() {
-    return catalog.catalog().loadTable(TableIdentifier.parse(tableId));
+  private IcebergWriteResult expandTriggered(PCollection<KV<DestinationT,ElementT>> input) {
+
+
+    throw new NotImplementedException("Not yet implemented");
   }
+  private IcebergWriteResult expandUntriggered(PCollection<KV<DestinationT,ElementT>> input) {
 
-  public Iceberg.WriteFormat getFormat() {
-    return format;
-  }
+    final PCollectionView<String> fileView = createJobIdPrefixView(input.getPipeline());
+    //We always do the equivalent of a dynamically sharded file creation
+    TupleTag<WriteBundlesToFiles.Result<DestinationT>> writtenFilesTag = new TupleTag<>("writtenFiles");
+    TupleTag<KV<ShardedKey<DestinationT>,ElementT>> successfulWritesTag = new TupleTag<>("successfulWrites");
+    TupleTag<KV<ShardedKey<DestinationT>,ElementT>> failedWritesTag = new TupleTag<>("failedWrites");
+    TupleTag<KV<TableIdentifier,Snapshot>> snapshotsTag = new TupleTag<>("snapshots");
 
-  private static class IcebergWriteOperation extends WriteOperation<Void, Row> {
+    final Coder<ElementT> elementCoder = ((KvCoder<DestinationT,ElementT>)input.getCoder()).getValueCoder();
+
+    //Write everything to files
+    PCollectionTuple writeBundlesToFiles =
+       input.apply("Write Bundles To Files",ParDo.of(new WriteBundlesToFiles<>(
+        fileView,
+        successfulWritesTag,
+        failedWritesTag,
+        DEFAULT_MAX_WRITERS_PER_BUNDLE,
+        DEFAULT_MAX_BYTES_PER_FILE,
+        recordWriterFactory
+    )).withSideInputs(fileView)
+      .withOutputTags(writtenFilesTag,
+          TupleTagList.of(ImmutableList.of(successfulWritesTag,failedWritesTag))));
+
+    PCollection<KV<ShardedKey<DestinationT>,ElementT>> successfulWrites =
+      writeBundlesToFiles.get(successfulWritesTag)
+          .setCoder(KvCoder.of(ShardedKeyCoder.of(destinationCoder),elementCoder));
+
+    PCollection<KV<ShardedKey<DestinationT>,ElementT>> failedWrites =
+        writeBundlesToFiles.get(failedWritesTag)
+            .setCoder(KvCoder.of(ShardedKeyCoder.of(destinationCoder),elementCoder));
+
+    PCollection<WriteBundlesToFiles.Result<DestinationT>> writtenFilesGrouped =
+        failedWrites.apply("Group By Destination", GroupByKey.create())
+            .apply("Strip Shard ID", MapElements.via(new SimpleFunction<
+                KV<ShardedKey<DestinationT>, Iterable<ElementT>>,
+                KV<DestinationT, Iterable<ElementT>>>() {
+              @Override
+              public KV<DestinationT, Iterable<ElementT>> apply(
+                  KV<ShardedKey<DestinationT>, Iterable<ElementT>> input) {
+                return KV.of(input.getKey().getKey(), input.getValue());
+              }
+            }))
+          .setCoder(KvCoder.of(destinationCoder, IterableCoder.of(elementCoder)))
+            .apply("Write Grouped Records",ParDo.of(new WriteGroupedRecordsToFiles<>(
+                fileView,
+                DEFAULT_MAX_BYTES_PER_FILE,
+                recordWriterFactory
+            )))
+            .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder));
 
 
-    public IcebergWriteOperation(IcebergSink sink,
-        Table table,Iceberg.WriteFormat format) {
-      super(sink);
-    }
+    //Apply any sharded writes and flatten everything for catalog updates
+    PCollection<KV<String,Snapshot>> snapshots =
+    PCollectionList.of(writeBundlesToFiles.get(writtenFilesTag)
+            .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder)))
+        .and(writtenFilesGrouped)
+        .apply("Flatten Files", Flatten.pCollections())
+        .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder))
+        .apply("Extract Data File",
+            ParDo.of(new DoFn<Result<DestinationT>, KV<String,MetadataUpdate>>() {
+              @ProcessElement
+              public void processElement(ProcessContext c,@Element Result<DestinationT> element) {
+                c.output(KV.of(element.tableId,MetadataUpdate.of(element.partitionSpec,element.update.getDataFiles().get(0))));
+              }
+            }))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(),MetadataUpdate.coder()))
+        .apply(GroupByKey.create())
+        .apply("Write Metadata Updates",
+            ParDo.of(new MetadataUpdates<>(tableFactory)))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializableCoder.of(Snapshot.class)));
 
-    public Table getTable() {
-      return ((IcebergSink)getSink()).getTable();
-    }
 
-    public Iceberg.WriteFormat getFormat() {
-      return ((IcebergSink)getSink()).getFormat();
-    }
 
-    @Override
-    public Writer<Void, Row> createWriter()
-        throws  Exception {
-      return new IcebergWriter(this);
-    }
-  }
-
-  @Override
-  public WriteOperation<Void, Row> createWriteOperation() {
-    return new IcebergWriteOperation(this,
-        catalog.catalog().loadTable(TableIdentifier.parse(tableId)),
-        format
+    return new IcebergWriteResult(
+        input.getPipeline(),
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
     );
   }
 
-  @SuppressWarnings("all")
-  private static class IcebergWriter extends Writer<Void,Row> {
+  private PCollectionView<String> createJobIdPrefixView(Pipeline p) {
 
-    transient @Nullable DataWriter<Record> appender;
-    transient @Nullable GenericRecord baseRecord;
+    final String jobName = p.getOptions().getJobName();
 
-    public IcebergWriter(IcebergWriteOperation writeOperation) {
-      super(writeOperation, MimeTypes.BINARY);
-    }
-
-    @Override
-    protected void prepareWrite(WritableByteChannel channel)
-        throws Exception {
-      Table t = ((IcebergWriteOperation)getWriteOperation()).getTable();
-      baseRecord = GenericRecord.create(t.schema());
-      switch(((IcebergWriteOperation)getWriteOperation()).getFormat()) {
-        case AVRO:
-          appender = Avro.writeData(new IcebergOutputFile(getOutputFile(),channel))
-              .schema(t.schema())
-              .withSpec(PartitionSpec.unpartitioned())
-              .overwrite().build();
-          break;
-        case PARQUET:
-          appender = Parquet.writeData(new IcebergOutputFile(getOutputFile(),channel))
-              .createWriterFunc(GenericParquetWriter::buildWriter)
-              .schema(t.schema())
-              .withSpec(PartitionSpec.unpartitioned())
-              .overwrite().build();
-          break;
-        case ORC:
-          appender = ORC.writeData(new IcebergOutputFile(getOutputFile(),channel))
-              .createWriterFunc(GenericOrcWriter::buildWriter)
-              .schema(t.schema())
-              .withSpec(PartitionSpec.unpartitioned())
-              .overwrite().build();
-          break;
-      }
-    }
-
-    @Override
-    public void write(Row value) throws Exception {
-      appender.write(RowHelper.copy(baseRecord,value));
-    }
-
-    @Override
-    protected void finishWrite() throws Exception {
-      LOG.info("Finishing: "+getOutputFile().toString());
-      if(appender == null) {
-        throw new RuntimeException("Appender not initialized?!");
-      }
-      appender.close();
-      super.finishWrite();
-
-      //TODO: Move this to a function so it can (for example) be sent to another pcollection.
-      ((IcebergWriteOperation)getWriteOperation()).getTable().newFastAppend()
-          .appendFile(appender.toDataFile())
-          .commit();
-
-    }
+    return p.apply("JobIdCreationRoot_", Create.of((Void)null))
+        .apply("CreateJobId", ParDo.of(new DoFn<Void,String>() {
+          @ProcessElement
+          public void process(ProcessContext c) {
+            c.output(jobName+"-"+ UUID.randomUUID().toString());
+          }
+        }))
+        .apply("JobIdSideInput", View.asSingleton());
   }
 
+  public IcebergWriteResult expand(PCollection<KV<DestinationT,ElementT>> input) {
 
+    String jobName = input.getPipeline().getOptions().getJobName();
 
-  private static class IcebergDummyInputfile implements InputFile {
-
-    IcebergOutputFile source;
-    public IcebergDummyInputfile(IcebergOutputFile source) {
-      this.source = source;
-    }
-
-    @Override
-    public long getLength() {
-      return 0;
-    }
-
-    @Override
-    public SeekableInputStream newStream() {
-      return null;
-    }
-
-    @Override
-    public String location() {
-      return source.location();
-    }
-
-    @Override
-    public boolean exists() {
-      return true;
-    }
+    //We always window into global as far as I can tell?
+    PCollection<KV<DestinationT,ElementT>> globalInput =
+        input.apply("rewindowIntoGlobal",
+            Window.<KV<DestinationT,ElementT>>into(new GlobalWindows())
+                .triggering(DefaultTrigger.of())
+                .discardingFiredPanes());
+    return triggered ? expandTriggered(input) : expandUntriggered(input);
   }
 
-  private static class IcebergOutputFile implements OutputFile {
-
-    WritableByteChannel channel;
-    ResourceId location;
-
-    private IcebergOutputFile(ResourceId location,WritableByteChannel channel) {
-      this.location = location;
-      this.channel = channel;
-    }
-
-    @Override
-    public PositionOutputStream create() {
-      return new PositionOutputStream() {
-
-        long pos = 0;
-
-        @Override
-        public void write(byte[] b, int off, int len) throws IOException {
-          pos += len;
-          channel.write(ByteBuffer.wrap(b, 0, len));
-        }
-
-        @Override
-        public long getPos() throws IOException {
-          return pos;
-        }
-
-        @Override
-        public void write(int b) throws IOException {
-          byte byt = (byte) (b & 0xff);
-          write(new byte[]{byt}, 0, 1);
-        }
-      };
-    }
-
-    @Override
-    public PositionOutputStream createOrOverwrite() {
-      return create();
-    }
-
-    @Override
-    public String location() {
-      return location.toString();
-    }
-
-    @Override
-    public InputFile toInputFile() {
-      return new IcebergDummyInputfile(this);
-    }
-  }
 
 
 }
