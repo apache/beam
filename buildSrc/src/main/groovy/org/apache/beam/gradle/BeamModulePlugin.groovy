@@ -1293,23 +1293,23 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.jacocoTestReport {
         getClassDirectories().setFrom(project.files(
-          project.fileTree(
+            project.fileTree(
             dir: project.getLayout().getBuildDirectory().dir("classes/java/main"),
             excludes: jacocoExcludes
-          )
-        ))
+            )
+            ))
         getSourceDirectories().setFrom(
-          project.files(project.sourceSets.main.allSource.srcDirs)
-        )
+            project.files(project.sourceSets.main.allSource.srcDirs)
+            )
         getExecutionData().setFrom(project.file(
-          project.getLayout().getBuildDirectory().file("jacoco/test.exec")
-        ))
+            project.getLayout().getBuildDirectory().file("jacoco/test.exec")
+            ))
         reports {
           html.required = true
           xml.required = true
           html.outputLocation = project.file(
-            project.getLayout().getBuildDirectory().dir("jacoco/report")
-          )
+              project.getLayout().getBuildDirectory().dir("jacoco/report")
+              )
         }
       }
 
