@@ -40,11 +40,15 @@ import org.apache.beam.it.common.TestProperties;
 import org.apache.beam.it.common.utils.ResourceManagerUtils;
 import org.apache.beam.it.gcp.IOLoadTestBase;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
+import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
+import org.apache.beam.sdk.io.synthetic.SyntheticUnboundedSource;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.After;
 import org.junit.Before;
@@ -182,7 +186,8 @@ public class SpannerIOLT extends IOLoadTestBase {
             .withDatabaseId(resourceManager.getDatabaseId());
 
     writePipeline
-        .apply(GenerateSequence.from(0).to(configuration.numRecords))
+//        .apply(GenerateSequence.from(0).to(configuration.numRecords))
+        .apply(Read.from(new SyntheticUnboundedSource(configuration)))
         .apply(
             "Map records",
             ParDo.of(
@@ -195,6 +200,7 @@ public class SpannerIOLT extends IOLoadTestBase {
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(writePipeline)
             .addParameter("runner", configuration.runner)
+            .addParameter("streaming", "true")
             .build();
 
     return pipelineLauncher.launch(project, region, options);
@@ -245,7 +251,7 @@ public class SpannerIOLT extends IOLoadTestBase {
   static String createTableStatement(String tableId, int numBytesCol, int valueSizeBytes) {
     int sizePerCol = valueSizeBytes / numBytesCol;
     StringBuilder statement = new StringBuilder();
-    statement.append(String.format("CREATE TABLE %s (Id INT64", tableId));
+    statement.append(String.format("CREATE TABLE %s (Id STRING(MAX)", tableId));
     for (int col = 0; col < numBytesCol; ++col) {
       statement.append(String.format(",\n COL%d BYTES(%d)", col + 1, sizePerCol));
     }
@@ -254,7 +260,7 @@ public class SpannerIOLT extends IOLoadTestBase {
   }
 
   /** Maps long number to the Spanner format record. */
-  private static class GenerateMutations extends DoFn<Long, Mutation> implements Serializable {
+  private static class GenerateMutations extends DoFn<KV<byte[], byte[]>, Mutation> implements Serializable {
     private final String table;
     private final int numBytesCol;
     private final int sizePerCol;
@@ -269,9 +275,9 @@ public class SpannerIOLT extends IOLoadTestBase {
     @ProcessElement
     public void processElement(ProcessContext c) {
       Mutation.WriteBuilder builder = Mutation.newInsertOrUpdateBuilder(table);
-      Long key = Objects.requireNonNull(c.element());
+      String key = "key-" + UUID.randomUUID() + UUID.randomUUID() + UUID.randomUUID();
       builder.set("Id").to(key);
-      Random random = new Random(key);
+      Random random = new Random(1);
       byte[] value = new byte[sizePerCol];
       for (int col = 0; col < numBytesCol; ++col) {
         String name = String.format("COL%d", col + 1);
