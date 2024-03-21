@@ -1,6 +1,7 @@
 package org.apache.beam.io.iceberg;
 
 import com.google.common.collect.ImmutableList;
+import org.apache.beam.io.iceberg.util.RowHelper;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.Row;
@@ -50,7 +51,8 @@ public class SinkTests {
         .apply("Append To Table",
             new Iceberg.Write(
                 catalog,
-                destination));
+                destination,
+                RowHelper.recordsFromRows()));
     LOG.info("Executing pipeline");
     testPipeline.run().waitUntilFinish();
     LOG.info("Done running pipeline");

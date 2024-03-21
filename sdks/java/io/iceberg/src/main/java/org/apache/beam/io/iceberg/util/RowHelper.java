@@ -1,6 +1,7 @@
 package org.apache.beam.io.iceberg.util;
 
 import java.util.Optional;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
@@ -62,5 +63,14 @@ public class RowHelper {
       copyInto(rec,f,value);
     }
     return rec;
+  }
+
+  public static SerializableBiFunction<Record,Row,Record> recordsFromRows() {
+    return new SerializableBiFunction<Record, Row, Record>() {
+      @Override
+      public Record apply(Record record, Row row) {
+        return copy(record,row);
+      }
+    };
   }
 }

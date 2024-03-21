@@ -8,13 +8,11 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.io.iceberg.util.PropertyBuilder;
-import org.apache.beam.io.iceberg.util.RowHelper;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.CatalogUtil;
@@ -326,37 +324,34 @@ public class Iceberg {
     }
   }
 
-  public static class Write extends PTransform<PCollection<Row>,IcebergWriteResult> {
+  public static class Write<ElementT> extends PTransform<PCollection<ElementT>,IcebergWriteResult> {
 
-    private final DynamicDestinations<Row,String> dynamicDestinations;
+    private final DynamicDestinations<ElementT,String> dynamicDestinations;
     private final Catalog catalog;
+
+    private final SerializableBiFunction<Record,ElementT,Record> toRecord;
 
     public Write(
         Catalog catalog,
-        DynamicDestinations<Row,String> dynamicDestinations
+        DynamicDestinations<ElementT,String> dynamicDestinations,
+        SerializableBiFunction<Record,ElementT,Record> toRecord
     ) {
       this.catalog = catalog;
       this.dynamicDestinations = dynamicDestinations;
+      this.toRecord = toRecord;
     }
 
     @Override
-    public IcebergWriteResult expand(PCollection<Row> input) {
+    public IcebergWriteResult expand(PCollection<ElementT> input) {
       try {
         return input.apply("Set Output Location",
-                new PrepareWrite<Row, String, Row>(
+                new PrepareWrite<ElementT, String, ElementT>(
                 dynamicDestinations,
                 SerializableFunctions.identity(),input.getCoder()))
-            .apply("Dynamic Write", new IcebergSink<String,Row>(
+            .apply("Dynamic Write", new IcebergSink<String,ElementT>(
                 dynamicDestinations,
                 dynamicDestinations.getDestinationCoderWithDefault(input.getPipeline().getCoderRegistry()),
-                RecordWriterFactory.tableRecords(
-                    new SerializableBiFunction<Record, Row, Record>() {
-                      @Override
-                      public Record apply(Record record, Row row) {
-                        return RowHelper.copy(record,row);
-                      }
-                    },
-                    dynamicDestinations),
+                RecordWriterFactory.tableRecords(toRecord, dynamicDestinations),
                 TableFactory.forCatalog(catalog)
           ));
       } catch(Exception e) {
