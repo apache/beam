@@ -26,7 +26,6 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.Timestamp;
 import java.io.IOException;
-import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
 import java.time.Duration;
@@ -46,7 +45,7 @@ import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
 import org.apache.beam.it.common.utils.ResourceManagerUtils;
-import org.apache.beam.it.gcp.IOLoadTestBase;
+import org.apache.beam.it.gcp.IOStressTestBase;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.AvroWriteRequest;
@@ -59,7 +58,6 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.PeriodicImpulse;
@@ -70,7 +68,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
-import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -87,18 +84,11 @@ import org.junit.Test;
  * - To run large-scale stress tests: {@code gradle
  * :it:google-cloud-platform:BigQueryStressTestLarge}
  */
-public final class BigQueryIOST extends IOLoadTestBase {
+public final class BigQueryIOST extends IOStressTestBase {
 
   private static final String READ_ELEMENT_METRIC_NAME = "read_count";
   private static final String TEST_ID = UUID.randomUUID().toString();
   private static final String TEST_TIMESTAMP = Timestamp.now().toString();
-  private static final int DEFAULT_ROWS_PER_SECOND = 1000;
-
-  /**
-   * The load will initiate at 1x, progressively increase to 2x and 4x, then decrease to 2x and
-   * eventually return to 1x.
-   */
-  private static final int[] DEFAULT_LOAD_INCREASE_ARRAY = {1, 2, 2, 4, 2, 1};
 
   private static BigQueryResourceManager resourceManager;
   private static String tableQualifier;
@@ -301,7 +291,7 @@ public final class BigQueryIOST extends IOLoadTestBase {
           source
               .apply(
                   "One input to multiple outputs",
-                  ParDo.of(new MultiplierDoFn(startMultiplier, loadPeriods)))
+                  ParDo.of(new MultiplierDoFn<>(startMultiplier, loadPeriods)))
               .apply("Reshuffle fanout", Reshuffle.viaRandomKey())
               .apply("Counting element", ParDo.of(new CountingFn<>(READ_ELEMENT_METRIC_NAME)));
     }
@@ -368,44 +358,6 @@ public final class BigQueryIOST extends IOLoadTestBase {
       }
     } catch (ParseException | InterruptedException e) {
       throw new RuntimeException(e);
-    }
-  }
-
-  /**
-   * Custom Apache Beam DoFn designed for use in stress testing scenarios. It introduces a dynamic
-   * load increase over time, multiplying the input elements based on the elapsed time since the
-   * start of processing. This class aims to simulate various load levels during stress testing.
-   */
-  private static class MultiplierDoFn extends DoFn<byte[], byte[]> {
-    private final int startMultiplier;
-    private final long startTimesMillis;
-    private final List<LoadPeriod> loadPeriods;
-
-    MultiplierDoFn(int startMultiplier, List<LoadPeriod> loadPeriods) {
-      this.startMultiplier = startMultiplier;
-      this.startTimesMillis = Instant.now().getMillis();
-      this.loadPeriods = loadPeriods;
-    }
-
-    @ProcessElement
-    public void processElement(
-        @Element byte[] element,
-        OutputReceiver<byte[]> outputReceiver,
-        @DoFn.Timestamp Instant timestamp) {
-
-      int multiplier = this.startMultiplier;
-      long elapsedTimeMillis = timestamp.getMillis() - startTimesMillis;
-
-      for (LoadPeriod loadPeriod : loadPeriods) {
-        if (elapsedTimeMillis >= loadPeriod.getPeriodStartMillis()
-            && elapsedTimeMillis < loadPeriod.getPeriodEndMillis()) {
-          multiplier *= loadPeriod.getLoadIncreaseMultiplier();
-          break;
-        }
-      }
-      for (int i = 0; i < multiplier; i++) {
-        outputReceiver.output(element);
-      }
     }
   }
 
@@ -493,29 +445,6 @@ public final class BigQueryIOST extends IOLoadTestBase {
     }
   }
 
-  /**
-   * Generates and returns a list of LoadPeriod instances representing periods of load increase
-   * based on the specified load increase array and total duration in minutes.
-   *
-   * @param minutesTotal The total duration in minutes for which the load periods are generated.
-   * @return A list of LoadPeriod instances defining periods of load increase.
-   */
-  private List<LoadPeriod> getLoadPeriods(int minutesTotal, int[] loadIncreaseArray) {
-
-    List<LoadPeriod> loadPeriods = new ArrayList<>();
-    long periodDurationMillis =
-        Duration.ofMinutes(minutesTotal / loadIncreaseArray.length).toMillis();
-    long startTimeMillis = 0;
-
-    for (int loadIncreaseMultiplier : loadIncreaseArray) {
-      long endTimeMillis = startTimeMillis + periodDurationMillis;
-      loadPeriods.add(new LoadPeriod(loadIncreaseMultiplier, startTimeMillis, endTimeMillis));
-
-      startTimeMillis = endTimeMillis;
-    }
-    return loadPeriods;
-  }
-
   private enum WriteFormat {
     AVRO,
     JSON
@@ -572,33 +501,5 @@ public final class BigQueryIOST extends IOLoadTestBase {
 
     /** InfluxDB database to publish metrics. * */
     @JsonProperty public String influxDatabase;
-  }
-
-  /**
-   * Represents a period of time with associated load increase properties for stress testing
-   * scenarios.
-   */
-  private static class LoadPeriod implements Serializable {
-    private final int loadIncreaseMultiplier;
-    private final long periodStartMillis;
-    private final long periodEndMillis;
-
-    public LoadPeriod(int loadIncreaseMultiplier, long periodStartMillis, long periodEndMin) {
-      this.loadIncreaseMultiplier = loadIncreaseMultiplier;
-      this.periodStartMillis = periodStartMillis;
-      this.periodEndMillis = periodEndMin;
-    }
-
-    public int getLoadIncreaseMultiplier() {
-      return loadIncreaseMultiplier;
-    }
-
-    public long getPeriodStartMillis() {
-      return periodStartMillis;
-    }
-
-    public long getPeriodEndMillis() {
-      return periodEndMillis;
-    }
   }
 }
