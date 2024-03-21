@@ -74,7 +74,6 @@ public class ReadParquetFile {
         p.run();
     }
 }
-
 ```
 
 Response:
