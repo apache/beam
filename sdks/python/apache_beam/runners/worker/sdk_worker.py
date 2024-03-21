@@ -1285,7 +1285,12 @@ class GlobalCachingStateHandler(CachingStateHandler):
       if not continuation_token:
         break
 
-  def _get_raw(self, state_key, continuation_token):
+  def _get_raw(self,
+      state_key,  # type: beam_fn_api_pb2.StateKey
+      continuation_token  # type: Optional[bytes]
+  ):
+    # type: (...) -> Tuple[coder_impl.create_InputStream, Optional[bytes]]
+
     """Call underlying get_raw with performance statistics and detection."""
     start_time = time.time()
 
@@ -1299,12 +1304,12 @@ class GlobalCachingStateHandler(CachingStateHandler):
 
     if self._retrieval_time > self._warn_interval:
       _LOGGER.warning(
-          f"Retrieving state {self._get_raw_called} times costed "
-          f"{self._retrieval_time:.0f} seconds. It may be due to insufficient "
-          "state cache size and/or frequent direct access of states.\n"
-          "Consider adding '--max_cache_memory_usage_mb' pipeline option to "
-          "increase state cache size or switch to materialized (pvalue.AsList) "
-          "side input if applicable.")
+          "Retrieving state %d times costed %.0f seconds. It may be due to "
+          "insufficient state cache size and/or frequent direct access of "
+          "states.\nConsider adding '--max_cache_memory_usage_mb' pipeline "
+          "option to increase state cache size or switch to materialized "
+          "(pvalue.AsList) side input if applicable." %
+          (self._get_raw_called, self._retrieval_time))
       # reset counts
       self._retrieval_time = 0.0
       self._get_raw_called = 0
