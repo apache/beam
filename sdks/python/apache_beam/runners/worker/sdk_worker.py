@@ -1288,7 +1288,7 @@ class GlobalCachingStateHandler(CachingStateHandler):
   def _get_raw(self,
       state_key,  # type: beam_fn_api_pb2.StateKey
       continuation_token  # type: Optional[bytes]
-  ):
+               ):
     # type: (...) -> Tuple[coder_impl.create_InputStream, Optional[bytes]]
 
     """Call underlying get_raw with performance statistics and detection."""
