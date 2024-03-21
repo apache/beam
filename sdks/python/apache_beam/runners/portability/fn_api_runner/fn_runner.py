@@ -61,8 +61,8 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import runner
-from apache_beam.runners.common import merge_common_environments
 from apache_beam.runners.common import group_by_key_input_visitor
+from apache_beam.runners.common import merge_common_environments
 from apache_beam.runners.common import validate_pipeline_graph
 from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability.fn_api_runner import execution
