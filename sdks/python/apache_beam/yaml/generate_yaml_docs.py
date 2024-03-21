@@ -155,7 +155,8 @@ def transform_docs(t, providers):
   return '\n'.join([
       f'## {t}',
       '',
-      longest(lambda p: p.description(t), providers),
+      longest(lambda p: p.description(t),
+              providers).replace('::\n', '\n\n    :::yaml\n'),
       '',
       '### Configuration',
       '',
@@ -183,46 +184,45 @@ def main():
 
   with subprocess_server.SubprocessServer.cache_subprocesses():
     json_config_schemas = []
-    with contextlib.ExitStack() as stack:
-      markdown_out = io.StringIO()
-      providers = yaml_provider.standard_providers()
-      for transform in sorted(providers.keys(), key=io_grouping_key):
-        if include(transform) and not exclude(transform):
-          print(transform)
-          if options.markdown_file:
-            markdown_out.write(transform_docs(transform, providers[transform]).replace('::\n', '\n\n    :::yaml\n'))
-            markdown_out.write('\n\n')
-          if options.schema_file:
-            schema = providers[transform][0].config_schema(transform)
-            if schema:
-              json_config_schemas.append({
-                  'if': {
-                      'properties': {
-                          'type': {
-                              'const': transform
-                          }
-                      }
-                  },
-                  'then': {
-                      'properties': {
-                          'config': {
-                              'type': 'object',
-                              'properties': {
-                                  '__line__': {
-                                      'type': 'integer'
-                                  },
-                                  '__uuid__': {},
-                                  **{
-                                      f.name: json_utils.beam_type_to_json_type(
-                                          f.type)
-                                      for f in schema.fields
-                                  }
-                              },
-                              'additionalProperties': False,
-                          }
-                      }
-                  }
-              })
+    markdown_out = io.StringIO()
+    providers = yaml_provider.standard_providers()
+    for transform in sorted(providers.keys(), key=io_grouping_key):
+      if include(transform) and not exclude(transform):
+        print(transform)
+        if options.markdown_file:
+          markdown_out.write(transform_docs(transform, providers[transform]))
+          markdown_out.write('\n\n')
+        if options.schema_file:
+          schema = providers[transform][0].config_schema(transform)
+          if schema:
+            json_config_schemas.append({
+                'if': {
+                    'properties': {
+                        'type': {
+                            'const': transform
+                        }
+                    }
+                },
+                'then': {
+                    'properties': {
+                        'config': {
+                            'type': 'object',
+                            'properties': {
+                                '__line__': {
+                                    'type': 'integer'
+                                },
+                                '__uuid__': {},
+                                **{
+                                    f.name: json_utils.beam_type_to_json_type(
+                                        f.type)
+                                    for f in schema.fields
+                                }
+                            },
+                            'additionalProperties': False,
+                        }
+                    }
+                }
+            })
 
     if options.schema_file:
       with open(options.schema_file, 'w') as fout:
