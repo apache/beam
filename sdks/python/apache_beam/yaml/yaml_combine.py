@@ -169,9 +169,10 @@ class PyJsYamlCombine(beam.PTransform):
         row_type.RowTypeConstraint.from_fields(output_types))
 
 
-PyJsYamlCombine.__doc__ = PyJsYamlCombine.__doc__.replace(
-    'BUILTIN_COMBINE_FNS',
-    ', '.join('`%s`' % k for k in BUILTIN_COMBINE_FNS.keys()))
+if PyJsYamlCombine.__doc__:  # make mypy happy
+  PyJsYamlCombine.__doc__ = PyJsYamlCombine.__doc__.replace(
+      'BUILTIN_COMBINE_FNS',
+      ', '.join('`%s`' % k for k in BUILTIN_COMBINE_FNS.keys()))
 
 
 @beam.ptransform.ptransform_fn

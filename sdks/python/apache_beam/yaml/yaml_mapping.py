@@ -389,7 +389,7 @@ class _Explode(beam.PTransform):
           `('a', 1)` and `('b', 2)` when it is set to `false`.
           Only meaningful (and required) if multiple rows are specified.
       error_handling: Whether and how to handle errors during iteration.
-  """
+  """  # pylint: disable=line-too-long
   def __init__(
       self,
       fields: Union[str, Collection[str]],
@@ -466,7 +466,7 @@ def _PyJsFilter(
 
   See more complete documentation on
   [YAML Filtering](https://beam.apache.org/documentation/sdks/yaml-udf/#filtering).
-  """
+  """  # pylint: disable=line-too-long
   keep_fn = _as_callable_for_pcoll(pcoll, keep, "keep", language)
   return pcoll | beam.Filter(keep_fn)
 
@@ -527,7 +527,7 @@ def _PyJsMapToFields(pcoll, language='generic', **mapping_args):
 
   See more complete documentation on
   [YAML Mapping Functions](https://beam.apache.org/documentation/sdks/yaml-udf/#mapping-functions).
-  """
+  """  # pylint: disable=line-too-long
   input_schema, fields = normalize_fields(
       pcoll, language=language, **mapping_args)
   if language == 'javascript':

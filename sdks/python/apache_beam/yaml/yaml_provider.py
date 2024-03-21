@@ -628,7 +628,8 @@ class YamlProviders:
     `apache_beam.pkg.mod.SomeClass(1, 'foo', baz=3)`.
 
     See also the documentation on
-    [Inlining Python](https://beam.apache.org/documentation/sdks/yaml-inline-python/).
+    [Inlining
+    Python](https://beam.apache.org/documentation/sdks/yaml-inline-python/).
 
     Args:
         constructor: Fully qualified name of a callable used to construct the
