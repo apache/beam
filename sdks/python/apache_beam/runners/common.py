@@ -1947,7 +1947,7 @@ def validate_pipeline_graph(pipeline_proto):
     validate_transform(t)
 
 
-def merge_common_environments(pipeline_proto):
+def merge_common_environments(pipeline_proto, inplace=False):
   def dep_key(dep):
     if dep.type_urn == common_urns.artifact_types.FILE.urn:
       payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
@@ -1995,7 +1995,9 @@ def merge_common_environments(pipeline_proto):
       for es in cannonical_enviornments.values() for e in es
   }
 
-  pipeline_proto = copy.copy(pipeline_proto)
+  if not inplace:
+    pipeline_proto = copy.copy(pipeline_proto)
+
   for t in pipeline_proto.components.transforms.values():
     if t.environment_id:
       t.environment_id = environment_remappings[t.environment_id]
