@@ -46,21 +46,5 @@ public final class StackTraceUtil {
     return message.toString();
   }
 
-  public static void logAllStackTraces() {
-    DataflowWorkerLoggingHandler dataflowLoggingHandler =
-        DataflowWorkerLoggingInitializer.getLoggingHandler();
-    Map<Thread, StackTraceElement[]> threadSet = Thread.getAllStackTraces();
-    for (Map.Entry<Thread, StackTraceElement[]> entry : threadSet.entrySet()) {
-      Thread thread = entry.getKey();
-      StackTraceElement[] stackTrace = entry.getValue();
-      StringBuilder message = new StringBuilder();
-      message.append(thread.toString()).append(":\n");
-      message.append(getStackTraceForLullMessage(stackTrace));
-      LogRecord logRecord = new LogRecord(Level.INFO, message.toString());
-      logRecord.setLoggerName(StackTraceUtil.LOG.getName());
-      dataflowLoggingHandler.publish(logRecord);
-    }
-  }
-
   private StackTraceUtil() {}
 }

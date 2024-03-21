@@ -277,12 +277,6 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     @GuardedBy("this")
     private final Map<String, IntSummaryStatistics> processingTimesByStep = new HashMap<>();
 
-    /** Last milliseconds since epoch when a full thread dump was performed. */
-    private long lastFullThreadDumpMillis = 0;
-
-    /** The minimum lull duration in milliseconds to perform a full thread dump. */
-    private static final long LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS = 20 * 60 * 1000;
-
     private static final Logger LOG = LoggerFactory.getLogger(DataflowExecutionStateTracker.class);
 
     private static final PeriodFormatter DURATION_FORMATTER =
@@ -348,19 +342,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       }
     }
 
-    private boolean shouldLogFullThreadDumpForBundle(Duration lullDuration) {
-      if (lullDuration.getMillis() < LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS) {
-        return false;
-      }
-      long now = clock.currentTimeMillis();
-      if (lastFullThreadDumpMillis + LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS < now) {
-        lastFullThreadDumpMillis = now;
-        return true;
-      }
-      return false;
-    }
-
-    private String getBundleLullMessage(Duration lullDuration) {
+    private String getBundleLullMessage(Thread trackedThread, Duration lullDuration) {
       StringBuilder message = new StringBuilder();
       message
           .append("Operation ongoing in bundle for at least ")
@@ -384,6 +366,9 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         }
       }
 
+      if (trackedThread != null) {
+        message.append(StackTraceUtil.getStackTraceForLullMessage(trackedThread.getStackTrace()));
+      }
       return message.toString();
     }
 
@@ -394,7 +379,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     }
 
     @Override
-    protected void reportBundleLull(long millisElapsedSinceBundleStart) {
+    protected void reportBundleLull(Thread trackedThread, long millisElapsedSinceBundleStart) {
       // If we're not logging warnings, nothing to report.
       if (!LOG.isWarnEnabled()) {
         return;
@@ -412,10 +397,6 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       DataflowWorkerLoggingHandler dataflowLoggingHandler =
           DataflowWorkerLoggingInitializer.getLoggingHandler();
       dataflowLoggingHandler.publish(logRecord);
-
-      if (shouldLogFullThreadDumpForBundle(lullDuration)) {
-        StackTraceUtil.logAllStackTraces();
-      }
     }
 
     /**
