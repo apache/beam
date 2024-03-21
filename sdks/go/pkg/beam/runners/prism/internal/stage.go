@@ -245,7 +245,7 @@ progress:
 		if residuals.TransformID != ba.GetTransformId() {
 			panic("sdk returned inconsistent residual application transform : got = " + ba.GetTransformId() + " want = " + residuals.TransformID)
 		}
-		if residuals.InputID != ba.GetTransformId() {
+		if residuals.InputID != ba.GetInputId() {
 			panic("sdk returned inconsistent residual application input : got = " + ba.GetInputId() + " want = " + residuals.InputID)
 		}
 
