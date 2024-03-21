@@ -1278,7 +1278,7 @@ class BeamModulePlugin implements Plugin<Project> {
         '**/AutoValue_*'
       ]
 
-      def jacocoEnabled = project.hasProperty('enableJacocoReport') || project.gradle.taskGraph.allTasks.any { it.name.contains('javaPreCommit') }
+      def jacocoEnabled = project.hasProperty('enableJacocoReport')
       if (jacocoEnabled) {
         project.tasks.withType(Test) {
           finalizedBy project.jacocoTestReport
