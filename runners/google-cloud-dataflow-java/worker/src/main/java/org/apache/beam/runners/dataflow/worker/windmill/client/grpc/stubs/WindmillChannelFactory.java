@@ -52,7 +52,7 @@ public final class WindmillChannelFactory {
         .build();
   }
 
-  public static ManagedChannel remoteChannel(
+  static ManagedChannel remoteChannel(
       WindmillServiceAddress windmillServiceAddress, int windmillServiceRpcChannelTimeoutSec) {
     switch (windmillServiceAddress.getKind()) {
       case IPV6:
