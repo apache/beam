@@ -1,10 +1,26 @@
 Prompt:
-Write the Java code to write data in CSV format using Apache Beam.
+Write a sample Java code snippet that writes data in CSV format using Apache Beam.
 
 Response:
-Your Apache Beam pipeline can read data from [CSV files](https://en.wikipedia.org/wiki/Comma-separated_values) using the [CsvIO](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/csv/CsvIO.html) connector.
+Your Apache Beam pipeline can write data to CSV files using the CsvIO connector. Here is an example of how to achieve this:
 
 ```java
+
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.csv.CsvIO;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.commons.csv.CSVFormat;
+
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
+
 public class WriteCsvFile {
 
     // ExampleRecord is a POJO that represents the data to be written to the CSV file
@@ -20,7 +36,7 @@ public class WriteCsvFile {
         public ExampleRecord(int id, String month, String amount) {
             this.id = id;
             this.month = month;
-            this.amount = amount
+            this.amount = amount;
         }
     }
     
@@ -53,7 +69,8 @@ public class WriteCsvFile {
         p.apply("Create collection", Create.of(rows))
             .apply(
                 "Write to CSV file",
-                    CsvIO.<ExampleRecord>write(options.getFilePathPrefix(), csvFormat)
+                    CsvIO.<ExampleRecord>write()
+                        .to(options.getFilePath())
                         .withNumShards(1));
         p.run();
     }

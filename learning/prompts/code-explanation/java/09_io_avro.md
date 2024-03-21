@@ -1,5 +1,4 @@
 Prompt:
-
 What does this code do?
 
 ```java
@@ -41,8 +40,7 @@ public class ReadGenericAvroIO {
 ```
 
 Response:
-
-This code reads data from [Apache Avro](https://avro.apache.org/) files using the `ReadFromAvro` transform from the built-in [AvroIO] (https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/avro/io/AvroIO.html) connector.
+This code reads data from an Apache Avro file using the `ReadFromAvro` transform from the AvroIO connector provided by Apache Beam.
 
 ```java
     public interface ReadAvroOptions extends PipelineOptions {
@@ -53,21 +51,24 @@ This code reads data from [Apache Avro](https://avro.apache.org/) files using th
         void setInput(String value);
     }
 ```
-The `ReadAvroOptions` interface is used to define the command-line argument `--input`, which specifies the path to the Avro file. Set default value using the `@Default` annotation.
+
+The `ReadAvroOptions` interface defines the command-line argument `--input`, which specifies the path to the Avro file and sets the default value using the `@Default` annotation.
 
 ```java
         ReadAvroOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(ReadAvroOptions.class);
 
         Pipeline p = Pipeline.create(options);
 ```
-`PipelineOptionsFactory` ia used to parse command-line arguments and create a ReadAvroOptions instance. This instance is used to create a pipeline with provided pipeline options.
+
+The `PipelineOptionsFactory` class parses the command-line arguments and creates a `ReadAvroOptions` instance. This instance is then used to create a pipeline with the provided pipeline options.
 
 ```java
         String fields = "[{ \"name\": \"months\", \"type\": \"string\" }, { \"name\": \"amount\", \"type\": \"string\" }]";
         String schema = "{\"type\": \"record\", \"name\": \"AvroRecord\",\"fields\":" + fields + "}";
         Schema avroSchema = Schema.parse(schema);
 ```
-AvroIO connector requires a schema to read Avro files. The schema is defined as a string and parsed into a `Schema` object.
+
+The AvroIO connector requires a schema to read Avro files. Hence, the schema is defined as a string and parsed into a `Schema` object.
 
 ```java
         p.apply(AvroIO.readGenericRecords(avroSchema).from(options.getInput()))
@@ -82,10 +83,10 @@ AvroIO connector requires a schema to read Avro files. The schema is defined as 
         }))
 ```
 
-`ParDo` transform is used to process each `GenericRecord` object from the Avro file. Parse the `GenericRecord` object into a string and log it.
+In this segment, the `ParDo` transform processes each `GenericRecord` object from the Avro file. Each `GenericRecord` object is then parsed into a string and logged accordingly.
 
 ```java
         p.run();
 ```
-Pipeline is executed to read the Avro file using the AvroIO connector, parse the `GenericRecord` object, format it and output the result.
 
+Finally, the pipeline is executed to read the Avro file using the AvroIO connector, parse the `GenericRecord` objects, format them, and output the results.

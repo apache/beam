@@ -57,7 +57,7 @@ public class WriteCsvFile {
 
 ```
 Response:
-This code reads data from a [CSV file](https://en.wikipedia.org/wiki/Comma-separated_values) using the `ReadFromCsv` transform from the built-in [CsvIO](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/csv/CsvIO.html) connector.
+This code snippet reads data from a CSV file using the `ReadFromCsv` transform from the CsvIO connector provided by Apache Beam.
 
 ```java
  @DefaultSchema(JavaFieldSchema.class)
@@ -76,7 +76,8 @@ This code reads data from a [CSV file](https://en.wikipedia.org/wiki/Comma-separ
         }
     }
 ```
-`ExampleRecord` is a class that represents a row in the CSV file. It has three fields: `id`, `month`, and `amount`. `@DefaultSchema(JavaFieldSchema.class)` is an annotation that tells the Apache Beam SDK to use the `JavaFieldSchema` class to generate the schema for the `ExampleRecord` class.
+
+The `ExampleRecord` class represents a row in the CSV file, defining three fields: `id`, `month`, and `amount`. The `@DefaultSchema(JavaFieldSchema.class)` annotation instructs the Apache Beam SDK to use the `JavaFieldSchema` class to generate the schema for the `ExampleRecord` class.
 
 ```java
 public interface WriteCsvFileOptions extends PipelineOptions {
@@ -88,7 +89,8 @@ public interface WriteCsvFileOptions extends PipelineOptions {
         void setFilePath(String filePath);
     }
 ```
-`WriteCsvFileOptions` is an interface that defines a custom option for the file path to write the CSV files to.
+
+The `WriteCsvFileOptions` interface defines a custom option for specifying the file path to write the CSV files to.
 
 ```java
   WriteCsvFileOptions options =
@@ -97,7 +99,8 @@ public interface WriteCsvFileOptions extends PipelineOptions {
 
         Pipeline p = Pipeline.create(options);
 ```
-This code creates a `Pipeline` object using the options defined in `WriteCsvFileOptions`.
+
+The `Pipeline.create` method creates a data pipeline using the options defined in the `WriteCsvFileOptions` class.
 
 ```java
    List<ExampleRecord> rows =
@@ -106,14 +109,16 @@ This code creates a `Pipeline` object using the options defined in `WriteCsvFile
                 new ExampleRecord(2, "February", "$2000"),
                 new ExampleRecord(3, "March", "$3000"));
 ```
-This code creates a list of `ExampleRecord` objects that will be written to the CSV file.
+
+Subsequently, the code snippet creates a list of `ExampleRecord` objects to be written to the CSV file.
 
 ```java
         CSVFormat csvFormat =
             CSVFormat.DEFAULT.withHeaderComments("CSV file created by Apache Beam")
                 .withCommentMarker('#');
 ```
-To write the data to a CSV file, the code creates a `CSVFormat` object with a header comment and a comment marker.
+
+To write the data to a CSV file, the pipeline creates a `CSVFormat` object with a header comment and a comment marker.
 
 ```java
         p.apply("Create collection", Create.of(rows))
@@ -122,9 +127,11 @@ To write the data to a CSV file, the code creates a `CSVFormat` object with a he
                     CsvIO.<ExampleRecord>write(options.getFilePathPrefix(), csvFormat)
                         .withNumShards(1));
 ```
-This code applies the `Create` transform to create a collection of `ExampleRecord` objects. `CsvIO.write` transform is applied to the collection to write it to a CSV file. The `withNumShards` method is used to specify the number of shards to use when writing the file.
+
+The code applies the `Create` transform to generate a collection of `ExampleRecord` objects. Then, the `CsvIO.write` transform is applied to write the collection to a CSV file, with the `withNumShards` method specifying the number of shards to use when writing the file.
 
 ```java
         p.run();
 ``` 
-This code runs the pipeline.
+
+Finally, the code snippet invokes the `Pipeline.run` method to execute the pipeline.

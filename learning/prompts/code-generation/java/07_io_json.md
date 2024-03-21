@@ -1,11 +1,10 @@
 Prompt:
-Write the Java code to write data to JSON files using Apache Beam.
+Write a sample Java code snippet that writes data to a JSON file using Apache Beam.
 
 Response:
+Your Apache Beam pipeline can write data to JSON files using the Apache Beam JsonIO connector.
 
-Your Apache Beam pipeline can write data to [JSON](https://www.json.org/) files using the Apache Beam [JsonIO](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/json/JsonIO.html) connector.
-
-Here is an example of how to use the `JsonIO` connector to write data to JSON files:
+Here is an example of how to use the JsonIO connector to accomplish this:
 
 ```java
 package gcs;
@@ -85,4 +84,4 @@ public class WriteJsonIO {
 }
 ```
 
-This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) pattern to parse command line arguments.
+This code snippet utilizes the pipeline options pattern to parse command-line arguments.

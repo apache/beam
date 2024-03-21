@@ -68,11 +68,12 @@ public class WriteJsonIO {
     }
 }
 ```
+
 Response:
+This code snippet uses the Apache Beam JsonIO connector to write a list of `SampleRecord` objects to a JSON file.
 
-This code uses the Apache Beam [JsonIO](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/json/JsonIO.html) connector to write a list of `SampleRecord` objects to a JSON file.
+The `SampleRecord` class defines the schema for the JSON records and is annotated with `@DefaultSchema(JavaFieldSchema.class)` to indicate that its fields should be used as the schema for the JSON records.
 
-The `SampleRecord` class represents the schema of the JSON records. The `@DefaultSchema(JavaFieldSchema.class)` annotation specifies that the fields of the class should be used as the schema of the JSON records.
 ```java
  @DefaultSchema(JavaFieldSchema.class)
     public static class SampleRecord implements Serializable {
@@ -91,7 +92,8 @@ The `SampleRecord` class represents the schema of the JSON records. The `@Defaul
     }
 ```
 
-The `WriteJsonOptions` interface defines the command-line options that can be used to configure the path where to write output files. The `@Description` annotation specifies a description of the option, and the `@Validation.Required` annotation specifies that the option is required. 
+The `WriteJsonOptions` interface specifies command-line options for configuring the output file path. The `@Description` annotation provides a description of the option, and `@Validation.Required` indicates that the option is required.
+
 ```java
 public interface WriteJsonOptions extends PipelineOptions {
 
@@ -103,7 +105,7 @@ public interface WriteJsonOptions extends PipelineOptions {
     }
 ```
 
-`PipelineOptionsFactory` class is used to create a `PipelineOptions` object from the command-line arguments. The `Pipeline` object is used to create a pipeline, which is a sequence of transformations that are applied to data.
+The `PipelineOptionsFactory` class generates `PipelineOptions` from command-line arguments. The `Pipeline.create` method creates a data pipeline, defined as a sequence of transformations to be applied to the data.
 
 ```java
   WriteJsonOptions options =
@@ -113,7 +115,7 @@ public interface WriteJsonOptions extends PipelineOptions {
         Pipeline p = Pipeline.create(options);
 ```
 
-A list of `SampleRecord` objects is created. The `Create` transform is used to create a PCollection from the list. The `JsonIO.write` transform is used to write the PCollection to a JSON file. The `withNumShards` method specifies the number of output shards to produce.
+The pipeline generates a list of `SampleRecord` objects and applies the `Create` transform to create a `PCollection` from this list. Subsequently, the `JsonIO.write` transform is used to write the `PCollection` to a JSON file, with the `withNumShards` method specifying the number of output shards.
 
 ```java
         List<SampleRecord> rows =
@@ -129,9 +131,8 @@ A list of `SampleRecord` objects is created. The `Create` transform is used to c
                         .withNumShards(1));
 ```
 
-The `Pipeline.run` method is used to execute the pipeline.
+Finally, the code snippet invokes the `Pipeline.run` method to execute the pipeline.
+
 ```java
         p.run();
 ```
-
-

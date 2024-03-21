@@ -1,10 +1,23 @@
 Prompt:
-Write the Java code to write data in Avro format using Apache Beam.
+Write a sample Java code snippet that reads data from an Avro file using Apache Beam.
 
 Response:
-Your Apache Beam pipeline can read data from [Apache Avro](https://avro.apache.org/) files using the [AvroIO] (https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/avro/io/AvroIO.html) connector.
+Your Apache Beam pipeline can read data from Apache Avro files using the AvroIO connector. Here is an example of how to achieve this:
 
 ```java
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.avro.AvroIO;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class ReadGenericAvroIO {
 
     private static final Logger LOG = LoggerFactory.getLogger(ReadGenericAvroIO.class);
@@ -26,12 +39,12 @@ public class ReadGenericAvroIO {
         // Create a pipeline
         Pipeline p = Pipeline.create(options);
 
-        // declare the schema of the Avro file
+        // Declare the schema of the Avro file
         String fields = "[{ \"name\": \"months\", \"type\": \"string\" }, { \"name\": \"amount\", \"type\": \"string\" }]";
         String schema = "{\"type\": \"record\", \"name\": \"AvroRecord\",\"fields\":" + fields + "}";
 
         // Parse the schema string into a Schema object
-        Schema avroSchema = Schema.parse(schema);
+        Schema avroSchema = new Schema.Parser().parse(schema);
 
         // Read the Avro file using the AvroIO connector
         p.apply(AvroIO.readGenericRecords(avroSchema).from(options.getInput()))
@@ -52,4 +65,4 @@ public class ReadGenericAvroIO {
 }
 ```
 
-The `ReadAvroOptions` interface is used to define the command-line argument `--input`, which specifies the path to the Avro file. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) for the required `path` argument.
+The `ReadAvroOptions` interface is used to define the command-line argument `--input`, which specifies the path to the Avro file. This code uses pipeline options to define the required argument.

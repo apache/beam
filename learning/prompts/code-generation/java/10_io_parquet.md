@@ -1,10 +1,10 @@
 Prompt:
-Write the Java code to write data to Parquet files using Apache Beam.
+Write a sample Java code snippet that writes data to a Parquet file using Apache Beam.
+
 Response:
-Your Apache Beam pipeline can write data to [Apache Parquet](https://parquet.apache.org/) files using the [ParquetIO connector](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/parquet/ParquetIO.html).
+Your Apache Beam pipeline can write data to Apache Parquet files using the ParquetIO connector. Here is an example of how to achieve this:
 
 ```java
-
 package parquet;
 
 import java.io.Serializable;
@@ -50,7 +50,7 @@ public class WriteSampleParquetFile {
             return id;
         }
 
-        public String geMonth() {
+        public String getMonth() {
             return month;
         }
 
@@ -125,7 +125,6 @@ public class WriteSampleParquetFile {
         }
     }
 }
-
 ```
 
-The `WriteSampleParquetFileOptions` class is used to define the command-line argument `--path`, which specifies the path where to write Parquet file. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) for the required `path` argument.
+The `WriteSampleParquetFileOptions` class is utilized to define the command-line argument `--path`, specifying the path where the Parquet file should be written. This code uses pipeline options to define the required `path` argument.
