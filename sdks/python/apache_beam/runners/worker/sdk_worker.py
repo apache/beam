@@ -1302,8 +1302,9 @@ class GlobalCachingStateHandler(CachingStateHandler):
           f"Retrieving state {self._get_raw_called} times costed "
           f"{self._retrieval_time:.0f} seconds. It may be due to insufficient "
           "state cache size and/or frequent direct access of states.\n"
-          "Consider setting a larger state cache size or switch to "
-          "materialized (asList) side input if applicable.")
+          "Consider adding '--max_cache_memory_usage_mb' pipeline option to "
+          "increase state cache size or switch to materialized (pvalue.AsList) "
+          "side input if applicable.")
       # reset counts
       self._retrieval_time = 0.0
       self._get_raw_called = 0
