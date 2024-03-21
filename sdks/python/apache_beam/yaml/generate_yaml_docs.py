@@ -16,11 +16,7 @@
 #
 
 import argparse
-<<<<<<< HEAD
-=======
-import io
 import itertools
->>>>>>> 6fdd9f12389 (Combine docstrings for different langauge variants of the same transform.)
 import contextlib
 import re
 
