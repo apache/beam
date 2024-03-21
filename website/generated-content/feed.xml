@@ -48,8 +48,11 @@ See the &lt;a href="/get-started/downloads/">download page&lt;/a> for this relea
 &lt;/ul>
 &lt;h2 id="known-issues">Known Issues&lt;/h2>
 &lt;ul>
-&lt;li>N/A&lt;/li>
+&lt;li>Some Python pipelines that run with 2.52.0-2.54.0 SDKs and use large materialized side inputs might be affected by a performance regression. To restore the prior behavior on these SDK versions, supply the &lt;code>--max_cache_memory_usage_mb=0&lt;/code> pipeline option. (&lt;a href="https://github.com/apache/beam/issues/30360">#30360&lt;/a>).&lt;/li>
+&lt;li>Python pipelines that run with 2.53.0-2.54.0 SDKs and perform file operations on GCS might be affected by excess HTTP requests. This could lead to a performance regression or a permission issue. (&lt;a href="https://github.com/apache/beam/issues/28398">#28398&lt;/a>)&lt;/li>
+&lt;li>In Python pipelines, when shutting down inactive bundle processors, shutdown logic can overaggressively hold the lock, blocking acceptance of new work. Symptoms of this issue include slowness or stuckness in long-running jobs. Fixed in 2.56.0 (&lt;a href="https://github.com/apache/beam/pull/30679">#30679&lt;/a>).&lt;/li>
 &lt;/ul>
+&lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.54.0 release. Thank you to all contributors!&lt;/p>
 &lt;p>Ahmed Abualsaud&lt;/p>
@@ -290,6 +293,14 @@ expansion can also be used as the cross-language worker.&lt;/li>
 &lt;ul>
 &lt;li>Upgraded to go 1.21.5 to build, fixing &lt;a href="https://security-tracker.debian.org/tracker/CVE-2023-45285">CVE-2023-45285&lt;/a> and &lt;a href="https://security-tracker.debian.org/tracker/CVE-2023-39326">CVE-2023-39326&lt;/a>&lt;/li>
 &lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>Potential race condition causing NPE in DataflowExecutionStateSampler in Dataflow Java Streaming pipelines (&lt;a href="https://github.com/apache/beam/issues/29987">#29987&lt;/a>).&lt;/li>
+&lt;li>Some Python pipelines that run with 2.52.0-2.54.0 SDKs and use large materialized side inputs might be affected by a performance regression. To restore the prior behavior on these SDK versions, supply the &lt;code>--max_cache_memory_usage_mb=0&lt;/code> pipeline option. (&lt;a href="https://github.com/apache/beam/issues/30360">#30360&lt;/a>).&lt;/li>
+&lt;li>Python pipelines that run with 2.53.0-2.54.0 SDKs and perform file operations on GCS might be affected by excess HTTP requests. This could lead to a performance regression or a permission issue. (&lt;a href="https://github.com/apache/beam/issues/28398">#28398&lt;/a>)&lt;/li>
+&lt;li>In Python pipelines, when shutting down inactive bundle processors, shutdown logic can overaggressively hold the lock, blocking acceptance of new work. Symptoms of this issue include slowness or stuckness in long-running jobs. Fixed in 2.56.0 (&lt;a href="https://github.com/apache/beam/pull/30679">#30679&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.53.0 release. Thank you to all contributors!&lt;/p>
 &lt;p>Ahmed Abualsaud&lt;/p>
