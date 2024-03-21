@@ -126,14 +126,15 @@ public class IcebergSink<DestinationT extends Object,ElementT>
             )))
             .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder));
 
-
-    //Apply any sharded writes and flatten everything for catalog updates
-    PCollection<KV<String,Snapshot>> snapshots =
-    PCollectionList.of(writeBundlesToFiles.get(writtenFilesTag)
+    PCollection<WriteBundlesToFiles.Result<DestinationT>> catalogUpdates = PCollectionList.of(writeBundlesToFiles.get(writtenFilesTag)
             .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder)))
         .and(writtenFilesGrouped)
         .apply("Flatten Files", Flatten.pCollections())
-        .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder))
+        .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder));
+
+
+    //Apply any sharded writes and flatten everything for catalog updates
+    PCollection<KV<String,Snapshot>> snapshots = catalogUpdates
         .apply("Extract Data File",
             ParDo.of(new DoFn<Result<DestinationT>, KV<String,MetadataUpdate>>() {
               @ProcessElement
@@ -151,14 +152,12 @@ public class IcebergSink<DestinationT extends Object,ElementT>
 
     return new IcebergWriteResult(
         input.getPipeline(),
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
+        successfulWrites,
+        catalogUpdates,
+        snapshots,
+        successfulWritesTag,
+        writtenFilesTag,
+        snapshotsTag
     );
   }
 
