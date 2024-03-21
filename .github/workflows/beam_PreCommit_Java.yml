@@ -208,3 +208,8 @@ jobs:
         with:
           name: Publish SpotBugs
           path: '**/build/reports/spotbugs/*.html'
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4.0.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: java
