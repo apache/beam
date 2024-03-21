@@ -88,6 +88,14 @@ def normalize_combine(spec):
 
 
 class PyJsYamlCombine(beam.PTransform):
+  """Groups and combines records sharing common fields.
+
+  Built-in combine functions are BUILTIN_COMBINE_FNS
+  but custom aggregation functions can be used as well.
+
+  See also the documentation on
+  [YAML Aggregation](https://beam.apache.org/documentation/sdks/yaml-combine/).
+  """
   def __init__(
       self,
       group_by: Iterable[str],
@@ -159,6 +167,11 @@ class PyJsYamlCombine(beam.PTransform):
 
     return pcoll | transform.with_output_types(
         row_type.RowTypeConstraint.from_fields(output_types))
+
+
+PyJsYamlCombine.__doc__ = PyJsYamlCombine.__doc__.replace(
+    'BUILTIN_COMBINE_FNS',
+    ', '.join('`%s`' % k for k in BUILTIN_COMBINE_FNS.keys()))
 
 
 @beam.ptransform.ptransform_fn

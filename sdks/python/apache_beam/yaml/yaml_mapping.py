@@ -374,6 +374,9 @@ class _Explode(beam.PTransform):
 
   This is akin to a `FlatMap` when paired with the MapToFields transform.
 
+  See more complete documentation on
+  [YAML Mapping Functions](https://beam.apache.org/documentation/sdks/yaml-udf/#flatmap).
+
   Args:
       fields: The list of fields to expand.
       cross_product: If multiple fields are specified, indicates whether the
@@ -459,6 +462,11 @@ class _Explode(beam.PTransform):
 @maybe_with_exception_handling_transform_fn
 def _PyJsFilter(
     pcoll, keep: Union[str, Dict[str, str]], language: Optional[str] = None):
+  """Keeps only records that satisfy the given criteria.
+
+  See more complete documentation on
+  [YAML Filtering](https://beam.apache.org/documentation/sdks/yaml-udf/#filtering).
+  """
   keep_fn = _as_callable_for_pcoll(pcoll, keep, "keep", language)
   return pcoll | beam.Filter(keep_fn)
 
@@ -515,6 +523,11 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
 @beam.ptransform.ptransform_fn
 @maybe_with_exception_handling_transform_fn
 def _PyJsMapToFields(pcoll, language='generic', **mapping_args):
+  """Creates records with new fields defined in terms of the input fields.
+
+  See more complete documentation on
+  [YAML Mapping Functions](https://beam.apache.org/documentation/sdks/yaml-udf/#mapping-functions).
+  """
   input_schema, fields = normalize_fields(
       pcoll, language=language, **mapping_args)
   if language == 'javascript':
@@ -556,10 +569,26 @@ def _SqlMapToFieldsTransform(pcoll, sql_transform_constructor, **mapping_args):
 
 
 @beam.ptransform.ptransform_fn
+@maybe_with_exception_handling_transform_fn
 def _AssignTimestamps(
     pcoll,
     timestamp: Union[str, Dict[str, str]],
     language: Optional[str] = None):
+  """Assigns a new timestamp each element of its input.
+
+  This can be useful when reading records that have the timestamp embedded
+  in them, for example with various file types or other sources that by default
+  set all timestamps to the infinite past.
+
+  Note that the timestamp should only be set forward, as setting it backwards
+  may not cause it to hold back an already advanced watermark and the data
+  could become droppably late.
+
+  Args:
+      timestamp: A field, callable, or expression giving the new timestamp.
+      language: The language of the timestamp expression.
+      error_handling: Whether and how to handle errors during iteration.
+  """
   timestamp_fn = _as_callable_for_pcoll(pcoll, timestamp, 'timestamp', language)
   T = TypeVar('T')
   return pcoll | beam.Map(lambda x: TimestampedValue(x, timestamp_fn(x))
