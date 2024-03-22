@@ -237,6 +237,7 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
           result_pcoll
           | beam.Map(lambda x: x[test_query_column])
           | beam.Map(assert_element))
+    raise RuntimeError("Check embedding test run")
 
   def test_mltransform_to_ptransform_with_sentence_transformer(self):
     model_name = ''

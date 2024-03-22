@@ -73,6 +73,7 @@ class MLTransformStdOutTest(unittest.TestCase):
     predicted = mock_stdout.getvalue().splitlines()
     expected = check_mltransform_compute_and_apply_vocab()
     self.assertEqual(predicted, expected)
+    raise RuntimeError("Check tft test run")
 
   def test_mltransform_scale_to_0_1(self, mock_stdout):
     mltransform_scale_to_0_1()

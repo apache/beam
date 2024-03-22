@@ -105,6 +105,8 @@ class TFRunInferenceTest(unittest.TestCase):
     for actual, expected in zip(inferences, expected_predictions):
       self.assertTrue(_compare_prediction_result(actual, expected))
 
+    raise RuntimeError("Check tensorflow test run")
+
   def test_predict_tensor(self):
     fake_model = FakeTFTensorModel()
     inference_runner = TFModelHandlerTensor(

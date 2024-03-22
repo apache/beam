@@ -85,6 +85,7 @@ class HuggingFaceInferenceTest(unittest.TestCase):
     inferences = inference_runner.run_inference(batched_examples, fake_model)
     for actual, expected in zip(inferences, expected_predictions):
       self.assertTrue(_compare_tensor_prediction_result(actual, expected))
+    raise RuntimeError("Check transformer test run")
 
   def test_predict_tensor_with_inference_args(self):
     fake_model = FakeTFTensorModel()
