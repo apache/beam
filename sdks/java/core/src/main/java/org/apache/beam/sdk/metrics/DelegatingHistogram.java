@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.metrics;
 
 import java.io.Serializable;
+import java.util.Optional;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.HistogramData;
 
@@ -60,19 +61,34 @@ public class DelegatingHistogram implements Metric, Histogram, Serializable {
     this.perWorkerHistogram = perWorkerHistogram;
   }
 
-  @Override
-  public void update(double value) {
+  private Optional<Histogram> getHistogram() {
     MetricsContainer container =
         processWideContainer
             ? MetricsEnvironment.getProcessWideContainer()
             : MetricsEnvironment.getCurrentContainer();
     if (container == null) {
-      return;
+      return Optional.empty();
     }
     if (perWorkerHistogram) {
-      container.getPerWorkerHistogram(name, bucketType).update(value);
+      return Optional.of(container.getPerWorkerHistogram(name, bucketType));
     } else {
-      container.getHistogram(name, bucketType).update(value);
+      return Optional.of(container.getHistogram(name, bucketType));
+    }
+  }
+
+  @Override
+  public void update(double value) {
+    Optional<Histogram> histogram = getHistogram();
+    if (histogram.isPresent()) {
+      histogram.get().update(value);
+    }
+  }
+
+  @Override
+  public void update(double... values) {
+    Optional<Histogram> histogram = getHistogram();
+    if (histogram.isPresent()) {
+      histogram.get().update(values);
     }
   }
 

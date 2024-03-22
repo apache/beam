@@ -156,6 +156,19 @@ public interface StreamingInsertsMetrics {
       }
     }
 
+    /** Record rpc latency histogram metrics. */
+    private void recordRpcLatencyMetrics() {
+      Histogram latencyHistogram =
+          BigQuerySinkMetrics.createRPCLatencyHistogram(
+              BigQuerySinkMetrics.RpcMethod.STREAMING_INSERTS);
+      Object[] rpcLatencyObjs = rpcLatencies().toArray();
+      double[] rpcLatencies = new double[rpcLatencyObjs.length];
+      for (int i = 0; i < rpcLatencies.length; i++) {
+        rpcLatencies[i] = ((Duration) rpcLatencyObjs[i]).toMillis();
+      }
+      latencyHistogram.update(rpcLatencies);
+    }
+
     /**
      * Export all metrics recorded in this instance to the underlying {@code perWorkerMetrics}
      * containers. This function will only report metrics once per instance. Subsequent calls to
@@ -223,12 +236,7 @@ public interface StreamingInsertsMetrics {
             .inc(successfulRowsCount().longValue());
       }
 
-      Histogram latencyHistogram =
-          BigQuerySinkMetrics.createRPCLatencyHistogram(
-              BigQuerySinkMetrics.RpcMethod.STREAMING_INSERTS);
-      for (Duration latency : rpcLatencies()) {
-        latencyHistogram.update(latency.toMillis());
-      }
+      recordRpcLatencyMetrics();
     }
   }
 }
