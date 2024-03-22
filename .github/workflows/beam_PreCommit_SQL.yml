@@ -118,15 +118,15 @@ jobs:
       - name: Set Jacoco report path
         id: jacoco_report_path
         run: |
-          echo "path=sdks/java/extensions/sql/build/reports/jacoco/test" >> $GITHUB_OUTPUT
+          echo "path=sdks/java/extensions/sql/build/reports/jacoco/test/jacocoTestReport.xml" >> $GITHUB_OUTPUT
       - name: Archive Jacoco Results
         uses: actions/upload-artifact@v4
         with:
           name: Jacoco Results
-          path: '**/${{ steps.jacoco_report_path.outputs.path }}/**'
+          path: '**/build/jacoco/report/**'
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.0.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          file: '${{ steps.jacoco_report_path.outputs.path }}/jacocoTestReport.xml'
+          file: ${{ steps.jacoco_report_path.outputs.path }}
           flags: java
