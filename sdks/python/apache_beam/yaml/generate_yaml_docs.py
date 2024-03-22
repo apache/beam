@@ -16,8 +16,8 @@
 #
 
 import argparse
-import itertools
 import io
+import itertools
 import re
 
 import yaml
