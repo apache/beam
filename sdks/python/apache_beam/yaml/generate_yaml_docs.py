@@ -16,7 +16,7 @@
 #
 
 import argparse
-import contextlib
+import io
 import re
 
 import yaml
@@ -154,13 +154,16 @@ def transform_docs(t, providers):
   return '\n'.join([
       f'## {t}',
       '',
-      longest(lambda p: p.description(t), providers),
+      longest(lambda p: p.description(t),
+              providers).replace('::\n', '\n\n    :::yaml\n'),
       '',
       '### Configuration',
       '',
       longest(lambda p: config_docs(p.config_schema(t)), providers),
       '',
       '### Usage',
+      '',
+      '    :::yaml',
       '',
       indent(longest(lambda p: pretty_example(p, t), providers), 4),
   ])
@@ -169,6 +172,7 @@ def transform_docs(t, providers):
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--markdown_file')
+  parser.add_argument('--html_file')
   parser.add_argument('--schema_file')
   parser.add_argument('--include', default='.*')
   parser.add_argument(
@@ -179,51 +183,121 @@ def main():
 
   with subprocess_server.SubprocessServer.cache_subprocesses():
     json_config_schemas = []
-    with contextlib.ExitStack() as stack:
-      if options.markdown_file:
-        markdown_out = stack.enter_context(open(options.markdown_file, 'w'))
-      providers = yaml_provider.standard_providers()
-      for transform in sorted(providers.keys(), key=io_grouping_key):
-        if include(transform) and not exclude(transform):
-          print(transform)
-          if options.markdown_file:
-            markdown_out.write(transform_docs(transform, providers[transform]))
-            markdown_out.write('\n\n')
-          if options.schema_file:
-            schema = providers[transform][0].config_schema(transform)
-            if schema:
-              json_config_schemas.append({
-                  'if': {
-                      'properties': {
-                          'type': {
-                              'const': transform
-                          }
-                      }
-                  },
-                  'then': {
-                      'properties': {
-                          'config': {
-                              'type': 'object',
-                              'properties': {
-                                  '__line__': {
-                                      'type': 'integer'
-                                  },
-                                  '__uuid__': {},
-                                  **{
-                                      f.name: json_utils.beam_type_to_json_type(
-                                          f.type)
-                                      for f in schema.fields
-                                  }
-                              },
-                              'additionalProperties': False,
-                          }
-                      }
-                  }
-              })
+    markdown_out = io.StringIO()
+    providers = yaml_provider.standard_providers()
+    for transform in sorted(providers.keys(), key=io_grouping_key):
+      if include(transform) and not exclude(transform):
+        print(transform)
+        if options.markdown_file:
+          markdown_out.write(transform_docs(transform, providers[transform]))
+          markdown_out.write('\n\n')
+        if options.schema_file:
+          schema = providers[transform][0].config_schema(transform)
+          if schema:
+            json_config_schemas.append({
+                'if': {
+                    'properties': {
+                        'type': {
+                            'const': transform
+                        }
+                    }
+                },
+                'then': {
+                    'properties': {
+                        'config': {
+                            'type': 'object',
+                            'properties': {
+                                '__line__': {
+                                    'type': 'integer'
+                                },
+                                '__uuid__': {},
+                                **{
+                                    f.name: json_utils.beam_type_to_json_type(
+                                        f.type)
+                                    for f in schema.fields
+                                }
+                            },
+                            'additionalProperties': False,
+                        }
+                    }
+                }
+            })
 
     if options.schema_file:
       with open(options.schema_file, 'w') as fout:
         yaml.dump(json_config_schemas, fout, sort_keys=False)
+
+    if options.markdown_file:
+      with open(options.markdown_file, 'w') as fout:
+        fout.write(markdown_out.getvalue())
+
+    if options.html_file:
+      import markdown
+      import markdown.extensions.toc
+      import pygments.formatters
+
+      title = 'Beam YAML Transform Index'
+      md = markdown.Markdown(
+          extensions=[
+              markdown.extensions.toc.TocExtension(toc_depth=2),
+              'codehilite',
+          ])
+      html = md.convert(markdown_out.getvalue())
+      pygments_style = pygments.formatters.HtmlFormatter().get_style_defs(
+          '.codehilite')
+      extra_style = '''
+          .nav {
+            height: 100%;
+            width: 12em;
+            position: fixed;
+            top: 0;
+            left: 0;
+            overflow-x: hidden;
+          }
+          .nav a {
+            color: #333;
+            padding: .2em;
+            display: block;
+            text-decoration: none;
+          }
+          .nav a:hover {
+            color: #888;
+          }
+          .nav li {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+          }
+          .content {
+            margin-left: 12em;
+          }
+          h2 {
+            margin-top: 2em;
+          }
+          '''
+
+      with open(options.html_file, 'w') as fout:
+        fout.write(
+            f'''
+            <html>
+              <head>
+                <title>{title}</title>
+                <style>
+                {pygments_style}
+                {extra_style}
+                </style>
+              </head>
+              <body>
+                <div class="nav">
+                  {md.toc}
+                </div>
+                <div class="content">
+                  <h1>{title}</h1>
+                  {html}
+                </div>
+              </body>
+            </html>
+            ''')
 
 
 if __name__ == '__main__':
