@@ -159,6 +159,7 @@ class TFHubEmbeddingsTest(unittest.TestCase):
             | "MLTransform" >> MLTransform(
                 write_artifact_location=self.artifact_location).with_transform(
                     embedding_config))
+    raise RuntimeError("Check tfhubembedding test run")
 
 
 @unittest.skipIf(

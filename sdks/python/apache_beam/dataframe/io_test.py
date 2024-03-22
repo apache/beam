@@ -135,6 +135,7 @@ A     B
   def test_read_write_parquet(self):
     self._run_read_write_test(
         'parquet', {}, {}, dict(check_index=False), ['pyarrow'])
+    raise RuntimeError("Check pyarrow/pandas test run")
 
   @parameterized.expand([
       ('csv', dict(index_col=0)),

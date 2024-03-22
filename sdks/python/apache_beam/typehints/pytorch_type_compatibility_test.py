@@ -71,6 +71,7 @@ class PytorchBatchConverterTest(unittest.TestCase):
   def test_typehint_validates(self):
     typehints.validate_composite_type_param(self.batch_typehint, '')
     typehints.validate_composite_type_param(self.element_typehint, '')
+    raise RuntimeError("Check pytorch test run")
 
   def test_type_check_batch(self):
     typehints.check_constraint(self.normalized_batch_typehint, self.batch)
