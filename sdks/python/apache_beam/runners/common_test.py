@@ -601,22 +601,46 @@ class UtilitiesTest(unittest.TestCase):
                         urn='B', payload=b'x'),
                     'b3': beam_runner_api_pb2.Environment(
                         urn='B', payload=b'y'),
+                },
+                transforms={
+                    't1': beam_runner_api_pb2.PTransform(
+                        unique_name='t1', environment_id='a1'),
+                    't2': beam_runner_api_pb2.PTransform(
+                        unique_name='t2', environment_id='a2'),
+                },
+                windowing_strategies={
+                    'w1': beam_runner_api_pb2.WindowingStrategy(
+                        environment_id='b1'),
+                    'w2': beam_runner_api_pb2.WindowingStrategy(
+                        environment_id='b2'),
                 })))
     self.assertEqual(len(pipeline_proto.components.environments), 3)
     self.assertTrue(('a1' in pipeline_proto.components.environments)
                     ^ ('a2' in pipeline_proto.components.environments))
     self.assertTrue(('b1' in pipeline_proto.components.environments)
                     ^ ('b2' in pipeline_proto.components.environments))
+    self.assertEqual(
+        len(
+            set(
+                t.environment_id
+                for t in pipeline_proto.components.transforms.values())),
+        1)
+    self.assertEqual(
+        len(
+            set(
+                w.environment_id for w in
+                pipeline_proto.components.windowing_strategies.values())),
+        1)
 
   def test_external_merged(self):
     p = beam.Pipeline()
     # This transform recursively creates several external environments.
-    p | FibTransform(4)
+    _ = p | FibTransform(4)
     pipeline_proto = p.to_runner_api()
     # All our external environments are equal and consolidated.
     # We also have a placeholder "default" environment that has not been
     # resolved do anything concrete yet.
-    self.assertEquals(len(pipeline_proto.components.environments), 2)
+    self.assertEqual(len(pipeline_proto.components.environments), 2)
 
 
 if __name__ == '__main__':
