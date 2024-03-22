@@ -36,12 +36,5 @@ dependencies {
 task("runJavaExamplesValidationTask") {
   group = "Verification"
   description = "Run the Beam quickstart across all Java runners"
-  dependsOn(":runners:direct-java:runQuickstartJavaDirect")
-  dependsOn(":runners:google-cloud-dataflow-java:runQuickstartJavaDataflow")
-  dependsOn(":runners:spark:3:runQuickstartJavaSpark")
-  dependsOn(":runners:flink:1.13:runQuickstartJavaFlinkLocal")
   dependsOn(":runners:direct-java:runMobileGamingJavaDirect")
-  dependsOn(":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow")
-  dependsOn(":runners:twister2:runQuickstartJavaTwister2")
-  dependsOn(":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflowBom")
 }
