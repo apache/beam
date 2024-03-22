@@ -85,7 +85,6 @@ jobs:
           arguments: |
             -PtestJavaVersion=11 \
             -Pjava11Home=$JAVA_HOME_11_X64 \
-            -PuseWheelDistribution \
             -PpythonVersion=${{ matrix.python_version }} \
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
