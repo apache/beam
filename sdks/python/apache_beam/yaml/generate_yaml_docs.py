@@ -236,7 +236,8 @@ def main():
                                     },
                                     '__uuid__': {},
                                     **{
-                                        f.name: json_utils.beam_type_to_json_type(
+                                        f.name:  #
+                                        json_utils.beam_type_to_json_type(
                                             f.type)
                                         for f in schema.fields
                                     }
