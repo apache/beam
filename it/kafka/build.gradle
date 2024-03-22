@@ -25,6 +25,14 @@ applyJavaNature(
 description = "Apache Beam :: IT :: Kafka"
 ext.summary = "Integration test utilities for Kafka."
 
+configurations.all {
+    exclude group: 'ch.qos.logback', module: 'logback-classic'
+    exclude group: 'org.slf4j', module: 'slf4j-jdk14'
+    exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+    exclude group: 'org.slf4j', module: 'slf4j-reload4j'
+    exclude group: "org.slf4j", module: "jul-to-slf4j"
+}
+
 dependencies {
     implementation project(path: ":it:testcontainers", configuration: "shadow")
     implementation library.java.testcontainers_kafka
@@ -46,5 +54,13 @@ dependencies {
     testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
 }
 
-tasks.register("KafkaStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'kafka', 'KafkaIOST', ['configuration':'medium','bootstrapServers':System.getProperty("bootstrapServers"),'useDataflowRunnerV2':System.getProperty("useDataflowRunnerV2"),'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
-tasks.register("KafkaStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'kafka', 'KafkaIOST', ['configuration':'large','bootstrapServers':System.getProperty("bootstrapServers"),'useDataflowRunnerV2':System.getProperty("useDataflowRunnerV2"),'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
+tasks.register(
+        "KafkaStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'kafka', 'KafkaIOST',
+        ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)
+tasks.register(
+        "KafkaStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'kafka', 'KafkaIOST',
+        ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)

@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.Timestamp;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
@@ -34,7 +33,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -55,8 +53,6 @@ import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -87,10 +83,9 @@ import org.junit.Test;
 public final class BigQueryIOST extends IOStressTestBase {
 
   private static final String READ_ELEMENT_METRIC_NAME = "read_count";
-  private static final String TEST_ID = UUID.randomUUID().toString();
-  private static final String TEST_TIMESTAMP = Timestamp.now().toString();
 
   private static BigQueryResourceManager resourceManager;
+  private static String tableName;
   private static String tableQualifier;
   private static InfluxDBSettings influxDBSettings;
 
@@ -110,15 +105,14 @@ public final class BigQueryIOST extends IOStressTestBase {
 
   @Before
   public void setup() {
-    // generate a random table names
-    String sourceTableName =
+    // generate a random table name
+    tableName =
         "io-bq-source-table-"
             + DateTimeFormatter.ofPattern("MMddHHmmssSSS")
                 .withZone(ZoneId.of("UTC"))
                 .format(java.time.Instant.now())
             + UUID.randomUUID().toString().substring(0, 10);
-    tableQualifier =
-        String.format("%s:%s.%s", project, resourceManager.getDatasetId(), sourceTableName);
+    tableQualifier = String.format("%s:%s.%s", project, resourceManager.getDatasetId(), tableName);
 
     // parse configuration
     testConfigName =
@@ -148,6 +142,16 @@ public final class BigQueryIOST extends IOStressTestBase {
       tempLocation = String.format("gs://%s/temp/", tempBucketName);
       writePipeline.getOptions().as(TestPipelineOptions.class).setTempRoot(tempLocation);
       writePipeline.getOptions().setTempLocation(tempLocation);
+    }
+    writePipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
+
+    if (configuration.exportMetricsToInfluxDB) {
+      configuration.influxHost =
+          TestProperties.getProperty("influxHost", "", TestProperties.Type.PROPERTY);
+      configuration.influxDatabase =
+          TestProperties.getProperty("influxDatabase", "", TestProperties.Type.PROPERTY);
+      configuration.influxMeasurement =
+          TestProperties.getProperty("influxMeasurement", "", TestProperties.Type.PROPERTY);
     }
   }
 
@@ -332,7 +336,7 @@ public final class BigQueryIOST extends IOStressTestBase {
             region,
             launchInfo.jobId(),
             getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
-    Long rowCount = resourceManager.getRowCount(tableQualifier);
+    Long rowCount = resourceManager.getRowCount(tableName);
     assertEquals(rowCount, numRecords, 0.5);
 
     // export metrics
@@ -344,18 +348,8 @@ public final class BigQueryIOST extends IOStressTestBase {
             .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
             .build();
     try {
-      Map<String, Double> metrics = getMetrics(launchInfo, metricsConfig);
-      if (configuration.exportMetricsToInfluxDB) {
-        Collection<NamedTestResult> namedTestResults = new ArrayList<>();
-        for (Map.Entry<String, Double> entry : metrics.entrySet()) {
-          NamedTestResult metricResult =
-              NamedTestResult.create(TEST_ID, TEST_TIMESTAMP, entry.getKey(), entry.getValue());
-          namedTestResults.add(metricResult);
-        }
-        IOITMetrics.publishToInflux(TEST_ID, TEST_TIMESTAMP, namedTestResults, influxDBSettings);
-      } else {
-        exportMetricsToBigQuery(launchInfo, metrics);
-      }
+      exportMetrics(
+          launchInfo, metricsConfig, configuration.exportMetricsToInfluxDB, influxDBSettings);
     } catch (ParseException | InterruptedException e) {
       throw new RuntimeException(e);
     }
@@ -491,7 +485,7 @@ public final class BigQueryIOST extends IOStressTestBase {
      * InfluxDB and displayed using Grafana. If set to false, metrics will be exported to BigQuery
      * and displayed with Looker Studio.
      */
-    @JsonProperty public boolean exportMetricsToInfluxDB = false;
+    @JsonProperty public boolean exportMetricsToInfluxDB = true;
 
     /** InfluxDB measurement to publish results to. * */
     @JsonProperty public String influxMeasurement = BigQueryIOST.class.getName();

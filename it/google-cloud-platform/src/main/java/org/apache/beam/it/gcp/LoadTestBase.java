@@ -172,8 +172,12 @@ public abstract class LoadTestBase {
       rowContent.put("metrics", metricRows);
       bigQueryResourceManager.write(
           TestProperties.exportTable(), RowToInsert.of("rowId", rowContent));
-    } catch (IllegalStateException e) {
-      LOG.error("Unable to export results to datastore. ", e);
+    } catch (IllegalStateException | IllegalArgumentException e) {
+      LOG.error(
+          "Unable to export results to datastore."
+              + "The next System properties might be missing or incorrect: "
+              + "'exportDataset', 'exportTable', 'exportProject' (Optional).",
+          e);
     }
   }
 

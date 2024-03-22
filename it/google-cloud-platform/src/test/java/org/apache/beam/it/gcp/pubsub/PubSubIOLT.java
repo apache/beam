@@ -22,7 +22,6 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.cloud.Timestamp;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.SubscriptionName;
 import com.google.pubsub.v1.TopicName;
@@ -32,13 +31,10 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
@@ -55,8 +51,6 @@ import org.apache.beam.sdk.io.synthetic.SyntheticUnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -157,6 +151,15 @@ public class PubSubIOLT extends IOLoadTestBase {
     readPipeline.getOptions().as(PubsubOptions.class).setProject(project);
     writePipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
     readPipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
+
+    if (configuration.exportMetricsToInfluxDB) {
+      configuration.influxHost =
+          TestProperties.getProperty("influxHost", "", TestProperties.Type.PROPERTY);
+      configuration.influxDatabase =
+          TestProperties.getProperty("influxDatabase", "", TestProperties.Type.PROPERTY);
+      configuration.influxMeasurement =
+          TestProperties.getProperty("influxMeasurement", "", TestProperties.Type.PROPERTY);
+    }
   }
 
   @After
@@ -245,8 +248,16 @@ public class PubSubIOLT extends IOLoadTestBase {
               .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
               .build();
 
-      exportMetrics(writeLaunchInfo, writeMetricsConfig);
-      exportMetrics(readLaunchInfo, readMetricsConfig);
+      exportMetrics(
+          writeLaunchInfo,
+          writeMetricsConfig,
+          configuration.exportMetricsToInfluxDB,
+          influxDBSettings);
+      exportMetrics(
+          readLaunchInfo,
+          readMetricsConfig,
+          configuration.exportMetricsToInfluxDB,
+          influxDBSettings);
     } catch (ParseException | InterruptedException e) {
       throw new RuntimeException(e);
     } finally {
@@ -338,27 +349,6 @@ public class PubSubIOLT extends IOLoadTestBase {
     if (pipelineLauncher.getJobStatus(project, region, pipelineLaunchInfo.jobId())
         == PipelineLauncher.JobState.RUNNING) {
       pipelineLauncher.cancelJob(project, region, pipelineLaunchInfo.jobId());
-    }
-  }
-
-  private void exportMetrics(
-      PipelineLauncher.LaunchInfo launchInfo, MetricsConfiguration metricsConfig)
-      throws IOException, ParseException, InterruptedException {
-
-    Map<String, Double> metrics = getMetrics(launchInfo, metricsConfig);
-    String testId = UUID.randomUUID().toString();
-    String testTimestamp = Timestamp.now().toString();
-
-    if (configuration.exportMetricsToInfluxDB) {
-      Collection<NamedTestResult> namedTestResults = new ArrayList<>();
-      for (Map.Entry<String, Double> entry : metrics.entrySet()) {
-        NamedTestResult metricResult =
-            NamedTestResult.create(testId, testTimestamp, entry.getKey(), entry.getValue());
-        namedTestResults.add(metricResult);
-      }
-      IOITMetrics.publishToInflux(testId, testTimestamp, namedTestResults, influxDBSettings);
-    } else {
-      exportMetricsToBigQuery(launchInfo, metrics);
     }
   }
 
@@ -461,7 +451,7 @@ public class PubSubIOLT extends IOLoadTestBase {
      * InfluxDB and displayed using Grafana. If set to false, metrics will be exported to BigQuery
      * and displayed with Looker Studio.
      */
-    @JsonProperty public boolean exportMetricsToInfluxDB = false;
+    @JsonProperty public boolean exportMetricsToInfluxDB = true;
 
     /** InfluxDB measurement to publish results to. * */
     @JsonProperty public String influxMeasurement;
