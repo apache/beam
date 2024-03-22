@@ -6221,16 +6221,34 @@ environment&amp;rsquo;s directories.&lt;/p>
 &lt;li>Required for I/O connectors interfacing with AWS&lt;/li>
 &lt;/ul>
 &lt;/li>
+&lt;li>&lt;strong>Microsoft Azure&lt;/strong>
+&lt;ul>
+&lt;li>Installation Command: &lt;code>pip install 'apache-beam[azure]'&lt;/code>&lt;/li>
+&lt;li>Required for I/O connectors interfacing with Microsoft Azure&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;strong>Beam YAML API&lt;/strong>
+&lt;ul>
+&lt;li>Installation Command: &lt;code>pip install 'apache-beam[yaml]'&lt;/code>&lt;/li>
+&lt;li>Required for using &lt;a href="/documentation/sdks/yaml/">Beam YAML API&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;strong>Beam YAML Dataframe API&lt;/strong>
+&lt;ul>
+&lt;li>Installation Command: &lt;code>pip install 'apache-beam[dataframe]'&lt;/code>&lt;/li>
+&lt;li>Required for using &lt;a href="/documentation/dsls/dataframes/overview/">Beam Dataframe API&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
 &lt;li>&lt;strong>Tests&lt;/strong>
 &lt;ul>
 &lt;li>Installation Command: &lt;code>pip install 'apache-beam[test]'&lt;/code>&lt;/li>
-&lt;li>Required for developing on beam and running unittests&lt;/li>
+&lt;li>Required for developing Beam and running unit tests&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;li>&lt;strong>Docs&lt;/strong>
 &lt;ul>
 &lt;li>Installation Command: &lt;code>pip install 'apache-beam[docs]'&lt;/code>&lt;/li>
-&lt;li>Generating API documentation using Sphinx&lt;/li>
+&lt;li>Required for generating API documentation using Sphinx&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;/ul>
