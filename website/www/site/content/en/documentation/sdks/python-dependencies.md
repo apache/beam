@@ -18,7 +18,7 @@ limitations under the License.
 
 # Beam SDK for Python dependencies
 
-This page provides the information on dependencies of Apache Beam Python SDK
+This page provides the information about the Apache Beam Python SDK dependencies.
 
 If your pipeline requires additional dependencies, see [Managing Python Pipeline Dependencies](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/).
 
