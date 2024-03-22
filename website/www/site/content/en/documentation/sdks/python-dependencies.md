@@ -21,7 +21,7 @@ limitations under the License.
 This page provides the information on dependencies of Apache Beam Python SDK
 itself.
 
-If your pipeline requires addtional dependencies, see the [Managing Python Pipeline Dependencies](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/) page.
+If your pipeline requires additional dependencies, see [Managing Python Pipeline Dependencies](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/).
 
 Dependencies of the Apache Beam Python SDK are defined in the `setup.py` file in the Beam repository. To view them, perform the following steps:
 
