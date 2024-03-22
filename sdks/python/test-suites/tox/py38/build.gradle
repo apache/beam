@@ -52,6 +52,10 @@ project.tasks.register("preCommitPyCoverage") {
 
 // Dep Postcommit runs test suites that evaluate compatibility of particular
 // dependencies. It is exercised on a single Python version.
+//
+// Should still leave at least one version in PreCommit unless the marked tests
+// are also exercised by existing PreCommit
+// e.g. pyarrow and pandas also run on PreCommit Dataframe and Coverage
 project.tasks.register("postCommitPyDep") {}
 
 // Create a test task for each supported major version of pyarrow
@@ -117,13 +121,14 @@ toxTask "testPy38pytorch-113", "py38-pytorch-113", "${posargs}"
 test.dependsOn "testPy38pytorch-113"
 postCommitPyDep.dependsOn "testPy38pytorch-113"
 
+// run on precommit
 toxTask "testPy38pytorch-200", "py38-pytorch-200", "${posargs}"
 test.dependsOn "testPy38pytorch-200"
-postCommitPyDep.dependsOn "testPy38pytorch-200"
+preCommitPyCoverage.dependsOn "testPy38pytorch-200"
 
 toxTask "testPy38tft-113", "py38-tft-113", "${posargs}"
 test.dependsOn "testPy38tft-113"
-postCommitPyDep.dependsOn "testPy38tft-113"
+preCommitPyCoverage.dependsOn "testPy38tft-113"
 
 // TODO(https://github.com/apache/beam/issues/25796) - uncomment onnx tox task once onnx supports protobuf 4.x.x
 // Create a test task for each minor version of onnx
@@ -133,7 +138,7 @@ postCommitPyDep.dependsOn "testPy38tft-113"
 // Create a test task for each minor version of tensorflow
 toxTask "testPy38tensorflow-212", "py38-tensorflow-212", "${posargs}"
 test.dependsOn "testPy38tensorflow-212"
-postCommitPyDep.dependsOn "testPy38tensorflow-212"
+preCommitPyCoverage.dependsOn "testPy38tensorflow-212"
 
 // Create a test task for each minor version of transformers
 toxTask "testPy38transformers-428", "py38-transformers-428", "${posargs}"
@@ -144,13 +149,14 @@ toxTask "testPy38transformers-429", "py38-transformers-429", "${posargs}"
 test.dependsOn "testPy38transformers-429"
 postCommitPyDep.dependsOn "testPy38transformers-429"
 
+// run on precommit
 toxTask "testPy38transformers-430", "py38-transformers-430", "${posargs}"
 test.dependsOn "testPy38transformers-430"
-postCommitPyDep.dependsOn "testPy38transformers-430"
+preCommitPyCoverage.dependsOn "testPy38transformers-430"
 
 toxTask "testPy38embeddingsMLTransform", "py38-embeddings", "${posargs}"
 test.dependsOn "testPy38embeddingsMLTransform"
-postCommitPyDep.dependsOn "testPy38embeddingsMLTransform"
+preCommitPyCoverage.dependsOn "testPy38embeddingsMLTransform"
 
 // Part of MLTransform embeddings test suite but requires tensorflow hub, which we need to test on
 // mutliple versions so keeping this suite separate.
@@ -158,9 +164,10 @@ toxTask "testPy38TensorflowHubEmbeddings-014", "py38-TFHubEmbeddings-014", "${po
 test.dependsOn "testPy38TensorflowHubEmbeddings-014"
 postCommitPyDep.dependsOn "testPy38TensorflowHubEmbeddings-014"
 
+// run on precommit
 toxTask "testPy38TensorflowHubEmbeddings-015", "py38-TFHubEmbeddings-015", "${posargs}"
 test.dependsOn "testPy38TensorflowHubEmbeddings-015"
-postCommitPyDep.dependsOn "testPy38TensorflowHubEmbeddings-015"
+preCommitPyCoverage.dependsOn "testPy38TensorflowHubEmbeddings-015"
 
 toxTask "whitespacelint", "whitespacelint", "${posargs}"
 
