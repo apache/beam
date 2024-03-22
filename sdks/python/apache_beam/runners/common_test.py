@@ -26,10 +26,10 @@ from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
 from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.runners.common import merge_common_environments
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.common import DoFnSignature
 from apache_beam.runners.common import PerWindowInvoker
-from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners.common import merge_common_environments
 from apache_beam.runners.portability.expansion_service_test import FibTransform
 from apache_beam.runners.sdf_utils import SplitResultPrimary
 from apache_beam.runners.sdf_utils import SplitResultResidual
