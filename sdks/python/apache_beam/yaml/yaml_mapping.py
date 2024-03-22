@@ -390,6 +390,7 @@ class _Explode(beam.PTransform):
           Only meaningful (and required) if multiple rows are specified.
       error_handling: Whether and how to handle errors during iteration.
   """  # pylint: disable=line-too-long
+
   def __init__(
       self,
       fields: Union[str, Collection[str]],
