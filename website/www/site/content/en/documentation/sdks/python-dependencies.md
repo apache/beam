@@ -30,7 +30,7 @@ Dependencies of the Apache Beam Python SDK are defined in the `setup.py` file in
     https://github.com/apache/beam/blob/release-<VERSION_NUMBER>/sdks/python/setup.py
     ```
 
-    <p class="paragraph-wrap">Replace `&lt;VERSION_NUMBER&gt;` with the major.minor.patch version of the SDK. For example, <a href="https://github.com/apache/beam/blob/release-{{< param release_latest >}}/sdks/python/setup.py" target="_blank" rel="noopener noreferrer">https://github.com/apache/beam/blob/release-{{< param release_latest >}}/sdks/python/setup.py</a> will provide the dependencies for the {{< param release_latest >}} release.</p>
+    <p class="paragraph-wrap">Replace `&lt;VERSION_NUMBER&gt;` with the major.minor.patch version of the SDK. For example, <a href="https://github.com/apache/beam/blob/release-{{< param release_latest >}}/sdks/python/setup.py" target="_blank" rel="noopener noreferrer">https://github.com/apache/beam/blob/release-{{< param release_latest >}}/sdks/python/setup.py</a> provides the dependencies for the {{< param release_latest >}} release.</p>
 
 
 2. Review the core dependency list under `REQUIRED_PACKAGES`.
