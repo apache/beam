@@ -26,10 +26,11 @@ from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
 from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.common import merge_common_environments
 from apache_beam.runners.common import DoFnSignature
 from apache_beam.runners.common import PerWindowInvoker
+from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners.portability.expansion_service_test import FibTransform
 from apache_beam.runners.sdf_utils import SplitResultPrimary
 from apache_beam.runners.sdf_utils import SplitResultResidual
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -41,7 +42,6 @@ from apache_beam.transforms.core import RestrictionProvider
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
-from apache_beam.runners.portability.expansion_service_test import FibTransform
 
 
 class DoFnSignatureTest(unittest.TestCase):
