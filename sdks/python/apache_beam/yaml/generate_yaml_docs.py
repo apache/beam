@@ -17,7 +17,6 @@
 
 import argparse
 import io
-import contextlib
 import re
 
 import yaml
