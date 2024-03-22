@@ -35,7 +35,7 @@ Dependencies of the Apache Beam Python SDK are defined in the `setup.py` file in
 
 2. Review the core dependency list under `REQUIRED_PACKAGES`.
 
-    **Note:** If you require [extra features](/get-started/quickstart-py#extra-requirements) such as `gcp` or `dataframe`, you should review the lists under `extras_require` for additional dependencies.
+    **Note:** If you need [extra features](/get-started/quickstart-py#extra-requirements), such as `gcp` or `dataframe`, review the lists in `extras_require` for additional dependencies.
 
 You can also retrieve the dependency list from the command line using the following process:
 
