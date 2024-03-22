@@ -500,7 +500,7 @@ public class BigQueryUtils {
                     return convertAvroFormat(field.getType(), record.get(field.getName()), options);
                   } catch (Exception cause) {
                     throw new IllegalArgumentException(
-                        "Error converting field " + field + ": " + cause.getMessage(), cause);
+                        "Error converting field " + field + ", record schema " + record.getSchema() + ": " + cause.getMessage(), cause);
                   }
                 })
             .collect(toList());
