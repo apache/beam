@@ -457,13 +457,12 @@ public class StreamingDataflowWorker {
   public static StreamingDataflowWorker fromOptions(DataflowWorkerHarnessOptions options) {
     ConcurrentMap<String, ComputationState> computationMap = new ConcurrentHashMap<>();
     long clientId = clientIdGenerator.nextLong();
-
-    Consumer<List<Windmill.ComputationHeartbeatResponse>> workHeartbeatResponseProcessor =
-        new WorkHeartbeatResponseProcessor(
-            computationId -> Optional.ofNullable(computationMap.get(computationId)));
-
     return new StreamingDataflowWorker(
-        createWindmillServerStub(options, clientId, workHeartbeatResponseProcessor),
+        createWindmillServerStub(
+            options,
+            clientId,
+            new WorkHeartbeatResponseProcessor(
+                computationId -> Optional.ofNullable(computationMap.get(computationId)))),
         clientId,
         computationMap,
         WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb()),
@@ -580,13 +579,10 @@ public class StreamingDataflowWorker {
     // metrics.
     MetricsEnvironment.setProcessWideContainer(new MetricsLogger(null));
 
-    // When enabled, the Pipeline will record Per-Worker metrics that will be piped to DFE.
-    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(
-        options.isEnableStreamingEngine()
-            && DataflowRunner.hasExperiment(options, "enable_per_worker_metrics"));
-    // StreamingStepMetricsContainer automatically deletes perWorkerCounters if they are zero-valued
-    // for longer than 5 minutes.
-    BigQuerySinkMetrics.setSupportMetricsDeletion(true);
+    if (options.isEnableStreamingEngine()
+        && DataflowRunner.hasExperiment(options, "enable_per_worker_metrics")) {
+      enableBigQueryMetrics();
+    }
 
     JvmInitializers.runBeforeProcessing(options);
     worker.startStatusPages();
@@ -671,6 +667,16 @@ public class StreamingDataflowWorker {
   private static long chooseMaxBytesOutstanding(DataflowWorkerHarnessOptions options) {
     long maxMem = options.getMaxBytesFromWindmillOutstanding();
     return maxMem > 0 ? maxMem : (Runtime.getRuntime().maxMemory() / 2);
+  }
+
+  private static void enableBigQueryMetrics() {
+    // When enabled, the Pipeline will record Per-Worker metrics that will be piped to DFE.
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
+    // StreamingStepMetricsContainer automatically deletes perWorkerCounters if they are zero-valued
+    // for longer than 5 minutes.
+    BigQuerySinkMetrics.setSupportMetricsDeletion(true);
+    // Support metrics for BigQuery's Streaming Inserts write method.
+    BigQuerySinkMetrics.setSupportStreamingInsertsMetrics(true);
   }
 
   void addStateNameMappings(Map<String, String> nameMap) {

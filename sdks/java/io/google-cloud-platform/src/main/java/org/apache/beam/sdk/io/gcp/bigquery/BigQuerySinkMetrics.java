@@ -33,6 +33,7 @@ import org.apache.beam.sdk.metrics.DelegatingHistogram;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
@@ -45,12 +46,14 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  */
 public class BigQuerySinkMetrics {
   private static boolean supportMetricsDeletion = false;
+  private static boolean supportStreamingInsertsMetrics = false;
 
   public static final String METRICS_NAMESPACE = "BigQuerySink";
 
   // Status codes
-  private static final String UNKNOWN = Status.Code.UNKNOWN.toString();
+  public static final String UNKNOWN = Status.Code.UNKNOWN.toString();
   public static final String OK = Status.Code.OK.toString();
+  static final String INTERNAL = "INTERNAL";
   public static final String PAYLOAD_TOO_LARGE = "PayloadTooLarge";
 
   // Base Metric names
@@ -59,8 +62,9 @@ public class BigQuerySinkMetrics {
   private static final String APPEND_ROWS_ROW_STATUS = "RowsAppendedCount";
   public static final String THROTTLED_TIME = "ThrottledTime";
 
-  // StorageWriteAPI Method names
+  // BigQuery Write Method names
   public enum RpcMethod {
+    STREAMING_INSERTS,
     APPEND_ROWS,
     FLUSH_ROWS,
     FINALIZE_STREAM
@@ -167,8 +171,8 @@ public class BigQuerySinkMetrics {
    *     'RpcRequests-Method:{method}RpcStatus:{status};TableId:{tableId}' TableId label is dropped
    *     if 'supportsMetricsDeletion' is not enabled.
    */
-  private static Counter createRPCRequestCounter(
-      RpcMethod method, String rpcStatus, String tableId) {
+  @VisibleForTesting
+  static Counter createRPCRequestCounter(RpcMethod method, String rpcStatus, String tableId) {
     NavigableMap<String, String> metricLabels = new TreeMap<String, String>();
     metricLabels.put(RPC_STATUS_LABEL, rpcStatus);
     metricLabels.put(RPC_METHOD, method.toString());
@@ -189,7 +193,7 @@ public class BigQuerySinkMetrics {
    * @param method StorageWriteAPI method associated with this metric.
    * @return Histogram with exponential buckets with a sqrt(2) growth factor.
    */
-  private static Histogram createRPCLatencyHistogram(RpcMethod method) {
+  static Histogram createRPCLatencyHistogram(RpcMethod method) {
     NavigableMap<String, String> metricLabels = new TreeMap<String, String>();
     metricLabels.put(RPC_METHOD, method.toString());
     String fullMetricName = createLabeledMetricName(RPC_LATENCY, metricLabels);
@@ -324,6 +328,22 @@ public class BigQuerySinkMetrics {
     String statusCode = throwableToGRPCCodeString(c.getError());
     createRPCRequestCounter(method, statusCode, tableId).inc(1);
     updateRpcLatencyMetric(c, method);
+  }
+
+  /**
+   * Returns a container to store metrics for BigQuery's {@code Streaming Inserts} RPC. If these
+   * metrics are disabled, then we return a no-op container.
+   */
+  static StreamingInsertsMetrics streamingInsertsMetrics() {
+    if (supportStreamingInsertsMetrics) {
+      return StreamingInsertsMetrics.StreamingInsertsMetricsImpl.create();
+    } else {
+      return StreamingInsertsMetrics.NoOpStreamingInsertsMetrics.getInstance();
+    }
+  }
+
+  public static void setSupportStreamingInsertsMetrics(boolean supportStreamingInsertsMetrics) {
+    BigQuerySinkMetrics.supportStreamingInsertsMetrics = supportStreamingInsertsMetrics;
   }
 
   public static void setSupportMetricsDeletion(boolean supportMetricsDeletion) {
