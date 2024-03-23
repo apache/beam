@@ -88,7 +88,9 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:tox:py38:preCommitPyCoverage
-      - uses: codecov/codecov-action@v4
+          arguments: |
+            -PuseWheelDistribution
+      - uses: codecov/codecov-action@v3
         with:
           flags: python
           directory: sdks/python
