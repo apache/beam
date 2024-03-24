@@ -1144,22 +1144,41 @@ class WriteImpl(ptransform.PTransform):
         keyed_pcoll = pcoll | core.Map(lambda x: (None, x))
       else:
         keyed_pcoll = pcoll | core.ParDo(_RoundRobinKeyFn(), count=min_shards)
-      write_result_coll = (
-          keyed_pcoll
-          | core.WindowInto(window.GlobalWindows())
-          | core.GroupByKey()
-          | 'WriteBundles' >> core.ParDo(
-              _WriteKeyedBundleDoFn(self.sink), AsSingleton(init_result_coll)))
+
+      if not keyed_pcoll.is_bounded and not keyed_pcoll.windowing.is_default():
+        write_result_coll = (
+            keyed_pcoll
+            | core.GroupByKey()
+            | 'WriteBundles' >> core.ParDo(
+                _WriteKeyedBundleDoFn(self.sink), AsSingleton(init_result_coll))
+        )
+      else:
+        write_result_coll = (
+            keyed_pcoll
+            | core.WindowInto(window.GlobalWindows())
+            | core.GroupByKey()
+            | 'WriteBundles' >> core.ParDo(
+                _WriteKeyedBundleDoFn(self.sink), AsSingleton(init_result_coll))
+        )
     else:
       min_shards = 1
-      write_result_coll = (
-          pcoll
-          | core.WindowInto(window.GlobalWindows())
-          | 'WriteBundles' >> core.ParDo(
-              _WriteBundleDoFn(self.sink), AsSingleton(init_result_coll))
-          | 'Pair' >> core.Map(lambda x: (None, x))
-          | core.GroupByKey()
-          | 'Extract' >> core.FlatMap(lambda x: x[1]))
+      if not pcoll.is_bounded and not pcoll.windowing.is_default():
+        write_result_coll = (
+            pcoll
+            | 'WriteBundles' >> core.ParDo(
+                _WriteBundleDoFn(self.sink), AsSingleton(init_result_coll))
+            | 'Pair' >> core.Map(lambda x: (None, x))
+            | core.GroupByKey()
+            | 'Extract' >> core.FlatMap(lambda x: x[1]))
+      else:
+        write_result_coll = (
+            pcoll
+            | core.WindowInto(window.GlobalWindows())
+            | 'WriteBundles' >> core.ParDo(
+                _WriteBundleDoFn(self.sink), AsSingleton(init_result_coll))
+            | 'Pair' >> core.Map(lambda x: (None, x))
+            | core.GroupByKey()
+            | 'Extract' >> core.FlatMap(lambda x: x[1]))
     # PreFinalize should run before FinalizeWrite, and the two should not be
     # fused.
     pre_finalize_coll = (
