@@ -62,9 +62,8 @@ buildCache {
       username = System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME")
       password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
     }
-    // TODO(yathu) re-enable when remote gradle cache cleaned up
-    isEnabled = false // !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
-    isPush = false
+    isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
+    isPush = isCi
   }
 }
 

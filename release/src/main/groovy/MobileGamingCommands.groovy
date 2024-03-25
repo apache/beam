@@ -21,6 +21,7 @@
 class MobileGamingCommands {
 
   private TestScripts testScripts
+  private String testRunId
 
   private static final INPUT_GAMING_DATA = "gs://dataflow-samples/game/5000_gaming_data.csv"
 
@@ -58,11 +59,11 @@ class MobileGamingCommands {
     "BattleshipGrey"))
 
   public String getUserScoreOutputName(String runner){
-    return "java-userscore-result-${RUNNERS[runner]}.txt"
+    return "java-userscore-result-${RUNNERS[runner]}/${testRunId}/output"
   }
 
   public String getHourlyTeamScoreOutputName(String runner){
-    return "java-hourlyteamscore-result-${RUNNERS[runner]}.txt"
+    return "java-hourlyteamscore-result-${RUNNERS[runner]}/${testRunId}/output"
   }
 
   public String createPipelineCommand(String exampleName, String runner, String jobName='', String className=null){
