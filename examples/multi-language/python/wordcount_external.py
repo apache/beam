@@ -24,9 +24,18 @@ from apache_beam.transforms.external_transform_provider import ExternalTransform
 from apache_beam.typehints.row_type import RowTypeConstraint
 """A Python multi-language pipeline that counts words.
 
-This pipeline reads an input text file then extracts and counts the words using Java SDK SchemaTransforms provided in
-`ExtractWordsProvider`, `JavaCountProvider`, and `WriteWordsProvider`. Wrappers for these transforms are dynamically
-provided in Python via the `ExternalTransformProvider` API.
+This pipeline reads an input text file then extracts and counts the words using Java SchemaTransforms. The transforms 
+are listed below and can be found in beam/examples/multi-language/src/...:
+- `ExtractWordsProvider`
+- `JavaCountProvider`
+- `WriteWordsProvider`
+
+These transforms are made discoverable by the expansion service in this example directory. Check out the
+[`README.md`](https://github.com/apache/beam/blob/master/examples/multi-language/README.md#1-start-the-expansion-service)
+for instructions on how to download the jar and run the expansion service.
+
+The `ExternalTransformProvider` API will dynamically generate and provide user-friendly wrappers for external transforms
+in this expansion service. 
 
 Example commands for executing this program:
 
@@ -57,9 +66,11 @@ WRITE_IDENTIFIER = "beam:schematransform:org.apache.beam:write_words:v1"
 def run(input_path, output_path, expansion_service_port, pipeline_args):
     pipeline_options = PipelineOptions(pipeline_args)
 
-    # Discover and get external transforms
+    # Discover and get external transforms from this expansion service
     provider = ExternalTransformProvider(
         ('localhost:%s' % expansion_service_port))
+    # Get transforms with identifiers, then use them as you would a regular
+    # native PTransform
     Extract = provider.get_urn(EXTRACT_IDENTIFIER)
     Count = provider.get_urn(COUNT_IDENTIFIER)
     Write = provider.get_urn(WRITE_IDENTIFIER)
