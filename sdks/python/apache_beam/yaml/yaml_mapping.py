@@ -574,11 +574,29 @@ def _SqlMapToFieldsTransform(pcoll, sql_transform_constructor, **mapping_args):
 @beam.ptransform.ptransform_fn
 def _Partition(
     pcoll,
-    outputs: List[str],
     by: Union[str, Dict[str, str]],
+    outputs: List[str],
     unknown_output: Optional[str] = None,
     error_handling: Optional[Mapping[str, Any]] = None,
     language: Optional[str] = 'generic'):
+  """Splits an input into several distinct outputs.
+
+  Each input element will go to a distinct output based on the field or
+  function given in the `by` configuration parameter.
+
+  Args:
+      by: A field, callable, or expression giving the destination output for
+        this element.  Should return a string that is a member of the `outputs`
+        parameter. If `unknown_output` is also set, other returns values are
+        accepted as well, otherwise an error will be raised.
+      outputs: The set of outputs into which this input is being partitioned.
+      unknown_output: (Optional) If set, indicates a destination output for any
+        elements that are not assigned an output listed in the `outputs`
+        parameter.
+      error_handling: (Optional) Whether and how to handle errors during
+        partitioning.
+      language: (Optional) The language of the `by` expression.
+  """
   split_fn = _as_callable_for_pcoll(pcoll, by, 'by', language)
   try:
     split_fn_output_type = trivial_inference.infer_return_type(
@@ -652,7 +670,8 @@ def _AssignTimestamps(
   Args:
       timestamp: A field, callable, or expression giving the new timestamp.
       language: The language of the timestamp expression.
-      error_handling: Whether and how to handle errors during iteration.
+      error_handling: Whether and how to handle errors during timestamp
+        evaluation.
   """
   timestamp_fn = _as_callable_for_pcoll(pcoll, timestamp, 'timestamp', language)
   T = TypeVar('T')
