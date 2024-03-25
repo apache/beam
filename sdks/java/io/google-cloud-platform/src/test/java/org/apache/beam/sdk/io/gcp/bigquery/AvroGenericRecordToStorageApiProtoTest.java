@@ -301,7 +301,10 @@ public class AvroGenericRecordToStorageApiProtoTest {
               .set(
                   "decimalValue",
                   new Conversions.DecimalConversion()
-                      .toBytes(bd, Schema.create(Schema.Type.NULL), LogicalTypes.decimal(1, 1)))
+                      .toBytes(
+                          bd,
+                          Schema.create(Schema.Type.NULL),
+                          LogicalTypes.decimal(bd.precision(), bd.scale())))
               .set("dateValue", now)
               .set("timestampMicrosValue", now.getMillis() * 1000)
               .set("timestampMicrosAsInstantValue", now)

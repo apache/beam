@@ -19,13 +19,16 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.longToSplitInt;
 
+import com.google.api.client.util.Clock;
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import java.io.Closeable;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
+import org.apache.beam.runners.core.SimpleDoFnRunner;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
@@ -39,6 +42,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationConte
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.format.PeriodFormatter;
@@ -181,6 +185,9 @@ public class DataflowOperationContext implements OperationContext {
     private final ProfileScope profileScope;
     private final @Nullable MetricsContainer metricsContainer;
 
+    /** Clock used to either provide real system time or mocked to virtualize time for testing. */
+    private final Clock clock;
+
     public DataflowExecutionState(
         NameContext nameContext,
         String stateName,
@@ -188,12 +195,31 @@ public class DataflowOperationContext implements OperationContext {
         @Nullable Integer inputIndex,
         @Nullable MetricsContainer metricsContainer,
         ProfileScope profileScope) {
+      this(
+          nameContext,
+          stateName,
+          requestingStepName,
+          inputIndex,
+          metricsContainer,
+          profileScope,
+          Clock.SYSTEM);
+    }
+
+    public DataflowExecutionState(
+        NameContext nameContext,
+        String stateName,
+        @Nullable String requestingStepName,
+        @Nullable Integer inputIndex,
+        @Nullable MetricsContainer metricsContainer,
+        ProfileScope profileScope,
+        Clock clock) {
       super(stateName);
       this.stepName = nameContext;
       this.requestingStepName = requestingStepName;
       this.inputIndex = inputIndex;
       this.profileScope = Preconditions.checkNotNull(profileScope);
       this.metricsContainer = metricsContainer;
+      this.clock = clock;
     }
 
     /**
@@ -225,6 +251,9 @@ public class DataflowOperationContext implements OperationContext {
       return description.toString();
     }
 
+    private static final ImmutableSet<String> FRAMEWORK_CLASSES =
+        ImmutableSet.of(SimpleDoFnRunner.class.getName(), DoFnInstanceManagers.class.getName());
+
     protected String getLullMessage(Thread trackedThread, Duration lullDuration) {
       StringBuilder message = new StringBuilder();
       message.append("Operation ongoing");
@@ -243,7 +272,7 @@ public class DataflowOperationContext implements OperationContext {
 
       message.append("\n");
 
-      message.append(StackTraceUtil.getStackTraceForLullMessage(trackedThread.getStackTrace()));
+      message.append(getStackTraceForLullMessage(trackedThread.getStackTrace()));
       return message.toString();
     }
 
@@ -267,6 +296,55 @@ public class DataflowOperationContext implements OperationContext {
       DataflowWorkerLoggingHandler dataflowLoggingHandler =
           DataflowWorkerLoggingInitializer.getLoggingHandler();
       dataflowLoggingHandler.publish(this, logRecord);
+
+      if (shouldLogFullThreadDump(lullDuration)) {
+        Map<Thread, StackTraceElement[]> threadSet = Thread.getAllStackTraces();
+        for (Map.Entry<Thread, StackTraceElement[]> entry : threadSet.entrySet()) {
+          Thread thread = entry.getKey();
+          StackTraceElement[] stackTrace = entry.getValue();
+          StringBuilder message = new StringBuilder();
+          message.append(thread.toString()).append(":\n");
+          message.append(getStackTraceForLullMessage(stackTrace));
+          logRecord = new LogRecord(Level.INFO, message.toString());
+          logRecord.setLoggerName(DataflowOperationContext.LOG.getName());
+          dataflowLoggingHandler.publish(this, logRecord);
+        }
+      }
+    }
+
+    /**
+     * The time interval between two full thread dump. (A full thread dump is performed at most once
+     * every 20 minutes.)
+     */
+    private static final long LOG_LULL_FULL_THREAD_DUMP_INTERVAL_MS = 20 * 60 * 1000;
+
+    /** The minimum lull duration to perform a full thread dump. */
+    private static final long LOG_LULL_FULL_THREAD_DUMP_LULL_MS = 20 * 60 * 1000;
+
+    /** Last time when a full thread dump was performed. */
+    private long lastFullThreadDumpMillis = 0;
+
+    private boolean shouldLogFullThreadDump(Duration lullDuration) {
+      if (lullDuration.getMillis() < LOG_LULL_FULL_THREAD_DUMP_LULL_MS) {
+        return false;
+      }
+      long now = clock.currentTimeMillis();
+      if (lastFullThreadDumpMillis + LOG_LULL_FULL_THREAD_DUMP_INTERVAL_MS < now) {
+        lastFullThreadDumpMillis = now;
+        return true;
+      }
+      return false;
+    }
+
+    private String getStackTraceForLullMessage(StackTraceElement[] stackTrace) {
+      StringBuilder message = new StringBuilder();
+      for (StackTraceElement e : stackTrace) {
+        if (FRAMEWORK_CLASSES.contains(e.getClassName())) {
+          break;
+        }
+        message.append("  at ").append(e).append("\n");
+      }
+      return message.toString();
     }
 
     public @Nullable MetricsContainer getMetricsContainer() {

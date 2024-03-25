@@ -18,7 +18,6 @@
  */
 
 t = new TestScripts(args)
-mobileGamingCommands = new MobileGamingCommands(testScripts: t)
 
 /*
  * Run the mobile game examples on Dataflow.
@@ -36,6 +35,8 @@ String command_output_text
  *  Run the UserScore example on DataflowRunner
  * */
 
+mobileGamingCommands = new MobileGamingCommands(testScripts: t, testRunId: UUID.randomUUID().toString())
+
 t.intent("Running: UserScore example on DataflowRunner")
 t.run(mobileGamingCommands.createPipelineCommand("UserScore", runner))
 command_output_text = t.run "gsutil cat gs://${t.gcsBucket()}/${mobileGamingCommands.getUserScoreOutputName(runner)}* | grep user19_BananaWallaby"
@@ -47,6 +48,8 @@ t.run "gsutil rm gs://${t.gcsBucket()}/${mobileGamingCommands.getUserScoreOutput
 /**
  * Run the HourlyTeamScore example on DataflowRunner
  * */
+
+mobileGamingCommands = new MobileGamingCommands(testScripts: t, testRunId: UUID.randomUUID().toString())
 
 t.intent("Running: HourlyTeamScore example on DataflowRunner")
 t.run(mobileGamingCommands.createPipelineCommand("HourlyTeamScore", runner))

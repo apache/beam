@@ -21,15 +21,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.cloud.Timestamp;
 import java.io.IOException;
-import java.io.Serializable;
 import java.text.ParseException;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -37,17 +33,14 @@ import java.util.UUID;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
-import org.apache.beam.it.gcp.IOLoadTestBase;
+import org.apache.beam.it.gcp.IOStressTestBase;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.PeriodicImpulse;
@@ -61,7 +54,6 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -81,17 +73,10 @@ import org.junit.Test;
  * - To run large-scale stress tests: {@code gradle :it:kafka:KafkaStressTestLarge
  * -DbootstrapServers="0.0.0.0:32400,1.1.1.1:32400"}
  */
-public final class KafkaIOST extends IOLoadTestBase {
-  /**
-   * The load will initiate at 1x, progressively increase to 2x and 4x, then decrease to 2x and
-   * eventually return to 1x.
-   */
-  private static final int[] DEFAULT_LOAD_INCREASE_ARRAY = {1, 2, 2, 4, 2, 1};
-
-  private static InfluxDBSettings influxDBSettings;
+public final class KafkaIOST extends IOStressTestBase {
   private static final String WRITE_ELEMENT_METRIC_NAME = "write_count";
   private static final String READ_ELEMENT_METRIC_NAME = "read_count";
-  private static final int DEFAULT_ROWS_PER_SECOND = 1000;
+  private static InfluxDBSettings influxDBSettings;
   private Configuration configuration;
   private AdminClient adminClient;
   private String testConfigName;
@@ -120,6 +105,11 @@ public final class KafkaIOST extends IOLoadTestBase {
     }
     configuration.bootstrapServers =
         TestProperties.getProperty("bootstrapServers", null, TestProperties.Type.PROPERTY);
+    String useDataflowRunnerV2FromProps =
+        TestProperties.getProperty("useDataflowRunnerV2", "true", TestProperties.Type.PROPERTY);
+    if (!useDataflowRunnerV2FromProps.isEmpty()) {
+      configuration.useDataflowRunnerV2 = Boolean.parseBoolean(useDataflowRunnerV2FromProps);
+    }
 
     adminClient =
         AdminClient.create(ImmutableMap.of("bootstrap.servers", configuration.bootstrapServers));
@@ -231,8 +221,10 @@ public final class KafkaIOST extends IOLoadTestBase {
             .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
             .build();
 
-    exportMetrics(writeInfo, writeMetricsConfig);
-    exportMetrics(readInfo, readMetricsConfig);
+    exportMetrics(
+        writeInfo, writeMetricsConfig, configuration.exportMetricsToInfluxDB, influxDBSettings);
+    exportMetrics(
+        readInfo, readMetricsConfig, configuration.exportMetricsToInfluxDB, influxDBSettings);
   }
 
   /**
@@ -267,7 +259,7 @@ public final class KafkaIOST extends IOLoadTestBase {
           source
               .apply(
                   "One input to multiple outputs",
-                  ParDo.of(new MultiplierDoFn(startMultiplier, loadPeriods)))
+                  ParDo.of(new MultiplierDoFn<>(startMultiplier, loadPeriods)))
               .apply("Reshuffle fanout", Reshuffle.viaRandomKey())
               .apply("Counting element", ParDo.of(new CountingFn<>(WRITE_ELEMENT_METRIC_NAME)));
     }
@@ -295,7 +287,7 @@ public final class KafkaIOST extends IOLoadTestBase {
                     .toString())
             .addParameter("numWorkers", String.valueOf(configuration.numWorkers))
             .addParameter("maxNumWorkers", String.valueOf(configuration.maxNumWorkers))
-            .addParameter("experiments", "use_runner_v2")
+            .addParameter("experiments", configuration.useDataflowRunnerV2 ? "use_runner_v2" : "")
             .build();
 
     return pipelineLauncher.launch(project, region, options);
@@ -310,7 +302,7 @@ public final class KafkaIOST extends IOLoadTestBase {
             .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"));
 
     readPipeline
-        .apply("Read from unbounded Kafka", readFromKafka)
+        .apply("Read from Kafka", readFromKafka)
         .apply("Counting element", ParDo.of(new CountingFn<>(READ_ELEMENT_METRIC_NAME)));
 
     PipelineLauncher.LaunchConfig options =
@@ -319,92 +311,10 @@ public final class KafkaIOST extends IOLoadTestBase {
             .setPipeline(readPipeline)
             .addParameter("numWorkers", String.valueOf(configuration.numWorkers))
             .addParameter("runner", configuration.runner)
-            .addParameter("experiments", "use_runner_v2")
+            .addParameter("experiments", configuration.useDataflowRunnerV2 ? "use_runner_v2" : "")
             .build();
 
     return pipelineLauncher.launch(project, region, options);
-  }
-
-  private void exportMetrics(
-      PipelineLauncher.LaunchInfo launchInfo, MetricsConfiguration metricsConfig)
-      throws IOException, ParseException, InterruptedException {
-
-    Map<String, Double> metrics = getMetrics(launchInfo, metricsConfig);
-    String testId = UUID.randomUUID().toString();
-    String testTimestamp = Timestamp.now().toString();
-
-    if (configuration.exportMetricsToInfluxDB) {
-      Collection<NamedTestResult> namedTestResults = new ArrayList<>();
-      for (Map.Entry<String, Double> entry : metrics.entrySet()) {
-        NamedTestResult metricResult =
-            NamedTestResult.create(testId, testTimestamp, entry.getKey(), entry.getValue());
-        namedTestResults.add(metricResult);
-      }
-      IOITMetrics.publishToInflux(testId, testTimestamp, namedTestResults, influxDBSettings);
-    } else {
-      exportMetricsToBigQuery(launchInfo, metrics);
-    }
-  }
-
-  /**
-   * Custom Apache Beam DoFn designed for use in stress testing scenarios. It introduces a dynamic
-   * load increase over time, multiplying the input elements based on the elapsed time since the
-   * start of processing. This class aims to simulate various load levels during stress testing.
-   */
-  private static class MultiplierDoFn extends DoFn<byte[], byte[]> {
-    private final int startMultiplier;
-    private final long startTimesMillis;
-    private final List<LoadPeriod> loadPeriods;
-
-    MultiplierDoFn(int startMultiplier, List<LoadPeriod> loadPeriods) {
-      this.startMultiplier = startMultiplier;
-      this.startTimesMillis = Instant.now().getMillis();
-      this.loadPeriods = loadPeriods;
-    }
-
-    @DoFn.ProcessElement
-    public void processElement(
-        @Element byte[] element,
-        OutputReceiver<byte[]> outputReceiver,
-        @DoFn.Timestamp Instant timestamp) {
-
-      int multiplier = this.startMultiplier;
-      long elapsedTimeMillis = timestamp.getMillis() - startTimesMillis;
-
-      for (LoadPeriod loadPeriod : loadPeriods) {
-        if (elapsedTimeMillis >= loadPeriod.getPeriodStartMillis()
-            && elapsedTimeMillis < loadPeriod.getPeriodEndMillis()) {
-          multiplier *= loadPeriod.getLoadIncreaseMultiplier();
-          break;
-        }
-      }
-      for (int i = 0; i < multiplier; i++) {
-        outputReceiver.output(element);
-      }
-    }
-  }
-
-  /**
-   * Generates and returns a list of LoadPeriod instances representing periods of load increase
-   * based on the specified load increase array and total duration in minutes.
-   *
-   * @param minutesTotal The total duration in minutes for which the load periods are generated.
-   * @return A list of LoadPeriod instances defining periods of load increase.
-   */
-  private List<LoadPeriod> getLoadPeriods(int minutesTotal, int[] loadIncreaseArray) {
-
-    List<LoadPeriod> loadPeriods = new ArrayList<>();
-    long periodDurationMillis =
-        Duration.ofMinutes(minutesTotal / loadIncreaseArray.length).toMillis();
-    long startTimeMillis = 0;
-
-    for (int loadIncreaseMultiplier : loadIncreaseArray) {
-      long endTimeMillis = startTimeMillis + periodDurationMillis;
-      loadPeriods.add(new LoadPeriod(loadIncreaseMultiplier, startTimeMillis, endTimeMillis));
-
-      startTimeMillis = endTimeMillis;
-    }
-    return loadPeriods;
   }
 
   /** Options for Kafka IO stress test. */
@@ -414,6 +324,12 @@ public final class KafkaIOST extends IOLoadTestBase {
 
     /** Runner specified to run the pipeline. */
     @JsonProperty public String runner = "DirectRunner";
+
+    /**
+     * Determines whether to use Dataflow runner v2. If set to true, it uses SDF mode for reading
+     * from Kafka. Otherwise, Unbounded mode will be used.
+     */
+    @JsonProperty public boolean useDataflowRunnerV2 = true;
 
     /** Number of workers for the pipeline. */
     @JsonProperty public int numWorkers = 20;
@@ -448,33 +364,5 @@ public final class KafkaIOST extends IOLoadTestBase {
 
     /** InfluxDB database to publish metrics. * */
     @JsonProperty public String influxDatabase;
-  }
-
-  /**
-   * Represents a period of time with associated load increase properties for stress testing
-   * scenarios.
-   */
-  private static class LoadPeriod implements Serializable {
-    private final int loadIncreaseMultiplier;
-    private final long periodStartMillis;
-    private final long periodEndMillis;
-
-    public LoadPeriod(int loadIncreaseMultiplier, long periodStartMillis, long periodEndMin) {
-      this.loadIncreaseMultiplier = loadIncreaseMultiplier;
-      this.periodStartMillis = periodStartMillis;
-      this.periodEndMillis = periodEndMin;
-    }
-
-    public int getLoadIncreaseMultiplier() {
-      return loadIncreaseMultiplier;
-    }
-
-    public long getPeriodStartMillis() {
-      return periodStartMillis;
-    }
-
-    public long getPeriodEndMillis() {
-      return periodEndMillis;
-    }
   }
 }

@@ -22,14 +22,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.Mockito.mock;
 
-import com.google.api.client.testing.http.FixedClock;
-import com.google.api.client.util.Clock;
 import java.io.Closeable;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.util.List;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
@@ -41,55 +35,28 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterDi
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementExecutionTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.RestoreSystemProperties;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
-import org.hamcrest.Matchers;
 import org.joda.time.DateTimeUtils.MillisProvider;
-import org.joda.time.Duration;
-import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 /** Tests for {@link DataflowExecutionStateTrackerTest}. */
 public class DataflowExecutionStateTrackerTest {
 
-  @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
-
-  @Rule public RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties();
-
-  private File logFolder;
   private PipelineOptions options;
   private MillisProvider clock;
   private ExecutionStateSampler sampler;
   private CounterSet counterSet;
 
   @Before
-  public void setUp() throws IOException {
+  public void setUp() {
     options = PipelineOptionsFactory.create();
     clock = mock(MillisProvider.class);
     sampler = ExecutionStateSampler.newForTest(clock);
     counterSet = new CounterSet();
-    logFolder = tempFolder.newFolder();
-    System.setProperty(
-        DataflowWorkerLoggingInitializer.RUNNER_FILEPATH_PROPERTY,
-        new File(logFolder, "dataflow-json.log").getAbsolutePath());
-    // We need to reset *first* because some other test may have already initialized the
-    // logging initializer.
-    DataflowWorkerLoggingInitializer.reset();
-    DataflowWorkerLoggingInitializer.initialize();
-  }
-
-  @After
-  public void tearDown() {
-    DataflowWorkerLoggingInitializer.reset();
   }
 
   private final NameContext step1 =
@@ -100,7 +67,7 @@ public class DataflowExecutionStateTrackerTest {
   @Test
   public void testReportsElementExecutionTime() throws IOException {
     enableTimePerElementExperiment();
-    DataflowExecutionStateTracker tracker = createTracker();
+    ExecutionStateTracker tracker = createTracker();
 
     try (Closeable c1 = tracker.activate(new Thread())) {
       try (Closeable c2 = tracker.enterState(step1Process)) {}
@@ -117,7 +84,7 @@ public class DataflowExecutionStateTrackerTest {
   @Test
   public void testTakesSampleOnDeactivate() throws IOException {
     enableTimePerElementExperiment();
-    DataflowExecutionStateTracker tracker = createTracker();
+    ExecutionStateTracker tracker = createTracker();
 
     try (Closeable c1 = tracker.activate(new Thread())) {
       try (Closeable c2 = tracker.enterState(step1Process)) {
@@ -156,111 +123,12 @@ public class DataflowExecutionStateTrackerTest {
                 .build()));
   }
 
-  private DataflowExecutionStateTracker createTracker() {
+  private ExecutionStateTracker createTracker() {
     return new DataflowExecutionStateTracker(
         sampler,
         new TestDataflowExecutionState(NameContext.forStage("test-stage"), "other"),
         counterSet,
         options,
         "test-work-item-id");
-  }
-
-  @Test
-  public void testLullReportsRightTrace() throws Exception {
-    FixedClock clock = new FixedClock(Clock.SYSTEM.currentTimeMillis());
-    DataflowExecutionStateTracker tracker = createTracker(clock);
-    // Adding test for the full thread dump, but since we can't mock
-    // Thread.getAllStackTraces(), we are starting a background thread
-    // to verify the full thread dump.
-    Thread backgroundThread =
-        new Thread("backgroundThread") {
-          @Override
-          public void run() {
-            try {
-              Thread.sleep(Long.MAX_VALUE);
-            } catch (InterruptedException e) {
-              // exiting the thread
-            }
-          }
-        };
-
-    backgroundThread.start();
-    try {
-      // Full thread dump should be performed, because we never performed
-      // a full thread dump before, and the lull duration is more than 20
-      // minutes.
-      tracker.reportBundleLull(30 * 60 * 1000);
-      verifyLullLog(true);
-
-      // Full thread dump should not be performed because the last dump
-      // was only 5 minutes ago.
-      clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(5L).getMillis());
-      tracker.reportBundleLull(30 * 60 * 1000);
-      verifyLullLog(false);
-
-      // Full thread dump should not be performed because the lull duration
-      // is only 6 minutes.
-      clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(16L).getMillis());
-      tracker.reportBundleLull(6 * 60 * 1000);
-      verifyLullLog(false);
-
-      // Full thread dump should be performed, because it has been 21 minutes
-      // since the last dump, and the lull duration is more than 20 minutes.
-      clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(16L).getMillis());
-      tracker.reportBundleLull(30 * 60 * 1000);
-      // verifyLullLog(true);
-    } finally {
-      // Cleaning up the background thread.
-      backgroundThread.interrupt();
-      backgroundThread.join();
-    }
-  }
-
-  private void verifyLullLog(boolean hasFullThreadDump) throws IOException {
-    File[] files = logFolder.listFiles();
-    assertThat(files, Matchers.arrayWithSize(1));
-    File logFile = files[0];
-    List<String> lines = Files.readAllLines(logFile.toPath());
-
-    String warnLines =
-        Joiner.on("\n").join(Iterables.filter(lines, line -> line.contains("\"WARN\"")));
-    assertThat(
-        warnLines,
-        Matchers.allOf(
-            Matchers.containsString("Operation ongoing in bundle for at least"),
-            Matchers.containsString(" without completing"),
-            Matchers.containsString("Processing times in each step"),
-            Matchers.containsString(
-                "org.apache.beam.runners.dataflow.worker.DataflowExecutionContext$DataflowExecutionStateTracker")));
-
-    String infoLines =
-        Joiner.on("\n").join(Iterables.filter(lines, line -> line.contains("\"INFO\"")));
-    if (hasFullThreadDump) {
-      assertThat(
-          infoLines,
-          Matchers.allOf(
-              Matchers.containsString("Thread[backgroundThread,"),
-              Matchers.containsString("org.apache.beam.runners.dataflow.worker.StackTraceUtil")));
-    } else {
-      assertThat(
-          infoLines,
-          Matchers.not(
-              Matchers.anyOf(
-                  Matchers.containsString("Thread[backgroundThread,"),
-                  Matchers.containsString(
-                      "org.apache.beam.runners.dataflow.worker.StackTraceUtil"))));
-    }
-    // Truncate the file when done to prepare for the next test.
-    new FileOutputStream(logFile, false).getChannel().truncate(0).close();
-  }
-
-  private DataflowExecutionStateTracker createTracker(Clock clock) {
-    return new DataflowExecutionStateTracker(
-        sampler,
-        new TestDataflowExecutionState(NameContext.forStage("test-stage"), "other"),
-        counterSet,
-        options,
-        "test-work-item-id",
-        clock);
   }
 }
