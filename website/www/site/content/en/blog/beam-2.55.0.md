@@ -63,7 +63,7 @@ For more information on changes in 2.55.0, check out the [detailed release notes
 
 ## Bug fixes
 
-* Fixed SpannerIO.readChangeStream to support propagating credentials from pipeline options
+* Fixed `SpannerIO.readChangeStream` to support propagating credentials from pipeline options
   to the `getDialect` calls for authenticating with Spanner (Java) ([#30361](https://github.com/apache/beam/pull/30361)).
 * Reduced the number of HTTP requests in GCSIO function calls (Python) ([#30205](https://github.com/apache/beam/pull/30205))
 
