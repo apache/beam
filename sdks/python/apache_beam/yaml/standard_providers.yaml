@@ -58,6 +58,7 @@
     'MapToFields-generic': 'MapToFields-java'
     'Filter-java': 'Filter-java'
     'Explode': 'Explode'
+    # 'Join': 'Join'
   config:
     mappings:
       'Sql':
@@ -82,6 +83,8 @@
       'Explode':
         fields: 'fields'
         cross_product: 'crossProduct'
+      # 'Join':
+      #   using: 'using'
     underlying_provider:
       type: beamJar
       transforms:
@@ -89,5 +92,6 @@
         MapToFields-java: "beam:schematransform:org.apache.beam:yaml:map_to_fields-java:v1"
         Filter-java: "beam:schematransform:org.apache.beam:yaml:filter-java:v1"
         Explode: "beam:schematransform:org.apache.beam:yaml:explode:v1"
+        # Join: "beam:schematransform:org.apache.beam:yaml:join:v1"
       config:
         gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
