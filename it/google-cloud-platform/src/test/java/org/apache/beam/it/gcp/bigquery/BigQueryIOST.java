@@ -26,7 +26,6 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.text.ParseException;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -241,7 +240,6 @@ public final class BigQueryIOST extends IOStressTestBase {
       case AVRO:
         writeIO =
             BigQueryIO.<byte[]>write()
-                .withTriggeringFrequency(org.joda.time.Duration.standardSeconds(30))
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
                 .withAvroFormatFunction(
                     new AvroFormatFn(
@@ -251,11 +249,13 @@ public final class BigQueryIOST extends IOStressTestBase {
       case JSON:
         writeIO =
             BigQueryIO.<byte[]>write()
-                .withTriggeringFrequency(org.joda.time.Duration.standardSeconds(30))
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
                 .withSuccessfulInsertsPropagation(false)
                 .withFormatFunction(new JsonFormatFn(configuration.numColumns));
         break;
+    }
+    if (!configuration.writeMethod.equals("STREAMING_INSERTS")) {
+      writeIO = writeIO.withTriggeringFrequency(org.joda.time.Duration.standardSeconds(30));
     }
     generateDataAndWrite(writeIO);
   }
@@ -347,12 +347,8 @@ public final class BigQueryIOST extends IOStressTestBase {
             .setOutputPCollection("Counting element.out0")
             .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
             .build();
-    try {
-      exportMetrics(
-          launchInfo, metricsConfig, configuration.exportMetricsToInfluxDB, influxDBSettings);
-    } catch (ParseException | InterruptedException e) {
-      throw new RuntimeException(e);
-    }
+    exportMetrics(
+        launchInfo, metricsConfig, configuration.exportMetricsToInfluxDB, influxDBSettings);
   }
 
   abstract static class FormatFn<InputT, OutputT> implements SerializableFunction<InputT, OutputT> {

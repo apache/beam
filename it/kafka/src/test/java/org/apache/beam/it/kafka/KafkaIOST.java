@@ -22,7 +22,6 @@ import static org.junit.Assert.assertNotEquals;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
-import java.text.ParseException;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -164,7 +163,7 @@ public final class KafkaIOST extends IOStressTestBase {
 
   /** Run stress test with configurations specified by TestProperties. */
   @Test
-  public void testWriteAndRead() throws IOException, ParseException, InterruptedException {
+  public void testWriteAndRead() throws IOException {
     if (configuration.exportMetricsToInfluxDB) {
       influxDBSettings =
           InfluxDBSettings.builder()

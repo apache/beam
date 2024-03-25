@@ -209,61 +209,59 @@ public class PubSubIOLT extends IOLoadTestBase {
     WriteAndReadFormat format = WriteAndReadFormat.valueOf(configuration.writeAndReadFormat);
     PipelineLauncher.LaunchInfo writeLaunchInfo = testWrite(format);
     PipelineLauncher.LaunchInfo readLaunchInfo = testRead(format);
-    try {
-      PipelineOperator.Result readResult =
-          pipelineOperator.waitUntilDone(
-              createConfig(readLaunchInfo, Duration.ofMinutes(configuration.pipelineTimeout)));
+    PipelineOperator.Result readResult =
+        pipelineOperator.waitUntilDone(
+            createConfig(readLaunchInfo, Duration.ofMinutes(configuration.pipelineTimeout)));
 
+    try {
       // Check the initial launch didn't fail
       assertNotEquals(PipelineOperator.Result.LAUNCH_FAILED, readResult);
       // streaming read pipeline does not end itself
       // Fail the test if read pipeline (streaming) not in running state.
       assertEquals(
-          PipelineLauncher.JobState.RUNNING,
-          pipelineLauncher.getJobStatus(project, region, readLaunchInfo.jobId()));
-
-      // check metrics
-      double numRecords =
-          pipelineLauncher.getMetric(
-              project,
-              region,
-              readLaunchInfo.jobId(),
-              getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
-
-      // Assert that actual data equals or greater than expected data number since there might be
-      // duplicates when testing big amount of data
-      long expectedDataNum = configuration.numRecords - configuration.forceNumInitialBundles;
-      assertTrue(numRecords >= expectedDataNum);
-
-      // export metrics
-      MetricsConfiguration writeMetricsConfig =
-          MetricsConfiguration.builder()
-              .setInputPCollection("Map records.out0")
-              .setInputPCollectionV2("Map records/ParMultiDo(MapKVToV).out0")
-              .build();
-
-      MetricsConfiguration readMetricsConfig =
-          MetricsConfiguration.builder()
-              .setOutputPCollection("Counting element.out0")
-              .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
-              .build();
-
-      exportMetrics(
-          writeLaunchInfo,
-          writeMetricsConfig,
-          configuration.exportMetricsToInfluxDB,
-          influxDBSettings);
-      exportMetrics(
-          readLaunchInfo,
-          readMetricsConfig,
-          configuration.exportMetricsToInfluxDB,
-          influxDBSettings);
-    } catch (ParseException | InterruptedException e) {
-      throw new RuntimeException(e);
+              PipelineLauncher.JobState.RUNNING,
+              pipelineLauncher.getJobStatus(project, region, readLaunchInfo.jobId()));
     } finally {
       cancelJobIfRunning(writeLaunchInfo);
       cancelJobIfRunning(readLaunchInfo);
     }
+
+    // check metrics
+    double numRecords =
+        pipelineLauncher.getMetric(
+            project,
+            region,
+            readLaunchInfo.jobId(),
+            getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
+
+    // Assert that actual data equals or greater than expected data number since there might be
+    // duplicates when testing big amount of data
+    long expectedDataNum = configuration.numRecords - configuration.forceNumInitialBundles;
+    assertTrue(numRecords >= expectedDataNum);
+
+    // export metrics
+    MetricsConfiguration writeMetricsConfig =
+        MetricsConfiguration.builder()
+            .setInputPCollection("Map records.out0")
+            .setInputPCollectionV2("Map records/ParMultiDo(MapKVToV).out0")
+            .build();
+
+    MetricsConfiguration readMetricsConfig =
+        MetricsConfiguration.builder()
+            .setOutputPCollection("Counting element.out0")
+            .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
+            .build();
+
+    exportMetrics(
+        writeLaunchInfo,
+        writeMetricsConfig,
+        configuration.exportMetricsToInfluxDB,
+        influxDBSettings);
+    exportMetrics(
+        readLaunchInfo,
+        readMetricsConfig,
+        configuration.exportMetricsToInfluxDB,
+        influxDBSettings);
   }
 
   private PipelineLauncher.LaunchInfo testWrite(WriteAndReadFormat format) throws IOException {
