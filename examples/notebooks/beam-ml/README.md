@@ -58,7 +58,7 @@ This section contains the following example notebooks.
 
 ### Data enrichment
 
-* [Use Cloud Bigtable to enrich data](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/bigtable_enrichment_transform.ipynb)
+* [Use Bigtable to enrich data](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/bigtable_enrichment_transform.ipynb)
 * [Use Vertex AI Feature Store for feature enrichment](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/vertex_ai_feature_store_enrichment.ipynb)
 
 ### Prediction and inference with pretrained models
