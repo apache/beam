@@ -114,7 +114,7 @@ class DataframeTransform(transforms.PTransform):
         for tag in input_dict
     }
     input_frames = {
-        k: convert.to_dataframe(pc, proxies[k])
+        k: convert.to_dataframe(pc, proxies[k], str(k))
         for k, pc in input_dict.items()
     }  # type: Dict[Any, DeferredFrame] # noqa: F821
 
