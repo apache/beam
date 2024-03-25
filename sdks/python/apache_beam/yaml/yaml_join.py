@@ -12,6 +12,7 @@ def _SqlJoinTransform(
 def create_join_providers():
   return [
       yaml_provider.SqlBackedProvider({
-          'Join': _SqlJoinTransform
+          'Join-sql': _SqlJoinTransform,
+          'Join-calcite': _SqlJoinTransform
       }),
   ]

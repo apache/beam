@@ -1,0 +1,15 @@
+pipeline:
+  type: chain
+  transforms:
+    - type: Create
+      config:
+        elements:
+          - recipe: 'pie'
+            fruit: 'raspberry'
+            quantity: 1
+            unit_price: 3.50
+          - recipe: 'pie'
+            fruit: 'blackberry'
+            quantity: 1
+            unit_price: 4.00
+    - type: Join
