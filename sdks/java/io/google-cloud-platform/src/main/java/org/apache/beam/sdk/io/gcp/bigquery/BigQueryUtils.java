@@ -497,18 +497,13 @@ public class BigQueryUtils {
             .map(
                 field -> {
                   try {
-                    Object value =
-                        record.hasField(field.getName()) ? record.get(field.getName()) : null;
+                    org.apache.avro.Schema.Field avroField =
+                        record.getSchema().getField(field.getName());
+                    Object value = avroField != null ? record.get(avroField.pos()) : null;
                     return convertAvroFormat(field.getType(), value, options);
                   } catch (Exception cause) {
                     throw new IllegalArgumentException(
-                        "Error converting field "
-                            + field
-                            + ", record schema "
-                            + record.getSchema()
-                            + ": "
-                            + cause.getMessage(),
-                        cause);
+                        "Error converting field " + field + ": " + cause.getMessage(), cause);
                   }
                 })
             .collect(toList());
