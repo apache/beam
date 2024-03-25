@@ -1,4 +1,128 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Wed, 14 Feb 2024 09:00:00 -0400</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.54.0</title><link>/blog/beam-2.54.0/</link><pubDate>Wed, 14 Feb 2024 09:00:00 -0400</pubDate><guid>/blog/beam-2.54.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 25 Mar 2024 10:00:00 -0400</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.55.0</title><link>/blog/beam-2.55.0/</link><pubDate>Mon, 25 Mar 2024 10:00:00 -0400</pubDate><guid>/blog/beam-2.55.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.55.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2550-2023-03-25">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.55.0, check out the &lt;a href="https://github.com/apache/beam/milestone/19">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>The Python SDK will now include automatically generated wrappers for external Java transforms! (&lt;a href="https://github.com/apache/beam/pull/29834">#29834&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>Added support for handling bad records to BigQueryIO (&lt;a href="https://github.com/apache/beam/pull/30081">#30081&lt;/a>).
+&lt;ul>
+&lt;li>Full Support for Storage Read and Write APIs&lt;/li>
+&lt;li>Partial Support for File Loads (Failures writing to files supported, failures loading files to BQ unsupported)&lt;/li>
+&lt;li>No Support for Extract or Streaming Inserts&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Added support for handling bad records to PubSubIO (&lt;a href="https://github.com/apache/beam/pull/30372">#30372&lt;/a>).
+&lt;ul>
+&lt;li>Support is not available for handling schema mismatches, and enabling error handling for writing to Pub/Sub topics with schemas is not recommended&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;code>--enableBundling&lt;/code> pipeline option for BigQueryIO DIRECT_READ is replaced by &lt;code>--enableStorageReadApiV2&lt;/code>. Both were considered experimental and subject to change (Java) (&lt;a href="https://github.com/apache/beam/issues/26354">#26354&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Allow writing clustered and not time-partitioned BigQuery tables (Java) (&lt;a href="https://github.com/apache/beam/pull/30094">#30094&lt;/a>).&lt;/li>
+&lt;li>Redis cache support added to RequestResponseIO and Enrichment transform (Python) (&lt;a href="https://github.com/apache/beam/pull/30307">#30307&lt;/a>)&lt;/li>
+&lt;li>Merged &lt;code>sdks/java/fn-execution&lt;/code> and &lt;code>runners/core-construction-java&lt;/code> into the main SDK. These artifacts were never meant for users, but noting
+that they no longer exist. These are steps to bring portability into the core SDK alongside all other core functionality.&lt;/li>
+&lt;li>Added Vertex AI Feature Store handler for Enrichment transform (Python) (&lt;a href="https://github.com/apache/beam/pull/30388">#30388&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>Arrow version was bumped to 15.0.0 from 5.0.0 (&lt;a href="https://github.com/apache/beam/pull/30181">#30181&lt;/a>).&lt;/li>
+&lt;li>Go SDK users who build custom worker containers may run into issues with the move to distroless containers as a base (see Security Fixes).
+&lt;ul>
+&lt;li>The issue stems from distroless containers lacking additional tools, which current custom container processes may rely on.&lt;/li>
+&lt;li>See &lt;a href="https://beam.apache.org/documentation/runtime/environments/#from-scratch-go">https://beam.apache.org/documentation/runtime/environments/#from-scratch-go&lt;/a> for instructions on building and using a custom container.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Python SDK has changed the default value for the &lt;code>--max_cache_memory_usage_mb&lt;/code> pipeline option from 100 to 0. This option was first introduced in the 2.52.0 SDK version. This change restores the behavior of the 2.51.0 SDK, which does not use the state cache. If your pipeline uses iterable side inputs views, consider increasing the cache size by setting the option manually. (&lt;a href="https://github.com/apache/beam/issues/30360">#30360&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="deprecations">Deprecations&lt;/h2>
+&lt;ul>
+&lt;li>N/A&lt;/li>
+&lt;/ul>
+&lt;h2 id="bug-fixes">Bug fixes&lt;/h2>
+&lt;ul>
+&lt;li>Fixed &lt;code>SpannerIO.readChangeStream&lt;/code> to support propagating credentials from pipeline options
+to the &lt;code>getDialect&lt;/code> calls for authenticating with Spanner (Java) (&lt;a href="https://github.com/apache/beam/pull/30361">#30361&lt;/a>).&lt;/li>
+&lt;li>Reduced the number of HTTP requests in GCSIO function calls (Python) (&lt;a href="https://github.com/apache/beam/pull/30205">#30205&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="security-fixes">Security Fixes&lt;/h2>
+&lt;ul>
+&lt;li>Go SDK base container image moved to distroless/base-nossl-debian12, reducing vulnerable container surface to kernel and glibc (&lt;a href="https://github.com/apache/beam/pull/30011">#30011&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>In Python pipelines, when shutting down inactive bundle processors, shutdown logic can overaggressively hold the lock, blocking acceptance of new work. Symptoms of this issue include slowness or stuckness in long-running jobs. Fixed in 2.56.0 (&lt;a href="https://github.com/apache/beam/pull/30679">#30679&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the {$RELEASE_VERSION} release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmed Abualsaud&lt;/p>
+&lt;p>Anand Inguva&lt;/p>
+&lt;p>Andrew Crites&lt;/p>
+&lt;p>Andrey Devyatkin&lt;/p>
+&lt;p>Arun Pandian&lt;/p>
+&lt;p>Arvind Ram&lt;/p>
+&lt;p>Chamikara Jayalath&lt;/p>
+&lt;p>Chris Gray&lt;/p>
+&lt;p>Claire McGinty&lt;/p>
+&lt;p>Damon Douglas&lt;/p>
+&lt;p>Dan Ellis&lt;/p>
+&lt;p>Danny McCormick&lt;/p>
+&lt;p>Daria Bezkorovaina&lt;/p>
+&lt;p>Dima I&lt;/p>
+&lt;p>Edward Cui&lt;/p>
+&lt;p>Ferran Fernández Garrido&lt;/p>
+&lt;p>GStravinsky&lt;/p>
+&lt;p>Jan Lukavský&lt;/p>
+&lt;p>Jason Mitchell&lt;/p>
+&lt;p>JayajP&lt;/p>
+&lt;p>Jeff Kinard&lt;/p>
+&lt;p>Jeffrey Kinard&lt;/p>
+&lt;p>Kenneth Knowles&lt;/p>
+&lt;p>Mattie Fu&lt;/p>
+&lt;p>Michel Davit&lt;/p>
+&lt;p>Oleh Borysevych&lt;/p>
+&lt;p>Ritesh Ghorse&lt;/p>
+&lt;p>Ritesh Tarway&lt;/p>
+&lt;p>Robert Bradshaw&lt;/p>
+&lt;p>Robert Burke&lt;/p>
+&lt;p>Sam Whittle&lt;/p>
+&lt;p>Scott Strong&lt;/p>
+&lt;p>Shunping Huang&lt;/p>
+&lt;p>Steven van Rossum&lt;/p>
+&lt;p>Svetak Sundhar&lt;/p>
+&lt;p>Talat UYARER&lt;/p>
+&lt;p>Ukjae Jeong (Jay)&lt;/p>
+&lt;p>Vitaly Terentyev&lt;/p>
+&lt;p>Vlado Djerek&lt;/p>
+&lt;p>Yi Hu&lt;/p>
+&lt;p>akashorabek&lt;/p>
+&lt;p>case-k&lt;/p>
+&lt;p>clmccart&lt;/p>
+&lt;p>dengwe1&lt;/p>
+&lt;p>dhruvdua&lt;/p>
+&lt;p>hardshah&lt;/p>
+&lt;p>johnjcasey&lt;/p>
+&lt;p>liferoad&lt;/p>
+&lt;p>martin trieu&lt;/p>
+&lt;p>tvalentyn&lt;/p></description></item><item><title>Blog: Apache Beam 2.54.0</title><link>/blog/beam-2.54.0/</link><pubDate>Wed, 14 Feb 2024 09:00:00 -0400</pubDate><guid>/blog/beam-2.54.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -4829,85 +4953,4 @@ Lukasz Cwik, Maria Garcia Herrero, Mark Liu, Matthias Feys,
 Pablo Estrada, Rafael Fernandez, Reuven Lax, Robert Bradshaw,
 Robert Burke, Robin Qiu, Ryan Williams, Scott Wegner, Rui Weng,
 Sergei Lebedev, Sindy Li, Thomas Weise, Udi Meiri,
-Valentyn Tymofieiev, XuMingmin, and Yifan Zou.&lt;/p></description></item><item><title>Blog: Apache Beam 2.5.0</title><link>/blog/beam-2.5.0/</link><pubDate>Tue, 26 Jun 2018 00:00:01 -0800</pubDate><guid>/blog/beam-2.5.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are glad to present the new 2.5.0 release of Beam. This release includes
-multiple fixes and new functionalities.&lt;/p>
-&lt;p>For more information
-please check the detailed release notes.&lt;/p>
-&lt;h1 id="new-features--improvements">New Features / Improvements&lt;/h1>
-&lt;h2 id="go-sdk-support">Go SDK support&lt;/h2>
-&lt;p>The Go SDK has been officially accepted into the project, after an incubation period and community effort. Go pipelines run on Dataflow runner. More details are &lt;a href="/documentation/sdks/go/">here&lt;/a>.&lt;/p>
-&lt;h2 id="parquet-support">Parquet support&lt;/h2>
-&lt;p>Support for Apache Parquet format was added. It uses Parquet 1.10 release which, thanks to AvroParquerWriter&amp;rsquo;s API changes, allows FileIO.Sink implementation.&lt;/p>
-&lt;h2 id="performanceintegration-tests">Performance/Integration Tests&lt;/h2>
-&lt;ul>
-&lt;li>Added new integration tests - HCatalogIOIT (Hive), HBaseIOIT, ParquetIOIT (with the IO itself, local filesystem, HDFS)&lt;/li>
-&lt;li>Multinode (3 data node) HDFS cluster is used for running tests on HDFS.&lt;/li>
-&lt;li>Several improvements on performance tests running and results analysis.&lt;/li>
-&lt;li>Scaled up Kubernetes cluster from 1 to 3 nodes.&lt;/li>
-&lt;li>Added metrics in Spark streaming.&lt;/li>
-&lt;/ul>
-&lt;h2 id="internal-build-system-migrated-to-gradle">Internal Build System: Migrated to Gradle&lt;/h2>
-&lt;p>After a months-long community effort, the internal Beam build has been migrated from Maven to Gradle. The new build system was chosen because of dependency-driven build support, incremental build/test, and support for non-Java languages.&lt;/p>
-&lt;h2 id="nexmark-improvements">Nexmark Improvements&lt;/h2>
-&lt;ul>
-&lt;li>Kafka support as a source/sink for events and results.&lt;/li>
-&lt;li>Translation of some queries to Beam SQL.&lt;/li>
-&lt;/ul>
-&lt;h2 id="beam-sql">Beam SQL&lt;/h2>
-&lt;ul>
-&lt;li>Support for MAP, ROW, ARRAY data types&lt;/li>
-&lt;li>Support UNNEST on array fields&lt;/li>
-&lt;li>Improved optimizations&lt;/li>
-&lt;li>Upgrade Calcite to 1.16&lt;/li>
-&lt;li>Support SQL on POJOs via automatic conversion&lt;/li>
-&lt;li>Schema moved into core Beam&lt;/li>
-&lt;li>UDAFs can be indirect suclasses of CombineFn&lt;/li>
-&lt;li>Many other small bugfixes&lt;/li>
-&lt;/ul>
-&lt;h2 id="portability">Portability&lt;/h2>
-&lt;ul>
-&lt;li>Common shared code related to supporting portable execution for runners.&lt;/li>
-&lt;li>Python SDK supporting side inputs over the portability APIs.&lt;/li>
-&lt;/ul>
-&lt;h2 id="extract-metrics-in-a-runner-agnostic-way">Extract metrics in a runner agnostic way&lt;/h2>
-&lt;p>Metrics are pushed by the runners to configurable sinks (Http REST sink available). It is already enabled in Flink and Spark runner, work is in progress for Dataflow.&lt;/p>
-&lt;h1 id="miscellaneous-fixes">Miscellaneous Fixes&lt;/h1>
-&lt;h2 id="sdks">SDKs&lt;/h2>
-&lt;ul>
-&lt;li>Implemented HDFS FileSystem for Python SDK.&lt;/li>
-&lt;li>Python SDK adds support for side inputs for streaming execution.&lt;/li>
-&lt;/ul>
-&lt;h2 id="runners">Runners&lt;/h2>
-&lt;ul>
-&lt;li>Updated Spark runner to Spark version 2.3.1&lt;/li>
-&lt;li>Fixed issue with late elements windowed into expired fixed windows get dropped in Directrunner.&lt;/li>
-&lt;/ul>
-&lt;h2 id="ios">IOs&lt;/h2>
-&lt;ul>
-&lt;li>CassandraIO gained a better split algorithm based on overlapping regions.&lt;/li>
-&lt;li>ElasticsearchIO supports partial updates.&lt;/li>
-&lt;li>ElasticsearchIO allows to pass id, type and index per document.&lt;/li>
-&lt;li>SolrIO supports a more robust retry on write strategy.&lt;/li>
-&lt;li>S3 FileSystem supports encryption (SSE-S3, SSE-C and SSE-KMS).&lt;/li>
-&lt;li>Improved connection management in JdbcIO.&lt;/li>
-&lt;li>Added support the element timestamps while publishing to Kafka.&lt;/li>
-&lt;/ul>
-&lt;h2 id="other">Other&lt;/h2>
-&lt;ul>
-&lt;li>Use Java ErrorProne for static analysis.&lt;/li>
-&lt;/ul>
-&lt;h1 id="list-of-contributors">List of Contributors&lt;/h1>
-&lt;p>According to git shortlog, the following 84 people contributed to the 2.5.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Alan Myrvold, Alex Amato, Alex Van Boxel, Alexander Dejanovski, Alexey Romanenko, Aljoscha Krettek, ananvay, Andreas Ehrencrona, Andrew Pilloud, Ankur Goenka, Anton Kedin, arkash, Austin Bennett, Axel Magnuson, Ben Chambers, Ben Sidhom, Bill Neubauer, Boyuan Zhang, Braden Bassingthwaite, Cade Markegard, cclauss, Chamikara Jayalath, Charles Chen, Chuan Yu Foo, Cody Schroeder, Colm O hEigeartaigh, Daniel Oliveira, Dariusz Aniszewski, David Cavazos, Dawid Wysakowicz, Eric Roshan-Eisner, Etienne Chauchot, Eugene Kirpichov, Flavio Fiszman, Geet Kumar, GlennAmmons, Grzegorz Kołakowski, Henning Rohde, Innocent Djiofack, Ismaël Mejía, Jack Hsueh, Jason Kuster, Javier Antonio Gonzalez Trejo, Jean-Baptiste Onofré, Kai Jiang, Kamil Szewczyk, Katarzyna Kucharczyk, Kenneth Jung, Kenneth Knowles, Kevin Peterson, Lukasz Cwik, Łukasz Gajowy, Mairbek Khadikov, Manu Zhang, Maria Garcia Herrero, Marian Dvorsky, Mark Liu, Matthias Feys, Matthias Wessendorf, mingmxu, Nathan Howell, Pablo Estrada, Paul Gerver, Raghu Angadi, rarokni, Reuven Lax, Rezan Achmad, Robbe Sneyders, Robert Bradshaw, Robert Burke, Romain Manni-Bucau, Sam Waggoner, Sam Whittle, Scott Wegner, Stephan Hoyer, Thomas Groh, Thomas Weise, Tim Robertson, Udi Meiri, Valentyn Tymofieiev, XuMingmin, Yifan Zou, Yunqing Zhou&lt;/p></description></item></channel></rss>
+Valentyn Tymofieiev, XuMingmin, and Yifan Zou.&lt;/p></description></item></channel></rss>
