@@ -38,14 +38,14 @@ For more information on changes in 2.55.0, check out the [detailed release notes
   * Partial Support for File Loads (Failures writing to files supported, failures loading files to BQ unsupported)
   * No Support for Extract or Streaming Inserts
 * Added support for handling bad records to PubSubIO ([#30372](https://github.com/apache/beam/pull/30372)).
-  * Support is not available for handling schema mismatches, and enabling error handling for writing to pubsub topics with schemas is not recommended
-* `--enableBundling` pipeline option for BigQueryIO DIRECT_READ is replaced by `--enableStorageReadApiV2`. Both were considered experimental and may subject to change (Java) ([#26354](https://github.com/apache/beam/issues/26354)).
+  * Support is not available for handling schema mismatches, and enabling error handling for writing to Pub/Sub topics with schemas is not recommended
+* `--enableBundling` pipeline option for BigQueryIO DIRECT_READ is replaced by `--enableStorageReadApiV2`. Both were considered experimental and subject to change (Java) ([#26354](https://github.com/apache/beam/issues/26354)).
 
 ## New Features / Improvements
 
-* Allow writing clustered and not time partitioned BigQuery tables (Java) ([#30094](https://github.com/apache/beam/pull/30094)).
+* Allow writing clustered and not time-partitioned BigQuery tables (Java) ([#30094](https://github.com/apache/beam/pull/30094)).
 * Redis cache support added to RequestResponseIO and Enrichment transform (Python) ([#30307](https://github.com/apache/beam/pull/30307))
-* Merged sdks/java/fn-execution and runners/core-construction-java into the main SDK. These artifacts were never meant for users, but noting
+* Merged `sdks/java/fn-execution` and `runners/core-construction-java` into the main SDK. These artifacts were never meant for users, but noting
   that they no longer exist. These are steps to bring portability into the core SDK alongside all other core functionality.
 * Added Vertex AI Feature Store handler for Enrichment transform (Python) ([#30388](https://github.com/apache/beam/pull/30388))
 
@@ -55,16 +55,16 @@ For more information on changes in 2.55.0, check out the [detailed release notes
 * Go SDK users who build custom worker containers may run into issues with the move to distroless containers as a base (see Security Fixes).
   * The issue stems from distroless containers lacking additional tools, which current custom container processes may rely on.
   * See https://beam.apache.org/documentation/runtime/environments/#from-scratch-go for instructions on building and using a custom container.
-* Python SDK has changed the default value for the `--max_cache_memory_usage_mb` pipeline option from 100 to 0. This option was first introduced in 2.52.0 SDK. This change restores the behavior of 2.51.0 SDK, which does not use the state cache. If your pipeline uses iterable side inputs views, consider increasing the cache size by setting the option manually. ([#30360](https://github.com/apache/beam/issues/30360)).
+* Python SDK has changed the default value for the `--max_cache_memory_usage_mb` pipeline option from 100 to 0. This option was first introduced in the 2.52.0 SDK version. This change restores the behavior of the 2.51.0 SDK, which does not use the state cache. If your pipeline uses iterable side inputs views, consider increasing the cache size by setting the option manually. ([#30360](https://github.com/apache/beam/issues/30360)).
 
 ## Deprecations
 
 * N/A
 
-## Bugfixes
+## Bug fixes
 
 * Fixed SpannerIO.readChangeStream to support propagating credentials from pipeline options
-  to the getDialect calls for authenticating with Spanner (Java) ([#30361](https://github.com/apache/beam/pull/30361)).
+  to the `getDialect` calls for authenticating with Spanner (Java) ([#30361](https://github.com/apache/beam/pull/30361)).
 * Reduced the number of HTTP requests in GCSIO function calls (Python) ([#30205](https://github.com/apache/beam/pull/30205))
 
 ## Security Fixes
