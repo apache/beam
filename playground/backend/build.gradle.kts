@@ -143,6 +143,12 @@ task("installLinter") {
 
 task("runLint") {
   dependsOn(":playground:backend:installLinter")
+  doLast {
+    exec {
+      executable("golangci-lint")
+      args("run", "cmd/server/...")
+    }
+  }
 }
 
 task("precommit") {
