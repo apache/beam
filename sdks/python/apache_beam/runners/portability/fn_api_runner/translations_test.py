@@ -37,6 +37,33 @@ from apache_beam.transforms.core import Create
 
 
 class TranslationsTest(unittest.TestCase):
+
+  def test_lift_combiners(self):
+
+    def get_common_items(sets, side=0):
+      # set.intersection() takes multiple sets as separete arguments.
+      # We unpack the `sets` list into multiple arguments with the * operator.
+      # The combine transform might give us an empty list of `sets`,
+      # so we use a list with an empty set as a default value.
+      assert side == 1
+      return set.intersection(*(sets or [set()]))
+
+    with beam.Pipeline() as pipeline:
+      pc = (pipeline | beam.Create([1]))
+      common_items = (
+              pipeline
+              | 'Create produce' >> beam.Create([
+                  {'🍓', '🥕', '🍌', '🍅', '🌶️'},
+                  {'🍇', '🥕', '🥝', '🍅', '🥔'},
+                  {'🍉', '🥕', '🍆', '🍅', '🍍'},
+                  {'🥑', '🥕', '🌽', '🍅', '🥥'},
+                ])
+              | beam.WithKeys(lambda x: None)
+              | 'Get common items' >> beam.CombinePerKey(get_common_items,
+                                                           side=beam.pvalue.AsSingleton(
+                                                             pc))
+              | beam.Map(print))
+
   def test_eliminate_common_key_with_void(self):
     class MultipleKeyWithNone(beam.PTransform):
       def expand(self, pcoll):

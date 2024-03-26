@@ -195,6 +195,7 @@ class FnApiRunner(runner.PipelineRunner):
           'effect. direct_num_workers: %d ; running_mode: %s',
           self._num_workers,
           running_mode)
+    pipeline.replace_all(_get_transform_overrides(options))
 
     self._profiler_factory = Profile.factory_from_options(
         options.view_as(pipeline_options.ProfilingOptions))
@@ -1610,3 +1611,45 @@ class RunnerResult(runner.PipelineResult):
   def monitoring_infos(self):
     for ms in self._monitoring_infos_by_stage.values():
       yield from ms
+
+
+from apache_beam.transforms.core import CombinePerKey
+
+def _get_transform_overrides(pipeline_options):
+  # A list of PTransformOverride objects to be applied before running a pipeline
+  # using DirectRunner.
+  # Currently this only works for overrides where the input and output types do
+  # not change.
+  # For internal use only; no backwards-compatibility guarantees.
+
+  # Importing following locally to avoid a circular dependency.
+  from apache_beam.pipeline import PTransformOverride
+  from apache_beam.runners.direct.helper_transforms import LiftedCombinePerKey
+  from apache_beam.runners.direct.sdf_direct_runner import ProcessKeyedElementsViaKeyedWorkItemsOverride
+  from apache_beam.runners.direct.sdf_direct_runner import SplittableParDoOverride
+
+  class CombinePerKeyOverride(PTransformOverride):
+    def matches(self, applied_ptransform):
+      return False
+      has_side_inputs = bool(applied_ptransform.side_inputs)
+      is_globally_windowed = False
+      if isinstance(applied_ptransform.transform, CombinePerKey):
+        is_globally_windowed = applied_ptransform.inputs[0].windowing.is_default()
+      return has_side_inputs and is_globally_windowed
+
+    def get_replacement_transform_for_applied_ptransform(
+        self, applied_ptransform):
+      # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
+      # with resolving imports when they are at top.
+      # pylint: disable=wrong-import-position
+      try:
+        transform = applied_ptransform.transform
+        return LiftedCombinePerKey(
+            transform.fn, transform.args, transform.kwargs)
+      except NotImplementedError:
+        raise
+        return transform
+
+    def get_replacement_inputs(self, applied_ptransform):  # type: (AppliedPTransform) -> Iterable[pvalue.PValue]
+      return applied_ptransform.inputs
+  return [CombinePerKeyOverride()]
