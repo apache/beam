@@ -22,7 +22,6 @@ import static org.apache.iceberg.hadoop.HadoopOutputFile.fromPath;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-import java.util.UUID;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -61,6 +60,7 @@ public class TestDataWarehouse extends ExternalResource {
 
   protected String location;
   protected Catalog catalog;
+  protected boolean someTableHasBeenCreated = false;
 
   public TestDataWarehouse(TemporaryFolder temporaryFolder, String database) {
     this.temporaryFolder = temporaryFolder;
@@ -83,7 +83,12 @@ public class TestDataWarehouse extends ExternalResource {
 
   @Override
   protected void after() {
+    if (!someTableHasBeenCreated) {
+      return;
+    }
+
     List<TableIdentifier> tables = catalog.listTables(Namespace.of(database));
+
     LOG.info("Cleaning up {} tables in test warehouse", tables.size());
     for (TableIdentifier t : tables) {
       try {
@@ -134,9 +139,8 @@ public class TestDataWarehouse extends ExternalResource {
         .build();
   }
 
-  public Table createTable(Schema schema) {
-    TableIdentifier table =
-        TableIdentifier.of(database, "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
-    return catalog.createTable(table, schema);
+  public Table createTable(TableIdentifier tableId, Schema schema) {
+    someTableHasBeenCreated = true;
+    return catalog.createTable(tableId, schema);
   }
 }

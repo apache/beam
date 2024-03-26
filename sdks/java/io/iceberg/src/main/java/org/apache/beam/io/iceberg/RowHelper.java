@@ -15,19 +15,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.io.iceberg.util;
+package org.apache.beam.io.iceberg;
 
+import java.nio.ByteBuffer;
 import java.util.Optional;
-import org.apache.beam.sdk.transforms.SerializableBiFunction;
+import java.util.UUID;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Types.NestedField;
 
-public class RowHelper {
+class RowHelper {
+
+  // static helper functions only
   private RowHelper() {}
 
-  public static void copyInto(Record rec, NestedField field, Row value) {
+  public static Record rowToRecord(org.apache.iceberg.Schema schema, Row row) {
+    return copy(GenericRecord.create(schema), row);
+  }
+
+  private static Record copy(Record baseRecord, Row value) {
+    Record rec = baseRecord.copy();
+    for (NestedField f : rec.struct().fields()) {
+      copyInto(rec, f, value);
+    }
+    return rec;
+  }
+
+  private static void copyInto(Record rec, NestedField field, Row value) {
     String name = field.name();
     switch (field.type().typeId()) {
       case BOOLEAN:
@@ -46,21 +61,28 @@ public class RowHelper {
         Optional.ofNullable(value.getDouble(name)).ifPresent(v -> rec.setField(name, v));
         break;
       case DATE:
-        break;
+        throw new UnsupportedOperationException("Date fields not yet supported");
       case TIME:
-        break;
+        throw new UnsupportedOperationException("Time fields not yet supported");
       case TIMESTAMP:
+        Optional.ofNullable(value.getDateTime(name))
+            .ifPresent(v -> rec.setField(name, v.getMillis()));
         break;
       case STRING:
         Optional.ofNullable(value.getString(name)).ifPresent(v -> rec.setField(name, v));
         break;
       case UUID:
+        Optional.ofNullable(value.getBytes(name))
+            .ifPresent(v -> rec.setField(name, UUID.nameUUIDFromBytes(v)));
         break;
       case FIXED:
-        break;
+        throw new UnsupportedOperationException("Fixed-precision fields are not yet supported.");
       case BINARY:
+        Optional.ofNullable(value.getBytes(name))
+            .ifPresent(v -> rec.setField(name, ByteBuffer.wrap(v)));
         break;
       case DECIMAL:
+        Optional.ofNullable(value.getDecimal(name)).ifPresent(v -> rec.setField(name, v));
         break;
       case STRUCT:
         Optional.ofNullable(value.getRow(name))
@@ -70,26 +92,9 @@ public class RowHelper {
                         name, copy(GenericRecord.create(field.type().asStructType()), row)));
         break;
       case LIST:
-        break;
+        throw new UnsupportedOperationException("List fields are not yet supported.");
       case MAP:
-        break;
+        throw new UnsupportedOperationException("Map fields are not yet supported.");
     }
-  }
-
-  public static Record copy(Record baseRecord, Row value) {
-    Record rec = baseRecord.copy();
-    for (NestedField f : rec.struct().fields()) {
-      copyInto(rec, f, value);
-    }
-    return rec;
-  }
-
-  public static SerializableBiFunction<Record, Row, Record> recordsFromRows() {
-    return new SerializableBiFunction<Record, Row, Record>() {
-      @Override
-      public Record apply(Record record, Row row) {
-        return copy(record, row);
-      }
-    };
   }
 }

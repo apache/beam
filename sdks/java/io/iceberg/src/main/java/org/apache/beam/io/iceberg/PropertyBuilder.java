@@ -15,7 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.catalog;
+package org.apache.beam.io.iceberg;
 
-/** Static Catalog class */
-public class Catalog {}
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+/** Convenience utility class to build immutable maps that drops attempts to set null values. */
+class PropertyBuilder {
+
+  ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+
+  public PropertyBuilder put(String key, @Nullable Object value) {
+    if (value != null) {
+      builder = builder.put(key, "" + value);
+    }
+    return this;
+  }
+
+  public ImmutableMap<String, String> build() {
+    return builder.build();
+  }
+}

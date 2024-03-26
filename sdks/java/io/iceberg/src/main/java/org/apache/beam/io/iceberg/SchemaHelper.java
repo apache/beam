@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.io.iceberg.util;
+package org.apache.beam.io.iceberg;
 
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -23,11 +23,11 @@ import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
 
 @SuppressWarnings({"dereference.of.nullable"})
-public class SchemaHelper {
+class SchemaHelper {
 
   private SchemaHelper() {}
 
-  public static String ICEBERG_TYPE_OPTION_NAME = "icebergTypeID";
+  public static final String ICEBERG_TYPE_OPTION_NAME = "icebergTypeID";
 
   public static Schema.FieldType fieldTypeForType(final Type type) {
     switch (type.typeId()) {
@@ -62,7 +62,7 @@ public class SchemaHelper {
             fieldTypeForType(type.asMapType().keyType()),
             fieldTypeForType(type.asMapType().valueType()));
     }
-    throw new RuntimeException("Unrecognized Iceberg Type");
+    throw new RuntimeException("Unrecognized IcebergIO Type");
   }
 
   public static Schema.Field convert(final Types.NestedField field) {

@@ -20,11 +20,10 @@ package org.apache.beam.io.iceberg;
 import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
-import org.apache.beam.io.iceberg.util.SchemaHelper;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
@@ -45,9 +44,9 @@ public class TestFixtures {
           genericRecord.copy(ImmutableMap.of("id", 2L, "data", "falafel")));
   public static final ImmutableList<Record> FILE1SNAPSHOT2 =
       ImmutableList.of(
-          genericRecord.copy(ImmutableMap.of("id", 4L, "data", "obscure")),
-          genericRecord.copy(ImmutableMap.of("id", 5L, "data", "secure")),
-          genericRecord.copy(ImmutableMap.of("id", 6L, "data", "feta")));
+          genericRecord.copy(ImmutableMap.of("id", 3L, "data", "obscure")),
+          genericRecord.copy(ImmutableMap.of("id", 4L, "data", "secure")),
+          genericRecord.copy(ImmutableMap.of("id", 5L, "data", "feta")));
   public static final ImmutableList<Record> FILE1SNAPSHOT3 =
       ImmutableList.of(
           genericRecord.copy(ImmutableMap.of("id", 6L, "data", "brainy")),

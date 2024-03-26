@@ -17,30 +17,49 @@
  */
 package org.apache.beam.io.iceberg;
 
-import java.io.Serializable;
-import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.iceberg.Schema;
+import com.google.auto.value.AutoValue;
+import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
-public class IcebergDestination implements Serializable {
+@AutoValue
+public abstract class IcebergDestination {
 
-  ResourceId resourceId;
-  String table;
-  Schema schema;
-  Iceberg.WriteFormat writeFormat;
+  /**
+   * The iceberg table identifier to write data to. This is relative to the catalog, which is
+   * presumed to be configured outside of this destination specification.
+   */
+  @Pure
+  public abstract TableIdentifier getTableIdentifier();
 
-  public IcebergDestination(
-      ResourceId resourceId, String table, Schema schema, Iceberg.WriteFormat writeFormat) {
-    this.resourceId = resourceId;
-    this.table = table;
-    this.schema = schema;
-    this.writeFormat = writeFormat;
+  /** File format for created files. */
+  @Pure
+  public abstract FileFormat getFileFormat();
+
+  /**
+   * Metadata and constraints for creating a new table, if it must be done dynamically.
+   *
+   * <p>If null, dynamic table creation will fail, and this should be disallowed at the top level
+   * configuration.
+   */
+  @Pure
+  public abstract @Nullable IcebergTableCreateConfig getTableCreateConfig();
+
+  @Pure
+  public static Builder builder() {
+    return new AutoValue_IcebergDestination.Builder();
   }
 
-  public Iceberg.WriteFormat getWriteFormat() {
-    return writeFormat;
-  }
+  @AutoValue.Builder
+  public abstract static class Builder {
+    public abstract Builder setTableIdentifier(TableIdentifier tableId);
 
-  public Schema getSchema() {
-    return schema;
+    public abstract Builder setFileFormat(FileFormat fileFormat);
+
+    public abstract Builder setTableCreateConfig(@Nullable IcebergTableCreateConfig createConfig);
+
+    @Pure
+    public abstract IcebergDestination build();
   }
 }
