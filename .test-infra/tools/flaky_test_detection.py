@@ -92,7 +92,7 @@ def get_grafana_alerts():
                     alert["labels"]["workflow_name"],
                     alert["labels"]["workflow_filename"],
                     alert["labels"]["workflow_threshold"],
-                    datetime.strptime(alert["labels"]["workflow_retrieved_at"], "%Y-%m-%dT%H:%M:%SZ"),
+                    datetime.fromisoformat(alert["labels"]["workflow_retrieved_at"]),
                 )
             )
     return alerts

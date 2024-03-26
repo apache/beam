@@ -445,7 +445,7 @@ def save_workflows(workflows):
     cursor.execute(create_workflows_table_query)
     cursor.execute(create_workflow_runs_table_query)
     insert_workflows_query = f"""
-    INSERT INTO {workflows_table_name} (workflow_id, name, filename, url,  dashboard_category, threshold, is_flaky)
+    INSERT INTO {workflows_table_name} (workflow_id, name, filename, url,  dashboard_category, threshold, is_flaky, retrieved_at)
     VALUES %s"""
     insert_workflow_runs_query = f"""
     INSERT INTO {workflow_runs_table_name} (run_id, run_number, status, url, workflow_id, started_at)
