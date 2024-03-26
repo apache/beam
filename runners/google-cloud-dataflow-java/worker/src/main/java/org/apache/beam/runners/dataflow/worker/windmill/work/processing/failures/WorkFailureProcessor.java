@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures;
 
-import java.io.File;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -30,6 +28,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -42,24 +41,49 @@ import org.slf4j.LoggerFactory;
 public final class WorkFailureProcessor {
   private static final Logger LOG = LoggerFactory.getLogger(WorkFailureProcessor.class);
   private static final Duration MAX_LOCAL_PROCESSING_RETRY_DURATION = Duration.standardMinutes(5);
+  private static final int DEFAULT_RETRY_LOCALLY_MS = 10000;
 
   private final BoundedQueueExecutor workUnitExecutor;
-  private final FailureReporter failureReporter;
-  private final Supplier<Optional<File>> heapDumpFetcher;
+  private final FailureTracker failureTracker;
+  private final HeapDumper heapDumper;
   private final Supplier<Instant> clock;
   private final int retryLocallyDelayMs;
 
-  public WorkFailureProcessor(
+  private WorkFailureProcessor(
       BoundedQueueExecutor workUnitExecutor,
-      FailureReporter failureReporter,
-      Supplier<Optional<File>> heapDumpFetcher,
+      FailureTracker failureTracker,
+      HeapDumper heapDumper,
       Supplier<Instant> clock,
       int retryLocallyDelayMs) {
     this.workUnitExecutor = workUnitExecutor;
-    this.failureReporter = failureReporter;
-    this.heapDumpFetcher = heapDumpFetcher;
+    this.failureTracker = failureTracker;
+    this.heapDumper = heapDumper;
     this.clock = clock;
     this.retryLocallyDelayMs = retryLocallyDelayMs;
+  }
+
+  public static WorkFailureProcessor create(
+      BoundedQueueExecutor workUnitExecutor,
+      FailureTracker failureTracker,
+      HeapDumper heapDumper,
+      Supplier<Instant> clock) {
+    return new WorkFailureProcessor(
+        workUnitExecutor, failureTracker, heapDumper, clock, DEFAULT_RETRY_LOCALLY_MS);
+  }
+
+  @VisibleForTesting
+  public static WorkFailureProcessor forTesting(
+      BoundedQueueExecutor workUnitExecutor,
+      FailureTracker failureTracker,
+      HeapDumper heapDumper,
+      Supplier<Instant> clock,
+      int retryLocallyDelayMs) {
+    return new WorkFailureProcessor(
+        workUnitExecutor,
+        failureTracker,
+        heapDumper,
+        clock,
+        retryLocallyDelayMs >= 0 ? retryLocallyDelayMs : DEFAULT_RETRY_LOCALLY_MS);
   }
 
   /** Returns whether an exception was caused by a {@link OutOfMemoryError}. */
@@ -79,8 +103,7 @@ public final class WorkFailureProcessor {
    */
   public void logAndProcessFailure(
       String computationId, Work work, Throwable t, Consumer<Work> onInvalidWork) {
-    if (shouldRetryLocally(
-        computationId, work, t instanceof UserCodeException ? t.getCause() : t)) {
+    if (shouldRetryLocally(computationId, work, t)) {
       // Try again after some delay and at the end of the queue to avoid a tight loop.
       executeWithDelay(retryLocallyDelayMs, work);
     } else {
@@ -90,9 +113,9 @@ public final class WorkFailureProcessor {
     }
   }
 
-  private String getHeapDumpLog() {
-    return heapDumpFetcher
-        .get()
+  private String dumpHeap() {
+    return heapDumper
+        .dumpAndGetHeap()
         .map(heapDump -> "written to '" + heapDump + "'")
         .orElseGet(() -> "not written");
   }
@@ -103,37 +126,38 @@ public final class WorkFailureProcessor {
   }
 
   private boolean shouldRetryLocally(String computationId, Work work, Throwable t) {
-    if (KeyTokenInvalidException.isKeyTokenInvalidException(t)) {
+    Throwable parsedException = t instanceof UserCodeException ? t.getCause() : t;
+    if (KeyTokenInvalidException.isKeyTokenInvalidException(parsedException)) {
       LOG.debug(
           "Execution of work for computation '{}' on key '{}' failed due to token expiration. "
               + "Work will not be retried locally.",
           computationId,
           work.getWorkItem().getKey().toStringUtf8());
-    } else if (WorkItemCancelledException.isWorkItemCancelledException(t)) {
+    } else if (WorkItemCancelledException.isWorkItemCancelledException(parsedException)) {
       LOG.debug(
           "Execution of work for computation '{}' on key '{}' failed. "
               + "Work will not be retried locally.",
           computationId,
           work.getWorkItem().getShardingKey());
     } else {
-      LastExceptionDataProvider.reportException(t);
+      LastExceptionDataProvider.reportException(parsedException);
       LOG.debug("Failed work: {}", work);
       Duration elapsedTimeSinceStart = new Duration(work.getStartTime(), clock.get());
-      if (!failureReporter.reportFailure(computationId, work.getWorkItem(), t)) {
+      if (!failureTracker.trackFailure(computationId, work.getWorkItem(), parsedException)) {
         LOG.error(
             "Execution of work for computation '{}' on key '{}' failed with uncaught exception, "
                 + "and Windmill indicated not to retry locally.",
             computationId,
             work.getWorkItem().getKey().toStringUtf8(),
-            t);
-      } else if (isOutOfMemoryError(t)) {
+            parsedException);
+      } else if (isOutOfMemoryError(parsedException)) {
         LOG.error(
             "Execution of work for computation '{}' for key '{}' failed with out-of-memory. "
                 + "Work will not be retried locally. Heap dump {}.",
             computationId,
             work.getWorkItem().getKey().toStringUtf8(),
-            getHeapDumpLog(),
-            t);
+            dumpHeap(),
+            parsedException);
       } else if (elapsedTimeSinceStart.isLongerThan(MAX_LOCAL_PROCESSING_RETRY_DURATION)) {
         LOG.error(
             "Execution of work for computation '{}' for key '{}' failed with uncaught exception, "
@@ -143,14 +167,14 @@ public final class WorkFailureProcessor {
             work.getWorkItem().getKey().toStringUtf8(),
             elapsedTimeSinceStart,
             MAX_LOCAL_PROCESSING_RETRY_DURATION,
-            t);
+            parsedException);
       } else {
         LOG.error(
             "Execution of work for computation '{}' on key '{}' failed with uncaught exception. "
                 + "Work will be retried locally.",
             computationId,
             work.getWorkItem().getKey().toStringUtf8(),
-            t);
+            parsedException);
         return true;
       }
     }

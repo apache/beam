@@ -18,11 +18,9 @@
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
 import com.google.auto.value.AutoValue;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
-import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.sdk.annotations.Internal;
 
 /** Streaming pipeline counters to report pipeline processing metrics to Dataflow backend. */
@@ -100,35 +98,4 @@ public abstract class StreamingCounters {
   public abstract Counter<Integer, Integer> windmillMaxObservedWorkItemCommitBytes();
 
   public abstract Counter<Integer, Integer> memoryThrashing();
-
-  final void updateVMMetrics() {
-    Runtime rt = Runtime.getRuntime();
-    long usedMemory = rt.totalMemory() - rt.freeMemory();
-    long maxMemory = rt.maxMemory();
-
-    javaHarnessUsedMemory().getAndReset();
-    javaHarnessUsedMemory().addValue(usedMemory);
-    javaHarnessMaxMemory().getAndReset();
-    javaHarnessMaxMemory().addValue(maxMemory);
-  }
-
-  final void updateThreadMetrics(
-      BoundedQueueExecutor workUnitExecutor, AtomicLong previousTimeAtMaxThreads, int maxThreads) {
-    timeAtMaxActiveThreads().getAndReset();
-    long allThreadsActiveTime = workUnitExecutor.allThreadsActiveTime();
-    timeAtMaxActiveThreads().addValue(allThreadsActiveTime - previousTimeAtMaxThreads.get());
-    previousTimeAtMaxThreads.set(allThreadsActiveTime);
-    activeThreads().getAndReset();
-    activeThreads().addValue(workUnitExecutor.activeCount());
-    totalAllocatedThreads().getAndReset();
-    totalAllocatedThreads().addValue(maxThreads);
-    outstandingBytes().getAndReset();
-    outstandingBytes().addValue(workUnitExecutor.bytesOutstanding());
-    maxOutstandingBytes().getAndReset();
-    maxOutstandingBytes().addValue(workUnitExecutor.maximumBytesOutstanding());
-    outstandingBundles().getAndReset();
-    outstandingBundles().addValue((long) workUnitExecutor.elementsOutstanding());
-    maxOutstandingBundles().getAndReset();
-    maxOutstandingBundles().addValue((long) workUnitExecutor.maximumElementsOutstanding());
-  }
 }

@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect
 
 import com.google.api.services.dataflow.model.Status;
 import com.google.rpc.Code;
-import java.util.function.Supplier;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -30,37 +29,39 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.EvictingQueue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
-/** Reports failures that occur during user processing. */
+/** Tracks failures that occur during user processing. */
 @ThreadSafe
 @Internal
-public abstract class FailureReporter implements Supplier<ImmutableList<Status>> {
+public abstract class FailureTracker {
 
   private final int maxStackTraceDepthToReport;
 
   @GuardedBy("pendingFailuresToReport")
   private final EvictingQueue<String> pendingFailuresToReport;
 
-  protected FailureReporter(
-      int maxStackTraceDepthToReport, EvictingQueue<String> pendingFailuresToReport) {
+  protected FailureTracker(int maxFailuresToReportInUpdate, int maxStackTraceDepthToReport) {
+    this.pendingFailuresToReport = EvictingQueue.create(maxFailuresToReportInUpdate);
     this.maxStackTraceDepthToReport = maxStackTraceDepthToReport;
-    this.pendingFailuresToReport = pendingFailuresToReport;
   }
 
   /**
-   * Reports the failure to streaming backend. Returns whether the processing should be retried
+   * Reports the failure to streaming backend. Returns whether the processing can be retried
    * locally.
    */
-  public boolean reportFailure(String computationId, WorkItem work, Throwable failure) {
+  public final boolean trackFailure(String computationId, WorkItem work, Throwable failure) {
     // Adds the given failure message to the queue of messages to be reported to DFE in periodic
     // updates.
     synchronized (pendingFailuresToReport) {
       pendingFailuresToReport.add(buildExceptionStackTrace(failure));
     }
-    return shouldRetryLocally(computationId, work);
+    return reportFailureInternal(computationId, work);
   }
 
-  @Override
-  public ImmutableList<Status> get() {
+  /**
+   * Returns all pending failures that have not been reported to Dataflow backend then clears the
+   * pending failure queue.
+   */
+  public final ImmutableList<Status> drainPendingFailuresToReport() {
     synchronized (pendingFailuresToReport) {
       ImmutableList<Status> pendingFailures =
           pendingFailuresToReport.stream()
@@ -99,5 +100,5 @@ public abstract class FailureReporter implements Supplier<ImmutableList<Status>>
     return builder.toString();
   }
 
-  protected abstract boolean shouldRetryLocally(String computationId, Windmill.WorkItem work);
+  protected abstract boolean reportFailureInternal(String computationId, Windmill.WorkItem work);
 }

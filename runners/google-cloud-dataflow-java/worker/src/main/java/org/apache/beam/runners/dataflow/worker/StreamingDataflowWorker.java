@@ -110,9 +110,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmill
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
-import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureReporter;
-import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.StreamingApplianceFailureReporter;
-import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.StreamingEngineFailureReporter;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.StreamingApplianceFailureTracker;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.StreamingEngineFailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.WorkFailureProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.ActiveWorkRefresher;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.ActiveWorkRefreshers;
@@ -164,12 +164,10 @@ public class StreamingDataflowWorker {
   // Maximum number of threads for processing.  Currently each thread processes one key at a time.
   static final int MAX_PROCESSING_THREADS = 300;
   static final long THREAD_EXPIRATION_TIME_SEC = 60;
-  static final long TARGET_COMMIT_BUNDLE_BYTES = 32 << 20;
-  static final int MAX_COMMIT_QUEUE_BYTES = 500 << 20; // 500MB
   static final int NUM_COMMIT_STREAMS = 1;
   static final int GET_WORK_STREAM_TIMEOUT_MINUTES = 3;
   static final Duration COMMIT_STREAM_TIMEOUT = Duration.standardMinutes(1);
-  @VisibleForTesting static final int DEFAULT_RETRY_LOCALLY_MS = 10000;
+
   /**
    * Sinks are marked 'full' in {@link StreamingModeExecutionContext} once the amount of data sinked
    * (across all the sinks, if there are more than one) reaches this limit. This serves as hint for
@@ -263,7 +261,7 @@ public class StreamingDataflowWorker {
   private final ActiveWorkRefresher activeWorkRefresher;
   private final WorkCommitter workCommitter;
   private final StreamingWorkerStatusReporter workerStatusReporter;
-  private final FailureReporter failureReporter;
+  private final FailureTracker failureTracker;
   private final WorkFailureProcessor workFailureProcessor;
   private final StreamingCounters streamingCounters;
 
@@ -280,7 +278,7 @@ public class StreamingDataflowWorker {
       HotKeyLogger hotKeyLogger,
       Supplier<Instant> clock,
       StreamingWorkerStatusReporter workerStatusReporter,
-      FailureReporter failureReporter,
+      FailureTracker failureTracker,
       WorkFailureProcessor workFailureProcessor,
       StreamingCounters streamingCounters,
       MemoryMonitor memoryMonitor,
@@ -379,7 +377,7 @@ public class StreamingDataflowWorker {
             metricTrackingWindmillServer::refreshActiveWork,
             executorSupplier.apply("RefreshWork"));
     this.workerStatusReporter = workerStatusReporter;
-    this.failureReporter = failureReporter;
+    this.failureTracker = failureTracker;
     this.workFailureProcessor = workFailureProcessor;
     this.streamingCounters = streamingCounters;
     this.memoryMonitor = memoryMonitor;
@@ -403,11 +401,11 @@ public class StreamingDataflowWorker {
             clientId,
             new WorkHeartbeatResponseProcessor(
                 computationId -> Optional.ofNullable(computationMap.get(computationId))));
-    FailureReporter failureReporter =
+    FailureTracker failureTracker =
         options.isEnableStreamingEngine()
-            ? StreamingEngineFailureReporter.create(
+            ? StreamingEngineFailureTracker.create(
                 MAX_FAILURES_TO_REPORT_IN_UPDATE, options.getMaxStackTraceDepthToReport())
-            : StreamingApplianceFailureReporter.create(
+            : StreamingApplianceFailureTracker.create(
                 MAX_FAILURES_TO_REPORT_IN_UPDATE,
                 options.getMaxStackTraceDepthToReport(),
                 windmillServer::reportStats);
@@ -415,23 +413,20 @@ public class StreamingDataflowWorker {
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
     Supplier<Instant> clock = Instant::now;
     WorkFailureProcessor workFailureProcessor =
-        new WorkFailureProcessor(
+        WorkFailureProcessor.create(
             workExecutor,
-            failureReporter,
+            failureTracker,
             () -> Optional.ofNullable(memoryMonitor.tryToDumpHeap()),
-            clock,
-            DEFAULT_RETRY_LOCALLY_MS);
+            clock);
     StreamingWorkerStatusReporter workerStatusReporter =
         StreamingWorkerStatusReporter.create(
-            /* publishCounters= */ true,
             dataflowServiceClient,
             windmillServer::getAndResetThrottleTime,
             stageInfo::values,
-            failureReporter,
+            failureTracker,
             streamingCounters,
             memoryMonitor,
-            workExecutor,
-            () -> chooseMaxThreads(options));
+            workExecutor);
     return new StreamingDataflowWorker(
         windmillServer,
         clientId,
@@ -445,7 +440,7 @@ public class StreamingDataflowWorker {
         new HotKeyLogger(),
         clock,
         workerStatusReporter,
-        failureReporter,
+        failureTracker,
         workFailureProcessor,
         streamingCounters,
         memoryMonitor,
@@ -474,18 +469,18 @@ public class StreamingDataflowWorker {
         createComputationMapForTesting(mapTasks, workExecutor, stateCache::forComputation));
     MemoryMonitor memoryMonitor = MemoryMonitor.fromOptions(options);
     StreamingCounters streamingCounters = StreamingCounters.create();
-    FailureReporter failureReporter =
+    FailureTracker failureTracker =
         options.isEnableStreamingEngine()
-            ? StreamingEngineFailureReporter.create(
+            ? StreamingEngineFailureTracker.create(
                 MAX_FAILURES_TO_REPORT_IN_UPDATE, options.getMaxStackTraceDepthToReport())
-            : StreamingApplianceFailureReporter.create(
+            : StreamingApplianceFailureTracker.create(
                 MAX_FAILURES_TO_REPORT_IN_UPDATE,
                 options.getMaxStackTraceDepthToReport(),
                 windmillServer::reportStats);
     WorkFailureProcessor workFailureProcessor =
-        new WorkFailureProcessor(
+        WorkFailureProcessor.forTesting(
             workExecutor,
-            failureReporter,
+            failureTracker,
             () -> Optional.ofNullable(memoryMonitor.tryToDumpHeap()),
             clock,
             localRetryTimeoutMs);
@@ -495,11 +490,10 @@ public class StreamingDataflowWorker {
             workUnitClient,
             windmillServer::getAndResetThrottleTime,
             stageInfo::values,
-            failureReporter,
+            failureTracker,
             streamingCounters,
             memoryMonitor,
             workExecutor,
-            () -> chooseMaxThreads(options),
             executorSupplier);
     return new StreamingDataflowWorker(
         windmillServer,
@@ -514,7 +508,7 @@ public class StreamingDataflowWorker {
         hotKeyLogger,
         clock,
         workerStatusReporter,
-        failureReporter,
+        failureTracker,
         workFailureProcessor,
         streamingCounters,
         memoryMonitor,
@@ -522,7 +516,7 @@ public class StreamingDataflowWorker {
   }
 
   @VisibleForTesting
-  public final void reportPeriodicWorkerUpdatesForTest() {
+  final void reportPeriodicWorkerUpdatesForTest() {
     workerStatusReporter.reportPeriodicWorkerUpdates();
   }
 
@@ -1267,7 +1261,7 @@ public class StreamingDataflowWorker {
       if (commitSize < 0 || commitSize > byteLimit) {
         KeyCommitTooLargeException e =
             KeyCommitTooLargeException.causedBy(computationId, byteLimit, commitRequest);
-        failureReporter.reportFailure(computationId, workItem, e);
+        failureTracker.trackFailure(computationId, workItem, e);
         LOG.error(e.toString());
 
         // Drop the current request in favor of a new, minimal one requesting truncation.

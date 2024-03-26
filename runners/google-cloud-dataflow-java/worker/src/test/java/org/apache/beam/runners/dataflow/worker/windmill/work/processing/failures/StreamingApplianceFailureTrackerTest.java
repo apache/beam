@@ -31,12 +31,12 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class StreamingApplianceFailureReporterTest {
+public class StreamingApplianceFailureTrackerTest {
 
   private static final String DEFAULT_COMPUTATION_ID = "computationId";
 
-  private static FailureReporter streamingApplianceFailureReporter(boolean isWorkFailed) {
-    return StreamingApplianceFailureReporter.create(
+  private static FailureTracker streamingApplianceFailureReporter(boolean isWorkFailed) {
+    return StreamingApplianceFailureTracker.create(
         10,
         10,
         ignored -> Windmill.ReportStatsResponse.newBuilder().setFailed(isWorkFailed).build());
@@ -53,31 +53,31 @@ public class StreamingApplianceFailureReporterTest {
 
   @Test
   public void testReportFailure_returnsFalseWhenResponseHasFailed() {
-    FailureReporter failureReporter = streamingApplianceFailureReporter(true);
+    FailureTracker failureTracker = streamingApplianceFailureReporter(true);
     assertFalse(
-        failureReporter.reportFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException()));
+        failureTracker.trackFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException()));
   }
 
   @Test
   public void testReportFailure_returnsTrueWhenResponseNotFailed() {
-    FailureReporter failureReporter = streamingApplianceFailureReporter(false);
+    FailureTracker failureTracker = streamingApplianceFailureReporter(false);
     assertTrue(
-        failureReporter.reportFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException()));
+        failureTracker.trackFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException()));
   }
 
   @Test
   public void testReportFailure_addsPendingErrors() {
-    FailureReporter failureReporter = streamingApplianceFailureReporter(true);
-    failureReporter.reportFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException());
-    assertThat(failureReporter.get()).hasSize(1);
+    FailureTracker failureTracker = streamingApplianceFailureReporter(true);
+    failureTracker.trackFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException());
+    assertThat(failureTracker.drainPendingFailuresToReport()).hasSize(1);
   }
 
   @Test
   public void testGet_correctlyCreatesErrorStatus() {
-    FailureReporter failureReporter = streamingApplianceFailureReporter(true);
+    FailureTracker failureTracker = streamingApplianceFailureReporter(true);
     RuntimeException error = new RuntimeException();
-    failureReporter.reportFailure(DEFAULT_COMPUTATION_ID, workItem(), error);
-    assertThat(failureReporter.get())
+    failureTracker.trackFailure(DEFAULT_COMPUTATION_ID, workItem(), error);
+    assertThat(failureTracker.drainPendingFailuresToReport())
         .comparingElementsUsing(
             Correspondence.from(
                 (Status a, Status b) ->
@@ -89,9 +89,9 @@ public class StreamingApplianceFailureReporterTest {
 
   @Test
   public void testGet_clearsPendingErrors() {
-    FailureReporter failureReporter = streamingApplianceFailureReporter(true);
-    failureReporter.reportFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException());
-    failureReporter.get();
-    assertThat(failureReporter.get()).isEmpty();
+    FailureTracker failureTracker = streamingApplianceFailureReporter(true);
+    failureTracker.trackFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException());
+    failureTracker.drainPendingFailuresToReport();
+    assertThat(failureTracker.drainPendingFailuresToReport()).isEmpty();
   }
 }

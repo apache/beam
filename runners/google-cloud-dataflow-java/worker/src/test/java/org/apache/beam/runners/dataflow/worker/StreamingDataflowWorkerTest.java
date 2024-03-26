@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.addObject;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
-import static org.apache.beam.runners.dataflow.worker.StreamingDataflowWorker.DEFAULT_RETRY_LOCALLY_MS;
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.splitIntToLong;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.both;
@@ -822,8 +821,7 @@ public class StreamingDataflowWorkerTest {
       boolean publishCounters,
       Supplier<Instant> clock,
       Function<String, ScheduledExecutorService> executorSupplier) {
-    return makeWorker(
-        instructions, options, publishCounters, clock, executorSupplier, DEFAULT_RETRY_LOCALLY_MS);
+    return makeWorker(instructions, options, publishCounters, clock, executorSupplier, -1);
   }
 
   private StreamingDataflowWorker makeWorker(
@@ -836,7 +834,7 @@ public class StreamingDataflowWorkerTest {
         publishCounters,
         Instant::now,
         (threadName) -> Executors.newSingleThreadScheduledExecutor(),
-        DEFAULT_RETRY_LOCALLY_MS);
+        -1);
   }
 
   private StreamingDataflowWorker makeWorker(

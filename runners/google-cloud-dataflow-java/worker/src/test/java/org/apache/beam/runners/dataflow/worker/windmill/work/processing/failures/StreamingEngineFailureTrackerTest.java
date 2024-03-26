@@ -30,12 +30,12 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class StreamingEngineFailureReporterTest {
+public class StreamingEngineFailureTrackerTest {
 
   private static final String DEFAULT_COMPUTATION_ID = "computationId";
 
-  private static FailureReporter streamingEngineFailureReporter() {
-    return StreamingEngineFailureReporter.create(10, 10);
+  private static FailureTracker streamingEngineFailureReporter() {
+    return StreamingEngineFailureTracker.create(10, 10);
   }
 
   private static Windmill.WorkItem workItem() {
@@ -49,27 +49,27 @@ public class StreamingEngineFailureReporterTest {
 
   @Test
   public void testReportFailure_returnsTrue() {
-    FailureReporter failureReporter = streamingEngineFailureReporter();
+    FailureTracker failureTracker = streamingEngineFailureReporter();
     assertTrue(
-        failureReporter.reportFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException()));
+        failureTracker.trackFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException()));
   }
 
   @Test
   public void testReportFailure_addsPendingErrors() {
-    FailureReporter failureReporter = streamingEngineFailureReporter();
-    failureReporter.reportFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException());
-    failureReporter.reportFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException());
-    failureReporter.reportFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException());
+    FailureTracker failureTracker = streamingEngineFailureReporter();
+    failureTracker.trackFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException());
+    failureTracker.trackFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException());
+    failureTracker.trackFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException());
 
-    assertThat(failureReporter.get()).hasSize(3);
+    assertThat(failureTracker.drainPendingFailuresToReport()).hasSize(3);
   }
 
   @Test
   public void testGet_correctlyCreatesErrorStatus() {
-    FailureReporter failureReporter = streamingEngineFailureReporter();
+    FailureTracker failureTracker = streamingEngineFailureReporter();
     RuntimeException error = new RuntimeException();
-    failureReporter.reportFailure(DEFAULT_COMPUTATION_ID, workItem(), error);
-    assertThat(failureReporter.get())
+    failureTracker.trackFailure(DEFAULT_COMPUTATION_ID, workItem(), error);
+    assertThat(failureTracker.drainPendingFailuresToReport())
         .comparingElementsUsing(
             Correspondence.from(
                 (Status a, Status b) ->
@@ -81,11 +81,11 @@ public class StreamingEngineFailureReporterTest {
 
   @Test
   public void testGet_clearsPendingErrors() {
-    FailureReporter failureReporter = streamingEngineFailureReporter();
-    failureReporter.reportFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException());
-    failureReporter.reportFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException());
+    FailureTracker failureTracker = streamingEngineFailureReporter();
+    failureTracker.trackFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException());
+    failureTracker.trackFailure(DEFAULT_COMPUTATION_ID, workItem(), new RuntimeException());
 
-    failureReporter.get();
-    assertThat(failureReporter.get()).isEmpty();
+    failureTracker.drainPendingFailuresToReport();
+    assertThat(failureTracker.drainPendingFailuresToReport()).isEmpty();
   }
 }

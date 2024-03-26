@@ -49,7 +49,7 @@ public class WorkFailureProcessorTest {
   private static final String DEFAULT_COMPUTATION_ID = "computationId";
 
   private static WorkFailureProcessor createWorkFailureProcessor(
-      FailureReporter failureReporter, Supplier<Instant> clock) {
+      FailureTracker failureTracker, Supplier<Instant> clock) {
     BoundedQueueExecutor workExecutor =
         new BoundedQueueExecutor(
             1,
@@ -62,19 +62,19 @@ public class WorkFailureProcessorTest {
                 .setDaemon(true)
                 .build());
 
-    return new WorkFailureProcessor(workExecutor, failureReporter, Optional::empty, clock, 0);
+    return WorkFailureProcessor.forTesting(workExecutor, failureTracker, Optional::empty, clock, 0);
   }
 
-  private static WorkFailureProcessor createWorkFailureProcessor(FailureReporter failureReporter) {
-    return createWorkFailureProcessor(failureReporter, Instant::now);
+  private static WorkFailureProcessor createWorkFailureProcessor(FailureTracker failureTracker) {
+    return createWorkFailureProcessor(failureTracker, Instant::now);
   }
 
-  private static FailureReporter streamingEngineFailureReporter() {
-    return StreamingEngineFailureReporter.create(10, 10);
+  private static FailureTracker streamingEngineFailureReporter() {
+    return StreamingEngineFailureTracker.create(10, 10);
   }
 
-  private static FailureReporter streamingApplianceFailureReporter(boolean isWorkFailed) {
-    return StreamingApplianceFailureReporter.create(
+  private static FailureTracker streamingApplianceFailureReporter(boolean isWorkFailed) {
+    return StreamingApplianceFailureTracker.create(
         10,
         10,
         ignored -> Windmill.ReportStatsResponse.newBuilder().setFailed(isWorkFailed).build());

@@ -20,26 +20,25 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.processing.failure
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.EvictingQueue;
 
-/** Implementation of {@link FailureReporter} that reports failures to Streaming Engine. */
+/** Implementation of {@link FailureTracker} that reports failures to Streaming Engine. */
 @ThreadSafe
 @Internal
-public final class StreamingEngineFailureReporter extends FailureReporter {
+public final class StreamingEngineFailureTracker extends FailureTracker {
 
-  private StreamingEngineFailureReporter(
-      int maxStackTraceDepthToReport, EvictingQueue<String> pendingFailuresToReport) {
-    super(maxStackTraceDepthToReport, pendingFailuresToReport);
+  private StreamingEngineFailureTracker(
+      int maxFailuresToReportInUpdate, int maxStackTraceDepthToReport) {
+    super(maxFailuresToReportInUpdate, maxStackTraceDepthToReport);
   }
 
-  public static StreamingEngineFailureReporter create(
+  public static StreamingEngineFailureTracker create(
       int maxFailuresToReportInUpdate, int maxStackTraceDepthToReport) {
-    return new StreamingEngineFailureReporter(
-        maxStackTraceDepthToReport, EvictingQueue.create(maxFailuresToReportInUpdate));
+    return new StreamingEngineFailureTracker(
+        maxFailuresToReportInUpdate, maxStackTraceDepthToReport);
   }
 
   @Override
-  protected boolean shouldRetryLocally(String computationId, WorkItem work) {
+  protected boolean reportFailureInternal(String computationId, WorkItem work) {
     return true;
   }
 }

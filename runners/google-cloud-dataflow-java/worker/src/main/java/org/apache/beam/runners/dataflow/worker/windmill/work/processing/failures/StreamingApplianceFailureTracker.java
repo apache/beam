@@ -17,42 +17,38 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures;
 
-import java.util.function.Function;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ReportStatsRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ReportStatsResponse;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.EvictingQueue;
 
-/** Implementation of {@link FailureReporter} that reports failures to Streaming Appliance. */
+/** Implementation of {@link FailureTracker} that reports failures to Streaming Appliance. */
 @ThreadSafe
 @Internal
-public final class StreamingApplianceFailureReporter extends FailureReporter {
-  private final Function<ReportStatsRequest, ReportStatsResponse> reportStatsFn;
+public final class StreamingApplianceFailureTracker extends FailureTracker {
+  private final StreamingApplianceStatsReporter statsReporter;
 
-  private StreamingApplianceFailureReporter(
-      int maxStackTraceDepthToReport,
-      EvictingQueue<String> pendingFailuresToReport,
-      Function<ReportStatsRequest, ReportStatsResponse> reportStatsFn) {
-    super(maxStackTraceDepthToReport, pendingFailuresToReport);
-    this.reportStatsFn = reportStatsFn;
-  }
-
-  public static StreamingApplianceFailureReporter create(
+  private StreamingApplianceFailureTracker(
       int maxFailuresToReportInUpdate,
       int maxStackTraceDepthToReport,
-      Function<ReportStatsRequest, ReportStatsResponse> reportStatsFn) {
-    return new StreamingApplianceFailureReporter(
-        maxStackTraceDepthToReport,
-        EvictingQueue.create(maxFailuresToReportInUpdate),
-        reportStatsFn);
+      StreamingApplianceStatsReporter statsReporter) {
+    super(maxFailuresToReportInUpdate, maxStackTraceDepthToReport);
+    this.statsReporter = statsReporter;
+  }
+
+  public static StreamingApplianceFailureTracker create(
+      int maxFailuresToReportInUpdate,
+      int maxStackTraceDepthToReport,
+      StreamingApplianceStatsReporter statsReporter) {
+    return new StreamingApplianceFailureTracker(
+        maxFailuresToReportInUpdate, maxStackTraceDepthToReport, statsReporter);
   }
 
   @Override
-  public boolean shouldRetryLocally(String computationId, Windmill.WorkItem work) {
+  public boolean reportFailureInternal(String computationId, Windmill.WorkItem work) {
     ReportStatsResponse response =
-        reportStatsFn.apply(
+        statsReporter.reportStats(
             ReportStatsRequest.newBuilder()
                 .setComputationId(computationId)
                 .setKey(work.getKey())

@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
 import com.google.api.services.dataflow.model.PerWorkerMetrics;
-import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.StreamingScalingReport;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.api.services.dataflow.model.WorkerMessage;
@@ -48,9 +47,9 @@ import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.MultimapBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -74,12 +73,11 @@ public final class StreamingWorkerStatusReporter {
   private final WorkUnitClient dataflowServiceClient;
   private final Supplier<Long> windmillQuotaThrottleTime;
   private final Supplier<Collection<StageInfo>> allStageInfo;
-  private final Supplier<ImmutableList<Status>> pendingErrorsToReport;
+  private final FailureTracker failureTracker;
   private final StreamingCounters streamingCounters;
   private final MemoryMonitor memoryMonitor;
   private final BoundedQueueExecutor workExecutor;
   private final AtomicLong previousTimeAtMaxThreads;
-  private final Supplier<Integer> maxThreads;
   private final ScheduledExecutorService globalWorkerUpdateReporter;
   private final ScheduledExecutorService workerMessageReporter;
 
@@ -88,48 +86,41 @@ public final class StreamingWorkerStatusReporter {
       WorkUnitClient dataflowServiceClient,
       Supplier<Long> windmillQuotaThrottleTime,
       Supplier<Collection<StageInfo>> allStageInfo,
-      Supplier<ImmutableList<Status>> pendingErrorsToReport,
+      FailureTracker failureTracker,
       StreamingCounters streamingCounters,
       MemoryMonitor memoryMonitor,
       BoundedQueueExecutor workExecutor,
-      AtomicLong previousTimeAtMaxThreads,
-      Supplier<Integer> maxThreads,
       Function<String, ScheduledExecutorService> executorFactory) {
     this.publishCounters = publishCounters;
     this.dataflowServiceClient = dataflowServiceClient;
     this.windmillQuotaThrottleTime = windmillQuotaThrottleTime;
     this.allStageInfo = allStageInfo;
-    this.pendingErrorsToReport = pendingErrorsToReport;
+    this.failureTracker = failureTracker;
     this.streamingCounters = streamingCounters;
     this.memoryMonitor = memoryMonitor;
     this.workExecutor = workExecutor;
-    this.previousTimeAtMaxThreads = previousTimeAtMaxThreads;
-    this.maxThreads = maxThreads;
+    this.previousTimeAtMaxThreads = new AtomicLong();
     this.globalWorkerUpdateReporter = executorFactory.apply(GLOBAL_WORKER_UPDATE_REPORTER_THREAD);
     this.workerMessageReporter = executorFactory.apply(WORKER_MESSAGE_REPORTER_THREAD);
   }
 
   public static StreamingWorkerStatusReporter create(
-      boolean publishCounters,
       WorkUnitClient workUnitClient,
       Supplier<Long> windmillQuotaThrottleTime,
       Supplier<Collection<StageInfo>> allStageInfo,
-      Supplier<ImmutableList<Status>> pendingErrorsToReport,
+      FailureTracker failureTracker,
       StreamingCounters streamingCounters,
       MemoryMonitor memoryMonitor,
-      BoundedQueueExecutor workExecutor,
-      Supplier<Integer> maxThreads) {
+      BoundedQueueExecutor workExecutor) {
     return new StreamingWorkerStatusReporter(
-        publishCounters,
+        /* publishCounters= */ true,
         workUnitClient,
         windmillQuotaThrottleTime,
         allStageInfo,
-        pendingErrorsToReport,
+        failureTracker,
         streamingCounters,
         memoryMonitor,
         workExecutor,
-        new AtomicLong(),
-        maxThreads,
         threadName ->
             Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat(threadName).build()));
@@ -141,23 +132,20 @@ public final class StreamingWorkerStatusReporter {
       WorkUnitClient workUnitClient,
       Supplier<Long> windmillQuotaThrottleTime,
       Supplier<Collection<StageInfo>> allStageInfo,
-      Supplier<ImmutableList<Status>> pendingErrorsToReport,
+      FailureTracker failureTracker,
       StreamingCounters streamingCounters,
       MemoryMonitor memoryMonitor,
       BoundedQueueExecutor workExecutor,
-      Supplier<Integer> maxThreads,
       Function<String, ScheduledExecutorService> executorFactory) {
     return new StreamingWorkerStatusReporter(
         publishCounters,
         workUnitClient,
         windmillQuotaThrottleTime,
         allStageInfo,
-        pendingErrorsToReport,
+        failureTracker,
         streamingCounters,
         memoryMonitor,
         workExecutor,
-        new AtomicLong(),
-        maxThreads,
         executorFactory);
   }
 
@@ -206,21 +194,26 @@ public final class StreamingWorkerStatusReporter {
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
-  public void start(long windmillHarnessUpdateReportingPeriod) {
+  public void start(long windmillHarnessUpdateReportingPeriodMillis) {
     reportHarnessStartup();
-    // Periodically report workers counters and other updates.
-    globalWorkerUpdateReporter.scheduleWithFixedDelay(
-        this::reportPeriodicWorkerUpdates,
-        0,
-        windmillHarnessUpdateReportingPeriod,
-        TimeUnit.MILLISECONDS);
+    if (windmillHarnessUpdateReportingPeriodMillis > 0) {
+      LOG.info(
+          "Starting periodic worker status reporters. Reporting period is every {} millis.",
+          windmillHarnessUpdateReportingPeriodMillis);
+      // Periodically report workers counters and other updates.
+      globalWorkerUpdateReporter.scheduleWithFixedDelay(
+          this::reportPeriodicWorkerUpdates,
+          0,
+          windmillHarnessUpdateReportingPeriodMillis,
+          TimeUnit.MILLISECONDS);
 
-    if (windmillHarnessUpdateReportingPeriod > 0) {
       workerMessageReporter.scheduleWithFixedDelay(
           this::reportPeriodicWorkerMessage,
           0,
-          windmillHarnessUpdateReportingPeriod,
+          windmillHarnessUpdateReportingPeriodMillis,
           TimeUnit.MILLISECONDS);
+    } else {
+      LOG.info("Periodic worker status reporting is disabled.");
     }
   }
 
@@ -291,7 +284,7 @@ public final class StreamingWorkerStatusReporter {
     WorkItemStatus workItemStatus =
         new WorkItemStatus()
             .setWorkItemId(WINDMILL_COUNTER_UPDATE_WORK_ID)
-            .setErrors(pendingErrorsToReport.get())
+            .setErrors(failureTracker.drainPendingFailuresToReport())
             .setCounterUpdates(counterUpdates);
 
     dataflowServiceClient.reportWorkItemStatus(workItemStatus);
@@ -335,7 +328,7 @@ public final class StreamingWorkerStatusReporter {
             .setActiveThreadCount(workExecutor.activeCount())
             .setActiveBundleCount(workExecutor.elementsOutstanding())
             .setOutstandingBytes(workExecutor.bytesOutstanding())
-            .setMaximumThreadCount(maxThreads.get())
+            .setMaximumThreadCount(workExecutor.getMaximumPoolSize())
             .setMaximumBundleCount(workExecutor.maximumElementsOutstanding())
             .setMaximumBytes(workExecutor.maximumBytesOutstanding());
     return dataflowServiceClient.createWorkerMessageFromStreamingScalingReport(activeThreadsReport);
@@ -356,8 +349,8 @@ public final class StreamingWorkerStatusReporter {
 
   @VisibleForTesting
   public void reportPeriodicWorkerUpdates() {
-    streamingCounters.updateVMMetrics();
-    streamingCounters.updateThreadMetrics(workExecutor, previousTimeAtMaxThreads, maxThreads.get());
+    updateVMMetrics();
+    updateThreadMetrics();
     try {
       sendWorkerUpdatesToDataflowService(
           streamingCounters.pendingDeltaCounters(), streamingCounters.pendingCumulativeCounters());
@@ -366,5 +359,39 @@ public final class StreamingWorkerStatusReporter {
     } catch (Exception e) {
       LOG.error("Unexpected exception while trying to send counter updates", e);
     }
+  }
+
+  private void updateVMMetrics() {
+    Runtime rt = Runtime.getRuntime();
+    long usedMemory = rt.totalMemory() - rt.freeMemory();
+    long maxMemory = rt.maxMemory();
+
+    streamingCounters.javaHarnessUsedMemory().getAndReset();
+    streamingCounters.javaHarnessUsedMemory().addValue(usedMemory);
+    streamingCounters.javaHarnessMaxMemory().getAndReset();
+    streamingCounters.javaHarnessMaxMemory().addValue(maxMemory);
+  }
+
+  private void updateThreadMetrics() {
+    streamingCounters.timeAtMaxActiveThreads().getAndReset();
+    long allThreadsActiveTime = workExecutor.allThreadsActiveTime();
+    streamingCounters
+        .timeAtMaxActiveThreads()
+        .addValue(allThreadsActiveTime - previousTimeAtMaxThreads.get());
+    previousTimeAtMaxThreads.set(allThreadsActiveTime);
+    streamingCounters.activeThreads().getAndReset();
+    streamingCounters.activeThreads().addValue(workExecutor.activeCount());
+    streamingCounters.totalAllocatedThreads().getAndReset();
+    streamingCounters.totalAllocatedThreads().addValue(workExecutor.getMaximumPoolSize());
+    streamingCounters.outstandingBytes().getAndReset();
+    streamingCounters.outstandingBytes().addValue(workExecutor.bytesOutstanding());
+    streamingCounters.maxOutstandingBytes().getAndReset();
+    streamingCounters.maxOutstandingBytes().addValue(workExecutor.maximumBytesOutstanding());
+    streamingCounters.outstandingBundles().getAndReset();
+    streamingCounters.outstandingBundles().addValue((long) workExecutor.elementsOutstanding());
+    streamingCounters.maxOutstandingBundles().getAndReset();
+    streamingCounters
+        .maxOutstandingBundles()
+        .addValue((long) workExecutor.maximumElementsOutstanding());
   }
 }
