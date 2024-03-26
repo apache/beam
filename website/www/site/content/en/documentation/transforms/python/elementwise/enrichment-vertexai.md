@@ -31,7 +31,7 @@ limitations under the License.
 
 
 In Apache Beam 2.55.0 and later versions, the enrichment transform includes a built-in enrichment handler for [Vertex AI Feature Store](https://cloud.google.com/vertex-ai/docs/featurestore).
-The following example demonstrates how to create a pipeline that use the enrichment transform with [`VertexAIFeatureStoreEnrichmentHandler`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.html#apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.VertexAIFeatureStoreEnrichmentHandler) and [`VertexAIFeatureStoreLegacyEnrichmentHandler`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.html#apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.VertexAIFeatureStoreLegacyEnrichmentHandler).
+The following example demonstrates how to create a pipeline that use the enrichment transform with the [`VertexAIFeatureStoreEnrichmentHandler`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.html#apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.VertexAIFeatureStoreEnrichmentHandler) handler and the [`VertexAIFeatureStoreLegacyEnrichmentHandler`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.html#apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.VertexAIFeatureStoreLegacyEnrichmentHandler) handler.
 
 ## Example 1: Enrichment with Vertex AI Feature Store
 
