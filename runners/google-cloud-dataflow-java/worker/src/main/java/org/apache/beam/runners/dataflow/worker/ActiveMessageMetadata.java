@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 
 @AutoValue
 public abstract class ActiveMessageMetadata {

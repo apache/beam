@@ -22,13 +22,13 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.google.common.base.Stopwatch;
 import java.util.HashMap;
 import java.util.IntSummaryStatistics;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 import org.joda.time.DateTimeUtils.MillisProvider;
 import org.junit.Assert;
 import org.junit.Before;

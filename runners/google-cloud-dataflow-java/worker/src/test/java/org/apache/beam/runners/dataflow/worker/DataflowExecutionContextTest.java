@@ -22,7 +22,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
-import com.google.common.base.Stopwatch;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
@@ -34,6 +33,7 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionState;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
