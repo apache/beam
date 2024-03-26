@@ -82,7 +82,6 @@ import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientCall;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientInterceptor;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientInterceptors;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Deadline;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.MethodDescriptor;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Status;
@@ -212,7 +211,7 @@ public class GrpcWindmillServerTest {
 
     this.client =
         GrpcWindmillServer.newApplianceTestInstance(
-            inprocessChannel, new FakeWindmillStubFactory(() -> (ManagedChannel) inprocessChannel));
+            inprocessChannel, new FakeWindmillStubFactory(() -> inprocessChannel));
 
     Windmill.GetWorkResponse response1 = client.getWork(GetWorkRequest.getDefaultInstance());
     Windmill.GetWorkResponse response2 = client.getWork(GetWorkRequest.getDefaultInstance());

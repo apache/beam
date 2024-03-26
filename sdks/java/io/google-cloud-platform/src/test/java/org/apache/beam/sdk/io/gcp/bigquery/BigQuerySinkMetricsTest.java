@@ -20,11 +20,14 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.sameInstance;
 
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
 import io.grpc.Status;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -95,6 +98,21 @@ public class BigQuerySinkMetricsTest {
       // testHistogram.values.clear();
       perWorkerHistograms.clear();
       perWorkerCounters.clear();
+    }
+
+    public void assertPerWorkerCounterValue(MetricName name, long value) throws Exception {
+      assertThat(perWorkerCounters, IsMapContaining.hasKey(name));
+      assertThat(perWorkerCounters.get(name).getCumulative(), equalTo(value));
+    }
+
+    public void assertPerWorkerHistogramValues(
+        MetricName name, HistogramData.BucketType bucketType, double... values) {
+      KV<MetricName, HistogramData.BucketType> kv = KV.of(name, bucketType);
+      assertThat(perWorkerHistograms, IsMapContaining.hasKey(kv));
+
+      Double[] objValues = Arrays.stream(values).boxed().toArray(Double[]::new);
+
+      assertThat(perWorkerHistograms.get(kv).values, containsInAnyOrder(objValues));
     }
   }
 
@@ -358,5 +376,21 @@ public class BigQuerySinkMetricsTest {
   @Test
   public void testParseMetricName_emptyString() {
     assertThat(BigQuerySinkMetrics.parseMetricName("").isPresent(), equalTo(false));
+  }
+
+  @Test
+  public void testStreamingInsertsMetrics_disabled() {
+    BigQuerySinkMetrics.setSupportStreamingInsertsMetrics(false);
+    assertThat(
+        BigQuerySinkMetrics.streamingInsertsMetrics(),
+        sameInstance(StreamingInsertsMetrics.NoOpStreamingInsertsMetrics.getInstance()));
+  }
+
+  @Test
+  public void testStreamingInsertsMetrics_enabled() {
+    BigQuerySinkMetrics.setSupportStreamingInsertsMetrics(true);
+    assertThat(
+        BigQuerySinkMetrics.streamingInsertsMetrics(),
+        instanceOf(StreamingInsertsMetrics.StreamingInsertsMetricsImpl.class));
   }
 }
