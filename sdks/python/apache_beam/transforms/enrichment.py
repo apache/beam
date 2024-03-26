@@ -51,9 +51,7 @@ _LOGGER = logging.getLogger(__name__)
 
 def has_valid_redis_address(host: str, port: int) -> bool:
   """returns `True` if both host and port are not `None`."""
-  if host and port:
-    return True
-  return False
+  return bool(host and port)
 
 
 def cross_join(left: Dict[str, Any], right: Dict[str, Any]) -> beam.Row:
@@ -86,7 +84,7 @@ class EnrichmentSourceHandler(Caller[InputT, OutputT]):
   """Wrapper class for `apache_beam.io.requestresponse.Caller`.
 
   Ensure that the implementation of ``__call__`` method returns a tuple
-  of `beam.Row`  objects.
+  of `dict`  objects.
   """
   def get_cache_key(self, request: InputT) -> str:
     """Returns the request to be cached. This is how the response will be
@@ -160,11 +158,10 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
         cache=self._cache,
         throttler=self._throttler)
 
-    # EnrichmentSourceHandler returns a tuple of (request,response).
+    # EnrichmentSourceHandler returns a tuple of dict - (request,response).
     return (
         fetched_data
-        | "enrichment_join" >>
-        beam.Map(lambda x: self._join_fn(x[0]._asdict(), x[1]._asdict())))
+        | "enrichment_join" >> beam.Map(lambda x: self._join_fn(x[0], x[1])))
 
   def with_redis_cache(
       self,

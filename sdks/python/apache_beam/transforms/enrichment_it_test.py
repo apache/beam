@@ -16,6 +16,8 @@
 #
 import time
 import unittest
+from typing import Any
+from typing import Dict
 from typing import List
 from typing import NamedTuple
 from typing import Tuple
@@ -51,7 +53,7 @@ def _custom_join(left, right):
   return beam.Row(**right)
 
 
-class SampleHTTPEnrichment(EnrichmentSourceHandler[Request, beam.Row]):
+class SampleHTTPEnrichment(EnrichmentSourceHandler[Request, Dict[str, Any]]):
   """Implements ``EnrichmentSourceHandler`` to call the ``EchoServiceGrpc``'s
   HTTP handler.
   """
@@ -79,7 +81,9 @@ class SampleHTTPEnrichment(EnrichmentSourceHandler[Request, beam.Row]):
         resp_id = resp_body['id']
         payload = resp_body['payload']
         return (
-            request, beam.Row(id=resp_id, resp_payload=bytes(payload, 'utf-8')))
+            request._asdict(), {
+                'id': resp_id, 'resp_payload': bytes(payload, 'utf-8')
+            })
 
       if resp.status == 429:  # Too Many Requests
         raise UserCodeQuotaException(resp.reason)

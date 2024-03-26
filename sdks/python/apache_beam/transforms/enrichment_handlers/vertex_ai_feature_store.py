@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 import logging
+from typing import Any
+from typing import Dict
 from typing import List
 
 import proto
@@ -43,7 +45,8 @@ def _not_found_err_message(
 
 
 class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
-                                                                    beam.Row]):
+                                                                    Dict[str,
+                                                                         Any]]):
   """Enrichment handler to interact with Vertex AI Feature Store.
 
   Use this handler with :class:`apache_beam.transforms.enrichment.Enrichment`
@@ -55,12 +58,6 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
   `row_key` field in the input `beam.Row` object. To filter the features to
   enrich, use the `join_fn` param in
   :class:`apache_beam.transforms.enrichment.Enrichment`.
-
-  **NOTE:** The default severity to report exceptions is logging a warning. For
-    this handler, Vertex AI client returns the same exception
-    `Requested entity was not found` even though the feature store doesn't
-    exist. So make sure the feature store instance exists or set
-    `exception_level` as `ExceptionLevel.RAISE`.
   """
   def __init__(
       self,
@@ -153,7 +150,8 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
       request: the input `beam.Row` to enrich.
     """
     try:
-      entity_id = request._asdict()[self.row_key]
+      request_dict = request._asdict()
+      entity_id = request_dict[self.row_key]
     except KeyError:
       raise KeyError(
           "Enrichment requests to Vertex AI Feature Store should "
@@ -173,13 +171,13 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
         _LOGGER.warning(
             _not_found_err_message(
                 self.feature_store_name, self.feature_view_name, entity_id))
-        return request, beam.Row()
+        return request_dict, {}
       elif self.exception_level == ExceptionLevel.RAISE:
         raise ValueError(
             _not_found_err_message(
                 self.feature_store_name, self.feature_view_name, entity_id))
     response_dict = dict(response.proto_struct)
-    return request, beam.Row(**response_dict)
+    return request_dict, response_dict
 
   def __exit__(self, exc_type, exc_val, exc_tb):
     """Clean the instantiated Vertex AI client."""
@@ -191,7 +189,8 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
     return 'entity_id: %s' % request._asdict()[self.row_key]
 
 
-class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
+class VertexAIFeatureStoreLegacyEnrichmentHandler(
+    EnrichmentSourceHandler[beam.Row, Dict[str, Any]]):
   """Enrichment handler to interact with Vertex AI Feature Store (Legacy).
 
   Use this handler with :class:`apache_beam.transforms.enrichment.Enrichment`
@@ -282,7 +281,8 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
       request: the input `beam.Row` to enrich.
     """
     try:
-      entity_id = request._asdict()[self.row_key]
+      request_dict = request._asdict()
+      entity_id = request_dict[self.row_key]
     except KeyError:
       raise KeyError(
           "Enrichment requests to Vertex AI Feature Store should "
@@ -300,7 +300,7 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
               entity_id=entity_id,
               feature_selector=selector))
     except NotFound:
-      raise ValueError(
+      raise NotFound(
           _not_found_err_message(
               self.feature_store_id, self.entity_type_id, entity_id))
 
@@ -319,7 +319,7 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
         _LOGGER.warning(
             _not_found_err_message(
                 self.feature_store_id, self.entity_type_id, entity_id))
-    return request, beam.Row(**response_dict)
+    return request_dict, response_dict
 
   def __exit__(self, exc_type, exc_val, exc_tb):
     """Clean the instantiated Vertex AI client."""
