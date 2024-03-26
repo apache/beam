@@ -161,11 +161,8 @@ public interface StreamingInsertsMetrics {
       Histogram latencyHistogram =
           BigQuerySinkMetrics.createRPCLatencyHistogram(
               BigQuerySinkMetrics.RpcMethod.STREAMING_INSERTS);
-      Object[] rpcLatencyObjs = rpcLatencies().toArray();
-      double[] rpcLatencies = new double[rpcLatencyObjs.length];
-      for (int i = 0; i < rpcLatencies.length; i++) {
-        rpcLatencies[i] = ((Duration) rpcLatencyObjs[i]).toMillis();
-      }
+      double[] rpcLatencies =
+          rpcLatencies().stream().mapToDouble(duration -> duration.toMillis()).toArray();
       latencyHistogram.update(rpcLatencies);
     }
 

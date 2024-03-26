@@ -78,18 +78,12 @@ public class DelegatingHistogram implements Metric, Histogram, Serializable {
 
   @Override
   public void update(double value) {
-    Optional<Histogram> histogram = getHistogram();
-    if (histogram.isPresent()) {
-      histogram.get().update(value);
-    }
+    getHistogram().ifPresent(histogram -> histogram.update(value));
   }
 
   @Override
   public void update(double... values) {
-    Optional<Histogram> histogram = getHistogram();
-    if (histogram.isPresent()) {
-      histogram.get().update(values);
-    }
+    getHistogram().ifPresent(histogram -> histogram.update(values));
   }
 
   @Override
