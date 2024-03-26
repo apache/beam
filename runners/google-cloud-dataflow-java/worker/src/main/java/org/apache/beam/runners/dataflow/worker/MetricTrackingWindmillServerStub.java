@@ -254,6 +254,20 @@ public class MetricTrackingWindmillServerStub {
     }
   }
 
+  public Windmill.KeyedGetDataResponse getStateData(
+      GetDataStream stream, String computation, Windmill.KeyedGetDataRequest request) {
+    gcThrashingMonitor.waitForResources("GetStateData");
+    activeStateReads.getAndIncrement();
+
+    try {
+      return stream.requestKeyedData(computation, request);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    } finally {
+      activeStateReads.getAndDecrement();
+    }
+  }
+
   public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request) {
     gcThrashingMonitor.waitForResources("GetSideInputData");
     activeSideInputs.getAndIncrement();

@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 
 /** Manages endpoints and stubs for connecting to the Windmill Dispatcher. */
 @ThreadSafe
+public
 class GrpcDispatcherClient {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDispatcherClient.class);
   private final WindmillStubFactory windmillStubFactory;
@@ -66,7 +67,7 @@ class GrpcDispatcherClient {
     this.dispatcherStubs = new AtomicReference<>(initialDispatcherStubs);
   }
 
-  static GrpcDispatcherClient create(WindmillStubFactory windmillStubFactory) {
+  public static GrpcDispatcherClient create(WindmillStubFactory windmillStubFactory) {
     return new GrpcDispatcherClient(windmillStubFactory, DispatcherStubs.empty(), new Random());
   }
 

@@ -26,7 +26,7 @@ import org.apache.beam.sdk.annotations.Internal;
  */
 @Internal
 @ThreadSafe
-public interface WorkCommitter {
+public interface  WorkCommitter {
 
   /** Starts internal processing of commits. */
   void start();

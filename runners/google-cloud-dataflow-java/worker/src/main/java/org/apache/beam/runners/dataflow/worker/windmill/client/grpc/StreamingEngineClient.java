@@ -30,11 +30,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.CheckReturnValue;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
@@ -43,6 +45,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoi
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkerMetadataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
@@ -89,6 +92,8 @@ public final class StreamingEngineClient {
   private final long clientId;
   private final Supplier<GetWorkerMetadataStream> getWorkerMetadataStream;
   private final Queue<WindmillEndpoints> newWindmillEndpoints;
+  private final Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory;
+  private final Consumer<List<Windmill.ComputationHeartbeatResponse>> heartbeatResponseProcessor;
   /** Writes are guarded by synchronization, reads are lock free. */
   private final AtomicReference<StreamingEngineConnectionState> connections;
 
@@ -102,7 +107,9 @@ public final class StreamingEngineClient {
       WindmillStubFactory stubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
-      long clientId) {
+      long clientId,
+      Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> heartbeatResponseProcessor) {
     this.jobHeader = jobHeader;
     this.started = new AtomicBoolean();
     this.streamFactory = streamFactory;
@@ -137,6 +144,8 @@ public final class StreamingEngineClient {
                         // Run this on a separate thread than the grpc stream thread.
                         newWorkerMetadataPublisher.submit(
                             () -> newWindmillEndpoints.add(endpoints))));
+    this.workCommitterFactory = workCommitterFactory;
+    this.heartbeatResponseProcessor = heartbeatResponseProcessor;
   }
 
   private static ExecutorService singleThreadedExecutorServiceOf(String threadName) {
@@ -166,20 +175,21 @@ public final class StreamingEngineClient {
       WorkItemProcessor processWorkItem,
       WindmillStubFactory windmillGrpcStubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
-      GrpcDispatcherClient dispatcherClient) {
-    StreamingEngineClient streamingEngineClient =
-        new StreamingEngineClient(
-            jobHeader,
-            totalGetWorkBudget,
-            new AtomicReference<>(StreamingEngineConnectionState.EMPTY),
-            streamingEngineStreamFactory,
-            processWorkItem,
-            windmillGrpcStubFactory,
-            getWorkBudgetDistributor,
-            dispatcherClient,
-            new Random().nextLong());
-    streamingEngineClient.start();
-    return streamingEngineClient;
+      GrpcDispatcherClient dispatcherClient,
+      Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> heartbeatProcessor) {
+    return new StreamingEngineClient(
+        jobHeader,
+        totalGetWorkBudget,
+        new AtomicReference<>(StreamingEngineConnectionState.EMPTY),
+        streamingEngineStreamFactory,
+        processWorkItem,
+        windmillGrpcStubFactory,
+        getWorkBudgetDistributor,
+        dispatcherClient,
+        new Random().nextLong(),
+        workCommitterFactory,
+        heartbeatProcessor);
   }
 
   @VisibleForTesting
@@ -192,7 +202,9 @@ public final class StreamingEngineClient {
       WindmillStubFactory stubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
-      long clientId) {
+      long clientId,
+      Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> heartbeatResponseProcessor) {
     StreamingEngineClient streamingEngineClient =
         new StreamingEngineClient(
             jobHeader,
@@ -203,15 +215,19 @@ public final class StreamingEngineClient {
             stubFactory,
             getWorkBudgetDistributor,
             dispatcherClient,
-            clientId);
+            clientId,
+            workCommitterFactory,
+            heartbeatResponseProcessor);
     streamingEngineClient.start();
     return streamingEngineClient;
   }
 
-  private void start() {
-    startGetWorkerMetadataStream();
-    startWorkerMetadataConsumer();
-    getWorkBudgetRefresher.start();
+  public void start() {
+    if (started.compareAndSet(false, true)) {
+      startGetWorkerMetadataStream();
+      startWorkerMetadataConsumer();
+      getWorkBudgetRefresher.start();
+    }
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
@@ -366,7 +382,9 @@ public final class StreamingEngineClient {
                 .build(),
             GetWorkBudget.noBudget(),
             streamFactory,
-            workItemProcessor);
+            workItemProcessor,
+            workCommitterFactory,
+            heartbeatResponseProcessor);
     windmillStreamSender.startStreams();
     return windmillStreamSender;
   }
