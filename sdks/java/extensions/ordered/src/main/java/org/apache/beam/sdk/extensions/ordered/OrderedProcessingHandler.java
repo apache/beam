@@ -72,23 +72,21 @@ public abstract class OrderedProcessingHandler<
     this.resultTClass = resultTClass;
   }
 
-  /**
-   * @return the event examiner instance which will be used by the transform.
-   */
+  /** @return the event examiner instance which will be used by the transform. */
   public abstract @NonNull EventExaminer<EventT, StateT> getEventExaminer();
 
   /**
    * Provide the event coder.
-   * <p>
-   * The default implementation of the method will use the event coder from the input PCollection.
-   * If the input PCollection doesn't use KVCoder, it will attempt to get the coder from
-   * the pipeline's coder registry.
+   *
+   * <p>The default implementation of the method will use the event coder from the input
+   * PCollection. If the input PCollection doesn't use KVCoder, it will attempt to get the coder
+   * from the pipeline's coder registry.
    *
    * @param pipeline of the transform
    * @param inputCoder input coder of the transform
    * @return event coder
-   * @throws CannotProvideCoderException if the method can't determine the coder based on
-   * the above algorithm.
+   * @throws CannotProvideCoderException if the method can't determine the coder based on the above
+   *     algorithm.
    */
   public @NonNull Coder<EventT> getEventCoder(
       Pipeline pipeline, Coder<KV<KeyT, KV<Long, EventT>>> inputCoder)
@@ -105,29 +103,33 @@ public abstract class OrderedProcessingHandler<
 
   /**
    * Provide the state coder.
-   * <p>
-   * The default implementation will attempt to get the coder from the pipeline's code registry.
+   *
+   * <p>The default implementation will attempt to get the coder from the pipeline's code registry.
+   *
    * @param pipeline of the transform
    * @return the state coder
    * @throws CannotProvideCoderException
    */
-  public @NonNull Coder<StateT> getStateCoder(Pipeline pipeline) throws CannotProvideCoderException {
+  public @NonNull Coder<StateT> getStateCoder(Pipeline pipeline)
+      throws CannotProvideCoderException {
     return pipeline.getCoderRegistry().getCoder(stateTClass);
   }
 
   /**
    * Provide the key coder.
-   * <p>
-   * The default implementation of the method will use the event coder from the input PCollection.
-   * If the input PCollection doesn't use KVCoder, it will attempt to get the coder from
-   * the pipeline's coder registry.
+   *
+   * <p>The default implementation of the method will use the event coder from the input
+   * PCollection. If the input PCollection doesn't use KVCoder, it will attempt to get the coder
+   * from the pipeline's coder registry.
+   *
    * @param pipeline
    * @param inputCoder
    * @return
-   * @throws CannotProvideCoderException if the method can't determine the coder based on
-   * the above algorithm.
+   * @throws CannotProvideCoderException if the method can't determine the coder based on the above
+   *     algorithm.
    */
-  public @NonNull Coder<KeyT> getKeyCoder(Pipeline pipeline, Coder<KV<KeyT, KV<Long, EventT>>> inputCoder)
+  public @NonNull Coder<KeyT> getKeyCoder(
+      Pipeline pipeline, Coder<KV<KeyT, KV<Long, EventT>>> inputCoder)
       throws CannotProvideCoderException {
     if (KvCoder.class.isAssignableFrom(inputCoder.getClass())) {
       return ((KvCoder<KeyT, KV<Long, EventT>>) inputCoder).getKeyCoder();
@@ -137,24 +139,25 @@ public abstract class OrderedProcessingHandler<
 
   /**
    * Provide the result coder.
-   * <p>
-   * The default implementation will attempt to get the coder from the pipeline's code registry.
+   *
+   * <p>The default implementation will attempt to get the coder from the pipeline's code registry.
+   *
    * @param pipeline
    * @return result coder
    * @throws CannotProvideCoderException
    */
-  public @NonNull Coder<ResultT> getResultCoder(Pipeline pipeline) throws CannotProvideCoderException {
+  public @NonNull Coder<ResultT> getResultCoder(Pipeline pipeline)
+      throws CannotProvideCoderException {
     return pipeline.getCoderRegistry().getCoder(resultTClass);
   }
 
   /**
    * Determines the frequency of emission of the {@link OrderedProcessingStatus} elements.
-   * <p>
-   * Default is 5 seconds.
-   * @return the frequency of updates. If null is returned, no updates will be emitted on a
-   * scheduled basis.
    *
-
+   * <p>Default is 5 seconds.
+   *
+   * @return the frequency of updates. If null is returned, no updates will be emitted on a
+   *     scheduled basis.
    */
   public @Nullable Duration getStatusUpdateFrequency() {
     return statusUpdateFrequency;
@@ -162,6 +165,7 @@ public abstract class OrderedProcessingHandler<
 
   /**
    * Changes the default status update frequency. Updates will be disabled if set to null.
+   *
    * @param statusUpdateFrequency
    */
   public void setStatusUpdateFrequency(Duration statusUpdateFrequency) {
@@ -170,8 +174,8 @@ public abstract class OrderedProcessingHandler<
 
   /**
    * Indicates if the status update needs to be sent after each event's processing.
-   * <p>
-   * Default is false.
+   *
+   * <p>Default is false.
    *
    * @return
    * @see OrderedProcessingHandler#getStatusUpdateFrequency() getStatusUpdateFrequency
@@ -193,10 +197,10 @@ public abstract class OrderedProcessingHandler<
   /**
    * Returns the maximum number of elements which will be output per each bundle. The default is
    * 10,000 elements.
-   * <p>
-   * This is used to limit the amount of data produced for each bundle - many runners have
-   * limitations on how much data can be output from a single bundle. If many events arrive out
-   * of sequence and are buffered then at some point a single event can cause processing of a large
+   *
+   * <p>This is used to limit the amount of data produced for each bundle - many runners have
+   * limitations on how much data can be output from a single bundle. If many events arrive out of
+   * sequence and are buffered then at some point a single event can cause processing of a large
    * number of buffered events.
    *
    * @return
