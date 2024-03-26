@@ -36,6 +36,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
@@ -54,8 +55,10 @@ import com.google.api.services.dataflow.model.Sink;
 import com.google.api.services.dataflow.model.Source;
 import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
+import com.google.api.services.dataflow.model.StreamingScalingReportResponse;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
+import com.google.api.services.dataflow.model.WorkerMessageResponse;
 import com.google.api.services.dataflow.model.WriteInstruction;
 import java.io.IOException;
 import java.io.InputStream;
@@ -807,7 +810,8 @@ public class StreamingDataflowWorkerTest {
             publishCounters,
             hotKeyLogger,
             clock,
-            executorSupplier);
+            executorSupplier,
+            null);
     worker.addStateNameMappings(
         ImmutableMap.of(DEFAULT_PARDO_USER_NAME, DEFAULT_PARDO_STATE_FAMILY));
     return worker;
@@ -2912,6 +2916,56 @@ public class StreamingDataflowWorkerTest {
     assertEquals(4, executor.activeCount());
     stop.set(true);
     executor.shutdown();
+  }
+
+  @Test
+  public void testOverrideMaximumThreadCount() throws Exception {
+    BoundedQueueExecutor mockExecutor = Mockito.mock(BoundedQueueExecutor.class);
+    StreamingDataflowWorker worker =
+        StreamingDataflowWorker.forTesting(
+            computationMap,
+            server,
+            Collections.emptyList(),
+            IntrinsicMapTaskExecutorFactory.defaultFactory(),
+            mockWorkUnitClient,
+            createTestingPipelineOptions(),
+            false,
+            hotKeyLogger,
+            Instant::now,
+            (threadName) -> Executors.newSingleThreadScheduledExecutor(),
+            mockExecutor);
+    StreamingScalingReportResponse streamingScalingReportResponse =
+        new StreamingScalingReportResponse().setMaximumThreadCount(10);
+    WorkerMessageResponse workerMessageResponse =
+        new WorkerMessageResponse()
+            .setStreamingScalingReportResponse(streamingScalingReportResponse);
+    when(mockWorkUnitClient.reportWorkerMessage(any()))
+        .thenReturn(Collections.singletonList(workerMessageResponse));
+    worker.reportPeriodicWorkerMessage();
+    Mockito.verify(mockExecutor).setMaximumPoolSize(10, 110);
+  }
+
+  @Test
+  public void testHandleEmptyWorkerMessageResponse() throws Exception {
+    BoundedQueueExecutor mockExecutor = Mockito.mock(BoundedQueueExecutor.class);
+    StreamingDataflowWorker worker =
+        StreamingDataflowWorker.forTesting(
+            computationMap,
+            server,
+            Collections.emptyList(),
+            IntrinsicMapTaskExecutorFactory.defaultFactory(),
+            mockWorkUnitClient,
+            createTestingPipelineOptions(),
+            false,
+            hotKeyLogger,
+            Instant::now,
+            (threadName) -> Executors.newSingleThreadScheduledExecutor(),
+            mockExecutor);
+    WorkerMessageResponse workerMessageResponse = new WorkerMessageResponse();
+    when(mockWorkUnitClient.reportWorkerMessage(any()))
+        .thenReturn(Collections.singletonList(workerMessageResponse));
+    worker.reportPeriodicWorkerMessage();
+    Mockito.verify(mockExecutor, Mockito.times(0)).setMaximumPoolSize(anyInt(), anyInt());
   }
 
   @Test
