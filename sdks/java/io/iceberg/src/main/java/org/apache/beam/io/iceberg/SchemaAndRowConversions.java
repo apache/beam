@@ -17,6 +17,8 @@
  */
 package org.apache.beam.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.nio.ByteBuffer;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,6 +28,8 @@ import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
 class SchemaAndRowConversions {
 
@@ -186,5 +190,81 @@ class SchemaAndRowConversions {
       case MAP:
         throw new UnsupportedOperationException("Map fields are not yet supported.");
     }
+  }
+
+  public static Row recordToRow(Schema schema, Record record) {
+    Row.Builder rowBuilder = Row.withSchema(schema);
+    for (Schema.Field field : schema.getFields()) {
+      switch (field.getType().getTypeName()) {
+        case BYTE:
+          // I guess allow anything we can cast here
+          byte byteValue = (byte) record.getField(field.getName());
+          rowBuilder.addValue(byteValue);
+          break;
+        case INT16:
+          // I guess allow anything we can cast here
+          short shortValue = (short) record.getField(field.getName());
+          rowBuilder.addValue(shortValue);
+          break;
+        case INT32:
+          // I guess allow anything we can cast here
+          int intValue = (int) record.getField(field.getName());
+          rowBuilder.addValue(intValue);
+          break;
+        case INT64:
+          // I guess allow anything we can cast here
+          long longValue = (long) record.getField(field.getName());
+          rowBuilder.addValue(longValue);
+          break;
+        case DECIMAL:
+          // Iceberg and Beam both use BigDecimal
+          rowBuilder.addValue(record.getField(field.getName()));
+          break;
+        case FLOAT:
+          // Iceberg and Beam both use float
+          rowBuilder.addValue(record.getField(field.getName()));
+          break;
+        case DOUBLE:
+          // Iceberg and Beam both use double
+          rowBuilder.addValue(record.getField(field.getName()));
+          break;
+        case STRING:
+          // Iceberg and Beam both use String
+          rowBuilder.addValue(record.getField(field.getName()));
+          break;
+        case DATETIME:
+          // Iceberg uses a long for millis; Beam uses joda time DateTime
+          long millis = (long) record.getField(field.getName());
+          rowBuilder.addValue(new DateTime(millis, DateTimeZone.UTC));
+          break;
+        case BOOLEAN:
+          // Iceberg and Beam both use String
+          rowBuilder.addValue(record.getField(field.getName()));
+          break;
+        case BYTES:
+          // Iceberg uses ByteBuffer; Beam uses byte[]
+          rowBuilder.addValue(((ByteBuffer) record.getField(field.getName())).array());
+          break;
+        case ARRAY:
+          throw new UnsupportedOperationException("Array fields are not yet supported.");
+        case ITERABLE:
+          throw new UnsupportedOperationException("Iterable fields are not yet supported.");
+        case MAP:
+          throw new UnsupportedOperationException("Map fields are not yet supported.");
+        case ROW:
+          Record nestedRecord = (Record) record.getField(field.getName());
+          Schema nestedSchema =
+              checkArgumentNotNull(
+                  field.getType().getRowSchema(),
+                  "Corrupted schema: Row type did not have associated nested schema.");
+          Row nestedRow = recordToRow(nestedSchema, nestedRecord);
+          rowBuilder.addValue(nestedRow);
+          break;
+        case LOGICAL_TYPE:
+          throw new UnsupportedOperationException(
+              "Cannot convert iceberg field to Beam logical type");
+      }
+    }
+    return rowBuilder.build();
   }
 }
