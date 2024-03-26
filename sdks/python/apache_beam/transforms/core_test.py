@@ -169,6 +169,18 @@ class FlattenTest(unittest.TestCase):
           FixedWindows(100))
       _ = (source1, source2, source3) | "flatten" >> beam.Flatten()
 
+class FlatMapTest(unittest.TestCase):
+
+  def test_default(self):
+
+    with beam.Pipeline() as pipeline:
+      letters = (
+          pipeline
+          | 'Gardening plants' >> beam.Create(['abc', 'def'], reshuffle=False)
+          | beam.FlatMap())
+      assert_that(letters, equal_to(['a', 'b', 'c', 'd', 'e', 'f']))
+
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
