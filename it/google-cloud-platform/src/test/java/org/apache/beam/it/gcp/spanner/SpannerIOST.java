@@ -153,11 +153,11 @@ public final class SpannerIOST extends IOStressTestBase {
                     ImmutableMap.of(
                             "medium",
                             Configuration.fromJsonString(
-                                    "{\"numRecords\":10000000,\"rowsPerSecond\":25000,\"minutes\":10,\"pipelineTimeout\":80,\"valueSizeBytes\":1000,\"runner\":\"DataflowRunner\"}",
+                                    "{\"numRecords\":10000000,\"rowsPerSecond\":25000,\"minutes\":10,\"pipelineTimeout\":100,\"valueSizeBytes\":1000,\"runner\":\"DataflowRunner\"}",
                                     Configuration.class),
                             "large",
                             Configuration.fromJsonString(
-                                    "{\"rowsPerSecond\":25000,\"minutes\":130,\"pipelineTimeout\":200,\"valueSizeBytes\":1000,\"runner\":\"DataflowRunner\"}",
+                                    "{\"numRecords\":100000000,\"rowsPerSecond\":25000,\"minutes\":130,\"pipelineTimeout\":200,\"valueSizeBytes\":1000,\"runner\":\"DataflowRunner\"}",
                                     Configuration.class));
         } catch (IOException e) {
             throw new RuntimeException(e);
