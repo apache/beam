@@ -36,7 +36,8 @@ __all__ = [
 _LOGGER = logging.getLogger(__name__)
 
 
-class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
+class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
+                                                        Dict[str, Any]]):
   """A handler for :class:`apache_beam.transforms.enrichment.Enrichment`
   transform to interact with GCP BigTable.
 
@@ -97,7 +98,7 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
   def __call__(self, request: beam.Row, *args, **kwargs):
     """
     Reads a row from the GCP BigTable and returns
-    a `Tuple` of request and response.
+    a `Tuple` of request and response dictionaries.
 
     Args:
     request: the input `beam.Row` to enrich.
@@ -137,7 +138,7 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     except Exception as e:
       raise e
 
-    return request, beam.Row(**response_dict)
+    return request_dict, response_dict
 
   def __exit__(self, exc_type, exc_val, exc_tb):
     """Clean the instantiated BigTable client."""
