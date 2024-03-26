@@ -47,12 +47,13 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataR
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessSocketAddress;
@@ -95,24 +96,30 @@ public class StreamingEngineClientTest {
           .build();
 
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
+  private final Set<ManagedChannel> channels = new HashSet<>();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   private final GrpcWindmillStreamFactory streamFactory =
       spy(GrpcWindmillStreamFactory.of(JOB_HEADER).build());
-  private final ChannelCachingStubFactory stubFactory =
+  private final WindmillStubFactory stubFactory =
       new FakeWindmillStubFactory(
-          () ->
-              grpcCleanup.register(
-                  WindmillChannelFactory.inProcessChannel("StreamingEngineClientTest")));
+          () -> {
+            ManagedChannel channel =
+                grpcCleanup.register(
+                    WindmillChannelFactory.inProcessChannel("StreamingEngineClientTest"));
+            channels.add(channel);
+            return channel;
+          });
   private final GrpcDispatcherClient dispatcherClient =
       GrpcDispatcherClient.forTesting(
           stubFactory, new ArrayList<>(), new ArrayList<>(), new HashSet<>());
   private final AtomicReference<StreamingEngineConnectionState> connections =
       new AtomicReference<>(StreamingEngineConnectionState.EMPTY);
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
-
   private Server fakeStreamingEngineServer;
   private CountDownLatch getWorkerMetadataReady;
   private GetWorkerMetadataTestStub fakeGetWorkerMetadataStub;
+
   private StreamingEngineClient streamingEngineClient;
 
   private static WorkItemProcessor noOpProcessWorkItemFn() {
@@ -136,15 +143,13 @@ public class StreamingEngineClientTest {
   }
 
   private static WorkerMetadataResponse.Endpoint metadataResponseEndpoint(String workerToken) {
-    return WorkerMetadataResponse.Endpoint.newBuilder()
-        .setDirectEndpoint(DEFAULT_WINDMILL_SERVICE_ADDRESS.gcpServiceAddress().getHost())
-        .setBackendWorkerToken(workerToken)
-        .build();
+    return WorkerMetadataResponse.Endpoint.newBuilder().setBackendWorkerToken(workerToken).build();
   }
 
   @Before
   public void setUp() throws IOException {
-    stubFactory.shutdown();
+    channels.forEach(ManagedChannel::shutdownNow);
+    channels.clear();
     fakeStreamingEngineServer =
         grpcCleanup.register(
             InProcessServerBuilder.forName("StreamingEngineClientTest")
@@ -167,7 +172,7 @@ public class StreamingEngineClientTest {
     Preconditions.checkNotNull(streamingEngineClient).finish();
     fakeGetWorkerMetadataStub.close();
     fakeStreamingEngineServer.shutdownNow();
-    stubFactory.shutdown();
+    channels.forEach(ManagedChannel::shutdownNow);
   }
 
   private StreamingEngineClient newStreamingEngineClient(

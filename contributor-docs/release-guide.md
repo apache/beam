@@ -37,7 +37,7 @@ complements the foundation-wide guides:
 A Beam release consists of the following:
 
  - ASF source zips archived on
-   [dist.apache.org](https://dist.apache.org/release/beam) (later archived to
+   [dist.apache.org](https://dist.apache.org/repos/dist/release/beam/) (later archived to
    [archive.apache.org](https://archive.apache.org/dist/beam)
  - Java jars and poms published to [Maven
    Central](https://mvnrepository.com/artifact/org.apache.beam)

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import com.google.auto.value.AutoValue;
+import com.google.auto.value.extension.memoized.Memoized;
 import java.io.Serializable;
 import java.math.RoundingMode;
 import java.util.Arrays;
@@ -382,22 +383,31 @@ public class HistogramData implements Serializable {
     // Maximum number of buckets that is supported when 'scale' is zero.
     private static final int ZERO_SCALE_MAX_NUM_BUCKETS = 32;
 
-    public abstract double getBase();
+    @Memoized
+    public double getBase() {
+      return Math.pow(2, Math.pow(2, -getScale()));
+    }
 
     public abstract int getScale();
 
     /**
-     * Set to 2**scale which is equivalent to 1/log_2(base). Precomputed to use in {@code
+     * Set to 2**scale which is equivalent to 1/log_2(base). Memoized to use in {@code
      * getBucketIndexPositiveScale}
      */
-    public abstract double getInvLog2GrowthFactor();
+    @Memoized
+    public double getInvLog2GrowthFactor() {
+      return Math.pow(2, getScale());
+    }
 
     @Override
     public abstract int getNumBuckets();
 
-    /* Precomputed since this value is used everytime a datapoint is recorded. */
+    /* Memoized since this value is used everytime a datapoint is recorded. */
+    @Memoized
     @Override
-    public abstract double getRangeTo();
+    public double getRangeTo() {
+      return Math.pow(getBase(), getNumBuckets());
+    }
 
     public static ExponentialBuckets of(int scale, int numBuckets) {
       if (scale < MINIMUM_SCALE) {
@@ -414,12 +424,8 @@ public class HistogramData implements Serializable {
             String.format("numBuckets should be positive: %d", numBuckets));
       }
 
-      double invLog2GrowthFactor = Math.pow(2, scale);
-      double base = Math.pow(2, Math.pow(2, -scale));
       int clippedNumBuckets = ExponentialBuckets.computeNumberOfBuckets(scale, numBuckets);
-      double rangeTo = Math.pow(base, clippedNumBuckets);
-      return new AutoValue_HistogramData_ExponentialBuckets(
-          base, scale, invLog2GrowthFactor, clippedNumBuckets, rangeTo);
+      return new AutoValue_HistogramData_ExponentialBuckets(scale, clippedNumBuckets);
     }
 
     /**
@@ -512,6 +518,10 @@ public class HistogramData implements Serializable {
     public double getRangeFrom() {
       return 0;
     }
+
+    @Memoized
+    @Override
+    public abstract int hashCode();
   }
 
   @AutoValue

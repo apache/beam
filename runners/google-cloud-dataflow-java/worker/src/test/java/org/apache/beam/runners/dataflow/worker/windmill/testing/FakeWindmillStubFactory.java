@@ -21,38 +21,27 @@ import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Channel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 @VisibleForTesting
-public final class FakeWindmillStubFactory implements ChannelCachingStubFactory {
-  private final ChannelCache channelCache;
+public final class FakeWindmillStubFactory implements WindmillStubFactory {
+  private final Supplier<Channel> channelFactory;
 
-  public FakeWindmillStubFactory(Supplier<ManagedChannel> channelFactory) {
-    this.channelCache = ChannelCache.create(ignored -> channelFactory.get());
+  public FakeWindmillStubFactory(Supplier<Channel> channelFactory) {
+    this.channelFactory = channelFactory;
   }
 
   @Override
   public CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub
       createWindmillServiceStub(WindmillServiceAddress serviceAddress) {
-    return CloudWindmillServiceV1Alpha1Grpc.newStub(channelCache.get(serviceAddress));
+    return CloudWindmillServiceV1Alpha1Grpc.newStub(channelFactory.get());
   }
 
   @Override
   public CloudWindmillMetadataServiceV1Alpha1Grpc.CloudWindmillMetadataServiceV1Alpha1Stub
       createWindmillMetadataServiceStub(WindmillServiceAddress serviceAddress) {
-    return CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(channelCache.get(serviceAddress));
-  }
-
-  @Override
-  public void remove(WindmillServiceAddress windmillServiceAddress) {
-    channelCache.remove(windmillServiceAddress);
-  }
-
-  @Override
-  public void shutdown() {
-    channelCache.clear();
+    return CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(channelFactory.get());
   }
 }

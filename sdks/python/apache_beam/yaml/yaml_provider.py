@@ -627,6 +627,10 @@ class YamlProviders:
     can be used to access the transform
     `apache_beam.pkg.mod.SomeClass(1, 'foo', baz=3)`.
 
+    See also the documentation on
+    [Inlining
+    Python](https://beam.apache.org/documentation/sdks/yaml-inline-python/).
+
     Args:
         constructor: Fully qualified name of a callable used to construct the
             transform.  Often this is a class such as
@@ -1035,9 +1039,15 @@ class RenamingProvider(Provider):
     missing = set(self._mappings[type].values()) - set(
         underlying_schema_fields.keys())
     if missing:
-      raise ValueError(
-          f"Mapping destinations {missing} for {type} are not in the "
-          f"underlying config schema {list(underlying_schema_fields.keys())}")
+      if 'kwargs' in underlying_schema_fields.keys():
+        # These are likely passed by keyword argument dict rather than missing.
+        for field_name in missing:
+          underlying_schema_fields[field_name] = schema_pb2.Field(
+              name=field_name, type=typing_to_runner_api(Any))
+      else:
+        raise ValueError(
+            f"Mapping destinations {missing} for {type} are not in the "
+            f"underlying config schema {list(underlying_schema_fields.keys())}")
 
     def with_name(
         original: schema_pb2.Field, new_name: str) -> schema_pb2.Field:
