@@ -33,7 +33,7 @@ Here is an example of how to use the BigQueryIO connector to accomplish this:
      public interface WriteBigQueryTableOptions extends PipelineOptions {
          @Description("Table name in BigQuery to write to")
          String getTableName();
- 
+
          void setTableName(String value);
      }
 

@@ -4,7 +4,7 @@ What does this code do?
 ```java
  public class ReadBigQueryTable {
      private static final Logger LOG = LoggerFactory.getLogger(ReadBigQueryTable.class);
- 
+
      public interface ReadBigQueryTableOptions extends PipelineOptions {
          @Description("Table from which to read")
          @Default.String("bigquery-public-data:austin_bikeshare.bikeshare_stations")
@@ -48,7 +48,7 @@ This code snippet uses the Apache Beam BigQueryIO connector to read data from a 
 The `main()` method creates a `ReadBigQueryTableOptions` object from the command-line arguments using `PipelineOptionsFactory`. It then creates a new pipeline with the specified options.
 ```java
   ReadTableBQOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(ReadBigQueryTableOptions.class);
-  
+
   Pipeline p = Pipeline.create(options);
 ```
 The `(BigQueryIO.readTableRows().from(options.getTableName())` method is used to read data from the specified BigQuery table. The `ParDo` transform is used to apply a `DoFn` to each element of the input PCollection. In this case, the `DoFn` simply outputs the input element.

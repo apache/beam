@@ -93,7 +93,7 @@ Here is an example of how to use the SpannerIO connector to accomplish this:
                                          .set("month").to(records[1])
                                          .set("amount").to(records[2])
                                          .build();
- 
+
                                  c.output(mutation);
                              }
                          })
@@ -108,6 +108,6 @@ Here is an example of how to use the SpannerIO connector to accomplish this:
          p.run();
      }
  }
- 
+
 ```
 This code snippet utilizes the pipeline options pattern to parse command-line arguments.

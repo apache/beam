@@ -25,7 +25,7 @@ public class ReadBigTableTable {
 
          void setBigTableProject(String value);
      }
- 
+
      public static void main(String[] args) {
 
         BigTableReadOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(BigTableReadOptions.class);
@@ -46,13 +46,13 @@ public class ReadBigTableTable {
                              public void processElement(ProcessContext c) {
                                  Row row = c.element();
                                  DateTimeFormatter format = DateTimeFormat.forPattern("yyyy/MM/dd HH:mm:ss");
- 
+
                                  StringBuilder rowString = new StringBuilder("BigQuery Row: " + row.getKey().toStringUtf8());
                                  for (Family family : row.getFamiliesList()) {
                                      StringBuilder familyString = new StringBuilder("\t Family: " + family.getName());
                                      for (Column column : family.getColumnsList()) {
                                          StringBuilder columnString = new StringBuilder("\t\t Column: " + column.getQualifier().toStringUtf8());
- 
+
                                          for (Cell cell : column.getCellsList()) {
                                              String timestamp = Instant.ofEpochMilli(cell.getTimestampMicros() / 1000).toString(format);
                                              String cellString = "\t\t\t Cell: " + cell.getValue().toStringUtf8()
@@ -101,7 +101,7 @@ public interface BigTableReadOptions extends DataflowPipelineOptions {
      }
 ```
 
-The `main()` method creates a `BigTableReadOptions` object from the command-line arguments using `PipelineOptionsFactory`. It then creates a new pipeline with the specified options. The `project` variable is set to the BigTable project ID, or the default project ID if the `--bigTableProject` option is not provided. 
+The `main()` method creates a `BigTableReadOptions` object from the command-line arguments using `PipelineOptionsFactory`. It then creates a new pipeline with the specified options. The `project` variable is set to the BigTable project ID, or the default project ID if the `--bigTableProject` option is not provided.
 
 ```java
         BigTableReadOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(BigTableReadOptions.class);
@@ -125,13 +125,13 @@ The pipeline then applies a `ParDo` transform to process each `Row` read from th
                              public void processElement(ProcessContext c) {
                                  Row row = c.element();
                                  DateTimeFormatter format = DateTimeFormat.forPattern("yyyy/MM/dd HH:mm:ss");
- 
+
                                  StringBuilder rowString = new StringBuilder("BigQuery Row: " + row.getKey().toStringUtf8());
                                  for (Family family : row.getFamiliesList()) {
                                      StringBuilder familyString = new StringBuilder("\t Family: " + family.getName());
                                      for (Column column : family.getColumnsList()) {
                                          StringBuilder columnString = new StringBuilder("\t\t Column: " + column.getQualifier().toStringUtf8());
- 
+
                                          for (Cell cell : column.getCellsList()) {
                                              String timestamp = Instant.ofEpochMilli(cell.getTimestampMicros() / 1000).toString(format);
                                              String cellString = "\t\t\t Cell: " + cell.getValue().toStringUtf8()
@@ -143,7 +143,7 @@ The pipeline then applies a `ParDo` transform to process each `Row` read from th
                                      }
                                      rowString.append("\n").append(familyString);
                                  }
- 
+
                                  LOG.info(rowString.toString());
                                  c.output(rowString.toString());
                              }

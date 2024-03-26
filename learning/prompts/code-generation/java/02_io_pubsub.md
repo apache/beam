@@ -5,7 +5,7 @@ Response:
 Your Apache Beam pipeline can write data to Google Pub/Sub topic using the Apache Beam PubSubIO connector.
 Here is an example of how to use the PubSubIO connector to accomplish this:
 
-```java 
+```java
  package pubsub;
  import org.apache.beam.sdk.Pipeline;
  import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
@@ -28,7 +28,7 @@ Here is an example of how to use the PubSubIO connector to accomplish this:
      public interface WritePubSubTopicOptions extends PipelineOptions {
          @Description("PubSub topic name to write to")
          String getTopicName();
- 
+
          void setTopicName(String value);
      }
 
@@ -42,7 +42,7 @@ Here is an example of how to use the PubSubIO connector to accomplish this:
 
         // Sample messages to write to the Pub/Sub topic
          final List<String> messages = Arrays.asList(
-                "PubSub message 1", 
+                "PubSub message 1",
                 "PubSub message 2",
                 "PubSub message 3"
          );
@@ -52,12 +52,12 @@ Here is an example of how to use the PubSubIO connector to accomplish this:
                  .apply(Create.of(messages))
                  // Write the messages to the Pub/Sub topic
                  .apply(PubsubIO.writeStrings().to(options.getTopicName()));
- 
+
         // Execute the pipeline
          p.run();
      }
 
  }
- 
+
 ```
 This code snippet utilizes the pipeline options pattern to parse command-line arguments.
