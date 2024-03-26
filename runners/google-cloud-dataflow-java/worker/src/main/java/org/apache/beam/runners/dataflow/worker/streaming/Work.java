@@ -28,6 +28,7 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.dataflow.worker.ActiveMessageMetadata;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
@@ -36,22 +37,32 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribut
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown.ActiveElementMetadata;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown.Distribution;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
+import org.apache.beam.runners.dataflow.worker.windmill.work.ProcessWorkItemClient;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 @NotThreadSafe
 public class Work implements Runnable {
-  private final Windmill.WorkItem workItem;
+  private final @Nullable ProcessWorkItemClient processWorkItemClient;
+  private final WorkItem workItem;
   private final Supplier<Instant> clock;
   private final Instant startTime;
   private final Map<Windmill.LatencyAttribution.State, Duration> totalDurationPerState;
   private final Consumer<Work> processWorkFn;
   private final WorkId id;
+  private final String latencyTrackingId;
   private TimedState currentState;
   private volatile boolean isFailed;
 
-  private Work(Windmill.WorkItem workItem, Supplier<Instant> clock, Consumer<Work> processWorkFn) {
+  private Work(
+      @Nullable ProcessWorkItemClient processWorkItemClient,
+      WorkItem workItem,
+      Supplier<Instant> clock,
+      Consumer<Work> processWorkFn) {
+    this.processWorkItemClient = processWorkItemClient;
     this.workItem = workItem;
     this.clock = clock;
     this.processWorkFn = processWorkFn;
@@ -64,96 +75,38 @@ public class Work implements Runnable {
             .setCacheToken(workItem.getCacheToken())
             .setWorkToken(workItem.getWorkToken())
             .build();
+    this.latencyTrackingId = buildLatencyTrackingId(workItem);
   }
 
   public static Work create(
-      Windmill.WorkItem workItem,
+      WorkItem workItem,
       Supplier<Instant> clock,
       Collection<Windmill.LatencyAttribution> getWorkStreamLatencies,
       Consumer<Work> processWorkFn) {
-    Work work = new Work(workItem, clock, processWorkFn);
+    Work work = new Work(null, workItem, clock, processWorkFn);
     work.recordGetWorkStreamLatencies(getWorkStreamLatencies);
     return work;
   }
 
-  @Override
-  public void run() {
-    processWorkFn.accept(this);
+  public static Work create(
+      ProcessWorkItemClient processWorkItemClient,
+      Supplier<Instant> clock,
+      Collection<Windmill.LatencyAttribution> getWorkStreamLatencies,
+      Consumer<Work> processWorkFn) {
+    Work work =
+        new Work(
+            Preconditions.checkNotNull(processWorkItemClient),
+            processWorkItemClient.workItem(),
+            clock,
+            processWorkFn);
+    work.recordGetWorkStreamLatencies(getWorkStreamLatencies);
+    return work;
   }
 
-  public Windmill.WorkItem getWorkItem() {
-    return workItem;
-  }
-
-  public Instant getStartTime() {
-    return startTime;
-  }
-
-  public State getState() {
-    return currentState.state();
-  }
-
-  public void setState(State state) {
-    Instant now = clock.get();
-    totalDurationPerState.compute(
-        this.currentState.state().toLatencyAttributionState(),
-        (s, d) ->
-            new Duration(this.currentState.startTime(), now).plus(d == null ? Duration.ZERO : d));
-    this.currentState = TimedState.create(state, now);
-  }
-
-  public void setFailed() {
-    this.isFailed = true;
-  }
-
-  public boolean isCommitPending() {
-    return currentState.isCommitPending();
-  }
-
-  public Instant getStateStartTime() {
-    return currentState.startTime();
-  }
-
-  public String getLatencyTrackingId() {
-    StringBuilder workIdBuilder = new StringBuilder(33);
-    workIdBuilder.append(Long.toHexString(workItem.getShardingKey()));
-    workIdBuilder.append('-');
-    workIdBuilder.append(Long.toHexString(workItem.getWorkToken()));
-    return workIdBuilder.toString();
-  }
-
-  public WorkId id() {
-    return id;
-  }
-
-  private void recordGetWorkStreamLatencies(
-      Collection<Windmill.LatencyAttribution> getWorkStreamLatencies) {
-    for (Windmill.LatencyAttribution latency : getWorkStreamLatencies) {
-      totalDurationPerState.put(
-          latency.getState(), Duration.millis(latency.getTotalDurationMillis()));
-    }
-  }
-
-  public ImmutableList<LatencyAttribution> getLatencyAttributions(
-      boolean isHeartbeat, String workId, DataflowExecutionStateSampler sampler) {
-    List<Windmill.LatencyAttribution> list = new ArrayList<>();
-    for (Windmill.LatencyAttribution.State state : Windmill.LatencyAttribution.State.values()) {
-      Duration duration = totalDurationPerState.getOrDefault(state, Duration.ZERO);
-      if (state == this.currentState.state().toLatencyAttributionState()) {
-        duration = duration.plus(new Duration(this.currentState.startTime(), clock.get()));
-      }
-      if (duration.equals(Duration.ZERO)) {
-        continue;
-      }
-      LatencyAttribution.Builder laBuilder = Windmill.LatencyAttribution.newBuilder();
-      if (state == LatencyAttribution.State.ACTIVE) {
-        laBuilder = addActiveLatencyBreakdownToBuilder(isHeartbeat, laBuilder, workId, sampler);
-      }
-      Windmill.LatencyAttribution la =
-          laBuilder.setState(state).setTotalDurationMillis(duration.getMillis()).build();
-      list.add(la);
-    }
-    return ImmutableList.copyOf(list);
+  private static String buildLatencyTrackingId(WorkItem workItem) {
+    return Long.toHexString(workItem.getShardingKey())
+        + '-'
+        + Long.toHexString(workItem.getWorkToken());
   }
 
   private static LatencyAttribution.Builder addActiveLatencyBreakdownToBuilder(
@@ -195,11 +148,92 @@ public class Work implements Runnable {
     return builder;
   }
 
+  @Override
+  public void run() {
+    processWorkFn.accept(this);
+  }
+
+  public WorkItem getWorkItem() {
+    return workItem;
+  }
+
+  public ProcessWorkItemClient getProcessWorkItemClient() {
+    return Preconditions.checkNotNull(processWorkItemClient);
+  }
+
+  public Instant getStartTime() {
+    return startTime;
+  }
+
+  public State getState() {
+    return currentState.state();
+  }
+
+  public void setState(State state) {
+    Instant now = clock.get();
+    totalDurationPerState.compute(
+        this.currentState.state().toLatencyAttributionState(),
+        (s, d) ->
+            new Duration(this.currentState.startTime(), now).plus(d == null ? Duration.ZERO : d));
+    this.currentState = TimedState.create(state, now);
+  }
+
+  public void setFailed() {
+    this.isFailed = true;
+  }
+
+  public boolean isCommitPending() {
+    return currentState.isCommitPending();
+  }
+
+  public Instant getStateStartTime() {
+    return currentState.startTime();
+  }
+
+  public String getLatencyTrackingId() {
+    return latencyTrackingId;
+  }
+
+  public WorkId id() {
+    return id;
+  }
+
+  private void recordGetWorkStreamLatencies(
+      Collection<Windmill.LatencyAttribution> getWorkStreamLatencies) {
+    for (Windmill.LatencyAttribution latency : getWorkStreamLatencies) {
+      totalDurationPerState.put(
+          latency.getState(), Duration.millis(latency.getTotalDurationMillis()));
+    }
+  }
+
+  public ImmutableList<LatencyAttribution> getLatencyAttributions(
+      boolean isHeartbeat, DataflowExecutionStateSampler sampler) {
+    List<Windmill.LatencyAttribution> list = new ArrayList<>();
+    for (Windmill.LatencyAttribution.State state : Windmill.LatencyAttribution.State.values()) {
+      Duration duration = totalDurationPerState.getOrDefault(state, Duration.ZERO);
+      if (state == this.currentState.state().toLatencyAttributionState()) {
+        duration = duration.plus(new Duration(this.currentState.startTime(), clock.get()));
+      }
+      if (duration.equals(Duration.ZERO)) {
+        continue;
+      }
+      LatencyAttribution.Builder laBuilder = Windmill.LatencyAttribution.newBuilder();
+      if (state == LatencyAttribution.State.ACTIVE) {
+        laBuilder =
+            addActiveLatencyBreakdownToBuilder(isHeartbeat, laBuilder, latencyTrackingId, sampler);
+      }
+      Windmill.LatencyAttribution la =
+          laBuilder.setState(state).setTotalDurationMillis(duration.getMillis()).build();
+      list.add(la);
+    }
+    return ImmutableList.copyOf(list);
+  }
+
   public boolean isFailed() {
     return isFailed;
   }
 
-  boolean isStuckCommittingAt(Instant stuckCommitDeadline) {
+  public boolean isStuckCommittingAt(Instant stuckCommitDeadline) {
     return currentState.state() == Work.State.COMMITTING
         && currentState.startTime().isBefore(stuckCommitDeadline);
   }

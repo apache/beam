@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -30,6 +31,7 @@ import java.util.List;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.WindmillStreamSender;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
@@ -262,6 +264,8 @@ public class EvenGetWorkBudgetDistributorTest {
             synchronizedProcessingTime,
             workItem,
             ackQueuedWorkItem,
-            getWorkStreamLatencies) -> {});
+            getWorkStreamLatencies) -> {},
+        ignored -> mock(WorkCommitter.class),
+        ignored -> {});
   }
 }

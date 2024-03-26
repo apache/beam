@@ -15,17 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.streaming;
+package org.apache.beam.runners.dataflow.worker.streaming.computations;
 
 import com.google.api.services.dataflow.model.MapTask;
 import java.io.PrintWriter;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
+import org.apache.beam.runners.dataflow.worker.streaming.ExecutionState;
+import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.DirectHeartbeatRequest;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -38,6 +46,7 @@ import org.joda.time.Instant;
  * <p>This class is synchronized, but only used from the dispatch and commit threads, so should not
  * be heavily contended. Still, blocking work should not be done by it.
  */
+@Internal
 public class ComputationState implements AutoCloseable {
   private final String computationId;
   private final MapTask mapTask;
@@ -74,8 +83,12 @@ public class ComputationState implements AutoCloseable {
     return transformUserNameToStateFamily;
   }
 
-  public ConcurrentLinkedQueue<ExecutionState> getExecutionStateQueue() {
-    return executionStateQueue;
+  public void releaseExecutionState(ExecutionState executionState) {
+    executionStateQueue.offer(executionState);
+  }
+
+  public Optional<ExecutionState> getExecutionState() {
+    return Optional.ofNullable(executionStateQueue.poll());
   }
 
   /**
@@ -134,8 +147,18 @@ public class ComputationState implements AutoCloseable {
     return activeWorkState.getKeyHeartbeats(refreshDeadline, sampler);
   }
 
+  /** Gets HeartbeatRequests for any work started before refreshDeadline. */
+  public ImmutableList<DirectHeartbeatRequest> getDirectKeyHeartbeats(
+      Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
+    return activeWorkState.getKeyHeartbeatsDirectPath(refreshDeadline, sampler);
+  }
+
   public void printActiveWork(PrintWriter writer) {
     activeWorkState.printActiveWork(writer, Instant.now());
+  }
+
+  public GetWorkBudget getActiveWorkBudget() {
+    return activeWorkState.currentActiveWorkBudget();
   }
 
   @Override

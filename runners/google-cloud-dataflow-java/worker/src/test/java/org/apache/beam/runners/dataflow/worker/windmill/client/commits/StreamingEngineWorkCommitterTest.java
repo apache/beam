@@ -38,9 +38,9 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.FakeWindmillServer;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
+import org.apache.beam.runners.dataflow.worker.streaming.computations.ComputationState;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
@@ -271,7 +271,13 @@ public class StreamingEngineWorkCommitterTest {
               public Instant startTime() {
                 return Instant.now();
               }
+
+              @Override
+              public boolean isClosed() {
+                return false;
+              }
             };
+
     commitWorkStreamFactory =
         WindmillStreamPool.create(1, Duration.standardMinutes(1), fakeCommitWorkStream)
             ::getCloseableStream;

@@ -65,7 +65,7 @@ import org.slf4j.Logger;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class DataflowWorkUnitClient implements WorkUnitClient {
+public class DataflowWorkUnitClient implements WorkUnitClient {
   private final Logger logger;
 
   /**
@@ -87,7 +87,7 @@ class DataflowWorkUnitClient implements WorkUnitClient {
    *
    * @param options The pipeline options.
    */
-  DataflowWorkUnitClient(DataflowWorkerHarnessOptions options, Logger logger) {
+  public DataflowWorkUnitClient(DataflowWorkerHarnessOptions options, Logger logger) {
     this.dataflow = options.getDataflowClient();
     this.options = options;
     this.logger = logger;

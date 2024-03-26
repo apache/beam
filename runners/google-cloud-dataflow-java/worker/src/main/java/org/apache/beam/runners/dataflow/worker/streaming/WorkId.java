@@ -33,9 +33,9 @@ public abstract class WorkId {
     return new AutoValue_WorkId.Builder();
   }
 
-  abstract long cacheToken();
+  public abstract long cacheToken();
 
-  abstract long workToken();
+  public abstract long workToken();
 
   @AutoValue.Builder
   public abstract static class Builder {

@@ -46,7 +46,7 @@ public class HotKeyLoggerTest {
 
   @Test
   public void correctHotKeyMessageWithoutKey() {
-    HotKeyLogger hotKeyLogger = new HotKeyLogger(clock);
+    HotKeyLogger hotKeyLogger = HotKeyLogger.forTesting(clock);
 
     hotKeyLogger.logHotKeyDetection("TEST_STEP_ID", Duration.standardSeconds(1));
     assertTrue(hotKeyLogger.isThrottled());
@@ -63,7 +63,7 @@ public class HotKeyLoggerTest {
 
   @Test
   public void correctHotKeyMessageWithKey() {
-    HotKeyLogger hotKeyLogger = new HotKeyLogger(clock);
+    HotKeyLogger hotKeyLogger = HotKeyLogger.forTesting(clock);
 
     hotKeyLogger.logHotKeyDetection("TEST_STEP_ID", Duration.standardSeconds(1), "my key");
     assertTrue(hotKeyLogger.isThrottled());
@@ -76,7 +76,7 @@ public class HotKeyLoggerTest {
 
   @Test
   public void correctHotKeyMessageWithNullKey() {
-    HotKeyLogger hotKeyLogger = new HotKeyLogger(clock);
+    HotKeyLogger hotKeyLogger = HotKeyLogger.forTesting(clock);
 
     hotKeyLogger.logHotKeyDetection("TEST_STEP_ID", Duration.standardSeconds(1), null);
     assertTrue(hotKeyLogger.isThrottled());
@@ -89,7 +89,7 @@ public class HotKeyLoggerTest {
 
   @Test
   public void throttlesLoggingHotKeyMessage() {
-    HotKeyLogger hotKeyLogger = new HotKeyLogger(clock);
+    HotKeyLogger hotKeyLogger = HotKeyLogger.forTesting(clock);
 
     clock.setTime(Clock.SYSTEM.currentTimeMillis());
     assertFalse(hotKeyLogger.isThrottled());

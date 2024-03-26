@@ -67,7 +67,7 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
     super(worker, Integer.MAX_VALUE);
     this.workItemStatusClient = workItemStatusClient;
     this.workItem = workItem;
-    this.hotKeyLogger = new HotKeyLogger();
+    this.hotKeyLogger = HotKeyLogger.ofSystemClock();
     this.options = options;
   }
 

@@ -19,6 +19,8 @@ package org.apache.beam.runners.dataflow.worker.status;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.Assert.assertThrows;
+import static org.mockito.Mockito.mock;
 
 import java.util.function.BooleanSupplier;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
@@ -89,6 +91,17 @@ public class WorkerStatusPagesTest {
     String response = getPage("/missinghandlerz");
     assertThat(response, containsString("HTTP/1.1 302 Found"));
     assertThat(response, containsString("Location: http://localhost/statusz"));
+  }
+
+  @Test
+  public void testAddStatusDataProvider_doesNotAllowDuplicateShortNames() {
+    String statusDataProviderKey = "someDataProvider";
+    wsp.addStatusDataProvider(statusDataProviderKey, "helloWorld", mockMemoryMonitor);
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            wsp.addStatusDataProvider(
+                statusDataProviderKey, "helloWorld2", mock(StatusDataProvider.class)));
   }
 
   private String getPage(String requestURL) throws Exception {

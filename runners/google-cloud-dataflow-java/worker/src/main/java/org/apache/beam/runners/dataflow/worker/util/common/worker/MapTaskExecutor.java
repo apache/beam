@@ -130,7 +130,7 @@ public class MapTaskExecutor implements WorkExecutor {
     return getReadOperation().requestDynamicSplit(splitRequest);
   }
 
-  public ReadOperation getReadOperation() throws Exception {
+  public ReadOperation getReadOperation() {
     if (operations == null || operations.isEmpty()) {
       throw new IllegalStateException("Map task has no operation.");
     }

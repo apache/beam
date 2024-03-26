@@ -25,7 +25,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
+import org.apache.beam.runners.dataflow.worker.streaming.computations.ComputationState;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.joda.time.Duration;
 import org.joda.time.Instant;

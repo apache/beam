@@ -18,30 +18,38 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.client.util.Clock;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@NotThreadSafe
 public class HotKeyLogger {
   private final Logger LOG = LoggerFactory.getLogger(HotKeyLogger.class);
 
   /** Clock used to either provide real system time or mocked to virtualize time for testing. */
-  private Clock clock = Clock.SYSTEM;
-
+  private final Clock clock;
+  /** Throttles logging the detection to every loggingPeriod */
+  private final Duration loggingPeriod = Duration.standardMinutes(5);
   /**
    * The previous time the HotKeyDetection was logged. This is used to throttle logging to every 5
    * minutes.
    */
   private long prevHotKeyDetectionLogMs = 0;
 
-  /** Throttles logging the detection to every loggingPeriod */
-  private final Duration loggingPeriod = Duration.standardMinutes(5);
-
-  HotKeyLogger() {}
-
-  HotKeyLogger(Clock clock) {
+  private HotKeyLogger(Clock clock) {
     this.clock = clock;
+  }
+
+  public static HotKeyLogger ofSystemClock() {
+    return new HotKeyLogger(Clock.SYSTEM);
+  }
+
+  @VisibleForTesting
+  static HotKeyLogger forTesting(Clock testClock) {
+    return new HotKeyLogger(testClock);
   }
 
   /** Logs a detection of the hot key every 5 minutes. */
@@ -80,7 +88,8 @@ public class HotKeyLogger {
    * Returns true if the class should log the HotKeyMessage. This method throttles logging to every
    * 5 minutes.
    */
-  protected boolean isThrottled() {
+  @VisibleForTesting
+  boolean isThrottled() {
     // Throttle logging the HotKeyDetection to every 5 minutes.
     long nowMs = clock.currentTimeMillis();
     if (nowMs - prevHotKeyDetectionLogMs < loggingPeriod.getMillis()) {

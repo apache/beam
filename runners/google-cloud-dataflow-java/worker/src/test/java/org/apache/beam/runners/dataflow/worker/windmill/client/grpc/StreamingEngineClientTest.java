@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -47,6 +48,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataR
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
@@ -183,7 +185,9 @@ public class StreamingEngineClientTest {
         stubFactory,
         getWorkBudgetDistributor,
         dispatcherClient,
-        CLIENT_ID);
+        CLIENT_ID,
+        ignored -> mock(WorkCommitter.class),
+        ignored -> {});
   }
 
   @Test
@@ -238,7 +242,7 @@ public class StreamingEngineClientTest {
         .createDirectGetWorkStream(
             any(), eq(getWorkRequest(0, 0)), any(), any(), any(), eq(noOpProcessWorkItemFn()));
 
-    verify(streamFactory, times(2)).createGetDataStream(any(), any());
+    verify(streamFactory, times(2)).createGetDataStream(any(), any(), eq(false), any());
     verify(streamFactory, times(2)).createCommitWorkStream(any(), any());
   }
 

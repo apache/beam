@@ -23,9 +23,12 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.DataflowWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
 import org.apache.beam.sdk.coders.Coder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoValue
 public abstract class ExecutionState {
+  private static final Logger LOG = LoggerFactory.getLogger(ExecutionState.class);
 
   public abstract DataflowWorkExecutor workExecutor();
 
@@ -50,5 +53,14 @@ public abstract class ExecutionState {
     public abstract Builder setExecutionStateTracker(ExecutionStateTracker executionStateTracker);
 
     public abstract ExecutionState build();
+  }
+
+  public final void close() {
+    try {
+      context().invalidateCache();
+      workExecutor().close();
+    } catch (Exception e) {
+      LOG.warn("Failed to close map task executor: ", e);
+    }
   }
 }

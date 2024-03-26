@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.streaming;
+package org.apache.beam.runners.dataflow.worker.streaming.computations;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 
@@ -36,11 +36,15 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
+import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.DirectHeartbeatRequest;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -124,9 +128,38 @@ public final class ActiveWorkState {
                     .setWorkToken(work.getWorkItem().getWorkToken())
                     .setCacheToken(work.getWorkItem().getCacheToken())
                     .addAllLatencyAttribution(
-                        work.getLatencyAttributions(
-                            /* isHeartbeat= */ true, work.getLatencyTrackingId(), sampler))
+                        work.getLatencyAttributions(/* isHeartbeat= */ true, sampler))
                     .build());
+  }
+
+  private static Stream<DirectHeartbeatRequest> toHeartbeatRequestStreamDirectPath(
+      Entry<ShardedKey, Deque<Work>> shardedKeyAndWorkQueue,
+      Instant refreshDeadline,
+      DataflowExecutionStateSampler sampler) {
+    ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
+    Deque<Work> workQueue = shardedKeyAndWorkQueue.getValue();
+
+    return workQueue.stream()
+        .filter(work -> work.getStartTime().isBefore(refreshDeadline))
+        .peek(
+            work -> {
+              if (work.getProcessWorkItemClient().getDataStream().isClosed()) {
+                work.setFailed();
+              }
+            })
+        // Don't send heartbeats for queued work we already know is failed.
+        .filter(work -> !work.isFailed())
+        .map(
+            work ->
+                DirectHeartbeatRequest.create(
+                    work.getProcessWorkItemClient().getDataStream(),
+                    Windmill.HeartbeatRequest.newBuilder()
+                        .setShardingKey(shardedKey.shardingKey())
+                        .setWorkToken(work.getWorkItem().getWorkToken())
+                        .setCacheToken(work.getWorkItem().getCacheToken())
+                        .addAllLatencyAttribution(
+                            work.getLatencyAttributions(/* isHeartbeat= */ true, sampler))
+                        .build()));
   }
 
   /**
@@ -325,6 +358,13 @@ public final class ActiveWorkState {
       Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
     return activeWork.entrySet().stream()
         .flatMap(entry -> toHeartbeatRequestStream(entry, refreshDeadline, sampler))
+        .collect(toImmutableList());
+  }
+
+  synchronized ImmutableList<DirectHeartbeatRequest> getKeyHeartbeatsDirectPath(
+      Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
+    return activeWork.entrySet().stream()
+        .flatMap(entry -> toHeartbeatRequestStreamDirectPath(entry, refreshDeadline, sampler))
         .collect(toImmutableList());
   }
 

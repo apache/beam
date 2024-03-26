@@ -96,9 +96,9 @@ import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.Structs;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.computations.ComputationState;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
@@ -3412,7 +3412,7 @@ public class StreamingDataflowWorkerTest {
     clock.sleep(Duration.millis(60));
 
     Iterator<LatencyAttribution> it =
-        work.getLatencyAttributions(false, "", DataflowExecutionStateSampler.instance()).iterator();
+        work.getLatencyAttributions(false, DataflowExecutionStateSampler.instance()).iterator();
     assertTrue(it.hasNext());
     LatencyAttribution lat = it.next();
     assertSame(State.QUEUED, lat.getState());

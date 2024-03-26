@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.status;
 
+import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -25,6 +26,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture.Capturable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 /**
  * General servlet for providing a bunch of information on the statusz page.
@@ -32,26 +34,34 @@ import org.apache.beam.runners.dataflow.worker.status.DebugCapture.Capturable;
  * <p><b>Not actually serializable</b>. Its superclass is serializable but this subclass is not.
  */
 @SuppressFBWarnings("SE_BAD_FIELD") // not serializable
-public class StatuszServlet extends BaseStatusServlet implements Capturable {
+public final class StatuszServlet extends BaseStatusServlet implements Capturable {
 
-  private static class DataProviderInfo {
-    private final String longName;
-    private final StatusDataProvider dataProvider;
-
-    public DataProviderInfo(String longName, StatusDataProvider dataProvider) {
-      this.longName = longName;
-      this.dataProvider = dataProvider;
+  @AutoValue
+  abstract static class DataProviderInfo {
+    private static DataProviderInfo create(String longName, StatusDataProvider dataProvider) {
+      return new AutoValue_StatuszServlet_DataProviderInfo(longName, dataProvider);
     }
+
+    abstract String longName();
+
+    abstract StatusDataProvider dataProvider();
   }
 
-  private LinkedHashMap<String, DataProviderInfo> dataProviders = new LinkedHashMap<>();
+  private final LinkedHashMap<String, DataProviderInfo> dataProviders = new LinkedHashMap<>();
 
   public StatuszServlet() {
     super("statusz");
   }
 
   public void addDataProvider(String shortName, String longName, StatusDataProvider provider) {
-    dataProviders.put(shortName, new DataProviderInfo(longName, provider));
+    Preconditions.checkState(
+        !dataProviders.containsKey(shortName),
+        "key={} is already mapped to dataProvider={}. Choose a different key for new StatusProvider [name={}, dataProvider={}].",
+        shortName,
+        dataProviders.get(shortName),
+        longName,
+        provider);
+    dataProviders.put(shortName, DataProviderInfo.create(longName, provider));
   }
 
   @Override
@@ -75,10 +85,10 @@ public class StatuszServlet extends BaseStatusServlet implements Capturable {
 
     for (DataProviderInfo info : dataProviders.values()) {
       writer.print("<h2>");
-      writer.print(info.longName);
+      writer.print(info.longName());
       writer.println("</h2>");
 
-      info.dataProvider.appendSummaryHtml(writer);
+      info.dataProvider().appendSummaryHtml(writer);
     }
     writer.println("</html>");
   }

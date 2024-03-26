@@ -77,15 +77,15 @@ public class MetricTrackingWindmillServerStub {
 
     abstract Builder setServer(WindmillServerStub server);
 
-    abstract Builder setGcThrashingMonitor(MemoryMonitor gcThrashingMonitor);
+    public abstract Builder setGcThrashingMonitor(MemoryMonitor gcThrashingMonitor);
 
-    abstract Builder setUseStreamingRequests(boolean useStreamingRequests);
+    public abstract Builder setUseStreamingRequests(boolean useStreamingRequests);
 
-    abstract Builder setUseSeparateHeartbeatStreams(boolean useSeparateHeartbeatStreams);
+    public abstract Builder setUseSeparateHeartbeatStreams(boolean useSeparateHeartbeatStreams);
 
-    abstract Builder setNumGetDataStreams(int numGetDataStreams);
+    public abstract Builder setNumGetDataStreams(int numGetDataStreams);
 
-    abstract MetricTrackingWindmillServerStub build();
+    public abstract MetricTrackingWindmillServerStub build();
   }
 
   public static Builder builder(WindmillServerStub server, MemoryMonitor gcThrashingMonitor) {
@@ -247,6 +247,20 @@ public class MetricTrackingWindmillServerStub {
         }
         return response.get();
       }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    } finally {
+      activeStateReads.getAndDecrement();
+    }
+  }
+
+  public Windmill.KeyedGetDataResponse getStateData(
+      GetDataStream stream, String computation, Windmill.KeyedGetDataRequest request) {
+    gcThrashingMonitor.waitForResources("GetStateData");
+    activeStateReads.getAndIncrement();
+
+    try {
+      return stream.requestKeyedData(computation, request);
     } catch (Exception e) {
       throw new RuntimeException(e);
     } finally {

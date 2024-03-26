@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class ReaderCache {
+public class ReaderCache {
 
   private static final Logger LOG = LoggerFactory.getLogger(ReaderCache.class);
   private final Executor invalidationExecutor;
@@ -67,7 +67,7 @@ class ReaderCache {
   private final Cache<WindmillComputationKey, CacheEntry> cache;
 
   /** Cache reader for {@code cacheDuration}. Readers will be closed on {@code executor}. */
-  ReaderCache(Duration cacheDuration, Executor invalidationExecutor) {
+  public ReaderCache(Duration cacheDuration, Executor invalidationExecutor) {
     this.invalidationExecutor = invalidationExecutor;
     this.cache =
         CacheBuilder.newBuilder()
@@ -137,7 +137,7 @@ class ReaderCache {
   }
 
   /** If a reader is cached for this key, remove and close it. */
-  void invalidateReader(WindmillComputationKey computationKey) {
+  public void invalidateReader(WindmillComputationKey computationKey) {
     // use an invalid cache token that will trigger close.
     acquireReader(computationKey, -1L, -1);
   }

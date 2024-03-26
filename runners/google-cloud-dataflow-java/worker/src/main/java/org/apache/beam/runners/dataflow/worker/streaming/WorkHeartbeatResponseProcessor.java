@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.apache.beam.runners.dataflow.worker.streaming.computations.ComputationState;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatResponse;
 import org.apache.beam.sdk.annotations.Internal;

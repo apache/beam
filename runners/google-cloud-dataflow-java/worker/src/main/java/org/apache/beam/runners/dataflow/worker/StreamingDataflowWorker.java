@@ -76,7 +76,6 @@ import org.apache.beam.runners.dataflow.worker.status.DebugCapture.Capturable;
 import org.apache.beam.runners.dataflow.worker.status.LastExceptionDataProvider;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.streaming.KeyCommitTooLargeException;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
@@ -84,7 +83,10 @@ import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.Work.State;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
+import org.apache.beam.runners.dataflow.worker.streaming.computations.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
+import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingEngineDirectPathWorkerHarness;
+import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingWorkerHarness;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingWorkerStatusReporter;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
@@ -153,7 +155,7 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class StreamingDataflowWorker {
+public class StreamingDataflowWorker implements StreamingWorkerHarness {
 
   // TODO(https://github.com/apache/beam/issues/19632): Update throttling counters to use generic
   // throttling-msecs metric.
@@ -444,7 +446,7 @@ public class StreamingDataflowWorker {
         IntrinsicMapTaskExecutorFactory.defaultFactory(),
         dataflowServiceClient,
         options,
-        new HotKeyLogger(),
+        HotKeyLogger.ofSystemClock(),
         clock,
         workerStatusReporter,
         failureTracker,
@@ -602,8 +604,10 @@ public class StreamingDataflowWorker {
         StreamingDataflowWorker.class.getSimpleName());
 
     LOG.debug("Creating StreamingDataflowWorker from options: {}", options);
-    StreamingDataflowWorker worker = StreamingDataflowWorker.fromOptions(options);
-
+    StreamingWorkerHarness worker =
+        isDirectPathPipeline(options)
+            ? StreamingEngineDirectPathWorkerHarness.fromOptions(options)
+            : StreamingDataflowWorker.fromOptions(options);
     // Use the MetricsLogger container which is used by BigQueryIO to periodically log process-wide
     // metrics.
     MetricsEnvironment.setProcessWideContainer(new MetricsLogger(null));
@@ -616,6 +620,12 @@ public class StreamingDataflowWorker {
     JvmInitializers.runBeforeProcessing(options);
     worker.startStatusPages();
     worker.start();
+  }
+
+  private static boolean isDirectPathPipeline(DataflowWorkerHarnessOptions options) {
+    return options.isEnableStreamingEngine()
+        && options.getIsWindmillServiceDirectPathEnabled()
+        && options.getDataflowServiceOptions().contains("enable_private_ipv6_google_access");
   }
 
   private static WindmillServerStub createWindmillServerStub(
@@ -712,6 +722,7 @@ public class StreamingDataflowWorker {
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
+  @Override
   public void start() {
     running.set(true);
 
@@ -767,13 +778,15 @@ public class StreamingDataflowWorker {
     activeWorkRefresher.start();
   }
 
+  @Override
   public void startStatusPages() {
     if (debugCaptureManager != null) {
       debugCaptureManager.start();
     }
 
     if (windmillServiceEnabled) {
-      ChannelzServlet channelzServlet = new ChannelzServlet(CHANNELZ_PATH, options, windmillServer);
+      ChannelzServlet channelzServlet =
+          new ChannelzServlet(CHANNELZ_PATH, options, windmillServer::getWindmillServiceEndpoints);
       statusPages.addServlet(channelzServlet);
       statusPages.addCapturePage(channelzServlet);
     }
@@ -791,6 +804,7 @@ public class StreamingDataflowWorker {
     statusPages.start();
   }
 
+  @Override
   public void stop() {
     try {
       for (ScheduledExecutorService timer : scheduledExecutors) {
@@ -1070,14 +1084,14 @@ public class StreamingDataflowWorker {
         stageInfoMap.computeIfAbsent(
             mapTask.getStageName(), s -> StageInfo.create(s, mapTask.getSystemName()));
 
-    ExecutionState executionState = null;
+    @Nullable ExecutionState executionState = null;
     String counterName = "dataflow_source_bytes_processed-" + mapTask.getSystemName();
 
     try {
       if (work.isFailed()) {
         throw new WorkItemCancelledException(workItem.getShardingKey());
       }
-      executionState = computationState.getExecutionStateQueue().poll();
+      executionState = computationState.getExecutionState().orElse(null);
       if (executionState == null) {
         MutableNetwork<Node, Edge> mapTaskNetwork = mapTaskToNetwork.apply(mapTask);
         if (LOG.isDebugEnabled()) {
@@ -1260,13 +1274,13 @@ public class StreamingDataflowWorker {
       commitCallbacks.putAll(executionState.context().flushState());
 
       // Release the execution state for another thread to use.
-      computationState.getExecutionStateQueue().offer(executionState);
+      computationState.releaseExecutionState(executionState);
       executionState = null;
 
       // Add the output to the commit queue.
       work.setState(State.COMMIT_QUEUED);
       outputBuilder.addAllPerWorkItemLatencyAttributions(
-          work.getLatencyAttributions(false, work.getLatencyTrackingId(), sampler));
+          work.getLatencyAttributions(false, sampler));
 
       WorkItemCommitRequest commitRequest = outputBuilder.build();
       int byteLimit = maxWorkItemCommitBytes;

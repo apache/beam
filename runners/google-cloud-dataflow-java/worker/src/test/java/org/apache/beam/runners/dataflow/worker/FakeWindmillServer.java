@@ -44,9 +44,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.concurrent.GuardedBy;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
+import org.apache.beam.runners.dataflow.worker.streaming.computations.ComputationState;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationCommitWorkRequest;
@@ -287,6 +287,11 @@ public final class FakeWindmillServer extends WindmillServerStub {
       public Instant startTime() {
         return startTime;
       }
+
+      @Override
+      public boolean isClosed() {
+        return done.getCount() == 0;
+      }
     };
   }
 
@@ -359,6 +364,11 @@ public final class FakeWindmillServer extends WindmillServerStub {
       public Instant startTime() {
         return startTime;
       }
+
+      @Override
+      public boolean isClosed() {
+        return false;
+      }
     };
   }
 
@@ -413,6 +423,11 @@ public final class FakeWindmillServer extends WindmillServerStub {
       @Override
       public Instant startTime() {
         return startTime;
+      }
+
+      @Override
+      public boolean isClosed() {
+        return false;
       }
     };
   }

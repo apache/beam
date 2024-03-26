@@ -39,14 +39,12 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class WorkerStatusPages {
-
+public final class WorkerStatusPages {
   private static final Logger LOG = LoggerFactory.getLogger(WorkerStatusPages.class);
 
   private final Server statusServer;
   private final List<Capturable> capturePages;
   private final StatuszServlet statuszServlet = new StatuszServlet();
-  private final ThreadzServlet threadzServlet = new ThreadzServlet();
   private final ServletHandler servletHandler = new ServletHandler();
 
   @VisibleForTesting
@@ -56,6 +54,7 @@ public class WorkerStatusPages {
     this.statusServer.setHandler(servletHandler);
 
     // Install the default servlets (threadz, healthz, heapz, jfrz, statusz)
+    ThreadzServlet threadzServlet = new ThreadzServlet();
     addServlet(threadzServlet);
     addServlet(new HealthzServlet(healthyIndicator));
     addServlet(new HeapzServlet(memoryMonitor));

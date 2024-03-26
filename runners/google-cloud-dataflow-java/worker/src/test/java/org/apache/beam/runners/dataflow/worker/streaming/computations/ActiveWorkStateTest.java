@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.streaming;
+package org.apache.beam.runners.dataflow.worker.streaming.computations;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
@@ -33,7 +33,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
-import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.ActivateWorkResult;
+import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
+import org.apache.beam.runners.dataflow.worker.streaming.computations.ActiveWorkState.ActivateWorkResult;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;

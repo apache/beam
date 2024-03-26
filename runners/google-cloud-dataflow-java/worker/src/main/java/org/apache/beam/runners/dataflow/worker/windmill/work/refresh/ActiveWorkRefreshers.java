@@ -24,8 +24,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
+import org.apache.beam.runners.dataflow.worker.streaming.computations.ComputationState;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.joda.time.Instant;
 
 /** Utility class for {@link ActiveWorkRefresher}. */
@@ -45,6 +46,25 @@ public final class ActiveWorkRefreshers {
         computations,
         sampler,
         activeWorkRefresherFn,
+        scheduledExecutorService);
+  }
+
+  public static ActiveWorkRefresher createDirectActiveWorkRefresher(
+      Supplier<Instant> clock,
+      int activeWorkRefreshPeriodMillis,
+      int stuckCommitDurationMillis,
+      Supplier<Collection<ComputationState>> computations,
+      DataflowExecutionStateSampler sampler,
+      Consumer<Map<WindmillStream.GetDataStream, Map<String, List<HeartbeatRequest>>>>
+          refreshActiveWorkFn,
+      ScheduledExecutorService scheduledExecutorService) {
+    return new DirectActiveWorkRefresher(
+        clock,
+        activeWorkRefreshPeriodMillis,
+        stuckCommitDurationMillis,
+        computations,
+        sampler,
+        refreshActiveWorkFn,
         scheduledExecutorService);
   }
 }
