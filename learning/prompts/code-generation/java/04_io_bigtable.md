@@ -25,10 +25,10 @@ Here is an example of how to use the BigTableIO connector to accomplish this:
  import org.apache.beam.sdk.values.KV;
  import org.checkerframework.checker.nullness.qual.Nullable;
  import org.joda.time.Instant;
- 
+
  import java.math.BigInteger;
  import java.util.stream.IntStream;
- 
+
  // Pipeline to write data to BigTable table
  public class BigTableWriteTable {
 
@@ -37,37 +37,37 @@ Here is an example of how to use the BigTableIO connector to accomplish this:
          @Description("BigTable Instance ID")
          @Default.String("bigtable-instance")
          String getInstanceId();
- 
+
          void setInstanceId(String value);
- 
+
          @Description("BigTable Table Name")
          @Default.String("bigtable-table")
          String getTableName();
- 
+
          void setTableName(String value);
- 
+
          @Nullable
          @Description("BigTable Project ID")
          String getBigTableProject();
- 
+
          void setBigTableProject(String value);
      }
- 
+
      public static void main(String[] args) {
- 
+
         // Parse the pipeline options from the command line.
         BigTableWriteTableOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(BigTableWriteTableOptions.class);
- 
+
         // Set the project ID to the BigTable project ID if it is not null, otherwise set it to the project ID
          String project = (options.getBigTableProject() == null) ? options.getProject() : options.getBigTableProject();
-        
+
          // Create the pipeline
          Pipeline p = Pipeline.create(options);
-        
+
          // Sample data to write to BigTable
          int[] rangeIntegers = IntStream.range(2, 1000).toArray();
          Iterable<Integer> elements = Ints.asList(rangeIntegers);
- 
+
          p
                 // Create a PCollection from the sample data
                  .apply(Create.of(elements))
@@ -78,21 +78,21 @@ Here is an example of how to use the BigTableIO connector to accomplish this:
                          .withInstanceId(options.getInstanceId())
                          .withProjectId(project)
                          .withTableId(options.getTableName()));
- 
+
         // Execute the pipeline.
          p.run();
      }
- 
+
      // Class to create mutations for each element in the PCollection
      public static class CreateMutations extends DoFn<Integer, KV<ByteString, Iterable<Mutation>>> {
          public ImmutableList.Builder<Mutation> mutations;
- 
+
          @ProcessElement
          public void processElement(ProcessContext c) {
 
              BigInteger b = new BigInteger(c.element().toString());
              String isPrime = b.isProbablePrime(1) ? "Prime" : "Composite";
- 
+
              // Set the cell value for the element
              Mutation.SetCell setCell =
                  Mutation.SetCell.newBuilder()
@@ -108,7 +108,7 @@ Here is an example of how to use the BigTableIO connector to accomplish this:
             // Add the mutation to the list of mutations
              this.mutations.add(Mutation.newBuilder().setSetCell(setCell).build());
          }
- 
+
         // Initialize the list of mutations
          @StartBundle
          public void startBundle() {
@@ -127,6 +127,6 @@ Here is an example of how to use the BigTableIO connector to accomplish this:
          }
      }
  }
- 
+
 ```
 This code snippet utilizes the pipeline options pattern to parse command-line arguments.

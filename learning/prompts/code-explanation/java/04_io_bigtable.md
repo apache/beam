@@ -5,36 +5,36 @@ What does this code do?
 public class ReadBigTableTable {
 
      private static final Logger LOG = LoggerFactory.getLogger(ReadBigTableTable.class);
- 
+
      public interface BigTableReadOptions extends DataflowPipelineOptions {
          @Description("BiTable instance name")
          @Default.String("quickstart-instance")
          String getBigTableInstance();
- 
+
          void setBigTableInstance(String value);
- 
+
          @Description("BIgTable table name")
          @Default.String("my-table")
          String getTableNme();
- 
+
          void setTableNme(String value);
- 
+
          @Nullable
          @Description("BigTable Project ID")
          String getBigTableProject();
- 
+
          void setBigTableProject(String value);
      }
  
      public static void main(String[] args) {
-        
+
         BigTableReadOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(BigTableReadOptions.class);
- 
+
          String project = (options.getBigTableProject() == null) ? options.getProject() : options.getBigTableProject();
- 
- 
+
+
          Pipeline p = Pipeline.create(options);
- 
+
          p
                  .apply(BigtableIO.read()
                          .withInstanceId(options.getBigTableInstance())
@@ -57,20 +57,20 @@ public class ReadBigTableTable {
                                              String timestamp = Instant.ofEpochMilli(cell.getTimestampMicros() / 1000).toString(format);
                                              String cellString = "\t\t\t Cell: " + cell.getValue().toStringUtf8()
                                                      + " at " + timestamp;
- 
+
                                              columnString.append("\n").append(cellString);
                                          }
                                          familyString.append("\n").append(columnString);
                                      }
                                      rowString.append("\n").append(familyString);
                                  }
- 
+
                                  LOG.info(rowString.toString());
                                  c.output(rowString.toString());
                              }
                          })
                  );
- 
+
          p.run();
      }
  }
@@ -84,19 +84,19 @@ public interface BigTableReadOptions extends DataflowPipelineOptions {
          @Description("BiTable instance name")
          @Default.String("quickstart-instance")
          String getBigTableInstance();
- 
+
          void setBigTableInstance(String value);
- 
+
          @Description("BIgTable table name")
          @Default.String("my-table")
          String getTableNme();
- 
+
          void setTableNme(String value);
- 
+
          @Nullable
          @Description("BigTable Project ID")
          String getBigTableProject();
- 
+
          void setBigTableProject(String value);
      }
 ```
@@ -105,7 +105,7 @@ The `main()` method creates a `BigTableReadOptions` object from the command-line
 
 ```java
         BigTableReadOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(BigTableReadOptions.class);
- 
+
          String project = (options.getBigTableProject() == null) ? options.getProject() : options.getBigTableProject();
         Pipeline p = Pipeline.create(options);
 ```

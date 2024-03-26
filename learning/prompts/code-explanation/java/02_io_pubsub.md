@@ -3,23 +3,23 @@ What does this code do?
 
 ```java
 public class ReadPubSubTopic {
- 
+
      private static final Logger LOG = LoggerFactory.getLogger(ReadPubSubTopic.class);
- 
- 
+
+
      public interface ReadPubSubTopicOptions extends PipelineOptions {
          @Description("Pub/Sub Topic to read from")
          @Default.String("projects/pubsub-public-data/topics/taxirides-realtime")
          String getTopicName();
- 
+
          void setTopicName(String value);
      }
- 
+
      public static void main(String[] args) {
         ReadPubSubTopicOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(ReadPubSubTopicOptions.class);
- 
+
          Pipeline p = Pipeline.create(options);
- 
+
          p
                  .apply("Read from Pub/Sub", PubsubIO.readStrings().fromTopic(options.getTopicName()))
                  .apply("Process elements", ParDo.of(new DoFn<String, String>() {
@@ -29,7 +29,7 @@ public class ReadPubSubTopic {
                              }
                          })
                  );
- 
+
          p.run();
      }
  }
@@ -45,7 +45,7 @@ The `ReadPubSubTopicOptions` interface defines the options that can be set when 
          @Description("Pub/Sub Topic to read from")
          @Default.String("projects/pubsub-public-data/topics/taxirides-realtime")
          String getTopicName();
- 
+
          void setTopicName(String value);
      }
 ```
@@ -54,7 +54,7 @@ In the `main` method, the `PipelineOptionsFactory` is used to create a `ReadPubS
 
 ```java
         ReadPubSubTopicOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(ReadPubSubTopicOptions.class);
- 
+
          Pipeline p = Pipeline.create(options);
 ```
 

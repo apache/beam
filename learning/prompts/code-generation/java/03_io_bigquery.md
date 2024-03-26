@@ -23,12 +23,12 @@ Here is an example of how to use the BigQueryIO connector to accomplish this:
  import org.apache.beam.sdk.transforms.ParDo;
  import org.slf4j.Logger;
  import org.slf4j.LoggerFactory;
- 
+
  Pipeline to write data to a BigQuery table using Apache Beam
  public class WriteBigQueryTable {
- 
+
      private static final Logger LOG = LoggerFactory.getLogger(WriteBigQueryTable.class);
- 
+
     // Pipeline options to configure the pipeline
      public interface WriteBigQueryTableOptions extends PipelineOptions {
          @Description("Table name in BigQuery to write to")
@@ -36,12 +36,12 @@ Here is an example of how to use the BigQueryIO connector to accomplish this:
  
          void setTableName(String value);
      }
- 
+
      public static void main(String[] args) {
- 
+
         // Parse the pipeline options from the command line
         WriteBigQueryTableOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(WriteBigQueryTableOptions.class);
- 
+
         // Sample data to write to the BigQuery table
          final List<String> elements = Arrays.asList(
                  "1, January, $1000",
@@ -55,10 +55,10 @@ Here is an example of how to use the BigQueryIO connector to accomplish this:
          fields.add(new TableFieldSchema().setName("month").setType("STRING"));
          fields.add(new TableFieldSchema().setName("amount").setType("STRING"));
          TableSchema schema = new TableSchema().setFields(fields);
- 
+
         // Create a pipeline using the Apache Beam SDK
          Pipeline p = Pipeline.create(options);
- 
+
          p
                 // Create a list of strings to write to the BigQuery table
                  .apply(Create.of(elements))
@@ -69,7 +69,7 @@ Here is an example of how to use the BigQueryIO connector to accomplish this:
                          String[] columns = c.element().split(", ");
                         // Create a TableRow object for each row in the input string
                          TableRow row = new TableRow();
- 
+
                         // Set the values for each column in the TableRow object
                          row.set("id", columns[0]);
                          row.set("month", columns[1]);
@@ -91,6 +91,6 @@ Here is an example of how to use the BigQueryIO connector to accomplish this:
          p.run();
      }
  }
- 
+
 ```
 This code snippet utilizes the pipeline options pattern to parse command-line arguments.

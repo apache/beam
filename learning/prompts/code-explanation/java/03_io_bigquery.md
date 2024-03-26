@@ -9,15 +9,15 @@ What does this code do?
          @Description("Table from which to read")
          @Default.String("bigquery-public-data:austin_bikeshare.bikeshare_stations")
          String getTableName();
- 
+
          void setTableName(String value);
      }
- 
+
      public static void main(String[] args) {
          ReadTableBQOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(ReadBigQueryTableOptions.class);
- 
+
          Pipeline p = Pipeline.create(options);
- 
+
          p
                  .apply(BigQueryIO.readTableRows().from(options.getTableName()))
                  .apply(ParDo.of(new DoFn<TableRow, String>() {
@@ -30,7 +30,6 @@ What does this code do?
          p.run();
      }
  }
-
 ```
 
 Response:
@@ -41,7 +40,7 @@ This code snippet uses the Apache Beam BigQueryIO connector to read data from a 
          @Description("Table from which to read")
          @Default.String("bigquery-public-data:austin_bikeshare.bikeshare_stations")
          String getTableName();
- 
+
          void setTableName(String value);
      }
 ```

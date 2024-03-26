@@ -22,49 +22,49 @@ Here is an example of how to use the SpannerIO connector to accomplish this:
  import org.checkerframework.checker.nullness.qual.Nullable;
  import org.slf4j.Logger;
  import org.slf4j.LoggerFactory;
- 
+
  import java.util.Arrays;
  import java.util.List;
- 
+
  // Pipeline to write data to a Spanner table.
  public class WriteSpannerTable {
 
      private static final Logger LOG = LoggerFactory.getLogger(WriteSpannerTable.class);
- 
+
     // Pipeline options for writing to Spanner tables.
      public interface WriteSpannerTableOptions extends DataflowPipelineOptions {
          @Description("Spanner Instance ID")
          @Default.String("spanner-instance")
          String getInstanceId();
- 
+
          void setInstanceId(String value);
- 
+
          @Description("Spanner Database Name")
          @Default.String("spanner-db")
          String getDatabaseName();
- 
+
          void setDatabaseName(String value);
- 
+
          @Description("Spanner Table Name")
          @Default.String("spanner-table")
          String getTableName();
- 
+
          void setTableName(String value);
- 
+
          @Nullable
          @Description("Spanner Project ID")
          String getSpannerProjectId();
- 
+
          void setSpannerProjectId(String value);
      }
- 
+
      public static void main(String[] args) {
         // Parse the pipeline options from the command line.
         WriteSpannerTableOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(WriteSpannerTableOptions.class);
 
         // Create the pipeline.
          Pipeline p = Pipeline.create(options);
- 
+
         // Sample data to write to the Spanner table.
          final List<String> elements = Arrays.asList(
                  "1, January, $1000",
@@ -72,12 +72,12 @@ Here is an example of how to use the SpannerIO connector to accomplish this:
                  "3, March , $3000",
                  "4, April, $4000",
          );
- 
+
          String table = options.getTableName();
- 
+
         // Get the project ID from the pipeline options or the default project.
          String project = (options.getSpannerProjectId() == null) ? options.getProject() : options.getSpannerProjectId();
- 
+
          p
                 // Create a PCollection of strings from the sample data.
                  .apply(Create.of(elements))
