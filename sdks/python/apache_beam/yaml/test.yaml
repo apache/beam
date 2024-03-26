@@ -20,14 +20,35 @@ pipeline:
             quantity: 2
           - name: 'blueberry'
             quantity: 3
+    - type: Create
+      name: categories
+      config:
+        elements:
+          - name: 'raspberry'
+            category: juicy
+          - name: 'blackberry'
+            category: dry
+          - name: 'blueberry'
+            category: dry
+          - name: 'grape'
+            category: juicy
     - type: Join
       input:
         f: fruits
         q: quantities
+        c: categories
       config:
         type: inner
         equalities:
           - f: name
             q: name
+          - f: name
+            c: name
+        fields:
+          f:
+            f_id: id
+          q:
+            - name
+            - quantity
     - type: LogForTesting
       input: Join

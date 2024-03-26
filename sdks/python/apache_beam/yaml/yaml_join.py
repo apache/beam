@@ -20,8 +20,35 @@ import apache_beam as beam
 from apache_beam.yaml import yaml_provider
 
 
+def _parse_fields(tables, fields):
+    # TODO(titodo) - consider taking all validations to a preprocessing fn
+    output_fields = []
+    named_columns = set()
+    for input, cols in fields.items():
+        if input not in tables:
+            return ValueError(f'invalid input {input}')
+        if type(cols) == list:
+            for col in cols:
+                if col in named_columns:
+                    return ValueError(f'same field name {col} specified more than once')
+                output_fields.append(f'{input}.{col} AS {col}')
+                named_columns.add(col)
+        elif type(cols) == dict:
+            for k, v in cols.items():
+                if k in named_columns:
+                    return ValueError(f'same field name {k} specified more than once')
+                output_fields.append(f'{input}.{v} AS {k}')
+                named_columns.add(k)
+        else: 
+            return ValueError(f'invalid entry for fields')
+    for table in tables:
+        if table not in fields.keys():
+            output_fields.append(f'{table}.*')
+    return output_fields
+
+
 @beam.ptransform.ptransform_fn
-def _SqlJoinTransform(pcoll, sql_transform_constructor, type, equalities):
+def _SqlJoinTransform(pcoll, sql_transform_constructor, type, equalities, fields=None):
     tables = list(pcoll)
     outer = [] # TODO(titodo) conditionally check for when a dict is passed for type and fill in the fields with outer
     base_table = tables[0]
@@ -43,13 +70,12 @@ def _SqlJoinTransform(pcoll, sql_transform_constructor, type, equalities):
     for i in range(1,len(tables)):
         curr_table = tables[i]
         join_type = generate_join_type(prev_table, curr_table)
-        join_conditions[curr_table] = f'{join_type} JOIN {curr_table}'
+        join_conditions[curr_table] = f' {join_type} JOIN {curr_table}'
         prev_table = curr_table
 
     for equality in equalities:
         keys = list(equality)
         left, right = keys[0], keys[1]
-
         # TODO(titodo) - shorten this and reduce repitition
         if left in conditioned and right in conditioned:
             t = tables[max(tables.index(left), tables.index(right))]
@@ -65,7 +91,10 @@ def _SqlJoinTransform(pcoll, sql_transform_constructor, type, equalities):
             join_conditions[t] = f'{join_conditions[t]} ON {left}.{equality[left]} = {right}.{equality[right]}'
             conditioned.add(t)
 
-    query = f'SELECT * FROM {base_table} '
+    selects = '*'
+    if fields:
+        selects = ', '.join(_parse_fields(tables, fields))
+    query = f'SELECT {selects} FROM {base_table}'
     for condition in join_conditions.values():
         query += condition
     print(query)
