@@ -113,7 +113,7 @@ public final class WorkFailureProcessor {
     }
   }
 
-  private String dumpHeap() {
+  private String tryToDumpHeap() {
     return heapDumper
         .dumpAndGetHeap()
         .map(heapDump -> "written to '" + heapDump + "'")
@@ -151,12 +151,13 @@ public final class WorkFailureProcessor {
             work.getWorkItem().getKey().toStringUtf8(),
             parsedException);
       } else if (isOutOfMemoryError(parsedException)) {
+        String heapDump = tryToDumpHeap();
         LOG.error(
             "Execution of work for computation '{}' for key '{}' failed with out-of-memory. "
                 + "Work will not be retried locally. Heap dump {}.",
             computationId,
             work.getWorkItem().getKey().toStringUtf8(),
-            dumpHeap(),
+            heapDump,
             parsedException);
       } else if (elapsedTimeSinceStart.isLongerThan(MAX_LOCAL_PROCESSING_RETRY_DURATION)) {
         LOG.error(

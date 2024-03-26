@@ -299,10 +299,9 @@ public final class StreamingWorkerStatusReporter {
     }
   }
 
-  @VisibleForTesting
-  public void reportPeriodicWorkerMessage() {
+  private void reportPeriodicWorkerMessage() {
     try {
-      sendWorkerMessage();
+      dataflowServiceClient.reportWorkerMessage(createWorkerMessage());
     } catch (IOException e) {
       LOG.warn("Failed to send worker messages", e);
     } catch (Exception e) {
@@ -310,7 +309,7 @@ public final class StreamingWorkerStatusReporter {
     }
   }
 
-  private void sendWorkerMessage() throws IOException {
+  private List<WorkerMessage> createWorkerMessage() {
     List<WorkerMessage> workerMessages = new ArrayList<>(2);
     workerMessages.add(createWorkerMessageForStreamingScalingReport());
 
@@ -319,7 +318,7 @@ public final class StreamingWorkerStatusReporter {
       metricsMsg.ifPresent(workerMessages::add);
     }
 
-    dataflowServiceClient.reportWorkerMessage(workerMessages);
+    return workerMessages;
   }
 
   private WorkerMessage createWorkerMessageForStreamingScalingReport() {
