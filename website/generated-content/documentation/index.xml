@@ -19113,7 +19113,7 @@ localStorage.setItem("language", "language-py")
 &lt;a
 class="button"
 target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.html#apache_beam.transforms.Enrichment"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment.html#apache_beam.transforms.enrichment.Enrichment"
 >&lt;img
 src="https://beam.apache.org/images/logos/sdks/python.png"
 width="32px"
@@ -19130,11 +19130,95 @@ Pydoc&lt;/a
 &lt;/tr>
 &lt;/table>
 &lt;p>The enrichment transform lets you dynamically enrich data in a pipeline by doing a key-value lookup to a remote service. The transform uses &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.requestresponseio.html#apache_beam.io.requestresponseio.RequestResponseIO">&lt;code>RequestResponeIO&lt;/code>&lt;/a> internally. This feature uses client-side throttling to ensure that the remote service isn&amp;rsquo;t overloaded with requests. If service-side errors occur, like &lt;code>TooManyRequests&lt;/code> and &lt;code>Timeout&lt;/code> exceptions, it retries the requests by using exponential backoff.&lt;/p>
-&lt;p>In Apache Beam 2.54.0 and later versions, the transform includes a built-in enrichment handler for &lt;a href="https://cloud.google.com/bigtable/docs/overview">Bigtable&lt;/a>.&lt;/p>
-&lt;h2 id="use-bigtable-to-enrich-data">Use Bigtable to enrich data&lt;/h2>
-&lt;p>The following example demonstrates how to create a pipeline that use the enrichment transform with &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.bigtable.html#apache_beam.transforms.enrichment_handlers.bigtable.BigTableEnrichmentHandler">&lt;code>BigTableEnrichmentHandler&lt;/code>&lt;/a>.&lt;/p>
-&lt;p>The data stored in the Bigtable cluster uses the following format:&lt;/p>
+&lt;p>This transform is available in Apache Beam 2.54.0 and later versions.&lt;/p>
+&lt;h2 id="examples">Examples&lt;/h2>
+&lt;p>The following examples demonstrate how to create a pipeline that use the enrichment transform to enrich data from external services.&lt;/p>
+&lt;div class="table-wrapper">&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Service&lt;/th>
+&lt;th style="text-align:left">Example&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">Cloud Bigtable&lt;/td>
+&lt;td style="text-align:left">&lt;a href="/documentation/transforms/python/elementwise/enrichment-bigtable/#example">Enrichment with Bigtable&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Vertex AI Feature Store&lt;/td>
+&lt;td style="text-align:left">&lt;a href="/documentation/transforms/python/elementwise/enrichment-vertexai/#example-1-enrichment-with-vertex-ai-feature-store">Enrichment with Vertex AI Feature Store&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Vertex AI Feature Store (Legacy)&lt;/td>
+&lt;td style="text-align:left">&lt;a href="/documentation/transforms/python/elementwise/enrichment-vertexai/#example-2-enrichment-with-vertex-ai-feature-store-legacy">Enrichment with Legacy Vertex AI Feature Store&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;/div>
+&lt;h2 id="related-transforms">Related transforms&lt;/h2>
+&lt;p>Not applicable.&lt;/p>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment.html#apache_beam.transforms.enrichment.Enrichment"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item><item><title>Documentation: Enrichment with Bigtable</title><link>/documentation/transforms/python/elementwise/enrichment-bigtable/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/elementwise/enrichment-bigtable/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="use-bigtable-to-enrich-data">Use Bigtable to enrich data&lt;/h1>
+&lt;script type="text/javascript">
+localStorage.setItem("language", "language-py")
+&lt;/script>
 &lt;table>
+&lt;tr>
+&lt;td>
+&lt;a>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.bigtable.html#apache_beam.transforms.enrichment_handlers.bigtable.BigTableEnrichmentHandler"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;/a>
+&lt;/td>
+&lt;/tr>
+&lt;/table>
+&lt;p>In Apache Beam 2.54.0 and later versions, the enrichment transform includes a built-in enrichment handler for &lt;a href="https://cloud.google.com/bigtable/docs/overview">Bigtable&lt;/a>.
+The following example demonstrates how to create a pipeline that use the enrichment transform with the &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.bigtable.html#apache_beam.transforms.enrichment_handlers.bigtable.BigTableEnrichmentHandler">&lt;code>BigTableEnrichmentHandler&lt;/code>&lt;/a> handler.&lt;/p>
+&lt;p>The data stored in the Bigtable cluster uses the following format:&lt;/p>
+&lt;div class="table-wrapper">&lt;table>
 &lt;thead>
 &lt;tr>
 &lt;th style="text-align:center">Row key&lt;/th>
@@ -19170,6 +19254,7 @@ Pydoc&lt;/a
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
+&lt;/div>
 &lt;div class='language-py snippet'>
 &lt;div class="notebook-skip code-snippet">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -19223,7 +19308,238 @@ Row(sale_id=5, customer_id=5, product_id=4, quantity=2, product={&amp;#39;produc
 &lt;a
 class="button"
 target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.html#apache_beam.transforms.Enrichment"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.bigtable.html#apache_beam.transforms.enrichment_handlers.bigtable.BigTableEnrichmentHandler"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item><item><title>Documentation: Enrichment with Vertex AI Feature Store</title><link>/documentation/transforms/python/elementwise/enrichment-vertexai/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/elementwise/enrichment-vertexai/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="enrichment-with-google-cloud-vertex-ai-feature-store">Enrichment with Google Cloud Vertex AI Feature Store&lt;/h1>
+&lt;script type="text/javascript">
+localStorage.setItem("language", "language-py")
+&lt;/script>
+&lt;table>
+&lt;tr>
+&lt;td>
+&lt;a>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.html#apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.VertexAIFeatureStoreEnrichmentHandler"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;/a>
+&lt;/td>
+&lt;/tr>
+&lt;/table>
+&lt;p>In Apache Beam 2.55.0 and later versions, the enrichment transform includes a built-in enrichment handler for &lt;a href="https://cloud.google.com/vertex-ai/docs/featurestore">Vertex AI Feature Store&lt;/a>.
+The following example demonstrates how to create a pipeline that use the enrichment transform with the &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.html#apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.VertexAIFeatureStoreEnrichmentHandler">&lt;code>VertexAIFeatureStoreEnrichmentHandler&lt;/code>&lt;/a> handler and the &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.html#apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.VertexAIFeatureStoreLegacyEnrichmentHandler">&lt;code>VertexAIFeatureStoreLegacyEnrichmentHandler&lt;/code>&lt;/a> handler.&lt;/p>
+&lt;h2 id="example-1-enrichment-with-vertex-ai-feature-store">Example 1: Enrichment with Vertex AI Feature Store&lt;/h2>
+&lt;p>The precomputed feature values stored in Vertex AI Feature Store uses the following format:&lt;/p>
+&lt;div class="table-wrapper">&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">user_id&lt;/th>
+&lt;th style="text-align:center">age&lt;/th>
+&lt;th style="text-align:center">gender&lt;/th>
+&lt;th style="text-align:center">state&lt;/th>
+&lt;th style="text-align:center">country&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">21422&lt;/td>
+&lt;td style="text-align:center">12&lt;/td>
+&lt;td style="text-align:center">0&lt;/td>
+&lt;td style="text-align:center">0&lt;/td>
+&lt;td style="text-align:center">0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">2963&lt;/td>
+&lt;td style="text-align:center">12&lt;/td>
+&lt;td style="text-align:center">1&lt;/td>
+&lt;td style="text-align:center">1&lt;/td>
+&lt;td style="text-align:center">1&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">20592&lt;/td>
+&lt;td style="text-align:center">12&lt;/td>
+&lt;td style="text-align:center">1&lt;/td>
+&lt;td style="text-align:center">2&lt;/td>
+&lt;td style="text-align:center">2&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">76538&lt;/td>
+&lt;td style="text-align:center">12&lt;/td>
+&lt;td style="text-align:center">1&lt;/td>
+&lt;td style="text-align:center">3&lt;/td>
+&lt;td style="text-align:center">0&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;/div>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.enrichment&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Enrichment&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store&lt;/span> \
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kn">import&lt;/span> &lt;span class="nn">VertexAIFeatureStoreEnrichmentHandler&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">project_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;apache-beam-testing&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">location&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;us-central1&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">api_endpoint&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">location&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">-aiplatform.googleapis.com&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">user_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;2963&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">product_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">14235&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">sale_price&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">15.0&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">user_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;21422&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">product_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">11203&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">sale_price&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">12.0&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">user_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;20592&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">product_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">8579&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">sale_price&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">9.0&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">vertex_ai_handler&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">VertexAIFeatureStoreEnrichmentHandler&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">project&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">project_id&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">location&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">location&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">api_endpoint&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">api_endpoint&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">feature_store_name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;vertexai_enrichment_example&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">feature_view_name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;users&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">row_key&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;user_id&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Create&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">data&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Enrich W/ Vertex AI&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">Enrichment&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">vertex_ai_handler&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Print&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code>Row(user_id=&amp;#39;2963&amp;#39;, product_id=14235, sale_price=15.0, age=29.0, gender=&amp;#39;1&amp;#39;, state=&amp;#39;97&amp;#39;, country=&amp;#39;2&amp;#39;)
+Row(user_id=&amp;#39;21422&amp;#39;, product_id=11203, sale_price=12.0, age=36.0, state=&amp;#39;184&amp;#39;, gender=&amp;#39;1&amp;#39;, country=&amp;#39;5&amp;#39;)
+Row(user_id=&amp;#39;20592&amp;#39;, product_id=8579, sale_price=9.0, age=30.0, state=&amp;#39;86&amp;#39;, gender=&amp;#39;1&amp;#39;, country=&amp;#39;4&amp;#39;)&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;h2 id="example-2-enrichment-with-vertex-ai-feature-store-legacy">Example 2: Enrichment with Vertex AI Feature Store (legacy)&lt;/h2>
+&lt;p>The precomputed feature values stored in Vertex AI Feature Store (Legacy) use the following format:&lt;/p>
+&lt;div class="table-wrapper">&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">entity_id&lt;/th>
+&lt;th style="text-align:left">title&lt;/th>
+&lt;th style="text-align:left">genres&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">movie_01&lt;/td>
+&lt;td style="text-align:left">The Shawshank Redemption&lt;/td>
+&lt;td style="text-align:left">Drama&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">movie_02&lt;/td>
+&lt;td style="text-align:left">The Shining&lt;/td>
+&lt;td style="text-align:left">Horror&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">movie_04&lt;/td>
+&lt;td style="text-align:left">The Dark Knight&lt;/td>
+&lt;td style="text-align:left">Action&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;/div>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.enrichment&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Enrichment&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store&lt;/span> \
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kn">import&lt;/span> &lt;span class="nn">VertexAIFeatureStoreLegacyEnrichmentHandler&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">project_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;apache-beam-testing&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">location&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;us-central1&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">api_endpoint&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">location&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">-aiplatform.googleapis.com&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">entity_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;movie_01&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">title&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;The Shawshank Redemption&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">entity_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;movie_02&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">title&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;The Shining&amp;#34;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Row&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">entity_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;movie_04&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">title&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;The Dark Knight&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">vertex_ai_handler&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">VertexAIFeatureStoreLegacyEnrichmentHandler&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">project&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">project_id&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">location&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">location&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">api_endpoint&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">api_endpoint&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">entity_type_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;movies&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">feature_store_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;movie_prediction_unique&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">feature_ids&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;title&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;genres&amp;#34;&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">row_key&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;entity_id&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Create&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">data&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Enrich W/ Vertex AI&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">Enrichment&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">vertex_ai_handler&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Print&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code>Row(entity_id=&amp;#39;movie_01&amp;#39;, title=&amp;#39;The Shawshank Redemption&amp;#39;, genres=&amp;#39;Drama&amp;#39;)
+Row(entity_id=&amp;#39;movie_02&amp;#39;, title=&amp;#39;The Shining&amp;#39;, genres=&amp;#39;Horror&amp;#39;)
+Row(entity_id=&amp;#39;movie_04&amp;#39;, title=&amp;#39;The Dark Knight&amp;#39;, genres=&amp;#39;Action&amp;#39;)&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;h2 id="related-transforms">Related transforms&lt;/h2>
+&lt;p>Not applicable.&lt;/p>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.html#apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store.VertexAIFeatureStoreEnrichmentHandler"
 >&lt;img
 src="https://beam.apache.org/images/logos/sdks/python.png"
 width="32px"
@@ -20045,111 +20361,4 @@ Pydoc&lt;/a
 >
 &lt;/td>
 &lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item><item><title>Documentation: FlatMapElements</title><link>/documentation/transforms/java/elementwise/flatmapelements/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/elementwise/flatmapelements/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="flatmapelements">FlatMapElements&lt;/h1>
-&lt;table align="left">
-&lt;a target="_blank" class="button"
-href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/FlatMapElements.html">
-&lt;img src="/images/logos/sdks/java.png" width="20px" height="20px"
-alt="Javadoc" />
-Javadoc
-&lt;/a>
-&lt;/table>
-&lt;br>&lt;br>
-&lt;p>Applies a simple 1-to-many mapping function over each element in the
-collection. The many elements are flattened into the resulting collection.&lt;/p>
-&lt;h2 id="examples">Examples&lt;/h2>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-java playground-snippet"
-data-sdk="java"
-data-path="SDK_JAVA_FlatMapElements"
-data-show="main_section"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_JAVA_FlatMapElements%22%2c%22sdk%22%3a%22java%22%2c%22show%22%3a%22main_section%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="/documentation/transforms/java/elementwise/filter">Filter&lt;/a> is useful if the function is just
-deciding whether to output an element or not.&lt;/li>
-&lt;li>&lt;a href="/documentation/transforms/java/elementwise/pardo">ParDo&lt;/a> is the most general element-wise mapping
-operation, and includes other abilities such as multiple output collections and side-inputs.&lt;/li>
-&lt;/ul></description></item><item><title>Documentation: Flatten</title><link>/documentation/transforms/java/other/flatten/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/other/flatten/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="flatten">Flatten&lt;/h1>
-&lt;table align="left">
-&lt;a target="_blank" class="button"
-href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Flatten.html">
-&lt;img src="/images/logos/sdks/java.png" width="20px" height="20px"
-alt="Javadoc" />
-Javadoc
-&lt;/a>
-&lt;/table>
-&lt;br>&lt;br>
-&lt;p>Merges multiple &lt;code>PCollection&lt;/code> objects into a single logical &lt;code>PCollection&lt;/code>.&lt;/p>
-&lt;p>By default, the coder for the output &lt;code>PCollection&lt;/code> is the same as the coder
-for the first &lt;code>PCollection&lt;/code> in the input &lt;code>PCollectionList&lt;/code>. However, the
-input &lt;code>PCollection&lt;/code> objects can each use different coders, as long as
-they all contain the same data type in your chosen language.&lt;/p>
-&lt;p>When using &lt;code>Flatten&lt;/code> to merge &lt;code>PCollection&lt;/code> objects that have a windowing
-strategy applied, all of the &lt;code>PCollection&lt;/code> objects you want to merge must
-use a compatible windowing strategy and window sizing. For example, all
-the collections you&amp;rsquo;re merging must all use (hypothetically) identical
-5-minute fixed windows or 4-minute sliding windows starting every 30 seconds.&lt;/p>
-&lt;p>If your pipeline attempts to use &lt;code>Flatten&lt;/code> to merge &lt;code>PCollection&lt;/code> objects
-with incompatible windows, Beam generates an &lt;code>IllegalStateException&lt;/code> error
-when your pipeline is constructed&lt;/p>
-&lt;p>See more information in the &lt;a href="/documentation/programming-guide/#flatten">Beam Programming Guide&lt;/a>.&lt;/p>
-&lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>&lt;strong>Example&lt;/strong>: Apply a &lt;code>Flatten&lt;/code> transform to merge multiple &lt;code>PCollection&lt;/code> objects&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-java playground-snippet"
-data-sdk="java"
-data-path="PG_BEAMDOC_SDK_JAVA_Flatten"
-data-show="main_section"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22PG_BEAMDOC_SDK_JAVA_Flatten%22%2c%22sdk%22%3a%22java%22%2c%22show%22%3a%22main_section%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;p>The resulting collection now has all the elements: &amp;ldquo;Hello&amp;rdquo;, &amp;ldquo;World&amp;rdquo;,
-&amp;ldquo;Beam&amp;rdquo;, &amp;ldquo;Is&amp;rdquo;, and &amp;ldquo;Fun&amp;rdquo;.&lt;/p>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="/documentation/transforms/java/elementwise/pardo">ParDo&lt;/a>&lt;/li>
-&lt;li>&lt;a href="/documentation/transforms/java/elementwise/partition">Partition&lt;/a>&lt;/li>
-&lt;/ul></description></item></channel></rss>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item></channel></rss>
