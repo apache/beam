@@ -59,4 +59,4 @@ Output:
 
 Not applicable.
 
-{{< button-pydoc path="apache_beam.transforms" class="Enrichment" >}}
+{{< button-pydoc path="apache_beam.transforms.enrichment_handlers.bigtable" class="BigTableEnrichmentHandler" >}}

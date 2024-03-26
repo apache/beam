@@ -39,15 +39,15 @@ This transform is available in Apache Beam 2.54.0 and later versions.
 The following examples demonstrates how to create a pipeline that use the enrichment transform to enrich data from external services.
 
 {{< table >}}
-| Service                                       | Example                                                                                                                                                                    |
-|:----------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Google Cloud Bigtable                         | [Bigtable Enrichment](/documentation/transforms/python/elementwise/enrichment-bigtable/#example)                                                                           |
-| Google Cloud Vertex AI Feature Store          | [Vertex AI Feature Store Enrichment](/documentation/transforms/python/elementwise/enrichment-vertexai/#example-1-enrichment-with-vertex-ai-feature-store)                  |
-| Google Cloud Vertex AI Feature Store (Legacy) | [Vertex AI Feature Store (Legacy) Enrichment](/documentation/transforms/python/elementwise/enrichment-vertexai/#example-2-enrichment-with-vertex-ai-feature-store-legacy)  |
+| Service                            | Example                                                                                                                                                                      |
+|:-----------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Cloud Bigtable                     | [Enrichment with Bigtable](/documentation/transforms/python/elementwise/enrichment-bigtable/#example)                                                                        |
+| Vertex AI Feature Store            | [Enrichment with Vertex AI Feature Store](/documentation/transforms/python/elementwise/enrichment-vertexai/#example-1-enrichment-with-vertex-ai-feature-store)               |
+| Vertex AI Feature Store (Legacy)   | [Enrichment with Legacy Vertex AI Feature Store](/documentation/transforms/python/elementwise/enrichment-vertexai/#example-2-enrichment-with-vertex-ai-feature-store-legacy) |
 {{< /table >}}
 
 ## Related transforms
 
 Not applicable.
 
-{{< button-pydoc path="apache_beam.transforms" class="Enrichment" >}}
+{{< button-pydoc path="apache_beam.transforms.enrichment" class="Enrichment" >}}

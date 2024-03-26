@@ -38,12 +38,12 @@ The following example demonstrates how to create a pipeline that use the enrichm
 The precomputed feature values stored in Vertex AI Feature Store uses the following format.
 
 {{< table >}}
-| user_id  | age  | gender | state | country |
-|:--------:|:----:|:------:|:-----:|:-------:|
-|  21422   |  12  |   0    |   0   |    0    |
-|   2963   |  12  |   1    |   1   |    1    |
-|  20592   |  12  |   1    |   2   |    2    |
-|  76538   |  12  |   1    |   3   |    0    |
+| user_id  | age  | gender  | state | country |
+|:--------:|:----:|:-------:|:-----:|:-------:|
+|  21422   |  12  |    0    |   0   |    0    |
+|   2963   |  12  |    1    |   1   |    1    |
+|  20592   |  12  |    1    |   2   |    2    |
+|  76538   |  12  |    1    |   3   |    0    |
 {{< /table >}}
 
 
@@ -63,11 +63,11 @@ Output:
 The precomputed feature values stored in Vertex AI Feature Store (Legacy) uses the following format:
 
 {{< table >}}
-| entity_id |          title           | genres |
-|:---------:|:------------------------:|:------:|
-| movie_01  | The Shawshank Redemption | Drama  |
-| movie_02  |       The Shining        | Horror |
-| movie_04  |     The Dark Knight      | Action |
+| entity_id | title                    | genres  |
+|:----------|:-------------------------|:--------|
+| movie_01  | The Shawshank Redemption | Drama   |
+| movie_02  | The Shining              | Horror  |
+| movie_04  | The Dark Knight          | Action  |
 {{< /table >}}
 
 {{< highlight language="py" >}}
@@ -86,4 +86,4 @@ Output:
 
 Not applicable.
 
-{{< button-pydoc path="apache_beam.transforms" class="Enrichment" >}}
+{{< button-pydoc path="apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store" class="VertexAIFeatureStoreEnrichmentHandler" >}}
