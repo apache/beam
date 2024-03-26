@@ -25,15 +25,12 @@ import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingHand
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Utility methods to print the stack traces of all the threads. */
 @Internal
 public final class StackTraceUtil {
   private static final ImmutableSet<String> FRAMEWORK_CLASSES =
       ImmutableSet.of(SimpleDoFnRunner.class.getName(), DoFnInstanceManagers.class.getName());
-  private static final Logger LOG = LoggerFactory.getLogger(StackTraceUtil.class);
 
   public static String getStackTraceForLullMessage(StackTraceElement[] stackTrace) {
     StringBuilder message = new StringBuilder();

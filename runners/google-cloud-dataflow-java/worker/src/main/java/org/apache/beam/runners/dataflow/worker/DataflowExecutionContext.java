@@ -390,7 +390,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       // Since the lull reporting executes in the sampler thread, it won't automatically inherit the
       // context of the current step. To ensure things are logged correctly, we get the currently
       // registered DataflowWorkerLoggingHandler and log directly in the desired context.
-      LogRecord logRecord = new LogRecord(Level.WARNING, getBundleLullMessage(lullDuration));
+      LogRecord logRecord = new LogRecord(Level.WARNING, getBundleLullMessage(trackedThread, lullDuration));
       logRecord.setLoggerName(DataflowExecutionStateTracker.LOG.getName());
 
       // Publish directly in the context of this specific ExecutionState.
