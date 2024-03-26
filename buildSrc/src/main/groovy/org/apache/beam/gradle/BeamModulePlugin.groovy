@@ -2504,7 +2504,7 @@ class BeamModulePlugin implements Plugin<Project> {
         argsNeeded.add("--gcpRegion=${config.gcpRegion}")
       }
       if (config.gcsBucket) {
-        argsNeeded.add("--gcsBucket=${config.gcsBucket}")
+        argsNeeded.add("--gcsBucket=${config.gcsBucket}/${randomUUID().toString()}")
       }
       if (config.bqDataset) {
         argsNeeded.add("--bqDataset=${config.bqDataset}")
