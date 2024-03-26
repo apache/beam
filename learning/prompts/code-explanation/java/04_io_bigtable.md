@@ -136,7 +136,7 @@ The pipeline then applies a `ParDo` transform to process each `Row` read from th
                                              String timestamp = Instant.ofEpochMilli(cell.getTimestampMicros() / 1000).toString(format);
                                              String cellString = "\t\t\t Cell: " + cell.getValue().toStringUtf8()
                                                      + " at " + timestamp;
- 
+
                                              columnString.append("\n").append(cellString);
                                          }
                                          familyString.append("\n").append(columnString);
