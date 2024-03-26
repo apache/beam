@@ -1,15 +1,33 @@
+# Temp file for testing Join Implementation
+
 pipeline:
-  type: chain
   transforms:
     - type: Create
+      name: fruits
       config:
         elements:
-          - recipe: 'pie'
-            fruit: 'raspberry'
+          - id: 1
+            name: 'raspberry'
+          - id: 2
+            name: 'blackberry'
+    - type: Create
+      name: quantities
+      config:
+        elements:
+          - name: 'raspberry'
             quantity: 1
-            unit_price: 3.50
-          - recipe: 'pie'
-            fruit: 'blackberry'
-            quantity: 1
-            unit_price: 4.00
+          - name: 'blackberry'
+            quantity: 2
+          - name: 'blueberry'
+            quantity: 3
     - type: Join
+      input:
+        f: fruits
+        q: quantities
+      config:
+        type: inner
+        equalities:
+          - f: name
+            q: name
+    - type: LogForTesting
+      input: Join
