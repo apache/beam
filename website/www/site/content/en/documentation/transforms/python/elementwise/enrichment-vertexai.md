@@ -35,7 +35,7 @@ The following example demonstrates how to create a pipeline that use the enrichm
 
 ## Example 1: Enrichment with Vertex AI Feature Store
 
-The precomputed feature values stored in Vertex AI Feature Store uses the following format.
+The precomputed feature values stored in Vertex AI Feature Store uses the following format:
 
 {{< table >}}
 | user_id  | age  | gender  | state | country |
@@ -58,9 +58,9 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/enrichment_test.py" enrichment_with_vertex_ai >}}
 {{< /highlight >}}
 
-## Example 2: Enrichment with Vertex AI Feature Store (Legacy)
+## Example 2: Enrichment with Vertex AI Feature Store (legacy)
 
-The precomputed feature values stored in Vertex AI Feature Store (Legacy) uses the following format:
+The precomputed feature values stored in Vertex AI Feature Store (Legacy) use the following format:
 
 {{< table >}}
 | entity_id | title                    | genres  |

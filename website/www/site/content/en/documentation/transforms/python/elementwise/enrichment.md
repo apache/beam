@@ -36,7 +36,7 @@ This transform is available in Apache Beam 2.54.0 and later versions.
 
 ## Examples
 
-The following examples demonstrates how to create a pipeline that use the enrichment transform to enrich data from external services.
+The following examples demonstrate how to create a pipeline that use the enrichment transform to enrich data from external services.
 
 {{< table >}}
 | Service                            | Example                                                                                                                                                                      |
