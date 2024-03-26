@@ -630,7 +630,7 @@ public class AvroUtils {
   }
 
   private static class RowToAvroBytesFn extends SimpleFunction<Row, byte[]> {
-    private final transient org.apache.avro.Schema avroSchema;
+    private final org.apache.avro.Schema avroSchema;
     private final AvroCoder<GenericRecord> coder;
 
     RowToAvroBytesFn(Schema beamSchema) {
