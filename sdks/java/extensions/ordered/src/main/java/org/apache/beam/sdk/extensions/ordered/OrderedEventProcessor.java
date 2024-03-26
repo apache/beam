@@ -47,7 +47,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -143,9 +142,7 @@ public abstract class OrderedEventProcessor<
                         handler.getStatusUpdateFrequency(),
                         unprocessedEventOutput,
                         handler.isProduceStatusUpdateOnEveryEvent(),
-                        input.isBounded() == IsBounded.BOUNDED
-                            ? Integer.MAX_VALUE
-                            : handler.getMaxOutputElementsPerBundle()))
+                        handler.getMaxOutputElementsPerBundle()))
                 .withOutputTags(
                     mainOutput,
                     TupleTagList.of(Arrays.asList(statusOutput, unprocessedEventOutput))));
@@ -442,13 +439,7 @@ public abstract class OrderedEventProcessor<
         // First event of the key/window
         // What if it's a duplicate event - it will reset everything. Shall we drop/DLQ anything
         // that's before the processingState.lastOutputSequence?
-        try {
-          state = eventExaminer.createStateOnInitialEvent(currentEvent);
-        } catch (Exception e) {
-          // TODO: Handle exception in a better way - DLQ.
-          // Initial state creator can be pretty heavy - remote calls, etc..
-          throw new RuntimeException(e);
-        }
+        state = eventExaminer.createStateOnInitialEvent(currentEvent);
 
         processingState.eventAccepted(currentSequence, thisIsTheLastEvent);
 
@@ -503,7 +494,7 @@ public abstract class OrderedEventProcessor<
         return;
       }
 
-      if (exceededMaxResultCountForBundle(processingState, largeBatchEmissionTimer)) {
+      if (reachedMaxResultCountForBundle(processingState, largeBatchEmissionTimer)) {
         // No point in trying to process buffered events
         return;
       }
@@ -544,7 +535,7 @@ public abstract class OrderedEventProcessor<
 
         // This check needs to be done after we checked for sequence gap and before we
         // attempt to process the next element which can result in a new result.
-        if (exceededMaxResultCountForBundle(processingState, largeBatchEmissionTimer)) {
+        if (reachedMaxResultCountForBundle(processingState, largeBatchEmissionTimer)) {
           endClearRange = Instant.ofEpochMilli(eventSequence);
           break;
         }
@@ -563,7 +554,7 @@ public abstract class OrderedEventProcessor<
       bufferedEventsState.clearRange(startRange, endClearRange);
     }
 
-    private boolean exceededMaxResultCountForBundle(
+    private boolean reachedMaxResultCountForBundle(
         ProcessingState<EventKeyTypeT> processingState, Timer largeBatchEmissionTimer) {
       boolean exceeded =
           processingState.resultsProducedInBundle(numberOfResultsBeforeBundleStart)

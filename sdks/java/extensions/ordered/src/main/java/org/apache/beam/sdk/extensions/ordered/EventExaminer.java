@@ -56,7 +56,7 @@ public interface EventExaminer<EventT, StateT extends MutableState<EventT, ?>>
    * @param sequenceNumber of the event
    * @param event being processed
    * @return true if the last event. There are cases where it's impossible to know whether it's the
-   *     last event. True should be returned in those cases.
+   *     last event. False should be returned in those cases.
    */
   boolean isLastEvent(long sequenceNumber, EventT event);
 }
