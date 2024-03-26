@@ -188,6 +188,12 @@ import org.joda.time.Duration;
 })
 public class TextIO {
   private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
+  // The record count and buffering duration to trigger flushing records to a tmp file. Mainly
+  // used for writing unbounded data to avoid generating too many small files.
+  private static final int FILE_TRIGGERING_RECORD_COUNT = 100000;
+  private static final int FILE_TRIGGERING_BYTE_COUNT = 64 * 1024 * 1024; // 64MiB as of now
+  private static final Duration FILE_TRIGGERING_RECORD_BUFFERING_DURATION =
+      Duration.standardSeconds(5);
 
   /**
    * A {@link PTransform} that reads from one or more text files and returns a bounded {@link
@@ -278,6 +284,9 @@ public class TextIO {
         .setNoSpilling(false)
         .setSkipIfEmpty(false)
         .setAutoSharding(false)
+        .setFileTriggeringRecordCount(FILE_TRIGGERING_RECORD_COUNT)
+        .setFileTriggeringByteCount(FILE_TRIGGERING_BYTE_COUNT)
+        .setFileTriggeringRecordBufferingDuration(FILE_TRIGGERING_RECORD_BUFFERING_DURATION)
         .build();
   }
 
@@ -706,6 +715,12 @@ public class TextIO {
     /** Whether to enable autosharding. */
     abstract boolean getAutoSharding();
 
+    abstract int getFileTriggeringRecordCount();
+
+    abstract int getFileTriggeringByteCount();
+
+    abstract Duration getFileTriggeringRecordBufferingDuration();
+
     /** Whether to skip the spilling of data caused by having maxNumWritersPerBundle. */
     abstract boolean getNoSpilling();
 
@@ -760,6 +775,14 @@ public class TextIO {
       abstract Builder<UserT, DestinationT> setWindowedWrites(boolean windowedWrites);
 
       abstract Builder<UserT, DestinationT> setAutoSharding(boolean windowedWrites);
+
+      abstract Builder<UserT, DestinationT> setFileTriggeringRecordCount(
+          int fileTriggeringRecordCount);
+
+      abstract Builder<UserT, DestinationT> setFileTriggeringByteCount(int fileTriggeringByteCount);
+
+      abstract Builder<UserT, DestinationT> setFileTriggeringRecordBufferingDuration(
+          Duration fileTriggeringRecordBufferingDuration);
 
       abstract Builder<UserT, DestinationT> setNoSpilling(boolean noSpilling);
 
@@ -1009,6 +1032,23 @@ public class TextIO {
       return toBuilder().setAutoSharding(true).build();
     }
 
+    public TypedWrite<UserT, DestinationT> withFileTriggeringRecordCount(
+        int fileTriggeringRecordCount) {
+      return toBuilder().setFileTriggeringRecordCount(fileTriggeringRecordCount).build();
+    }
+
+    public TypedWrite<UserT, DestinationT> withFileTriggeringByteCount(
+        int fileTriggeringByteCount) {
+      return toBuilder().setFileTriggeringByteCount(fileTriggeringByteCount).build();
+    }
+
+    public TypedWrite<UserT, DestinationT> withFileTriggeringRecordBufferingDuration(
+        Duration fileTriggeringRecordBufferingDuration) {
+      return toBuilder()
+          .setFileTriggeringRecordBufferingDuration(fileTriggeringRecordBufferingDuration)
+          .build();
+    }
+
     /** See {@link WriteFiles#withNoSpilling()}. */
     public TypedWrite<UserT, DestinationT> withNoSpilling() {
       return toBuilder().setNoSpilling(true).build();
@@ -1125,7 +1165,6 @@ public class TextIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-
       resolveDynamicDestinations().populateDisplayData(builder);
       builder
           .addIfNotNull(
@@ -1284,6 +1323,20 @@ public class TextIO {
     /** See {@link TypedWrite#withAutoSharding}. */
     public Write withAutoSharding() {
       return new Write(inner.withAutoSharding());
+    }
+
+    public Write withFileTriggeringRecordCount(int fileTriggeringRecordCount) {
+      return new Write(inner.withFileTriggeringRecordCount(fileTriggeringRecordCount));
+    }
+
+    public Write withFileTriggeringByteCount(int fileTriggeringByteCount) {
+      return new Write(inner.withFileTriggeringByteCount(fileTriggeringByteCount));
+    }
+
+    public Write withFileTriggeringRecordBufferingDuration(
+        Duration fileTriggeringRecordBufferingDuration) {
+      return new Write(
+          inner.withFileTriggeringRecordBufferingDuration(fileTriggeringRecordBufferingDuration));
     }
 
     /** See {@link TypedWrite#withNoSpilling}. */

@@ -115,14 +115,6 @@ limitations under the License. See accompanying LICENSE file.
     {{ T "home-calendar-title" }}
   </h2>
   <div class="calendar-content">
-    <div class="calendar-card-big calendar-card-big-left">
-      <div class="desktop">
-        <a class="twitter-timeline" data-width="381" data-height="460"  href="https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw">Tweets by ApacheBeam</a>
-      </div>
-      <div class="mobile calendar-mobile--twitter">
-        <a class="twitter-timeline" data-width="381" data-height="348"  href="https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw">Tweets by ApacheBeam</a>
-      </div>
-    </div>
     <div class="calendar-card-box post">
       {{ range first 2 (where .Site.Pages.ByPublishDate.Reverse "Section" "blog") }}
       <a class="post-card" href="{{ .RelPermalink }}" data-categories="{{ with .Params.categories }}{{ if eq ( printf "%T" . ) "string" }}{{ . | replaceRE "[.]" "_" | urlize }}{{ else if eq ( printf "%T" . ) "[]string" }}{{ range . }}{{ . | replaceRE "[.]" "_" | urlize }} {{end}}{{end}}{{else}}no-author{{end}}"
@@ -156,17 +148,6 @@ limitations under the License. See accompanying LICENSE file.
       </div>
       </a>
       {{ end }}
-    </div>
-    <div class="calendar-card-big calendar-card-big-right">
-      <p class="calendar-card-event-title">{{ T "home-calendar-card-events-title" }}</p>
-      <div class="calendar-card-events">
-        <div class="calendar-desktop">
-          <iframe id='calendar' src="https://calendar.google.com/calendar/embed?src=r24up18ne2ddgl0t93flk0hsj8%40group.calendar.google.com" style="border: 0" width="333" height="320" frameborder="0" scrolling="no"></iframe>
-        </div>
-        <div class="calendar-mobile calendar-mobile--events">
-          <iframe id='calendar' src="https://calendar.google.com/calendar/embed?src=r24up18ne2ddgl0t93flk0hsj8%40group.calendar.google.com" style="border: 0" height="300" frameborder="0" scrolling="no"></iframe>
-        </div>
-      </div>
     </div>
   </div>
 </div>

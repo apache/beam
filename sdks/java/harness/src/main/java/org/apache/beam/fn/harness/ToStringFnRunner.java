@@ -21,8 +21,8 @@ import com.google.auto.service.AutoService;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.function.ThrowingFunction;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 

@@ -247,7 +247,6 @@ tasks.register("javaPreCommit") {
   dependsOn(":model:fn-execution:build")
   dependsOn(":model:job-management:build")
   dependsOn(":model:pipeline:build")
-  dependsOn(":runners:core-construction-java:build")
   dependsOn(":runners:core-java:build")
   dependsOn(":runners:direct-java:build")
   dependsOn(":runners:direct-java:needsRunnerTests")
@@ -293,7 +292,6 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:extensions:sorter:build")
   dependsOn(":sdks:java:extensions:timeseries:build")
   dependsOn(":sdks:java:extensions:zetasketch:build")
-  dependsOn(":sdks:java:fn-execution:build")
   dependsOn(":sdks:java:harness:build")
   dependsOn(":sdks:java:harness:jmh:build")
   dependsOn(":sdks:java:io:bigquery-io-perf-tests:build")
@@ -313,6 +311,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:testing:tpcds:build")
   dependsOn(":sdks:java:testing:watermarks:build")
   dependsOn(":sdks:java:transform-service:build")
+  dependsOn(":sdks:java:transform-service:app:build")
   dependsOn(":sdks:java:transform-service:launcher:build")
 }
 
@@ -505,6 +504,7 @@ tasks.register("python38PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py38:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py38:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py38:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:direct:py38:azureIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py38:postCommitPy38")
   // TODO: https://github.com/apache/beam/issues/22651
   // The default container uses Python 3.8. The goal here is to
@@ -517,7 +517,6 @@ tasks.register("python38PostCommit") {
 tasks.register("python39PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
   // TODO (https://github.com/apache/beam/issues/23966)
   // Move this to Python 3.10 test suite once tfx-bsl has python 3.10 wheel.
@@ -527,7 +526,6 @@ tasks.register("python39PostCommit") {
 tasks.register("python310PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py310:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py310:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py310:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
 }
 
@@ -646,6 +644,11 @@ tasks.register("checkSetup") {
   dependsOn(":sdks:go:examples:wordCount")
   dependsOn(":sdks:python:wordCount")
   dependsOn(":examples:java:wordCount")
+}
+
+// Generates external transform config
+project.tasks.register("generateExternalTransformsConfig") {
+  dependsOn(":sdks:python:generateExternalTransformsConfig")
 }
 
 // Configure the release plugin to do only local work; the release manager determines what, if

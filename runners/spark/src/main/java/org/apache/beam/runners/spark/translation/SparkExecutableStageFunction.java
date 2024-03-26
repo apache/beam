@@ -35,8 +35,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
-import org.apache.beam.runners.core.construction.Timer;
-import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
@@ -63,6 +61,8 @@ import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.broadcast.Broadcast;
@@ -71,7 +71,7 @@ import scala.Tuple2;
 
 /**
  * Spark function that passes its input through an SDK-executed {@link
- * org.apache.beam.runners.core.construction.graph.ExecutableStage}.
+ * org.apache.beam.sdk.util.construction.graph.ExecutableStage}.
  *
  * <p>The output of this operation is a multiplexed {@link Dataset} whose elements are tagged with a
  * union coder. The coder's tags are determined by {@link SparkExecutableStageFunction#outputMap}.

@@ -52,7 +52,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
-# [2.55.0] - Unreleased
+# [2.56.0] - Unreleased
 
 ## Highlights
 
@@ -77,7 +77,7 @@
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed locking issue when shutting down inactive bundle processors. Symptoms of this issue include slowness or stuckness in long-running jobs (Python) ([#30679](https://github.com/apache/beam/pull/30679)).
 
 ## Security Fixes
 * Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
@@ -86,12 +86,59 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.54.0] - Cut,Unreleased
+# [2.55.0] - 2024-03-25
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* The Python SDK will now include automatically generated wrappers for external Java transforms! ([#29834](https://github.com/apache/beam/pull/29834))
+
+## I/Os
+
+* Added support for handling bad records to BigQueryIO ([#30081](https://github.com/apache/beam/pull/30081)).
+  * Full Support for Storage Read and Write APIs
+  * Partial Support for File Loads (Failures writing to files supported, failures loading files to BQ unsupported)
+  * No Support for Extract or Streaming Inserts
+* Added support for handling bad records to PubSubIO ([#30372](https://github.com/apache/beam/pull/30372)).
+  * Support is not available for handling schema mismatches, and enabling error handling for writing to pubsub topics with schemas is not recommended
+* `--enableBundling` pipeline option for BigQueryIO DIRECT_READ is replaced by `--enableStorageReadApiV2`. Both were considered experimental and may subject to change (Java) ([#26354](https://github.com/apache/beam/issues/26354)).
+
+## New Features / Improvements
+
+* Allow writing clustered and not time partitioned BigQuery tables (Java) ([#30094](https://github.com/apache/beam/pull/30094)).
+* Redis cache support added to RequestResponseIO and Enrichment transform (Python) ([#30307](https://github.com/apache/beam/pull/30307))
+* Merged sdks/java/fn-execution and runners/core-construction-java into the main SDK. These artifacts were never meant for users, but noting
+  that they no longer exist. These are steps to bring portability into the core SDK alongside all other core functionality.
+* Added Vertex AI Feature Store handler for Enrichment transform (Python) ([#30388](https://github.com/apache/beam/pull/30388))
+
+## Breaking Changes
+
+* Arrow version was bumped to 15.0.0 from 5.0.0 ([#30181](https://github.com/apache/beam/pull/30181)).
+* Go SDK users who build custom worker containers may run into issues with the move to distroless containers as a base (see Security Fixes).
+  * The issue stems from distroless containers lacking additional tools, which current custom container processes may rely on.
+  * See https://beam.apache.org/documentation/runtime/environments/#from-scratch-go for instructions on building and using a custom container.
+* Python SDK has changed the default value for the `--max_cache_memory_usage_mb` pipeline option from 100 to 0. This option was first introduced in 2.52.0 SDK. This change restores the behavior of 2.51.0 SDK, which does not use the state cache. If your pipeline uses iterable side inputs views, consider increasing the cache size by setting the option manually. ([#30360](https://github.com/apache/beam/issues/30360)).
+
+## Bugfixes
+
+* Fixed SpannerIO.readChangeStream to support propagating credentials from pipeline options
+  to the getDialect calls for authenticating with Spanner (Java) ([#30361](https://github.com/apache/beam/pull/30361)).
+* Reduced the number of HTTP requests in GCSIO function calls (Python) ([#30205](https://github.com/apache/beam/pull/30205))
+
+## Security Fixes
+
+* Go SDK base container image moved to distroless/base-nossl-debian12, reducing vulnerable container surface to kernel and glibc ([#30011](https://github.com/apache/beam/pull/30011)).
+
+## Known Issues
+
+* In Python pipelines, when shutting down inactive bundle processors, shutdown logic can overaggressively hold the lock, blocking acceptance of new work. Symptoms of this issue include slowness or stuckness in long-running jobs. Fixed in 2.56.0 ([#30679](https://github.com/apache/beam/pull/30679)).
+
+# [2.54.0] - 2024-02-14
+
+## Highlights
+
+* [Enrichment Transform](https://s.apache.org/enrichment-transform) along with GCP BigTable handler added to Python SDK ([#30001](https://github.com/apache/beam/pull/30001)).
+* Beam Java Batch pipelines run on Google Cloud Dataflow will default to the Portable (Runner V2)[https://cloud.google.com/dataflow/docs/runner-v2] starting with this version. (All other languages are already on Runner V2.)
+    * This change is still rolling out to the Dataflow service, see (Runner V2 documentation)[https://cloud.google.com/dataflow/docs/runner-v2] for how to enable or disable it intentionally.
 
 ## I/Os
 
@@ -114,14 +161,17 @@
 
 ## Bugfixes
 
-* N/A
+* Fixed a memory leak affecting some Go SDK since 2.46.0. ([#28142](https://github.com/apache/beam/pull/28142))
 
 ## Security Fixes
+
 * N/A
 
 ## Known Issues
 
-* ([#X](https://github.com/apache/beam/issues/X)).
+* Some Python pipelines that run with 2.52.0-2.54.0 SDKs and use large materialized side inputs might be affected by a performance regression. To restore the prior behavior on these SDK versions, supply the `--max_cache_memory_usage_mb=0` pipeline option. ([#30360](https://github.com/apache/beam/issues/30360)).
+* Python pipelines that run with 2.53.0-2.54.0 SDKs and perform file operations on GCS might be affected by excess HTTP requests. This could lead to a performance regression or a permission issue. ([#28398](https://github.com/apache/beam/issues/28398))
+* In Python pipelines, when shutting down inactive bundle processors, shutdown logic can overaggressively hold the lock, blocking acceptance of new work. Symptoms of this issue include slowness or stuckness in long-running jobs. Fixed in 2.56.0 ([#30679](https://github.com/apache/beam/pull/30679)).
 
 # [2.53.0] - 2024-01-04
 
@@ -162,7 +212,10 @@
 
 ## Known Issues
 
-* ([#29987](https://github.com/apache/beam/issues/29987)).
+* Potential race condition causing NPE in DataflowExecutionStateSampler in Dataflow Java Streaming pipelines ([#29987](https://github.com/apache/beam/issues/29987)).
+* Some Python pipelines that run with 2.52.0-2.54.0 SDKs and use large materialized side inputs might be affected by a performance regression. To restore the prior behavior on these SDK versions, supply the `--max_cache_memory_usage_mb=0` pipeline option. ([#30360](https://github.com/apache/beam/issues/30360)).
+* Python pipelines that run with 2.53.0-2.54.0 SDKs and perform file operations on GCS might be affected by excess HTTP requests. This could lead to a performance regression or a permission issue. ([#28398](https://github.com/apache/beam/issues/28398))
+* In Python pipelines, when shutting down inactive bundle processors, shutdown logic can overaggressively hold the lock, blocking acceptance of new work. Symptoms of this issue include slowness or stuckness in long-running jobs. Fixed in 2.56.0 ([#30679](https://github.com/apache/beam/pull/30679)).
 
 # [2.52.0] - 2023-11-17
 
@@ -181,7 +234,7 @@ should handle this. ([#25252](https://github.com/apache/beam/issues/25252)).
   jobs using the DataStream API. By default the option is set to false, so the batch jobs are still executed
   using the DataSet API.
 * `upload_graph` as one of the Experiments options for DataflowRunner is no longer required when the graph is larger than 10MB for Java SDK ([PR#28621](https://github.com/apache/beam/pull/28621)).
-* state amd side input cache has been enabled to a default of 100 MB. Use `--max_cache_memory_usage_mb=X` to provide cache size for the user state API and side inputs. (Python) ([#28770](https://github.com/apache/beam/issues/28770)).
+* Introduced a pipeline option `--max_cache_memory_usage_mb` to configure state and side input cache size. The cache has been enabled to a default of 100 MB. Use `--max_cache_memory_usage_mb=X` to provide cache size for the user state API and side inputs. ([#28770](https://github.com/apache/beam/issues/28770)).
 * Beam YAML stable release. Beam pipelines can now be written using YAML and leverage the Beam YAML framework which includes a preliminary set of IO's and turnkey transforms. More information can be found in the YAML root folder and in the [README](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/README.md).
 
 
@@ -207,6 +260,7 @@ as a workaround, a copy of "old" `CountingSource` class should be placed into a 
 ## Known issues
 
 * MLTransform drops the identical elements in the output PCollection. For any duplicate elements, a single element will be emitted downstream. ([#29600](https://github.com/apache/beam/issues/29600)).
+* Some Python pipelines that run with 2.52.0-2.54.0 SDKs and use large materialized side inputs might be affected by a performance regression. To restore the prior behavior on these SDK versions, supply the `--max_cache_memory_usage_mb=0` pipeline option. (Python) ([#30360](https://github.com/apache/beam/issues/30360)).
 
 # [2.51.0] - 2023-10-03
 

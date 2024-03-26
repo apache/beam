@@ -37,7 +37,7 @@ complements the foundation-wide guides:
 A Beam release consists of the following:
 
  - ASF source zips archived on
-   [dist.apache.org](https://dist.apache.org/release/beam) (later archived to
+   [dist.apache.org](https://dist.apache.org/repos/dist/release/beam/) (later archived to
    [archive.apache.org](https://archive.apache.org/dist/beam)
  - Java jars and poms published to [Maven
    Central](https://mvnrepository.com/artifact/org.apache.beam)
@@ -564,11 +564,11 @@ The following should be confirmed:
 At
 [https://hub.docker.com/u/apache](https://hub.docker.com/search?q=apache%2Fbeam&type=image),
 visit each repository and navigate to "tags" tab.  Verify images are pushed
-with tags: `${RELEASE_VERSION}rc{RC_NUM}`
+with tags: `${RELEASE_VERSION}rc${RC_NUM}`
 
 Verify that third party licenses are included in Docker. You can do this with a simple script:
 
-    RC_TAG=${RELEASE_VERSION}rc{RC_NUM}
+    RC_TAG=${RELEASE_VERSION}rc${RC_NUM}
     for pyver in 3.8 3.9 3.10 3.11; do
       docker run --rm --entrypoint sh \
           apache/beam_python${pyver}_sdk:${RC_TAG} \
@@ -577,7 +577,7 @@ Verify that third party licenses are included in Docker. You can do this with a 
 
     for javaver in 8 11 17; do
       docker run --rm --entrypoint sh \
-          apache/beam_java${pyver}_sdk:${RC_TAG} \
+          apache/beam_java${javaver}_sdk:${RC_TAG} \
           -c 'ls -al /opt/apache/beam/third_party_licenses/ | wc -l'
     done
 
@@ -741,6 +741,8 @@ as an example.
 
     * {$KNOWN_ISSUE_1}
     * {$KNOWN_ISSUE_2}
+
+    For the most up to date list of known issues, see https://github.com/apache/beam/blob/master/CHANGES.md
 
     ## List of Contributors
 

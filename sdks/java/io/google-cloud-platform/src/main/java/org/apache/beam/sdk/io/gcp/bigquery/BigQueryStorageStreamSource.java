@@ -82,6 +82,12 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         readSession, newReadStream, jsonTableSchema, parseFn, outputCoder, bqServices);
   }
 
+  public BigQueryStorageStreamSource<T> fromExisting(
+      SerializableFunction<SchemaAndRecord, T> parseFn) {
+    return new BigQueryStorageStreamSource<>(
+        readSession, readStream, jsonTableSchema, parseFn, outputCoder, bqServices);
+  }
+
   private final ReadSession readSession;
   private final ReadStream readStream;
   private final String jsonTableSchema;
@@ -159,6 +165,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
     // Values used for progress reporting.
     private boolean splitPossible = true;
+    private boolean splitAllowed = true;
     private double fractionConsumed;
     private double progressAtResponseStart;
     private double progressAtResponseEnd;
@@ -193,6 +200,8 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       this.parseFn = source.parseFn;
       this.storageClient = source.bqServices.getStorageClient(options);
       this.tableSchema = fromJsonString(source.jsonTableSchema, TableSchema.class);
+      // number of stream determined from server side for storage read api v2
+      this.splitAllowed = !options.getEnableStorageReadApiV2();
       this.fractionConsumed = 0d;
       this.progressAtResponseStart = 0d;
       this.progressAtResponseEnd = 0d;
@@ -274,10 +283,6 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         reader.processReadRowsResponse(response);
       }
 
-      SchemaAndRecord schemaAndRecord = new SchemaAndRecord(reader.readSingleRecord(), tableSchema);
-
-      current = parseFn.apply(schemaAndRecord);
-
       // Updates the fraction consumed value. This value is calculated by interpolating between
       // the fraction consumed value from the previous server response (or zero if we're consuming
       // the first response) and the fractional value in the current response based on how many of
@@ -290,6 +295,10 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
                   * rowsConsumedFromCurrentResponse
                   * 1.0
                   / totalRowsInCurrentResponse;
+
+      SchemaAndRecord schemaAndRecord = new SchemaAndRecord(reader.readSingleRecord(), tableSchema);
+
+      current = parseFn.apply(schemaAndRecord);
 
       return true;
     }
@@ -335,7 +344,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         return null;
       }
 
-      if (!splitPossible) {
+      if (!splitPossible || !splitAllowed) {
         return null;
       }
 

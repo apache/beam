@@ -558,17 +558,42 @@ class YamlProviders:
   def create(elements: Iterable[Any], reshuffle: Optional[bool] = True):
     """Creates a collection containing a specified set of elements.
 
-    YAML/JSON-style mappings will be interpreted as Beam rows. For example::
+    This transform always produces schema'd data. For example::
 
         type: Create
-        elements:
-           - {first: 0, second: {str: "foo", values: [1, 2, 3]}}
+        config:
+          elements: [1, 2, 3]
+
+    will result in an output with three elements with a schema of
+    Row(element=int) whereas YAML/JSON-style mappings will be interpreted
+    directly as Beam rows, e.g.::
+
+        type: Create
+        config:
+          elements:
+             - {first: 0, second: {str: "foo", values: [1, 2, 3]}}
+             - {first: 1, second: {str: "bar", values: [4, 5, 6]}}
 
     will result in a schema of the form (int, Row(string, List[int])).
+
+    This can also be expressed as YAML::
+
+        type: Create
+        config:
+          elements:
+            - first: 0
+              second:
+                str: "foo"
+                 values: [1, 2, 3]
+            - first: 1
+              second:
+                str: "bar"
+                 values: [4, 5, 6]
 
     Args:
         elements: The set of elements that should belong to the PCollection.
             YAML/JSON-style mappings will be interpreted as Beam rows.
+            Primitives will be mapped to rows with a single "element" field.
         reshuffle: (optional) Whether to introduce a reshuffle (to possibly
             redistribute the work) if there is more than one element in the
             collection. Defaults to True.
@@ -601,6 +626,10 @@ class YamlProviders:
 
     can be used to access the transform
     `apache_beam.pkg.mod.SomeClass(1, 'foo', baz=3)`.
+
+    See also the documentation on
+    [Inlining
+    Python](https://beam.apache.org/documentation/sdks/yaml-inline-python/).
 
     Args:
         constructor: Fully qualified name of a callable used to construct the
@@ -726,6 +755,8 @@ class YamlProviders:
       elif window_type == 'sessions':
         window_fn = window.Sessions(
             YamlProviders.WindowInto._parse_duration(spec.pop('gap'), 'gap'))
+      else:
+        raise ValueError(f'Unknown window type {window_type}')
       if spec:
         raise ValueError(f'Unknown parameters {spec.keys()}')
       # TODO: Triggering, etc.
@@ -1008,9 +1039,15 @@ class RenamingProvider(Provider):
     missing = set(self._mappings[type].values()) - set(
         underlying_schema_fields.keys())
     if missing:
-      raise ValueError(
-          f"Mapping destinations {missing} for {type} are not in the "
-          f"underlying config schema {list(underlying_schema_fields.keys())}")
+      if 'kwargs' in underlying_schema_fields.keys():
+        # These are likely passed by keyword argument dict rather than missing.
+        for field_name in missing:
+          underlying_schema_fields[field_name] = schema_pb2.Field(
+              name=field_name, type=typing_to_runner_api(Any))
+      else:
+        raise ValueError(
+            f"Mapping destinations {missing} for {type} are not in the "
+            f"underlying config schema {list(underlying_schema_fields.keys())}")
 
     def with_name(
         original: schema_pb2.Field, new_name: str) -> schema_pb2.Field:

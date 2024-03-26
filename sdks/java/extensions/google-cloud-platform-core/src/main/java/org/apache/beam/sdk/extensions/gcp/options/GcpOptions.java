@@ -220,7 +220,6 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
           + " either a single service account as the impersonator, or a"
           + " comma-separated list of service accounts to create an"
           + " impersonation delegation chain.")
-  @JsonIgnore
   @Nullable
   String getImpersonateServiceAccount();
 
@@ -241,7 +240,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
 
   /**
    * Attempts to infer the default project based upon the environment this application is executing
-   * within. Currently this only supports getting the default project from gcloud.
+   * within. Currently this only supports getting the active project from gcloud.
    */
   class DefaultProjectFactory implements DefaultValueFactory<String> {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultProjectFactory.class);
@@ -256,9 +255,19 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
           configFile = new File(getEnvironment().get("APPDATA"), "gcloud/properties");
         } else {
           // New versions of gcloud use this file
+          String activeConfig;
+          File activeConfigFile =
+              new File(System.getProperty("user.home"), ".config/gcloud/active_config");
+          if (activeConfigFile.exists()) {
+            activeConfig =
+                Files.asCharSource(activeConfigFile, StandardCharsets.UTF_8).readFirstLine();
+          } else {
+            activeConfig = "default";
+          }
           configFile =
               new File(
-                  System.getProperty("user.home"), ".config/gcloud/configurations/config_default");
+                  System.getProperty("user.home"),
+                  ".config/gcloud/configurations/config_" + activeConfig);
           if (!configFile.exists()) {
             // Old versions of gcloud use this file
             configFile = new File(System.getProperty("user.home"), ".config/gcloud/properties");

@@ -660,6 +660,35 @@ public class TextIOWriteTest {
   }
 
   @Test
+  public void testAutoShardedWriteDisplayData() {
+    // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20467
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
+    TextIO.Write write =
+        TextIO.write()
+            .to("/foo")
+            .withSuffix("bar")
+            .withShardNameTemplate("-SS-of-NN-")
+            .withAutoSharding()
+            .withFileTriggeringByteCount(1000)
+            .withFileTriggeringRecordBufferingDuration(Duration.standardSeconds(5))
+            .withFileTriggeringRecordCount(100)
+            .withFooter("myFooter")
+            .withHeader("myHeader");
+
+    DisplayData displayData = DisplayData.from(write);
+
+    assertThat(displayData, hasDisplayItem("filePrefix", "/foo"));
+    assertThat(displayData, hasDisplayItem("fileSuffix", "bar"));
+    assertThat(displayData, hasDisplayItem("fileHeader", "myHeader"));
+    assertThat(displayData, hasDisplayItem("fileFooter", "myFooter"));
+    assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
+    assertThat(displayData, hasDisplayItem("triggeringByteCount", 1000));
+    assertThat(displayData, hasDisplayItem("triggeringRecordCount", 100));
+    assertThat(displayData, hasDisplayItem("triggeringRecordBufferingDuration", 5));
+    assertThat(displayData, hasDisplayItem("writableByteChannelFactory", "UNCOMPRESSED"));
+  }
+
+  @Test
   public void testWriteDisplayDataValidateThenHeader() {
     TextIO.Write write = TextIO.write().to("foo").withHeader("myHeader");
 

@@ -89,11 +89,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
   protected static final String DYNAMIC_DESTINATIONS = "DYNAMIC_DESTINATIONS";
 
   @Override
-  protected Class<BigQueryStorageWriteApiSchemaTransformConfiguration> configurationClass() {
-    return BigQueryStorageWriteApiSchemaTransformConfiguration.class;
-  }
-
-  @Override
   protected SchemaTransform from(
       BigQueryStorageWriteApiSchemaTransformConfiguration configuration) {
     return new BigQueryStorageWriteApiSchemaTransform(configuration);
@@ -382,13 +377,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
         Long triggeringFrequency = configuration.getTriggeringFrequencySeconds();
         Boolean autoSharding = configuration.getAutoSharding();
         int numStreams = configuration.getNumStreams() == null ? 0 : configuration.getNumStreams();
-
-        // TODO(https://github.com/apache/beam/issues/30058): remove once Dataflow supports multiple
-        // DoFn's per fused step.
-        if (numStreams < 1) {
-          throw new IllegalStateException(
-              "numStreams must be set to a positive integer when input data is unbounded.");
-        }
 
         boolean useAtLeastOnceSemantics =
             configuration.getUseAtLeastOnceSemantics() != null

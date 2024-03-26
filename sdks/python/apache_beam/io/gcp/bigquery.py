@@ -361,6 +361,7 @@ import itertools
 import json
 import logging
 import random
+import secrets
 import time
 import uuid
 import warnings
@@ -1097,7 +1098,16 @@ class _CustomBigQueryStorageSource(BoundedSource):
     bq = bigquery_tools.BigQueryWrapper.from_pipeline_options(
         self.pipeline_options)
     if self.table_reference is not None:
-      return self._get_table_size(bq, self.table_reference)
+      table_ref = self.table_reference
+      if (isinstance(self.table_reference, vp.ValueProvider) and
+          self.table_reference.is_accessible()):
+        table_ref = bigquery_tools.parse_table_reference(
+            self.table_reference.get(), project=self._get_project())
+      elif isinstance(self.table_reference, vp.ValueProvider):
+        # Size estimation is best effort. We return None as we have
+        # no access to the table that we're querying.
+        return None
+      return self._get_table_size(bq, table_ref)
     elif self.query is not None and self.query.is_accessible():
       query_job_name = bigquery_tools.generate_bq_job_name(
           self._job_name,
@@ -2177,13 +2187,11 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         def find_in_nested_dict(schema):
           for field in schema['fields']:
             if field['type'] == 'JSON':
-              raise ValueError(
-                  'Found JSON type in table schema. JSON data '
-                  'insertion is currently not supported with '
-                  'FILE_LOADS write method. This is supported with '
-                  'STREAMING_INSERTS. For more information: '
-                  'https://cloud.google.com/bigquery/docs/reference/'
-                  'standard-sql/json-data#ingest_json_data')
+              logging.warning(
+                  'Found JSON type in TableSchema for "File_LOADS" write '
+                  'method. Make sure the TableSchema field is a parsed '
+                  'JSON to ensure the read as a JSON type. Otherwise it '
+                  'will read as a raw (escaped) string.')
             elif field['type'] == 'STRUCT':
               find_in_nested_dict(field)
 
@@ -2707,9 +2715,8 @@ class ReadFromBigQuery(PTransform):
       representations,
       see: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
       To learn more about type conversions between BigQuery and Avro, see:
-      https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro\#avro_conversions
-    temp_dataset (``apache_beam.io.gcp.internal.clients.bigquery.\
-        DatasetReference``):
+      https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions
+    temp_dataset (``apache_beam.io.gcp.internal.clients.bigquery.DatasetReference``):
         Temporary dataset reference to use when reading from BigQuery using a
         query. When reading using a query, BigQuery source will create a
         temporary dataset and a temporary table to store the results of the
@@ -2925,8 +2932,9 @@ class ReadFromBigQueryRequest:
     self.table = table
     self.validate()
 
-    # We use this internal object ID to generate BigQuery export directories.
-    self.obj_id = random.randint(0, 100000)
+    # We use this internal object ID to generate BigQuery export directories
+    # and to create BigQuery job names
+    self.obj_id = '%d_%s' % (int(time.time()), secrets.token_hex(3))
 
   def validate(self):
     if self.table is not None and self.query is not None:

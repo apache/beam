@@ -151,10 +151,7 @@ class V1TestUtil {
     }
 
     DatastoreOptions.Builder builder =
-        new DatastoreOptions.Builder()
-            .projectId(projectId)
-            .databaseId(databaseId)
-            .initializer(initializer);
+        new DatastoreOptions.Builder().projectId(projectId).initializer(initializer);
 
     return DatastoreFactory.get().create(builder.build());
   }

@@ -1469,10 +1469,7 @@ public class FileIO {
         writeFiles = writeFiles.withWindowedWrites();
       }
       if (getAutoSharding()) {
-        writeFiles = writeFiles.withAutoSharding();
-        // Update autosharding related parameters
-        writeFiles =
-            writeFiles
+        writeFiles = writeFiles.withAutoSharding()
                 .withFileTriggeringByteCount(getFileTriggeringByteCount())
                 .withFileTriggeringRecordCount(getFileTriggeringRecordCount())
                 .withFileTriggeringRecordBufferingDuration(

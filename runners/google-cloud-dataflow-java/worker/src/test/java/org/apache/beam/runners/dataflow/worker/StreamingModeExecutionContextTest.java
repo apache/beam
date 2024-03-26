@@ -90,7 +90,7 @@ public class StreamingModeExecutionContextTest {
   @Mock private WindmillStateReader stateReader;
 
   private final StreamingModeExecutionStateRegistry executionStateRegistry =
-      new StreamingModeExecutionStateRegistry(null);
+      new StreamingModeExecutionStateRegistry();
   private StreamingModeExecutionContext executionContext;
   DataflowWorkerHarnessOptions options;
 
@@ -107,7 +107,7 @@ public class StreamingModeExecutionContextTest {
             "computationId",
             new ReaderCache(Duration.standardMinutes(1), Executors.newCachedThreadPool()),
             stateNameMap,
-            new WindmillStateCache(options.getWorkerCacheMb()).forComputation("comp"),
+            WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb()).forComputation("comp"),
             StreamingStepMetricsContainer.createRegistry(),
             new DataflowExecutionStateTracker(
                 ExecutionStateSampler.newForTest(),
@@ -316,11 +316,7 @@ public class StreamingModeExecutionContextTest {
 
     StreamingModeExecutionState state =
         new StreamingModeExecutionState(
-            NameContextsForTests.nameContextForTest(),
-            "testState",
-            null,
-            NoopProfileScope.NOOP,
-            null);
+            NameContextsForTests.nameContextForTest(), "testState", null, NoopProfileScope.NOOP);
     ExecutorService executor = Executors.newFixedThreadPool(2);
     AtomicBoolean doneWriting = new AtomicBoolean(false);
 
@@ -359,11 +355,7 @@ public class StreamingModeExecutionContextTest {
     // reach the reading thread.
     StreamingModeExecutionState state =
         new StreamingModeExecutionState(
-            NameContextsForTests.nameContextForTest(),
-            "testState",
-            null,
-            NoopProfileScope.NOOP,
-            null);
+            NameContextsForTests.nameContextForTest(), "testState", null, NoopProfileScope.NOOP);
     ExecutionStateSampler sampler = ExecutionStateSampler.newForTest();
     try {
       sampler.start();

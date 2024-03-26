@@ -72,6 +72,7 @@ dependencies {
   }
   testImplementation library.java.avro_tests
   testImplementation library.java.junit
+  testImplementation "org.tukaani:xz:1.9" // marked as optional in avro
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   testRuntimeOnly library.java.slf4j_jdk14
   avroVersions.each { k,v ->
@@ -100,9 +101,9 @@ avroVersions.each { k, v ->
       }
 
       // only use compileClasspath on purpose to not include generated test files
-      // will recompile with the propper generated sources
-      compileClasspath += configurations."avroVersion$k"
-      runtimeClasspath += configurations."avroVersion$k"
+      // will recompile with the proper generated sources
+      compileClasspath += sourceSets.main.output + configurations."avroVersion$k"
+      runtimeClasspath += sourceSets.main.output + configurations."avroVersion$k"
     }
   }
 

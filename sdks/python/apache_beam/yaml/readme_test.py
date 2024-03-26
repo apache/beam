@@ -119,7 +119,10 @@ class FakeWriteToPubSub(beam.PTransform):
     return pcoll
 
 
-class SomeAggregation(beam.PTransform):
+class FakeAggregation(beam.PTransform):
+  def __init__(self, **unused_kwargs):
+    pass
+
   def expand(self, pcoll):
     return pcoll | beam.GroupBy(lambda _: 'key').aggregate_field(
         lambda _: 1, sum, 'count')
@@ -130,7 +133,7 @@ TEST_TRANSFORMS = {
     'Sql': FakeSql,
     'ReadFromPubSub': FakeReadFromPubSub,
     'WriteToPubSub': FakeWriteToPubSub,
-    'SomeAggregation': SomeAggregation,
+    'SomeGroupingTransform': FakeAggregation,
 }
 
 
@@ -189,9 +192,9 @@ def replace_recursive(spec, transform_type, arg_name, arg_value):
 
 def create_test_method(test_type, test_name, test_yaml):
   test_yaml = test_yaml.replace(
-      'pkg.module.', 'apache_beam.yaml.readme_test._Fakes.')
-  test_yaml = test_yaml.replace(
       'apache_beam.pkg.module.', 'apache_beam.yaml.readme_test._Fakes.')
+  test_yaml = test_yaml.replace(
+      'pkg.module.', 'apache_beam.yaml.readme_test._Fakes.')
 
   def test(self):
     with TestEnvironment() as env:
@@ -202,6 +205,8 @@ def create_test_method(test_type, test_name, test_yaml):
         return
       if 'ReadFromCsv' in test_yaml:
         spec = replace_recursive(spec, 'ReadFromCsv', 'path', env.input_csv())
+      if 'ReadFromText' in test_yaml:
+        spec = replace_recursive(spec, 'ReadFromText', 'path', env.input_csv())
       if 'ReadFromJson' in test_yaml:
         spec = replace_recursive(spec, 'ReadFromJson', 'path', env.input_json())
       for write in ['WriteToText', 'WriteToCsv', 'WriteToJson']:
@@ -284,19 +289,24 @@ class _Fakes:
       return pcoll
 
 
+# These are copied from $ROOT/website/www/site/content/en/documentation/sdks
+# at build time.
+YAML_DOCS_DIR = os.path.join(os.path.join(os.path.dirname(__file__), 'docs'))
+
 ReadMeTest = createTestSuite(
-    'ReadMeTest', os.path.join(os.path.dirname(__file__), 'README.md'))
+    'ReadMeTest', os.path.join(YAML_DOCS_DIR, 'yaml.md'))
 
 ErrorHandlingTest = createTestSuite(
-    'ErrorHandlingTest',
-    os.path.join(os.path.dirname(__file__), 'yaml_errors.md'))
+    'ErrorHandlingTest', os.path.join(YAML_DOCS_DIR, 'yaml-errors.md'))
+
+MappingTest = createTestSuite(
+    'MappingTest', os.path.join(YAML_DOCS_DIR, 'yaml-udf.md'))
 
 CombineTest = createTestSuite(
-    'CombineTest', os.path.join(os.path.dirname(__file__), 'yaml_combine.md'))
+    'CombineTest', os.path.join(YAML_DOCS_DIR, 'yaml-combine.md'))
 
 InlinePythonTest = createTestSuite(
-    'InlinePythonTest',
-    os.path.join(os.path.dirname(__file__), 'inline_python.md'))
+    'InlinePythonTest', os.path.join(YAML_DOCS_DIR, 'yaml-inline-python.md'))
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()

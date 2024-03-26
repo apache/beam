@@ -81,7 +81,7 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     Map<MetricName, Long> counters = new HashMap<MetricName, Long>();
     MetricName bigQueryMetric1 = MetricName.named("BigQuerySink", "metric1");
     MetricName bigQueryMetric2 =
-        MetricName.named("BigQuerySink", "metric2-label1:val1;label2:val2;");
+        MetricName.named("BigQuerySink", "metric2*label1:val1;label2:val2;");
     MetricName bigQueryMetric3 = MetricName.named("BigQuerySink", "zeroValue");
 
     counters.put(bigQueryMetric1, 5L);
@@ -112,14 +112,14 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
   @Test
   public void testConvert_skipInvalidMetricNames() {
     Map<MetricName, Long> counters = new HashMap<>();
-    MetricName bigQueryMetric1 = MetricName.named("BigQuerySink", "invalid-metric-name1");
-    counters.put(bigQueryMetric1, 5L);
+    MetricName invalidName1 = MetricName.named("BigQuerySink", "**");
+    counters.put(invalidName1, 5L);
 
     Map<MetricName, HistogramData> histograms = new HashMap<>();
-    MetricName bigQueryMetric2 = MetricName.named("BigQuerySink", "invalid-metric-name2");
+    MetricName invalidName2 = MetricName.named("BigQuerySink", "****");
     HistogramData nonEmptyLinearHistogram = HistogramData.linear(0, 10, 10);
     nonEmptyLinearHistogram.record(-5.0);
-    histograms.put(bigQueryMetric2, nonEmptyLinearHistogram);
+    histograms.put(invalidName2, nonEmptyLinearHistogram);
 
     Collection<PerStepNamespaceMetrics> conversionResult =
         MetricsToPerStepNamespaceMetricsConverter.convert("testStep", counters, histograms);
@@ -131,7 +131,7 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     Map<MetricName, HistogramData> histograms = new HashMap<MetricName, HistogramData>();
     MetricName bigQueryMetric1 = MetricName.named("BigQuerySink", "baseLabel");
     MetricName bigQueryMetric2 =
-        MetricName.named("BigQuerySink", "baseLabel-label1:val1;label2:val2;");
+        MetricName.named("BigQuerySink", "baseLabel*label1:val1;label2:val2;");
     MetricName bigQueryMetric3 = MetricName.named("BigQuerySink", "zeroValue");
 
     HistogramData nonEmptyLinearHistogram = HistogramData.linear(0, 10, 10);
@@ -235,10 +235,10 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     Map<MetricName, Long> counters = new HashMap<>();
     Map<MetricName, HistogramData> histograms = new HashMap<MetricName, HistogramData>();
 
-    MetricName counterMetricName = MetricName.named("BigQuerySink", "counter-label1:val1;");
+    MetricName counterMetricName = MetricName.named("BigQuerySink", "counter*label1:val1;");
     counters.put(counterMetricName, 3L);
 
-    MetricName histogramMetricName = MetricName.named("BigQuerySink", "histogram-label2:val2;");
+    MetricName histogramMetricName = MetricName.named("BigQuerySink", "histogram*label2:val2;");
     HistogramData linearHistogram = HistogramData.linear(0, 10, 10);
     linearHistogram.record(5.0);
     histograms.put(histogramMetricName, linearHistogram);
@@ -258,18 +258,11 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     Linear linearOptions1 = new Linear().setNumberOfBuckets(10).setWidth(10.0).setStart(0.0);
     BucketOptions bucketOptions1 = new BucketOptions().setLinear(linearOptions1);
 
-    OutlierStats outlierStats1 =
-        new OutlierStats()
-            .setUnderflowCount(0L)
-            .setUnderflowMean(0.0)
-            .setOverflowCount(0L)
-            .setOverflowMean(0.0);
     DataflowHistogramValue linearHistogram1 =
         new DataflowHistogramValue()
             .setCount(1L)
             .setBucketOptions(bucketOptions1)
-            .setBucketCounts(bucketCounts1)
-            .setOutlierStats(outlierStats1);
+            .setBucketCounts(bucketCounts1);
 
     Map<String, String> histogramLabelMap = new HashMap<>();
     histogramLabelMap.put("label2", "val2");

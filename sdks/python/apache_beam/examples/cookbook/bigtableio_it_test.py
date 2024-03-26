@@ -174,9 +174,7 @@ class BigtableIOWriteTest(unittest.TestCase):
     if self.instance.exists():
       self.instance.delete()
 
-  # TODO(https://github.com/apache/beam/issues/29076): Reenable this test
-  # once BigTable issues are fixed.
-  @pytest.mark.it_postcommit_sickbay
+  @pytest.mark.it_postcommit
   def test_bigtable_write(self):
     number = self.number
     pipeline_args = self.test_pipeline.options_list

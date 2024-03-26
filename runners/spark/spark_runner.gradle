@@ -159,7 +159,6 @@ spark.components = [
 dependencies {
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation project(":runners:core-construction-java")
   implementation project(":runners:core-java")
   implementation project(":runners:java-fn-execution")
   implementation project(":runners:java-job-service")
@@ -172,7 +171,6 @@ dependencies {
   implementation library.java.args4j
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
-  implementation project(":sdks:java:fn-execution")
   implementation library.java.vendored_grpc_1_60_1
   implementation library.java.vendored_guava_32_1_2_jre
   spark.components.each { component ->
@@ -276,8 +274,7 @@ def applyBatchValidatesRunnerSetup = { Test it ->
     // SDF
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
-    excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     // Ordering
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
@@ -351,8 +348,7 @@ def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) 
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
     // Portability
-    excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     // Ordering
     excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
@@ -407,8 +403,7 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
     // SDF
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
-    excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
   }

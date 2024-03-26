@@ -33,6 +33,7 @@ public class BoundedQueueExecutor {
   private final ThreadPoolExecutor executor;
   private final int maximumElementsOutstanding;
   private final long maximumBytesOutstanding;
+  private final int maximumPoolSize;
 
   private final Monitor monitor = new Monitor();
   private int elementsOutstanding = 0;
@@ -48,6 +49,7 @@ public class BoundedQueueExecutor {
       int maximumElementsOutstanding,
       long maximumBytesOutstanding,
       ThreadFactory threadFactory) {
+    this.maximumPoolSize = maximumPoolSize;
     executor =
         new ThreadPoolExecutor(
             maximumPoolSize,
@@ -137,6 +139,10 @@ public class BoundedQueueExecutor {
 
   public int maximumElementsOutstanding() {
     return maximumElementsOutstanding;
+  }
+
+  public final int getMaximumPoolSize() {
+    return maximumPoolSize;
   }
 
   public String summaryHtml() {

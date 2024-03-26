@@ -77,12 +77,15 @@ class Timestamp(object):
       Corresponding Timestamp object.
     """
 
-    if not isinstance(seconds, (int, float, Timestamp)):
-      raise TypeError(
-          'Cannot interpret %s %s as Timestamp.' % (seconds, type(seconds)))
     if isinstance(seconds, Timestamp):
       return seconds
-    return Timestamp(seconds)
+    elif isinstance(seconds, (int, float)):
+      return Timestamp(seconds)
+    elif isinstance(seconds, datetime.datetime):
+      return Timestamp.from_utc_datetime(seconds)
+    else:
+      raise TypeError(
+          'Cannot interpret %s %s as Timestamp.' % (seconds, type(seconds)))
 
   @staticmethod
   def now():
@@ -142,6 +145,12 @@ class Timestamp(object):
 
     """Returns the largest timestamp smaller than self."""
     return Timestamp(micros=self.micros - 1)
+
+  def successor(self):
+    # type: () -> Timestamp
+
+    """Returns the smallest timestamp larger than self."""
+    return Timestamp(micros=self.micros + 1)
 
   def __repr__(self):
     # type: () -> str

@@ -5,8 +5,8 @@ In Apache Beam, a [Timer](https://beam.apache.org/documentation/basics/#state-an
 
 Apache Beam provides two [types of timers](https://beam.apache.org/documentation/programming-guide/#timers): processing time timers and event time timers. Processing time timers are based on the system clock. Event time timers are based on the timestamps of the data elements.
 
-Beam also supports dynamically setting a timer tag using `TimerMap` in the Java SDK. This feature lets you set multiple different timers in a `DoFn`. You can set the timer tags to be chosen dynamically chosen, for example, based on data in the input elements.
+Beam also supports dynamically setting a timer tag using `TimerMap` in the Java SDK. This feature lets you set multiple different timers in a `DoFn`. You can set the timer tags to be chosen dynamically, for example, based on data in the input elements.
 
 For more information, see the community blog post about [Timely Processing](https://beam.apache.org/blog/timely-processing/).
 
-For additional examples of using timers in Apache Beam see [State and Time examples](https://beam.apache.org/documentation/programming-guide/#state-timers-examples).
+For additional examples of using timers in Apache Beam, see [State and Timers examples](https://beam.apache.org/documentation/programming-guide/#state-timers-examples).

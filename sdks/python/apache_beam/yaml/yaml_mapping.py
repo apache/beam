@@ -42,6 +42,7 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import row_type
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
+from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.utils import python_callable
 from apache_beam.yaml import json_utils
@@ -319,10 +320,14 @@ def exception_handling_args(error_handling_spec):
     return None
 
 
-def _map_errors_to_standard_format():
+def _map_errors_to_standard_format(input_type):
   # TODO(https://github.com/apache/beam/issues/24755): Switch to MapTuple.
+
   return beam.Map(
-      lambda x: beam.Row(element=x[0], msg=str(x[1][1]), stack=str(x[1][2])))
+      lambda x: beam.Row(element=x[0], msg=str(x[1][1]), stack=str(x[1][2]))
+  ).with_output_types(
+      RowTypeConstraint.from_fields([("element", input_type), ("msg", str),
+                                     ("stack", str)]))
 
 
 def maybe_with_exception_handling(inner_expand):
@@ -330,7 +335,7 @@ def maybe_with_exception_handling(inner_expand):
     wrapped_pcoll = beam.core._MaybePValueWithErrors(
         pcoll, self._exception_handling_args)
     return inner_expand(self, wrapped_pcoll).as_result(
-        _map_errors_to_standard_format())
+        _map_errors_to_standard_format(pcoll.element_type))
 
   return expand
 
@@ -340,8 +345,8 @@ def maybe_with_exception_handling_transform_fn(transform_fn):
   def expand(pcoll, error_handling=None, **kwargs):
     wrapped_pcoll = beam.core._MaybePValueWithErrors(
         pcoll, exception_handling_args(error_handling))
-    return transform_fn(wrapped_pcoll,
-                        **kwargs).as_result(_map_errors_to_standard_format())
+    return transform_fn(wrapped_pcoll, **kwargs).as_result(
+        _map_errors_to_standard_format(pcoll.element_type))
 
   original_signature = inspect.signature(transform_fn)
   new_parameters = list(original_signature.parameters.values())
@@ -369,6 +374,9 @@ class _Explode(beam.PTransform):
 
   This is akin to a `FlatMap` when paired with the MapToFields transform.
 
+  See more complete documentation on
+  [YAML Mapping Functions](https://beam.apache.org/documentation/sdks/yaml-udf/#flatmap).
+
   Args:
       fields: The list of fields to expand.
       cross_product: If multiple fields are specified, indicates whether the
@@ -381,7 +389,8 @@ class _Explode(beam.PTransform):
           `('a', 1)` and `('b', 2)` when it is set to `false`.
           Only meaningful (and required) if multiple rows are specified.
       error_handling: Whether and how to handle errors during iteration.
-  """
+  """  # pylint: disable=line-too-long
+
   def __init__(
       self,
       fields: Union[str, Collection[str]],
@@ -454,6 +463,11 @@ class _Explode(beam.PTransform):
 @maybe_with_exception_handling_transform_fn
 def _PyJsFilter(
     pcoll, keep: Union[str, Dict[str, str]], language: Optional[str] = None):
+  """Keeps only records that satisfy the given criteria.
+
+  See more complete documentation on
+  [YAML Filtering](https://beam.apache.org/documentation/sdks/yaml-udf/#filtering).
+  """  # pylint: disable=line-too-long
   keep_fn = _as_callable_for_pcoll(pcoll, keep, "keep", language)
   return pcoll | beam.Filter(keep_fn)
 
@@ -510,6 +524,11 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
 @beam.ptransform.ptransform_fn
 @maybe_with_exception_handling_transform_fn
 def _PyJsMapToFields(pcoll, language='generic', **mapping_args):
+  """Creates records with new fields defined in terms of the input fields.
+
+  See more complete documentation on
+  [YAML Mapping Functions](https://beam.apache.org/documentation/sdks/yaml-udf/#mapping-functions).
+  """  # pylint: disable=line-too-long
   input_schema, fields = normalize_fields(
       pcoll, language=language, **mapping_args)
   if language == 'javascript':
@@ -551,10 +570,26 @@ def _SqlMapToFieldsTransform(pcoll, sql_transform_constructor, **mapping_args):
 
 
 @beam.ptransform.ptransform_fn
+@maybe_with_exception_handling_transform_fn
 def _AssignTimestamps(
     pcoll,
     timestamp: Union[str, Dict[str, str]],
     language: Optional[str] = None):
+  """Assigns a new timestamp each element of its input.
+
+  This can be useful when reading records that have the timestamp embedded
+  in them, for example with various file types or other sources that by default
+  set all timestamps to the infinite past.
+
+  Note that the timestamp should only be set forward, as setting it backwards
+  may not cause it to hold back an already advanced watermark and the data
+  could become droppably late.
+
+  Args:
+      timestamp: A field, callable, or expression giving the new timestamp.
+      language: The language of the timestamp expression.
+      error_handling: Whether and how to handle errors during iteration.
+  """
   timestamp_fn = _as_callable_for_pcoll(pcoll, timestamp, 'timestamp', language)
   T = TypeVar('T')
   return pcoll | beam.Map(lambda x: TimestampedValue(x, timestamp_fn(x))

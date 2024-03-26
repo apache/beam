@@ -69,6 +69,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
@@ -710,14 +711,18 @@ public class BigQueryUtils {
                 + fieldType
                 + "' because the BigQuery type is a List, while the output type is not a collection.");
       }
-      boolean innerTypeIsMap =
-          fieldType.getCollectionElementType().getTypeName().equals(TypeName.MAP);
+
+      boolean innerTypeIsMap = fieldType.getCollectionElementType().getTypeName().isMapType();
 
       return ((List<Object>) jsonBQValue)
           .stream()
+              // Old BigQuery client returns arrays as lists of maps {"v": <value>}.
+              // If this is the case, unwrap the value first
               .map(
                   v ->
-                      (!innerTypeIsMap && v instanceof Map)
+                      (!innerTypeIsMap
+                              && v instanceof Map
+                              && ((Map<String, Object>) v).keySet().equals(Sets.newHashSet("v")))
                           ? ((Map<String, Object>) v).get("v")
                           : v)
               .map(v -> toBeamValue(field.withType(fieldType.getCollectionElementType()), v))

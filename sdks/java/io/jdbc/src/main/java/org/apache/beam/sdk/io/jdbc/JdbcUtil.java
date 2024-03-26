@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -58,6 +59,7 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -74,6 +76,23 @@ import org.slf4j.LoggerFactory;
 class JdbcUtil {
 
   private static final Logger LOG = LoggerFactory.getLogger(JdbcUtil.class);
+
+  static final Map<String, String> JDBC_DRIVER_MAP =
+      new HashMap<>(
+          ImmutableMap.of(
+              "mysql",
+              "com.mysql.cj.jdbc.Driver",
+              "postgres",
+              "org.postgresql.Driver",
+              "oracle",
+              "oracle.jdbc.driver.OracleDriver",
+              "mssql",
+              "com.microsoft.sqlserver.jdbc.SQLServerDriver"));
+
+  @VisibleForTesting
+  static void registerJdbcDriver(Map<String, String> jdbcType) {
+    JDBC_DRIVER_MAP.putAll(jdbcType);
+  }
 
   /** Utility method to save jar files locally in the worker. */
   static URL[] saveFilesLocally(String driverJars) {

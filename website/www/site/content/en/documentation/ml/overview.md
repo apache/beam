@@ -35,8 +35,6 @@ limitations under the License.
 
 Being productive and successful as a machine learning practitioner is often dependent on your ability to efficiently leverage large volumes of data in a way that is uniquely tailored to your resources, requirements, and budget. Whether starting your next AI/ML project or upscaling an existing project, consider adding Apache Beam to your project.
 
-<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/ga2TNdrFRoU" frameborder="0" allowfullscreen></iframe>
-
 ## Use Beam ML
 
 I want use Beam ML to do:
@@ -90,7 +88,8 @@ You can use Apache Beam for data validation and preprocessing by setting up data
 | Task | Example |
 | ------- | ---------------|
 | I want to transform my data for preprocessing| [Preprocess data with MLTransform](/documentation/ml/preprocess-data) |
-| I want to explore my data | [Data exploration workflow and example](/documentation/ml/data-processing) |:
+| I want to explore my data | [Data exploration workflow and example](/documentation/ml/data-processing) |
+| I want to enrich my data | [Data enrichment wth Enrichment transform](https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/beam-ml/bigtable_enrichment_transform.ipynb) |:
 {{< /table >}}
 
 

@@ -63,7 +63,7 @@ public class DataflowWorkerHarnessHelperTest {
 
     DataflowWorkerHarnessOptions generatedOptions =
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
-            DataflowBatchWorkerHarnessTest.class);
+            DataflowBatchWorkerHarnessTest.class, DataflowWorkerHarnessOptions.class);
     // Assert that the returned options are correct.
     assertThat(generatedOptions.getJobId(), equalTo(JOB_ID));
     assertThat(generatedOptions.getWorkerId(), equalTo(WORKER_ID));
@@ -87,5 +87,32 @@ public class DataflowWorkerHarnessHelperTest {
   @Test
   public void testParseStatusApiDescriptor() throws TextFormat.ParseException {
     assertNull(DataflowWorkerHarnessHelper.getStatusDescriptor());
+  }
+
+  @Test
+  public void testStreamingStreamingConfiguration() throws Exception {
+    DataflowWorkerHarnessOptions pipelineOptions =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    pipelineOptions.setJobId(JOB_ID);
+    pipelineOptions.setWorkerId(WORKER_ID);
+    int activeWorkRefreshPeriodMillis = 12345;
+    pipelineOptions.setActiveWorkRefreshPeriodMillis(activeWorkRefreshPeriodMillis);
+    int stuckCommitDurationMillis = 23456;
+    pipelineOptions.setStuckCommitDurationMillis(stuckCommitDurationMillis);
+    String serializedOptions = new ObjectMapper().writeValueAsString(pipelineOptions);
+    File file = tmpFolder.newFile();
+    Files.write(Paths.get(file.getPath()), serializedOptions.getBytes(StandardCharsets.UTF_8));
+    System.setProperty("sdk_pipeline_options_file", file.getPath());
+
+    DataflowWorkerHarnessOptions generatedOptions =
+        DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
+            DataflowBatchWorkerHarnessTest.class, DataflowWorkerHarnessOptions.class);
+    // Assert that the returned options are correct.
+    assertThat(generatedOptions.getJobId(), equalTo(JOB_ID));
+    assertThat(generatedOptions.getWorkerId(), equalTo(WORKER_ID));
+    assertThat(
+        generatedOptions.getActiveWorkRefreshPeriodMillis(),
+        equalTo(activeWorkRefreshPeriodMillis));
+    assertThat(generatedOptions.getStuckCommitDurationMillis(), equalTo(stuckCommitDurationMillis));
   }
 }

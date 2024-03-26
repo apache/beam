@@ -396,9 +396,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       int fileTriggeringByteCount) {
     return toBuilder().setFileTriggeringByteCount(fileTriggeringByteCount).build();
   }
-                                                  
+
   public WriteFiles<UserT, DestinationT, OutputT> withFileTriggeringRecordBufferingDuration(
-     Duration fileTriggeringRecordBufferingDuration) {
+      Duration fileTriggeringRecordBufferingDuration) {
     return toBuilder()
         .setFileTriggeringRecordBufferingDuration(fileTriggeringRecordBufferingDuration)
         .build();
@@ -500,6 +500,15 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       builder.addIfNotNull(
           DisplayData.item("numShards", getNumShardsProvider())
               .withLabel("Fixed Number of Shards"));
+    }
+    if (getWithAutoSharding()) {
+      builder
+          .add(DisplayData.item("triggeringByteCount", getFileTriggeringByteCount()))
+          .add(DisplayData.item("triggeringRecordCount", getFileTriggeringRecordCount()))
+          .add(
+              DisplayData.item(
+                  "triggeringRecordBufferingDuration",
+                  getFileTriggeringRecordBufferingDuration().getStandardSeconds()));
     }
   }
 
