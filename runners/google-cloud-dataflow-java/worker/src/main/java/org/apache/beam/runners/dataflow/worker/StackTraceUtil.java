@@ -17,12 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
 import org.apache.beam.runners.core.SimpleDoFnRunner;
-import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingHandler;
-import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 

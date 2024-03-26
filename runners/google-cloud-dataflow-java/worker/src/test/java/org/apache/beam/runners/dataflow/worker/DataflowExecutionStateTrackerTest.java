@@ -21,6 +21,7 @@ import static junit.framework.TestCase.assertNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.google.api.client.testing.http.FixedClock;
 import com.google.api.client.util.Clock;
@@ -30,8 +31,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import org.apache.beam.runners.core.SimpleDoFnRunner;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
@@ -172,13 +171,13 @@ public class DataflowExecutionStateTrackerTest {
   public void testLullReportsRightTrace() throws Exception {
     Thread mockThread = mock(Thread.class);
     StackTraceElement[] doFnStackTrace =
-          new StackTraceElement[] {
-            new StackTraceElement(
-                "userpackage.SomeUserDoFn", "helperMethod", "SomeUserDoFn.java", 250),
-            new StackTraceElement("userpackage.SomeUserDoFn", "process", "SomeUserDoFn.java", 450),
-            new StackTraceElement(
-                SimpleDoFnRunner.class.getName(), "processElement", "SimpleDoFnRunner.java", 500),
-          };
+        new StackTraceElement[] {
+          new StackTraceElement(
+              "userpackage.SomeUserDoFn", "helperMethod", "SomeUserDoFn.java", 250),
+          new StackTraceElement("userpackage.SomeUserDoFn", "process", "SomeUserDoFn.java", 450),
+          new StackTraceElement(
+              SimpleDoFnRunner.class.getName(), "processElement", "SimpleDoFnRunner.java", 500),
+        };
     when(mockThread.getStackTrace()).thenReturn(doFnStackTrace);
     FixedClock clock = new FixedClock(Clock.SYSTEM.currentTimeMillis());
     DataflowExecutionStateTracker tracker = createTracker(clock);
