@@ -24,6 +24,7 @@ import tempfile
 import unittest
 from typing import List
 
+import fastavro
 import hamcrest as hc
 
 from fastavro.schema import parse_schema
@@ -45,6 +46,8 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.utils.timestamp import Timestamp
+
+from sdks.python.apache_beam.transforms.sql import SqlTransform
 
 # Import snappy optionally; some tests will be skipped when import fails.
 try:
@@ -149,7 +152,7 @@ class AvroBase(object):
   def test_schema_read_write(self):
     with tempfile.TemporaryDirectory() as tmp_dirname:
       path = os.path.join(tmp_dirname, 'tmp_filename')
-      rows = [beam.Row(a=1, b=['x', 'y']), beam.Row(a=2, b=['t', 'u'])]
+      rows = [beam.Row(a=-1, b=['x', 'y']), beam.Row(a=2, b=['t', 'u'])]
       stable_repr = lambda row: json.dumps(row._asdict())
       with TestPipeline() as p:
         _ = p | Create(rows) | avroio.WriteToAvro(path) | beam.Map(print)
@@ -157,8 +160,28 @@ class AvroBase(object):
         readback = (
             p
             | avroio.ReadFromAvro(path + '*', as_rows=True)
+            # | SqlTransform("SELECT * FROM PCOLLECTION")
             | beam.Map(stable_repr))
         assert_that(readback, equal_to([stable_repr(r) for r in rows]))
+
+  def test_avro_schema_to_beam_schema_with_nullable_atomic_fields(self):
+    with tempfile.TemporaryDirectory() as tmp_dirname_input:
+      input_path = os.path.join(tmp_dirname_input, 'tmp_filename.avro')
+      parsed_schema = fastavro.parse_schema(json.loads(self.SCHEMA_STRING))
+      with open(input_path, 'wb') as tmp_avro_file:
+        fastavro.writer(tmp_avro_file, parsed_schema, self.RECORDS)
+
+      with tempfile.TemporaryDirectory() as tmp_dirname_output:
+
+        with TestPipeline() as p:
+          _ = (
+              p
+              | avroio.ReadFromAvro(input_path, as_rows=True)
+              | SqlTransform("SELECT * FROM PCOLLECTION")
+              | avroio.WriteToAvro(tmp_dirname_output))
+        with TestPipeline() as p:
+          readback = (p | avroio.ReadFromAvro(tmp_dirname_output + "*"))
+          assert_that(readback, equal_to(RECORDS))
 
   def test_read_without_splitting(self):
     file_name = self._write_data()
