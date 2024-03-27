@@ -43,6 +43,7 @@ that can be used to write a given ``PCollection`` of Python objects to an
 Avro file.
 """
 # pytype: skip-file
+import ctypes
 import os
 from functools import partial
 from typing import Any
@@ -65,8 +66,6 @@ from apache_beam.io.iobase import Read
 from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms import PTransform
 from apache_beam.typehints import schemas
-from apache_beam import coders
-import ctypes
 
 __all__ = [
     'ReadFromAvro',
@@ -546,8 +545,9 @@ BEAM_PRIMITIVES_TO_AVRO_PRIMITIVES = {
 _AvroSchemaType = Union[str, List, Dict]
 
 
-# if the union type is a nullable and it is a nullable union of an avro primitive with a corresponding beam primitive
-# then create a nullable beam field of the corresponding beam type, otherwise return an Any type
+# if the union type is a nullable and it is a nullable union of an avro
+# primitive with a corresponding beam primitive then create a nullable beam
+# field of the corresponding beam type, otherwise return an Any type
 def avro_union_type_to_beam_type(union_type: List) -> schema_pb2.FieldType:
   if len(union_type) == 2 and "null" in union_type:
     for avro_type in union_type:
@@ -555,8 +555,7 @@ def avro_union_type_to_beam_type(union_type: List) -> schema_pb2.FieldType:
         return schema_pb2.FieldType(
             atomic_type=AVRO_PRIMITIVES_TO_BEAM_PRIMITIVES[avro_type],
             nullable=True)
-    else:
-      schemas.typing_to_runner_api(Any)
+    return schemas.typing_to_runner_api(Any)
   return schemas.typing_to_runner_api(Any)
 
 
@@ -622,8 +621,9 @@ def avro_dict_to_beam_row(
 
 
 # convert an avro atomic value to a beam atomic value
-# if the avro type is an int or long, convert the value into from signed to unsigned
-# because VarInt.java expects the number to be unsigned when decoding the number
+# if the avro type is an int or long, convert the value into from signed to
+# unsigned because VarInt.java expects the number to be unsigned when
+# decoding the number
 def avro_atomic_value_to_beam_atomic_value(avro_type: str, value):
   if avro_type == "int":
     return ctypes.c_uint32(value).value
@@ -728,8 +728,9 @@ def beam_row_to_avro_dict(
 
 
 # convert a beam atomic value to an avro atomic value
-# since numeric values are converted to unsigned in avro_atomic_value_to_beam_atomic_value
-# we need to convert back to a signed number
+# since numeric values are converted to unsigned in
+# avro_atomic_value_to_beam_atomic_value we need to convert
+# back to a signed number
 def beam_atomic_value_to_avro_atomic_value(avro_type: str, value):
   if avro_type == "int":
     return ctypes.c_int32(value).value
