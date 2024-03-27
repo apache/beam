@@ -822,7 +822,7 @@ class YamlProviders:
   @staticmethod
   def create_builtin_provider():
     return InlineProvider({
-        'AssertEqual': AssertEqual,
+        'AssertEqual': YamlProviders.AssertEqual,
         'Create': YamlProviders.create,
         'LogForTesting': YamlProviders.log_for_testing,
         'PyTransform': YamlProviders.fully_qualified_named_transform,
