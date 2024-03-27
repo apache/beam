@@ -178,7 +178,9 @@ public class BigTableIOLT extends IOLoadTestBase {
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(writePipeline)
             .addParameter("runner", configuration.getRunner())
-            .addParameter("maxNumWorkers", TestProperties.getProperty("maxNumWorkers", "10",TestProperties.Type.PROPERTY))
+            .addParameter(
+                "maxNumWorkers",
+                TestProperties.getProperty("maxNumWorkers", "10", TestProperties.Type.PROPERTY))
             .build();
 
     return pipelineLauncher.launch(project, region, options);
@@ -201,7 +203,9 @@ public class BigTableIOLT extends IOLoadTestBase {
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(readPipeline)
             .addParameter("runner", configuration.getRunner())
-            .addParameter("maxNumWorkers", TestProperties.getProperty("maxNumWorkers", "10",TestProperties.Type.PROPERTY))
+            .addParameter(
+                "maxNumWorkers",
+                TestProperties.getProperty("maxNumWorkers", "10", TestProperties.Type.PROPERTY))
             .build();
 
     return pipelineLauncher.launch(project, region, options);
