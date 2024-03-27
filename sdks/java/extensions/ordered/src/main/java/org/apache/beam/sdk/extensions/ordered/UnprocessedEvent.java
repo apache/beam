@@ -35,7 +35,8 @@ public abstract class UnprocessedEvent<EventT> {
 
   public enum Reason {
     duplicate,
-    buffered
+    buffered,
+    sequence_id_outside_valid_range
   };
 
   public abstract EventT getEvent();

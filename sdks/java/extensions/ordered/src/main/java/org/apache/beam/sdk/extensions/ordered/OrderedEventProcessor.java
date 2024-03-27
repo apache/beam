@@ -414,11 +414,17 @@ public abstract class OrderedEventProcessor<
         OrderedListState<EventTypeT> bufferedEventsState,
         MultiOutputReceiver outputReceiver) {
       if (currentSequence == Long.MAX_VALUE) {
-        LOG.error(
-            "Received an event with "
-                + currentSequence
-                + " as the sequence number. "
-                + "It will be dropped because it needs to be less than Long.MAX_VALUE.");
+        // OrderedListState can't handle the timestamp based on MAX_VALUE.
+        // To avoid exceptions, we DLQ this event.
+        outputReceiver
+            .get(unprocessedEventsTupleTag)
+            .output(
+                KV.of(
+                    processingState.getKey(),
+                    KV.of(
+                        currentSequence,
+                        UnprocessedEvent.create(
+                            currentEvent, Reason.sequence_id_outside_valid_range))));
         return null;
       }
 

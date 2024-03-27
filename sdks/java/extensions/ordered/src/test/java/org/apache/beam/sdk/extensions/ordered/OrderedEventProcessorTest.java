@@ -22,15 +22,20 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.extensions.ordered.UnprocessedEvent.Reason;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -55,7 +60,10 @@ public class OrderedEventProcessorTest {
   public static final int LARGE_MAX_RESULTS_PER_OUTPUT = 1000;
   public static final int EMISSION_FREQUENCY_ON_EVERY_OTHER_EVENT = 2;
   public static final boolean PRODUCE_STATUS_ON_EVERY_EVENT = true;
-  @Rule public final transient TestPipeline p = TestPipeline.create();
+  public static final boolean STREAMING = true;
+  public static final boolean BATCH = false;
+  @Rule public final transient TestPipeline streamingPipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline batchPipeline = TestPipeline.create();
 
   static class MapEventsToKV extends DoFn<Event, KV<String, KV<Long, String>>> {
 
@@ -122,7 +130,7 @@ public class OrderedEventProcessorTest {
     expectedOutput.add(KV.of("id-2", "a"));
     expectedOutput.add(KV.of("id-2", "ab"));
 
-    testStreamingProcessing(
+    testProcessing(
         events,
         expectedStatuses,
         expectedOutput,
@@ -183,7 +191,7 @@ public class OrderedEventProcessorTest {
     expectedOutput.add(KV.of("id-2", "abcd"));
     expectedOutput.add(KV.of("id-2", "abcde"));
 
-    testStreamingProcessing(
+    testProcessing(
         events,
         expectedStatuses,
         expectedOutput,
@@ -215,7 +223,7 @@ public class OrderedEventProcessorTest {
     expectedOutput.add(KV.of("id-2", "a"));
     expectedOutput.add(KV.of("id-2", "ab"));
 
-    testStreamingProcessing(events, expectedStatuses, expectedOutput, 1, 0, 1000, false);
+    testProcessing(events, expectedStatuses, expectedOutput, 1, 0, 1000, false);
   }
 
   @Test
@@ -255,7 +263,7 @@ public class OrderedEventProcessorTest {
     duplicates.add(KV.of("id-1", KV.of(1L, UnprocessedEvent.create("b", Reason.duplicate))));
     duplicates.add(KV.of("id-1", KV.of(3L, UnprocessedEvent.create("d", Reason.duplicate))));
 
-    testStreamingProcessing(
+    testProcessing(
         events,
         expectedStatuses,
         expectedOutput,
@@ -290,7 +298,7 @@ public class OrderedEventProcessorTest {
     //  Skipped        KV.of("id-1", "abcd"),
     expectedOutput.add(KV.of("id-2", "a"));
     //  Skipped        KV.of("id-2", "ab")
-    testStreamingProcessing(
+    testProcessing(
         events,
         expectedStatuses,
         expectedOutput,
@@ -372,7 +380,7 @@ public class OrderedEventProcessorTest {
                 0,
                 false)));
 
-    testStreamingProcessing(
+    testProcessing(
         events.toArray(new Event[events.size()]),
         expectedStatuses,
         expectedOutput,
@@ -467,7 +475,7 @@ public class OrderedEventProcessorTest {
             OrderedProcessingStatus.create(
                 10L, 0, null, null, numberOfReceivedEvents, 10L, 0, false)));
 
-    testStreamingProcessing(
+    testProcessing(
         events.toArray(new Event[events.size()]),
         expectedStatuses,
         expectedOutput,
@@ -493,10 +501,20 @@ public class OrderedEventProcessorTest {
     expectedOutput.add(KV.of("id-1", "a"));
     expectedOutput.add(KV.of("id-1", "ab"));
 
-    testStreamingProcessing(
+    Collection<KV<String, KV<Long, UnprocessedEvent<String>>>> unprocessedEvents =
+        new ArrayList<>();
+    unprocessedEvents.add(
+        KV.of(
+            "id-1",
+            KV.of(
+                Long.MAX_VALUE,
+                UnprocessedEvent.create("c", Reason.sequence_id_outside_valid_range))));
+
+    testProcessing(
         events,
         expectedStatuses,
         expectedOutput,
+        unprocessedEvents,
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
@@ -523,10 +541,17 @@ public class OrderedEventProcessorTest {
     expectedOutput.add(KV.of("id-1", "ab"));
     expectedOutput.add(KV.of("id-1", "ab" + StringEventExaminer.LAST_INPUT));
 
-    testStreamingProcessing(events, expectedStatuses, expectedOutput, 1, 0, 1000, false);
+    testProcessing(
+        events,
+        expectedStatuses,
+        expectedOutput,
+        EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
+        INITIAL_SEQUENCE_OF_0,
+        LARGE_MAX_RESULTS_PER_OUTPUT,
+        DONT_PRODUCE_STATUS_ON_EVERY_EVENT);
   }
 
-  private void testStreamingProcessing(
+  private void testProcessing(
       Event[] events,
       Collection<KV<String, OrderedProcessingStatus>> expectedStatuses,
       Collection<KV<String, String>> expectedOutput,
@@ -535,18 +560,50 @@ public class OrderedEventProcessorTest {
       int maxResultsPerOutput,
       boolean produceStatusOnEveryEvent)
       throws CannotProvideCoderException {
-    testStreamingProcessing(
+    testProcessing(
         events,
         expectedStatuses,
         expectedOutput,
-        Collections.emptySet() /* no duplicates */,
+        Collections.emptySet() /* no events in DLQ */,
         emissionFrequency,
         initialSequence,
         maxResultsPerOutput,
         produceStatusOnEveryEvent);
   }
 
-  private void testStreamingProcessing(
+  private void testProcessing(
+      Event[] events,
+      Collection<KV<String, OrderedProcessingStatus>> expectedStatuses,
+      Collection<KV<String, String>> expectedOutput,
+      Collection<KV<String, KV<Long, UnprocessedEvent<String>>>> expectedUnprocessedEvents,
+      int emissionFrequency,
+      long initialSequence,
+      int maxResultsPerOutput,
+      boolean produceStatusOnEveryEvent)
+      throws CannotProvideCoderException {
+    doTest(
+        events,
+        expectedStatuses,
+        expectedOutput,
+        expectedUnprocessedEvents,
+        emissionFrequency,
+        initialSequence,
+        maxResultsPerOutput,
+        produceStatusOnEveryEvent,
+        STREAMING);
+    doTest(
+        events,
+        expectedStatuses,
+        expectedOutput,
+        expectedUnprocessedEvents,
+        emissionFrequency,
+        initialSequence,
+        maxResultsPerOutput,
+        produceStatusOnEveryEvent,
+        BATCH);
+  }
+
+  private void doTest(
       Event[] events,
       Collection<KV<String, OrderedProcessingStatus>> expectedStatuses,
       Collection<KV<String, String>> expectedOutput,
@@ -554,11 +611,65 @@ public class OrderedEventProcessorTest {
       int emissionFrequency,
       long initialSequence,
       int maxResultsPerOutput,
-      boolean produceStatusOnEveryEvent)
-      throws CannotProvideCoderException {
+      boolean produceStatusOnEveryEvent,
+      boolean streaming)
+      throws @UnknownKeyFor @NonNull @Initialized CannotProvideCoderException {
+
+    Pipeline pipeline = streaming ? streamingPipeline : batchPipeline;
+
+    PCollection<Event> rawInput =
+        streaming
+            ? createStreamingPCollection(pipeline, events)
+            : createBatchPCollection(pipeline, events);
+    PCollection<KV<String, KV<Long, String>>> input =
+        rawInput.apply("To KV", ParDo.of(new MapEventsToKV()));
+
+    StringBufferOrderedProcessingHandler handler =
+        new StringBufferOrderedProcessingHandler(emissionFrequency, initialSequence);
+    handler.setMaxOutputElementsPerBundle(maxResultsPerOutput);
+    if (produceStatusOnEveryEvent) {
+      handler.setProduceStatusUpdateOnEveryEvent(true);
+      // This disables status updates emitted on timers. Needed for simpler testing when per event
+      // update is needed.
+      handler.setStatusUpdateFrequency(null);
+    } else {
+      handler.setStatusUpdateFrequency(
+          streaming ? Duration.standardMinutes(5) : Duration.standardSeconds(1));
+    }
+    OrderedEventProcessor<String, String, String, StringBuilderState> orderedEventProcessor =
+        OrderedEventProcessor.create(handler);
+
+    OrderedEventProcessorResult<String, String, String> processingResult =
+        input.apply("Process Events", orderedEventProcessor);
+
+    PAssert.that("Output matches", processingResult.output()).containsInAnyOrder(expectedOutput);
+
+    if (streaming) {
+      // Only in streaming the events will arrive in a pre-determined order and the statuses
+      // will be deterministic. In batch events can be processed in any order, so we skip status
+      // verification and rely on the output and unprocessed event matches.
+      PAssert.that("Statuses match", processingResult.processingStatuses())
+          .containsInAnyOrder(expectedStatuses);
+    }
+
+    PAssert.that("Unprocessed events match", processingResult.unprocessedEvents())
+        .containsInAnyOrder(expectedDuplicates);
+
+    pipeline.run();
+  }
+
+  private @UnknownKeyFor @NonNull @Initialized PCollection<Event> createBatchPCollection(
+      Pipeline pipeline, Event[] events) {
+    return pipeline.apply("Create Batch Events", Create.of(Arrays.asList(events)));
+  }
+
+  private @UnknownKeyFor @NonNull @Initialized PCollection<Event> createStreamingPCollection(
+      Pipeline pipeline, Event[] events)
+      throws @UnknownKeyFor @NonNull @Initialized CannotProvideCoderException {
     Instant now = Instant.now().minus(Duration.standardMinutes(20));
     TestStream.Builder<Event> messageFlow =
-        TestStream.create(p.getCoderRegistry().getCoder(Event.class)).advanceWatermarkTo(now);
+        TestStream.create(pipeline.getCoderRegistry().getCoder(Event.class))
+            .advanceWatermarkTo(now);
 
     int delayInMilliseconds = 0;
     for (Event e : events) {
@@ -570,36 +681,6 @@ public class OrderedEventProcessorTest {
 
     // Needed to force the processing time based timers.
     messageFlow = messageFlow.advanceProcessingTime(Duration.standardMinutes(15));
-
-    PCollection<KV<String, KV<Long, String>>> input =
-        p.apply("Create Events", messageFlow.advanceWatermarkToInfinity())
-            .apply("To KV", ParDo.of(new MapEventsToKV()));
-
-    StringBufferOrderedProcessingHandler handler =
-        new StringBufferOrderedProcessingHandler(emissionFrequency, initialSequence);
-    handler.setMaxOutputElementsPerBundle(maxResultsPerOutput);
-    if (produceStatusOnEveryEvent) {
-      handler.setProduceStatusUpdateOnEveryEvent(true);
-      // This disables status updates emitted on timers. Needed for simpler testing when per event
-      // update is needed.
-      handler.setStatusUpdateFrequency(null);
-    } else {
-      handler.setStatusUpdateFrequency(Duration.standardMinutes(5));
-    }
-    OrderedEventProcessor<String, String, String, StringBuilderState> orderedEventProcessor =
-        OrderedEventProcessor.create(handler);
-
-    OrderedEventProcessorResult<String, String, String> processingResult =
-        input.apply("Process Events", orderedEventProcessor);
-
-    PAssert.that("Output matches", processingResult.output()).containsInAnyOrder(expectedOutput);
-
-    PAssert.that("Statuses match", processingResult.processingStatuses())
-        .containsInAnyOrder(expectedStatuses);
-
-    PAssert.that("Unprocessed events match", processingResult.unprocessedEvents())
-        .containsInAnyOrder(expectedDuplicates);
-
-    p.run();
+    return pipeline.apply("Create Streaming Events", messageFlow.advanceWatermarkToInfinity());
   }
 }
