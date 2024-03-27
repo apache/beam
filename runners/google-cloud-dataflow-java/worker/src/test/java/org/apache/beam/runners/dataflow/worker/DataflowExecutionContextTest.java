@@ -33,6 +33,7 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionState;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -137,7 +138,8 @@ public class DataflowExecutionContextTest {
 
     // After entering a process state, we should have an active message tracked.
     ActiveMessageMetadata expectedMetadata =
-        ActiveMessageMetadata.create(NameContextsForTests.nameContextForTest().userName(), 1l);
+        ActiveMessageMetadata.create(
+            NameContextsForTests.nameContextForTest().userName(), Stopwatch.createStarted());
     assertTrue(tracker.getActiveMessageMetadata().isPresent());
     Assert.assertEquals(
         expectedMetadata.userStepName(), tracker.getActiveMessageMetadata().get().userStepName());
@@ -179,7 +181,8 @@ public class DataflowExecutionContextTest {
         new HashSet<>(Arrays.asList(NameContextsForTests.nameContextForTest().userName())),
         gotProcessingTimes.keySet());
     ActiveMessageMetadata expectedMetadata =
-        ActiveMessageMetadata.create(NameContextsForTests.nameContextForTest().userName(), 1l);
+        ActiveMessageMetadata.create(
+            NameContextsForTests.nameContextForTest().userName(), Stopwatch.createStarted());
     assertTrue(tracker.getActiveMessageMetadata().isPresent());
     Assert.assertEquals(
         expectedMetadata.userStepName(), tracker.getActiveMessageMetadata().get().userStepName());
