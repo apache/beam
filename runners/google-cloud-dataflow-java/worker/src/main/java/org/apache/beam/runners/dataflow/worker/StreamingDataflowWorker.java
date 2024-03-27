@@ -482,14 +482,23 @@ public class StreamingDataflowWorker {
             ? options.getStuckCommitDurationMillis()
             : 0;
     this.activeWorkRefresher =
-        ActiveWorkRefreshers.createDispatchedActiveWorkRefresher(
-            clock,
-            options.getActiveWorkRefreshPeriodMillis(),
-            stuckCommitDurationMillis,
-            () -> Collections.unmodifiableCollection(computationMap.values()),
-            sampler,
-            metricTrackingWindmillServer::refreshActiveWork,
-            executorSupplier.apply("RefreshWork"));
+        options.getIsWindmillServiceDirectPathEnabled()
+            ? ActiveWorkRefreshers.createDirectActiveWorkRefresher(
+                clock,
+                options.getActiveWorkRefreshPeriodMillis(),
+                stuckCommitDurationMillis,
+                () -> Collections.unmodifiableCollection(computationMap.values()),
+                sampler,
+                metricTrackingWindmillServer::refreshActiveWorkDirectPath,
+                executorSupplier.apply("RefreshWork"))
+            : ActiveWorkRefreshers.createDispatchedActiveWorkRefresher(
+                clock,
+                options.getActiveWorkRefreshPeriodMillis(),
+                stuckCommitDurationMillis,
+                () -> Collections.unmodifiableCollection(computationMap.values()),
+                sampler,
+                metricTrackingWindmillServer::refreshActiveWork,
+                executorSupplier.apply("RefreshWork"));
 
     LOG.debug("windmillServiceEnabled: {}", windmillServiceEnabled);
     LOG.debug("WindmillServiceEndpoint: {}", options.getWindmillServiceEndpoint());
@@ -832,7 +841,7 @@ public class StreamingDataflowWorker {
             if (pages.isEmpty()) {
               LOG.warn("No captured status pages.");
             }
-            Long timestamp = clock.get().getMillis();
+            long timestamp = clock.get().getMillis();
             for (Capturable page : pages) {
               PrintWriter writer = null;
               try {
@@ -1222,120 +1231,17 @@ public class StreamingDataflowWorker {
       if (work.isFailed()) {
         throw new WorkItemCancelledException(workItem.getShardingKey());
       }
-      executionState = computationState.getExecutionStateQueue().poll();
-      if (executionState == null) {
-        MutableNetwork<Node, Edge> mapTaskNetwork = mapTaskToNetwork.apply(mapTask);
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Network as Graphviz .dot: {}", Networks.toDot(mapTaskNetwork));
-        }
-        ParallelInstructionNode readNode =
-            (ParallelInstructionNode)
-                Iterables.find(
-                    mapTaskNetwork.nodes(),
-                    node ->
-                        node instanceof ParallelInstructionNode
-                            && ((ParallelInstructionNode) node).getParallelInstruction().getRead()
-                                != null);
-        InstructionOutputNode readOutputNode =
-            (InstructionOutputNode) Iterables.getOnlyElement(mapTaskNetwork.successors(readNode));
-        DataflowExecutionContext.DataflowExecutionStateTracker executionStateTracker =
-            new DataflowExecutionContext.DataflowExecutionStateTracker(
-                sampler,
-                stageInfo
-                    .executionStateRegistry()
-                    .getState(
-                        NameContext.forStage(mapTask.getStageName()),
-                        "other",
-                        null,
-                        ScopedProfiler.INSTANCE.emptyScope()),
-                stageInfo.deltaCounters(),
-                options,
-                work.getLatencyTrackingId());
-        StreamingModeExecutionContext context =
-            new StreamingModeExecutionContext(
-                pendingDeltaCounters,
-                computationId,
-                readerCache,
-                !computationState.getTransformUserNameToStateFamily().isEmpty()
-                    ? computationState.getTransformUserNameToStateFamily()
-                    : stateNameMap,
-                stateCache.forComputation(computationId),
-                stageInfo.metricsContainerRegistry(),
-                executionStateTracker,
-                stageInfo.executionStateRegistry(),
-                maxSinkBytes);
-        DataflowMapTaskExecutor mapTaskExecutor =
-            mapTaskExecutorFactory.create(
-                mapTaskNetwork,
-                options,
-                mapTask.getStageName(),
-                readerRegistry,
-                sinkRegistry,
-                context,
-                pendingDeltaCounters,
-                idGenerator);
-        ReadOperation readOperation = mapTaskExecutor.getReadOperation();
-        // Disable progress updates since its results are unused  for streaming
-        // and involves starting a thread.
-        readOperation.setProgressUpdatePeriodMs(ReadOperation.DONT_UPDATE_PERIODICALLY);
-        Preconditions.checkState(
-            mapTaskExecutor.supportsRestart(),
-            "Streaming runner requires all operations support restart.");
-
-        Coder<?> readCoder;
-        readCoder =
-            CloudObjects.coderFromCloudObject(
-                CloudObject.fromSpec(readOutputNode.getInstructionOutput().getCodec()));
-        Coder<?> keyCoder = extractKeyCoder(readCoder);
-
-        // If using a custom source, count bytes read for autoscaling.
-        if (CustomSources.class
-            .getName()
-            .equals(
-                readNode.getParallelInstruction().getRead().getSource().getSpec().get("@type"))) {
-          NameContext nameContext =
-              NameContext.create(
-                  mapTask.getStageName(),
-                  readNode.getParallelInstruction().getOriginalName(),
-                  readNode.getParallelInstruction().getSystemName(),
-                  readNode.getParallelInstruction().getName());
-          readOperation.receivers[0].addOutputCounter(
-              counterName,
-              new OutputObjectAndByteCounter(
-                      new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
-                          readCoder),
-                      mapTaskExecutor.getOutputCounters(),
-                      nameContext)
-                  .setSamplingPeriod(100)
-                  .countBytes(counterName));
-        }
-
-        ExecutionState.Builder executionStateBuilder =
-            ExecutionState.builder()
-                .setWorkExecutor(mapTaskExecutor)
-                .setContext(context)
-                .setExecutionStateTracker(executionStateTracker);
-
-        if (keyCoder != null) {
-          executionStateBuilder.setKeyCoder(keyCoder);
-        }
-
-        executionState = executionStateBuilder.build();
-      }
+      executionState =
+          getOrCreateExecutionState(
+              mapTask, stageInfo, work, computationId, computationState, counterName);
 
       WindmillStateReader stateReader =
-          new WindmillStateReader(
+          createWindmillStateReader(
+              key,
+              work,
               (request) ->
                   Optional.ofNullable(
-                      metricTrackingWindmillServer.getStateData(computationId, request)),
-              key,
-              workItem.getShardingKey(),
-              workItem.getWorkToken(),
-              () -> {
-                work.setState(State.READING);
-                return () -> work.setState(State.PROCESSING);
-              },
-              work::isFailed);
+                      metricTrackingWindmillServer.getStateData(computationId, request)));
       SideInputStateFetcher localSideInputStateFetcher = sideInputStateFetcher.byteTrackingView();
 
       // If the read output KVs, then we can decode Windmill's byte key into a userland
@@ -1583,7 +1489,6 @@ public class StreamingDataflowWorker {
     }
 
     long processingStartTimeNanos = System.nanoTime();
-
     final MapTask mapTask = computationState.getMapTask();
 
     StageInfo stageInfo =
@@ -1597,121 +1502,18 @@ public class StreamingDataflowWorker {
       if (work.isFailed()) {
         throw new WorkItemCancelledException(workItem.getShardingKey());
       }
-      executionState = computationState.getExecutionStateQueue().poll();
-      if (executionState == null) {
-        MutableNetwork<Node, Edge> mapTaskNetwork = mapTaskToNetwork.apply(mapTask);
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Network as Graphviz .dot: {}", Networks.toDot(mapTaskNetwork));
-        }
-        ParallelInstructionNode readNode =
-            (ParallelInstructionNode)
-                Iterables.find(
-                    mapTaskNetwork.nodes(),
-                    node ->
-                        node instanceof ParallelInstructionNode
-                            && ((ParallelInstructionNode) node).getParallelInstruction().getRead()
-                            != null);
-        InstructionOutputNode readOutputNode =
-            (InstructionOutputNode) Iterables.getOnlyElement(mapTaskNetwork.successors(readNode));
-        DataflowExecutionContext.DataflowExecutionStateTracker executionStateTracker =
-            new DataflowExecutionContext.DataflowExecutionStateTracker(
-                sampler,
-                stageInfo
-                    .executionStateRegistry()
-                    .getState(
-                        NameContext.forStage(mapTask.getStageName()),
-                        "other",
-                        null,
-                        ScopedProfiler.INSTANCE.emptyScope()),
-                stageInfo.deltaCounters(),
-                options,
-                work.getLatencyTrackingId());
-        StreamingModeExecutionContext context =
-            new StreamingModeExecutionContext(
-                pendingDeltaCounters,
-                computationId,
-                readerCache,
-                !computationState.getTransformUserNameToStateFamily().isEmpty()
-                    ? computationState.getTransformUserNameToStateFamily()
-                    : stateNameMap,
-                stateCache.forComputation(computationId),
-                stageInfo.metricsContainerRegistry(),
-                executionStateTracker,
-                stageInfo.executionStateRegistry(),
-                maxSinkBytes);
-        DataflowMapTaskExecutor mapTaskExecutor =
-            mapTaskExecutorFactory.create(
-                mapTaskNetwork,
-                options,
-                mapTask.getStageName(),
-                readerRegistry,
-                sinkRegistry,
-                context,
-                pendingDeltaCounters,
-                idGenerator);
-        ReadOperation readOperation = mapTaskExecutor.getReadOperation();
-        // Disable progress updates since its results are unused  for streaming
-        // and involves starting a thread.
-        readOperation.setProgressUpdatePeriodMs(ReadOperation.DONT_UPDATE_PERIODICALLY);
-        Preconditions.checkState(
-            mapTaskExecutor.supportsRestart(),
-            "Streaming runner requires all operations support restart.");
-
-        Coder<?> readCoder;
-        readCoder =
-            CloudObjects.coderFromCloudObject(
-                CloudObject.fromSpec(readOutputNode.getInstructionOutput().getCodec()));
-        Coder<?> keyCoder = extractKeyCoder(readCoder);
-
-        // If using a custom source, count bytes read for autoscaling.
-        if (CustomSources.class
-            .getName()
-            .equals(
-                readNode.getParallelInstruction().getRead().getSource().getSpec().get("@type"))) {
-          NameContext nameContext =
-              NameContext.create(
-                  mapTask.getStageName(),
-                  readNode.getParallelInstruction().getOriginalName(),
-                  readNode.getParallelInstruction().getSystemName(),
-                  readNode.getParallelInstruction().getName());
-          readOperation.receivers[0].addOutputCounter(
-              counterName,
-              new OutputObjectAndByteCounter(
-                  new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
-                      readCoder),
-                  mapTaskExecutor.getOutputCounters(),
-                  nameContext)
-                  .setSamplingPeriod(100)
-                  .countBytes(counterName));
-        }
-
-        ExecutionState.Builder executionStateBuilder =
-            ExecutionState.builder()
-                .setWorkExecutor(mapTaskExecutor)
-                .setContext(context)
-                .setExecutionStateTracker(executionStateTracker);
-
-        if (keyCoder != null) {
-          executionStateBuilder.setKeyCoder(keyCoder);
-        }
-
-        executionState = executionStateBuilder.build();
-      }
+      executionState =
+          getOrCreateExecutionState(
+              mapTask, stageInfo, work, computationId, computationState, counterName);
 
       WindmillStateReader stateReader =
-          new WindmillStateReader(
-              (request) ->
+          createWindmillStateReader(
+              key,
+              work,
+              (Windmill.KeyedGetDataRequest request) ->
                   Optional.ofNullable(
                       metricTrackingWindmillServer.getStateData(
-                          processWorkItemClient.getDataStream(), computationId, request)),
-              key,
-              workItem.getShardingKey(),
-              workItem.getWorkToken(),
-              () -> {
-                work.setState(State.READING);
-                return () -> work.setState(State.PROCESSING);
-              },
-              work::isFailed);
+                          processWorkItemClient.getDataStream(), computationId, request)));
       SideInputStateFetcher localSideInputStateFetcher = sideInputStateFetcher.byteTrackingView();
 
       // If the read output KVs, then we can decode Windmill's byte key into a userland
@@ -1926,6 +1728,185 @@ public class StreamingDataflowWorker {
       DataflowWorkerLoggingMDC.setWorkId(null);
       DataflowWorkerLoggingMDC.setStageName(null);
     }
+  }
+
+  private DataflowMapTaskExecutor createMapTaskExecutor(
+      StreamingModeExecutionContext context,
+      MapTask mapTask,
+      MutableNetwork<Node, Edge> mapTaskNetwork) {
+    return mapTaskExecutorFactory.create(
+        mapTaskNetwork,
+        options,
+        mapTask.getStageName(),
+        readerRegistry,
+        sinkRegistry,
+        context,
+        pendingDeltaCounters,
+        idGenerator);
+  }
+
+  private StreamingModeExecutionContext createExecutionContext(
+      String computationId,
+      ComputationState computationState,
+      StageInfo stageInfo,
+      DataflowExecutionContext.DataflowExecutionStateTracker executionStateTracker) {
+    return new StreamingModeExecutionContext(
+        pendingDeltaCounters,
+        computationId,
+        readerCache,
+        !computationState.getTransformUserNameToStateFamily().isEmpty()
+            ? computationState.getTransformUserNameToStateFamily()
+            : stateNameMap,
+        stateCache.forComputation(computationId),
+        stageInfo.metricsContainerRegistry(),
+        executionStateTracker,
+        stageInfo.executionStateRegistry(),
+        maxSinkBytes);
+  }
+
+  private DataflowExecutionContext.DataflowExecutionStateTracker createExecutionStateTracker(
+      StageInfo stageInfo, MapTask mapTask, Work work) {
+    return new DataflowExecutionContext.DataflowExecutionStateTracker(
+        sampler,
+        stageInfo
+            .executionStateRegistry()
+            .getState(
+                NameContext.forStage(mapTask.getStageName()),
+                "other",
+                null,
+                ScopedProfiler.INSTANCE.emptyScope()),
+        stageInfo.deltaCounters(),
+        options,
+        work.getLatencyTrackingId());
+  }
+
+  private Coder<?> createReadCoder(
+      MutableNetwork<Node, Edge> mapTaskNetwork,
+      String counterName,
+      MapTask mapTask,
+      DataflowMapTaskExecutor mapTaskExecutor,
+      ReadOperation readOperation) {
+    ParallelInstructionNode readNode =
+        (ParallelInstructionNode)
+            Iterables.find(
+                mapTaskNetwork.nodes(),
+                node ->
+                    node instanceof ParallelInstructionNode
+                        && ((ParallelInstructionNode) node).getParallelInstruction().getRead()
+                            != null);
+    InstructionOutputNode readOutputNode =
+        (InstructionOutputNode) Iterables.getOnlyElement(mapTaskNetwork.successors(readNode));
+    Coder<?> readCoder;
+    readCoder =
+        CloudObjects.coderFromCloudObject(
+            CloudObject.fromSpec(readOutputNode.getInstructionOutput().getCodec()));
+
+    // If using a custom source, count bytes read for autoscaling.
+    if (CustomSources.class
+        .getName()
+        .equals(
+            readNode.getParallelInstruction().getRead().getSource().getSpec().get("@type"))) {
+      NameContext nameContext =
+          NameContext.create(
+              mapTask.getStageName(),
+              readNode.getParallelInstruction().getOriginalName(),
+              readNode.getParallelInstruction().getSystemName(),
+              readNode.getParallelInstruction().getName());
+      readOperation.receivers[0].addOutputCounter(
+          counterName,
+          new OutputObjectAndByteCounter(
+              new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
+                  readCoder),
+              mapTaskExecutor.getOutputCounters(),
+              nameContext)
+              .setSamplingPeriod(100)
+              .countBytes(counterName));
+    }
+
+    return readCoder;
+  }
+
+  private ExecutionState getOrCreateExecutionState(
+      MapTask mapTask,
+      StageInfo stageInfo,
+      Work work,
+      String computationId,
+      ComputationState computationState,
+      String counterName)
+      throws Exception {
+    @Nullable ExecutionState executionState = computationState.getExecutionStateQueue().poll();
+    if (executionState != null) {
+      return executionState;
+    }
+
+    MutableNetwork<Node, Edge> mapTaskNetwork = mapTaskToNetwork.apply(mapTask);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Network as Graphviz .dot: {}", Networks.toDot(mapTaskNetwork));
+    }
+
+    DataflowExecutionContext.DataflowExecutionStateTracker executionStateTracker =
+        createExecutionStateTracker(stageInfo, mapTask, work);
+    StreamingModeExecutionContext context =
+        createExecutionContext(computationId, computationState, stageInfo, executionStateTracker);
+    DataflowMapTaskExecutor mapTaskExecutor =
+        createMapTaskExecutor(context, mapTask, mapTaskNetwork);
+    ReadOperation readOperation = mapTaskExecutor.getReadOperation();
+    // Disable progress updates since its results are unused  for streaming
+    // and involves starting a thread.
+    readOperation.setProgressUpdatePeriodMs(ReadOperation.DONT_UPDATE_PERIODICALLY);
+    Preconditions.checkState(
+        mapTaskExecutor.supportsRestart(),
+        "Streaming runner requires all operations support restart.");
+
+    Coder<?> readCoder =
+        createReadCoder(mapTaskNetwork, counterName, mapTask, mapTaskExecutor, readOperation);
+    Coder<?> keyCoder = extractKeyCoder(readCoder);
+
+    ExecutionState.Builder executionStateBuilder =
+        ExecutionState.builder()
+            .setWorkExecutor(mapTaskExecutor)
+            .setContext(context)
+            .setExecutionStateTracker(executionStateTracker);
+
+    if (keyCoder != null) {
+      executionStateBuilder.setKeyCoder(keyCoder);
+    }
+
+    return executionStateBuilder.build();
+  }
+
+  private WindmillStateReader createWindmillStateReader(
+      ByteString key,
+      Work work,
+      Function<Windmill.KeyedGetDataRequest, Optional<Windmill.KeyedGetDataResponse>>
+          getKeyedDataFn) {
+    return new WindmillStateReader(
+        getKeyedDataFn::apply,
+        key,
+        work.getWorkItem().getShardingKey(),
+        work.getWorkItem().getWorkToken(),
+        () -> {
+          work.setState(State.READING);
+          return () -> work.setState(State.PROCESSING);
+        },
+        work::isFailed);
+  }
+
+  private boolean finalizeCommitCallbacks(
+      Work work,
+      WorkItemCommitRequest.Builder outputBuilder,
+      ProcessWorkItemClient processWorkItemClient,
+      ComputationState computationState) {
+    callFinalizeCallbacks(work.getWorkItem());
+    if (work.getWorkItem().getSourceState().getOnlyFinalize()) {
+      outputBuilder.setSourceStateUpdates(Windmill.SourceState.newBuilder().setOnlyFinalize(true));
+      work.setState(Work.State.QUEUED);
+      processWorkItemClient.queueCommit(
+          Commit.create(outputBuilder.build(), computationState, work));
+      return true;
+    }
+
+    return false;
   }
 
   private WorkItemCommitRequest buildWorkItemTruncationRequest(
