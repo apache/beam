@@ -24,7 +24,6 @@ import itertools
 import logging
 import mock
 import os
-import tempfile
 import uuid
 import unittest
 
@@ -35,10 +34,9 @@ from apache_beam.io import filesystems
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
-
-from apache_beam.utils import python_callable
 
 
 @contextlib.contextmanager
