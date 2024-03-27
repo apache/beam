@@ -15,9 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
@@ -26,45 +29,51 @@ import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-/** Utility class for {@link ActiveWorkRefresher}. */
-public final class ActiveWorkRefreshers {
-  public static ActiveWorkRefresher createDispatchedActiveWorkRefresher(
+final class DirectActiveWorkRefresher extends ActiveWorkRefresher {
+  private final Consumer<Map<GetDataStream, Map<String, List<HeartbeatRequest>>>>
+      refreshActiveWorkFn;
+
+  DirectActiveWorkRefresher(
       Supplier<Instant> clock,
       int activeWorkRefreshPeriodMillis,
       int stuckCommitDurationMillis,
       Supplier<Collection<ComputationState>> computations,
       DataflowExecutionStateSampler sampler,
-      Consumer<Map<String, List<HeartbeatRequest>>> activeWorkRefresherFn,
+      Consumer<Map<GetDataStream, Map<String, List<HeartbeatRequest>>>> refreshActiveWorkFn,
       ScheduledExecutorService scheduledExecutorService) {
-    return new DispatchedActiveWorkRefresher(
+    super(
         clock,
         activeWorkRefreshPeriodMillis,
         stuckCommitDurationMillis,
         computations,
         sampler,
-        activeWorkRefresherFn,
         scheduledExecutorService);
+    this.refreshActiveWorkFn = refreshActiveWorkFn;
   }
 
-  public static ActiveWorkRefresher createDirectActiveWorkRefresher(
-      Supplier<Instant> clock,
-      int activeWorkRefreshPeriodMillis,
-      int stuckCommitDurationMillis,
-      Supplier<Collection<ComputationState>> computations,
-      DataflowExecutionStateSampler sampler,
-      Consumer<Map<WindmillStream.GetDataStream, Map<String, List<HeartbeatRequest>>>>
-          refreshActiveWorkFn,
-      ScheduledExecutorService scheduledExecutorService) {
-    return new DirectActiveWorkRefresher(
-        clock,
-        activeWorkRefreshPeriodMillis,
-        stuckCommitDurationMillis,
-        computations,
-        sampler,
-        refreshActiveWorkFn,
-        scheduledExecutorService);
+  @Override
+  public void refreshActiveWork() {
+    Instant refreshDeadline = clock.get().minus(Duration.millis(activeWorkRefreshPeriodMillis));
+
+    Map<GetDataStream, Map<String, List<HeartbeatRequest>>> heartbeatRequests = new HashMap<>();
+    for (ComputationState computationState : computations.get()) {
+      String computationId = computationState.getComputationId();
+      ImmutableList<DirectHeartbeatRequest> heartbeats =
+          computationState.getDirectKeyHeartbeats(refreshDeadline, sampler);
+      for (DirectHeartbeatRequest heartbeat : heartbeats) {
+        Map<String, List<HeartbeatRequest>> existingHeartbeats =
+            heartbeatRequests.computeIfAbsent(heartbeat.stream(), ignored -> new HashMap<>());
+        List<HeartbeatRequest> existingHeartbeatsForComputation =
+            existingHeartbeats.computeIfAbsent(computationId, ignored -> new ArrayList<>());
+        existingHeartbeatsForComputation.add(heartbeat.heartbeatRequest());
+      }
+    }
+
+    refreshActiveWorkFn.accept(heartbeatRequests);
   }
 }

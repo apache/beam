@@ -208,6 +208,11 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
   protected abstract void sendHealthCheck();
 
+  @Override
+  public final boolean isClosed() {
+    return streamClosed.get();
+  }
+
   // Care is taken that synchronization on this is unnecessary for all status page information.
   // Blocking sends are made beneath this stream object's lock which could block status page
   // rendering.

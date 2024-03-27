@@ -36,6 +36,8 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.SettableFuture;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Wrapper around a {@link WindmillServerStub} that tracks metrics for the number of in-flight
@@ -49,6 +51,7 @@ import org.joda.time.Duration;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class MetricTrackingWindmillServerStub {
+  private static final Logger LOG = LoggerFactory.getLogger(MetricTrackingWindmillServerStub.class);
 
   private static final int MAX_READS_PER_BATCH = 60;
   private static final int MAX_ACTIVE_READS = 10;
@@ -254,6 +257,20 @@ public class MetricTrackingWindmillServerStub {
     }
   }
 
+  public Windmill.KeyedGetDataResponse getStateData(
+      GetDataStream stream, String computation, Windmill.KeyedGetDataRequest request) {
+    gcThrashingMonitor.waitForResources("GetStateData");
+    activeStateReads.getAndIncrement();
+
+    try {
+      return stream.requestKeyedData(computation, request);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    } finally {
+      activeStateReads.getAndDecrement();
+    }
+  }
+
   public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request) {
     gcThrashingMonitor.waitForResources("GetSideInputData");
     activeSideInputs.getAndIncrement();
@@ -313,6 +330,33 @@ public class MetricTrackingWindmillServerStub {
           builder.addRequests(perComputationBuilder.build());
         }
         server.getData(builder.build());
+      }
+    } finally {
+      activeHeartbeats.set(0);
+    }
+  }
+
+  public void refreshActiveWorkDirectPath(
+      Map<GetDataStream, Map<String, List<HeartbeatRequest>>> heartbeats) {
+    if (heartbeats.isEmpty()) {
+      return;
+    }
+    try {
+      for (Map.Entry<GetDataStream, Map<String, List<HeartbeatRequest>>> heartbeat :
+          heartbeats.entrySet()) {
+        GetDataStream stream = heartbeat.getKey();
+        Map<String, List<HeartbeatRequest>> heartbeatRequests = heartbeat.getValue();
+        if (stream.isClosed()) {
+          LOG.warn(
+              "Trying to refresh work on stream={} after work has moved off of worker."
+                  + " computations={}",
+              stream,
+              heartbeatRequests);
+        } else {
+          activeHeartbeats.set(heartbeat.getValue().size());
+          stream.refreshActiveWork(heartbeatRequests);
+          activeHeartbeats.set(0);
+        }
       }
     } finally {
       activeHeartbeats.set(0);

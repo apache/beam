@@ -26,6 +26,8 @@ import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.DirectHeartbeatRequest;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -134,8 +136,19 @@ public class ComputationState implements AutoCloseable {
     return activeWorkState.getKeyHeartbeats(refreshDeadline, sampler);
   }
 
+
+  /** Gets HeartbeatRequests for any work started before refreshDeadline. */
+  public ImmutableList<DirectHeartbeatRequest> getDirectKeyHeartbeats(
+      Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
+    return activeWorkState.getKeyHeartbeatsDirectPath(refreshDeadline, sampler);
+  }
+
   public void printActiveWork(PrintWriter writer) {
     activeWorkState.printActiveWork(writer, Instant.now());
+  }
+
+  public GetWorkBudget getActiveWorkBudget() {
+    return activeWorkState.currentActiveWorkBudget();
   }
 
   @Override

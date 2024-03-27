@@ -41,6 +41,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatReques
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.DirectHeartbeatRequest;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -326,6 +327,43 @@ public final class ActiveWorkState {
     return activeWork.entrySet().stream()
         .flatMap(entry -> toHeartbeatRequestStream(entry, refreshDeadline, sampler))
         .collect(toImmutableList());
+  }
+
+  synchronized ImmutableList<DirectHeartbeatRequest> getKeyHeartbeatsDirectPath(
+      Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
+    return activeWork.entrySet().stream()
+        .flatMap(entry -> toHeartbeatRequestStreamDirectPath(entry, refreshDeadline, sampler))
+        .collect(toImmutableList());
+  }
+
+  private static Stream<DirectHeartbeatRequest> toHeartbeatRequestStreamDirectPath(
+      Entry<ShardedKey, Deque<Work>> shardedKeyAndWorkQueue,
+      Instant refreshDeadline,
+      DataflowExecutionStateSampler sampler) {
+    ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
+    Deque<Work> workQueue = shardedKeyAndWorkQueue.getValue();
+
+    return workQueue.stream()
+        .filter(work -> work.getStartTime().isBefore(refreshDeadline))
+        .peek(work -> {
+          if (work.getProcessWorkItemClient().getDataStream().isClosed()) {
+            work.setFailed();
+          }
+        })
+        // Don't send heartbeats for queued work we already know is failed.
+        .filter(work -> !work.isFailed())
+        .map(
+            work ->
+                DirectHeartbeatRequest.create(
+                    work.getProcessWorkItemClient().getDataStream(),
+                    Windmill.HeartbeatRequest.newBuilder()
+                        .setShardingKey(shardedKey.shardingKey())
+                        .setWorkToken(work.getWorkItem().getWorkToken())
+                        .setCacheToken(work.getWorkItem().getCacheToken())
+                        .addAllLatencyAttribution(
+                            work.getLatencyAttributions(
+                                /* isHeartbeat= */ true, work.getLatencyTrackingId(), sampler))
+                        .build()));
   }
 
   /**

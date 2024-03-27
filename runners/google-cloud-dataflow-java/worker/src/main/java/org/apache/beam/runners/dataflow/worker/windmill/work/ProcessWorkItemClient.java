@@ -19,8 +19,9 @@ package org.apache.beam.runners.dataflow.worker.windmill.work;
 
 import com.google.auto.value.AutoValue;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.sdk.annotations.Internal;
 
 /**
@@ -31,8 +32,8 @@ import org.apache.beam.sdk.annotations.Internal;
 @Internal
 public abstract class ProcessWorkItemClient {
   public static ProcessWorkItemClient create(
-      WorkItem workItem, GetDataStream getDataStream, CommitWorkStream commitWorkStream) {
-    return new AutoValue_ProcessWorkItemClient(workItem, getDataStream, commitWorkStream);
+      WorkItem workItem, GetDataStream getDataStream, WorkCommitter workCommitter) {
+    return new AutoValue_ProcessWorkItemClient(workItem, getDataStream, workCommitter);
   }
 
   /** {@link WorkItem} being processed. */
@@ -45,8 +46,12 @@ public abstract class ProcessWorkItemClient {
   public abstract GetDataStream getDataStream();
 
   /**
-   * {@link CommitWorkStream} that connects to backend Windmill worker handling the {@link
-   * WorkItem}.
+   * {@link WorkCommitter} that commits completed work to the backend Windmill worker handling the
+   * {@link WorkItem}.
    */
-  public abstract CommitWorkStream commitWorkStream();
+  public abstract WorkCommitter workCommitter();
+
+  public final void queueCommit(Commit commit) {
+    workCommitter().commit(commit);
+  }
 }
