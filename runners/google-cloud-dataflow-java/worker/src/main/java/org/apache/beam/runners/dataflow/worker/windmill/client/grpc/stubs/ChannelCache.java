@@ -17,9 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.LoadingCache;
-import com.github.benmanes.caffeine.cache.RemovalListener;
 import java.io.PrintWriter;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -28,6 +25,10 @@ import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +48,15 @@ public final class ChannelCache implements StatusDataProvider {
       Function<WindmillServiceAddress, ManagedChannel> channelFactory,
       RemovalListener<WindmillServiceAddress, ManagedChannel> onChannelRemoved) {
     this.channelCache =
-        Caffeine.newBuilder().removalListener(onChannelRemoved).build(channelFactory::apply);
+        CacheBuilder.newBuilder()
+            .removalListener(onChannelRemoved)
+            .build(
+                new CacheLoader<WindmillServiceAddress, ManagedChannel>() {
+                  @Override
+                  public ManagedChannel load(WindmillServiceAddress key) {
+                    return channelFactory.apply(key);
+                  }
+                });
   }
 
   public static ChannelCache create(
@@ -55,7 +64,7 @@ public final class ChannelCache implements StatusDataProvider {
     return new ChannelCache(
         channelFactory,
         // Shutdown the channels as they get removed from the cache, so they do not leak.
-        (address, channel, cause) -> shutdownChannel(channel));
+        notification -> shutdownChannel(notification.getValue()));
   }
 
   @VisibleForTesting
@@ -65,8 +74,8 @@ public final class ChannelCache implements StatusDataProvider {
         channelFactory,
         // Shutdown the channels as they get removed from the cache, so they do not leak.
         // Add hook for testing so that we don't have to sleep/wait for arbitrary time in test.
-        (address, channel, cause) -> {
-          shutdownChannel(channel);
+        notification -> {
+          shutdownChannel(notification.getValue());
           onChannelShutdown.run();
         });
   }
@@ -82,7 +91,7 @@ public final class ChannelCache implements StatusDataProvider {
   }
 
   public ManagedChannel get(WindmillServiceAddress windmillServiceAddress) {
-    return channelCache.get(windmillServiceAddress);
+    return channelCache.getUnchecked(windmillServiceAddress);
   }
 
   public void remove(WindmillServiceAddress windmillServiceAddress) {
@@ -100,7 +109,7 @@ public final class ChannelCache implements StatusDataProvider {
   @VisibleForTesting
   boolean isEmpty() {
     channelCache.cleanUp();
-    return channelCache.estimatedSize() == 0;
+    return channelCache.size() == 0;
   }
 
   @Override
