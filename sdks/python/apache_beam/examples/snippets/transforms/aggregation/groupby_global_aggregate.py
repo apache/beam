@@ -58,11 +58,10 @@ def global_aggregate(test=None):
             'unit_price', min, 'min_price').aggregate_field(
                 'unit_price', MeanCombineFn(), 'mean_price').aggregate_field(
                     'unit_price', max, 'max_price')
-        | beam.Map(print))
+        | beam.LogElements())
     # [END global_aggregate]
-
-  if test:
-    test(grouped)
+    if test:
+      test(grouped)
 
 
 if __name__ == '__main__':

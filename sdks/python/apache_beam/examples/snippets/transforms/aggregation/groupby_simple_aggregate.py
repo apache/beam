@@ -57,9 +57,8 @@ def simple_aggregate(test=None):
             'quantity', sum, 'total_quantity')
         | beam.Map(print))
     # [END simple_aggregate]
-
-  if test:
-    test(grouped)
+    if test:
+      test(grouped)
 
 
 if __name__ == '__main__':

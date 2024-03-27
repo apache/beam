@@ -47,9 +47,8 @@ def groupby_expr(test=None):
         | beam.GroupBy(lambda s: s[0])
         | beam.Map(print))
     # [END groupby_expr]
-
-  if test:
-    test(grouped)
+    if test:
+      test(grouped)
 
 
 if __name__ == '__main__':
