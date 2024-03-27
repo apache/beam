@@ -18,8 +18,8 @@ name: PostCommit Java IO Performance Tests
 on:
   issue_comment:
     types: [created]
-  schedule:
-  - cron: '0 4/6 * * *'
+#  schedule:
+#  - cron: '0 4/6 * * *'
   pull_request_target:
     paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_IO_Performance_Tests.json']
   workflow_dispatch:
@@ -103,7 +103,7 @@ jobs:
       if: github.event_name == 'schedule' #This ensures only scheduled runs publish metrics publicly by changing which exportTable is configured
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
-        gradle-command: :it:${{ matrix.test_case }}
+        gradle-command: :it:${{ matrix.test_case }}  -DmaxNumWorkers=10
       env:
         exportDataset: performance_tests
         exportTable: io_performance_metrics
@@ -111,7 +111,7 @@ jobs:
       if: github.event_name != 'schedule'
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
-        gradle-command: :it:${{ matrix.test_case }}
+        gradle-command: :it:${{ matrix.test_case }}  -DmaxNumWorkers=10
       env:
         exportDataset: performance_tests
         exportTable: io_performance_metrics_test
