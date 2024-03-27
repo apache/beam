@@ -36,7 +36,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -165,7 +164,6 @@ public class StreamingEngineClientTest {
   @After
   public void cleanUp() {
     Preconditions.checkNotNull(streamingEngineClient).finish();
-    fakeGetWorkerMetadataStub.close();
     fakeStreamingEngineServer.shutdownNow();
     stubFactory.shutdown();
   }
@@ -385,8 +383,6 @@ public class StreamingEngineClientTest {
   private static class GetWorkerMetadataTestStub
       extends CloudWindmillMetadataServiceV1Alpha1Grpc
           .CloudWindmillMetadataServiceV1Alpha1ImplBase {
-    private static final WorkerMetadataResponse CLOSE_ALL_STREAMS =
-        WorkerMetadataResponse.newBuilder().setMetadataVersion(Long.MAX_VALUE).build();
     private final CountDownLatch ready;
     private @Nullable StreamObserver<WorkerMetadataResponse> responseObserver;
 
@@ -423,14 +419,6 @@ public class StreamingEngineClientTest {
         responseObserver.onNext(response);
       }
     }
-
-    private void close() {
-      if (responseObserver != null) {
-        // Send an empty response to close out all the streams and channels currently open in
-        // Streaming Engine Client.
-        responseObserver.onNext(CLOSE_ALL_STREAMS);
-      }
-    }
   }
 
   private static class TestGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
@@ -442,7 +430,7 @@ public class StreamingEngineClientTest {
 
     @SuppressWarnings("ReturnValueIgnored")
     private void waitForBudgetDistribution() throws InterruptedException {
-      getWorkBudgetDistributorTriggered.await(5, TimeUnit.SECONDS);
+      getWorkBudgetDistributorTriggered.await();
     }
 
     @Override
