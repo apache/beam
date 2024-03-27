@@ -565,7 +565,6 @@ class YamlProviders:
           pcoll | beam.Map(lambda row: beam.Row(**row._asdict())),
           equal_to(dicts_to_rows(self._elements)))
 
-
   @staticmethod
   def create(elements: Iterable[Any], reshuffle: Optional[bool] = True):
     """Creates a collection containing a specified set of elements.
