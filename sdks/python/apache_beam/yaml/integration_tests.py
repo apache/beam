@@ -17,7 +17,6 @@
 
 """Runs integration tests in the tests directory."""
 
-import argparse
 import contextlib
 import copy
 import glob
@@ -25,23 +24,17 @@ import itertools
 import logging
 import mock
 import os
-import random
-import re
-import sys
 import tempfile
 import uuid
 import unittest
 
 import yaml
-from yaml.loader import SafeLoader
 
 import apache_beam as beam
 from apache_beam.io import filesystems
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.typehints import trivial_inference
-from apache_beam.yaml import yaml_mapping
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 
@@ -78,7 +71,7 @@ def replace_recursive(spec, vars):
     return [replace_recursive(value, vars) for value in spec]
   elif isinstance(spec, str) and '{' in spec:
     try:
-      return eval('f' + repr(spec), vars)
+      return spec.format(**vars)
     except Exception as exn:
       raise ValueError(f"Error evaluating {spec}: {exn}") from exn
   else:
