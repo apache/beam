@@ -2350,7 +2350,7 @@ public class BigQueryIO {
 
     abstract @Nullable ValueProvider<String> getJsonTimePartitioning();
 
-    abstract @Nullable Clustering getClustering();
+    abstract @Nullable ValueProvider<Clustering> getClustering();
 
     abstract CreateDisposition getCreateDisposition();
 
@@ -2459,7 +2459,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setJsonTimePartitioning(ValueProvider<String> jsonTimePartitioning);
 
-      abstract Builder<T> setClustering(Clustering clustering);
+      abstract Builder<T> setClustering(ValueProvider<Clustering> clustering);
 
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
 
@@ -2826,8 +2826,23 @@ public class BigQueryIO {
      * tables, the fields here will be ignored; call {@link #withClustering()} instead.
      */
     public Write<T> withClustering(Clustering clustering) {
-      checkArgument(clustering != null, "clustering can not be null");
+      checkArgument(clustering != null, "clustering cannot be null");
+      return withClustering(StaticValueProvider.of(clustering));
+    }
+
+    /** Like {@link #withClustering(Clustering)} but using a deferred {@link ValueProvider}. */
+    public Write<T> withClustering(ValueProvider<Clustering> clustering) {
       return toBuilder().setClustering(clustering).build();
+    }
+
+    /**
+     * The same as {@link #withClustering(Clustering)}, but takes a JSON-serialized array of
+     * strings. For example: `"["column1", "column2", "column3"]"`
+     */
+    public Write<T> withJsonClustering(ValueProvider<String> jsonClustering) {
+      checkArgument(jsonClustering != null, "clustering can not be null");
+      return withClustering(
+          NestedValueProvider.of(jsonClustering, BigQueryHelpers::clusteringFromJsonFields));
     }
 
     /**
@@ -2844,7 +2859,7 @@ public class BigQueryIO {
      * read state written with a previous version.
      */
     public Write<T> withClustering() {
-      return toBuilder().setClustering(new Clustering()).build();
+      return toBuilder().setClustering(StaticValueProvider.of(new Clustering())).build();
     }
 
     /** Specifies whether the table should be created if it does not exist. */
@@ -3440,13 +3455,12 @@ public class BigQueryIO {
         }
 
         // Wrap with a DynamicDestinations class that will provide the proper TimePartitioning.
-        if (getJsonTimePartitioning() != null
-            || Optional.ofNullable(getClustering()).map(Clustering::getFields).isPresent()) {
+        if (getJsonTimePartitioning() != null || (getClustering() != null)) {
           dynamicDestinations =
               new ConstantTimePartitioningClusteringDestinations<>(
                   (DynamicDestinations<T, TableDestination>) dynamicDestinations,
                   getJsonTimePartitioning(),
-                  StaticValueProvider.of(BigQueryHelpers.toJsonString(getClustering())));
+                  NestedValueProvider.of(getClustering(), BigQueryHelpers::toJsonString));
         }
         if (getPrimaryKey() != null) {
           dynamicDestinations =

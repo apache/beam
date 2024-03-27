@@ -475,7 +475,7 @@ public class BigQueryIOTranslation {
             "json_time_partitioning", toByteArray(transform.getJsonTimePartitioning().get()));
       }
       if (transform.getClustering() != null) {
-        fieldValues.put("clustering", toByteArray(transform.getClustering()));
+        fieldValues.put("clustering", toByteArray(transform.getClustering().get()));
       }
       if (transform.getCreateDisposition() != null) {
         fieldValues.put("create_disposition", toByteArray(transform.getCreateDisposition()));
@@ -660,7 +660,9 @@ public class BigQueryIOTranslation {
         }
         byte[] clusteringBytes = configRow.getBytes("clustering");
         if (clusteringBytes != null) {
-          builder = builder.setClustering((Clustering) fromByteArray(clusteringBytes));
+          builder =
+              builder.setClustering(
+                  StaticValueProvider.of((Clustering) fromByteArray(clusteringBytes)));
         }
         byte[] createDispositionBytes = configRow.getBytes("create_disposition");
         if (createDispositionBytes != null) {
