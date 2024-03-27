@@ -157,7 +157,7 @@ public final class SpannerIOST extends IOStressTestBase {
                                     Configuration.class),
                             "large",
                             Configuration.fromJsonString(
-                                    "{\"numRecords\":10000000,\"rowsPerSecond\":10000,\"minutes\":130,\"pipelineTimeout\":200,\"valueSizeBytes\":1000,\"runner\":\"DataflowRunner\"}",
+                                    "{\"numRecords\":10000000,\"rowsPerSecond\":10000,\"minutes\":100,\"pipelineTimeout\":200,\"valueSizeBytes\":1000,\"runner\":\"DataflowRunner\"}",
                                     Configuration.class));
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -269,7 +269,10 @@ public final class SpannerIOST extends IOStressTestBase {
                         SpannerIO.write()
                                 .withProjectId(project)
                                 .withInstanceId(resourceManager.getInstanceId())
-                                .withDatabaseId(resourceManager.getDatabaseId()));
+                                .withDatabaseId(resourceManager.getDatabaseId())
+                                .withCommitDeadline(org.joda.time.Duration.standardSeconds(60))
+                                .withMaxCumulativeBackoff(org.joda.time.Duration.standardMinutes(30))
+                                .withHighPriority());
 
         PipelineLauncher.LaunchConfig options =
                 PipelineLauncher.LaunchConfig.builder("write-spanner")
