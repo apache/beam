@@ -173,7 +173,7 @@ public class BigQueryClusteringIT {
             BigQueryIO.writeTableRows()
                 .to(new ClusteredDestinations(tableName))
                 .withJsonClustering(
-                    ValueProvider.StaticValueProvider.of(BigQueryHelpers.toJsonString(CLUSTERING)))
+                    ValueProvider.StaticValueProvider.of(BigQueryHelpers.toJsonString(CLUSTERING.getFields())))
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
                 .withMethod(BigQueryIO.Write.Method.FILE_LOADS));
