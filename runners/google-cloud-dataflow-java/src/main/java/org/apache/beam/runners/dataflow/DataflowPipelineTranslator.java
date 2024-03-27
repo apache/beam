@@ -428,7 +428,11 @@ public class DataflowPipelineTranslator {
         environment.setDebugOptions(debugOptions);
       }
 
-      pipeline.traverseTopologically(this);
+      if (DataflowRunner.useUnifiedWorker(options)) {
+        LOG.info("Skipping v1 pipeline translation since this job will run on v2.");
+      } else {
+        pipeline.traverseTopologically(this);
+      }
 
       return job;
     }

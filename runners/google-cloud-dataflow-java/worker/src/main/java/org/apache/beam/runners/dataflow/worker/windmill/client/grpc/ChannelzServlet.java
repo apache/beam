@@ -28,7 +28,7 @@ import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOptions;
+import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
@@ -51,7 +51,9 @@ public class ChannelzServlet extends BaseStatusServlet implements DebugCapture.C
   private final boolean showOnlyWindmillServiceChannels;
 
   public ChannelzServlet(
-      String path, StreamingDataflowWorkerOptions options, WindmillServerStub windmillServerStub) {
+      String path,
+      DataflowStreamingPipelineOptions options,
+      WindmillServerStub windmillServerStub) {
     super(path);
     channelzService = ChannelzService.newInstance(MAX_TOP_CHANNELS_TO_RETURN);
     this.windmillServerStub = windmillServerStub;

@@ -46,7 +46,6 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
       new ConcurrentHashMap<>();
 
   private static final long LULL_REPORT_MS = TimeUnit.MINUTES.toMillis(5);
-  private static final long BUNDLE_LULL_REPORT_MS = TimeUnit.MINUTES.toMillis(10);
   private static final AtomicIntegerFieldUpdater<ExecutionStateTracker> SAMPLING_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(ExecutionStateTracker.class, "sampling");
 
@@ -140,17 +139,8 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    */
   private volatile long millisSinceLastTransition = 0;
 
-  /**
-   * The number of milliseconds since the {@link ExecutionStateTracker} initial state.
-   *
-   * <p>This variable is updated by the Sampling thread, and read by the Progress Reporting thread,
-   * thus it being marked volatile.
-   */
-  private volatile long millisSinceBundleStart = 0;
-
   private long transitionsAtLastSample = 0;
   private long nextLullReportMs = LULL_REPORT_MS;
-  private long nextBundleLullReportMs = BUNDLE_LULL_REPORT_MS;
 
   public ExecutionStateTracker(ExecutionStateSampler sampler) {
     this.sampler = sampler;
@@ -165,10 +155,8 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     currentState = null;
     numTransitions = 0;
     millisSinceLastTransition = 0;
-    millisSinceBundleStart = 0;
     transitionsAtLastSample = 0;
     nextLullReportMs = LULL_REPORT_MS;
-    nextBundleLullReportMs = BUNDLE_LULL_REPORT_MS;
   }
 
   @VisibleForTesting
@@ -347,19 +335,6 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
       transitionsAtLastSample = transitionsAtThisSample;
     }
     updateMillisSinceLastTransition(millisSinceLastSample, state);
-    updateMillisSinceBundleStart(millisSinceLastSample);
-  }
-
-  // Override this to implement bundle level lull reporting.
-  protected void reportBundleLull(long millisSinceBundleStart) {}
-
-  @SuppressWarnings("NonAtomicVolatileUpdate")
-  private void updateMillisSinceBundleStart(long millisSinceLastSample) {
-    millisSinceBundleStart += millisSinceLastSample;
-    if (millisSinceBundleStart > nextBundleLullReportMs) {
-      reportBundleLull(millisSinceBundleStart);
-      nextBundleLullReportMs += BUNDLE_LULL_REPORT_MS;
-    }
   }
 
   @SuppressWarnings("NonAtomicVolatileUpdate")

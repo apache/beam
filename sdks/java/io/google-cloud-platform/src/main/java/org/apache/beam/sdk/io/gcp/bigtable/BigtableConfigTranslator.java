@@ -39,12 +39,17 @@ import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.util.Objects;
+import java.util.function.BiFunction;
 import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -63,6 +68,8 @@ import org.threeten.bp.Duration;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 class BigtableConfigTranslator {
+
+  @VisibleForTesting static final String BIGTABLE_SETTINGS_OVERRIDE = "bigtable_settings_override";
 
   /** Translate BigtableConfig and BigtableReadOptions to Veneer settings. */
   static BigtableDataSettings translateReadToVeneerSettings(
@@ -149,7 +156,41 @@ class BigtableConfigTranslator {
     configureChannelPool(dataBuilder.stubSettings(), config);
     configureHeaderProvider(dataBuilder.stubSettings(), pipelineOptions);
 
-    return dataBuilder;
+    // Provide a way to override any BigtableDataSettings
+    String overrideClassName =
+        ExperimentalOptions.getExperimentValue(pipelineOptions, BIGTABLE_SETTINGS_OVERRIDE);
+
+    return configureSettingsOverride(overrideClassName, dataBuilder, pipelineOptions);
+  }
+
+  private static BigtableDataSettings.Builder configureSettingsOverride(
+      @Nullable String override,
+      BigtableDataSettings.Builder dataBuilder,
+      PipelineOptions pipelineOptions) {
+    if (override == null) {
+      return dataBuilder;
+    }
+
+    BiFunction<BigtableDataSettings.Builder, PipelineOptions, BigtableDataSettings.Builder>
+        overrideFunction;
+    try {
+      overrideFunction =
+          InstanceBuilder.ofType(
+                  new TypeDescriptor<
+                      BiFunction<
+                          BigtableDataSettings.Builder,
+                          PipelineOptions,
+                          BigtableDataSettings.Builder>>() {})
+              .fromClassName(override)
+              .build();
+    } catch (ClassNotFoundException e) {
+      throw new IllegalArgumentException("Failed to load class override " + override, e);
+    }
+    try {
+      return overrideFunction.apply(dataBuilder, pipelineOptions);
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to apply override function for class " + override, e);
+    }
   }
 
   private static void configureHeaderProvider(

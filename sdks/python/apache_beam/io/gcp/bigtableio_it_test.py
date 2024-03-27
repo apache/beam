@@ -60,9 +60,10 @@ def instance_prefix(instance):
 @pytest.mark.uses_transform_service
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 @unittest.skipUnless(
-    os.environ.get('EXPANSION_JARS'),
-    "EXPANSION_JARS environment var is not provided, "
-    "indicating that jars have not been built")
+    os.environ.get('EXPANSION_JARS') or
+    os.environ.get('TRANSFORM_SERVICE_PORT'),
+    "A valid expansion service is not available for executing the "
+    "cross-language test.")
 class TestReadFromBigTableIT(unittest.TestCase):
   INSTANCE = "bt-read-tests"
   TABLE_ID = "test-table"
@@ -92,6 +93,11 @@ class TestReadFromBigTableIT(unittest.TestCase):
     self.table = self.instance.table(self.TABLE_ID)
     self.table.create()
     _LOGGER.info("Created table [%s]", self.table.table_id)
+    if (os.environ.get('TRANSFORM_SERVICE_PORT')):
+      self._transform_service_address = (
+          'localhost:' + os.environ.get('TRANSFORM_SERVICE_PORT'))
+    else:
+      self._transform_service_address = None
 
   def tearDown(self):
     try:
@@ -141,7 +147,8 @@ class TestReadFromBigTableIT(unittest.TestCase):
           | bigtableio.ReadFromBigtable(
               project_id=self.project,
               instance_id=self.instance.instance_id,
-              table_id=self.table.table_id)
+              table_id=self.table.table_id,
+              expansion_service=self._transform_service_address)
           | "Extract cells" >> beam.Map(lambda row: row._cells))
 
       assert_that(cells, equal_to(expected_cells))
@@ -151,9 +158,10 @@ class TestReadFromBigTableIT(unittest.TestCase):
 @pytest.mark.uses_transform_service
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 @unittest.skipUnless(
-    os.environ.get('EXPANSION_JARS'),
-    "EXPANSION_JARS environment var is not provided, "
-    "indicating that jars have not been built")
+    os.environ.get('EXPANSION_JARS') or
+    os.environ.get('TRANSFORM_SERVICE_PORT'),
+    "A valid expansion service is not available for executing the "
+    "cross-language test.")
 class TestWriteToBigtableXlangIT(unittest.TestCase):
   # These are integration tests for the cross-language write transform.
   INSTANCE = "bt-write-xlang"
@@ -188,6 +196,11 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
         (self.TABLE_ID, str(int(time.time())), secrets.token_hex(3)))
     self.table.create()
     _LOGGER.info("Created table [%s]", self.table.table_id)
+    if (os.environ.get('TRANSFORM_SERVICE_PORT')):
+      self._transform_service_address = (
+          'localhost:' + os.environ.get('TRANSFORM_SERVICE_PORT'))
+    else:
+      self._transform_service_address = None
 
   def tearDown(self):
     try:
@@ -214,7 +227,8 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
               project_id=self.project,
               instance_id=self.instance.instance_id,
               table_id=self.table.table_id,
-              use_cross_language=True))
+              use_cross_language=True,
+              expansion_service=self._transform_service_address))
 
   def test_set_mutation(self):
     row1: DirectRow = DirectRow('key-1')

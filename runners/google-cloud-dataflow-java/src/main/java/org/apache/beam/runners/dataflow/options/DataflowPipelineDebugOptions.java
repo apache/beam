@@ -149,24 +149,6 @@ public interface DataflowPipelineDebugOptions
 
   void setTransformNameMapping(Map<String, String> value);
 
-  /** Custom windmill_main binary to use with the streaming runner. */
-  @Description("Custom windmill_main binary to use with the streaming runner")
-  String getOverrideWindmillBinary();
-
-  void setOverrideWindmillBinary(String value);
-
-  /** Custom windmill service endpoint. */
-  @Description("Custom windmill service endpoint.")
-  String getWindmillServiceEndpoint();
-
-  void setWindmillServiceEndpoint(String value);
-
-  @Description("Port for communicating with a remote windmill service.")
-  @Default.Integer(443)
-  int getWindmillServicePort();
-
-  void setWindmillServicePort(int value);
-
   /**
    * Number of threads to use on the Dataflow worker harness. If left unspecified, the Dataflow
    * service will compute an appropriate number of threads to use.
@@ -177,30 +159,6 @@ public interface DataflowPipelineDebugOptions
   int getNumberOfWorkerHarnessThreads();
 
   void setNumberOfWorkerHarnessThreads(int value);
-
-  /**
-   * Maximum number of bundles outstanding from windmill before the worker stops requesting.
-   *
-   * <p>If <= 0, use the default value of 100 + getNumberOfWorkerHarnessThreads()
-   */
-  @Description(
-      "Maximum number of bundles outstanding from windmill before the worker stops requesting.")
-  @Default.Integer(0)
-  int getMaxBundlesFromWindmillOutstanding();
-
-  void setMaxBundlesFromWindmillOutstanding(int value);
-
-  /**
-   * Maximum number of bytes outstanding from windmill before the worker stops requesting.
-   *
-   * <p>If <= 0, use the default value of 50% of jvm memory.
-   */
-  @Description(
-      "Maximum number of bytes outstanding from windmill before the worker stops requesting. If <= 0, use the default value of 50% of jvm memory.")
-  @Default.Long(0)
-  long getMaxBytesFromWindmillOutstanding();
-
-  void setMaxBytesFromWindmillOutstanding(long value);
 
   /**
    * If {@literal true}, save a heap dump before killing a thread or process which is GC thrashing
@@ -247,75 +205,6 @@ public interface DataflowPipelineDebugOptions
   Integer getWorkerCacheMb();
 
   void setWorkerCacheMb(Integer value);
-
-  @Description("The size of the streaming worker's side input cache, in megabytes.")
-  @Default.Integer(100)
-  Integer getStreamingSideInputCacheMb();
-
-  void setStreamingSideInputCacheMb(Integer value);
-
-  @Description("The expiry for streaming worker's side input cache entries, in milliseconds.")
-  @Default.Integer(60 * 1000) // 1 minute
-  Integer getStreamingSideInputCacheExpirationMillis();
-
-  void setStreamingSideInputCacheExpirationMillis(Integer value);
-
-  @Description("Number of commit threads used to commit items to streaming engine.")
-  @Default.Integer(1)
-  Integer getWindmillServiceCommitThreads();
-
-  void setWindmillServiceCommitThreads(Integer value);
-
-  @Description(
-      "Frequency at which active work should be reported back to Windmill, in millis. "
-          + "The first refresh will occur after at least this much time has passed since "
-          + "starting the work item")
-  @Default.Integer(10000)
-  int getActiveWorkRefreshPeriodMillis();
-
-  void setActiveWorkRefreshPeriodMillis(int value);
-
-  @Description(
-      "If positive, frequency at which windmill service streaming rpcs will have application "
-          + "level health checks.")
-  @Default.Integer(10000)
-  int getWindmillServiceStreamingRpcHealthCheckPeriodMs();
-
-  void setWindmillServiceStreamingRpcHealthCheckPeriodMs(int value);
-
-  @Description(
-      "If positive, the number of messages to send on streaming rpc before checking isReady."
-          + "Higher values reduce cost of output overhead at the cost of more memory used in grpc "
-          + "buffers.")
-  @Default.Integer(10)
-  int getWindmillMessagesBetweenIsReadyChecks();
-
-  void setWindmillMessagesBetweenIsReadyChecks(int value);
-
-  @Description("If true, a most a single active rpc will be used per channel.")
-  @Default.Boolean(false)
-  boolean getUseWindmillIsolatedChannels();
-
-  void setUseWindmillIsolatedChannels(boolean value);
-
-  @Description(
-      "If true, separate streaming rpcs will be used for heartbeats instead of sharing streams with state reads.")
-  @Default.Boolean(false)
-  boolean getUseSeparateWindmillHeartbeatStreams();
-
-  void setUseSeparateWindmillHeartbeatStreams(boolean value);
-
-  @Description("The number of streams to use for GetData requests.")
-  @Default.Integer(1)
-  int getWindmillGetDataStreamCount();
-
-  void setWindmillGetDataStreamCount(int value);
-
-  @Description("If true, will only show windmill service channels on /channelz")
-  @Default.Boolean(true)
-  boolean getChannelzShowOnlyWindmillServiceChannels();
-
-  void setChannelzShowOnlyWindmillServiceChannels(boolean value);
 
   /**
    * The amount of time before UnboundedReaders are considered idle and closed during streaming

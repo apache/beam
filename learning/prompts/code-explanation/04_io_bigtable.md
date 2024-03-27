@@ -33,12 +33,12 @@ with beam.Pipeline(options=options) as p:
 ```
 
 Response:
-This code uses the Apache Beam [BigtableIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html) to read data from a [Bigtable](https://cloud.google.com/bigtable/docs) table `table_id` in a Bigtable instance `instance_id`. The `table_id` and `instance_id` are provided as command-line arguments.
+This code uses the Apache Beam [BigtableIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html) to read data from a [Bigtable](https://cloud.google.com/bigtable/docs) table `table_id` in a Bigtable instance `instance_id`.
 
-This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command-line arguments.
+The `BigtableOptions` class defines the command-line arguments `project_id`, ‘instance_id’, and `table_id`, which are used to configure the `ReadFromBigtable` transform. These arguments are parsed from the command line using [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/).
 
 The `ReadFromBigtable` transform returns a `PCollection` of `PartialRowData` objects, each representing a Bigtable row. For more information about this row object, see [PartialRowData (row_key)](https://cloud.google.com/python/docs/reference/bigtable/latest/row#class-googlecloudbigtablerowpartialrowdatarowkey).
 
-The data from a Bigtable row is extracted and logged to the console.
+The Apache Beam pipeline extracts the data from a Bigtable row and logs it to the console.
 
 For more information about how to use the BigtableIO connector with the Python SDK for Apache Beam, see [BigtableIO module](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html).

@@ -25,6 +25,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -36,6 +37,7 @@ import org.joda.time.Instant;
  * <p>The pool holds a fixed total number of streams, and keeps each stream open for a specified
  * time to allow for better load-balancing.
  */
+@Internal
 @ThreadSafe
 public class WindmillStreamPool<StreamT extends WindmillStream> {
 
@@ -129,6 +131,11 @@ public class WindmillStreamPool<StreamT extends WindmillStream> {
         closeThisStream.close();
       }
     }
+  }
+
+  public CloseableStream<StreamT> getCloseableStream() {
+    StreamT stream = getStream();
+    return CloseableStream.create(stream, () -> releaseStream(stream));
   }
 
   private synchronized WindmillStreamPool.StreamData<StreamT> createAndCacheStream(int cacheKey) {
