@@ -35,7 +35,7 @@ public final class ChannelCachingRemoteStubFactory implements ChannelCachingStub
   private final Credentials gcpCredentials;
   private final ChannelCache channelCache;
 
-  public ChannelCachingRemoteStubFactory(Credentials gcpCredentials, ChannelCache channelCache) {
+  private ChannelCachingRemoteStubFactory(Credentials gcpCredentials, ChannelCache channelCache) {
     this.gcpCredentials = gcpCredentials;
     this.channelCache = channelCache;
   }
