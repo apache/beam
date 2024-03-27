@@ -265,7 +265,8 @@ def assert_that(
   if getattr(pipeline, 'result', None) is not None:
     # The pipeline was already run. The user most likely called assert_that
     # after the pipeleline context.
-    raise RuntimeError('assert_that must be used within a beam.Pipeline context')
+    raise RuntimeError(
+        'assert_that must be used within a beam.Pipeline context')
 
   # If label is already in use, just append a number to it.
   if label in pipeline.applied_labels:
