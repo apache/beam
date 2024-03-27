@@ -1898,10 +1898,12 @@ class StatelessDoFnInfo(DoFnInfo):
   def to_runner_api(self, unused_context):
     return beam_runner_api_pb2.FunctionSpec(urn=self._urn)
 
+
 def identity(x: T) -> T:
   return x
 
-def FlatMap(fn = identity, *args, **kwargs):  # pylint: disable=invalid-name
+
+def FlatMap(fn=identity, *args, **kwargs):  # pylint: disable=invalid-name
   """:func:`FlatMap` is like :class:`ParDo` except it takes a callable to
   specify the transformation.
 
