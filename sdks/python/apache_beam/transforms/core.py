@@ -1907,7 +1907,9 @@ def FlatMap(fn = identity, *args, **kwargs):  # pylint: disable=invalid-name
 
   The callable must return an iterable for each element of the input
   :class:`~apache_beam.pvalue.PCollection`. The elements of these iterables will
-  be flattened into the output :class:`~apache_beam.pvalue.PCollection`.
+  be flattened into the output :class:`~apache_beam.pvalue.PCollection`. If
+  no callable is given, then all elements of the input PCollection must already
+  be iterables themselves and will be flattened into the output PCollection.
 
   Args:
     fn (callable): a callable object.
