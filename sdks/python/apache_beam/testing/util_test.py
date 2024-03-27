@@ -193,6 +193,7 @@ class UtilTest(unittest.TestCase):
           outputs = (p | beam.Create([1, 2, 3]) | beam.Map(lambda x: x + 1))
           assert_that(outputs, equal_to([2, 3, 4]))
           assert_that(outputs, equal_to([2, 3, 4]))
+          assert_that(outputs, equal_to([2, 3, 4]))
 
 
 
