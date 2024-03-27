@@ -25,7 +25,8 @@ def _validate_isinstance(type, str):
   print(type)
   if not isinstance(type, dict) and isinstance(type, str) != str:
     return error
-  if isinstance(type, dict) and len(type) != 1 and next(iter(type)) != 'outer' and not isinstance(type['outer'], list):
+  if isinstance(type, dict) and len(type) != 1 and next(
+      iter(type)) != 'outer' and not isinstance(type['outer'], list):
     return error
   if isinstance(type, str) and type not in ('inner', 'outer', 'left', 'right'):
     return error
@@ -44,7 +45,8 @@ def _validate_equalities(equalities, pcoll):
       for field in pcoll['f'].element_type._fields:
         possible_cols.add(field[0])
       if input not in pcoll.keys() or col not in possible_cols:
-        return ValueError('Invalid input alias or column name doesn\'t exist in the input')
+        return ValueError(
+          'Invalid input alias or column name doesn\'t exist in the input')
 
 
 def _parse_fields(tables, fields):
@@ -111,16 +113,20 @@ def _SqlJoinTransform(pcoll, sql_transform_constructor, type, equalities, fields
     # TODO(titodo) - shorten this and reduce repitition
     if left in conditioned and right in conditioned:
       t = tables[max(tables.index(left), tables.index(right))]
-      join_conditions[t] = f'{join_conditions[t]} AND {left}.{equality[left]} = {right}.{equality[right]}'
+      join_conditions[
+        t] = f'{join_conditions[t]} AND {left}.{equality[left]} = {right}.{equality[right]}'
     elif left in conditioned:
-      join_conditions[right] = f'{join_conditions[right]} ON {left}.{equality[left]} = {right}.{equality[right]}'
+      join_conditions[
+        right] = f'{join_conditions[right]} ON {left}.{equality[left]} = {right}.{equality[right]}'
       conditioned.add(right)
     elif right in conditioned:
-      join_conditions[left] = f'{join_conditions[left]} ON {left}.{equality[left]} = {right}.{equality[right]}'
+      join_conditions[
+        left] = f'{join_conditions[left]} ON {left}.{equality[left]} = {right}.{equality[right]}'
       conditioned.add(left)
     else:
       t = tables[max(tables.index(left), tables.index(right))]
-      join_conditions[t] = f'{join_conditions[t]} ON {left}.{equality[left]} = {right}.{equality[right]}'
+      join_conditions[
+        t] = f'{join_conditions[t]} ON {left}.{equality[left]} = {right}.{equality[right]}'
       conditioned.add(t)
 
   selects = '*'
@@ -135,7 +141,5 @@ def _SqlJoinTransform(pcoll, sql_transform_constructor, type, equalities, fields
 
 def create_join_providers():
   return [
-    yaml_provider.SqlBackedProvider({
-      'Join': _SqlJoinTransform
-    }),
+    yaml_provider.SqlBackedProvider({'Join': _SqlJoinTransform}),
   ]
