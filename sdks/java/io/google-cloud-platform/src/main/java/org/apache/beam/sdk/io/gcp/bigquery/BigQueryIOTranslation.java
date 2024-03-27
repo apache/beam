@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.sdk.util.construction.TransformUpgrader.fromByteArray;
 import static org.apache.beam.sdk.util.construction.TransformUpgrader.toByteArray;
 
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest.MissingValueInterpretation;
@@ -473,8 +474,8 @@ public class BigQueryIOTranslation {
         fieldValues.put(
             "json_time_partitioning", toByteArray(transform.getJsonTimePartitioning().get()));
       }
-      if (transform.getJsonClustering() != null) {
-        fieldValues.put("json_clustering", toByteArray(transform.getJsonClustering().get()));
+      if (transform.getClustering() != null) {
+        fieldValues.put("clustering", toByteArray(transform.getClustering().get()));
       }
       if (transform.getCreateDisposition() != null) {
         fieldValues.put("create_disposition", toByteArray(transform.getCreateDisposition()));
@@ -657,9 +658,11 @@ public class BigQueryIOTranslation {
         if (jsonTimePartitioning != null) {
           builder = builder.setJsonTimePartitioning(StaticValueProvider.of(jsonTimePartitioning));
         }
-        String jsonClustering = configRow.getString("json_clustering");
-        if (jsonClustering != null) {
-          builder = builder.setJsonClustering(StaticValueProvider.of(jsonClustering));
+        byte[] clusteringBytes = configRow.getBytes("clustering");
+        if (clusteringBytes != null) {
+          builder =
+              builder.setClustering(
+                  StaticValueProvider.of((Clustering) fromByteArray(clusteringBytes)));
         }
         byte[] createDispositionBytes = configRow.getBytes("create_disposition");
         if (createDispositionBytes != null) {
