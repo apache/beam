@@ -17,7 +17,7 @@ name: PreCommit Python Integration
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
-    paths: ["model/**", "sdks/python/**", "release/**", 'release/trigger_all_tests.json']
+    paths: ["model/**", "sdks/python/**", "release/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Python_Integration.json']
   issue_comment:
     types: [created]
   push:
@@ -68,7 +68,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.comment.body, 'Run Python_Integration PreCommit')
     steps:
@@ -105,10 +105,10 @@ jobs:
             -PuseWheelDistribution \
             -PpythonVersion=${{ matrix.python_version }} \
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: Python Test Results
+          name: Python ${{ matrix.python_version }} Test Results
           path: '**/pytest*.xml'
       - name: Publish Python Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2

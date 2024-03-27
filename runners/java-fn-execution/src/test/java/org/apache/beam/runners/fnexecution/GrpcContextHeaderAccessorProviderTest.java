@@ -26,20 +26,21 @@ import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.sdk.fn.server.InProcessServerFactory;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.CallOptions;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ClientCall;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ClientInterceptor;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ForwardingClientCall.SimpleForwardingClientCall;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Metadata;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.MethodDescriptor;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.testing.GrpcCleanupRule;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.CallOptions;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientCall;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientInterceptor;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ForwardingClientCall.SimpleForwardingClientCall;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Metadata;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.MethodDescriptor;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.testing.GrpcCleanupRule;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
@@ -48,6 +49,7 @@ import org.mockito.Mockito;
 @RunWith(JUnit4.class)
 public class GrpcContextHeaderAccessorProviderTest {
   @Rule public GrpcCleanupRule cleanupRule = new GrpcCleanupRule().setTimeout(10, TimeUnit.SECONDS);
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   @SuppressWarnings("unchecked")
   @Test

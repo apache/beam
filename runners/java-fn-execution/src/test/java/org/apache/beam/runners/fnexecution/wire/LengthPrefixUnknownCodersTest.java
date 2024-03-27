@@ -24,9 +24,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
-import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -35,9 +32,14 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.RehydratedComponents;
+import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
@@ -46,6 +48,7 @@ import org.junit.runners.Parameterized.Parameters;
 /** Tests for {@link LengthPrefixUnknownCoders}. */
 @RunWith(Parameterized.class)
 public class LengthPrefixUnknownCodersTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   private static class UnknownCoder extends CustomCoder<String> {
     private static final Coder<?> INSTANCE = new UnknownCoder();

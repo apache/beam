@@ -24,3 +24,7 @@ RedirectMatch permanent "/documentation/sdks/(javadoc|pydoc)(.*)" "https://beam.
 RedirectMatch "/contribute/design-documents" "https://cwiki.apache.org/confluence/display/BEAM/Design+Documents"
 
 RedirectMatch "/contribute/release-guide" "https://github.com/apache/beam/blob/master/contributor-docs/release-guide.md"
+
+RedirectMatch "/contribute/committer-guide" "https://github.com/apache/beam/blob/master/contributor-docs/committer-guide.md"
+
+Header set Content-Security-Policy "frame-src 'self' https://play.beam.apache.org/ ;"

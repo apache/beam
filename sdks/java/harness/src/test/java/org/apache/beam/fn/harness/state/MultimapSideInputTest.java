@@ -27,10 +27,12 @@ import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.junit.Test;
@@ -51,11 +53,38 @@ public class MultimapSideInputTest {
   private static final byte[] UNKNOWN = "UNKNOWN".getBytes(StandardCharsets.UTF_8);
 
   @Test
+  public void testGetWithBulkRead() throws Exception {
+    FakeBeamFnStateClient fakeBeamFnStateClient =
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(
+                keysValuesStateKey(),
+                KV.of(
+                    KvCoder.of(ByteArrayCoder.of(), IterableCoder.of(StringUtf8Coder.of())),
+                    asList(KV.of(A, asList("A1", "A2", "A3")), KV.of(B, asList("B1", "B2"))))));
+
+    MultimapSideInput<byte[], String> multimapSideInput =
+        new MultimapSideInput<>(
+            Caches.noop(),
+            fakeBeamFnStateClient,
+            "instructionId",
+            keysStateKey(),
+            ByteArrayCoder.of(),
+            StringUtf8Coder.of(),
+            true);
+    assertArrayEquals(
+        new String[] {"A1", "A2", "A3"}, Iterables.toArray(multimapSideInput.get(A), String.class));
+    assertArrayEquals(
+        new String[] {"B1", "B2"}, Iterables.toArray(multimapSideInput.get(B), String.class));
+    assertArrayEquals(
+        new String[] {}, Iterables.toArray(multimapSideInput.get(UNKNOWN), String.class));
+  }
+
+  @Test
   public void testGet() throws Exception {
     FakeBeamFnStateClient fakeBeamFnStateClient =
         new FakeBeamFnStateClient(
             ImmutableMap.of(
-                stateKey(), KV.of(ByteArrayCoder.of(), asList(A, B)),
+                keysStateKey(), KV.of(ByteArrayCoder.of(), asList(A, B)),
                 key(A), KV.of(StringUtf8Coder.of(), asList("A1", "A2", "A3")),
                 key(B), KV.of(StringUtf8Coder.of(), asList("B1", "B2"))));
 
@@ -64,9 +93,10 @@ public class MultimapSideInputTest {
             Caches.noop(),
             fakeBeamFnStateClient,
             "instructionId",
-            stateKey(),
+            keysStateKey(),
             ByteArrayCoder.of(),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            true);
     assertArrayEquals(
         new String[] {"A1", "A2", "A3"}, Iterables.toArray(multimapSideInput.get(A), String.class));
     assertArrayEquals(
@@ -82,7 +112,7 @@ public class MultimapSideInputTest {
     FakeBeamFnStateClient fakeBeamFnStateClient =
         new FakeBeamFnStateClient(
             ImmutableMap.of(
-                stateKey(), KV.of(ByteArrayCoder.of(), asList(A, B)),
+                keysStateKey(), KV.of(ByteArrayCoder.of(), asList(A, B)),
                 key(A), KV.of(StringUtf8Coder.of(), asList("A1", "A2", "A3")),
                 key(B), KV.of(StringUtf8Coder.of(), asList("B1", "B2"))));
 
@@ -94,9 +124,10 @@ public class MultimapSideInputTest {
               cache,
               fakeBeamFnStateClient,
               "instructionId",
-              stateKey(),
+              keysStateKey(),
               ByteArrayCoder.of(),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              true);
       assertArrayEquals(
           new String[] {"A1", "A2", "A3"},
           Iterables.toArray(multimapSideInput.get(A), String.class));
@@ -117,9 +148,10 @@ public class MultimapSideInputTest {
                 throw new IllegalStateException("Unexpected call for test.");
               },
               "instructionId",
-              stateKey(),
+              keysStateKey(),
               ByteArrayCoder.of(),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              true);
       assertArrayEquals(
           new String[] {"A1", "A2", "A3"},
           Iterables.toArray(multimapSideInput.get(A), String.class));
@@ -132,10 +164,20 @@ public class MultimapSideInputTest {
     }
   }
 
-  private StateKey stateKey() throws IOException {
+  private StateKey keysStateKey() throws IOException {
     return StateKey.newBuilder()
         .setMultimapKeysSideInput(
             StateKey.MultimapKeysSideInput.newBuilder()
+                .setTransformId("ptransformId")
+                .setSideInputId("sideInputId")
+                .setWindow(ByteString.copyFromUtf8("encodedWindow")))
+        .build();
+  }
+
+  private StateKey keysValuesStateKey() throws IOException {
+    return StateKey.newBuilder()
+        .setMultimapKeysValuesSideInput(
+            StateKey.MultimapKeysValuesSideInput.newBuilder()
                 .setTransformId("ptransformId")
                 .setSideInputId("sideInputId")
                 .setWindow(ByteString.copyFromUtf8("encodedWindow")))

@@ -59,6 +59,21 @@ message KeyedMessageBundle {
 }
 
 message LatencyAttribution {
+  message ActiveLatencyBreakdown {
+    message Distribution {
+      optional int64 count = 1;
+      optional int64 sum = 2;
+      optional int64 min = 3;
+      optional int64 max = 4;
+      optional int64 mean = 5;
+    }
+    message ActiveElementMetadata {
+      optional int64 processing_time_millis = 1;
+    }
+    optional string user_step_name = 1;
+    optional Distribution processing_times_distribution = 2;
+    optional ActiveElementMetadata active_message_metadata = 3;
+  }
   enum State {
     UNKNOWN = 0;
     QUEUED = 1;
@@ -79,6 +94,73 @@ message LatencyAttribution {
   }
   optional State state = 1;
   optional int64 total_duration_millis = 2;
+  repeated ActiveLatencyBreakdown active_latency_breakdown = 3;
+}
+
+message PerStepNamespaceMetrics {
+  // The namespace of these metrics on the user worker.
+  optional string metrics_namespace = 1;
+  // The original system name of the unfused step that these metrics are
+  // reported from.
+  optional string original_step_name = 2;
+  // Metrics that are recorded for this namespace and unfused step.
+  repeated MetricValue metric_values = 3;
+}
+
+message MetricValue {
+  optional string metric_name = 1;
+  map<string, string> metric_labels = 2;
+  oneof value {
+    int64 value_int64 = 3;
+    Histogram value_histogram = 4;
+  }
+}
+
+// google3/google/api/distribution.proto with the following limitations.
+// Histogram does not support explicit buckets.
+// Histogram only supports a specific type of exponential buckets.
+message Histogram {
+  // Number of values recorded in this distribution.
+  optional int64 count = 1;
+  // The arithmetic mean of the values recorded in this distribution.
+  optional double mean = 2;
+  // The sum of squared deviations from the mean of the values recorded in this
+  // histogram. For values x_i this is:
+  //     Sum[i=1..n]((x_i - mean)^2)
+  optional double sum_of_squared_deviations = 3;
+
+  // `BucketOptions` describes the bucket boundaries used in the histogram.
+  message BucketOptions {
+    // Linear buckets with the following boundaries for indicies in 0 to n-1.
+    // 0: (-inf, start)
+    // i in [1, n-2]:  [start + (i-1)*width, start + (i)*width)
+    // n-1: [start + (n-1)*width, inf)
+    // The 0th and n-1th bucket are the underflow/overflow buckets respectively.
+    message Linear {
+      optional int32 number_of_buckets = 1;
+      optional double width = 2;
+      optional double start = 3;
+    }
+
+    // Exponential buckets where the growth factor between buckets is
+    // 2**(2**-scale). e.g. for 'scale=1' growth factor is 2**(2**(-1))=sqrt(2).
+    // Buckets with the following boundaries for indicies in 0 to n-1.
+    // 0th: (-inf, 0)
+    // 1st: [0, gf)
+    // i in [2, n-2]: [gf^(i-1), gf^i)
+    // n-1: [gf^(n-2), inf)
+    // The 0th and n-1th bucket are the underflow/overflow buckets respectively.
+    message Base2Exponent {
+      optional int32 number_of_buckets = 1;
+      optional int32 scale = 2;
+    }
+    oneof BucketType {
+      Linear linear = 1;
+      Base2Exponent exponential = 2;
+    }
+  }
+  optional BucketOptions bucket_options = 5;
+  repeated int64 bucket_counts = 6 [packed = true];
 }
 
 message GetWorkStreamTimingInfo {
@@ -395,9 +477,10 @@ message GetWorkResponse {
 // GetData
 
 message KeyedGetDataRequest {
-  required bytes key = 1;
+  optional bytes key = 1;
   required fixed64 work_token = 2;
   optional fixed64 sharding_key = 6;
+  optional fixed64 cache_token = 11;
   repeated TagValue values_to_fetch = 3;
   repeated TagValuePrefixRequest tag_value_prefixes_to_fetch = 10;
   repeated TagBag bags_to_fetch = 8;
@@ -422,7 +505,11 @@ message GetDataRequest {
   optional string project_id = 5;
   repeated ComputationGetDataRequest requests = 1;
   repeated GlobalDataRequest global_data_fetch_requests = 3;
+  // Assigned worker id for the instance.
+  optional string worker_id = 6;
 
+  // SE only. Will only be set by compatible client
+  repeated ComputationHeartbeatRequest computation_heartbeat_request = 7;
   // DEPRECATED
   repeated GlobalDataId global_data_to_fetch = 2;
 }
@@ -452,6 +539,44 @@ message ComputationGetDataResponse {
 message GetDataResponse {
   repeated ComputationGetDataResponse data = 1;
   repeated GlobalData global_data = 2;
+  // Only set if ComputationHeartbeatRequest was sent, prior versions do not
+  // expect a response for heartbeats. SE only.
+  repeated ComputationHeartbeatResponse computation_heartbeat_response = 3;
+}
+
+// Heartbeats
+//
+// Heartbeats are sent over the GetData stream in Streaming Engine and
+// indicates the work item that the user worker has previously received from
+// GetWork but not yet committed with CommitWork.
+// Note that implicit heartbeats not expecting a response may be sent as
+// special KeyedGetDataRequests see function KeyedGetDataRequestIsHeartbeat.
+// SE only.
+message HeartbeatRequest {
+  optional fixed64 sharding_key = 1;
+  optional fixed64 work_token = 2;
+  optional fixed64 cache_token = 3;
+  repeated LatencyAttribution latency_attribution = 4;
+}
+
+// Responses for heartbeat requests, indicating which work is no longer valid
+// on the windmill worker and may be dropped/cancelled in the client.
+// SE only.
+message HeartbeatResponse {
+  optional fixed64 sharding_key = 1;
+  optional fixed64 work_token = 2;
+  optional fixed64 cache_token = 3;
+  optional bool failed = 4;
+}
+
+message ComputationHeartbeatRequest {
+  optional string computation_id = 1;
+  repeated HeartbeatRequest heartbeat_requests = 2;
+}
+
+message ComputationHeartbeatResponse {
+  optional string computation_id = 1;
+  repeated HeartbeatResponse heartbeat_responses = 2;
 }
 
 // CommitWork
@@ -485,6 +610,13 @@ message GlobalDataRequest {
   required GlobalDataId data_id = 1;
   optional int64 existence_watermark_deadline = 2 [default = 0x7FFFFFFFFFFFFFFF];
   optional string state_family = 3;
+
+  // Computation Id for this GlobalDataRequest. Only set for heartbeats.
+  optional string computation_id = 4;
+  // Dataflow defined metrics keyed by metrics namespace and unfused step name.
+  // All unfused steps in this list belong to the fused stage that
+  // computation_id refers to. Only set for heartbeats.
+  repeated PerStepNamespaceMetrics per_step_namespace_metrics = 5;
 }
 
 // next id: 28
@@ -681,6 +813,8 @@ message StreamingGetDataRequest {
   repeated fixed64 request_id = 1;
   repeated GlobalDataRequest global_data_request = 3;
   repeated ComputationGetDataRequest state_request = 4;
+  // Will only be set by compatible client
+  repeated ComputationHeartbeatRequest computation_heartbeat_request = 5;
 }
 
 message StreamingGetDataResponse {
@@ -693,6 +827,12 @@ message StreamingGetDataResponse {
   repeated bytes serialized_response = 2;
   // Remaining bytes field applies only to the last serialized_response
   optional int64 remaining_bytes_for_response = 3;
+
+  // Only set if ComputationHeartbeatRequest was sent, prior versions do not
+  // expect a response for heartbeats.
+  repeated ComputationHeartbeatResponse computation_heartbeat_response = 5;
+
+  reserved 4;
 }
 
 message StreamingCommitWorkRequest {
@@ -707,6 +847,11 @@ message JobHeader {
   optional string project_id = 2;
   // Worker id is meant for logging only. Do not rely on it for other decisions.
   optional string worker_id = 3;
+  optional fixed64 client_id = 4;
+  optional string region_id = 5;
+  // Used by the user worker to communicate to a specific windmill worker. This
+  // is initially passed to the user worker via GetWorkerMetadata.
+  optional string backend_worker_token = 6;
 }
 
 message StreamingCommitRequestChunk {
@@ -762,13 +907,18 @@ message WorkerMetadataResponse {
   message Endpoint {
     // IPv6 address of a streaming engine windmill worker.
     optional string direct_endpoint = 1;
-    optional string worker_token = 2;
+    optional string backend_worker_token = 2;
+    optional int64 port = 3;
   }
+
   repeated Endpoint work_endpoints = 2;
 
   // Maps from GlobalData tag to the endpoint that should be used for GetData
   // calls to retrieve that global data.
   map<string, Endpoint> global_data_endpoints = 3;
+
+  // Used to set gRPC authority.
+  optional string external_endpoint = 5;
 
   reserved 4;
 }

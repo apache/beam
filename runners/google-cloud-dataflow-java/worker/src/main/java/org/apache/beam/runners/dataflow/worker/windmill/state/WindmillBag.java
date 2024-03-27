@@ -31,7 +31,7 @@ import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.Weighted;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 @SuppressWarnings({
@@ -193,7 +193,7 @@ public class WindmillBag<T> extends SimpleWindmillState implements BagState<T> {
       }
       // We now know the complete bag contents, and any read on it will yield a
       // cached value, so cache it for future reads.
-      cache.put(namespace, address, this, encodedSize);
+      cache.put(namespace, address, this, encodedSize + stateKey.size());
     }
 
     // Don't reuse the localAdditions object; we don't want future changes to it to

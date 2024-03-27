@@ -19,9 +19,12 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
+import com.google.api.core.ApiFuture;
 import com.google.api.gax.batching.Batcher;
+import com.google.api.gax.batching.BatchingException;
 import com.google.api.gax.grpc.GrpcCallContext;
 import com.google.api.gax.retrying.RetrySettings;
+import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.ResponseObserver;
 import com.google.api.gax.rpc.StreamController;
 import com.google.bigtable.v2.Cell;
@@ -42,6 +45,7 @@ import com.google.cloud.bigtable.data.v2.models.Filters;
 import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.RowAdapter;
+import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.cloud.bigtable.data.v2.models.RowMutationEntry;
 import com.google.protobuf.ByteString;
 import io.grpc.CallOptions;
@@ -61,6 +65,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
@@ -101,33 +106,13 @@ class BigtableServiceImpl implements BigtableService {
   private static final long MIN_BYTE_BUFFER_SIZE = 100 * 1024 * 1024; // 100MB
 
   BigtableServiceImpl(BigtableDataSettings settings) throws IOException {
-    this(settings, null);
-  }
-
-  // TODO remove this constructor once https://github.com/googleapis/gapic-generator-java/pull/1473
-  // is resolved. readWaitTimeout is a hack to workaround incorrect mapping from attempt timeout to
-  // Watchdog's wait timeout.
-  BigtableServiceImpl(BigtableDataSettings settings, Duration readWaitTimeout) throws IOException {
     this.projectId = settings.getProjectId();
     this.instanceId = settings.getInstanceId();
     RetrySettings retry = settings.getStubSettings().readRowsSettings().getRetrySettings();
     this.readAttemptTimeout = Duration.millis(retry.getInitialRpcTimeout().toMillis());
     this.readOperationTimeout = Duration.millis(retry.getTotalTimeout().toMillis());
-    BigtableDataSettings.Builder builder = settings.toBuilder();
-    if (readWaitTimeout != null) {
-      builder
-          .stubSettings()
-          .readRowsSettings()
-          .setRetrySettings(
-              retry
-                  .toBuilder()
-                  .setInitialRpcTimeout(
-                      org.threeten.bp.Duration.ofMillis(readWaitTimeout.getMillis()))
-                  .setMaxRpcTimeout(org.threeten.bp.Duration.ofMillis(readWaitTimeout.getMillis()))
-                  .build());
-    }
-    LOG.info("Started Bigtable service with settings " + builder.build());
-    this.client = BigtableDataClient.create(builder.build());
+    this.client = BigtableDataClient.create(settings);
+    LOG.info("Started Bigtable service with settings {}", settings);
   }
 
   private final BigtableDataClient client;
@@ -139,8 +124,13 @@ class BigtableServiceImpl implements BigtableService {
   private final Duration readOperationTimeout;
 
   @Override
-  public BigtableWriterImpl openForWriting(String tableId) {
-    return new BigtableWriterImpl(client, projectId, instanceId, tableId);
+  public BigtableWriterImpl openForWriting(BigtableWriteOptions writeOptions) {
+    return new BigtableWriterImpl(
+        client,
+        projectId,
+        instanceId,
+        writeOptions.getTableId().get(),
+        writeOptions.getCloseWaitTimeout());
   }
 
   @VisibleForTesting
@@ -351,11 +341,16 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public boolean advance() throws IOException {
+      if (future != null && future.isDone()) {
+        // Add rows from the future to the buffer and reset the future
+        // so we can do prefetching
+        consumeReadRowsFuture();
+      }
       if (buffer.size() < refillSegmentWaterMark && future == null) {
         future = fetchNextSegment();
       }
       if (buffer.isEmpty() && future != null) {
-        waitReadRowsFuture();
+        consumeReadRowsFuture();
       }
       currentRow = buffer.poll();
       return currentRow != null;
@@ -392,6 +387,11 @@ class BigtableServiceImpl implements BigtableService {
                   currentByteSize += response.getSerializedSize();
                   rows.add(response);
                   if (currentByteSize > maxSegmentByteSize) {
+                    LOG.debug(
+                        "Reached maxSegmentByteSize, cancelling the stream. currentByteSize is {}, maxSegmentByteSize is {}, read rows {}",
+                        currentByteSize,
+                        maxSegmentByteSize,
+                        rows.size());
                     byteLimitReached = true;
                     controller.cancel();
                     return;
@@ -400,14 +400,25 @@ class BigtableServiceImpl implements BigtableService {
 
                 @Override
                 public void onError(Throwable t) {
-                  future.setException(t);
+                  if (byteLimitReached) {
+                    // When the byte limit is reached we cancel the stream in onResponse.
+                    // In this case we don't want to fail the request with cancellation
+                    // exception. Instead, we construct the next request.
+                    onComplete();
+                  } else {
+                    future.setException(t);
+                  }
                 }
 
                 @Override
                 public void onComplete() {
                   ReadRowsRequest nextNextRequest = null;
 
-                  // When requested rows < limit, the current request will be the last
+                  // Only schedule the next segment fetch when there's a possibility of more
+                  // data to read. We know there might be more data when the current segment
+                  // ended with the artificial byte limit or the row limit.
+                  // If the RPC ended without hitting the byte limit or row limit, we know
+                  // there's no more data to read and nextNextRequest would be null.
                   if (byteLimitReached || rows.size() == nextRequest.getRowsLimit()) {
                     nextNextRequest =
                         truncateRequest(nextRequest, rows.get(rows.size() - 1).getKey());
@@ -419,7 +430,7 @@ class BigtableServiceImpl implements BigtableService {
       return future;
     }
 
-    private void waitReadRowsFuture() throws IOException {
+    private void consumeReadRowsFuture() throws IOException {
       try {
         UpstreamResults r = future.get();
         buffer.addAll(r.rows);
@@ -485,39 +496,30 @@ class BigtableServiceImpl implements BigtableService {
   @VisibleForTesting
   static class BigtableWriterImpl implements Writer {
     private Batcher<RowMutationEntry, Void> bulkMutation;
+
+    private BigtableDataClient client;
     private Integer outstandingMutations = 0;
     private Stopwatch stopwatch = Stopwatch.createUnstarted();
     private String projectId;
     private String instanceId;
     private String tableId;
+    private Duration closeWaitTimeout;
 
     private Distribution bulkSize = Metrics.distribution("BigTable-" + tableId, "batchSize");
     private Distribution latency = Metrics.distribution("BigTable-" + tableId, "batchLatencyMs");
 
     BigtableWriterImpl(
-        BigtableDataClient client, String projectId, String instanceId, String tableId) {
+        BigtableDataClient client,
+        String projectId,
+        String instanceId,
+        String tableId,
+        Duration closeWaitTimeout) {
       this.projectId = projectId;
       this.instanceId = instanceId;
       this.tableId = tableId;
+      this.closeWaitTimeout = closeWaitTimeout;
       this.bulkMutation = client.newBulkMutationBatcher(tableId);
-    }
-
-    @Override
-    public void flush() throws IOException {
-      if (bulkMutation != null) {
-        try {
-          stopwatch.start();
-          bulkMutation.flush();
-          bulkSize.update(outstandingMutations);
-          outstandingMutations = 0;
-          stopwatch.stop();
-          latency.update(stopwatch.elapsed(TimeUnit.MILLISECONDS));
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          // We fail since flush() operation was interrupted.
-          throw new IOException(e);
-        }
-      }
+      this.client = client;
     }
 
     @Override
@@ -525,15 +527,32 @@ class BigtableServiceImpl implements BigtableService {
       if (bulkMutation != null) {
         try {
           stopwatch.start();
-          bulkMutation.flush();
-          bulkMutation.close();
+          // closeAsync will send any remaining elements in the batch.
+          // If the experimental close wait timeout flag is set,
+          // set a timeout waiting for the future.
+          ApiFuture<Void> future = bulkMutation.closeAsync();
+          if (Duration.ZERO.isShorterThan(closeWaitTimeout)) {
+            future.get(closeWaitTimeout.getMillis(), TimeUnit.MILLISECONDS);
+          } else {
+            future.get();
+          }
           bulkSize.update(outstandingMutations);
           outstandingMutations = 0;
           stopwatch.stop();
           latency.update(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        } catch (BatchingException e) {
+          // Ignore batching failures because element failures are tracked as is in
+          // BigtableIOWriteFn.
+          // TODO: Bigtable client already tracks BatchingExceptions, use BatchingExceptions
+          // instead of tracking them separately in BigtableIOWriteFn.
+        } catch (TimeoutException e) {
+          // We fail because future.get() timed out
+          throw new IOException("BulkMutation took too long to close", e);
+        } catch (ExecutionException e) {
+          throw new IOException("Failed to close batch", e.getCause());
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
-          // We fail since flush() operation was interrupted.
+          // We fail since close() operation was interrupted.
           throw new IOException(e);
         }
         bulkMutation = null;
@@ -549,6 +568,42 @@ class BigtableServiceImpl implements BigtableService {
 
       RowMutationEntry entry = RowMutationEntry.createFromMutationUnsafe(record.getKey(), mutation);
 
+      ServiceCallMetric serviceCallMetric = createServiceCallMetric();
+
+      CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
+
+      outstandingMutations += 1;
+      Futures.addCallback(
+          new VendoredListenableFutureAdapter<>(bulkMutation.add(entry)),
+          new WriteMutationCallback(result, serviceCallMetric),
+          directExecutor());
+      return result;
+    }
+
+    @Override
+    public void writeSingleRecord(KV<ByteString, Iterable<Mutation>> record) throws ApiException {
+      com.google.cloud.bigtable.data.v2.models.Mutation mutation =
+          com.google.cloud.bigtable.data.v2.models.Mutation.fromProtoUnsafe(record.getValue());
+
+      RowMutation rowMutation = RowMutation.create(tableId, record.getKey(), mutation);
+
+      ServiceCallMetric serviceCallMetric = createServiceCallMetric();
+
+      try {
+        client.mutateRow(rowMutation);
+        serviceCallMetric.call("ok");
+      } catch (ApiException e) {
+        if (e.getCause() instanceof StatusRuntimeException) {
+          serviceCallMetric.call(
+              ((StatusRuntimeException) e.getCause()).getStatus().getCode().value());
+        } else {
+          serviceCallMetric.call("unknown");
+        }
+        throw e;
+      }
+    }
+
+    private ServiceCallMetric createServiceCallMetric() {
       // Populate metrics
       HashMap<String, String> baseLabels = new HashMap<>();
       baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
@@ -562,34 +617,36 @@ class BigtableServiceImpl implements BigtableService {
       baseLabels.put(
           MonitoringInfoConstants.Labels.TABLE_ID,
           GcpResourceIdentifiers.bigtableTableID(projectId, instanceId, tableId));
-      ServiceCallMetric serviceCallMetric =
-          new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+      return new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+    }
 
-      CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
+    private static class WriteMutationCallback implements FutureCallback<MutateRowResponse> {
+      private final CompletableFuture<MutateRowResponse> result;
 
-      outstandingMutations += 1;
-      Futures.addCallback(
-          new VendoredListenableFutureAdapter<>(bulkMutation.add(entry)),
-          new FutureCallback<MutateRowResponse>() {
-            @Override
-            public void onSuccess(MutateRowResponse mutateRowResponse) {
-              result.complete(mutateRowResponse);
-              serviceCallMetric.call("ok");
-            }
+      private final ServiceCallMetric serviceCallMetric;
 
-            @Override
-            public void onFailure(Throwable throwable) {
-              if (throwable instanceof StatusRuntimeException) {
-                serviceCallMetric.call(
-                    ((StatusRuntimeException) throwable).getStatus().getCode().value());
-              } else {
-                serviceCallMetric.call("unknown");
-              }
-              result.completeExceptionally(throwable);
-            }
-          },
-          directExecutor());
-      return result;
+      public WriteMutationCallback(
+          CompletableFuture<MutateRowResponse> result, ServiceCallMetric serviceCallMetric) {
+        this.result = result;
+        this.serviceCallMetric = serviceCallMetric;
+      }
+
+      @Override
+      public void onSuccess(MutateRowResponse mutateRowResponse) {
+        result.complete(mutateRowResponse);
+        serviceCallMetric.call("ok");
+      }
+
+      @Override
+      public void onFailure(Throwable throwable) {
+        if (throwable instanceof StatusRuntimeException) {
+          serviceCallMetric.call(
+              ((StatusRuntimeException) throwable).getStatus().getCode().value());
+        } else {
+          serviceCallMetric.call("unknown");
+        }
+        result.completeExceptionally(throwable);
+      }
     }
   }
 

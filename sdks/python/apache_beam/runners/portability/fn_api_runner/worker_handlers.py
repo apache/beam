@@ -87,6 +87,10 @@ MB_TO_BYTES = 1 << 20
 # Time-based flush is enabled in the fn_api_runner by default.
 DATA_BUFFER_TIME_LIMIT_MS = 1000
 
+FNAPI_RUNNER_CAPABILITIES = frozenset([
+    common_urns.runner_protocols.MULTIMAP_KEYS_VALUES_SIDE_INPUT.urn,
+])
+
 _LOGGER = logging.getLogger(__name__)
 
 T = TypeVar('T')
@@ -363,6 +367,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
     self.data_conn = self.data_plane_handler
     state_cache = StateCache(STATE_CACHE_SIZE_MB * MB_TO_BYTES)
     self.bundle_processor_cache = sdk_worker.BundleProcessorCache(
+        FNAPI_RUNNER_CAPABILITIES,
         SingletonStateHandlerFactory(
             sdk_worker.GlobalCachingStateHandler(state_cache, state)),
         data_plane.InMemoryDataChannelFactory(
@@ -433,6 +438,7 @@ class BasicProvisionService(beam_provision_api_pb2_grpc.ProvisionServiceServicer
       info.control_endpoint.CopyFrom(worker.control_api_service_descriptor())
     else:
       info = self._base_info
+    info.runner_capabilities[:] = FNAPI_RUNNER_CAPABILITIES
     return beam_provision_api_pb2.GetProvisionInfoResponse(info=info)
 
 
@@ -663,7 +669,8 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
         self.control_address,
         state_cache_size=self._state_cache_size,
         data_buffer_time_limit_ms=self._data_buffer_time_limit_ms,
-        worker_id=self.worker_id)
+        worker_id=self.worker_id,
+        runner_capabilities=FNAPI_RUNNER_CAPABILITIES)
     self.worker_thread = threading.Thread(
         name='run_worker', target=self.worker.run)
     self.worker_thread.daemon = True
@@ -879,6 +886,18 @@ class WorkerHandlerManager(object):
       environment_id = next(iter(self._environments.keys()))
     environment = self._environments[environment_id]
 
+    if environment.urn == common_urns.environments.ANYOF.urn:
+      payload = beam_runner_api_pb2.AnyOfEnvironmentPayload.FromString(
+          environment.payload)
+      env_rankings = {
+          python_urns.EMBEDDED_PYTHON: 10,
+          common_urns.environments.EXTERNAL.urn: 5,
+          common_urns.environments.DOCKER.urn: 1,
+      }
+      environment = sorted(
+          payload.environments,
+          key=lambda env: env_rankings.get(env.urn, -1))[-1]
+
     # assume all environments except EMBEDDED_PYTHON use gRPC.
     if environment.urn == python_urns.EMBEDDED_PYTHON:
       # special case for EmbeddedWorkerHandler: there's no need for a gRPC
@@ -933,6 +952,16 @@ class WorkerHandlerManager(object):
 
 class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
                     sdk_worker.StateHandler):
+  _SUPPORTED_STATE_TYPES = frozenset([
+      'runner',
+      'multimap_side_input',
+      'multimap_keys_side_input',
+      'multimap_keys_values_side_input',
+      'iterable_side_input',
+      'bag_user_state',
+      'multimap_user_state'
+  ])
+
   class CopyOnWriteState(object):
     def __init__(self, underlying):
       # type: (DefaultDict[bytes, Buffer]) -> None
@@ -1026,6 +1055,11 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
       continuation_token=None  # type: Optional[bytes]
               ):
     # type: (...) -> Tuple[bytes, Optional[bytes]]
+
+    if state_key.WhichOneof('type') not in self._SUPPORTED_STATE_TYPES:
+      raise NotImplementedError(
+          'Unknown state type: ' + state_key.WhichOneof('type'))
+
     with self._lock:
       full_state = self._state[self._to_key(state_key)]
       if self._use_continuation_tokens:
@@ -1092,24 +1126,27 @@ class GrpcStateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer):
     # Note that this eagerly mutates state, assuming any failures are fatal.
     # Thus it is safe to ignore instruction_id.
     for request in request_stream:
-      request_type = request.WhichOneof('request')
-      if request_type == 'get':
-        data, continuation_token = self._state.get_raw(
-            request.state_key, request.get.continuation_token)
-        yield beam_fn_api_pb2.StateResponse(
-            id=request.id,
-            get=beam_fn_api_pb2.StateGetResponse(
-                data=data, continuation_token=continuation_token))
-      elif request_type == 'append':
-        self._state.append_raw(request.state_key, request.append.data)
-        yield beam_fn_api_pb2.StateResponse(
-            id=request.id, append=beam_fn_api_pb2.StateAppendResponse())
-      elif request_type == 'clear':
-        self._state.clear(request.state_key)
-        yield beam_fn_api_pb2.StateResponse(
-            id=request.id, clear=beam_fn_api_pb2.StateClearResponse())
-      else:
-        raise NotImplementedError('Unknown state request: %s' % request_type)
+      try:
+        request_type = request.WhichOneof('request')
+        if request_type == 'get':
+          data, continuation_token = self._state.get_raw(
+              request.state_key, request.get.continuation_token)
+          yield beam_fn_api_pb2.StateResponse(
+              id=request.id,
+              get=beam_fn_api_pb2.StateGetResponse(
+                  data=data, continuation_token=continuation_token))
+        elif request_type == 'append':
+          self._state.append_raw(request.state_key, request.append.data)
+          yield beam_fn_api_pb2.StateResponse(
+              id=request.id, append=beam_fn_api_pb2.StateAppendResponse())
+        elif request_type == 'clear':
+          self._state.clear(request.state_key)
+          yield beam_fn_api_pb2.StateResponse(
+              id=request.id, clear=beam_fn_api_pb2.StateClearResponse())
+        else:
+          raise NotImplementedError('Unknown state request: %s' % request_type)
+      except Exception as exn:
+        yield beam_fn_api_pb2.StateResponse(id=request.id, error=str(exn))
 
 
 class SingletonStateHandlerFactory(sdk_worker.StateHandlerFactory):

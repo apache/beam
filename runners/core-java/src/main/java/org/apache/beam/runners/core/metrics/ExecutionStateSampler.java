@@ -44,10 +44,10 @@ public class ExecutionStateSampler {
   private static final ExecutionStateSampler INSTANCE =
       new ExecutionStateSampler(SYSTEM_MILLIS_PROVIDER);
 
-  private final MillisProvider clock;
-  @VisibleForTesting volatile long lastSampleTimeMillis;
+  protected final MillisProvider clock;
+  @VisibleForTesting protected volatile long lastSampleTimeMillis;
 
-  private ExecutionStateSampler(MillisProvider clock) {
+  protected ExecutionStateSampler(MillisProvider clock) {
     this.clock = clock;
   }
 
@@ -127,6 +127,7 @@ public class ExecutionStateSampler {
   }
 
   public synchronized void stop() {
+    final Future<Void> executionSamplerFuture = this.executionSamplerFuture;
     if (executionSamplerFuture == null) {
       return;
     }
@@ -142,17 +143,17 @@ public class ExecutionStateSampler {
     } catch (ExecutionException e) {
       throw new RuntimeException("Exception in state sampler", e);
     } finally {
-      executionSamplerFuture = null;
+      this.executionSamplerFuture = null;
     }
   }
 
   /** Add the tracker to the sampling set. */
-  void addTracker(ExecutionStateTracker tracker) {
+  protected void addTracker(ExecutionStateTracker tracker) {
     this.activeTrackers.add(tracker);
   }
 
   /** Remove the tracker from the sampling set. */
-  void removeTracker(ExecutionStateTracker tracker) {
+  protected void removeTracker(ExecutionStateTracker tracker) {
     activeTrackers.remove(tracker);
 
     // Attribute any remaining time since the last sampling while removing the tracker.

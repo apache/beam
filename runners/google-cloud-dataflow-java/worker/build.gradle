@@ -43,7 +43,7 @@ def sdk_provided_dependencies = [
         library.java.jackson_databind,
         library.java.joda_time,
         library.java.slf4j_api,
-        library.java.vendored_grpc_1_54_0,
+        library.java.vendored_grpc_1_60_1,
 ]
 
 def sdk_provided_shaded_project_dependencies = [
@@ -89,6 +89,10 @@ applyJavaNature(
                 // Allow slf4j implementation worker for logging during pipeline execution
                 "org/slf4j/impl/**"
         ],
+        generatedClassPatterns: [
+                /^org\.apache\.beam\.runners\.dataflow\.worker\.windmill.*/,
+                /^org\.apache\.beam\.runners\.dataflow\.worker\..*AutoBuilder.*/,
+        ],
         shadowClosure: {
             // Each included dependency must also include all of its necessary transitive dependencies
             // or have them provided by the users pipeline during job submission. Typically a users
@@ -110,7 +114,6 @@ applyJavaNature(
             relocate("org.apache.beam.model.fnexecution.v1", getWorkerRelocatedPath("org.apache.beam.model.fnexecution.v1"))
 
             dependencies {
-                include(project(":runners:core-construction-java"))
                 include(project(":runners:core-java"))
             }
             relocate("org.apache.beam.runners.core", getWorkerRelocatedPath("org.apache.beam.runners.core"))
@@ -123,10 +126,6 @@ applyJavaNature(
             relocate("org.apache.beam.runners.fnexecution", getWorkerRelocatedPath("org.apache.beam.runners.fnexecution"))
             relocate("org.apache.beam.repackaged.beam_runners_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_runners_java_fn_execution"))
 
-            dependencies {
-                include(project(":sdks:java:fn-execution"))
-            }
-            relocate("org.apache.beam.sdk.fn", getWorkerRelocatedPath("org.apache.beam.sdk.fn"))
             relocate("org.apache.beam.repackaged.beam_sdks_java_fn_execution", getWorkerRelocatedPath("org.apache.beam.repackaged.beam_sdks_java_fn_execution"))
 
             dependencies {
@@ -187,10 +186,8 @@ dependencies {
     implementation project(path: ":model:fn-execution", configuration: "shadow")
     implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation project(":runners:core-construction-java")
     implementation project(":runners:core-java")
     implementation project(":runners:java-fn-execution")
-    implementation project(":sdks:java:fn-execution")
     implementation project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
     shadow library.java.vendored_guava_32_1_2_jre
 
@@ -211,7 +208,7 @@ dependencies {
     implementation library.java.jackson_databind
     implementation library.java.joda_time
     implementation library.java.slf4j_api
-    implementation library.java.vendored_grpc_1_54_0
+    implementation library.java.vendored_grpc_1_60_1
     implementation library.java.error_prone_annotations
     permitUnusedDeclared library.java.error_prone_annotations
     runtimeOnly library.java.slf4j_jdk14

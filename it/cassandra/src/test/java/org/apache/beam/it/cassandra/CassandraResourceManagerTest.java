@@ -72,7 +72,8 @@ public class CassandraResourceManagerTest {
 
   @Test
   public void testGetKeyspaceNameShouldReturnCorrectValue() {
-    assertThat(testManager.getKeyspaceName()).matches(TEST_ID.replace('-', '_') + "_\\d{8}_\\d{6}");
+    assertThat(testManager.getKeyspaceName())
+        .matches(TEST_ID.replace('-', '_') + "_\\d{8}_\\d{6}_\\d{6}");
   }
 
   @Test

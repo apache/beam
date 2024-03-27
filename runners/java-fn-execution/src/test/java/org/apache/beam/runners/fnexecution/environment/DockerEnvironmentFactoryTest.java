@@ -33,7 +33,6 @@ import java.util.Collection;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
-import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
@@ -44,10 +43,12 @@ import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.sdk.options.ManualDockerEnvironmentOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.RemoteEnvironmentOptions;
+import org.apache.beam.sdk.util.construction.Environments;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
@@ -58,7 +59,7 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DockerEnvironmentFactory}. */
 public class DockerEnvironmentFactoryTest {
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final ApiServiceDescriptor SERVICE_DESCRIPTOR =
       ApiServiceDescriptor.newBuilder().setUrl("service-url").build();
   private static final String IMAGE_NAME = "my-image";

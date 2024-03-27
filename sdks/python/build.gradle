@@ -66,6 +66,25 @@ artifacts {
   distTarBall file: file("${buildDir}/${tarball}"), builtBy: sdist
 }
 
+tasks.register("generateExternalTransformsConfig") {
+  description "Discovers external transforms and regenerates the config at sdks/standard_expansion_services.yaml"
+
+  dependsOn buildPython
+  // Need to build all expansion services listed in sdks/standard_expansion_services.yaml
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+  dependsOn ":sdks:java:io:expansion-service:build"
+  // Keep this in-sync with pyproject.toml
+  def PyYaml = "'pyyaml>=3.12,<7.0.0'"
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "pip install $PyYaml && " +
+              "python gen_xlang_wrappers.py --cleanup --generate-config-only"
+    }
+  }
+}
+
 // Create Python wheels for given platform and Python version
 // build identifiers for cibuildwheel
 def platform_identifiers_map = [
@@ -94,16 +113,32 @@ platform_identifiers_map.each { platform, idsuffix ->
 
       // generated installable Python SDK package
       doLast {
-        exec {
-          environment CIBW_BUILD: "cp${pyversion}-${idsuffix}"
-          environment CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
-          // note: sync cibuildwheel version with GitHub Action
-          // .github/workflow/build_wheel.yml:build_wheels "Install cibuildwheel" step
-          executable 'sh'
-          args '-c', ". ${envdir}/bin/activate && " +
-              "pip install cibuildwheel==2.9.0 && " +
-              "cibuildwheel --print-build-identifiers --platform ${platform} --archs ${archs} && " +
-              "cibuildwheel --output-dir ${buildDir} --platform ${platform} --archs ${archs}"
+        int maxRetries = 3
+        int retryCount = 0
+        // note(https://github.com/pypa/cibuildwheel/issues/1692): cibuildwheel appears to timeout occasionally.
+        while (retryCount < maxRetries) {
+          try {
+            exec {
+             environment CIBW_BUILD: "cp${pyversion}-${idsuffix}"
+             environment CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
+             executable 'sh'
+             args '-c', ". ${envdir}/bin/activate && " +
+                 // note: sync cibuildwheel version with GitHub Action
+                 // .github/workflows/build_wheel.yml:build_wheels "Install cibuildwheel" step
+                 "pip install cibuildwheel==2.9.0 && " +
+                 "cibuildwheel --print-build-identifiers --platform ${platform} --archs ${archs} && " +
+                 "cibuildwheel --output-dir ${buildDir} --platform ${platform} --archs ${archs} "
+           }
+           break;
+         }
+         catch (Exception e) {
+            retryCount++
+            if (retryCount < maxRetries) {
+                println "cibuildwheel failed on attempt ${retryCount}. Will retry."
+            } else {
+                throw e
+            }
+         }
         }
       }
     }

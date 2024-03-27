@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables.transform;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -43,6 +44,9 @@ import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PBegin;
@@ -206,9 +210,6 @@ public class Pipeline {
    *
    * <p>Replaces all nodes that match a {@link PTransformOverride} in this pipeline. Overrides are
    * applied in the order they are present within the list.
-   *
-   * <p>After all nodes are replaced, ensures that no nodes in the updated graph match any of the
-   * overrides.
    */
   @Internal
   public void replaceAll(List<PTransformOverride> overrides) {
@@ -237,9 +238,10 @@ public class Pipeline {
 
           @Override
           public void leaveCompositeTransform(Node node) {
-            if (node.isRootNode()) {
-              checkState(
-                  matched.isEmpty(), "Found nodes that matched overrides. Matches: %s", matched);
+            if (node.isRootNode() && !matched.isEmpty()) {
+              LOG.info(
+                  "Found nodes that matched overrides. Matches: {}. The match usually should be empty unless there are runner specific replacement transforms.",
+                  matched);
             }
           }
 
@@ -318,6 +320,7 @@ public class Pipeline {
     LOG.debug("Running {} via {}", this, runner);
     try {
       validate(options);
+      validateErrorHandlers();
       return runner.run(this);
     } catch (UserCodeException e) {
       // This serves to replace the stack with one that ends here and
@@ -341,6 +344,13 @@ public class Pipeline {
       schemaRegistry = SchemaRegistry.createDefault();
     }
     return schemaRegistry;
+  }
+
+  public <OutputT extends POutput> BadRecordErrorHandler<OutputT> registerBadRecordErrorHandler(
+      PTransform<PCollection<BadRecord>, OutputT> sinkTransform) {
+    BadRecordErrorHandler<OutputT> errorHandler = new BadRecordErrorHandler<>(sinkTransform, this);
+    errorHandlers.add(errorHandler);
+    return errorHandler;
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -510,6 +520,8 @@ public class Pipeline {
 
   private final Multimap<String, PTransform<?, ?>> instancePerName = ArrayListMultimap.create();
   private final PipelineOptions defaultOptions;
+
+  private final List<ErrorHandler<?, ?>> errorHandlers = new ArrayList<>();
 
   private Pipeline(TransformHierarchy transforms, PipelineOptions options) {
     this.transforms = transforms;
@@ -713,6 +725,16 @@ public class Pipeline {
     @Override
     public boolean apply(@Nonnull final Map.Entry<K, Collection<V>> input) {
       return input != null && input.getValue().size() == 1;
+    }
+  }
+
+  private void validateErrorHandlers() {
+    for (ErrorHandler<?, ?> errorHandler : errorHandlers) {
+      if (!errorHandler.isClosed()) {
+        throw new IllegalStateException(
+            "One or more ErrorHandlers aren't closed, and this pipeline"
+                + "cannot be run. See the ErrorHandler documentation for expected usage");
+      }
     }
   }
 }

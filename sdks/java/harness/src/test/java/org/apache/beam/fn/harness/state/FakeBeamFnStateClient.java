@@ -39,7 +39,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 
 /** A fake implementation of a {@link BeamFnStateClient} to aid with testing. */
@@ -135,6 +135,10 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
     // multimap side input and runner based state keys only support get requests
     if (key.getTypeCase() == TypeCase.MULTIMAP_SIDE_INPUT || key.getTypeCase() == TypeCase.RUNNER) {
       assertEquals(RequestCase.GET, request.getRequestCase());
+    }
+    if (key.getTypeCase() == TypeCase.MULTIMAP_KEYS_VALUES_SIDE_INPUT && !data.containsKey(key)) {
+      // Allow testing this not being supported rather than blindly returning the empty list.
+      throw new UnsupportedOperationException("No multimap keys values states provided.");
     }
 
     switch (request.getRequestCase()) {

@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -40,8 +41,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Weigher;
 @CheckReturnValue
 final class SideInputCache {
 
-  private static final long MAXIMUM_CACHE_WEIGHT = 100000000; /* 100 MB */
-  private static final long CACHE_ENTRY_EXPIRY_MINUTES = 1L;
+  private static final long BYTES_PER_MB = 1024 * 1024;
 
   private final Cache<Key<?>, SideInput<?>> sideInputCache;
 
@@ -49,11 +49,12 @@ final class SideInputCache {
     this.sideInputCache = sideInputCache;
   }
 
-  static SideInputCache create() {
+  static SideInputCache create(DataflowStreamingPipelineOptions options) {
     return new SideInputCache(
         CacheBuilder.newBuilder()
-            .maximumWeight(MAXIMUM_CACHE_WEIGHT)
-            .expireAfterWrite(CACHE_ENTRY_EXPIRY_MINUTES, TimeUnit.MINUTES)
+            .maximumWeight(options.getStreamingSideInputCacheMb() * BYTES_PER_MB)
+            .expireAfterWrite(
+                options.getStreamingSideInputCacheExpirationMillis(), TimeUnit.MILLISECONDS)
             .weigher((Weigher<Key<?>, SideInput<?>>) (id, entry) -> entry.size())
             .build());
   }

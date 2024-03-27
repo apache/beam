@@ -21,9 +21,11 @@ import com.clickhouse.client.ClickHouseOutputStream;
 import com.clickhouse.client.ClickHousePipedOutputStream;
 import com.clickhouse.client.data.BinaryStreamUtils;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowWithStorage;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.joda.time.Days;
@@ -141,6 +143,23 @@ public class ClickHouseWriter {
         BinaryStreamUtils.writeVarInt(stream, values.size());
         for (Object arrayValue : values) {
           writeValue(stream, columnType.arrayElementType(), arrayValue);
+        }
+        break;
+      case BOOL:
+        BinaryStreamUtils.writeBoolean(stream, (Boolean) value);
+        break;
+      case TUPLE:
+        RowWithStorage rowValues = (RowWithStorage) value;
+        List<Object> tupleValues = rowValues.getValues();
+        Collection<ColumnType> columnTypesList = columnType.tupleTypes().values();
+        int index = 0;
+        for (ColumnType ct : columnTypesList) {
+          if (ct.nullable()) {
+            writeNullableValue(stream, ct, tupleValues.get(index));
+          } else {
+            writeValue(stream, ct, tupleValues.get(index));
+          }
+          index++;
         }
         break;
     }

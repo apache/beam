@@ -18,11 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doCallRealMethod;
-import static org.mockito.Mockito.when;
 
-import com.google.api.client.http.LowLevelHttpResponse;
 import com.google.api.client.json.Json;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpRequest;
@@ -31,9 +27,17 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.LeaseWorkItemRequest;
 import com.google.api.services.dataflow.model.LeaseWorkItemResponse;
 import com.google.api.services.dataflow.model.MapTask;
+import com.google.api.services.dataflow.model.MetricValue;
+import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
+import com.google.api.services.dataflow.model.PerWorkerMetrics;
+import com.google.api.services.dataflow.model.SendWorkerMessagesRequest;
+import com.google.api.services.dataflow.model.SendWorkerMessagesResponse;
 import com.google.api.services.dataflow.model.SeqMapTask;
+import com.google.api.services.dataflow.model.StreamingScalingReport;
 import com.google.api.services.dataflow.model.WorkItem;
+import com.google.api.services.dataflow.model.WorkerMessage;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Optional;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
@@ -45,55 +49,53 @@ import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link DataflowWorkUnitClient}. */
 @RunWith(JUnit4.class)
 public class DataflowWorkUnitClientTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
   private static final Logger LOG = LoggerFactory.getLogger(DataflowWorkUnitClientTest.class);
   private static final String PROJECT_ID = "TEST_PROJECT_ID";
   private static final String JOB_ID = "TEST_JOB_ID";
   private static final String WORKER_ID = "TEST_WORKER_ID";
+
   @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
   @Rule public TestRule restoreLogging = new RestoreDataflowLoggingMDC();
   @Rule public ExpectedException expectedException = ExpectedException.none();
   @Rule public FastNanoClockAndSleeper fastNanoClockAndSleeper = new FastNanoClockAndSleeper();
-  @Mock private MockHttpTransport transport;
-  @Mock private MockLowLevelHttpRequest request;
-  private DataflowWorkerHarnessOptions pipelineOptions;
 
-  @Before
-  public void setUp() throws Exception {
-    MockitoAnnotations.initMocks(this);
-    when(transport.buildRequest(anyString(), anyString())).thenReturn(request);
-    doCallRealMethod().when(request).getContentAsString();
-
+  DataflowWorkerHarnessOptions createPipelineOptionsWithTransport(MockHttpTransport transport) {
     Dataflow service = new Dataflow(transport, Transport.getJsonFactory(), null);
-    pipelineOptions = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    DataflowWorkerHarnessOptions pipelineOptions =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     pipelineOptions.setProject(PROJECT_ID);
     pipelineOptions.setJobId(JOB_ID);
     pipelineOptions.setWorkerId(WORKER_ID);
     pipelineOptions.setGcpCredential(new TestCredential());
     pipelineOptions.setDataflowClient(service);
     pipelineOptions.setRegion("us-central1");
+    return pipelineOptions;
   }
 
   @Test
   public void testCloudServiceCall() throws Exception {
     WorkItem workItem = createWorkItem(PROJECT_ID, JOB_ID);
 
-    when(request.execute()).thenReturn(generateMockResponse(workItem));
-
+    MockLowLevelHttpResponse response = generateMockResponse(workItem);
+    MockLowLevelHttpRequest request = new MockLowLevelHttpRequest().setResponse(response);
+    MockHttpTransport transport =
+        new MockHttpTransport.Builder().setLowLevelHttpRequest(request).build();
+    DataflowWorkerHarnessOptions pipelineOptions = createPipelineOptionsWithTransport(transport);
     WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
 
     assertEquals(Optional.of(workItem), client.getWorkItem());
@@ -113,30 +115,40 @@ public class DataflowWorkUnitClientTest {
 
   @Test
   public void testCloudServiceCallMapTaskStagePropagation() throws Exception {
-    WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
-
     // Publish and acquire a map task work item, and verify we're now processing that stage.
     final String stageName = "test_stage_name";
     MapTask mapTask = new MapTask();
     mapTask.setStageName(stageName);
     WorkItem workItem = createWorkItem(PROJECT_ID, JOB_ID);
     workItem.setMapTask(mapTask);
-    when(request.execute()).thenReturn(generateMockResponse(workItem));
+
+    MockLowLevelHttpResponse response = generateMockResponse(workItem);
+    MockLowLevelHttpRequest request = new MockLowLevelHttpRequest().setResponse(response);
+    MockHttpTransport transport =
+        new MockHttpTransport.Builder().setLowLevelHttpRequest(request).build();
+    DataflowWorkerHarnessOptions pipelineOptions = createPipelineOptionsWithTransport(transport);
+    WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
+
     assertEquals(Optional.of(workItem), client.getWorkItem());
     assertEquals(stageName, DataflowWorkerLoggingMDC.getStageName());
   }
 
   @Test
   public void testCloudServiceCallSeqMapTaskStagePropagation() throws Exception {
-    WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
-
     // Publish and acquire a seq map task work item, and verify we're now processing that stage.
     final String stageName = "test_stage_name";
     SeqMapTask seqMapTask = new SeqMapTask();
     seqMapTask.setStageName(stageName);
     WorkItem workItem = createWorkItem(PROJECT_ID, JOB_ID);
     workItem.setSeqMapTask(seqMapTask);
-    when(request.execute()).thenReturn(generateMockResponse(workItem));
+
+    MockLowLevelHttpResponse response = generateMockResponse(workItem);
+    MockLowLevelHttpRequest request = new MockLowLevelHttpRequest().setResponse(response);
+    MockHttpTransport transport =
+        new MockHttpTransport.Builder().setLowLevelHttpRequest(request).build();
+    DataflowWorkerHarnessOptions pipelineOptions = createPipelineOptionsWithTransport(transport);
+    WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
+
     assertEquals(Optional.of(workItem), client.getWorkItem());
     assertEquals(stageName, DataflowWorkerLoggingMDC.getStageName());
   }
@@ -146,8 +158,11 @@ public class DataflowWorkUnitClientTest {
     // If there's no work the service should return an empty work item.
     WorkItem workItem = new WorkItem();
 
-    when(request.execute()).thenReturn(generateMockResponse(workItem));
-
+    MockLowLevelHttpResponse response = generateMockResponse(workItem);
+    MockLowLevelHttpRequest request = new MockLowLevelHttpRequest().setResponse(response);
+    MockHttpTransport transport =
+        new MockHttpTransport.Builder().setLowLevelHttpRequest(request).build();
+    DataflowWorkerHarnessOptions pipelineOptions = createPipelineOptionsWithTransport(transport);
     WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
 
     assertEquals(Optional.empty(), client.getWorkItem());
@@ -170,8 +185,11 @@ public class DataflowWorkUnitClientTest {
     WorkItem workItem = createWorkItem(PROJECT_ID, JOB_ID);
     workItem.setId(null);
 
-    when(request.execute()).thenReturn(generateMockResponse(workItem));
-
+    MockLowLevelHttpResponse response = generateMockResponse(workItem);
+    MockLowLevelHttpRequest request = new MockLowLevelHttpRequest().setResponse(response);
+    MockHttpTransport transport =
+        new MockHttpTransport.Builder().setLowLevelHttpRequest(request).build();
+    DataflowWorkerHarnessOptions pipelineOptions = createPipelineOptionsWithTransport(transport);
     WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
 
     assertEquals(Optional.empty(), client.getWorkItem());
@@ -190,8 +208,11 @@ public class DataflowWorkUnitClientTest {
 
   @Test
   public void testCloudServiceCallNoWorkItem() throws Exception {
-    when(request.execute()).thenReturn(generateMockResponse());
-
+    MockLowLevelHttpResponse response = generateMockResponse();
+    MockLowLevelHttpRequest request = new MockLowLevelHttpRequest().setResponse(response);
+    MockHttpTransport transport =
+        new MockHttpTransport.Builder().setLowLevelHttpRequest(request).build();
+    DataflowWorkerHarnessOptions pipelineOptions = createPipelineOptionsWithTransport(transport);
     WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
 
     assertEquals(Optional.empty(), client.getWorkItem());
@@ -217,14 +238,82 @@ public class DataflowWorkUnitClientTest {
     WorkItem workItem1 = createWorkItem(PROJECT_ID, JOB_ID);
     WorkItem workItem2 = createWorkItem(PROJECT_ID, JOB_ID);
 
-    when(request.execute()).thenReturn(generateMockResponse(workItem1, workItem2));
-
+    MockLowLevelHttpResponse response = generateMockResponse(workItem1, workItem2);
+    MockLowLevelHttpRequest request = new MockLowLevelHttpRequest().setResponse(response);
+    MockHttpTransport transport =
+        new MockHttpTransport.Builder().setLowLevelHttpRequest(request).build();
+    DataflowWorkerHarnessOptions pipelineOptions = createPipelineOptionsWithTransport(transport);
     WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
 
     client.getWorkItem();
   }
 
-  private LowLevelHttpResponse generateMockResponse(WorkItem... workItems) throws Exception {
+  @Test
+  public void testReportWorkerMessage_streamingScalingReport() throws Exception {
+    MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
+    response.setContentType(Json.MEDIA_TYPE);
+    SendWorkerMessagesResponse workerMessage = new SendWorkerMessagesResponse();
+    workerMessage.setFactory(Transport.getJsonFactory());
+    response.setContent(workerMessage.toPrettyString());
+
+    MockLowLevelHttpRequest request = new MockLowLevelHttpRequest().setResponse(response);
+    MockHttpTransport transport =
+        new MockHttpTransport.Builder().setLowLevelHttpRequest(request).build();
+    DataflowWorkerHarnessOptions pipelineOptions = createPipelineOptionsWithTransport(transport);
+    WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
+
+    StreamingScalingReport activeThreadsReport =
+        new StreamingScalingReport()
+            .setActiveThreadCount(1)
+            .setActiveBundleCount(2)
+            .setOutstandingBytes(3L)
+            .setMaximumThreadCount(4)
+            .setMaximumBundleCount(5)
+            .setMaximumBytes(6L);
+    WorkerMessage msg = client.createWorkerMessageFromStreamingScalingReport(activeThreadsReport);
+    client.reportWorkerMessage(Collections.singletonList(msg));
+
+    SendWorkerMessagesRequest actualRequest =
+        Transport.getJsonFactory()
+            .fromString(request.getContentAsString(), SendWorkerMessagesRequest.class);
+    assertEquals(ImmutableList.of(msg), actualRequest.getWorkerMessages());
+  }
+
+  @Test
+  public void testReportWorkerMessage_perWorkerMetrics() throws Exception {
+    MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
+    response.setContentType(Json.MEDIA_TYPE);
+    SendWorkerMessagesResponse workerMessage = new SendWorkerMessagesResponse();
+    workerMessage.setFactory(Transport.getJsonFactory());
+    response.setContent(workerMessage.toPrettyString());
+
+    MockLowLevelHttpRequest request = new MockLowLevelHttpRequest().setResponse(response);
+    MockHttpTransport transport =
+        new MockHttpTransport.Builder().setLowLevelHttpRequest(request).build();
+    DataflowWorkerHarnessOptions pipelineOptions = createPipelineOptionsWithTransport(transport);
+    WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
+
+    PerStepNamespaceMetrics stepNamespaceMetrics =
+        new PerStepNamespaceMetrics()
+            .setOriginalStep("s1")
+            .setMetricsNamespace("ns")
+            .setMetricValues(
+                Collections.singletonList(new MetricValue().setMetric("metric").setValueInt64(3L)));
+    PerWorkerMetrics perWorkerMetrics =
+        new PerWorkerMetrics()
+            .setPerStepNamespaceMetrics(Collections.singletonList(stepNamespaceMetrics));
+
+    WorkerMessage perWorkerMetricsMsg =
+        client.createWorkerMessageFromPerWorkerMetrics(perWorkerMetrics);
+    client.reportWorkerMessage(Collections.singletonList(perWorkerMetricsMsg));
+
+    SendWorkerMessagesRequest actualRequest =
+        Transport.getJsonFactory()
+            .fromString(request.getContentAsString(), SendWorkerMessagesRequest.class);
+    assertEquals(ImmutableList.of(perWorkerMetricsMsg), actualRequest.getWorkerMessages());
+  }
+
+  private MockLowLevelHttpResponse generateMockResponse(WorkItem... workItems) throws Exception {
     MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
     response.setContentType(Json.MEDIA_TYPE);
     LeaseWorkItemResponse lease = new LeaseWorkItemResponse();

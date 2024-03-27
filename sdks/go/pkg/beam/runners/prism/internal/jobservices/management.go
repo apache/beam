@@ -17,6 +17,7 @@ package jobservices
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -26,7 +27,13 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+var (
+	// ErrCancel represents a pipeline cancellation by the user.
+	ErrCancel = errors.New("pipeline canceled")
 )
 
 func (s *Server) nextId() string {
@@ -110,11 +117,11 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 	// Inspect Transforms for unsupported features.
 	bypassedWindowingStrategies := map[string]bool{}
 	ts := job.Pipeline.GetComponents().GetTransforms()
-	for _, t := range ts {
+	var testStreamIds []string
+	for tid, t := range ts {
 		urn := t.GetSpec().GetUrn()
 		switch urn {
 		case urns.TransformImpulse,
-			urns.TransformParDo,
 			urns.TransformGBK,
 			urns.TransformFlatten,
 			urns.TransformCombinePerKey,
@@ -140,15 +147,50 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 				wsID := pcs[col].GetWindowingStrategyId()
 				bypassedWindowingStrategies[wsID] = true
 			}
+
+		case urns.TransformParDo:
+			var pardo pipepb.ParDoPayload
+			if err := proto.Unmarshal(t.GetSpec().GetPayload(), &pardo); err != nil {
+				return nil, fmt.Errorf("unable to unmarshal ParDoPayload for %v - %q: %w", tid, t.GetUniqueName(), err)
+			}
+
+			// Validate all the state features
+			for _, spec := range pardo.GetStateSpecs() {
+				check("StateSpec.Protocol.Urn", spec.GetProtocol().GetUrn(), urns.UserStateBag, urns.UserStateMultiMap)
+			}
+			// Validate all the timer features
+			for _, spec := range pardo.GetTimerFamilySpecs() {
+				check("TimerFamilySpecs.TimeDomain.Urn", spec.GetTimeDomain(), pipepb.TimeDomain_EVENT_TIME)
+			}
+
+			check("OnWindowExpirationTimerFamily", pardo.GetOnWindowExpirationTimerFamilySpec(), "") // Unsupported for now.
+
 		case "":
 			// Composites can often have no spec
 			if len(t.GetSubtransforms()) > 0 {
 				continue
 			}
 			fallthrough
+		case urns.TransformTestStream:
+			var testStream pipepb.TestStreamPayload
+			if err := proto.Unmarshal(t.GetSpec().GetPayload(), &testStream); err != nil {
+				return nil, fmt.Errorf("unable to unmarshal TestStreamPayload for %v - %q: %w", tid, t.GetUniqueName(), err)
+			}
+			for _, ev := range testStream.GetEvents() {
+				if ev.GetProcessingTimeEvent() != nil {
+					check("TestStream.Event - ProcessingTimeEvents unsupported.", ev.GetProcessingTimeEvent())
+				}
+			}
+
+			t.EnvironmentId = "" // Unset the environment, to ensure it's handled prism side.
+			testStreamIds = append(testStreamIds, tid)
 		default:
 			check("PTransform.Spec.Urn", urn+" "+t.GetUniqueName(), "<doesn't exist>")
 		}
+	}
+	// At most one test stream per pipeline.
+	if len(testStreamIds) > 1 {
+		check("Multiple TestStream Transforms in Pipeline", testStreamIds)
 	}
 
 	// Inspect Windowing strategies for unsupported features.
@@ -194,6 +236,31 @@ func (s *Server) Run(ctx context.Context, req *jobpb.RunJobRequest) (*jobpb.RunJ
 
 	return &jobpb.RunJobResponse{
 		JobId: job.key,
+	}, nil
+}
+
+// Cancel a Job requested by the CancelJobRequest for jobs not in an already terminal state.
+// Otherwise, returns nil if Job does not exist or the Job's existing state as part of the CancelJobResponse.
+func (s *Server) Cancel(_ context.Context, req *jobpb.CancelJobRequest) (*jobpb.CancelJobResponse, error) {
+	s.mu.Lock()
+	job, ok := s.jobs[req.GetJobId()]
+	s.mu.Unlock()
+	if !ok {
+		return nil, nil
+	}
+	state := job.state.Load().(jobpb.JobState_Enum)
+	switch state {
+	case jobpb.JobState_CANCELLED, jobpb.JobState_DONE, jobpb.JobState_DRAINED, jobpb.JobState_UPDATED, jobpb.JobState_FAILED:
+		// Already at terminal state.
+		return &jobpb.CancelJobResponse{
+			State: state,
+		}, nil
+	}
+	job.SendMsg("canceling " + job.String())
+	job.Canceling()
+	job.CancelFn(ErrCancel)
+	return &jobpb.CancelJobResponse{
+		State: jobpb.JobState_CANCELLING,
 	}, nil
 }
 

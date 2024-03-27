@@ -58,7 +58,7 @@ jobs:
         job_name: [beam_CancelStaleDataflowJobs]
         job_phrase: [Run Cancel Stale Dataflow Jobs]
     if: |
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Cancel Stale Dataflow Jobs'
     steps:
@@ -71,6 +71,8 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
+        with:
+          disable-cache: true
       - name: Authenticate on GCP
         id: auth
         uses: google-github-actions/auth@v1

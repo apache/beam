@@ -52,7 +52,7 @@ jobs:
   beam_PerformanceTests_BigQueryIO_Streaming_Java:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run BigQueryIO Streaming Performance Test Java'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
@@ -91,8 +91,8 @@ jobs:
             -DintegrationTestRunner=dataflow \
             -DintegrationTestPipelineOptions='[${{ env.beam_PerformanceTests_BigQueryIO_Streaming_Java_test_arguments_1 }}]' \
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
-        if: failure()
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

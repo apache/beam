@@ -46,9 +46,9 @@ project.tasks.compileJava {
     options.fork = true
     options.forkOptions.javaHome = project.findProperty("java${project.getProperty('testJavaVersion')}Home") as File
     if (project.getProperty('testJavaVersion') == '17') {
-      setJava17Options(options)
+      setJavaVerOptions(options, '17')
     } else if (project.getProperty('testJavaVersion') == '21') {
-      setJava21Options(options)
+      setJavaVerOptions(options, '21')
     }
   }
 }
@@ -74,6 +74,7 @@ configurations {
 dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
+  permitUnusedDeclared project(":sdks:java:extensions:google-cloud-platform-core") // for autoservice filesystems
 
   testImplementation library.java.junit
   testImplementation library.java.hamcrest

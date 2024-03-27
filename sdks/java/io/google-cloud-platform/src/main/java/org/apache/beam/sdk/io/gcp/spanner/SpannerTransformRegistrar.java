@@ -36,7 +36,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -288,6 +288,7 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
       private @Nullable Integer groupingFactor;
       private @Nullable Duration commitDeadline;
       private @Nullable Duration maxCumulativeBackoff;
+      private @Nullable String failureMode;
 
       public void setTable(String table) {
         this.table = table;
@@ -321,6 +322,10 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
         if (maxCumulativeBackoff != null) {
           this.maxCumulativeBackoff = Duration.standardSeconds(maxCumulativeBackoff);
         }
+      }
+
+      public void setFailureMode(@Nullable String failureMode) {
+        this.failureMode = failureMode;
       }
     }
 
@@ -360,6 +365,11 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
       if (configuration.maxCumulativeBackoff != null) {
         writeTransform =
             writeTransform.withMaxCumulativeBackoff(configuration.maxCumulativeBackoff);
+      }
+      if (configuration.failureMode != null) {
+        writeTransform =
+            writeTransform.withFailureMode(
+                SpannerIO.FailureMode.valueOf(configuration.failureMode));
       }
       return SpannerIO.WriteRows.of(writeTransform, operation, configuration.table);
     }

@@ -22,12 +22,12 @@ description = "Apache Beam :: SDKs :: Python :: Container :: Python ${pythonVers
 
 configurations {
   sdkSourceTarball
-  sdkHarnessLauncher
+  pythonHarnessLauncher
 }
 
 dependencies {
   sdkSourceTarball project(path: ":sdks:python", configuration: "distTarBall")
-  sdkHarnessLauncher project(path: ":sdks:python:container", configuration: "sdkHarnessLauncher")
+  pythonHarnessLauncher project(path: ":sdks:python:container", configuration: "pythonHarnessLauncher")
 }
 
 def generatePythonRequirements = tasks.register("generatePythonRequirements") {
@@ -59,14 +59,17 @@ def copyLicenseScripts = tasks.register("copyLicenseScripts", Copy){
 }
 
 def copyLauncherDependencies = tasks.register("copyLauncherDependencies", Copy) {
-  from configurations.sdkHarnessLauncher
+  from configurations.pythonHarnessLauncher
   into "build/target/launcher"
-  if(configurations.sdkHarnessLauncher.isEmpty()) {
+
+  // Avoid seemingly gradle bug stated in https://github.com/apache/beam/issues/29220
+  mustRunAfter "copyLicenses"
+
+  if(configurations.pythonHarnessLauncher.isEmpty()) {
       throw new StopExecutionException();
   }
 }
 
-def useBuildx = project.containerPlatforms() != [project.nativeArchitecture()]
 def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
 
 docker {
@@ -83,9 +86,9 @@ docker {
   buildArgs(['py_version': "${project.ext.pythonVersion}",
              'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
                      project.rootProject.hasProperty(["isRelease"])])
-  buildx useBuildx
+  buildx project.useBuildx()
   platform(*project.containerPlatforms())
-  load useBuildx && !pushContainers
+  load project.useBuildx() && !pushContainers
   push pushContainers
 }
 
@@ -93,7 +96,7 @@ dockerPrepare.dependsOn copyLauncherDependencies
 dockerPrepare.dependsOn copyDockerfileDependencies
 dockerPrepare.dependsOn copyLicenseScripts
 
-if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
+if (project.rootProject.hasProperty("docker-pull-licenses")) {
   def copyGolangLicenses = tasks.register("copyGolangLicenses", Copy) {
     from "${project(':release:go-licenses:py').buildDir}/output"
     into "build/target/go-licenses"

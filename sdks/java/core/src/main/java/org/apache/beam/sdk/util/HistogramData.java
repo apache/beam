@@ -18,10 +18,12 @@
 package org.apache.beam.sdk.util;
 
 import com.google.auto.value.AutoValue;
+import com.google.auto.value.extension.memoized.Memoized;
 import java.io.Serializable;
 import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Objects;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.DoubleMath;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.IntMath;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -45,7 +47,15 @@ public class HistogramData implements Serializable {
   private long[] buckets;
   private long numBoundedBucketRecords;
   private long numTopRecords;
+  private double topRecordsSum;
   private long numBottomRecords;
+  private double bottomRecordsSum;
+
+  @GuardedBy("this")
+  private double sumOfSquaredDeviations;
+
+  @GuardedBy("this")
+  private double mean;
 
   /**
    * Create a histogram.
@@ -57,7 +67,11 @@ public class HistogramData implements Serializable {
     this.buckets = new long[bucketType.getNumBuckets()];
     this.numBoundedBucketRecords = 0;
     this.numTopRecords = 0;
+    this.topRecordsSum = 0;
     this.numBottomRecords = 0;
+    this.bottomRecordsSum = 0;
+    this.mean = 0;
+    this.sumOfSquaredDeviations = 0;
   }
 
   public BucketType getBucketType() {
@@ -79,7 +93,7 @@ public class HistogramData implements Serializable {
   }
 
   /**
-   * Returns a histogram object wiht exponential boundaries. The input parameter {@code scale}
+   * Returns a histogram object with exponential boundaries. The input parameter {@code scale}
    * determines a coefficient 'base' which species bucket boundaries.
    *
    * <pre>
@@ -142,10 +156,14 @@ public class HistogramData implements Serializable {
       }
 
       incTopBucketCount(other.numTopRecords);
+      this.topRecordsSum = other.topRecordsSum;
       incBottomBucketCount(other.numBottomRecords);
+      this.bottomRecordsSum = other.bottomRecordsSum;
       for (int i = 0; i < other.buckets.length; i++) {
         incBucketCount(i, other.buckets[i]);
       }
+      this.mean = other.mean;
+      this.sumOfSquaredDeviations = other.sumOfSquaredDeviations;
     }
   }
 
@@ -170,20 +188,80 @@ public class HistogramData implements Serializable {
     this.buckets = new long[bucketType.getNumBuckets()];
     this.numBoundedBucketRecords = 0;
     this.numTopRecords = 0;
+    this.topRecordsSum = 0;
     this.numBottomRecords = 0;
+    this.bottomRecordsSum = 0;
+    this.mean = 0;
+    this.sumOfSquaredDeviations = 0;
+  }
+
+  /**
+   * Copies all updates to a new histogram object and resets 'this' histogram.
+   *
+   * @return New histogram object that has the the same updates as 'this'.
+   */
+  public synchronized HistogramData getAndReset() {
+    HistogramData other = new HistogramData(this.getBucketType());
+    other.update(this);
+    this.clear();
+    return other;
   }
 
   public synchronized void record(double value) {
     double rangeTo = bucketType.getRangeTo();
     double rangeFrom = bucketType.getRangeFrom();
     if (value >= rangeTo) {
-      numTopRecords++;
+      recordTopRecordsValue(value);
     } else if (value < rangeFrom) {
-      numBottomRecords++;
+      recordBottomRecordsValue(value);
     } else {
       buckets[bucketType.getBucketIndex(value)]++;
       numBoundedBucketRecords++;
     }
+    updateStatistics(value);
+  }
+
+  /**
+   * Update 'mean' and 'sum of squared deviations' statistics with the newly recorded value <a
+   * href="https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm">
+   * Welford's Method</a>.
+   *
+   * @param value
+   */
+  private synchronized void updateStatistics(double value) {
+    long count = getTotalCount();
+    if (count == 1) {
+      mean = value;
+      return;
+    }
+
+    double oldMean = mean;
+    mean = oldMean + (value - oldMean) / count;
+    sumOfSquaredDeviations += (value - mean) * (value - oldMean);
+  }
+
+  /**
+   * Increment the {@code numTopRecords} and update {@code topRecordsSum} when a new overflow value
+   * is recorded. This function should only be called when a Histogram is recording a value greater
+   * than the upper bound of it's largest bucket.
+   *
+   * @param value
+   */
+  private synchronized void recordTopRecordsValue(double value) {
+    numTopRecords++;
+    topRecordsSum += value;
+  }
+
+  /**
+   * Increment the {@code numBottomRecords} and update {@code bottomRecordsSum} when a new underflow
+   * value is recorded. This function should only be called when a Histogram is recording a value
+   * smaller than the lowerbound bound of it's smallest bucket.
+   *
+   * @param value
+   */
+  private synchronized void recordBottomRecordsValue(double value) {
+    numBottomRecords++;
+    bottomRecordsSum += value;
   }
 
   public synchronized long getTotalCount() {
@@ -215,8 +293,24 @@ public class HistogramData implements Serializable {
     return numTopRecords;
   }
 
+  public synchronized double getTopBucketMean() {
+    return numTopRecords == 0 ? 0 : topRecordsSum / numTopRecords;
+  }
+
   public synchronized long getBottomBucketCount() {
     return numBottomRecords;
+  }
+
+  public synchronized double getBottomBucketMean() {
+    return numBottomRecords == 0 ? 0 : bottomRecordsSum / numBottomRecords;
+  }
+
+  public synchronized double getMean() {
+    return mean;
+  }
+
+  public synchronized double getSumOfSquaredDeviations() {
+    return sumOfSquaredDeviations;
   }
 
   public double p99() {
@@ -289,22 +383,31 @@ public class HistogramData implements Serializable {
     // Maximum number of buckets that is supported when 'scale' is zero.
     private static final int ZERO_SCALE_MAX_NUM_BUCKETS = 32;
 
-    public abstract double getBase();
+    @Memoized
+    public double getBase() {
+      return Math.pow(2, Math.pow(2, -getScale()));
+    }
 
     public abstract int getScale();
 
     /**
-     * Set to 2**scale which is equivalent to 1/log_2(base). Precomputed to use in {@code
+     * Set to 2**scale which is equivalent to 1/log_2(base). Memoized to use in {@code
      * getBucketIndexPositiveScale}
      */
-    public abstract double getInvLog2GrowthFactor();
+    @Memoized
+    public double getInvLog2GrowthFactor() {
+      return Math.pow(2, getScale());
+    }
 
     @Override
     public abstract int getNumBuckets();
 
-    /* Precomputed since this value is used everytime a datapoint is recorded. */
+    /* Memoized since this value is used everytime a datapoint is recorded. */
+    @Memoized
     @Override
-    public abstract double getRangeTo();
+    public double getRangeTo() {
+      return Math.pow(getBase(), getNumBuckets());
+    }
 
     public static ExponentialBuckets of(int scale, int numBuckets) {
       if (scale < MINIMUM_SCALE) {
@@ -321,12 +424,8 @@ public class HistogramData implements Serializable {
             String.format("numBuckets should be positive: %d", numBuckets));
       }
 
-      double invLog2GrowthFactor = Math.pow(2, scale);
-      double base = Math.pow(2, Math.pow(2, -scale));
       int clippedNumBuckets = ExponentialBuckets.computeNumberOfBuckets(scale, numBuckets);
-      double rangeTo = Math.pow(base, clippedNumBuckets);
-      return new AutoValue_HistogramData_ExponentialBuckets(
-          base, scale, invLog2GrowthFactor, clippedNumBuckets, rangeTo);
+      return new AutoValue_HistogramData_ExponentialBuckets(scale, clippedNumBuckets);
     }
 
     /**
@@ -381,7 +480,7 @@ public class HistogramData implements Serializable {
       return getBucketIndexZeroScale(value) >> (-getScale());
     }
 
-    // This method is valid for all 'scale' values but we fallback to more effecient methods for
+    // This method is valid for all 'scale' values but we fallback to more efficient methods for
     // non-positive scales.
     // For a value>base we would like to find an i s.t. :
     // base^i <= value < base^(i+1)
@@ -419,6 +518,10 @@ public class HistogramData implements Serializable {
     public double getRangeFrom() {
       return 0;
     }
+
+    @Memoized
+    @Override
+    public abstract int hashCode();
   }
 
   @AutoValue

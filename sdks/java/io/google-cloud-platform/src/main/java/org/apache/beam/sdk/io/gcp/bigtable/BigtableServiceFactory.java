@@ -115,25 +115,23 @@ class BigtableServiceFactory implements Serializable {
       }
 
       BigtableOptions effectiveOptions = getEffectiveOptions(config);
+      BigtableReadOptions optsFromBigtableOptions = null;
       if (effectiveOptions != null) {
-        // If BigtableOptions is set, convert it to BigtableConfig and BigtableWriteOptions
+        // If BigtableOptions is set, convert it to BigtableConfig and BigtableReadOptions
         config = BigtableConfigTranslator.translateToBigtableConfig(config, effectiveOptions);
-        opts = BigtableConfigTranslator.translateToBigtableReadOptions(opts, effectiveOptions);
+        optsFromBigtableOptions =
+            BigtableConfigTranslator.translateToBigtableReadOptions(opts, effectiveOptions);
       }
       BigtableDataSettings settings =
-          BigtableConfigTranslator.translateReadToVeneerSettings(config, opts, pipelineOptions);
+          BigtableConfigTranslator.translateReadToVeneerSettings(
+              config, opts, optsFromBigtableOptions, pipelineOptions);
 
       if (ExperimentalOptions.hasExperiment(pipelineOptions, BIGTABLE_ENABLE_CLIENT_SIDE_METRICS)) {
         LOG.info("Enabling client side metrics");
         BigtableDataSettings.enableBuiltinMetrics();
       }
 
-      BigtableService service;
-      if (opts.getWaitTimeout() != null) {
-        service = new BigtableServiceImpl(settings, opts.getWaitTimeout());
-      } else {
-        service = new BigtableServiceImpl(settings);
-      }
+      BigtableService service = new BigtableServiceImpl(settings);
       entry = BigtableServiceEntry.create(configId, service);
       entries.put(configId.id(), entry);
       refCounts.put(configId.id(), new AtomicInteger(1));
@@ -164,14 +162,17 @@ class BigtableServiceFactory implements Serializable {
       }
 
       BigtableOptions effectiveOptions = getEffectiveOptions(config);
+      BigtableWriteOptions optsFromBigtableOptions = null;
       if (effectiveOptions != null) {
         // If BigtableOptions is set, convert it to BigtableConfig and BigtableWriteOptions
         config = BigtableConfigTranslator.translateToBigtableConfig(config, effectiveOptions);
-        opts = BigtableConfigTranslator.translateToBigtableWriteOptions(opts, effectiveOptions);
+        optsFromBigtableOptions =
+            BigtableConfigTranslator.translateToBigtableWriteOptions(opts, effectiveOptions);
       }
 
       BigtableDataSettings settings =
-          BigtableConfigTranslator.translateWriteToVeneerSettings(config, opts, pipelineOptions);
+          BigtableConfigTranslator.translateWriteToVeneerSettings(
+              config, opts, optsFromBigtableOptions, pipelineOptions);
 
       if (ExperimentalOptions.hasExperiment(pipelineOptions, BIGTABLE_ENABLE_CLIENT_SIDE_METRICS)) {
         LOG.info("Enabling client side metrics");

@@ -20,13 +20,14 @@ package org.apache.beam.runners.flink;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Map;
-import org.apache.beam.runners.core.construction.resources.PipelineResources;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricsOptions;
+import org.apache.beam.sdk.util.construction.resources.PipelineResources;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -101,13 +102,17 @@ class FlinkPipelineExecutionEnvironment {
     prepareFilesToStageForRemoteClusterExecution(options);
 
     FlinkPipelineTranslator translator;
-    if (options.isStreaming()) {
+    if (options.isStreaming() || options.getUseDataStreamForBatch()) {
       this.flinkStreamEnv = FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
       if (hasUnboundedOutput && !flinkStreamEnv.getCheckpointConfig().isCheckpointingEnabled()) {
         LOG.warn(
             "UnboundedSources present which rely on checkpointing, but checkpointing is disabled.");
       }
-      translator = new FlinkStreamingPipelineTranslator(flinkStreamEnv, options);
+      translator =
+          new FlinkStreamingPipelineTranslator(flinkStreamEnv, options, options.isStreaming());
+      if (!options.isStreaming()) {
+        flinkStreamEnv.setRuntimeMode(RuntimeExecutionMode.BATCH);
+      }
     } else {
       this.flinkBatchEnv = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
       translator = new FlinkBatchPipelineTranslator(flinkBatchEnv, options);

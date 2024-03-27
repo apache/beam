@@ -47,6 +47,7 @@ from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_a
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
+from apache_beam.transforms import environments
 from apache_beam.typehints import typehints
 from apache_beam.utils import processes
 from apache_beam.utils.interactive_utils import is_in_notebook
@@ -380,7 +381,6 @@ class DataflowRunner(PipelineRunner):
       self.proto_pipeline = pipeline_proto
 
     else:
-      from apache_beam.transforms import environments
       if options.view_as(SetupOptions).prebuild_sdk_container_engine:
         # if prebuild_sdk_container_engine is specified we will build a new sdk
         # container image with dependencies pre-installed and use that image,
@@ -413,6 +413,12 @@ class DataflowRunner(PipelineRunner):
       # Snapshot the pipeline in a portable proto.
       self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
           return_context=True, default_environment=self._default_environment)
+
+    # Dataflow can only handle Docker environments.
+    for env_id, env in self.proto_pipeline.components.environments.items():
+      self.proto_pipeline.components.environments[env_id].CopyFrom(
+          environments.resolve_anyof_environment(
+              env, common_urns.environments.DOCKER.urn))
 
     # Optimize the pipeline if it not streaming and the pre_optimize
     # experiment is set.
@@ -725,7 +731,8 @@ class DataflowPipelineResult(PipelineResult):
       A PipelineState object.
     """
     if not self.has_job:
-      return PipelineState.UNKNOWN
+      # https://github.com/apache/beam/blob/8f71dc41b30a978095ca0e0699009e4f4445a618/sdks/python/apache_beam/runners/dataflow/dataflow_runner.py#L867-L870
+      return PipelineState.DONE
 
     self._update_job()
 

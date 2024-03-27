@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -66,6 +67,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -140,36 +142,35 @@ public class JmsIO {
         .setMaxNumRecords(Long.MAX_VALUE)
         .setCoder(SerializableCoder.of(JmsRecord.class))
         .setCloseTimeout(DEFAULT_CLOSE_TIMEOUT)
+        .setRequiresDeduping(false)
         .setMessageMapper(
-            (MessageMapper<JmsRecord>)
-                new MessageMapper<JmsRecord>() {
+            new MessageMapper<JmsRecord>() {
+              @Override
+              public JmsRecord mapMessage(Message message) throws Exception {
+                TextMessage textMessage = (TextMessage) message;
+                Map<String, Object> properties = new HashMap<>();
+                @SuppressWarnings("rawtypes")
+                Enumeration propertyNames = textMessage.getPropertyNames();
+                while (propertyNames.hasMoreElements()) {
+                  String propertyName = (String) propertyNames.nextElement();
+                  properties.put(propertyName, textMessage.getObjectProperty(propertyName));
+                }
 
-                  @Override
-                  public JmsRecord mapMessage(Message message) throws Exception {
-                    TextMessage textMessage = (TextMessage) message;
-                    Map<String, Object> properties = new HashMap<>();
-                    @SuppressWarnings("rawtypes")
-                    Enumeration propertyNames = textMessage.getPropertyNames();
-                    while (propertyNames.hasMoreElements()) {
-                      String propertyName = (String) propertyNames.nextElement();
-                      properties.put(propertyName, textMessage.getObjectProperty(propertyName));
-                    }
-
-                    return new JmsRecord(
-                        textMessage.getJMSMessageID(),
-                        textMessage.getJMSTimestamp(),
-                        textMessage.getJMSCorrelationID(),
-                        textMessage.getJMSReplyTo(),
-                        textMessage.getJMSDestination(),
-                        textMessage.getJMSDeliveryMode(),
-                        textMessage.getJMSRedelivered(),
-                        textMessage.getJMSType(),
-                        textMessage.getJMSExpiration(),
-                        textMessage.getJMSPriority(),
-                        properties,
-                        textMessage.getText());
-                  }
-                })
+                return new JmsRecord(
+                    textMessage.getJMSMessageID(),
+                    textMessage.getJMSTimestamp(),
+                    textMessage.getJMSCorrelationID(),
+                    textMessage.getJMSReplyTo(),
+                    textMessage.getJMSDestination(),
+                    textMessage.getJMSDeliveryMode(),
+                    textMessage.getJMSRedelivered(),
+                    textMessage.getJMSType(),
+                    textMessage.getJMSExpiration(),
+                    textMessage.getJMSPriority(),
+                    properties,
+                    textMessage.getText());
+              }
+            })
         .build();
   }
 
@@ -177,6 +178,7 @@ public class JmsIO {
     return new AutoValue_JmsIO_Read.Builder<T>()
         .setMaxNumRecords(Long.MAX_VALUE)
         .setCloseTimeout(DEFAULT_CLOSE_TIMEOUT)
+        .setRequiresDeduping(false)
         .build();
   }
 
@@ -223,6 +225,10 @@ public class JmsIO {
 
     abstract Duration getCloseTimeout();
 
+    abstract @Nullable Duration getReceiveTimeout();
+
+    abstract boolean isRequiresDeduping();
+
     abstract Builder<T> builder();
 
     @AutoValue.Builder
@@ -248,6 +254,10 @@ public class JmsIO {
       abstract Builder<T> setAutoScaler(AutoScaler autoScaler);
 
       abstract Builder<T> setCloseTimeout(Duration closeTimeout);
+
+      abstract Builder<T> setReceiveTimeout(Duration receiveTimeout);
+
+      abstract Builder<T> setRequiresDeduping(boolean requiresDeduping);
 
       abstract Read<T> build();
     }
@@ -395,6 +405,25 @@ public class JmsIO {
       return builder().setCloseTimeout(closeTimeout).build();
     }
 
+    /**
+     * If set, block for the Duration of timeout for each poll to new JMS record if the previous
+     * poll returns no new record.
+     *
+     * <p>Use this option if the requirement for read latency is not a concern or excess client
+     * polling has resulted network issues.
+     */
+    public Read<T> withReceiveTimeout(Duration receiveTimeout) {
+      return builder().setReceiveTimeout(receiveTimeout).build();
+    }
+
+    /**
+     * If set, requires runner deduplication for the messages. Each message is identified by its
+     * {@code JMSMessageID}.
+     */
+    public Read<T> withRequiresDeduping() {
+      return builder().setRequiresDeduping(true).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
@@ -489,12 +518,17 @@ public class JmsIO {
     public Coder<T> getOutputCoder() {
       return this.spec.getCoder();
     }
+
+    @Override
+    public boolean requiresDeduping() {
+      return this.spec.isRequiresDeduping();
+    }
   }
 
   static class UnboundedJmsReader<T> extends UnboundedReader<T> {
 
     private UnboundedJmsSource<T> source;
-    private JmsCheckpointMark checkpointMark;
+    @VisibleForTesting JmsCheckpointMark.Preparer checkpointMarkPreparer;
     private Connection connection;
     private Session session;
     private MessageConsumer consumer;
@@ -502,13 +536,40 @@ public class JmsIO {
 
     private T currentMessage;
     private Instant currentTimestamp;
+    private byte[] currentID;
+    private long receiveTimeoutMillis;
     private PipelineOptions options;
 
     public UnboundedJmsReader(UnboundedJmsSource<T> source, PipelineOptions options) {
       this.source = source;
-      this.checkpointMark = new JmsCheckpointMark();
+      this.checkpointMarkPreparer = JmsCheckpointMark.newPreparer();
       this.currentMessage = null;
+      this.currentID = new byte[0];
       this.options = options;
+    }
+
+    /** recreate session and consumer. */
+    private synchronized void recreateSession() throws IOException {
+      try {
+        this.session = this.connection.createSession(false, Session.CLIENT_ACKNOWLEDGE);
+      } catch (Exception e) {
+        throw new IOException("Error creating JMS session", e);
+      }
+
+      Read<T> spec = source.spec;
+      Duration receiveTimeout =
+          MoreObjects.firstNonNull(source.spec.getReceiveTimeout(), Duration.ZERO);
+      receiveTimeoutMillis = receiveTimeout.getMillis();
+
+      try {
+        if (source.spec.getTopic() != null) {
+          consumer = session.createConsumer(session.createTopic(spec.getTopic()));
+        } else {
+          consumer = session.createConsumer(session.createQueue(spec.getQueue()));
+        }
+      } catch (Exception e) {
+        throw new IOException("Error creating JMS consumer", e);
+      }
     }
 
     @Override
@@ -534,21 +595,7 @@ public class JmsIO {
         throw new IOException("Error connecting to JMS", e);
       }
 
-      try {
-        this.session = this.connection.createSession(false, Session.CLIENT_ACKNOWLEDGE);
-      } catch (Exception e) {
-        throw new IOException("Error creating JMS session", e);
-      }
-
-      try {
-        if (spec.getTopic() != null) {
-          this.consumer = this.session.createConsumer(this.session.createTopic(spec.getTopic()));
-        } else {
-          this.consumer = this.session.createConsumer(this.session.createQueue(spec.getQueue()));
-        }
-      } catch (Exception e) {
-        throw new IOException("Error creating JMS consumer", e);
-      }
+      recreateSession();
 
       return advance();
     }
@@ -556,17 +603,39 @@ public class JmsIO {
     @Override
     public boolean advance() throws IOException {
       try {
-        Message message = this.consumer.receiveNoWait();
-
+        Message message;
+        synchronized (this) {
+          if (receiveTimeoutMillis == 0L) {
+            message = this.consumer.receiveNoWait();
+          } else {
+            message = this.consumer.receive(receiveTimeoutMillis);
+          }
+          // put add in synchronized to make sure all messages in preparer are in same session
+          if (message != null) {
+            checkpointMarkPreparer.add(message);
+          }
+        }
         if (message == null) {
           currentMessage = null;
           return false;
         }
 
-        checkpointMark.add(message);
-
         currentMessage = this.source.spec.getMessageMapper().mapMessage(message);
         currentTimestamp = new Instant(message.getJMSTimestamp());
+
+        String messageID = message.getJMSMessageID();
+        if (this.source.spec.isRequiresDeduping()) {
+          // per JMS specification, message ID has prefix "id:". The runner use it to dedup message.
+          // Empty or non-exist message id (possible for optimization configuration set) will induce
+          // data loss.
+          if (messageID.length() <= 3) {
+            throw new RuntimeException(
+                String.format(
+                    "Invalid JMSMessageID %s while requiresDeduping is set. Data loss possible.",
+                    messageID));
+          }
+        }
+        currentID = messageID.getBytes(StandardCharsets.UTF_8);
 
         return true;
       } catch (Exception e) {
@@ -584,7 +653,7 @@ public class JmsIO {
 
     @Override
     public Instant getWatermark() {
-      return checkpointMark.getOldestMessageTimestamp();
+      return checkpointMarkPreparer.getOldestMessageTimestamp();
     }
 
     @Override
@@ -596,8 +665,31 @@ public class JmsIO {
     }
 
     @Override
+    public byte[] getCurrentRecordId() {
+      if (currentMessage == null) {
+        throw new NoSuchElementException();
+      }
+      return currentID;
+    }
+
+    @Override
     public CheckpointMark getCheckpointMark() {
-      return checkpointMark;
+      if (checkpointMarkPreparer.isEmpty()) {
+        return checkpointMarkPreparer.emptyCheckpoint();
+      }
+
+      MessageConsumer consumerToClose;
+      Session sessionTofinalize;
+      synchronized (this) {
+        consumerToClose = consumer;
+        sessionTofinalize = session;
+      }
+      try {
+        recreateSession();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      return checkpointMarkPreparer.newCheckpoint(consumerToClose, sessionTofinalize);
     }
 
     @Override
@@ -617,7 +709,6 @@ public class JmsIO {
 
     @SuppressWarnings("FutureReturnValueIgnored")
     private void doClose() {
-
       try {
         closeAutoscaler();
         closeConsumer();
@@ -625,16 +716,14 @@ public class JmsIO {
             options.as(ExecutorOptions.class).getScheduledExecutorService();
         executorService.schedule(
             () -> {
-              LOG.debug(
-                  "Closing session and connection after delay {}", source.spec.getCloseTimeout());
+              LOG.debug("Closing connection after delay {}", source.spec.getCloseTimeout());
               // Discard the checkpoints and set the reader as inactive
-              checkpointMark.discard();
+              checkpointMarkPreparer.discard();
               closeSession();
               closeConnection();
             },
             source.spec.getCloseTimeout().getMillis(),
             TimeUnit.MILLISECONDS);
-
       } catch (Exception e) {
         LOG.error("Error closing reader", e);
       }
@@ -652,7 +741,7 @@ public class JmsIO {
       }
     }
 
-    private void closeSession() {
+    private synchronized void closeSession() {
       try {
         if (session != null) {
           session.close();
@@ -663,7 +752,7 @@ public class JmsIO {
       }
     }
 
-    private void closeConsumer() {
+    private synchronized void closeConsumer() {
       try {
         if (consumer != null) {
           consumer.close();

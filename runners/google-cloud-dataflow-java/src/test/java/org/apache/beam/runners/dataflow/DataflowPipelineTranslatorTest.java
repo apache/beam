@@ -38,6 +38,10 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.Step;
@@ -60,11 +64,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ArtifactInformation;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
-import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.ModelCoders;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
@@ -85,6 +84,8 @@ import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -101,6 +102,7 @@ import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
@@ -113,8 +115,12 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.PipelineTranslation;
+import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
@@ -122,7 +128,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -227,6 +233,117 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     FileSystems.setDefaultPipelineOptions(options);
 
     return options;
+  }
+
+  // Test that the transform names for Storage Write API for streaming pipelines are what we expect
+  // them to be. This is required since the Windmill backend expects the step to contain that name.
+  // For a more stable solution, we should use URN, but that is not currently used in the legacy
+  // java
+  // worker.
+  // TODO:(https://github.com/apache/beam/issues/29338) Pass in URN information to Dataflow Runner.
+  @Test
+  public void testStorageWriteApiTransformNames() throws IOException, Exception {
+
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRunner(DataflowRunner.class);
+    Pipeline p = Pipeline.create(options);
+
+    p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+
+    BigQueryIO.Write<String> writeTransform =
+        BigQueryIO.<String>write()
+            .withFormatFunction(
+                (SerializableFunction<String, TableRow>)
+                    input1 -> new TableRow().set("description", input1))
+            .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
+            .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+            .withTriggeringFrequency(org.joda.time.Duration.standardSeconds(5))
+            .to(
+                new TableReference()
+                    .setProjectId("project")
+                    .setDatasetId("dataset")
+                    .setTableId("table"))
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        new ArrayList<>(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("description").setType("STRING")))));
+
+    p.apply(Create.of("1", "2", "3", "4").withCoder(StringUtf8Coder.of()))
+        .setIsBoundedInternal(IsBounded.UNBOUNDED)
+        .apply("StorageWriteApi", writeTransform);
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+    DataflowPipelineTranslator t =
+        DataflowPipelineTranslator.fromOptions(
+            PipelineOptionsFactory.as(DataflowPipelineOptions.class));
+
+    JobSpecification jobSpecification =
+        t.translate(
+            p,
+            pipelineProto,
+            sdkComponents,
+            DataflowRunner.fromOptions(options),
+            Collections.emptyList());
+
+    boolean foundStep = false;
+    for (Step step : jobSpecification.getJob().getSteps()) {
+      if (getString(step.getProperties(), PropertyNames.USER_NAME)
+          .contains("StorageWriteApi/StorageApiLoads")) {
+        foundStep = true;
+      }
+    }
+    assertTrue(foundStep);
+  }
+
+  // Test that the transform names added for TextIO writes with autosharding. This is required since
+  // the Windmill backend expects the file write autosharded step to contain that name.
+  // For a more stable solution, we should use URN, but that is not currently used in the legacy
+  // java
+  // worker.
+  // TODO:(https://github.com/apache/beam/issues/29338) Pass in URN information to Dataflow Runner.
+  @Test
+  public void testGCSWriteTransformNames() throws IOException, Exception {
+
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRunner(DataflowRunner.class);
+    Pipeline p = Pipeline.create(options);
+
+    p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+
+    p.apply(Create.of("1", "2", "3", "4").withCoder(StringUtf8Coder.of()))
+        .setIsBoundedInternal(IsBounded.UNBOUNDED)
+        .apply(Window.into(FixedWindows.of(Duration.millis(1))))
+        .apply(
+            "WriteMyFile",
+            TextIO.write().to("gs://bucket/object").withWindowedWrites().withNumShards(0));
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+    DataflowPipelineTranslator t =
+        DataflowPipelineTranslator.fromOptions(
+            PipelineOptionsFactory.as(DataflowPipelineOptions.class));
+
+    JobSpecification jobSpecification =
+        t.translate(
+            p,
+            pipelineProto,
+            sdkComponents,
+            DataflowRunner.fromOptions(options),
+            Collections.emptyList());
+
+    // Assert that at least one of the steps added was the autosharded write. This is added to
+    // ensure the name doesn't change.
+    boolean foundStep = false;
+    for (Step step : jobSpecification.getJob().getSteps()) {
+      if (getString(step.getProperties(), PropertyNames.USER_NAME)
+          .contains("WriteFiles/WriteAutoShardedBundlesToTempFiles")) {
+        foundStep = true;
+      }
+    }
+    assertTrue(foundStep);
   }
 
   @Test
@@ -1177,33 +1294,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   @Test
-  public void testBatchGroupIntoBatchesTranslationUnifiedWorker() throws Exception {
-    List<String> experiments = ImmutableList.of("use_runner_v2");
-    JobSpecification jobSpec = runBatchGroupIntoBatchesAndGetJobSpec(false, experiments);
-    List<Step> steps = jobSpec.getJob().getSteps();
-    Step shardedStateStep = steps.get(steps.size() - 1);
-    Map<String, Object> properties = shardedStateStep.getProperties();
-    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
-    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
-
-    // TODO: should check that the urn is populated, however it is not due to the override in
-    // DataflowRunner.
-  }
-
-  @Test
-  public void testBatchGroupIntoBatchesWithShardedKeyTranslationUnifiedWorker() throws Exception {
-    List<String> experiments = ImmutableList.of("use_runner_v2");
-    JobSpecification jobSpec = runBatchGroupIntoBatchesAndGetJobSpec(true, experiments);
-    List<Step> steps = jobSpec.getJob().getSteps();
-    Step shardedStateStep = steps.get(steps.size() - 1);
-    Map<String, Object> properties = shardedStateStep.getProperties();
-    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
-    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
-    // TODO: should check that the urn is populated, however it is not due to the override in
-    // DataflowRunner.
-  }
-
-  @Test
   public void testStreamingGroupIntoBatchesTranslation() throws Exception {
     List<String> experiments =
         new ArrayList<>(
@@ -1235,82 +1325,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals("true", getString(properties, PropertyNames.ALLOWS_SHARDABLE_STATE));
     assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
     assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
-  }
-
-  @Test
-  public void testStreamingGroupIntoBatchesTranslationUnifiedWorker() throws Exception {
-    List<String> experiments =
-        new ArrayList<>(
-            ImmutableList.of(
-                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
-                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
-                "use_runner_v2"));
-    JobSpecification jobSpec = runStreamingGroupIntoBatchesAndGetJobSpec(false, experiments);
-    List<Step> steps = jobSpec.getJob().getSteps();
-    Step shardedStateStep = steps.get(steps.size() - 1);
-    Map<String, Object> properties = shardedStateStep.getProperties();
-    assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
-    assertFalse(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
-    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
-
-    // Also checks runner proto is correctly populated.
-    Map<String, RunnerApi.PTransform> transformMap =
-        jobSpec.getPipelineProto().getComponents().getTransformsMap();
-    boolean transformFound = false;
-    for (Map.Entry<String, RunnerApi.PTransform> transform : transformMap.entrySet()) {
-      RunnerApi.FunctionSpec spec = transform.getValue().getSpec();
-      if (spec.getUrn().equals(PTransformTranslation.GROUP_INTO_BATCHES_URN)) {
-        transformFound = true;
-      }
-    }
-    assertTrue(transformFound);
-  }
-
-  @Test
-  public void testStreamingGroupIntoBatchesWithShardedKeyTranslationUnifiedWorker()
-      throws Exception {
-    List<String> experiments =
-        new ArrayList<>(
-            ImmutableList.of(
-                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
-                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
-                "use_runner_v2"));
-    JobSpecification jobSpec = runStreamingGroupIntoBatchesAndGetJobSpec(true, experiments);
-    List<Step> steps = jobSpec.getJob().getSteps();
-    Step shardedStateStep = steps.get(steps.size() - 1);
-    Map<String, Object> properties = shardedStateStep.getProperties();
-    assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
-    assertTrue(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
-    assertEquals("true", getString(properties, PropertyNames.ALLOWS_SHARDABLE_STATE));
-    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
-    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
-
-    // Also checks the runner proto is correctly populated.
-    Map<String, RunnerApi.PTransform> transformMap =
-        jobSpec.getPipelineProto().getComponents().getTransformsMap();
-    boolean transformFound = false;
-    for (Map.Entry<String, RunnerApi.PTransform> transform : transformMap.entrySet()) {
-      RunnerApi.FunctionSpec spec = transform.getValue().getSpec();
-      if (spec.getUrn().equals(PTransformTranslation.GROUP_INTO_BATCHES_WITH_SHARDED_KEY_URN)) {
-        for (String subtransform : transform.getValue().getSubtransformsList()) {
-          RunnerApi.PTransform ptransform = transformMap.get(subtransform);
-          if (ptransform.getSpec().getUrn().equals(PTransformTranslation.GROUP_INTO_BATCHES_URN)) {
-            transformFound = true;
-          }
-        }
-      }
-    }
-    assertTrue(transformFound);
-
-    boolean coderFound = false;
-    Map<String, RunnerApi.Coder> coderMap =
-        jobSpec.getPipelineProto().getComponents().getCodersMap();
-    for (Map.Entry<String, RunnerApi.Coder> coder : coderMap.entrySet()) {
-      if (coder.getValue().getSpec().getUrn().equals(ModelCoders.SHARDED_KEY_CODER_URN)) {
-        coderFound = true;
-      }
-    }
-    assertTrue(coderFound);
   }
 
   @Test

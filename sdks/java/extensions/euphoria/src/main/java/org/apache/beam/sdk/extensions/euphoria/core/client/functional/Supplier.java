@@ -26,8 +26,10 @@ import java.io.Serializable;
  * {@link #get()}.
  *
  * @param <T> the type of results supplied by this supplier
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @FunctionalInterface
+@Deprecated
 public interface Supplier<T> extends Serializable {
 
   /**

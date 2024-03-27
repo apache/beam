@@ -339,6 +339,9 @@ class BigQueryWrapper(object):
   offer a common place where retry logic for failures can be controlled.
   In addition, it offers various functions used both in sources and sinks
   (e.g., find and create tables, query a table, etc.).
+
+  Note that client parameter in constructor is only for testing purposes and
+  should not be used in production code.
   """
 
   # If updating following names, also update the corresponding pydocs in
@@ -353,6 +356,7 @@ class BigQueryWrapper(object):
     self.gcp_bq_client = client or gcp_bigquery.Client(
         client_info=ClientInfo(
             user_agent="apache-beam-%s" % apache_beam.__version__))
+
     self._unique_row_id = 0
     # For testing scenarios where we pass in a client we do not want a
     # randomized prefix for row IDs.
@@ -747,7 +751,7 @@ class BigQueryWrapper(object):
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+      retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
   def get_table(self, project_id, dataset_id, table_id):
     """Lookup a table's metadata object.
 
@@ -1607,7 +1611,7 @@ def get_table_schema_from_string(schema):
 bigquery_v2_messages.TableSchema` instance.
 
   Args:
-    schema (str): The sting schema to be used if the BigQuery table to write
+    schema (str): The string schema to be used if the BigQuery table to write
       has to be created.
 
   Returns:

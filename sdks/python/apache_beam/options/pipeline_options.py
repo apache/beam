@@ -36,6 +36,7 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils import proto_utils
 
 __all__ = [
     'PipelineOptions',
@@ -64,7 +65,7 @@ _FLAG_THAT_SETS_FALSE_VALUE = {'use_public_ips': 'no_use_public_ips'}
 
 
 def _static_value_provider_of(value_type):
-  """"Helper function to plug a ValueProvider into argparse.
+  """Helper function to plug a ValueProvider into argparse.
 
   Args:
     value_type: the type of the value. Since the type param of argparse's
@@ -334,6 +335,10 @@ class PipelineOptions(HasDisplayData):
 
     known_args, unknown_args = parser.parse_known_args(self._flags)
     if retain_unknown_options:
+      if unknown_args:
+        _LOGGER.warning(
+            'Unknown pipeline options received: %s. Ignore if flags are '
+            'used for internal purposes.' % (','.join(unknown_args)))
       i = 0
       while i < len(unknown_args):
         # Treat all unary flags as booleans, and all binary argument values as
@@ -385,6 +390,36 @@ class PipelineOptions(HasDisplayData):
         _LOGGER.warning("Discarding invalid overrides: %s", overrides)
 
     return result
+
+  def to_runner_api(self):
+    def to_struct_value(o):
+      if isinstance(o, (bool, int, str)):
+        return o
+      elif isinstance(o, (tuple, list)):
+        return [to_struct_value(e) for e in o]
+      elif isinstance(o, dict):
+        return {str(k): to_struct_value(v) for k, v in o.items()}
+      else:
+        return str(o)  # Best effort.
+
+    return proto_utils.pack_Struct(
+        **{
+            f'beam:option:{k}:v1': to_struct_value(v)
+            for (k, v) in self.get_all_options(
+                drop_default=True, retain_unknown_options=True).items()
+            if v is not None
+        })
+
+  @classmethod
+  def from_runner_api(cls, proto_options):
+    def from_urn(key):
+      assert key.startswith('beam:option:')
+      assert key.endswith(':v1')
+      return key[12:-3]
+
+    return cls(
+        **{from_urn(key): value
+           for (key, value) in proto_options.items()})
 
   def display_data(self):
     return self.get_all_options(drop_default=True, retain_unknown_options=True)
@@ -515,14 +550,40 @@ class StandardOptions(PipelineOptions):
             'at transform level. Interpretation of hints is defined by '
             'Beam runners.'))
 
+    parser.add_argument(
+        '--auto_unique_labels',
+        default=False,
+        action='store_true',
+        help='Whether to automatically generate unique transform labels '
+        'for every transform. The default behavior is to raise an '
+        'exception if a transform is created with a non-unique label.')
+
+
+class StreamingOptions(PipelineOptions):
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--update_compatibility_version',
+        default=None,
+        help='Attempt to produce a pipeline compatible with the given prior '
+        'version of the Beam SDK. '
+        'See for example, https://cloud.google.com/dataflow/docs/guides/'
+        'updating-a-pipeline')
+
 
 class CrossLanguageOptions(PipelineOptions):
+  @staticmethod
+  def _beam_services_from_enviroment():
+    return json.loads(os.environ.get('BEAM_SERVICE_OVERRIDES') or '{}')
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--beam_services',
-        type=json.loads,
-        default={},
+        type=lambda s: {
+            **cls._beam_services_from_enviroment(), **json.loads(s)
+        },
+        default=cls._beam_services_from_enviroment(),
         help=(
             'For convenience, Beam provides the ability to automatically '
             'download and start various services (such as expansion services) '
@@ -531,7 +592,9 @@ class CrossLanguageOptions(PipelineOptions):
             'use pre-started services or non-default pre-existing artifacts to '
             'start the given service. '
             'Should be a json mapping of gradle build targets to pre-built '
-            'artifacts (e.g. jar files) expansion endpoints (e.g. host:port).'))
+            'artifacts (e.g. jar files) or expansion endpoints '
+            '(e.g. host:port). Defaults to the value of BEAM_SERVICE_OVERRIDES '
+            'from the environment.'))
 
     parser.add_argument(
         '--use_transform_service',
@@ -1127,6 +1190,26 @@ class WorkerOptions(PipelineOptions):
         dest='min_cpu_platform',
         type=str,
         help='GCE minimum CPU platform. Default is determined by GCP.')
+    parser.add_argument(
+        '--max_cache_memory_usage_mb',
+        dest='max_cache_memory_usage_mb',
+        type=int,
+        default=0,
+        help=(
+            'Size of the SDK Harness cache to store user state and side '
+            'inputs in MB. The cache is disabled by default. Increasing '
+            'cache size might improve performance of some pipelines, such as '
+            'pipelines that use iterable side input views, but can '
+            'lead to an increase in memory consumption and OOM errors if '
+            'workers are not appropriately provisioned. '
+            'Using the cache might decrease performance pipelines using '
+            'materialized side inputs. '
+            'If the cache is full, least '
+            'recently used elements will be evicted. This cache is per '
+            'each SDK Harness instance. SDK Harness is a component '
+            'responsible for executing the user code and communicating with '
+            'the runner. Depending on the runner, there may be more than one '
+            'SDK Harness process running on the same worker node.'))
 
   def validate(self, validator):
     errors = []

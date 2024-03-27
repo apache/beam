@@ -18,8 +18,9 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.TextFormat;
+import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.TextFormat;
 
 @AutoValue
 public abstract class WindmillComputationKey {
@@ -27,6 +28,10 @@ public abstract class WindmillComputationKey {
   public static WindmillComputationKey create(
       String computationId, ByteString key, long shardingKey) {
     return new AutoValue_WindmillComputationKey(computationId, key, shardingKey);
+  }
+
+  public static WindmillComputationKey create(String computationId, ShardedKey shardedKey) {
+    return create(computationId, shardedKey.key(), shardedKey.shardingKey());
   }
 
   public abstract String computationId();

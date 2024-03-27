@@ -1,0 +1,46 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Flaky test detection
+
+permissions:
+  issues: write
+
+on:
+  schedule:
+    - cron: '30 */3 * * *'
+  workflow_dispatch:
+    inputs:
+      READ_ONLY:
+        description: 'Run in read-only mode'
+        required: false
+        default: 'true'
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  READ_ONLY: ${{ inputs.READ_ONLY }}
+
+jobs:
+  flaky-test-detection:
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: 
+          python-version: 3.11
+      - run: pip install PyGithub
+      - run: python .test-infra/tools/flaky_test_detection.py

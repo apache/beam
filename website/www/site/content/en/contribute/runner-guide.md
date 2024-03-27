@@ -341,7 +341,7 @@ For values in the global window, you may want to use an even further compressed
 representation that doesn't bother including the window at all.
 
 We provide coders with these optimizations such as
-(`PARAM_WINDOWED_VALUE`)[https://github.com/apache/beam/blob/release-2.49.0/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto#L968]
+[`PARAM_WINDOWED_VALUE`](https://github.com/apache/beam/blob/release-2.49.0/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto#L968)
 that can be used to reduce the size of serialized data.
 
 In the future, this primitive may be retired as it can be implemented as a
@@ -375,8 +375,8 @@ combiner lifting, where a new operation is placed before the `GroupByKey`
 that does partial (within-bundle) combining, which often requires a slight
 modification of what comes after the `GroupByKey` as well.
 An example of this transformation can be found in the
-(Python)[https://github.com/apache/beam/blob/release-2.49.0/sdks/python/apache_beam/runners/portability/fn_api_runner/translations.py#L1193]
-or (go)[https://github.com/apache/beam/blob/release-2.49.0/sdks/go/pkg/beam/runners/prism/internal/handlecombine.go#L67]
+[Python](https://github.com/apache/beam/blob/release-2.49.0/sdks/python/apache_beam/runners/portability/fn_api_runner/translations.py#L1193)
+or [go](https://github.com/apache/beam/blob/release-2.49.0/sdks/go/pkg/beam/runners/prism/internal/handlecombine.go#L67)
 implementations of this optimization.
 The resulting pre- and post-`GroupByKey` operations are generally fused in with
 the `ParDo`s and executed as above.
@@ -385,8 +385,8 @@ the `ParDo`s and executed as above.
 
 When you receive a pipeline from a user, you will need to translate it.
 An explanation of how Beam pipelines are represented can be found
-(here)[https://docs.google.com/presentation/d/1atu-QC_mnK2SaeLhc0D78wZYgVOX1fN0H544QmBi3VA]
-which compliment the (official proto declarations)[https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto].
+[here](https://docs.google.com/presentation/d/1atu-QC_mnK2SaeLhc0D78wZYgVOX1fN0H544QmBi3VA)
+which compliment the [official proto declarations](https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/org/apache/beam/model/pipeline/v1/beam_runner_api.proto).
 
 ## Testing your runner
 
@@ -553,7 +553,7 @@ language it may have been written in to begin with.
 
 If your runner is Java-based, the tools to interact with pipelines in an
 SDK-agnostic manner are in the `beam-runners-core-construction-java`
-artifact, in the `org.apache.beam.runners.core.construction` namespace.
+artifact, in the `org.apache.beam.sdk.util.construction` namespace.
 The utilities are named consistently, like so:
 
  * `PTransformTranslation` - registry of known transforms and standard URNs
@@ -757,7 +757,7 @@ and PipelineResult, but altered to be the minimal backend channel, versus a
 rich and convenient API.
 
 A key piece of this is the
-(Artifacts API)[https://github.com/apache/beam/blob/master/model/job-management/src/main/proto/org/apache/beam/model/job_management/v1/beam_artifact_api.proto],
+[Artifacts API](https://github.com/apache/beam/blob/master/model/job-management/src/main/proto/org/apache/beam/model/job_management/v1/beam_artifact_api.proto),
 which allows a Runner to fetch and deploy binary artifacts (such as jars,
 pypi packages, etc.) that are listed as dependencies in the various environments,
 and may have various representations.  This is invoked after a pipeline

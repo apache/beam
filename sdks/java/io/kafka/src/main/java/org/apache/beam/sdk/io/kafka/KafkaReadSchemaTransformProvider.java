@@ -30,11 +30,11 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
+import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -43,12 +43,12 @@ import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -58,7 +58,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -76,8 +75,6 @@ public class KafkaReadSchemaTransformProvider
 
   public static final TupleTag<Row> OUTPUT_TAG = new TupleTag<Row>() {};
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
-  public static final Schema ERROR_SCHEMA =
-      Schema.builder().addStringField("error").addNullableByteArrayField("row").build();
 
   final Boolean isTest;
   final Integer testTimeoutSecs;
@@ -97,10 +94,13 @@ public class KafkaReadSchemaTransformProvider
     return KafkaReadSchemaTransformConfiguration.class;
   }
 
+  @SuppressWarnings({
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  })
   @Override
   protected SchemaTransform from(KafkaReadSchemaTransformConfiguration configuration) {
     final String inputSchema = configuration.getSchema();
-    final Integer groupId = configuration.hashCode() % Integer.MAX_VALUE;
+    final int groupId = configuration.hashCode() % Integer.MAX_VALUE;
     final String autoOffsetReset =
         MoreObjects.firstNonNull(configuration.getAutoOffsetResetConfig(), "latest");
 
@@ -112,61 +112,19 @@ public class KafkaReadSchemaTransformProvider
     consumerConfigs.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 100);
     consumerConfigs.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, autoOffsetReset);
 
-    if (inputSchema != null && !inputSchema.isEmpty()) {
-      assert Strings.isNullOrEmpty(configuration.getConfluentSchemaRegistryUrl())
-          : "To read from Kafka, a schema must be provided directly or though Confluent "
-              + "Schema Registry, but not both.";
-      final Schema beamSchema =
-          Objects.equals(configuration.getFormat(), "JSON")
-              ? JsonUtils.beamSchemaFromJsonSchema(inputSchema)
-              : AvroUtils.toBeamSchema(new org.apache.avro.Schema.Parser().parse(inputSchema));
-      SerializableFunction<byte[], Row> valueMapper =
-          Objects.equals(configuration.getFormat(), "JSON")
-              ? JsonUtils.getJsonBytesToRowFunction(beamSchema)
-              : AvroUtils.getAvroBytesToRowFunction(beamSchema);
+    String format = configuration.getFormat();
+    boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
+
+    SerializableFunction<byte[], Row> valueMapper;
+    Schema beamSchema;
+
+    String confluentSchemaRegUrl = configuration.getConfluentSchemaRegistryUrl();
+    if (confluentSchemaRegUrl != null) {
       return new SchemaTransform() {
         @Override
         public PCollectionRowTuple expand(PCollectionRowTuple input) {
-          KafkaIO.Read<byte[], byte[]> kafkaRead =
-              KafkaIO.readBytes()
-                  .withConsumerConfigUpdates(consumerConfigs)
-                  .withConsumerFactoryFn(new ConsumerFactoryWithGcsTrustStores())
-                  .withTopic(configuration.getTopic())
-                  .withBootstrapServers(configuration.getBootstrapServers());
-          if (isTest) {
-            kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(testTimeoutSecs));
-          }
-
-          PCollection<byte[]> kafkaValues =
-              input.getPipeline().apply(kafkaRead.withoutMetadata()).apply(Values.create());
-
-          PCollectionTuple outputTuple =
-              kafkaValues.apply(
-                  ParDo.of(new ErrorFn("Kafka-read-error-counter", valueMapper))
-                      .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
-
-          return PCollectionRowTuple.of(
-              "output",
-              outputTuple.get(OUTPUT_TAG).setRowSchema(beamSchema),
-              "errors",
-              outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA));
-        }
-      };
-    } else {
-      assert !Strings.isNullOrEmpty(configuration.getConfluentSchemaRegistryUrl())
-          : "To read from Kafka, a schema must be provided directly or though Confluent "
-              + "Schema Registry. Neither seems to have been provided.";
-      return new SchemaTransform() {
-        @Override
-        public PCollectionRowTuple expand(PCollectionRowTuple input) {
-          final String confluentSchemaRegUrl = configuration.getConfluentSchemaRegistryUrl();
           final String confluentSchemaRegSubject =
               configuration.getConfluentSchemaRegistrySubject();
-          if (confluentSchemaRegUrl == null || confluentSchemaRegSubject == null) {
-            throw new IllegalArgumentException(
-                "To read from Kafka, a schema must be provided directly or though Confluent "
-                    + "Schema Registry. Make sure you are providing one of these parameters.");
-          }
           KafkaIO.Read<byte[], GenericRecord> kafkaRead =
               KafkaIO.<byte[], GenericRecord>read()
                   .withTopic(configuration.getTopic())
@@ -191,6 +149,71 @@ public class KafkaReadSchemaTransformProvider
         }
       };
     }
+
+    if (format.equals("RAW")) {
+      beamSchema = Schema.builder().addField("payload", Schema.FieldType.BYTES).build();
+      valueMapper = getRawBytesToRowFunction(beamSchema);
+    } else if (format.equals("PROTO")) {
+      String fileDescriptorPath = configuration.getFileDescriptorPath();
+      String messageName = configuration.getMessageName();
+      if (fileDescriptorPath != null) {
+        beamSchema = ProtoByteUtils.getBeamSchemaFromProto(fileDescriptorPath, messageName);
+        valueMapper = ProtoByteUtils.getProtoBytesToRowFunction(fileDescriptorPath, messageName);
+      } else {
+        beamSchema = ProtoByteUtils.getBeamSchemaFromProtoSchema(inputSchema, messageName);
+        valueMapper = ProtoByteUtils.getProtoBytesToRowFromSchemaFunction(inputSchema, messageName);
+      }
+    } else if (format.equals("JSON")) {
+      beamSchema = JsonUtils.beamSchemaFromJsonSchema(inputSchema);
+      valueMapper = JsonUtils.getJsonBytesToRowFunction(beamSchema);
+    } else {
+      beamSchema = AvroUtils.toBeamSchema(new org.apache.avro.Schema.Parser().parse(inputSchema));
+      valueMapper = AvroUtils.getAvroBytesToRowFunction(beamSchema);
+    }
+
+    return new SchemaTransform() {
+      @Override
+      public PCollectionRowTuple expand(PCollectionRowTuple input) {
+        KafkaIO.Read<byte[], byte[]> kafkaRead =
+            KafkaIO.readBytes()
+                .withConsumerConfigUpdates(consumerConfigs)
+                .withConsumerFactoryFn(new ConsumerFactoryWithGcsTrustStores())
+                .withTopic(configuration.getTopic())
+                .withBootstrapServers(configuration.getBootstrapServers());
+        if (isTest) {
+          kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(testTimeoutSecs));
+        }
+
+        PCollection<byte[]> kafkaValues =
+            input.getPipeline().apply(kafkaRead.withoutMetadata()).apply(Values.create());
+
+        Schema errorSchema = ErrorHandling.errorSchemaBytes();
+        PCollectionTuple outputTuple =
+            kafkaValues.apply(
+                ParDo.of(
+                        new ErrorFn(
+                            "Kafka-read-error-counter", valueMapper, errorSchema, handleErrors))
+                    .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+        PCollectionRowTuple outputRows =
+            PCollectionRowTuple.of("output", outputTuple.get(OUTPUT_TAG).setRowSchema(beamSchema));
+
+        PCollection<Row> errorOutput = outputTuple.get(ERROR_TAG).setRowSchema(errorSchema);
+        if (handleErrors) {
+          outputRows = outputRows.and(configuration.getErrorHandling().getOutput(), errorOutput);
+        }
+        return outputRows;
+      }
+    };
+  }
+
+  public static SerializableFunction<byte[], Row> getRawBytesToRowFunction(Schema rawSchema) {
+    return new SimpleFunction<byte[], Row>() {
+      @Override
+      public Row apply(byte[] input) {
+        return Row.withSchema(rawSchema).addValue(input).build();
+      }
+    };
   }
 
   @Override
@@ -209,25 +232,38 @@ public class KafkaReadSchemaTransformProvider
   }
 
   public static class ErrorFn extends DoFn<byte[], Row> {
-    private SerializableFunction<byte[], Row> valueMapper;
-    private Counter errorCounter;
+    private final SerializableFunction<byte[], Row> valueMapper;
+    private final Counter errorCounter;
     private Long errorsInBundle = 0L;
+    private final boolean handleErrors;
+    private final Schema errorSchema;
 
-    public ErrorFn(String name, SerializableFunction<byte[], Row> valueMapper) {
+    public ErrorFn(
+        String name,
+        SerializableFunction<byte[], Row> valueMapper,
+        Schema errorSchema,
+        boolean handleErrors) {
       this.errorCounter = Metrics.counter(KafkaReadSchemaTransformProvider.class, name);
       this.valueMapper = valueMapper;
+      this.handleErrors = handleErrors;
+      this.errorSchema = errorSchema;
     }
 
     @ProcessElement
     public void process(@DoFn.Element byte[] msg, MultiOutputReceiver receiver) {
+      Row mappedRow = null;
       try {
-        receiver.get(OUTPUT_TAG).output(valueMapper.apply(msg));
+        mappedRow = valueMapper.apply(msg);
       } catch (Exception e) {
+        if (!handleErrors) {
+          throw new RuntimeException(e);
+        }
         errorsInBundle += 1;
         LOG.warn("Error while parsing the element", e);
-        receiver
-            .get(ERROR_TAG)
-            .output(Row.withSchema(ERROR_SCHEMA).addValues(e.toString(), msg).build());
+        receiver.get(ERROR_TAG).output(ErrorHandling.errorRecord(errorSchema, msg, e));
+      }
+      if (mappedRow != null) {
+        receiver.get(OUTPUT_TAG).output(mappedRow);
       }
     }
 

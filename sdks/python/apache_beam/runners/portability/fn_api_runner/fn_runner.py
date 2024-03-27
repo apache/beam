@@ -56,6 +56,7 @@ from apache_beam.metrics.monitoring_infos import consolidate as consolidate_moni
 from apache_beam.options import pipeline_options
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -220,21 +221,34 @@ class FnApiRunner(runner.PipelineRunner):
     ]
     if direct_options.direct_embed_docker_python:
       pipeline_proto = self.embed_default_docker_image(pipeline_proto)
+    pipeline_proto = self.resolve_any_environments(pipeline_proto)
     stage_context, stages = self.create_stages(pipeline_proto)
     return self.run_stages(stage_context, stages)
 
   def embed_default_docker_image(self, pipeline_proto):
+    """Updates the pipeline proto to execute transforms that would normally
+    be executed in the default docker image for this SDK to execute inline
+    via the "embedded" environment.
+    """
     # Context is unused for these types.
     embedded_env = environments.EmbeddedPythonEnvironment.default(
     ).to_runner_api(None)  # type: ignore[arg-type]
     docker_env = environments.DockerEnvironment.from_container_image(
         environments.DockerEnvironment.default_docker_image()).to_runner_api(
             None)  # type: ignore[arg-type]
-    for env_id, env in pipeline_proto.components.environments.items():
-      if env == docker_env:
-        docker_env_id = env_id
-        break
-    else:
+
+    # We'd rather deal with the complexity of any environments here rather
+    # than resolve them first so we can get optimal substitution in case
+    # docker is not high in the preferred environment type list.
+    def is_this_python_docker_env(env):
+      return any(
+          e == docker_env for e in environments.expand_anyof_environments(env))
+
+    python_docker_environments = set(
+        env_id
+        for (env_id, env) in pipeline_proto.components.environments.items()
+        if is_this_python_docker_env(env))
+    if not python_docker_environments:
       # No matching docker environments.
       return pipeline_proto
 
@@ -243,14 +257,26 @@ class FnApiRunner(runner.PipelineRunner):
         embedded_env_id = env_id
         break
     else:
-      # No existing embedded environment.
-      pipeline_proto.components.environments[docker_env_id].CopyFrom(
+      # No existing embedded environment. Create one.
+      embedded_env_id = "python_embedded_env"
+      while embedded_env_id in pipeline_proto.components.environments:
+        embedded_env_id += '_'
+      pipeline_proto.components.environments[embedded_env_id].CopyFrom(
           embedded_env)
-      return pipeline_proto
 
     for transform in pipeline_proto.components.transforms.values():
-      if transform.environment_id == docker_env_id:
+      if transform.environment_id in python_docker_environments:
         transform.environment_id = embedded_env_id
+    return pipeline_proto
+
+  def resolve_any_environments(self, pipeline_proto):
+    for env_id, env in pipeline_proto.components.environments.items():
+      pipeline_proto.components.environments[env_id].CopyFrom(
+          environments.resolve_anyof_environment(
+              env,
+              python_urns.EMBEDDED_PYTHON,
+              common_urns.environments.EXTERNAL.urn,
+              common_urns.environments.DOCKER.urn))
     return pipeline_proto
 
   @contextlib.contextmanager

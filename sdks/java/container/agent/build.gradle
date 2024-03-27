@@ -21,12 +21,16 @@ plugins {
 }
 
 // the order is intended here
+// Overwrite javaVersion global property if corresponding project property specified
 if (project.hasProperty('java11Home')) {
     javaVersion = "1.11"
 } else if (project.hasProperty('java17Home')) {
     javaVersion = "1.17"
 } else if (project.hasProperty('java21Home')) {
     javaVersion = "1.21"
+} else if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
+    // Otherwise, compile the project with java11 spec
+    javaVersion = "1.11"
 }
 
 applyJavaNature(
@@ -47,15 +51,12 @@ jar {
 
 // the order is intended here
 if (project.hasProperty('java11Home')) {
-    def java11Home = project.findProperty('java11Home')
     project.tasks.withType(JavaCompile) {
-        options.fork = true
-        options.forkOptions.javaHome = java11Home as File
-        options.compilerArgs += ['-Xlint:-path']
+        setJavaVerOptions(options, '11')
     }
 } else if (project.hasProperty('java17Home')) {
     project.tasks.withType(JavaCompile) {
-        setJava17Options(options)
+        setJavaVerOptions(options, '17')
 
         checkerFramework {
             skipCheckerFramework = true
@@ -63,7 +64,7 @@ if (project.hasProperty('java11Home')) {
     }
 } else if (project.hasProperty('java21Home')) {
     project.tasks.withType(JavaCompile) {
-        setJava21Options(options)
+        setJavaVerOptions(options, '21')
 
         checkerFramework {
             skipCheckerFramework = true

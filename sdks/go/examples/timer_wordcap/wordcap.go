@@ -118,7 +118,6 @@ func (s *Stateful) OnTimer(ctx context.Context, ts beam.EventTime, sp state.Prov
 			// Clean up the state that has been evicted.
 			s.ElementBag.Clear(sp)
 			s.MinTime.Clear(sp)
-			s.OutputState.ClearTag(tp, tag) // Clean up the fired timer tag. (Temporary workaround for a runner bug.)
 		}
 	}
 }

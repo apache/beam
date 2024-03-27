@@ -195,7 +195,8 @@ class MatchFiles(beam.PTransform):
     self._empty_match_treatment = empty_match_treatment
 
   def expand(self, pcoll) -> beam.PCollection[filesystem.FileMetadata]:
-    return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll()
+    return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll(
+        empty_match_treatment=self._empty_match_treatment)
 
 
 class MatchAll(beam.PTransform):
@@ -520,8 +521,6 @@ class WriteToFiles(beam.PTransform):
   **Note:** For unbounded ``PCollection``\s, this transform does not support
   multiple firings per Window (due to the fact that files are named only by
   their destination, and window, at the moment).
-
-  WriteToFiles is experimental.  No backwards-compatibility guarantees.
   """
 
   # We allow up to 20 different destinations to be written in a single bundle.
@@ -739,7 +738,9 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
 
       if len(orphaned_files) > 0:
         _LOGGER.info(
-            'Some files may be left orphaned in the temporary folder: %s',
+            'Some files may be left orphaned in the temporary folder: %s. '
+            'This may be a result of insufficient permissions to delete'
+            'these temp files.',
             orphaned_files)
     except BeamIOError as e:
       _LOGGER.info('Exceptions when checking orphaned files: %s', e)

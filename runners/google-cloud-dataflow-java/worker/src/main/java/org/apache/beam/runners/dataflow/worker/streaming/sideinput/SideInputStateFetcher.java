@@ -27,12 +27,14 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.function.Function;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
-import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
+import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -58,15 +60,18 @@ public class SideInputStateFetcher {
       ImmutableSet.of(ITERABLE_MATERIALIZATION_URN, MULTIMAP_MATERIALIZATION_URN);
 
   private final SideInputCache sideInputCache;
-  private final MetricTrackingWindmillServerStub server;
+  private final Function<GlobalDataRequest, GlobalData> fetchGlobalDataFn;
   private long bytesRead = 0L;
 
-  public SideInputStateFetcher(MetricTrackingWindmillServerStub server) {
-    this(server, SideInputCache.create());
+  public SideInputStateFetcher(
+      Function<GlobalDataRequest, GlobalData> fetchGlobalDataFn,
+      DataflowStreamingPipelineOptions options) {
+    this(fetchGlobalDataFn, SideInputCache.create(options));
   }
 
-  SideInputStateFetcher(MetricTrackingWindmillServerStub server, SideInputCache sideInputCache) {
-    this.server = server;
+  SideInputStateFetcher(
+      Function<GlobalDataRequest, GlobalData> fetchGlobalDataFn, SideInputCache sideInputCache) {
+    this.fetchGlobalDataFn = fetchGlobalDataFn;
     this.sideInputCache = sideInputCache;
   }
 
@@ -98,7 +103,7 @@ public class SideInputStateFetcher {
 
   /** Returns a view of the underlying cache that keeps track of bytes read separately. */
   public SideInputStateFetcher byteTrackingView() {
-    return new SideInputStateFetcher(server, sideInputCache);
+    return new SideInputStateFetcher(fetchGlobalDataFn, sideInputCache);
   }
 
   public long getBytesRead() {
@@ -163,8 +168,8 @@ public class SideInputStateFetcher {
     ByteStringOutputStream windowStream = new ByteStringOutputStream();
     windowCoder.encode(sideWindow, windowStream);
 
-    Windmill.GlobalDataRequest request =
-        Windmill.GlobalDataRequest.newBuilder()
+    GlobalDataRequest request =
+        GlobalDataRequest.newBuilder()
             .setDataId(
                 Windmill.GlobalDataId.newBuilder()
                     .setTag(getInternalTag(view).getId())
@@ -177,7 +182,7 @@ public class SideInputStateFetcher {
             .build();
 
     try (Closeable ignored = scopedReadStateSupplier.get()) {
-      return server.getSideInputData(request);
+      return fetchGlobalDataFn.apply(request);
     }
   }
 

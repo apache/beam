@@ -18,8 +18,6 @@
 name: PerformanceTests SingleStoreIO
 
 on:
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 */12 * * *'
   workflow_dispatch:
@@ -63,11 +61,11 @@ jobs:
         job_phrase: [Run Java SingleStoreIO Performance Test]
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java SingleStoreIO Performance Test'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -85,6 +83,7 @@ jobs:
         with:
           cluster_name: io-datastores
           k8s_namespace: ${{ matrix.job_name }}-${{ github.run_id }}
+          remove_finalizer:  memsqlclusters.memsql.com/sdb-cluster
       - name: Install Singlestore operator
         run: | 
           kubectl apply -f ${{github.workspace}}/.test-infra/kubernetes/singlestore/sdb-rbac.yaml
@@ -105,7 +104,7 @@ jobs:
           test-type: performance
           test-language: java
           argument-file-paths: |
-            ${{ github.workspace }}/.github/workflows/performance-tests-job-configs/config_PerformanceTests_SingleStoreIO.txt
+            ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/config_PerformanceTests_SingleStoreIO.txt
           arguments: |
             --singleStoreServerName=${{ steps.install_singlestore.outputs.lb_ip }}
       # The env variable is created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"

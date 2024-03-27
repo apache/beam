@@ -553,7 +553,7 @@ public class UnboundedScheduledExecutorServiceTest {
     LOG.info("Created {} threads to execute at most 100 parallel tasks", largestPool);
     // Ideally we would never create more than 100, however with contention it is still possible
     // some extra threads will be created.
-    assertTrue(largestPool <= 104);
+    assertTrue(largestPool <= 110);
     executorService.shutdown();
   }
 }

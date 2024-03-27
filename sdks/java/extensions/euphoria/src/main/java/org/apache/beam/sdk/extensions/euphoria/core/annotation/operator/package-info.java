@@ -17,6 +17,6 @@
  */
 /**
  * This package contains a set of annotations wch allows to mark operators to explicitly tell that
- * they have varions properties.
+ * they have various properties.
  */
 package org.apache.beam.sdk.extensions.euphoria.core.annotation.operator;

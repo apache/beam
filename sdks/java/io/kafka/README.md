@@ -47,3 +47,13 @@ complete list.
 The documentation is maintained in JavaDoc for KafkaIO class. It includes
  usage examples and primary concepts.
 - [KafkaIO.java](src/main/java/org/apache/beam/sdk/io/kafka/KafkaIO.java)
+
+### Protobuf tests
+This recreates the proto descriptor set included in this resource directory.
+
+```bash
+protoc \
+ -Isdks/java/io/kafka/src/test/resources/ \
+ --descriptor_set_out=sdks/java/io/kafka/src/test/resources/proto_byte/file_descriptor/proto_byte_utils.pb \
+ sdks/java/io/kafka/src/test/resources/proto_byte/proto_byte_utils.proto
+```

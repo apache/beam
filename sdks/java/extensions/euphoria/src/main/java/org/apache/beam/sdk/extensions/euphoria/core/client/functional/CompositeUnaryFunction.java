@@ -19,8 +19,13 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.functional;
 
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
-/** A function that is composition of two unary functions. */
+/**
+ * A function that is composition of two unary functions.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @Audience(Audience.Type.CLIENT)
+@Deprecated
 public class CompositeUnaryFunction<InputT, OutputT, X> implements UnaryFunction<InputT, OutputT> {
 
   private final UnaryFunction<InputT, X> first;

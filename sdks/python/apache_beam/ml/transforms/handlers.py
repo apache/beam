@@ -17,9 +17,10 @@
 # pytype: skip-file
 
 import collections
-import hashlib
+import copy
 import os
 import typing
+from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -31,6 +32,8 @@ import numpy as np
 import apache_beam as beam
 import tensorflow as tf
 import tensorflow_transform.beam as tft_beam
+from apache_beam import coders
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.transforms.base import ArtifactMode
 from apache_beam.ml.transforms.base import ProcessHandler
 from apache_beam.ml.transforms.tft import _EXPECTED_TYPES
@@ -48,6 +51,8 @@ from tensorflow_transform.tf_metadata import schema_utils
 __all__ = [
     'TFTProcessHandler',
 ]
+
+_TEMP_KEY = 'CODED_SAMPLE'  # key for the encoded sample
 
 RAW_DATA_METADATA_DIR = 'raw_data_metadata'
 SCHEMA_FILE = 'schema.pbtxt'
@@ -80,12 +85,41 @@ tft_process_handler_input_type = typing.Union[typing.NamedTuple,
 tft_process_handler_output_type = typing.Union[beam.Row, Dict[str, np.ndarray]]
 
 
-class ConvertScalarValuesToListValues(beam.DoFn):
+class _DataCoder:
+  def __init__(
+      self,
+      exclude_columns,
+      coder=coders.registry.get_coder(Any),
+  ):
+    """
+    Encodes/decodes items of a dictionary into a single element.
+    Args:
+      exclude_columns: list of columns to exclude from the encoding.
+    """
+    self.coder = coder
+    self.exclude_columns = exclude_columns
+
+  def encode(self, element):
+    data_to_encode = element.copy()
+    element_to_return = element.copy()
+    for key in self.exclude_columns:
+      if key in data_to_encode:
+        del data_to_encode[key]
+    element_to_return[_TEMP_KEY] = self.coder.encode(data_to_encode)
+    return element_to_return
+
+  def decode(self, element):
+    clone = copy.copy(element)
+    clone.update(self.coder.decode(clone[_TEMP_KEY].item()))
+    del clone[_TEMP_KEY]
+    return clone
+
+
+class _ConvertScalarValuesToListValues(beam.DoFn):
   def process(
       self,
       element,
   ):
-    hash_key, element = element
     new_dict = {}
     for key, value in element.items():
       if isinstance(value,
@@ -93,10 +127,10 @@ class ConvertScalarValuesToListValues(beam.DoFn):
         new_dict[key] = [value]
       else:
         new_dict[key] = value
-    yield (hash_key, new_dict)
+    yield new_dict
 
 
-class ConvertNamedTupleToDict(
+class _ConvertNamedTupleToDict(
     beam.PTransform[beam.PCollection[typing.Union[beam.Row, typing.NamedTuple]],
                     beam.PCollection[Dict[str,
                                           common_types.InstanceDictType]]]):
@@ -119,80 +153,6 @@ class ConvertNamedTupleToDict(
     else:
       # named tuple
       return pcoll | beam.Map(lambda x: x._asdict())
-
-
-class ComputeAndAttachHashKey(beam.DoFn):
-  """
-  Computes and attaches a hash key to the element.
-  Only for internal use. No backwards compatibility guarantees.
-  """
-  def process(self, element):
-    hash_object = hashlib.sha256()
-    for _, value in element.items():
-      # handle the case where value is a list or numpy array
-      if isinstance(value, (list, np.ndarray)):
-        hash_object.update(str(list(value)).encode())
-      else:  # assume value is a primitive that can be turned into str
-        hash_object.update(str(value).encode())
-    yield (hash_object.hexdigest(), element)
-
-
-class GetMissingColumnsPColl(beam.DoFn):
-  """
-  Returns data containing only the columns that are not
-  present in the schema. This is needed since TFT only outputs
-  columns that are transformed by any of the data processing transforms.
-
-  Only for internal use. No backwards compatibility guarantees.
-  """
-  def __init__(self, existing_columns):
-    self.existing_columns = existing_columns
-
-  def process(self, element):
-    new_dict = {}
-    hash_key, element = element
-    for key, value in element.items():
-      if key not in self.existing_columns:
-        new_dict[key] = value
-    yield (hash_key, new_dict)
-
-
-class MakeHashKeyAsColumn(beam.DoFn):
-  """
-  Extracts the hash key from the element and adds it as a column.
-
-  Only for internal use. No backwards compatibility guarantees.
-  """
-  def process(self, element):
-    hash_key, element = element
-    element['hash_key'] = hash_key
-    yield element
-
-
-class ExtractHashAndKeyPColl(beam.DoFn):
-  """
-  Extracts the hash key and return hashkey and element as a tuple.
-
-  Only for internal use. No backwards compatibility guarantees.
-  """
-  def process(self, element):
-    hashkey = element['hash_key'][0]
-    del element['hash_key']
-    yield (hashkey.decode('utf-8'), element)
-
-
-class MergeDicts(beam.DoFn):
-  """
-  Merges the dictionaries in the PCollection.
-
-  Only for internal use. No backwards compatibility guarantees.
-  """
-  def process(self, element):
-    _, element = element
-    new_dict = {}
-    for d in element:
-      new_dict.update(d[0])
-    yield new_dict
 
 
 class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
@@ -323,7 +283,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
   def get_raw_data_metadata(
       self, input_types: Dict[str, type]) -> dataset_metadata.DatasetMetadata:
     raw_data_feature_spec = self.get_raw_data_feature_spec(input_types)
-    raw_data_feature_spec['hash_key'] = tf.io.VarLenFeature(dtype=tf.string)
+    raw_data_feature_spec[_TEMP_KEY] = tf.io.VarLenFeature(dtype=tf.string)
     return self.convert_raw_data_feature_spec_to_dataset_metadata(
         raw_data_feature_spec)
 
@@ -387,7 +347,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
         transformed_types[name] = typing.Sequence[bytes]  # type: ignore[assignment]
     return transformed_types
 
-  def process_data(
+  def expand(
       self, raw_data: beam.PCollection[tft_process_handler_input_type]
   ) -> beam.PCollection[tft_process_handler_output_type]:
     """
@@ -401,7 +361,6 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
     artifact_location, which was previously used to store the produced
     artifacts.
     """
-
     if self.artifact_mode == ArtifactMode.PRODUCE:
       # If we are computing artifacts, we should fail for windows other than
       # default windowing since for example, for a fixed window, each window can
@@ -417,14 +376,14 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
         # convert Row or NamedTuple to Dict
         raw_data = (
             raw_data
-            | ConvertNamedTupleToDict().with_output_types(
+            | _ConvertNamedTupleToDict().with_output_types(
                 Dict[str, typing.Union[tuple(column_type_mapping.values())]]))  # type: ignore
         # AnalyzeAndTransformDataset raise type hint since this is
         # schema'd PCollection and the current output type would be a
         # custom type(NamedTuple) or a beam.Row type.
       else:
         column_type_mapping = self._map_column_names_to_types_from_transforms()
-        # Add hash key so TFT can output hash_key as output but as a no-op.
+        # Add id so TFT can output id as output but as a no-op.
       raw_data_metadata = self.get_raw_data_metadata(
           input_types=column_type_mapping)
       # Write untransformed metadata to a file so that it can be re-used
@@ -434,7 +393,7 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
           path=os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
     else:
       # Read the metadata from the artifact_location.
-      if not os.path.exists(os.path.join(
+      if not FileSystems.exists(os.path.join(
           self.artifact_location, RAW_DATA_METADATA_DIR, SCHEMA_FILE)):
         raise FileNotFoundError(
             "Artifacts not found at location: %s when using "
@@ -445,34 +404,39 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       raw_data_metadata = metadata_io.read_metadata(
           os.path.join(self.artifact_location, RAW_DATA_METADATA_DIR))
 
-    keyed_raw_data = (raw_data | beam.ParDo(ComputeAndAttachHashKey()))
-
     feature_set = [feature.name for feature in raw_data_metadata.schema.feature]
-    columns_not_in_schema_with_hash = (
-        keyed_raw_data
-        | beam.ParDo(GetMissingColumnsPColl(feature_set)))
+
+    # TFT ignores columns in the input data that aren't explicitly defined
+    # in the schema. This is because TFT operations
+    # are designed to work with a predetermined schema.
+    # To preserve these extra columns without disrupting TFT processing,
+    # they are temporarily encoded as bytes and added to the PCollection with
+    # a unique identifier
+    data_coder = _DataCoder(exclude_columns=feature_set)
+    data_with_encoded_columns = (
+        raw_data
+        | "EncodeUnmodifiedColumns" >>
+        beam.Map(lambda elem: data_coder.encode(elem)))
 
     # To maintain consistency by outputting numpy array all the time,
     # whether a scalar value or list or np array is passed as input,
-    #  we will convert scalar values to list values and TFT will ouput
+    # we will convert scalar values to list values and TFT will ouput
     # numpy array all the time.
-    keyed_raw_data = keyed_raw_data | beam.ParDo(
-        ConvertScalarValuesToListValues())
-
-    raw_data_list = (keyed_raw_data | beam.ParDo(MakeHashKeyAsColumn()))
+    data_list = data_with_encoded_columns | beam.ParDo(
+        _ConvertScalarValuesToListValues())
 
     with tft_beam.Context(temp_dir=self.artifact_location):
-      data = (raw_data_list, raw_data_metadata)
+      data = (data_list, raw_data_metadata)
       if self.artifact_mode == ArtifactMode.PRODUCE:
         transform_fn = (
             data
             | "AnalyzeDataset" >> tft_beam.AnalyzeDataset(self.process_data_fn))
-        # TODO: Remove the 'hash_key' column from the transformed
+        # TODO: Remove the 'id' column from the transformed
         # dataset schema generated by TFT.
         self.write_transform_artifacts(transform_fn, self.artifact_location)
       else:
         transform_fn = (
-            raw_data_list.pipeline
+            data_list.pipeline
             | "ReadTransformFn" >> tft_beam.ReadTransformFn(
                 self.artifact_location))
       (transformed_dataset, transformed_metadata) = (
@@ -490,29 +454,24 @@ class TFTProcessHandler(ProcessHandler[tft_process_handler_input_type,
       # So we will use a RowTypeConstraint to create a schema'd PCollection.
       # this is needed since new columns are included in the
       # transformed_dataset.
-      del self.transformed_schema['hash_key']
+      del self.transformed_schema[_TEMP_KEY]
       row_type = RowTypeConstraint.from_fields(
           list(self.transformed_schema.items()))
 
-      # If a non schema PCollection is passed, and one of the input columns
-      # is not transformed by any of the transforms, then the output will
-      # not have that column. So we will join the missing columns from the
-      # raw_data to the transformed_dataset.
+      # Decode the extra columns that were encoded as bytes.
       transformed_dataset = (
-          transformed_dataset | beam.ParDo(ExtractHashAndKeyPColl()))
-
-      # The grouping is needed here since tensorflow transform only outputs
-      # columns that are transformed by any of the transforms. So we will
-      # join the missing columns from the raw_data to the transformed_dataset
-      # using the hash key.
-      transformed_dataset = (
-          (transformed_dataset, columns_not_in_schema_with_hash)
-          | beam.CoGroupByKey()
-          | beam.ParDo(MergeDicts()))
-
+          transformed_dataset
+          |
+          "DecodeUnmodifiedColumns" >> beam.Map(lambda x: data_coder.decode(x)))
       # The schema only contains the columns that are transformed.
       transformed_dataset = (
-          transformed_dataset | "ConvertToRowType" >>
+          transformed_dataset
+          | "ConvertToRowType" >>
           beam.Map(lambda x: beam.Row(**x)).with_output_types(row_type))
-
       return transformed_dataset
+
+  def with_exception_handling(self):
+    raise NotImplementedError(
+        "with_exception_handling with TensorFlow Transform-based MLTransform "
+        "operations is not supported. To enable exception handling for those "
+        "operations, please create a separate MLTransform instance")

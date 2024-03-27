@@ -17,7 +17,7 @@ name: PreCommit Python Coverage
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
-    paths: [ "model/**","sdks/python/**","release/**", 'release/trigger_all_tests.json']
+    paths: [ "model/**","sdks/python/**","release/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Python_Coverage.json']
   issue_comment:
     types: [created]
   push:
@@ -53,6 +53,8 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  HF_INFERENCE_TOKEN: ${{ secrets.HF_INFERENCE_TOKEN }}
+
 
 jobs:
   beam_PreCommit_Python_Coverage:
@@ -66,7 +68,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Python_Coverage PreCommit'
     steps:
@@ -86,10 +88,12 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:tox:py38:preCommitPyCoverage
-          arguments: |
-            -PuseWheelDistribution
+      - uses: codecov/codecov-action@v3
+        with:
+          flags: python
+          directory: sdks/python
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: Python Test Results

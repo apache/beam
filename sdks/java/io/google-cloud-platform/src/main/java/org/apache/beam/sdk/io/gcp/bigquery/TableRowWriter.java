@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
@@ -37,8 +38,13 @@ class TableRowWriter<T> extends BigQueryRowWriter<T> {
   }
 
   @Override
-  void write(T value) throws Exception {
-    TableRow tableRow = toRow.apply(value);
+  void write(T value) throws IOException, BigQueryRowSerializationException {
+    TableRow tableRow;
+    try {
+      tableRow = toRow.apply(value);
+    } catch (Exception e) {
+      throw new BigQueryRowSerializationException(e);
+    }
     CODER.encode(tableRow, getOutputStream(), Context.OUTER);
     getOutputStream().write(NEWLINE);
   }

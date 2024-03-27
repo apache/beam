@@ -16,6 +16,7 @@
 #
 
 import collections
+import functools
 import json
 import logging
 import os
@@ -32,8 +33,11 @@ import yaml
 from yaml.loader import SafeLoader
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml.yaml_combine import normalize_combine
+from apache_beam.yaml.yaml_mapping import normalize_mapping
 
 __all__ = ["YamlTransform"]
 
@@ -45,17 +49,41 @@ try:
 except ImportError:
   jsonschema = None
 
-if jsonschema is not None:
+
+@functools.lru_cache
+def pipeline_schema(strictness):
   with open(os.path.join(os.path.dirname(__file__),
                          'pipeline.schema.yaml')) as yaml_file:
     pipeline_schema = yaml.safe_load(yaml_file)
+  if strictness == 'per_transform':
+    transform_schemas_path = os.path.join(
+        os.path.dirname(__file__), 'transforms.schema.yaml')
+    if not os.path.exists(transform_schemas_path):
+      raise RuntimeError(
+          "Please run "
+          "python -m apache_beam.yaml.generate_yaml_docs "
+          f"--schema_file='{transform_schemas_path}' "
+          "to run with transform-specific validation.")
+    with open(transform_schemas_path) as fin:
+      pipeline_schema['$defs']['transform']['allOf'].extend(yaml.safe_load(fin))
+  return pipeline_schema
 
 
-def validate_against_schema(pipeline):
+def _closest_line(o, path):
+  best_line = SafeLineLoader.get_line(o)
+  for step in path:
+    o = o[step]
+    maybe_line = SafeLineLoader.get_line(o)
+    if maybe_line != 'unknown':
+      best_line = maybe_line
+  return best_line
+
+
+def validate_against_schema(pipeline, strictness):
   try:
-    jsonschema.validate(pipeline, pipeline_schema)
+    jsonschema.validate(pipeline, pipeline_schema(strictness))
   except jsonschema.ValidationError as exn:
-    exn.message += f" at line {SafeLineLoader.get_line(exn.instance)}"
+    exn.message += f" around line {_closest_line(pipeline, exn.path)}"
     raise exn
 
 
@@ -209,8 +237,9 @@ class Scope(LightweightScope):
       for transform in self._transforms:
         if transform['type'] != 'composite':
           for input in empty_if_explicitly_empty(transform['input']).values():
-            transform_id, _ = self.get_transform_id_and_output_name(input)
-            self._all_followers[transform_id].append(transform['__uuid__'])
+            if input not in self._inputs:
+              transform_id, _ = self.get_transform_id_and_output_name(input)
+              self._all_followers[transform_id].append(transform['__uuid__'])
     return self._all_followers[self.get_transform_id(transform_name)]
 
   def compute_all(self):
@@ -225,6 +254,8 @@ class Scope(LightweightScope):
       outputs = self.get_outputs(transform)
       if output in outputs:
         return outputs[output]
+      elif len(outputs) == 1 and outputs[next(iter(outputs))].tag == output:
+        return outputs[next(iter(outputs))]
       else:
         raise ValueError(
             f'Unknown output {repr(output)} '
@@ -708,7 +739,9 @@ def preprocess_windowing(spec):
         'type': 'WindowInto',
         'name': f'WindowInto[{key}]',
         'windowing': windowing,
-        'input': key,
+        'input': {
+            'input': key
+        },
         '__line__': spec['__line__'],
         '__uuid__': SafeLineLoader.create_uuid(),
     } for key in original_inputs.keys()]
@@ -885,7 +918,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
     return spec
 
   def preprocess_langauges(spec):
-    if spec['type'] in ('Filter', 'MapToFields'):
+    if spec['type'] in ('Filter', 'MapToFields', 'Combine', 'AssignTimestamps'):
       language = spec.get('config', {}).get('language', 'generic')
       new_type = spec['type'] + '-' + language
       if known_transforms and new_type not in known_transforms:
@@ -900,6 +933,8 @@ def preprocess(spec, verbose=False, known_transforms=None):
 
   for phase in [
       ensure_transforms_have_types,
+      normalize_mapping,
+      normalize_combine,
       preprocess_langauges,
       ensure_transforms_have_providers,
       preprocess_source_sink,
@@ -938,9 +973,11 @@ class YamlTransform(beam.PTransform):
   def expand(self, pcolls):
     if isinstance(pcolls, beam.pvalue.PBegin):
       root = pcolls
+      pipeline = root.pipeline
       pcolls = {}
     elif isinstance(pcolls, beam.PCollection):
       root = pcolls.pipeline
+      pipeline = root
       pcolls = {'input': pcolls}
       if not self._spec['input']:
         self._spec['input'] = {'input': 'input'}
@@ -949,16 +986,30 @@ class YamlTransform(beam.PTransform):
           self._spec['transforms'][0]['input'] = self._spec['input']
     else:
       root = next(iter(pcolls.values())).pipeline
+      pipeline = root
       if not self._spec['input']:
         self._spec['input'] = {name: name for name in pcolls.keys()}
+    python_provider = yaml_provider.InlineProvider({})
+
+    # Label goog-dataflow-yaml if job is started using Beam YAML.
+    options = pipeline.options.view_as(GoogleCloudOptions)
+    yaml_version = ('beam-yaml=' + beam.version.__version__.replace('.', '_'))
+    if not options.labels:
+      options.labels = []
+    if yaml_version not in options.labels:
+      options.labels.append(yaml_version)
+
     result = expand_transform(
         self._spec,
         Scope(
             root,
             pcolls,
-            transforms=[],
+            transforms=[self._spec],
             providers=self._providers,
-            input_providers={}))
+            input_providers={
+                pcoll: python_provider
+                for pcoll in pcolls.values()
+            }))
     if len(result) == 1:
       return only_element(result.values())
     else:
@@ -969,13 +1020,13 @@ def expand_pipeline(
     pipeline,
     pipeline_spec,
     providers=None,
-    validate_schema=jsonschema is not None):
+    validate_schema='generic' if jsonschema is not None else None):
   if isinstance(pipeline_spec, str):
     pipeline_spec = yaml.load(pipeline_spec, Loader=SafeLineLoader)
   # TODO(robertwb): It's unclear whether this gives as good of errors, but
   # this could certainly be handy as a first pass when Beam is not available.
-  if validate_schema:
-    validate_against_schema(pipeline_spec)
+  if validate_schema and validate_schema != 'none':
+    validate_against_schema(pipeline_spec, validate_schema)
   # Calling expand directly to avoid outer layer of nesting.
   return YamlTransform(
       pipeline_as_composite(pipeline_spec['pipeline']),

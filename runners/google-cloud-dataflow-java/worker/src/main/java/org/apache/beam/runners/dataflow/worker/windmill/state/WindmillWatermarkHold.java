@@ -30,7 +30,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Futures;
 import org.joda.time.Instant;
@@ -175,13 +175,14 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
       throw new IllegalStateException("Unreachable condition");
     }
 
+    final int estimatedByteSize = ENCODED_SIZE + stateKey.size();
     return Futures.lazyTransform(
         result,
         result1 -> {
           cleared = false;
           localAdditions = null;
           if (cachedValue != null) {
-            cache.put(namespace, address, WindmillWatermarkHold.this, ENCODED_SIZE);
+            cache.put(namespace, address, WindmillWatermarkHold.this, estimatedByteSize);
           }
           return result1;
         });

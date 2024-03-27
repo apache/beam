@@ -32,7 +32,7 @@ import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -56,26 +56,43 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class TextSource extends FileBasedSource<String> {
   byte[] delimiter;
 
+  int skipHeaderLines;
+
   public TextSource(
-      ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment, byte[] delimiter) {
+      ValueProvider<String> fileSpec,
+      EmptyMatchTreatment emptyMatchTreatment,
+      byte[] delimiter,
+      int skipHeaderLines) {
     super(fileSpec, emptyMatchTreatment, 1L);
     this.delimiter = delimiter;
+    this.skipHeaderLines = skipHeaderLines;
+  }
+
+  public TextSource(
+      ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment, byte[] delimiter) {
+    this(fileSpec, emptyMatchTreatment, delimiter, 0);
+  }
+
+  public TextSource(
+      MatchResult.Metadata metadata, long start, long end, byte[] delimiter, int skipHeaderLines) {
+    super(metadata, 1L, start, end);
+    this.delimiter = delimiter;
+    this.skipHeaderLines = skipHeaderLines;
   }
 
   public TextSource(MatchResult.Metadata metadata, long start, long end, byte[] delimiter) {
-    super(metadata, 1L, start, end);
-    this.delimiter = delimiter;
+    this(metadata, start, end, delimiter, 0);
   }
 
   @Override
   protected FileBasedSource<String> createForSubrangeOfFile(
       MatchResult.Metadata metadata, long start, long end) {
-    return new TextSource(metadata, start, end, delimiter);
+    return new TextSource(metadata, start, end, delimiter, skipHeaderLines);
   }
 
   @Override
   protected FileBasedReader<String> createSingleFileReader(PipelineOptions options) {
-    return new TextBasedReader(this, delimiter);
+    return new TextBasedReader(this, delimiter, skipHeaderLines);
   }
 
   @Override
@@ -98,6 +115,7 @@ public class TextSource extends FileBasedSource<String> {
     private static final byte LF = '\n';
 
     private final byte @Nullable [] delimiter;
+    private final int skipHeaderLines;
     private final ByteArrayOutputStream str;
     private final byte[] buffer;
     private final ByteBuffer byteBuffer;
@@ -112,11 +130,16 @@ public class TextSource extends FileBasedSource<String> {
     private boolean skipLineFeedAtStart; // skip an LF if at the start of the next buffer
 
     private TextBasedReader(TextSource source, byte[] delimiter) {
+      this(source, delimiter, 0);
+    }
+
+    private TextBasedReader(TextSource source, byte[] delimiter, int skipHeaderLines) {
       super(source);
       this.buffer = new byte[READ_BUFFER_SIZE];
       this.str = new ByteArrayOutputStream();
       this.byteBuffer = ByteBuffer.wrap(buffer);
       this.delimiter = delimiter;
+      this.skipHeaderLines = skipHeaderLines;
     }
 
     @Override
@@ -171,21 +194,42 @@ public class TextSource extends FileBasedSource<String> {
           } else {
             startOfNextRecord = bufferPosn = (int) requiredPosition;
           }
+          skipHeader(skipHeaderLines, true);
         } else {
-          ((SeekableByteChannel) channel).position(requiredPosition);
-          startOfNextRecord = requiredPosition;
+          skipHeader(skipHeaderLines, false);
+          if (requiredPosition > startOfNextRecord) {
+            ((SeekableByteChannel) channel).position(requiredPosition);
+            startOfNextRecord = requiredPosition;
+            bufferLength = bufferPosn = 0;
+          }
+          // Read and discard the next record ensuring that startOfNextRecord and bufferPosn point
+          // to the beginning of the next record.
+          readNextRecord();
+          currentValue = null;
         }
 
-        // Read and discard the next record ensuring that startOfNextRecord and bufferPosn point
-        // to the beginning of the next record.
-        readNextRecord();
-        currentValue = null;
       } else {
         // Check to see if we start with the UTF_BOM bytes skipping them if present.
         if (fileStartsWithBom()) {
           startOfNextRecord = bufferPosn = UTF8_BOM.size();
         }
+        skipHeader(skipHeaderLines, false);
       }
+    }
+
+    private void skipHeader(int headerLines, boolean skipFirstLine) throws IOException {
+      if (headerLines == 1) {
+        readNextRecord();
+      } else if (headerLines > 1) {
+        // this will be expensive
+        ((SeekableByteChannel) inChannel).position(0);
+        for (int line = 0; line < headerLines; ++line) {
+          readNextRecord();
+        }
+      } else if (headerLines == 0 && skipFirstLine) {
+        readNextRecord();
+      }
+      currentValue = null;
     }
 
     private boolean fileStartsWithBom() throws IOException {
@@ -279,10 +323,13 @@ public class TextSource extends FileBasedSource<String> {
 
         // Consume any LF after CR if it is the first character of the next buffer
         if (skipLineFeedAtStart && buffer[bufferPosn] == LF) {
-          ++bytesConsumed;
           ++startPosn;
           ++bufferPosn;
           skipLineFeedAtStart = false;
+
+          // Right now, startOfRecord is pointing at the position of LF, but the actual start
+          // position of the new record should be the position after LF.
+          ++startOfRecord;
         }
 
         // Search for the newline

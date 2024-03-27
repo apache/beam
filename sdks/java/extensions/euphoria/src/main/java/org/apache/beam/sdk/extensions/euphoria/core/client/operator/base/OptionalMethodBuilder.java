@@ -24,8 +24,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
  * Class to be extended by operator builders that want to make use of `applyIf` call.
  *
  * @param <InBuilderT> the class of the builder that extends this class
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.INTERNAL)
+@Deprecated
 public interface OptionalMethodBuilder<
     InBuilderT extends OptionalMethodBuilder<InBuilderT, OutBuilderT>, OutBuilderT> {
 

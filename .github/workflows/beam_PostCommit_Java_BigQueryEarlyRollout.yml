@@ -20,6 +20,8 @@ name: PostCommit Java BigQueryEarlyRollout
 on:
   schedule:
     - cron: '30 3/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_BigQueryEarlyRollout.json']
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -59,7 +61,8 @@ jobs:
         job_phrase: [Run Java BigQueryEarlyRollout PostCommit]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Java BigQueryEarlyRollout PostCommit'
     steps:
       - uses: actions/checkout@v4
@@ -82,9 +85,28 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:google-cloud-platform:bigQueryEarlyRolloutIntegrationTest
-      - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v3
+      - name: Generate Date
         if: failure()
+        run: |
+          date=$(date -u +"%Y-%m-%d")
+          echo "date=$date" >> $GITHUB_ENV
+      - name: Send email
+        uses: dawidd6/action-send-mail@v3
+        if: failure()
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_ADDRESS }}
+          password: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_PASSWORD }}
+          subject: BigQueryEarlyRollout Beam Failure (${{ env.date }}) - investigate and escalate quickly
+          to: datapls-plat-team@google.com # Team at Google responsible for escalating BQ failures
+          from: gactions@beam.apache.org
+          body: |
+            PostCommit Java BigQueryEarlyRollout failed on ${{ env.date }}. This test monitors BigQuery rollouts impacting Beam and should be escalated immediately if a real issue is encountered to pause further rollouts. For further details refer to the following links:\n * Failing job: https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_BigQueryEarlyRollout.yml \n * Job configuration: https://github.com/apache/beam/blob/master/.github/workflows/beam_PostCommit_Java_BigQueryEarlyRollout.yml
+      - name: Archive JUnit Test Results
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"

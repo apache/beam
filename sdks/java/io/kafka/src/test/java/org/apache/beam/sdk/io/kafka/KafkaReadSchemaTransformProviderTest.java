@@ -43,6 +43,25 @@ public class KafkaReadSchemaTransformProviderTest {
           + "\"name\":\"FullName\",\"fields\":[{\"name\":\"first\",\"type\":\"string\"},"
           + "{\"name\":\"last\",\"type\":\"string\"}]}";
 
+  private static final String PROTO_SCHEMA =
+      "syntax = \"proto3\";\n"
+          + "\n"
+          + "message MyMessage {\n"
+          + "  int32 id = 1;\n"
+          + "  string name = 2;\n"
+          + "  bool active = 3;\n"
+          + "\n"
+          + "  // Nested field\n"
+          + "  message Address {\n"
+          + "    string street = 1;\n"
+          + "    string city = 2;\n"
+          + "    string state = 3;\n"
+          + "    string zip_code = 4;\n"
+          + "  }\n"
+          + "\n"
+          + "  Address address = 4;\n"
+          + "}";
+
   @Test
   public void testValidConfigurations() {
     assertThrows(
@@ -100,7 +119,10 @@ public class KafkaReadSchemaTransformProviderTest {
             "consumerConfigUpdates",
             "format",
             "confluentSchemaRegistrySubject",
-            "confluentSchemaRegistryUrl"),
+            "confluentSchemaRegistryUrl",
+            "errorHandling",
+            "fileDescriptorPath",
+            "messageName"),
         kafkaProvider.configurationSchema().getFields().stream()
             .map(field -> field.getName())
             .collect(Collectors.toSet()));
@@ -118,6 +140,7 @@ public class KafkaReadSchemaTransformProviderTest {
         (KafkaReadSchemaTransformProvider) providers.get(0);
     kafkaProvider.from(
         KafkaReadSchemaTransformConfiguration.builder()
+            .setFormat("AVRO")
             .setTopic("anytopic")
             .setBootstrapServers("anybootstrap")
             .setSchema(AVRO_SCHEMA)
@@ -146,5 +169,119 @@ public class KafkaReadSchemaTransformProviderTest {
                             getClass().getResourceAsStream("/json-schema/basic_json_schema.json"))),
                     StandardCharsets.UTF_8))
             .build());
+  }
+
+  @Test
+  public void testBuildTransformWithRawFormat() {
+    ServiceLoader<SchemaTransformProvider> serviceLoader =
+        ServiceLoader.load(SchemaTransformProvider.class);
+    List<SchemaTransformProvider> providers =
+        StreamSupport.stream(serviceLoader.spliterator(), false)
+            .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
+            .collect(Collectors.toList());
+    KafkaReadSchemaTransformProvider kafkaProvider =
+        (KafkaReadSchemaTransformProvider) providers.get(0);
+    kafkaProvider.from(
+        KafkaReadSchemaTransformConfiguration.builder()
+            .setTopic("anytopic")
+            .setBootstrapServers("anybootstrap")
+            .setFormat("RAW")
+            .build());
+  }
+
+  @Test
+  public void testBuildTransformWithProtoFormat() {
+    ServiceLoader<SchemaTransformProvider> serviceLoader =
+        ServiceLoader.load(SchemaTransformProvider.class);
+    List<SchemaTransformProvider> providers =
+        StreamSupport.stream(serviceLoader.spliterator(), false)
+            .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
+            .collect(Collectors.toList());
+    KafkaReadSchemaTransformProvider kafkaProvider =
+        (KafkaReadSchemaTransformProvider) providers.get(0);
+
+    kafkaProvider.from(
+        KafkaReadSchemaTransformConfiguration.builder()
+            .setTopic("anytopic")
+            .setBootstrapServers("anybootstrap")
+            .setFormat("PROTO")
+            .setMessageName("MyMessage")
+            .setFileDescriptorPath(
+                Objects.requireNonNull(
+                        getClass().getResource("/proto_byte/file_descriptor/proto_byte_utils.pb"))
+                    .getPath())
+            .build());
+  }
+
+  @Test
+  public void testBuildTransformWithProtoFormatWrongMessageName() {
+    ServiceLoader<SchemaTransformProvider> serviceLoader =
+        ServiceLoader.load(SchemaTransformProvider.class);
+    List<SchemaTransformProvider> providers =
+        StreamSupport.stream(serviceLoader.spliterator(), false)
+            .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
+            .collect(Collectors.toList());
+    KafkaReadSchemaTransformProvider kafkaProvider =
+        (KafkaReadSchemaTransformProvider) providers.get(0);
+
+    assertThrows(
+        NullPointerException.class,
+        () ->
+            kafkaProvider.from(
+                KafkaReadSchemaTransformConfiguration.builder()
+                    .setTopic("anytopic")
+                    .setBootstrapServers("anybootstrap")
+                    .setFormat("PROTO")
+                    .setMessageName("MyOtherMessage")
+                    .setFileDescriptorPath(
+                        Objects.requireNonNull(
+                                getClass()
+                                    .getResource("/proto_byte/file_descriptor/proto_byte_utils.pb"))
+                            .getPath())
+                    .build()));
+  }
+
+  @Test
+  public void testBuildTransformWithProtoSchemaFormat() {
+    ServiceLoader<SchemaTransformProvider> serviceLoader =
+        ServiceLoader.load(SchemaTransformProvider.class);
+    List<SchemaTransformProvider> providers =
+        StreamSupport.stream(serviceLoader.spliterator(), false)
+            .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
+            .collect(Collectors.toList());
+    KafkaReadSchemaTransformProvider kafkaProvider =
+        (KafkaReadSchemaTransformProvider) providers.get(0);
+
+    kafkaProvider.from(
+        KafkaReadSchemaTransformConfiguration.builder()
+            .setTopic("anytopic")
+            .setBootstrapServers("anybootstrap")
+            .setFormat("PROTO")
+            .setMessageName("MyMessage")
+            .setSchema(PROTO_SCHEMA)
+            .build());
+  }
+
+  @Test
+  public void testBuildTransformWithoutProtoSchemaFormat() {
+    ServiceLoader<SchemaTransformProvider> serviceLoader =
+        ServiceLoader.load(SchemaTransformProvider.class);
+    List<SchemaTransformProvider> providers =
+        StreamSupport.stream(serviceLoader.spliterator(), false)
+            .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
+            .collect(Collectors.toList());
+    KafkaReadSchemaTransformProvider kafkaProvider =
+        (KafkaReadSchemaTransformProvider) providers.get(0);
+
+    assertThrows(
+        NullPointerException.class,
+        () ->
+            kafkaProvider.from(
+                KafkaReadSchemaTransformConfiguration.builder()
+                    .setTopic("anytopic")
+                    .setBootstrapServers("anybootstrap")
+                    .setFormat("PROTO")
+                    .setMessageName("MyMessage")
+                    .build()));
   }
 }

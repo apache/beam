@@ -502,6 +502,8 @@ fail later when the write attempts happen.
 
 If your BigQuery write operation creates a new table, you must provide schema
 information. The schema contains information about each field in the table.
+When updating a pipeline with a new schema, the existing schema fields must
+stay in the same order, or the pipeline will break, failing to write to BigQuery.
 
 {{< paragraph class="language-java" >}}
 To create a table schema in Java, you can either use a `TableSchema` object, or
@@ -856,6 +858,7 @@ pipeline uses. You can set it explicitly on the transform via
 [`withNumStorageWriteApiStreams`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.html#withNumStorageWriteApiStreams-int-)
 or provide the `numStorageWriteApiStreams` option to the pipeline as defined in
 [`BigQueryOptions`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryOptions.html).
+Please note this is only supported for streaming pipelines.
 
 Triggering frequency determines how soon the data is visible for querying in
 BigQuery. You can explicitly set it via

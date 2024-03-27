@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -109,6 +110,16 @@ public abstract class TableSchema implements Serializable {
       case ENUM8:
       case ENUM16:
         return Schema.FieldType.STRING;
+      case BOOL:
+        return Schema.FieldType.BOOLEAN;
+      case TUPLE:
+        List<Schema.Field> fields =
+            columnType.tupleTypes().entrySet().stream()
+                .map(x -> Schema.Field.of(x.getKey(), Schema.FieldType.DATETIME))
+                .collect(Collectors.toList());
+        Schema.Field[] array = fields.toArray(new Schema.Field[fields.size()]);
+        Schema schema = Schema.of(array);
+        return Schema.FieldType.row(schema);
     }
 
     // not possible, errorprone checks for exhaustive switch
@@ -163,8 +174,12 @@ public abstract class TableSchema implements Serializable {
     UINT16,
     UINT32,
     UINT64,
-    // Composite types
-    ARRAY
+    // Composite type
+    ARRAY,
+    // Primitive type
+    BOOL,
+    // Composite type
+    TUPLE
   }
 
   /**
@@ -203,6 +218,8 @@ public abstract class TableSchema implements Serializable {
     public static final ColumnType UINT16 = ColumnType.of(TypeName.UINT16);
     public static final ColumnType UINT32 = ColumnType.of(TypeName.UINT32);
     public static final ColumnType UINT64 = ColumnType.of(TypeName.UINT64);
+    public static final ColumnType BOOL = ColumnType.of(TypeName.BOOL);
+    public static final ColumnType TUPLE = ColumnType.of(TypeName.TUPLE);
 
     // ClickHouse doesn't allow nested nullables, so boolean flag is enough
     public abstract boolean nullable();
@@ -214,6 +231,8 @@ public abstract class TableSchema implements Serializable {
     public abstract @Nullable Integer fixedStringSize();
 
     public abstract @Nullable ColumnType arrayElementType();
+
+    public abstract @Nullable Map<String, ColumnType> tupleTypes();
 
     public ColumnType withNullable(boolean nullable) {
       return toBuilder().nullable(nullable).build();
@@ -257,6 +276,14 @@ public abstract class TableSchema implements Serializable {
           // ClickHouse doesn't allow nullable arrays
           .nullable(false)
           .arrayElementType(arrayElementType)
+          .build();
+    }
+
+    public static ColumnType tuple(Map<String, ColumnType> elements) {
+      return ColumnType.builder()
+          .typeName(TypeName.TUPLE)
+          .nullable(false)
+          .tupleTypes(elements)
           .build();
     }
 
@@ -308,6 +335,8 @@ public abstract class TableSchema implements Serializable {
           return Long.valueOf(value);
         case UINT64:
           return Long.valueOf(value);
+        case BOOL:
+          return Boolean.valueOf(value);
         default:
           throw new UnsupportedOperationException("Unsupported type: " + columnType);
       }
@@ -331,6 +360,8 @@ public abstract class TableSchema implements Serializable {
       public abstract Builder enumValues(Map<String, Integer> enumValues);
 
       public abstract Builder fixedStringSize(Integer size);
+
+      public abstract Builder tupleTypes(Map<String, ColumnType> tupleElements);
 
       public abstract ColumnType build();
     }

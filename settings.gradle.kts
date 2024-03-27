@@ -19,13 +19,13 @@ import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionW
 
 pluginManagement {
   plugins {
-     id("org.javacc.javacc") version "3.0.0" // enable the JavaCC parser generator
+     id("org.javacc.javacc") version "3.0.2" // enable the JavaCC parser generator
   }
 }
 
 plugins {
-  id("com.gradle.enterprise") version "3.13.2"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.11.3"
+  id("com.gradle.enterprise") version "3.15.1"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.12.1"
 }
 
 
@@ -62,7 +62,7 @@ buildCache {
       username = System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME")
       password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
     }
-    isEnabled = true
+    isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
     isPush = isCi
   }
 }
@@ -81,11 +81,13 @@ include(":examples:java:cdap:hubspot")
 include(":examples:java:cdap:salesforce")
 include(":examples:java:cdap:servicenow")
 include(":examples:java:cdap:zendesk")
+include(":examples:java:webapis")
 include(":examples:kotlin")
 include(":examples:multi-language")
 include(":learning")
 include(":learning:tour-of-beam")
 include(":learning:tour-of-beam:frontend")
+include(":learning:tour-of-beam:terraform")
 include(":model:fn-execution")
 include(":model:job-management")
 include(":model:pipeline")
@@ -115,16 +117,9 @@ include(":it:truthmatchers")
 include(":it:mongodb")
 include(":it:splunk")
 include(":it:neo4j")
-
-include(":learning:tour-of-beam:frontend")
-
-include(":runners:core-construction-java")
 include(":runners:core-java")
 include(":runners:direct-java")
 include(":runners:extensions-java:metrics")
-include(":learning")
-include(":learning:tour-of-beam")
-include(":learning:tour-of-beam:terraform")
 /* Begin Flink Runner related settings */
 // Flink 1.12
 include(":runners:flink:1.12")
@@ -208,7 +203,6 @@ include(":sdks:java:extensions:sql:udf")
 include(":sdks:java:extensions:sql:udf-test-provider")
 include(":sdks:java:extensions:timeseries")
 include(":sdks:java:extensions:zetasketch")
-include(":sdks:java:fn-execution")
 include(":sdks:java:harness")
 include(":sdks:java:harness:jmh")
 include(":sdks:java:io:amazon-web-services")
@@ -247,6 +241,7 @@ include(":sdks:java:io:jdbc")
 include(":sdks:java:io:jms")
 include(":sdks:java:io:json")
 include(":sdks:java:io:kafka")
+include(":sdks:java:io:kafka:upgrade")
 include(":sdks:java:io:kinesis")
 include(":sdks:java:io:kinesis:expansion-service")
 include(":sdks:java:io:kudu")
@@ -282,6 +277,7 @@ include(":sdks:java:testing:test-utils")
 include(":sdks:java:testing:tpcds")
 include(":sdks:java:testing:watermarks")
 include(":sdks:java:transform-service")
+include(":sdks:java:transform-service:app")
 include(":sdks:java:transform-service:launcher")
 include(":sdks:java:transform-service:controller-container")
 include(":sdks:python")
@@ -316,8 +312,7 @@ include(":sdks:python:test-suites:tox:py311")
 include(":sdks:python:test-suites:xlang")
 include(":sdks:typescript")
 include(":sdks:typescript:container")
-include(":vendor:bytebuddy-1_12_8")
-include(":vendor:grpc-1_54_0")
+include(":vendor:grpc-1_60_1")
 include(":vendor:calcite-1_28_0")
 include(":vendor:guava-32_1_2-jre")
 include(":website")

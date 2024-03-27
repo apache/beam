@@ -32,6 +32,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import java.io.IOException;
+import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -168,7 +169,7 @@ public class BigQueryHelpers {
     }
   }
 
-  static class PendingJob {
+  static class PendingJob implements Serializable {
     private final SerializableFunction<RetryJobId, Void> executeJob;
     private final SerializableFunction<RetryJobId, Job> pollJob;
     private final SerializableFunction<RetryJobId, Job> lookupJob;
@@ -275,7 +276,7 @@ public class BigQueryHelpers {
     }
   }
 
-  static class RetryJobId {
+  static class RetryJobId implements Serializable {
     private final String jobIdPrefix;
     private final int retryIndex;
 

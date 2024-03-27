@@ -386,13 +386,30 @@ func (c *DataChannel) read(ctx context.Context) {
 			return
 		}
 
+		// Consolidating required timer writer creation to a optional single lock section.
+		type seenTimers struct {
+			InstID                 instructionID
+			PTransformID, FamilyID string
+		}
+		neededTimers := map[seenTimers]struct{}{}
+
 		// Each message may contain segments for multiple streams, so we
 		// must treat each segment in isolation. We maintain a local cache
 		// to reduce lock contention.
 		iterateElements(c, cache, &seenLast, msg.GetTimers(),
 			func(elm *fnpb.Elements_Timers) exec.Elements {
+				neededTimers[seenTimers{InstID: instructionID(elm.GetInstructionId()), PTransformID: elm.GetTransformId(), FamilyID: elm.GetTimerFamilyId()}] = struct{}{}
 				return exec.Elements{Timers: elm.GetTimers(), PtransformID: elm.GetTransformId(), TimerFamilyID: elm.GetTimerFamilyId()}
 			})
+
+		// Creating a writer is necessary to ensure a "is_last" signal is returned for timers that aren't set.
+		if len(neededTimers) > 0 {
+			c.mu.Lock()
+			for key := range neededTimers {
+				c.makeTimerWriterLocked(ctx, clientID{ptransformID: key.PTransformID, instID: key.InstID}, key.FamilyID)
+			}
+			c.mu.Unlock()
+		}
 
 		iterateElements(c, cache, &seenLast, msg.GetData(),
 			func(elm *fnpb.Elements_Data) exec.Elements {
@@ -408,16 +425,20 @@ func (c *DataChannel) read(ctx context.Context) {
 					continue // we've already closed this cached reader, skip
 				}
 				r.PTransformDone()
-				if r.Closed() {
-					// Clean up local bookkeeping. We'll never see another message
-					// for it again. We have to be careful not to remove the real
-					// one, because readers may be initialized after we've seen
-					// the full stream.
-					delete(cache, id.instID)
-				}
 			}
 			seenLast = seenLast[:0] // reset for re-use
 			c.mu.Unlock()
+			// Scan through the cache and check for any closed readers, and evict them from the cache.
+			// Readers might be closed out of band from the data messages because we received all data
+			// for all transforms in an instruction before the instruction even begun. However, we can't
+			// know this until we received the Control instruction which knows how many transforms for which
+			// we need to receive data. So we check the cache directly every so often and evict closed
+			// readers. We will never recieve data for these instructions again.
+			for instID, r := range cache {
+				if r.Closed() {
+					delete(cache, instID)
+				}
+			}
 		}
 	}
 }
@@ -629,7 +650,13 @@ func (w *dataWriter) Write(p []byte) (n int, err error) {
 func (c *DataChannel) makeTimerWriter(ctx context.Context, id clientID, family string) *timerWriter {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	return c.makeTimerWriterLocked(ctx, id, family)
+}
 
+// makeTimerWriterLocked does the work of makeTimerWriter, but doesn't call the lock methods.
+//
+// c.mu must be locked when this is called.
+func (c *DataChannel) makeTimerWriterLocked(ctx context.Context, id clientID, family string) *timerWriter {
 	var m map[timerKey]*timerWriter
 	var ok bool
 	if m, ok = c.timerWriters[id.instID]; !ok {

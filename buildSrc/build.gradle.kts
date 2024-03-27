@@ -45,7 +45,7 @@ dependencies {
   implementation("com.github.spotbugs.snom:spotbugs-gradle-plugin:5.0.14")
 
   runtimeOnly("com.google.protobuf:protobuf-gradle-plugin:0.8.13")                                         // Enable proto code generation
-  runtimeOnly("com.github.davidmc24.gradle-avro-plugin:gradle-avro-plugin:0.16.0")                         // Enable Avro code generation
+  runtimeOnly("com.github.davidmc24.gradle.plugin:gradle-avro-plugin:1.9.1")                               // Enable Avro code generation
   runtimeOnly("com.diffplug.spotless:spotless-plugin-gradle:5.6.1")                                        // Enable a code formatting plugin
   runtimeOnly("gradle.plugin.com.dorongold.plugins:task-tree:1.5")                                         // Adds a 'taskTree' task to print task dependency tree
   runtimeOnly("gradle.plugin.com.github.johnrengelman:shadow:7.1.1")                                       // Enable shading Java dependencies
@@ -56,7 +56,7 @@ dependencies {
   runtimeOnly("com.avast.gradle:gradle-docker-compose-plugin:0.16.12")                                     // Enable docker compose tasks
   runtimeOnly("ca.cutterslade.gradle:gradle-dependency-analyze:1.8.3")                                     // Enable dep analysis
   runtimeOnly("gradle.plugin.net.ossindex:ossindex-gradle-plugin:0.4.11")                                  // Enable dep vulnerability analysis
-  runtimeOnly("org.checkerframework:checkerframework-gradle-plugin:0.6.34")                                // Enable enhanced static checking plugin
+  runtimeOnly("org.checkerframework:checkerframework-gradle-plugin:0.6.37")                                // Enable enhanced static checking plugin
 }
 
 // Because buildSrc is built and tested automatically _before_ gradle

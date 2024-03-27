@@ -51,11 +51,11 @@ import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.util.MimeTypes;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.StatusException;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.StatusException;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
@@ -123,7 +123,7 @@ public class ArtifactStagingService
   }
 
   /**
-   * A pairing of a newly created artifact type and an ouptut stream that will be readable at that
+   * A pairing of a newly created artifact type and an output stream that will be readable at that
    * type.
    */
   @AutoValue
@@ -208,9 +208,9 @@ public class ArtifactStagingService
   }
 
   /**
-   * Like the standard Semaphore, but allows an aquire to go over the limit if there is any room.
+   * Like the standard Semaphore, but allows an acquire to go over the limit if there is any room.
    *
-   * <p>Also allows setting an error, to avoid issues with un-released aquires after error.
+   * <p>Also allows setting an error, to avoid issues with un-released acquires after error.
    */
   private static class OverflowingSemaphore {
     private int totalPermits;

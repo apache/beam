@@ -52,6 +52,7 @@ public interface DataflowPipelineOptions
         GcsOptions,
         StreamingOptions,
         DataflowWorkerLoggingOptions,
+        DataflowStreamingPipelineOptions,
         DataflowProfilingOptions,
         PubsubOptions {
 
@@ -174,7 +175,7 @@ public interface DataflowPipelineOptions
   @Description("The customized dataflow worker jar")
   String getDataflowWorkerJar();
 
-  void setDataflowWorkerJar(String dataflowWorkerJafr);
+  void setDataflowWorkerJar(String dataflowWorkerJar);
 
   /** Set of available Flexible Resource Scheduling goals. */
   enum FlexResourceSchedulingGoal {

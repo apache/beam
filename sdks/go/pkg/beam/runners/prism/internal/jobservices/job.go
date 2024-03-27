@@ -42,7 +42,8 @@ import (
 )
 
 var supportedRequirements = map[string]struct{}{
-	urns.RequirementSplittableDoFn: {},
+	urns.RequirementSplittableDoFn:     {},
+	urns.RequirementStatefulProcessing: {},
 }
 
 // TODO, move back to main package, and key off of executor handlers?
@@ -99,7 +100,7 @@ func (j *Job) PipelineOptions() *structpb.Struct {
 }
 
 // ContributeTentativeMetrics returns the datachannel read index, and any unknown monitoring short ids.
-func (j *Job) ContributeTentativeMetrics(payloads *fnpb.ProcessBundleProgressResponse) (int64, []string) {
+func (j *Job) ContributeTentativeMetrics(payloads *fnpb.ProcessBundleProgressResponse) (map[string]int64, []string) {
 	return j.metrics.ContributeTentativeMetrics(payloads)
 }
 
@@ -174,6 +175,16 @@ func (j *Job) Running() {
 // Done indicates that the job completed successfully.
 func (j *Job) Done() {
 	j.sendState(jobpb.JobState_DONE)
+}
+
+// Canceling indicates that the job is canceling.
+func (j *Job) Canceling() {
+	j.sendState(jobpb.JobState_CANCELLING)
+}
+
+// Canceled indicates that the job is canceled.
+func (j *Job) Canceled() {
+	j.sendState(jobpb.JobState_CANCELLED)
 }
 
 // Failed indicates that the job completed unsuccessfully.

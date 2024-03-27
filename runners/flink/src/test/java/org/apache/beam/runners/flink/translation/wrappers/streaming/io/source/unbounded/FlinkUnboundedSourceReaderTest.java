@@ -34,11 +34,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.TestCountingSource;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.EmptyUnboundedSource;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceReaderTestBase;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceSplit;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.SourceTestCompat.TestMetricGroup;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
@@ -223,6 +225,37 @@ public class FlinkUnboundedSourceReaderTest
   }
 
   @Test
+  public void testWatermarkOnEmptySource() throws Exception {
+    ManuallyTriggeredScheduledExecutorService executor =
+        new ManuallyTriggeredScheduledExecutorService();
+    try (FlinkUnboundedSourceReader<KV<Integer, Integer>> reader =
+        (FlinkUnboundedSourceReader<KV<Integer, Integer>>) createReader(executor, -1L)) {
+      List<FlinkSourceSplit<KV<Integer, Integer>>> splits = createEmptySplits(2);
+      reader.start();
+      reader.addSplits(splits);
+      reader.notifyNoMoreSplits();
+
+      for (int i = 0; i < 4; i++) {
+        assertEquals(InputStatus.NOTHING_AVAILABLE, reader.pollNext(null));
+      }
+
+      // move first reader to end of time
+      ((EmptyUnboundedSource<KV<Integer, Integer>>) splits.get(0).getBeamSplitSource())
+          .setWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
+
+      for (int i = 0; i < 4; i++) {
+        assertEquals(InputStatus.NOTHING_AVAILABLE, reader.pollNext(null));
+      }
+
+      // move the second reader to end of time
+      ((EmptyUnboundedSource<KV<Integer, Integer>>) splits.get(1).getBeamSplitSource())
+          .setWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
+
+      assertEquals(InputStatus.END_OF_INPUT, reader.pollNext(null));
+    }
+  }
+
+  @Test
   public void testPendingBytesMetric() throws Exception {
     ManuallyTriggeredScheduledExecutorService executor =
         new ManuallyTriggeredScheduledExecutorService();
@@ -303,9 +336,10 @@ public class FlinkUnboundedSourceReaderTest
     SourceReaderContext mockContext = createSourceReaderContext(metricGroup);
     if (executor != null) {
       return new FlinkUnboundedSourceReader<>(
-          mockContext, pipelineOptions, executor, timestampExtractor);
+          "FlinkUnboundedReader", mockContext, pipelineOptions, executor, timestampExtractor);
     } else {
-      return new FlinkUnboundedSourceReader<>(mockContext, pipelineOptions, timestampExtractor);
+      return new FlinkUnboundedSourceReader<>(
+          "FlinkUnboundedReader", mockContext, pipelineOptions, timestampExtractor);
     }
   }
 

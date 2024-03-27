@@ -72,7 +72,8 @@ When creating a BigQuery input transform, users should provide either a query
 or a table. Pipeline construction will fail with a validation error if neither
 or both are specified.
 
-When reading via `ReadFromBigQuery`, bytes are returned decoded as bytes.
+When reading via `ReadFromBigQuery` using `EXPORT`,
+bytes are returned decoded as bytes.
 This is due to the fact that ReadFromBigQuery uses Avro exports by default.
 When reading from BigQuery using `apache_beam.io.BigQuerySource`, bytes are
 returned as base64-encoded bytes. To get base64-encoded bytes using
@@ -360,6 +361,7 @@ import itertools
 import json
 import logging
 import random
+import secrets
 import time
 import uuid
 import warnings
@@ -1096,7 +1098,16 @@ class _CustomBigQueryStorageSource(BoundedSource):
     bq = bigquery_tools.BigQueryWrapper.from_pipeline_options(
         self.pipeline_options)
     if self.table_reference is not None:
-      return self._get_table_size(bq, self.table_reference)
+      table_ref = self.table_reference
+      if (isinstance(self.table_reference, vp.ValueProvider) and
+          self.table_reference.is_accessible()):
+        table_ref = bigquery_tools.parse_table_reference(
+            self.table_reference.get(), project=self._get_project())
+      elif isinstance(self.table_reference, vp.ValueProvider):
+        # Size estimation is best effort. We return None as we have
+        # no access to the table that we're querying.
+        return None
+      return self._get_table_size(bq, table_ref)
     elif self.query is not None and self.query.is_accessible():
       query_job_name = bigquery_tools.generate_bq_job_name(
           self._job_name,
@@ -1853,6 +1864,7 @@ class WriteToBigQuery(PTransform):
       kms_key=None,
       batch_size=None,
       max_file_size=None,
+      max_partition_size=None,
       max_files_per_bundle=None,
       test_client=None,
       custom_gcs_temp_location=None,
@@ -1933,6 +1945,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       max_file_size (int): The maximum size for a file to be written and then
         loaded into BigQuery. The default value is 4TB, which is 80% of the
         limit of 5TB for BigQuery to load any file.
+      max_partition_size (int): Maximum byte size for each load job to
+        BigQuery. Defaults to 15TB. Applicable to FILE_LOADS only.
       max_files_per_bundle(int): The maximum number of files to be concurrently
         written by a worker. The default here is 20. Larger values will allow
         writing to multiple destinations without having to reshard - but they
@@ -2058,6 +2072,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     # TODO(pabloem): Consider handling ValueProvider for this location.
     self.custom_gcs_temp_location = custom_gcs_temp_location
     self.max_file_size = max_file_size
+    self.max_partition_size = max_partition_size
     self.max_files_per_bundle = max_files_per_bundle
     self.method = method or WriteToBigQuery.Method.DEFAULT
     self.triggering_frequency = triggering_frequency
@@ -2172,13 +2187,11 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         def find_in_nested_dict(schema):
           for field in schema['fields']:
             if field['type'] == 'JSON':
-              raise ValueError(
-                  'Found JSON type in table schema. JSON data '
-                  'insertion is currently not supported with '
-                  'FILE_LOADS write method. This is supported with '
-                  'STREAMING_INSERTS. For more information: '
-                  'https://cloud.google.com/bigquery/docs/reference/'
-                  'standard-sql/json-data#ingest_json_data')
+              logging.warning(
+                  'Found JSON type in TableSchema for "File_LOADS" write '
+                  'method. Make sure the TableSchema field is a parsed '
+                  'JSON to ensure the read as a JSON type. Otherwise it '
+                  'will read as a raw (escaped) string.')
             elif field['type'] == 'STRUCT':
               find_in_nested_dict(field)
 
@@ -2201,6 +2214,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           with_auto_sharding=self.with_auto_sharding,
           temp_file_format=self._temp_file_format,
           max_file_size=self.max_file_size,
+          max_partition_size=self.max_partition_size,
           max_files_per_bundle=self.max_files_per_bundle,
           custom_gcs_temp_location=self.custom_gcs_temp_location,
           test_client=self.test_client,
@@ -2221,73 +2235,17 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
               BigQueryBatchFileLoads.DESTINATION_COPY_JOBID_PAIRS])
 
     elif method_to_use == WriteToBigQuery.Method.STORAGE_WRITE_API:
-      if self.schema is None:
-        try:
-          schema = schema_from_element_type(pcoll.element_type)
-          is_rows = True
-        except TypeError as exn:
-          raise ValueError(
-              "A schema is required in order to prepare rows"
-              "for writing with STORAGE_WRITE_API.") from exn
-      elif callable(self.schema):
-        raise NotImplementedError(
-            "Writing to dynamic destinations is not"
-            "supported for this write method.")
-      elif isinstance(self.schema, vp.ValueProvider):
-        schema = self.schema.get()
-        is_rows = False
-      else:
-        schema = self.schema
-        is_rows = False
-
-      table = bigquery_tools.get_hashable_destination(self.table_reference)
-      # None type is not supported
-      triggering_frequency = self.triggering_frequency or 0
-      # SchemaTransform expects Beam Rows, so map to Rows first
-      if is_rows:
-        input_beam_rows = pcoll
-      else:
-        input_beam_rows = (
-            pcoll
-            | "Convert dict to Beam Row" >> beam.Map(
-                lambda row: bigquery_tools.beam_row_from_dict(row, schema)
-            ).with_output_types(
-                RowTypeConstraint.from_fields(
-                    bigquery_tools.get_beam_typehints_from_tableschema(schema)))
-        )
-      output_beam_rows = (
-          input_beam_rows
-          | StorageWriteToBigQuery(
-              table=table,
-              create_disposition=self.create_disposition,
-              write_disposition=self.write_disposition,
-              triggering_frequency=triggering_frequency,
-              use_at_least_once=self.use_at_least_once,
-              with_auto_sharding=self.with_auto_sharding,
-              num_storage_api_streams=self._num_storage_api_streams,
-              expansion_service=self.expansion_service))
-
-      if is_rows:
-        failed_rows = output_beam_rows[StorageWriteToBigQuery.FAILED_ROWS]
-        failed_rows_with_errors = output_beam_rows[
-            StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS]
-      else:
-        # return back from Beam Rows to Python dict elements
-        failed_rows = (
-            output_beam_rows[StorageWriteToBigQuery.FAILED_ROWS]
-            | beam.Map(lambda row: row.as_dict()))
-        failed_rows_with_errors = (
-            output_beam_rows[StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS]
-            | beam.Map(
-                lambda row: {
-                    "error_message": row.error_message,
-                    "failed_row": row.failed_row.as_dict()
-                }))
-
-      return WriteResult(
-          method=WriteToBigQuery.Method.STORAGE_WRITE_API,
-          failed_rows=failed_rows,
-          failed_rows_with_errors=failed_rows_with_errors)
+      return pcoll | StorageWriteToBigQuery(
+          table=self.table_reference,
+          schema=self.schema,
+          table_side_inputs=self.table_side_inputs,
+          create_disposition=self.create_disposition,
+          write_disposition=self.write_disposition,
+          triggering_frequency=self.triggering_frequency,
+          use_at_least_once=self.use_at_least_once,
+          with_auto_sharding=self.with_auto_sharding,
+          num_storage_api_streams=self._num_storage_api_streams,
+          expansion_service=self.expansion_service)
 
     else:
       raise ValueError(f"Unsupported method {method_to_use}")
@@ -2381,7 +2339,7 @@ class WriteResult:
   """
   def __init__(
       self,
-      method: WriteToBigQuery.Method = None,
+      method: str = None,
       destination_load_jobid_pairs: PCollection[Tuple[str,
                                                       JobReference]] = None,
       destination_file_pairs: PCollection[Tuple[str, Tuple[str, int]]] = None,
@@ -2504,24 +2462,26 @@ class WriteResult:
     return self.attributes[key].__get__(self, WriteResult)
 
 
-def _default_io_expansion_service(append_args=None):
-  return BeamJarExpansionService(
-      'sdks:java:io:google-cloud-platform:expansion-service:build',
-      append_args=append_args)
-
-
 class StorageWriteToBigQuery(PTransform):
   """Writes data to BigQuery using Storage API.
+  Supports dynamic destinations. Dynamic schemas are not supported yet.
 
   Experimental; no backwards compatibility guarantees.
   """
-  URN = "beam:schematransform:org.apache.beam:bigquery_storage_write:v2"
+  IDENTIFIER = "beam:schematransform:org.apache.beam:bigquery_storage_write:v2"
   FAILED_ROWS = "FailedRows"
   FAILED_ROWS_WITH_ERRORS = "FailedRowsWithErrors"
+  # fields for rows sent to Storage API with dynamic destinations
+  DESTINATION = "destination"
+  RECORD = "record"
+  # magic string to tell Java that these rows are going to dynamic destinations
+  DYNAMIC_DESTINATIONS = "DYNAMIC_DESTINATIONS"
 
   def __init__(
       self,
       table,
+      table_side_inputs=None,
+      schema=None,
       create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
       write_disposition=BigQueryDisposition.WRITE_APPEND,
       triggering_frequency=0,
@@ -2529,74 +2489,161 @@ class StorageWriteToBigQuery(PTransform):
       with_auto_sharding=False,
       num_storage_api_streams=0,
       expansion_service=None):
-    """Initialize a StorageWriteToBigQuery transform.
-
-    :param table:
-      Fully-qualified table ID specified as ``'PROJECT:DATASET.TABLE'``.
-    :param create_disposition:
-      String specifying the strategy to take when the table doesn't
-      exist. Possible values are:
-      * ``'CREATE_IF_NEEDED'``: create if does not exist.
-      * ``'CREATE_NEVER'``: fail the write if does not exist.
-    :param write_disposition:
-      String specifying the strategy to take when the table already
-      contains data. Possible values are:
-      * ``'WRITE_TRUNCATE'``: delete existing rows.
-      * ``'WRITE_APPEND'``: add to existing rows.
-      * ``'WRITE_EMPTY'``: fail the write if table not empty.
-    :param triggering_frequency:
-      The time in seconds between write commits. Should only be specified
-      for streaming pipelines. Defaults to 5 seconds.
-    :param use_at_least_once:
-      Use at-least-once semantics. Is cheaper and provides lower latency,
-      but will potentially duplicate records.
-    :param with_auto_sharding:
-      Experimental. If true, enables using a dynamically determined number of
-      shards to write to BigQuery. Only applicable to unbounded input.
-    :param expansion_service:
-      The address (host:port) of the expansion service. If no expansion
-      service is provided, will attempt to run the default GCP expansion
-      service.
-    """
-    super().__init__()
     self._table = table
+    self._table_side_inputs = table_side_inputs
+    self._schema = schema
     self._create_disposition = create_disposition
     self._write_disposition = write_disposition
     self._triggering_frequency = triggering_frequency
     self._use_at_least_once = use_at_least_once
     self._with_auto_sharding = with_auto_sharding
     self._num_storage_api_streams = num_storage_api_streams
-    self._expansion_service = (
-        expansion_service or _default_io_expansion_service())
-    self.schematransform_config = SchemaAwareExternalTransform.discover_config(
-        self._expansion_service, self.URN)
+    self._expansion_service = expansion_service or BeamJarExpansionService(
+        'sdks:java:io:google-cloud-platform:expansion-service:build')
 
   def expand(self, input):
-    external_storage_write = SchemaAwareExternalTransform(
-        identifier=self.schematransform_config.identifier,
-        expansion_service=self._expansion_service,
-        rearrange_based_on_discovery=True,
-        autoSharding=self._with_auto_sharding,
-        numStreams=self._num_storage_api_streams,
-        createDisposition=self._create_disposition,
-        table=self._table,
-        triggeringFrequencySeconds=self._triggering_frequency,
-        useAtLeastOnceSemantics=self._use_at_least_once,
-        writeDisposition=self._write_disposition,
-        errorHandling={
-            'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
-        })
+    if self._schema is None:
+      try:
+        schema = schema_from_element_type(input.element_type)
+        is_rows = True
+      except TypeError as exn:
+        raise ValueError(
+            "A schema is required in order to prepare rows"
+            "for writing with STORAGE_WRITE_API.") from exn
+    elif callable(self._schema):
+      raise NotImplementedError(
+          "Writing with dynamic schemas is not"
+          "supported for this write method.")
+    elif isinstance(self._schema, vp.ValueProvider):
+      schema = self._schema.get()
+      is_rows = False
+    else:
+      schema = self._schema
+      is_rows = False
 
-    input_tag = self.schematransform_config.inputs[0]
+    table = bigquery_tools.get_hashable_destination(self._table)
 
-    result = {input_tag: input} | external_storage_write
-    result[StorageWriteToBigQuery.FAILED_ROWS] = result[
-        StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS] | beam.Map(
-            lambda row_and_error: row_and_error[0])
-    return result
+    # if writing to one destination, just convert to Beam rows and send over
+    if not callable(table):
+      if is_rows:
+        input_beam_rows = input
+      else:
+        input_beam_rows = (
+            input
+            | "Convert dict to Beam Row" >> self.ConvertToBeamRows(
+                schema, False).with_output_types())
+
+    # For dynamic destinations, we first figure out where each row is going.
+    # Then we send (destination, record) rows over to Java SchemaTransform.
+    # We need to do this here because there are obstacles to passing the
+    # destinations function to Java
+    else:
+      # call function and append destination to each row
+      input_rows = (
+          input
+          | "Append dynamic destinations" >> beam.ParDo(
+              bigquery_tools.AppendDestinationsFn(table),
+              *self._table_side_inputs))
+      # if input type is Beam Row, just wrap everything in another Row
+      if is_rows:
+        input_beam_rows = (
+            input_rows
+            | "Wrap in Beam Row" >> beam.Map(
+                lambda row: beam.Row(
+                    **{
+                        StorageWriteToBigQuery.DESTINATION: row[0],
+                        StorageWriteToBigQuery.RECORD: row[1]
+                    })).with_output_types(
+                        RowTypeConstraint.from_fields([
+                            (StorageWriteToBigQuery.DESTINATION, str),
+                            (StorageWriteToBigQuery.RECORD, input.element_type)
+                        ])))
+      # otherwise, convert to Beam Rows
+      else:
+        input_beam_rows = (
+            input_rows
+            | "Convert dict to Beam Row" >> self.ConvertToBeamRows(
+                schema, True).with_output_types())
+      # communicate to Java that this write should use dynamic destinations
+      table = StorageWriteToBigQuery.DYNAMIC_DESTINATIONS
+
+    output = (
+        input_beam_rows
+        | SchemaAwareExternalTransform(
+            identifier=StorageWriteToBigQuery.IDENTIFIER,
+            expansion_service=self._expansion_service,
+            rearrange_based_on_discovery=True,
+            table=table,
+            createDisposition=self._create_disposition,
+            writeDisposition=self._write_disposition,
+            triggeringFrequencySeconds=self._triggering_frequency,
+            autoSharding=self._with_auto_sharding,
+            numStreams=self._num_storage_api_streams,
+            useAtLeastOnceSemantics=self._use_at_least_once,
+            errorHandling={
+                'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
+            }))
+
+    failed_rows_with_errors = output[
+        StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS]
+    failed_rows = failed_rows_with_errors | beam.Map(
+        lambda row_and_error: row_and_error[0])
+    if not is_rows:
+      # return back from Beam Rows to Python dict elements
+      failed_rows = failed_rows | beam.Map(lambda row: row.as_dict())
+      failed_rows_with_errors = failed_rows_with_errors | beam.Map(
+          lambda row: {
+              "error_message": row.error_message,
+              "failed_row": row.failed_row.as_dict()
+          })
+
+    return WriteResult(
+        method=WriteToBigQuery.Method.STORAGE_WRITE_API,
+        failed_rows=failed_rows,
+        failed_rows_with_errors=failed_rows_with_errors)
+
+  class ConvertToBeamRows(PTransform):
+    def __init__(self, schema, dynamic_destinations):
+      self.schema = schema
+      self.dynamic_destinations = dynamic_destinations
+
+    def expand(self, input_dicts):
+      if self.dynamic_destinations:
+        return (
+            input_dicts
+            | "Convert dict to Beam Row" >> beam.Map(
+                lambda row: beam.Row(
+                    **{
+                        StorageWriteToBigQuery.DESTINATION: row[0],
+                        StorageWriteToBigQuery.RECORD: bigquery_tools.
+                        beam_row_from_dict(row[1], self.schema)
+                    })))
+      else:
+        return (
+            input_dicts
+            | "Convert dict to Beam Row" >> beam.Map(
+                lambda row: bigquery_tools.beam_row_from_dict(row, self.schema))
+        )
+
+    def with_output_types(self):
+      row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(
+          self.schema)
+      if self.dynamic_destinations:
+        type_hint = RowTypeConstraint.from_fields([
+            (StorageWriteToBigQuery.DESTINATION, str),
+            (
+                StorageWriteToBigQuery.RECORD,
+                RowTypeConstraint.from_fields(row_type_hints))
+        ])
+      else:
+        type_hint = RowTypeConstraint.from_fields(row_type_hints)
+
+      return super().with_output_types(type_hint)
 
 
 class ReadFromBigQuery(PTransform):
+  # pylint: disable=line-too-long,W1401
+
   """Read data from BigQuery.
 
     This PTransform uses a BigQuery export job to take a snapshot of the table
@@ -2653,8 +2700,7 @@ class ReadFromBigQuery(PTransform):
       :data:`None`, then the temp_location parameter is used.
     bigquery_job_labels (dict): A dictionary with string labels to be passed
       to BigQuery export and query jobs created by this transform. See:
-      https://cloud.google.com/bigquery/docs/reference/rest/v2/\
-              Job#JobConfiguration
+      https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfiguration
     use_json_exports (bool): By default, this transform works by exporting
       BigQuery data into Avro files, and reading those files. With this
       parameter, the transform will instead export to JSON files. JSON files
@@ -2666,13 +2712,11 @@ class ReadFromBigQuery(PTransform):
       types (datetime.date, datetime.datetime, datetime.datetime,
       and datetime.datetime respectively). Avro exports are recommended.
       To learn more about BigQuery types, and Time-related type
-      representations, see: https://cloud.google.com/bigquery/docs/reference/\
-              standard-sql/data-types
+      representations,
+      see: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
       To learn more about type conversions between BigQuery and Avro, see:
-      https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro\
-              #avro_conversions
-    temp_dataset (``apache_beam.io.gcp.internal.clients.bigquery.\
-        DatasetReference``):
+      https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions
+    temp_dataset (``apache_beam.io.gcp.internal.clients.bigquery.DatasetReference``):
         Temporary dataset reference to use when reading from BigQuery using a
         query. When reading using a query, BigQuery source will create a
         temporary dataset and a temporary table to store the results of the
@@ -2690,8 +2734,7 @@ class ReadFromBigQuery(PTransform):
       (`PYTHON_DICT`). There is experimental support for producing a
       PCollection with a schema and yielding Beam Rows via the option
       `BEAM_ROW`. For more information on schemas, see
-      https://beam.apache.org/documentation/programming-guide/\
-      #what-is-a-schema)
+      https://beam.apache.org/documentation/programming-guide/#what-is-a-schema)
       """
   class Method(object):
     EXPORT = 'EXPORT'  #  This is currently the default.
@@ -2889,8 +2932,9 @@ class ReadFromBigQueryRequest:
     self.table = table
     self.validate()
 
-    # We use this internal object ID to generate BigQuery export directories.
-    self.obj_id = random.randint(0, 100000)
+    # We use this internal object ID to generate BigQuery export directories
+    # and to create BigQuery job names
+    self.obj_id = '%d_%s' % (int(time.time()), secrets.token_hex(3))
 
   def validate(self):
     if self.table is not None and self.query is not None:

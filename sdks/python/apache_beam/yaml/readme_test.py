@@ -26,13 +26,13 @@ import sys
 import tempfile
 import unittest
 
+import mock
 import yaml
 from yaml.loader import SafeLoader
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.typehints import trivial_inference
-from apache_beam.yaml import yaml_mapping
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 
@@ -99,7 +99,7 @@ class FakeSql(beam.PTransform):
 
 
 class FakeReadFromPubSub(beam.PTransform):
-  def __init__(self, topic):
+  def __init__(self, topic, format, schema):
     pass
 
   def expand(self, p):
@@ -112,14 +112,17 @@ class FakeReadFromPubSub(beam.PTransform):
 
 
 class FakeWriteToPubSub(beam.PTransform):
-  def __init__(self, topic):
+  def __init__(self, topic, format):
     pass
 
   def expand(self, pcoll):
     return pcoll
 
 
-class SomeAggregation(beam.PTransform):
+class FakeAggregation(beam.PTransform):
+  def __init__(self, **unused_kwargs):
+    pass
+
   def expand(self, pcoll):
     return pcoll | beam.GroupBy(lambda _: 'key').aggregate_field(
         lambda _: 1, sum, 'count')
@@ -130,7 +133,7 @@ TEST_TRANSFORMS = {
     'Sql': FakeSql,
     'ReadFromPubSub': FakeReadFromPubSub,
     'WriteToPubSub': FakeWriteToPubSub,
-    'SomeAggregation': SomeAggregation,
+    'SomeGroupingTransform': FakeAggregation,
 }
 
 
@@ -153,6 +156,9 @@ class TestEnvironment:
 
   def input_csv(self):
     return self.input_file('input.csv', 'col1,col2,col3\nabc,1,2.5\n')
+
+  def input_tsv(self):
+    return self.input_file('input.tsv', 'col1\tcol2\tcol3\nabc\t1\t2.5\n')
 
   def input_json(self):
     return self.input_file(
@@ -185,22 +191,32 @@ def replace_recursive(spec, transform_type, arg_name, arg_value):
 
 
 def create_test_method(test_type, test_name, test_yaml):
-  test_yaml = test_yaml.replace('pkg.module.fn', 'str')
+  test_yaml = test_yaml.replace(
+      'apache_beam.pkg.module.', 'apache_beam.yaml.readme_test._Fakes.')
+  test_yaml = test_yaml.replace(
+      'pkg.module.', 'apache_beam.yaml.readme_test._Fakes.')
 
   def test(self):
     with TestEnvironment() as env:
+      nonlocal test_yaml
+      test_yaml = test_yaml.replace('/path/to/*.tsv', env.input_tsv())
       spec = yaml.load(test_yaml, Loader=SafeLoader)
       if test_type == 'PARSE':
         return
       if 'ReadFromCsv' in test_yaml:
         spec = replace_recursive(spec, 'ReadFromCsv', 'path', env.input_csv())
+      if 'ReadFromText' in test_yaml:
+        spec = replace_recursive(spec, 'ReadFromText', 'path', env.input_csv())
       if 'ReadFromJson' in test_yaml:
         spec = replace_recursive(spec, 'ReadFromJson', 'path', env.input_json())
       for write in ['WriteToText', 'WriteToCsv', 'WriteToJson']:
         if write in test_yaml:
           spec = replace_recursive(spec, write, 'path', env.output_file())
       modified_yaml = yaml.dump(spec)
-      options = {'pickle_library': 'cloudpickle'}
+      options = {
+          'pickle_library': 'cloudpickle',
+          'yaml_experimental_features': ['Combine']
+      }
       if RENDER_DIR is not None:
         options['runner'] = 'apache_beam.runners.render.RenderRunner'
         options['render_output'] = [
@@ -208,13 +224,12 @@ def create_test_method(test_type, test_name, test_yaml):
         ]
         options['render_leaf_composite_nodes'] = ['.*']
       test_provider = TestProvider(TEST_TRANSFORMS)
-      test_sql_mapping_provider = yaml_mapping.SqlMappingProvider(test_provider)
-      p = beam.Pipeline(options=PipelineOptions(**options))
-      yaml_transform.expand_pipeline(
-          p,
-          modified_yaml,
-          yaml_provider.merge_providers(
-              [test_provider, test_sql_mapping_provider]))
+      with mock.patch(
+          'apache_beam.yaml.yaml_provider.SqlBackedProvider.sql_provider',
+          lambda self: test_provider):
+        p = beam.Pipeline(options=PipelineOptions(**options))
+        yaml_transform.expand_pipeline(
+            p, modified_yaml, yaml_provider.merge_providers([test_provider]))
       if test_type == 'BUILD':
         return
       p.run().wait_until_finish()
@@ -263,12 +278,35 @@ def createTestSuite(name, path):
     return type(name, (unittest.TestCase, ), dict(parse_test_methods(readme)))
 
 
+class _Fakes:
+  fn = str
+
+  class SomeTransform(beam.PTransform):
+    def __init__(*args, **kwargs):
+      pass
+
+    def expand(self, pcoll):
+      return pcoll
+
+
+# These are copied from $ROOT/website/www/site/content/en/documentation/sdks
+# at build time.
+YAML_DOCS_DIR = os.path.join(os.path.join(os.path.dirname(__file__), 'docs'))
+
 ReadMeTest = createTestSuite(
-    'ReadMeTest', os.path.join(os.path.dirname(__file__), 'README.md'))
+    'ReadMeTest', os.path.join(YAML_DOCS_DIR, 'yaml.md'))
 
 ErrorHandlingTest = createTestSuite(
-    'ErrorHandlingTest',
-    os.path.join(os.path.dirname(__file__), 'yaml_errors.md'))
+    'ErrorHandlingTest', os.path.join(YAML_DOCS_DIR, 'yaml-errors.md'))
+
+MappingTest = createTestSuite(
+    'MappingTest', os.path.join(YAML_DOCS_DIR, 'yaml-udf.md'))
+
+CombineTest = createTestSuite(
+    'CombineTest', os.path.join(YAML_DOCS_DIR, 'yaml-combine.md'))
+
+InlinePythonTest = createTestSuite(
+    'InlinePythonTest', os.path.join(YAML_DOCS_DIR, 'yaml-inline-python.md'))
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()

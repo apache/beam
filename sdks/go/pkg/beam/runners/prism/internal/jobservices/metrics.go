@@ -475,13 +475,13 @@ func (m *metricsStore) AddShortIDs(resp *fnpb.MonitoringInfosMetadataResponse) {
 		m.shortIDsToKeys[short] = key
 	}
 	for d, payloads := range m.unprocessedPayloads {
-		m.contributeMetrics(durability(d), payloads)
 		m.unprocessedPayloads[d] = nil
+		m.contributeMetrics(durability(d), payloads)
 	}
 }
 
-func (m *metricsStore) contributeMetrics(d durability, mdata map[string][]byte) (int64, []string) {
-	readIndex := int64(-1)
+func (m *metricsStore) contributeMetrics(d durability, mdata map[string][]byte) (map[string]int64, []string) {
+	var index, totalCount int64
 	if m.accums[d] == nil {
 		m.accums[d] = map[metricKey]metricAccumulator{}
 	}
@@ -510,14 +510,20 @@ func (m *metricsStore) contributeMetrics(d durability, mdata map[string][]byte) 
 			panic(fmt.Sprintf("error decoding metrics %v: %+v\n\t%+v", key.Urn(), key, a))
 		}
 		accums[key] = a
-		if key.Urn() == "beam:metric:data_channel:read_index:v1" {
-			readIndex = a.(*sumInt64).sum
+		switch u := key.Urn(); u {
+		case "beam:metric:data_channel:read_index:v1":
+			index = a.(*sumInt64).sum // There should only be one of these per progress response.
+		case "beam:metric:element_count:v1":
+			totalCount += a.(*sumInt64).sum
 		}
 	}
-	return readIndex, missingShortIDs
+	return map[string]int64{
+		"index":      index,
+		"totalCount": totalCount,
+	}, missingShortIDs
 }
 
-func (m *metricsStore) ContributeTentativeMetrics(payloads *fnpb.ProcessBundleProgressResponse) (int64, []string) {
+func (m *metricsStore) ContributeTentativeMetrics(payloads *fnpb.ProcessBundleProgressResponse) (map[string]int64, []string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.contributeMetrics(tentative, payloads.GetMonitoringData())

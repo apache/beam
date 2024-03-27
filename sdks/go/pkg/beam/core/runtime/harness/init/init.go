@@ -27,10 +27,12 @@ import (
 
 	"fmt"
 	"os"
-
 	"runtime/debug"
 
+	"golang.org/x/exp/slices"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness"
 
 	// Import gcs filesystem so that it can be used to upload heap dumps.
@@ -78,6 +80,13 @@ func hook() {
 		return
 	}
 
+	// Extract environment variables. These are optional runner supported capabilities.
+	// Expected env variables:
+	// RUNNER_CAPABILITIES : list of runner supported capability urn.
+	// STATUS_ENDPOINT : Endpoint to connect to status server used for worker status reporting.
+	statusEndpoint := os.Getenv("STATUS_ENDPOINT")
+	runnerCapabilities := strings.Split(os.Getenv("RUNNER_CAPABILITIES"), " ")
+
 	// Initialization logging
 	//
 	// We use direct output to stderr here, because it is expected that logging
@@ -91,6 +100,14 @@ func hook() {
 			os.Exit(1)
 		}
 		runtime.GlobalOptions.Import(opt.Options)
+		var experiments []string
+		if e, ok := opt.Options.Options["experiments"]; ok {
+			experiments = strings.Split(e, ",")
+		}
+		// TODO(zechenj18) 2023-12-07: Remove once the data sampling URN is properly sent in via the capabilities
+		if slices.Contains(experiments, "enable_data_sampling") {
+			runnerCapabilities = append(runnerCapabilities, graphx.URNDataSampling)
+		}
 	}
 
 	defer func() {
@@ -120,12 +137,6 @@ func hook() {
 		fmt.Println("Error Setting Rlimit ", err)
 	}
 
-	// Extract environment variables. These are optional runner supported capabilities.
-	// Expected env variables:
-	// RUNNER_CAPABILITIES : list of runner supported capability urn.
-	// STATUS_ENDPOINT : Endpoint to connect to status server used for worker status reporting.
-	statusEndpoint := os.Getenv("STATUS_ENDPOINT")
-	runnerCapabilities := strings.Split(os.Getenv("RUNNER_CAPABILITIES"), " ")
 	options := harness.Options{
 		StatusEndpoint:     statusEndpoint,
 		RunnerCapabilities: runnerCapabilities,

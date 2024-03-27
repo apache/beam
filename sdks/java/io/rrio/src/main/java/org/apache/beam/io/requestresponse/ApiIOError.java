@@ -18,10 +18,12 @@
 package org.apache.beam.io.requestresponse;
 
 import com.google.auto.value.AutoValue;
+import java.util.Optional;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.joda.time.Instant;
 
 /** {@link ApiIOError} is a data class for storing details about an error. */
@@ -30,12 +32,30 @@ import org.joda.time.Instant;
 @AutoValue
 public abstract class ApiIOError {
 
+  /**
+   * Instantiate an {@link ApiIOError} from an {@link ErrorT} {@link T} element. The {@link T}
+   * element is converted to a string by calling {@link Object#toString()}.
+   */
+  static <T, ErrorT extends Exception> ApiIOError of(ErrorT e, T element) {
+    String request = "";
+    if (element != null) {
+      request = element.toString();
+    }
+
+    return ApiIOError.builder()
+        .setRequestAsString(request)
+        .setMessage(Optional.ofNullable(e.getMessage()).orElse(""))
+        .setObservedTimestamp(Instant.now())
+        .setStackTrace(Throwables.getStackTraceAsString(e))
+        .build();
+  }
+
   static Builder builder() {
     return new AutoValue_ApiIOError.Builder();
   }
 
-  /** The encoded UTF-8 string representation of the related processed element. */
-  public abstract String getEncodedElementAsUtfString();
+  /** The string representation of the request associated with the error. */
+  public abstract String getRequestAsString();
 
   /** The observed timestamp of the error. */
   public abstract Instant getObservedTimestamp();
@@ -49,13 +69,13 @@ public abstract class ApiIOError {
   @AutoValue.Builder
   abstract static class Builder {
 
-    public abstract Builder setEncodedElementAsUtfString(String value);
+    abstract Builder setRequestAsString(String value);
 
-    public abstract Builder setObservedTimestamp(Instant value);
+    abstract Builder setObservedTimestamp(Instant value);
 
-    public abstract Builder setMessage(String value);
+    abstract Builder setMessage(String value);
 
-    public abstract Builder setStackTrace(String value);
+    abstract Builder setStackTrace(String value);
 
     abstract ApiIOError build();
   }

@@ -38,3 +38,7 @@ plugins:
   out: src/main/java
 - name: grpc-java
   out: src/main/java
+- plugin: buf.build/protocolbuffers/python:v24.4
+  out: src/main/python
+- plugin: buf.build/grpc/python:v1.59.1
+  out: src/main/python

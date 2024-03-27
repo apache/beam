@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import com.google.api.gax.rpc.ApiException;
 import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
@@ -46,11 +47,10 @@ interface BigtableService extends Serializable {
         throws IOException;
 
     /**
-     * Flushes the writer.
-     *
-     * @throws IOException if any writes did not succeed
+     * Like above, but will not batch the record. Useful for single record retries. writeRecord
+     * should be preferred for performance reasons.
      */
-    void flush() throws IOException;
+    void writeSingleRecord(KV<ByteString, Iterable<Mutation>> record) throws ApiException;
 
     /**
      * Closes the writer.
@@ -88,7 +88,7 @@ interface BigtableService extends Serializable {
   Reader createReader(BigtableSource source) throws IOException;
 
   /** Returns a {@link Writer} that will write to the specified table. */
-  Writer openForWriting(String tableId) throws IOException;
+  Writer openForWriting(BigtableWriteOptions writeOptions) throws IOException;
 
   /**
    * Returns a set of row keys sampled from the underlying table. These contain information about

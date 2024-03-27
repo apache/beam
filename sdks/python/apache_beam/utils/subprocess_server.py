@@ -18,6 +18,7 @@
 # pytype: skip-file
 
 import contextlib
+import dataclasses
 import glob
 import hashlib
 import logging
@@ -27,18 +28,89 @@ import shutil
 import signal
 import socket
 import subprocess
-import tempfile
 import threading
 import time
 import zipfile
+from typing import Any
+from typing import Set
 from urllib.error import URLError
 from urllib.request import urlopen
 
 import grpc
 
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.version import __version__ as beam_version
 
 _LOGGER = logging.getLogger(__name__)
+
+
+@dataclasses.dataclass
+class _SharedCacheEntry:
+  obj: Any
+  owners: Set[str]
+
+
+class _SharedCache:
+  """A cache that keeps objects alive (and repeatedly returns the same instance)
+  until the last user indicates that they're done.
+
+  The typical usage is as follows::
+
+    try:
+      token = cache.register()
+      # All objects retrieved from the cache from this point on will be memoized
+      # and kept alive (including across other threads and callers) at least
+      # until the purge is called below (and possibly longer, if other calls
+      # to register were made).
+      obj = cache.get(...)
+      another_obj = cache.get(...)
+      ...
+    finally:
+      cache.purge(token)
+  """
+  def __init__(self, constructor, destructor):
+    self._constructor = constructor
+    self._destructor = destructor
+    self._live_owners = set()
+    self._cache = {}
+    self._lock = threading.Lock()
+    self._counter = 0
+
+  def _next_id(self):
+    with self._lock:
+      self._counter += 1
+      return self._counter
+
+  def register(self):
+    owner = self._next_id()
+    self._live_owners.add(owner)
+    return owner
+
+  def purge(self, owner):
+    if owner not in self._live_owners:
+      raise ValueError(f"{owner} not in {self._live_owners}")
+    self._live_owners.remove(owner)
+    to_delete = []
+    with self._lock:
+      for key, entry in list(self._cache.items()):
+        if owner in entry.owners:
+          entry.owners.remove(owner)
+        if not entry.owners:
+          to_delete.append(entry.obj)
+          del self._cache[key]
+    # Actually call the destructors outside of the lock.
+    for value in to_delete:
+      self._destructor(value)
+
+  def get(self, *key):
+    if not self._live_owners:
+      raise RuntimeError("At least one owner must be registered.")
+    with self._lock:
+      if key not in self._cache:
+        self._cache[key] = _SharedCacheEntry(self._constructor(*key), set())
+      for owner in self._live_owners:
+        self._cache[key].owners.add(owner)
+      return self._cache[key].obj
 
 
 class SubprocessServer(object):
@@ -62,11 +134,25 @@ class SubprocessServer(object):
         string "{{PORT}}" will be substituted in the command line arguments
         with the chosen port.
     """
-    self._process_lock = threading.RLock()
-    self._process = None
+    self._owner_id = None
     self._stub_class = stub_class
     self._cmd = [str(arg) for arg in cmd]
     self._port = port
+    self._grpc_channel = None
+
+  @classmethod
+  @contextlib.contextmanager
+  def cache_subprocesses(cls):
+    """A context that ensures any subprocess created or used in its duration
+    stay alive for at least the duration of this context.
+
+    These subprocesses may be shared with other contexts as well.
+    """
+    try:
+      unique_id = cls._cache.register()
+      yield
+    finally:
+      cls._cache.purge(unique_id)
 
   def __enter__(self):
     return self.start()
@@ -76,17 +162,18 @@ class SubprocessServer(object):
 
   def start(self):
     try:
-      endpoint = self.start_process()
+      process, endpoint = self.start_process()
       wait_secs = .1
       channel_options = [("grpc.max_receive_message_length", -1),
                          ("grpc.max_send_message_length", -1)]
-      channel = grpc.insecure_channel(endpoint, options=channel_options)
-      channel_ready = grpc.channel_ready_future(channel)
+      self._grpc_channel = grpc.insecure_channel(
+          endpoint, options=channel_options)
+      channel_ready = grpc.channel_ready_future(self._grpc_channel)
       while True:
-        if self._process is not None and self._process.poll() is not None:
-          _LOGGER.error("Starting job service with %s", self._process.args)
+        if process is not None and process.poll() is not None:
+          _LOGGER.error("Started job service with %s", process.args)
           raise RuntimeError(
-              'Service failed to start up with error %s' % self._process.poll())
+              'Service failed to start up with error %s' % process.poll())
         try:
           channel_ready.result(timeout=wait_secs)
           break
@@ -96,60 +183,73 @@ class SubprocessServer(object):
               logging.WARNING if wait_secs > 1 else logging.DEBUG,
               'Waiting for grpc channel to be ready at %s.',
               endpoint)
-      return self._stub_class(channel)
+      return self._stub_class(self._grpc_channel)
     except:  # pylint: disable=bare-except
       _LOGGER.exception("Error bringing up service")
       self.stop()
       raise
 
   def start_process(self):
-    with self._process_lock:
-      if self._process:
-        self.stop()
-      if self._port:
-        port = self._port
-        cmd = self._cmd
-      else:
-        port, = pick_port(None)
-        cmd = [arg.replace('{{PORT}}', str(port)) for arg in self._cmd]
-      endpoint = 'localhost:%s' % port
-      _LOGGER.info("Starting service with %s", str(cmd).replace("',", "'"))
-      self._process = subprocess.Popen(
-          cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if self._owner_id is not None:
+      self._cache.purge(self._owner_id)
+    self._owner_id = self._cache.register()
+    return self._cache.get(tuple(self._cmd), self._port)
 
-      # Emit the output of this command as info level logging.
-      def log_stdout():
-        line = self._process.stdout.readline()
-        while line:
-          # The log obtained from stdout is bytes, decode it into string.
-          # Remove newline via rstrip() to not print an empty line.
-          _LOGGER.info(line.decode(errors='backslashreplace').rstrip())
-          line = self._process.stdout.readline()
+  def _really_start_process(cmd, port):
+    if not port:
+      port, = pick_port(None)
+      cmd = [arg.replace('{{PORT}}', str(port)) for arg in cmd]  # pylint: disable=not-an-iterable
+    endpoint = 'localhost:%s' % port
+    _LOGGER.info("Starting service with %s", str(cmd).replace("',", "'"))
+    process = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-      t = threading.Thread(target=log_stdout)
-      t.daemon = True
-      t.start()
-      return endpoint
+    # Emit the output of this command as info level logging.
+    def log_stdout():
+      line = process.stdout.readline()
+      while line:
+        # The log obtained from stdout is bytes, decode it into string.
+        # Remove newline via rstrip() to not print an empty line.
+        _LOGGER.info(line.decode(errors='backslashreplace').rstrip())
+        line = process.stdout.readline()
+
+    t = threading.Thread(target=log_stdout)
+    t.daemon = True
+    t.start()
+    return process, endpoint
 
   def stop(self):
     self.stop_process()
 
   def stop_process(self):
-    with self._process_lock:
-      if not self._process:
-        return
-      for _ in range(5):
-        if self._process.poll() is not None:
-          break
-        logging.debug("Sending SIGINT to job_server")
-        self._process.send_signal(signal.SIGINT)
-        time.sleep(1)
-      if self._process.poll() is None:
-        self._process.kill()
-      self._process = None
+    if self._owner_id is not None:
+      self._cache.purge(self._owner_id)
+      self._owner_id = None
+    if self._grpc_channel:
+      try:
+        self._grpc_channel.close()
+      except:  # pylint: disable=bare-except
+        _LOGGER.error(
+            "Could not close the gRPC channel started for the "
+            "expansion service")
+      finally:
+        self._grpc_channel = None
 
-  def local_temp_dir(self, **kwargs):
-    return tempfile.mkdtemp(dir=self._local_temp_root, **kwargs)
+  def _really_stop_process(process_and_endpoint):
+    process, _ = process_and_endpoint  # pylint: disable=unpacking-non-sequence
+    if not process:
+      return
+    for _ in range(5):
+      if process.poll() is not None:
+        break
+      logging.debug("Sending SIGINT to process")
+      process.send_signal(signal.SIGINT)
+      time.sleep(1)
+    if process.poll() is None:
+      process.kill()
+
+  _cache = _SharedCache(
+      constructor=_really_start_process, destructor=_really_stop_process)
 
 
 class JavaJarServer(SubprocessServer):
@@ -174,7 +274,7 @@ class JavaJarServer(SubprocessServer):
 
   def start_process(self):
     if self._existing_service:
-      return self._existing_service
+      return None, self._existing_service
     else:
       if not shutil.which('java'):
         raise RuntimeError(
@@ -272,7 +372,10 @@ class JavaJarServer(SubprocessServer):
           os.makedirs(cache_dir)
           # TODO: Clean up this cache according to some policy.
         try:
-          url_read = urlopen(url)
+          try:
+            url_read = FileSystems.open(url)
+          except ValueError:
+            url_read = urlopen(url)
           with open(cached_jar + '.tmp', 'wb') as jar_write:
             shutil.copyfileobj(url_read, jar_write, length=1 << 20)
           os.rename(cached_jar + '.tmp', cached_jar)

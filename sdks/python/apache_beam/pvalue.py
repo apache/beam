@@ -61,6 +61,7 @@ __all__ = [
     'AsIter',
     'AsList',
     'AsDict',
+    'AsMultiMap',
     'EmptySideInput',
     'Row',
 ]
@@ -304,7 +305,12 @@ class DoOutputsTuple(object):
     assert self.producer is not None
     if tag is not None:
       self._transform.output_tags.add(tag)
-      pcoll = PCollection(self._pipeline, tag=tag, element_type=typehints.Any)
+      is_bounded = all(i.is_bounded for i in self.producer.main_inputs.values())
+      pcoll = PCollection(
+          self._pipeline,
+          tag=tag,
+          element_type=typehints.Any,
+          is_bounded=is_bounded)
       # Transfer the producer from the DoOutputsTuple to the resulting
       # PCollection.
       pcoll.producer = self.producer.parts[0]

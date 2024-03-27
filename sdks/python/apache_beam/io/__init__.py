@@ -36,6 +36,7 @@ try:
   from apache_beam.io.gcp.bigquery import *
   from apache_beam.io.gcp.pubsub import *
   from apache_beam.io.gcp import gcsio
+  from apache_beam.transforms.xlang.io import *
 except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position

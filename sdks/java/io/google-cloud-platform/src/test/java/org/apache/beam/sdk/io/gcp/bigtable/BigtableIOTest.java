@@ -40,6 +40,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.google.api.gax.rpc.ApiException;
 import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
@@ -1695,8 +1696,8 @@ public class BigtableIOTest {
     }
 
     @Override
-    public FakeBigtableWriter openForWriting(String tableId) {
-      return new FakeBigtableWriter(tableId);
+    public FakeBigtableWriter openForWriting(BigtableWriteOptions writeOptions) {
+      return new FakeBigtableWriter(writeOptions.getTableId().get());
     }
 
     @Override
@@ -1748,8 +1749,8 @@ public class BigtableIOTest {
     }
 
     @Override
-    public FailureBigtableWriter openForWriting(String tableId) {
-      return new FailureBigtableWriter(tableId, this, failureOptions);
+    public FailureBigtableWriter openForWriting(BigtableWriteOptions writeOptions) {
+      return new FailureBigtableWriter(writeOptions.getTableId().get(), this, failureOptions);
     }
 
     @Override
@@ -1930,7 +1931,7 @@ public class BigtableIOTest {
     }
 
     @Override
-    public void flush() {}
+    public void writeSingleRecord(KV<ByteString, Iterable<Mutation>> record) {}
 
     @Override
     public void close() {}
@@ -1951,6 +1952,13 @@ public class BigtableIOTest {
         throw new IOException("Fake IOException in writeRecord()");
       }
       return super.writeRecord(record);
+    }
+
+    @Override
+    public void writeSingleRecord(KV<ByteString, Iterable<Mutation>> record) throws ApiException {
+      if (failureOptions.getFailAtWriteRecord()) {
+        throw new RuntimeException("Fake RuntimeException in writeRecord()");
+      }
     }
 
     private final FailureOptions failureOptions;
