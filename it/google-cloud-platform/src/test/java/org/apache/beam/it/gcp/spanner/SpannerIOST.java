@@ -270,7 +270,7 @@ public final class SpannerIOST extends IOStressTestBase {
                                 .withProjectId(project)
                                 .withInstanceId(resourceManager.getInstanceId())
                                 .withDatabaseId(resourceManager.getDatabaseId())
-                                .withCommitDeadline(org.joda.time.Duration.standardSeconds(60))
+                                .withCommitDeadline(org.joda.time.Duration.standardSeconds(100))
                                 .withMaxCumulativeBackoff(org.joda.time.Duration.standardMinutes(30))
                                 .withHighPriority());
 
