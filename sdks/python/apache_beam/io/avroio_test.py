@@ -160,7 +160,7 @@ class AvroBase(object):
         readback = (
             p
             | avroio.ReadFromAvro(path + '*', as_rows=True)
-            # | SqlTransform("SELECT * FROM PCOLLECTION")
+            | SqlTransform("SELECT * FROM PCOLLECTION")
             | beam.Map(stable_repr))
         assert_that(readback, equal_to([stable_repr(r) for r in rows]))
 
