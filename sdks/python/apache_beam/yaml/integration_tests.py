@@ -170,4 +170,4 @@ parse_test_files(os.path.join(os.path.dirname(__file__), 'tests', '*.yaml'))
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
-  unittest.main(argv=unknown_args)
+  unittest.main()
