@@ -176,7 +176,7 @@ class FlatMapTest(unittest.TestCase):
     with beam.Pipeline() as pipeline:
       letters = (
           pipeline
-          | 'Gardening plants' >> beam.Create(['abc', 'def'], reshuffle=False)
+          | beam.Create(['abc', 'def'], reshuffle=False)
           | beam.FlatMap())
       assert_that(letters, equal_to(['a', 'b', 'c', 'd', 'e', 'f']))
 
