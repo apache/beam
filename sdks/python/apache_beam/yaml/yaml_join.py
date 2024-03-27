@@ -17,7 +17,35 @@
 
 """This module defines the Join operation."""
 import apache_beam as beam
+from apache_beam.pvalue import Row
 from apache_beam.yaml import yaml_provider
+
+
+def _validate_isinstance(type, str):
+    error = ValueError('Invalid value for \'type\' in Join transform')
+    print(type)
+    if not isinstance(type, dict) and isinstance(type, str) != str:
+        return error
+    if isinstance(type, dict) and len(type) != 1 and next(iter(type)) != 'outer' and not isinstance(type['outer'], list):
+        return error
+    if isinstance(type, str) and type not in ('inner', 'outer', 'left', 'right'):
+        return error
+
+
+def _validate_equalities(equalities, pcoll):
+    error = ValueError('Invalid value for \'equalities\' in Join transform')
+    if not isinstance(equalities, list):
+        return error
+    for equality in equalities:
+        if len(equality) != 2 and not isinstance(equality, dict):
+            return error
+        for input, col in equality.items():
+            # TODO: look for an easier way to get field names in a Pcollection obj
+            possible_cols = set()
+            for field in pcoll['f'].element_type._fields:
+                possible_cols.add(field[0])
+            if input not in pcoll.keys() or col not in possible_cols:
+                return ValueError('Invalid input alias or column name doesn\'t exist in the input')
 
 
 def _parse_fields(tables, fields):
@@ -27,13 +55,13 @@ def _parse_fields(tables, fields):
     for input, cols in fields.items():
         if input not in tables:
             return ValueError(f'invalid input {input}')
-        if type(cols) == list:
+        if isinstance(cols, list):
             for col in cols:
                 if col in named_columns:
                     return ValueError(f'same field name {col} specified more than once')
                 output_fields.append(f'{input}.{col} AS {col}')
                 named_columns.add(col)
-        elif type(cols) == dict:
+        elif isinstance(cols, dict):
             for k, v in cols.items():
                 if k in named_columns:
                     return ValueError(f'same field name {k} specified more than once')
@@ -49,8 +77,13 @@ def _parse_fields(tables, fields):
 
 @beam.ptransform.ptransform_fn
 def _SqlJoinTransform(pcoll, sql_transform_constructor, type, equalities, fields=None):
+    _validate_isinstance(type, str)
+    _validate_equalities(equalities, pcoll)
+    
     tables = list(pcoll)
-    outer = [] # TODO(titodo) conditionally check for when a dict is passed for type and fill in the fields with outer
+    outer = []
+    if isinstance(type, dict):
+        outer = type['outer']
     base_table = tables[0]
     conditioned = {base_table}
 
