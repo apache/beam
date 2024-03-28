@@ -47,6 +47,8 @@ import apache_beam.io
 import apache_beam.transforms.util
 from apache_beam.portability.api import schema_pb2
 from apache_beam.runners import pipeline_context
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms import external
 from apache_beam.transforms import window
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
@@ -554,6 +556,15 @@ def dicts_to_rows(o):
 
 
 class YamlProviders:
+  class AssertEqual(beam.PTransform):
+    def __init__(self, elements):
+      self._elements = elements
+
+    def expand(self, pcoll):
+      return assert_that(
+          pcoll | beam.Map(lambda row: beam.Row(**row._asdict())),
+          equal_to(dicts_to_rows(self._elements)))
+
   @staticmethod
   def create(elements: Iterable[Any], reshuffle: Optional[bool] = True):
     """Creates a collection containing a specified set of elements.
@@ -810,6 +821,7 @@ class YamlProviders:
   @staticmethod
   def create_builtin_provider():
     return InlineProvider({
+        'AssertEqual': YamlProviders.AssertEqual,
         'Create': YamlProviders.create,
         'LogForTesting': YamlProviders.log_for_testing,
         'PyTransform': YamlProviders.fully_qualified_named_transform,
