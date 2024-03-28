@@ -56,6 +56,7 @@ import org.apache.beam.sdk.metrics.NoOpCounter;
 import org.apache.beam.sdk.metrics.NoOpHistogram;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.hamcrest.collection.IsEmptyIterable;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
@@ -223,7 +224,7 @@ public class StreamingStepMetricsContainerTest {
   }
 
   @Test
-  public void testExtractPerWorkerMetricUpdates() {
+  public void testExtractPerWorkerMetricUpdates_populatedMetrics() {
     StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
     MetricName counterMetricName = MetricName.named("BigQuerySink", "counter");
     c1.getPerWorkerCounter(counterMetricName).inc(3);
@@ -270,6 +271,22 @@ public class StreamingStepMetricsContainerTest {
             .setMetricValues(Collections.singletonList(expectedHistogram));
 
     assertThat(updates, containsInAnyOrder(histograms, counters));
+  }
+
+  @Test
+  public void testExtractPerWorkerMetricUpdates_emptyMetrics() {
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
+    StreamingStepMetricsContainer.setEnablePerWorkerMetrics(true);
+    MetricName counterMetricName = MetricName.named("BigQuerySink", "counter");
+    c1.getPerWorkerCounter(counterMetricName);
+
+    MetricName histogramMetricName = MetricName.named("BigQuerySink", "histogram");
+    HistogramData.LinearBuckets linearBuckets = HistogramData.LinearBuckets.of(0, 10, 10);
+    c2.getPerWorkerHistogram(histogramMetricName, linearBuckets);
+
+    Iterable<PerStepNamespaceMetrics> updates =
+        StreamingStepMetricsContainer.extractPerWorkerMetricUpdates(registry);
+    assertThat(updates, IsEmptyIterable.emptyIterable());
   }
 
   public class TestClock extends Clock {

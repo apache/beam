@@ -32,7 +32,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeCell;
-import org.apache.beam.runners.core.metrics.HistogramCell;
 import org.apache.beam.runners.core.metrics.MetricsMap;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -71,8 +70,8 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   private MetricsMap<MetricName, DeltaDistributionCell> distributions =
       new MetricsMap<>(DeltaDistributionCell::new);
 
-  private MetricsMap<KV<MetricName, HistogramData.BucketType>, HistogramCell> perWorkerHistograms =
-      new MetricsMap<>(HistogramCell::new);
+  private MetricsMap<KV<MetricName, HistogramData.BucketType>, LockFreeHistogram>
+      perWorkerHistograms = new MetricsMap<>(LockFreeHistogram::new);
 
   private final Map<MetricName, Instant> perWorkerCountersByFirstStaleTime;
 
@@ -267,8 +266,8 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   @VisibleForTesting
   Iterable<PerStepNamespaceMetrics> extractPerWorkerMetricUpdates() {
     ConcurrentHashMap<MetricName, Long> counters = new ConcurrentHashMap<MetricName, Long>();
-    ConcurrentHashMap<MetricName, HistogramData> histograms =
-        new ConcurrentHashMap<MetricName, HistogramData>();
+    ConcurrentHashMap<MetricName, LockFreeHistogram.Snapshot> histograms =
+        new ConcurrentHashMap<MetricName, LockFreeHistogram.Snapshot>();
     HashSet<MetricName> currentZeroValuedCounters = new HashSet<MetricName>();
 
     // Extract metrics updates.
@@ -283,11 +282,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
         });
     perWorkerHistograms.forEach(
         (k, v) -> {
-          HistogramData val = v.getCumulative().getAndReset();
-          if (val.getTotalCount() == 0) {
-            return;
-          }
-          histograms.put(k.getKey(), val);
+          v.getSnapshotAndReset().ifPresent(snapshot -> histograms.put(k.getKey(), snapshot));
         });
 
     deleteStaleCounters(currentZeroValuedCounters, Instant.now(clock));
