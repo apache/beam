@@ -27,6 +27,7 @@
 #     - group
 #     - strings
 
+# [START groupbykey]
 import apache_beam as beam
 
 with beam.Pipeline() as p:
@@ -35,3 +36,4 @@ with beam.Pipeline() as p:
      | beam.Map(lambda word: (word[0], word))
      | beam.GroupByKey()
      | beam.LogElements())
+# [END groupbykey]
