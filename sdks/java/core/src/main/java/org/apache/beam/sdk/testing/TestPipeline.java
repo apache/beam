@@ -23,9 +23,12 @@ import static org.hamcrest.Matchers.is;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -44,7 +47,6 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -52,9 +54,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Fluent
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.experimental.categories.Category;
-import org.junit.rules.TestRule;
-import org.junit.runner.Description;
-import org.junit.runners.model.Statement;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**
  * A creator of test pipelines that can be used inside of tests that can be configured to run
@@ -104,7 +106,7 @@ import org.junit.runners.model.Statement;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class TestPipeline extends Pipeline implements TestRule {
+public class TestPipeline extends Pipeline implements BeforeEachCallback, AfterEachCallback {
 
   private final PipelineOptions options;
 
@@ -253,7 +255,7 @@ public class TestPipeline extends Pipeline implements TestRule {
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-  private Optional<? extends PipelineRunEnforcement> enforcement = Optional.absent();
+  private Optional<? extends PipelineRunEnforcement> enforcement = Optional.empty();
 
   /**
    * Creates and returns a new test pipeline.
@@ -280,50 +282,37 @@ public class TestPipeline extends Pipeline implements TestRule {
   }
 
   @Override
-  public Statement apply(final Statement statement, final Description description) {
-    return new Statement() {
+  public void beforeEach(ExtensionContext context) {
+    options.as(ApplicationNameOptions.class).setAppName(getAppName(context));
 
-      private void setDeducedEnforcementLevel() {
-        // if the enforcement level has not been set by the user do auto-inference
-        if (!enforcement.isPresent()) {
+    // if the enforcement level has not been set by the user do auto-inference
+    if (!enforcement.isPresent()) {
+      Optional<AnnotatedElement> element = context.getElement();
 
-          final boolean annotatedWithNeedsRunner =
-              FluentIterable.from(description.getAnnotations())
-                  .filter(Annotations.Predicates.isAnnotationOfType(Category.class))
-                  .anyMatch(Annotations.Predicates.isCategoryOf(NeedsRunner.class, true));
+      checkState(element.isPresent(), "AnnotatedElement could not be found in current ExtensionContext");
 
-          final boolean crashingRunner = CrashingRunner.class.isAssignableFrom(options.getRunner());
+      final boolean annotatedWithNeedsRunner =
+              FluentIterable.from(element.get().getAnnotations())
+                      .filter(Annotations.Predicates.isAnnotationOfType(Category.class))
+                      .anyMatch(Annotations.Predicates.isCategoryOf(NeedsRunner.class, true));
 
-          checkState(
+      final boolean crashingRunner = CrashingRunner.class.isAssignableFrom(options.getRunner());
+
+      checkState(
               !(annotatedWithNeedsRunner && crashingRunner),
               "The test was annotated with a [@%s] / [@%s] while the runner "
-                  + "was set to [%s]. Please re-check your configuration.",
+                      + "was set to [%s]. Please re-check your configuration.",
               NeedsRunner.class.getSimpleName(),
               ValidatesRunner.class.getSimpleName(),
               CrashingRunner.class.getSimpleName());
 
-          enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
-        }
-      }
+      enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
+    }
+  }
 
-      @Override
-      public void evaluate() throws Throwable {
-        options.as(ApplicationNameOptions.class).setAppName(getAppName(description));
-
-        setDeducedEnforcementLevel();
-
-        // statement.evaluate() essentially runs the user code contained in the unit test at hand.
-        // Exceptions thrown during the execution of the user's test code will propagate here,
-        // unless the user explicitly handles them with a "catch" clause in his code. If the
-        // exception is handled by a user's "catch" clause, is does not interrupt the flow and
-        // we move on to invoking the configured enforcements.
-        // If the user does not handle a thrown exception, it will propagate here and interrupt
-        // the flow, preventing the enforcement(s) from being activated.
-        // The motivation for this is avoiding enforcements over faulty pipelines.
-        statement.evaluate();
-        enforcement.get().afterUserCodeFinished();
-      }
-    };
+  @Override
+  public void afterEach(ExtensionContext context) {
+    enforcement.get().afterUserCodeFinished();
   }
 
   /**
@@ -521,15 +510,19 @@ public class TestPipeline extends Pipeline implements TestRule {
   }
 
   /** Returns the class + method name of the test. */
-  private String getAppName(Description description) {
-    String methodName = description.getMethodName();
-    Class<?> testClass = description.getTestClass();
-    if (testClass.isMemberClass()) {
+  private String getAppName(ExtensionContext context) {
+    Optional<Method> method = context.getTestMethod();
+    Optional<Class<?>> testClass = context.getTestClass();
+
+    checkState(method.isPresent(), "TestMethod not set in current ExtensionContext");
+    checkState(testClass.isPresent(), "TestClass not set in current ExtensionContext");
+
+    if (testClass.get().isMemberClass()) {
       return String.format(
           "%s$%s-%s",
-          testClass.getEnclosingClass().getSimpleName(), testClass.getSimpleName(), methodName);
+          testClass.get().getEnclosingClass().getSimpleName(), testClass.get().getSimpleName(), method.get().getName());
     } else {
-      return String.format("%s-%s", testClass.getSimpleName(), methodName);
+      return String.format("%s-%s", testClass.get().getSimpleName(), method.get().getName());
     }
   }
 
