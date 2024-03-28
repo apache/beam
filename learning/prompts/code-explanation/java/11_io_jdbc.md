@@ -52,9 +52,8 @@ public class ReadFormJdbcPartition {
     public ExampleRow mapRow(ResultSet resultSet) throws Exception {
       return new ExampleRow(
           Long.valueOf(resultSet.getLong(ExampleRow.ID_COLUMN)).intValue(),
-          resultSet.getString(ExampleRow.MONTH_COLUMN), 
+          resultSet.getString(ExampleRow.MONTH_COLUMN),
           resultSet.getString(ExampleRow.AMOUNT_COLUMN));
-          
     }
   }
 
@@ -164,9 +163,8 @@ The `CreateExampleRow` class implements the `JdbcIO.RowMapper` interface to map 
     public ExampleRow mapRow(ResultSet resultSet) throws Exception {
       return new ExampleRow(
           Long.valueOf(resultSet.getLong(ExampleRow.ID_COLUMN)).intValue(),
-          resultSet.getString(ExampleRow.MONTH_COLUMN), 
+          resultSet.getString(ExampleRow.MONTH_COLUMN),
           resultSet.getString(ExampleRow.AMOUNT_COLUMN));
-          
     }
   }
 ```

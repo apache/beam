@@ -35,7 +35,7 @@ public class WriteTFRecordFile {
 
         void setFilePathPrefix(String filePathPrefix);
     }
-    
+
     // Main method to run the pipeline
     public static void main(String[] args) {
 
