@@ -49,3 +49,70 @@ def enrichment_with_bigtable():
         | "Enrich W/ BigTable" >> Enrichment(bigtable_handler)
         | "Print" >> beam.Map(print))
   # [END enrichment_with_bigtable]
+
+
+def enrichment_with_vertex_ai():
+  # [START enrichment_with_vertex_ai]
+  import apache_beam as beam
+  from apache_beam.transforms.enrichment import Enrichment
+  from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store \
+    import VertexAIFeatureStoreEnrichmentHandler
+
+  project_id = 'apache-beam-testing'
+  location = 'us-central1'
+  api_endpoint = f"{location}-aiplatform.googleapis.com"
+  data = [
+      beam.Row(user_id='2963', product_id=14235, sale_price=15.0),
+      beam.Row(user_id='21422', product_id=11203, sale_price=12.0),
+      beam.Row(user_id='20592', product_id=8579, sale_price=9.0),
+  ]
+
+  vertex_ai_handler = VertexAIFeatureStoreEnrichmentHandler(
+      project=project_id,
+      location=location,
+      api_endpoint=api_endpoint,
+      feature_store_name="vertexai_enrichment_example",
+      feature_view_name="users",
+      row_key="user_id",
+  )
+  with beam.Pipeline() as p:
+    _ = (
+        p
+        | "Create" >> beam.Create(data)
+        | "Enrich W/ Vertex AI" >> Enrichment(vertex_ai_handler)
+        | "Print" >> beam.Map(print))
+  # [END enrichment_with_vertex_ai]
+
+
+def enrichment_with_vertex_ai_legacy():
+  # [START enrichment_with_vertex_ai_legacy]
+  import apache_beam as beam
+  from apache_beam.transforms.enrichment import Enrichment
+  from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store \
+    import VertexAIFeatureStoreLegacyEnrichmentHandler
+
+  project_id = 'apache-beam-testing'
+  location = 'us-central1'
+  api_endpoint = f"{location}-aiplatform.googleapis.com"
+  data = [
+      beam.Row(entity_id="movie_01", title='The Shawshank Redemption'),
+      beam.Row(entity_id="movie_02", title="The Shining"),
+      beam.Row(entity_id="movie_04", title='The Dark Knight'),
+  ]
+
+  vertex_ai_handler = VertexAIFeatureStoreLegacyEnrichmentHandler(
+      project=project_id,
+      location=location,
+      api_endpoint=api_endpoint,
+      entity_type_id='movies',
+      feature_store_id="movie_prediction_unique",
+      feature_ids=["title", "genres"],
+      row_key="entity_id",
+  )
+  with beam.Pipeline() as p:
+    _ = (
+        p
+        | "Create" >> beam.Create(data)
+        | "Enrich W/ Vertex AI" >> Enrichment(vertex_ai_handler)
+        | "Print" >> beam.Map(print))
+  # [END enrichment_with_vertex_ai_legacy]

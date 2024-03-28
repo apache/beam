@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Optional;
 
 /** Abstract base class describing a client for WorkItem work units. */
-interface WorkUnitClient {
+public interface WorkUnitClient {
   /**
    * Returns a new WorkItem unit for this Worker to work on or null if no work item is available.
    */
