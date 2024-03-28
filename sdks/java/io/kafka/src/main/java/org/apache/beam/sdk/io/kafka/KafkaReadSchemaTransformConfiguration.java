@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.util.Map;
@@ -63,25 +64,22 @@ public abstract class KafkaReadSchemaTransformConfiguration {
     final String confluentSchemaRegSubject = this.getConfluentSchemaRegistrySubject();
 
     if (confluentSchemaRegUrl != null) {
-      checkArgument(
-          confluentSchemaRegSubject != null,
+      checkNotNull(confluentSchemaRegSubject,
           "To read from Kafka, a schema must be provided directly or though Confluent "
               + "Schema Registry. Make sure you are providing one of these parameters.");
     } else if (dataFormat != null && dataFormat.equals("RAW")) {
       checkArgument(
           inputSchema == null, "To read from Kafka in RAW format, you can't provide a schema.");
     } else if (dataFormat != null && dataFormat.equals("JSON")) {
-      checkArgument(
-          inputSchema != null, "To read from Kafka in JSON format, you must provide a schema.");
+      checkNotNull(inputSchema, "To read from Kafka in JSON format, you must provide a schema.");
     } else if (dataFormat != null && dataFormat.equals("PROTO")) {
-      checkArgument(
-          messageName != null, "To read from Kafka in PROTO format, messageName must be provided.");
+      checkNotNull(
+          messageName, "To read from Kafka in PROTO format, messageName must be provided.");
       checkArgument(
           fileDescriptorPath != null || inputSchema != null,
           "To read from Kafka in PROTO format, fileDescriptorPath or schema must be provided.");
     } else {
-      checkArgument(
-          inputSchema != null, "To read from Kafka in AVRO format, you must provide a schema.");
+      checkNotNull(inputSchema, "To read from Kafka in AVRO format, you must provide a schema.");
     }
   }
 
