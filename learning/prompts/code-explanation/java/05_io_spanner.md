@@ -66,11 +66,12 @@ What does this code do?
          p.run();
      }
  }
-
 ```
 
 Response:
-This code snippet uses the Apache Beam SpannerIO to read data from a Spanner table. The `ReadSpannerTableOptions` interface is used to specify the Spanner instance, table, and database to read from. The `@Description` annotation provides a description of the option, and `@Default.String` sets default values for the options.
+This code snippet uses the Apache Beam SpannerIO to read data from a Spanner table.
+
+The `ReadSpannerTableOptions` interface specifies the Spanner instance, table, and database to read from. The `@Description` annotation provides a description of each option, while the `@Default.String` annotation sets their default values.
 
 ```java
 public interface ReadSpannerTableOptions extends DataflowPipelineOptions {
@@ -99,14 +100,16 @@ public interface ReadSpannerTableOptions extends DataflowPipelineOptions {
          void setSpannerProjectName(String value);
      }
 ```
-The `main()` method creates a `Pipeline` object and uses the `SpannerIO.read()` method to read data from the Spanner table.
+
+The `main()` method creates a `Pipeline` object and uses the `SpannerIO.read()` method to read data from the specified Spanner table.
 
 ```java
         ReadSpannerTableOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(ReadSpannerTableOptions.class);
 
          Pipeline p = Pipeline.create(options);
 ```
-The `project` variable is set to the Spanner project ID, or the default project ID if the `--spannerProject` option is not provided. The pipeline reads data from the specified Spanner table using the `SpannerIO.read()` method, which takes the instance ID, project ID, database ID, table name, and columns as parameters.
+
+The `project` variable determines its value based on the provided Spanner project ID or the default project ID if the `--spannerProject` option is not specified. The pipeline reads data from the designated Spanner table using the `SpannerIO.read()` method that specifies the instance ID, project ID, database ID, table name, and columns.
 
 ```java
 String project = (options.getSpannerProjectName() == null) ? options.getProject() : options.getSpannerProjectName();
@@ -120,7 +123,9 @@ String project = (options.getSpannerProjectName() == null) ? options.getProject(
                          .withProjectId(project)
                  )
 ```
-The pipeline then applies a `ParDo` transformation to process each row of the Spanner table. The `DoFn` implementation extracts the `SingerId`, `FirstName`, and `LastName` columns from the `Struct` object and logs the row information.
+
+Next, the pipeline applies a `ParDo` transformation to process each row of the Spanner table. The `DoFn` implementation extracts the `SingerId`, `FirstName`, and `LastName` columns from the `Struct` object and logs the row information.
+
 ```java
                  .apply("Process Row", ParDo.of(new DoFn<Struct, String>() {
                              @ProcessElement
@@ -137,8 +142,9 @@ The pipeline then applies a `ParDo` transformation to process each row of the Sp
                          })
                  );
 ```
-Finally, the pipeline is executed using the `run()` method.
+
+Finally, the `run` method executes the pipeline.
+
 ```java
          p.run();
 ```
-

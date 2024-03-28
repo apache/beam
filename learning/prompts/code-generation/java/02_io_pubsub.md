@@ -2,7 +2,8 @@ Prompt:
 Write a sample Java code snippet that writes data to a Google Pub/Sub topic using Apache Beam.
 
 Response:
-Your Apache Beam pipeline can write data to Google Pub/Sub topic using the Apache Beam PubSubIO connector.
+Your Apache Beam pipeline can write data to a Google Pub/Sub topic using the Apache Beam PubSubIO connector.
+
 Here is an example of how to use the PubSubIO connector to accomplish this:
 
 ```java
@@ -58,6 +59,6 @@ Here is an example of how to use the PubSubIO connector to accomplish this:
      }
 
  }
-
 ```
+
 This code snippet utilizes the pipeline options pattern to parse command-line arguments.

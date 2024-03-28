@@ -7,20 +7,20 @@ public class ReadBigTableTable {
      private static final Logger LOG = LoggerFactory.getLogger(ReadBigTableTable.class);
 
      public interface BigTableReadOptions extends DataflowPipelineOptions {
-         @Description("BiTable instance name")
+         @Description("Bigtable instance name")
          @Default.String("quickstart-instance")
          String getBigTableInstance();
 
          void setBigTableInstance(String value);
 
-         @Description("BIgTable table name")
+         @Description("Bigtable table name")
          @Default.String("my-table")
-         String getTableNme();
+         String getTableName();
 
-         void setTableNme(String value);
+         void setTableName(String value);
 
          @Nullable
-         @Description("BigTable Project ID")
+         @Description("Bigtable Project ID")
          String getBigTableProject();
 
          void setBigTableProject(String value);
@@ -39,7 +39,7 @@ public class ReadBigTableTable {
                  .apply(BigtableIO.read()
                          .withInstanceId(options.getBigTableInstance())
                          .withProjectId(project)
-                         .withTableId(options.getTableNme())
+                         .withTableId(options.getTableName())
                  )
                  .apply("Process Row", ParDo.of(new DoFn<Row, String>() {
                              @ProcessElement
@@ -77,31 +77,33 @@ public class ReadBigTableTable {
 ```
 
 Response:
+This code snippet uses the Apache Beam BigtableIO connector to read data from a Bigtable table.
 
-This code snippet uses the Apache Beam BiTableIO connector to read data from a BigTable table. The `BigTableReadOptions` interface defines the options that can be set when running the pipeline. In this case, it specifies the BigTable instance name, table name, and project ID. Use `--bigTableInstance`, `--tableNme`, and `--bigTableProject` command line arguments to set these values when running the pipeline. The `@Description` annotation provides a description of the option, and `@Default.String` sets default values for the options.
+The `BigTableReadOptions` interface defines the options that can be configured when running the pipeline. In this case, it specifies the Bigtable instance name, table name, and project ID. The `--bigTableInstance`, `--tableName`, and `--bigTableProject` command-line arguments set these values when running the pipeline. The `@Description` annotation provides a description of each option, while the `@Default.String` annotation sets their default values.
+
 ```java
 public interface BigTableReadOptions extends DataflowPipelineOptions {
-         @Description("BiTable instance name")
+         @Description("Bigtable instance name")
          @Default.String("quickstart-instance")
          String getBigTableInstance();
 
          void setBigTableInstance(String value);
 
-         @Description("BIgTable table name")
+         @Description("Bigtable table name")
          @Default.String("my-table")
-         String getTableNme();
+         String getTableName();
 
-         void setTableNme(String value);
+         void setTableName(String value);
 
          @Nullable
-         @Description("BigTable Project ID")
+         @Description("Bigtable Project ID")
          String getBigTableProject();
 
          void setBigTableProject(String value);
      }
 ```
 
-The `main()` method creates a `BigTableReadOptions` object from the command-line arguments using `PipelineOptionsFactory`. It then creates a new pipeline with the specified options. The `project` variable is set to the BigTable project ID, or the default project ID if the `--bigTableProject` option is not provided.
+In the `main` method, the `PipelineOptionsFactory` class creates a `BigTableReadOptions` object from the command-line arguments. The `Pipeline.create` method then creates a new pipeline with the specified options. The `project` variable is set to the Bigtable project ID, or the default project ID if the `--bigTableProject` option is not provided.
 
 ```java
         BigTableReadOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(BigTableReadOptions.class);
@@ -109,16 +111,20 @@ The `main()` method creates a `BigTableReadOptions` object from the command-line
          String project = (options.getBigTableProject() == null) ? options.getProject() : options.getBigTableProject();
         Pipeline p = Pipeline.create(options);
 ```
-The pipeline reads data from the specified BigTable table using the `BigtableIO.read()` method, which takes the instance ID, project ID, and table ID as parameters.
+
+The pipeline reads data from the specified Bigtable table using the `BigtableIO.read()` method, which takes the instance ID, project ID, and table ID as parameters.
+
 ```java
  p
                  .apply(BigtableIO.read()
                          .withInstanceId(options.getBigTableInstance())
                          .withProjectId(project)
-                         .withTableId(options.getTableNme())
+                         .withTableId(options.getTableName())
                  )
 ```
-The pipeline then applies a `ParDo` transform to process each `Row` read from the BigTable table. The `processElement` method of the `DoFn` class is used to process each row. The code iterates over the families, columns, and cells of the row to construct a string representation of the row data. The row key, family name, column qualifier, cell value, and timestamp are included in the output string. The string is logged using `LOG.info()` and output to the pipeline using `c.output()`.
+
+Next, the pipeline applies a `ParDo` transform to process each `Row` read from the Bigtable table. The `processElement` method of the `DoFn` class is used to process each row. The code iterates over the families, columns, and cells of the row to construct a string representation of the row data. The row key, family name, column qualifier, cell value, and timestamp are included in the output string. The code logs the string using the `LOG.info()` logging method and outputs it to the pipeline using the `c.output()` method.
+
 ```java
                  .apply("Process Row", ParDo.of(new DoFn<Row, String>() {
                              @ProcessElement
@@ -150,10 +156,9 @@ The pipeline then applies a `ParDo` transform to process each `Row` read from th
                          })
                  );
 ```
-The `run()` method is used to execute the pipeline.
+
+Finally, the `run` method executes the pipeline.
+
 ```java
          p.run();
 ```
-
-
-

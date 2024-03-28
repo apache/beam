@@ -2,11 +2,11 @@ Prompt:
 Write a sample Java code snippet that writes data to a Google Spanner table using Apache Beam.
 
 Response:
-Your Apache Beam pipeline can write data to JSON files using the Apache Beam SpannerIO connector.
+Your Apache Beam pipeline can write data to a Spanner table using the Apache Beam SpannerIO connector.
+
 Here is an example of how to use the SpannerIO connector to accomplish this:
 
 ```java
-
  package spanner;
 
  import com.google.cloud.spanner.Mutation;
@@ -108,6 +108,6 @@ Here is an example of how to use the SpannerIO connector to accomplish this:
          p.run();
      }
  }
-
 ```
+
 This code snippet utilizes the pipeline options pattern to parse command-line arguments.

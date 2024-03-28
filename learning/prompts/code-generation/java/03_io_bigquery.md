@@ -2,7 +2,8 @@ Prompt:
 Write a sample Java code snippet that writes data to a Google BigQuery table using Apache Beam.
 
 Response:
-Your Apache Beam pipeline can write data to BigQuery table using the Apache Beam BigQueryIO connector.
+Your Apache Beam pipeline can write data to a BigQuery table using the Apache Beam BigQueryIO connector.
+
 Here is an example of how to use the BigQueryIO connector to accomplish this:
 
 ```java
@@ -24,7 +25,7 @@ Here is an example of how to use the BigQueryIO connector to accomplish this:
  import org.slf4j.Logger;
  import org.slf4j.LoggerFactory;
 
- Pipeline to write data to a BigQuery table using Apache Beam
+// Pipeline to write data to a BigQuery table using Apache Beam
  public class WriteBigQueryTable {
 
      private static final Logger LOG = LoggerFactory.getLogger(WriteBigQueryTable.class);
@@ -91,6 +92,6 @@ Here is an example of how to use the BigQueryIO connector to accomplish this:
          p.run();
      }
  }
-
 ```
+
 This code snippet utilizes the pipeline options pattern to parse command-line arguments.

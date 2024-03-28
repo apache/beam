@@ -6,7 +6,6 @@ public class ReadPubSubTopic {
 
      private static final Logger LOG = LoggerFactory.getLogger(ReadPubSubTopic.class);
 
-
      public interface ReadPubSubTopicOptions extends PipelineOptions {
          @Description("Pub/Sub Topic to read from")
          @Default.String("projects/pubsub-public-data/topics/taxirides-realtime")
@@ -38,7 +37,7 @@ public class ReadPubSubTopic {
 Response:
 This code snippet uses the Apache Beam PubSubIO to read from a Pub/Sub topic.
 
-The `ReadPubSubTopicOptions` interface defines the options that can be set when running the pipeline. In this case, it specifies the Pub/Sub topic to read from. Use `--topicName` command line argument to set the topic name when running the pipeline. The `@Description` annotation provides a description of the option, and `@Default.String` sets a default value for the option.
+The `ReadPubSubTopicOptions` interface defines the options that can be set when running the pipeline. In this case, it specifies the Pub/Sub topic to read from. Use the `--topicName` command-line argument to set the topic name when running the pipeline. The `@Description` annotation provides a description of the option, and the `@Default.String` annotation sets a default value for the option.
 
 ```java
      public interface ReadPubSubTopicOptions extends PipelineOptions {
@@ -50,7 +49,7 @@ The `ReadPubSubTopicOptions` interface defines the options that can be set when 
      }
 ```
 
-In the `main` method, the `PipelineOptionsFactory` is used to create a `ReadPubSubTopicOptions` object from the command-line arguments. The `Pipeline.create` method creates a new pipeline with the specified options.
+In the `main` method, the `PipelineOptionsFactory` class creates a `ReadPubSubTopicOptions` object from the command-line arguments. The `Pipeline.create` method then creates a new pipeline with the specified options.
 
 ```java
         ReadPubSubTopicOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(ReadPubSubTopicOptions.class);
@@ -58,7 +57,7 @@ In the `main` method, the `PipelineOptionsFactory` is used to create a `ReadPubS
          Pipeline p = Pipeline.create(options);
 ```
 
-The `PubsubIO.readStrings().fromTopic` method is used to read strings from the specified Pub/Sub topic. The `ParDo` transform is used to apply a `DoFn` to each element of the input PCollection. In this case, the `DoFn` simply outputs the input element.
+The code snippet uses the `PubsubIO.readStrings().fromTopic` method to read strings from the specified Pub/Sub topic. The `ParDo` transform then applies a `DoFn` to each element of the input `PCollection`. In this case, the `DoFn` simply outputs the input element.
 
 ```java
          p
@@ -72,9 +71,8 @@ The `PubsubIO.readStrings().fromTopic` method is used to read strings from the s
                  );
 ```
 
-Finally, the `run` method is called on the pipeline to execute it.
+Finally, the `run` method executes the pipeline.
+
 ```java
          p.run();
 ```
-
-

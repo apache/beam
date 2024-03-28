@@ -33,7 +33,9 @@ What does this code do?
 ```
 
 Response:
-This code snippet uses the Apache Beam BigQueryIO connector to read data from a BigQuery table. The `ReadBigQueryTableOptions` interface defines the options that can be set when running the pipeline. In this case, it specifies the BigQuery table to read from. Use `--tableName` command line argument to set the table name when running the pipeline. The `@Description` annotation provides a description of the option, and `@Default.String` sets a default value for the option.
+This code snippet uses the Apache Beam BigQueryIO connector to read data from a BigQuery table.
+
+The `ReadBigQueryTableOptions` interface defines the options that can be configured when running the pipeline. In this case, it specifies the BigQuery table to read from. The `--tableName` command-line argument sets the table name when running the pipeline. The `@Description` annotation provides a description of the option, while the `@Default.String` annotation sets a default value for the option.
 
 ```java
      public interface ReadBigQueryTableOptions extends PipelineOptions {
@@ -45,13 +47,16 @@ This code snippet uses the Apache Beam BigQueryIO connector to read data from a 
      }
 ```
 
-The `main()` method creates a `ReadBigQueryTableOptions` object from the command-line arguments using `PipelineOptionsFactory`. It then creates a new pipeline with the specified options.
+In the `main` method, the `PipelineOptionsFactory` class creates a `ReadBigQueryTableOptions` object from the command-line arguments. The `Pipeline.create` method then creates a new pipeline with the specified options.
+
 ```java
   ReadTableBQOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(ReadBigQueryTableOptions.class);
 
   Pipeline p = Pipeline.create(options);
 ```
-The `(BigQueryIO.readTableRows().from(options.getTableName())` method is used to read data from the specified BigQuery table. The `ParDo` transform is used to apply a `DoFn` to each element of the input PCollection. In this case, the `DoFn` simply outputs the input element.
+
+The `(BigQueryIO.readTableRows().from(options.getTableName())` method reads data from the specified BigQuery table. The `ParDo` transform then applies a `DoFn` to each element of the input `PCollection`. In this case, the `DoFn` simply outputs the input element.
+
 ```java
          p
                  .apply(BigQueryIO.readTableRows().from(options.getTableName()))
@@ -64,11 +69,8 @@ The `(BigQueryIO.readTableRows().from(options.getTableName())` method is used to
                  );
 ```
 
-Finally, the `run` method is called on the pipeline to execute it.
+Finally, the `run` method executes the pipeline.
+
 ```java
          p.run();
 ```
-
-
-
-

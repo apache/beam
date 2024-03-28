@@ -1,8 +1,9 @@
 Prompt:
-Write a sample Java code snippet that writes data to a Google BigTable table using Apache Beam.
+Write a sample Java code snippet that writes data to a Google Bigtable table using Apache Beam.
 
 Response:
-Your Apache Beam pipeline can write data to JSON files using the Apache Beam BigTableIO connector.
+Your Apache Beam pipeline can write data to a Bigtable table using the Apache Beam BigTableIO connector.
+
 Here is an example of how to use the BigTableIO connector to accomplish this:
 
 ```java
@@ -29,25 +30,25 @@ Here is an example of how to use the BigTableIO connector to accomplish this:
  import java.math.BigInteger;
  import java.util.stream.IntStream;
 
- // Pipeline to write data to BigTable table
+ // Pipeline to write data to Bigtable table
  public class BigTableWriteTable {
 
     // Pipeline options for writing to BigTable table
      public interface BigTableWriteTableOptions extends DataflowPipelineOptions {
-         @Description("BigTable Instance ID")
+         @Description("Bigtable Instance ID")
          @Default.String("bigtable-instance")
          String getInstanceId();
 
          void setInstanceId(String value);
 
-         @Description("BigTable Table Name")
+         @Description("Bigtable Table Name")
          @Default.String("bigtable-table")
          String getTableName();
 
          void setTableName(String value);
 
          @Nullable
-         @Description("BigTable Project ID")
+         @Description("Bigtable Project ID")
          String getBigTableProject();
 
          void setBigTableProject(String value);
@@ -58,13 +59,13 @@ Here is an example of how to use the BigTableIO connector to accomplish this:
         // Parse the pipeline options from the command line.
         BigTableWriteTableOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(BigTableWriteTableOptions.class);
 
-        // Set the project ID to the BigTable project ID if it is not null, otherwise set it to the project ID
+        // Set the project ID to the Bigtable project ID if it is not null, otherwise set it to the project ID
          String project = (options.getBigTableProject() == null) ? options.getProject() : options.getBigTableProject();
 
          // Create the pipeline
          Pipeline p = Pipeline.create(options);
 
-         // Sample data to write to BigTable
+         // Sample data to write to Bigtable
          int[] rangeIntegers = IntStream.range(2, 1000).toArray();
          Iterable<Integer> elements = Ints.asList(rangeIntegers);
 
@@ -73,7 +74,7 @@ Here is an example of how to use the BigTableIO connector to accomplish this:
                  .apply(Create.of(elements))
                 // Apply a ParDo transformation to create mutations
                  .apply("Group in Mutations", ParDo.of(new CreateMutations()))
-                 // Write the mutations to BigTable table
+                 // Write the mutations to Bigtable table
                  .apply(BigtableIO.write()
                          .withInstanceId(options.getInstanceId())
                          .withProjectId(project)
@@ -127,6 +128,6 @@ Here is an example of how to use the BigTableIO connector to accomplish this:
          }
      }
  }
-
 ```
+
 This code snippet utilizes the pipeline options pattern to parse command-line arguments.
