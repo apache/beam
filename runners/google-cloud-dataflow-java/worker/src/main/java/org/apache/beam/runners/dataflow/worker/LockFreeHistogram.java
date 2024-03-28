@@ -24,6 +24,8 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
@@ -34,23 +36,34 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Imm
  * A lock free implementation of {@link org.apache.beam.sdk.metrics.Histogram}. This class supports
  * extracting delta updates with the {@link #getSnapshotAndReset} method.
  */
-public class LockFreeHistogram implements Histogram {
+@ThreadSafe
+@Internal
+public final class LockFreeHistogram implements Histogram {
   private final HistogramData.BucketType bucketType;
   private final AtomicLongArray buckets;
   private final MetricName name;
-
-  private AtomicReference<OutlierStatistic> underflowStatistic =
-      new AtomicReference<LockFreeHistogram.OutlierStatistic>(OutlierStatistic.EMPTY);
-  private AtomicReference<OutlierStatistic> overflowStatistic =
-      new AtomicReference<LockFreeHistogram.OutlierStatistic>(OutlierStatistic.EMPTY);
+  private final AtomicReference<OutlierStatistic> underflowStatistic;
+  private final AtomicReference<OutlierStatistic> overflowStatistic;
 
   /**
    * Whether this histogram has updates that have not been extracted by {@code getSnapshotAndReset}.
    * This values should be flipped to true AFTER recording a value, and flipped to false BEFORE
-   * extracting a snapshot. This ensures that recorded values will always be seen by a futrue {@code
+   * extracting a snapshot. This ensures that recorded values will always be seen by a future {@code
    * getSnapshotAndReset} call.
    */
-  private AtomicBoolean dirty = new AtomicBoolean(false);
+  private final AtomicBoolean dirty;
+
+  /** Create a histogram. */
+  public LockFreeHistogram(KV<MetricName, HistogramData.BucketType> kv) {
+    this.name = kv.getKey();
+    this.bucketType = kv.getValue();
+    this.buckets = new AtomicLongArray(bucketType.getNumBuckets());
+    this.underflowStatistic =
+        new AtomicReference<LockFreeHistogram.OutlierStatistic>(OutlierStatistic.EMPTY);
+    this.overflowStatistic =
+        new AtomicReference<LockFreeHistogram.OutlierStatistic>(OutlierStatistic.EMPTY);
+    this.dirty = new AtomicBoolean(false);
+  }
 
   /**
    * Represents the sum and mean of a collection of numbers. Used to represent the
@@ -141,13 +154,6 @@ public class LockFreeHistogram implements Histogram {
     return Optional.of(
         Snapshot.create(
             underflowSnapshot, overflowSnapshot, bucketsSnapshotBuilder.build(), bucketType));
-  }
-
-  /** Create a histogram. */
-  public LockFreeHistogram(KV<MetricName, HistogramData.BucketType> kv) {
-    this.name = kv.getKey();
-    this.bucketType = kv.getValue();
-    this.buckets = new AtomicLongArray(bucketType.getNumBuckets());
   }
 
   @Override

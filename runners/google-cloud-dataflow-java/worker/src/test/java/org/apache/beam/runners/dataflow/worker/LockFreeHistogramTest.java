@@ -21,6 +21,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.sdk.values.KV;
@@ -107,5 +110,73 @@ public class LockFreeHistogramTest {
 
     Optional<LockFreeHistogram.Snapshot> snapshot_2 = histogram.getSnapshotAndReset();
     assertThat(snapshot_2.isPresent(), equalTo(false));
+  }
+
+  /** A runnable records 200 values and then calls getSnapshotAndReset. */
+  private static class UpdateHistogramRunnable implements Runnable {
+    private final LockFreeHistogram histogram;
+    private final int val;
+    private Optional<LockFreeHistogram.Snapshot> snapshot;
+
+    private static final long valuesRecorded = 200L;
+
+    public UpdateHistogramRunnable(LockFreeHistogram histogram, int val) {
+      this.histogram = histogram;
+      this.val = val;
+      this.snapshot = Optional.empty();
+    }
+
+    @Override
+    public void run() {
+      for (long j = 0; j < valuesRecorded; j++) {
+        histogram.update(val);
+      }
+      snapshot = histogram.getSnapshotAndReset();
+    }
+
+    public long totalCountInSnapshot() {
+      if (snapshot.isPresent()) {
+        return snapshot.get().totalCount();
+      }
+      return 0;
+    }
+
+    public static long numValuesRecorded() {
+      return valuesRecorded;
+    }
+  }
+
+  @Test
+  public void testUpdateAndSnapshots_MultipleThreads() {
+    int numRunnables = 200;
+    ExecutorService executor = Executors.newFixedThreadPool(numRunnables);
+    HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 10);
+    LockFreeHistogram histogram =
+        new LockFreeHistogram(KV.of(MetricName.named("name", "namespace"), bucketType));
+
+    UpdateHistogramRunnable[] runnables = new UpdateHistogramRunnable[numRunnables];
+    for (int i = 0; i < numRunnables; i++) {
+      runnables[i] = new UpdateHistogramRunnable(histogram, i);
+      executor.execute(runnables[i]);
+    }
+
+    try {
+      executor.shutdown();
+      executor.awaitTermination(30, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      return;
+    }
+
+    Optional<LockFreeHistogram.Snapshot> finalSnapshot = histogram.getSnapshotAndReset();
+    long totalValuesRecorded = 0;
+    if (finalSnapshot.isPresent()) {
+      totalValuesRecorded += finalSnapshot.get().totalCount();
+    }
+    for (UpdateHistogramRunnable runnable : runnables) {
+      totalValuesRecorded += runnable.totalCountInSnapshot();
+    }
+
+    assertThat(
+        totalValuesRecorded, equalTo(numRunnables * UpdateHistogramRunnable.numValuesRecorded()));
   }
 }
