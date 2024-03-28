@@ -183,6 +183,19 @@ class UtilTest(unittest.TestCase):
                     equal_to_per_window(expected),
                     reify_windows=True)
 
+  def test_runtimeerror_outside_of_context(self):
+    with beam.Pipeline() as p:
+      outputs = (p | beam.Create([1, 2, 3]) | beam.Map(lambda x: x + 1))
+    with self.assertRaises(RuntimeError):
+      assert_that(outputs, equal_to([2, 3, 4]))
+
+  def test_multiple_assert_that_labels(self):
+    with beam.Pipeline() as p:
+      outputs = (p | beam.Create([1, 2, 3]) | beam.Map(lambda x: x + 1))
+      assert_that(outputs, equal_to([2, 3, 4]))
+      assert_that(outputs, equal_to([2, 3, 4]))
+      assert_that(outputs, equal_to([2, 3, 4]))
+
   def test_equal_to_per_window_fail_unmatched_element(self):
     with self.assertRaises(BeamAssertException):
       start = int(MIN_TIMESTAMP.micros // 1e6) - 5
