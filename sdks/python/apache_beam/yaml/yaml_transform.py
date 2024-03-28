@@ -918,7 +918,11 @@ def preprocess(spec, verbose=False, known_transforms=None):
     return spec
 
   def preprocess_langauges(spec):
-    if spec['type'] in ('Filter', 'MapToFields', 'Combine', 'AssignTimestamps'):
+    if spec['type'] in ('AssignTimestamps',
+                        'Combine',
+                        'Filter',
+                        'MapToFields',
+                        'Partition'):
       language = spec.get('config', {}).get('language', 'generic')
       new_type = spec['type'] + '-' + language
       if known_transforms and new_type not in known_transforms:

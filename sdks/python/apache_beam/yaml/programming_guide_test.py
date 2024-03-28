@@ -404,6 +404,25 @@ class ProgrammingGuideTest(unittest.TestCase):
           # [END setting_timestamp]
           ''')
 
+  def test_partition(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create([
+          beam.Row(percentile=1),
+          beam.Row(percentile=20),
+          beam.Row(percentile=90),
+      ])
+      _ = elements | YamlTransform(
+          '''
+          # [START model_multiple_pcollections_partition]
+          type: Partition
+          config:
+            by: str(percentile // 10)
+            language: python
+            outputs: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+          # [END model_multiple_pcollections_partition]
+          ''')
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
