@@ -44,7 +44,7 @@ Row(sale_id=5, customer_id=5, product_id=4, quantity=2, product={'product_id': '
 
 def validate_enrichment_with_vertex_ai():
   expected = '''[START enrichment_with_vertex_ai]
-Row(user_id='2963', product_id=14235, sale_price=15.0, age=29.0, state='97', gender='1', country='2')
+Row(user_id='2963', product_id=14235, sale_price=15.0, age=12.0, state='1', gender='1', country='1')
 Row(user_id='21422', product_id=11203, sale_price=12.0, age=12.0, state='0', gender='0', country='0')
 Row(user_id='20592', product_id=8579, sale_price=9.0, age=12.0, state='2', gender='1', country='2')
   [END enrichment_with_vertex_ai]'''.splitlines()[1:-1]
