@@ -51,7 +51,6 @@ class FlinkStreamingTranslationContext {
 
   private final StreamExecutionEnvironment env;
   private final PipelineOptions options;
-  private final boolean isStreaming;
 
   /**
    * Keeps a mapping between the output value of the PTransform and the Flink Operator that produced
@@ -63,11 +62,9 @@ class FlinkStreamingTranslationContext {
 
   private AppliedPTransform<?, ?, ?> currentTransform;
 
-  public FlinkStreamingTranslationContext(
-      StreamExecutionEnvironment env, PipelineOptions options, boolean isStreaming) {
+  public FlinkStreamingTranslationContext(StreamExecutionEnvironment env, PipelineOptions options) {
     this.env = checkNotNull(env);
     this.options = checkNotNull(options);
-    this.isStreaming = isStreaming;
   }
 
   public StreamExecutionEnvironment getExecutionEnvironment() {
@@ -76,10 +73,6 @@ class FlinkStreamingTranslationContext {
 
   public PipelineOptions getPipelineOptions() {
     return options;
-  }
-
-  public boolean isStreaming() {
-    return isStreaming;
   }
 
   @SuppressWarnings("unchecked")

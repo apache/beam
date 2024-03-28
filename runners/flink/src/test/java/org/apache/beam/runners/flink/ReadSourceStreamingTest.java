@@ -56,19 +56,13 @@ public class ReadSourceStreamingTest extends AbstractTestBase {
   }
 
   @Test
-  public void testStreaming() {
-    runProgram(resultPath, true);
+  public void testProgram() throws Exception {
+    runProgram(resultPath);
   }
 
-  @Test
-  public void testBatch() {
-    runProgram(resultPath, false);
-  }
+  private static void runProgram(String resultPath) {
 
-  private static void runProgram(String resultPath, boolean streaming) {
-
-    Pipeline p =
-        streaming ? FlinkTestPipeline.createForStreaming() : FlinkTestPipeline.createForBatch();
+    Pipeline p = FlinkTestPipeline.createForStreaming();
 
     p.apply(GenerateSequence.from(0).to(10))
         .apply(
