@@ -41,10 +41,8 @@ def flatmap_nofunction(test=None):
   with beam.Pipeline() as pipeline:
     plants = (
         pipeline
-        | 'Gardening plants' >> beam.Create([
-            ['🍓Strawberry','🥕Carrot','🍆Eggplant'],
-            ['🍅Tomato','🥔Potato']
-        ])
+        | 'Gardening plants' >> beam.Create(
+            [['🍓Strawberry', '🥕Carrot', '🍆Eggplant'], ['🍅Tomato', '🥔Potato']])
         | 'Split words' >> beam.FlatMap()
         | beam.Map(print))
     # [END flatmap_nofunction]

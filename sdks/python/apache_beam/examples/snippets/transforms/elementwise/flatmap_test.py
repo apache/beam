@@ -67,8 +67,8 @@ def check_valid_plants(actual):
     'apache_beam.examples.snippets.transforms.elementwise.flatmap_function.print',
     str)
 @mock.patch(
-  'apache_beam.examples.snippets.transforms.elementwise.flatmap_nofunction.print',
-  str)
+    'apache_beam.examples.snippets.transforms.elementwise.flatmap_nofunction.print',
+    str)
 @mock.patch(
     'apache_beam.examples.snippets.transforms.elementwise.flatmap_lambda.print',
     str)
