@@ -343,6 +343,10 @@ jobs:
         working-directory: beam
         run: |
             ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
+      - name: Build YAML Docs
+        working-directory: beam
+        run: |
+            ./gradlew :sdks:python:generateYamlDocs -PisRelease
       - name: Add canonical link into javadocs
         uses: cicirello/javadoc-cleanup@v1
         with:
@@ -371,6 +375,13 @@ jobs:
             # Update current symlink to point to the latest release
             unlink typedoc/current | true
             ln -s ${{ github.event.inputs.RELEASE }} typedoc/current
+
+            echo "............Copying generated yamldoc into beam-site.........."
+            mkdir -p yamldoc
+            cp -r ${BEAM_ROOT_DIR}/sdks/python/build/yaml-ref.html yamldoc/${{ github.event.inputs.RELEASE }}/index.html
+            # Update current symlink to point to the latest release
+            unlink yamldoc/current | true
+            ln -s ${{ github.event.inputs.RELEASE }} yamldoc/current
       - name: Create commit on beam-site branch
         working-directory: beam
         run: |
