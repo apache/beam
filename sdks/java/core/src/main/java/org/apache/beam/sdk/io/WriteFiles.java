@@ -175,6 +175,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .setSkipIfEmpty(false)
         .setBadRecordErrorHandler(new DefaultErrorHandler<>())
         .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
+        .setFileTriggeringRecordCount(FILE_TRIGGERING_RECORD_COUNT)
+        .setFileTriggeringByteCount(FILE_TRIGGERING_BYTE_COUNT) // 64MiB as of now
+        .setFileTriggeringRecordBufferingDuration(FILE_TRIGGERING_RECORD_BUFFERING_DURATION)
         .build();
   }
 
@@ -203,6 +206,12 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
   public abstract BadRecordRouter getBadRecordRouter();
+
+  public abstract int getFileTriggeringRecordCount();
+
+  public abstract int getFileTriggeringByteCount();
+
+  public abstract Duration getFileTriggeringRecordBufferingDuration();
 
   abstract Builder<UserT, DestinationT, OutputT> toBuilder();
 
@@ -237,6 +246,15 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     abstract Builder<UserT, DestinationT, OutputT> setBadRecordRouter(
         BadRecordRouter badRecordRouter);
+
+    abstract Builder<UserT, DestinationT, OutputT> setFileTriggeringRecordCount(
+        int fileTriggeringRecordCount);
+
+    abstract Builder<UserT, DestinationT, OutputT> setFileTriggeringByteCount(
+        int fileTriggeringByteCount);
+
+    abstract Builder<UserT, DestinationT, OutputT> setFileTriggeringRecordBufferingDuration(
+        Duration fileTriggeringRecordBufferingDuration);
 
     abstract WriteFiles<UserT, DestinationT, OutputT> build();
   }
@@ -369,6 +387,23 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .build();
   }
 
+  public WriteFiles<UserT, DestinationT, OutputT> withFileTriggeringRecordCount(
+      int fileTriggeringRecordCount) {
+    return toBuilder().setFileTriggeringRecordCount(fileTriggeringRecordCount).build();
+  }
+
+  public WriteFiles<UserT, DestinationT, OutputT> withFileTriggeringByteCount(
+      int fileTriggeringByteCount) {
+    return toBuilder().setFileTriggeringByteCount(fileTriggeringByteCount).build();
+  }
+
+  public WriteFiles<UserT, DestinationT, OutputT> withFileTriggeringRecordBufferingDuration(
+      Duration fileTriggeringRecordBufferingDuration) {
+    return toBuilder()
+        .setFileTriggeringRecordBufferingDuration(fileTriggeringRecordBufferingDuration)
+        .build();
+  }
+
   @Override
   public void validate(PipelineOptions options) {
     getSink().validate(options);
@@ -465,6 +500,15 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       builder.addIfNotNull(
           DisplayData.item("numShards", getNumShardsProvider())
               .withLabel("Fixed Number of Shards"));
+    }
+    if (getWithAutoSharding()) {
+      builder
+          .add(DisplayData.item("triggeringByteCount", getFileTriggeringByteCount()))
+          .add(DisplayData.item("triggeringRecordCount", getFileTriggeringRecordCount()))
+          .add(
+              DisplayData.item(
+                  "triggeringRecordBufferingDuration",
+                  getFileTriggeringRecordBufferingDuration().getStandardSeconds()));
     }
   }
 
@@ -900,7 +944,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       // the same time batches the input records. The sharding behavior depends on runners. The
       // batching is per window and we also emit the batches if there are a certain number of
       // records buffered or they have been buffered for a certain time, controlled by
-      // FILE_TRIGGERING_RECORD_COUNT and BUFFERING_DURATION respectively.
+      // FILE_TRIGGERING_RECORD_COUNT and BUFFERING_DURATION respectively if the user hasn't passed
+      // an override.
       //
       // TODO(https://github.com/apache/beam/issues/20928): The implementation doesn't currently
       // work with merging windows.
@@ -919,9 +964,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               .setCoder(KvCoder.of(VarIntCoder.of(), input.getCoder()))
               .apply(
                   "ShardAndBatch",
-                  GroupIntoBatches.<Integer, UserT>ofSize(FILE_TRIGGERING_RECORD_COUNT)
-                      .withByteSize(FILE_TRIGGERING_BYTE_COUNT)
-                      .withMaxBufferingDuration(FILE_TRIGGERING_RECORD_BUFFERING_DURATION)
+                  GroupIntoBatches.<Integer, UserT>ofSize(getFileTriggeringRecordCount())
+                      .withByteSize(getFileTriggeringByteCount())
+                      .withMaxBufferingDuration(getFileTriggeringRecordBufferingDuration())
                       .withShardedKey())
               .setCoder(
                   KvCoder.of(
