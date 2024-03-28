@@ -40,13 +40,11 @@ def approximateunique(test=None):
   with beam.Pipeline() as pipeline:
     data = list(range(1000))
     random.shuffle(data)
-
-    with beam.Pipeline() as pipeline:
-      result = (
-          pipeline
-          | 'create' >> beam.Create(data)
-          | 'get_estimate' >> beam.ApproximateUnique.Globally(size=16)
-          | beam.Map(print))
-      # [END approximateunique]
-      if test:
-        test(result)
+    result = (
+        pipeline
+        | 'create' >> beam.Create(data)
+        | 'get_estimate' >> beam.ApproximateUnique.Globally(size=16)
+        | beam.Map(print))
+    # [END approximateunique]
+    if test:
+      test(result)
