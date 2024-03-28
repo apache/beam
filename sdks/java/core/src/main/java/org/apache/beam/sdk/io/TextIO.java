@@ -1178,6 +1178,15 @@ public class TextIO {
               DisplayData.item(
                       "writableByteChannelFactory", getWritableByteChannelFactory().toString())
                   .withLabel("Compression/Transformation Type"));
+      if (getAutoSharding()) {
+        builder
+            .add(DisplayData.item("triggeringByteCount", getFileTriggeringByteCount()))
+            .add(DisplayData.item("triggeringRecordCount", getFileTriggeringRecordCount()))
+            .add(
+                DisplayData.item(
+                    "triggeringRecordBufferingDuration",
+                    getFileTriggeringRecordBufferingDuration().getStandardSeconds()));
+      }
     }
   }
 
