@@ -145,14 +145,14 @@ func launchSDKProcess() error {
 	if *controlEndpoint == "" {
 		log.Fatalf("No control endpoint provided.")
 	}
-	logger := &tools.Logger{Endpoint: *loggingEndpoint}
-	logger.Printf(ctx, "Initializing python harness: %v", strings.Join(os.Args, " "))
+	bufLogger := tools.NewBufferedLogger(&tools.Logger{Endpoint: *loggingEndpoint})
+	bufLogger.Printf(ctx, "Initializing python harness: %v", strings.Join(os.Args, " "))
 
 	// (1) Obtain the pipeline options
 
 	options, err := tools.ProtoToJSON(info.GetPipelineOptions())
 	if err != nil {
-		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
+		bufLogger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
 	// (2) Retrieve and install the staged packages.
@@ -166,7 +166,7 @@ func launchSDKProcess() error {
 	// Create a separate virtual environment (with access to globally installed packages), unless disabled by the user.
 	// This improves usability on runners that persist the execution environment for the boot entrypoint between multiple pipeline executions.
 	if os.Getenv("RUN_PYTHON_SDK_IN_DEFAULT_ENVIRONMENT") == "" {
-		venvDir, err := setupVenv(ctx, logger, "/opt/apache/beam-venv", *id)
+		venvDir, err := setupVenv(ctx, bufLogger, "/opt/apache/beam-venv", *id)
 		if err != nil {
 			return errors.New(
 				"failed to create a virtual environment. If running on Ubuntu systems, " +
@@ -178,7 +178,7 @@ func launchSDKProcess() error {
 		}
 		cleanupFunc := func() {
 			os.RemoveAll(venvDir)
-			logger.Printf(ctx, "Cleaned up temporary venv for worker %v.", *id)
+			bufLogger.Printf(ctx, "Cleaned up temporary venv for worker %v.", *id)
 		}
 		defer cleanupFunc()
 	}
@@ -188,7 +188,7 @@ func launchSDKProcess() error {
 	if err != nil {
 		fmtErr := fmt.Errorf("failed to retrieve staged files: %v", err)
 		// Send error message to logging service before returning up the call stack
-		logger.Errorf(ctx, fmtErr.Error())
+		bufLogger.Errorf(ctx, fmtErr.Error())
 		return fmtErr
 	}
 
@@ -198,7 +198,7 @@ func launchSDKProcess() error {
 	requirementsFiles := []string{requirementsFile}
 	for i, v := range files {
 		name, _ := artifact.MustExtractFilePayload(v)
-		logger.Printf(ctx, "Found artifact: %s", name)
+		bufLogger.Printf(ctx, "Found artifact: %s", name)
 		fileNames[i] = name
 
 		if v.RoleUrn == artifact.URNPipRequirementsFile {
@@ -206,10 +206,10 @@ func launchSDKProcess() error {
 		}
 	}
 
-	if setupErr := installSetupPackages(ctx, logger, fileNames, dir, requirementsFiles); setupErr != nil {
+	if setupErr := installSetupPackages(ctx, bufLogger, fileNames, dir, requirementsFiles); setupErr != nil {
 		fmtErr := fmt.Errorf("failed to install required packages: %v", setupErr)
 		// Send error message to logging service before returning up the call stack
-		logger.Errorf(ctx, fmtErr.Error())
+		bufLogger.Errorf(ctx, fmtErr.Error())
 		return fmtErr
 	}
 
@@ -245,7 +245,7 @@ func launchSDKProcess() error {
 
 	// Forward trapped signals to child process groups in order to terminate them gracefully and avoid zombies
 	go func() {
-		logger.Printf(ctx, "Received signal: %v", <-signalChannel)
+		bufLogger.Printf(ctx, "Received signal: %v", <-signalChannel)
 		childPids.mu.Lock()
 		childPids.canceled = true
 		for _, pid := range childPids.v {
@@ -254,7 +254,7 @@ func launchSDKProcess() error {
 				// have elapsed, i.e., as soon as all subprocesses have returned from Wait().
 				time.Sleep(5 * time.Second)
 				if err := syscall.Kill(-pid, syscall.SIGKILL); err == nil {
-					logger.Warnf(ctx, "Worker process %v did not respond, killed it.", pid)
+					bufLogger.Warnf(ctx, "Worker process %v did not respond, killed it.", pid)
 				}
 			}(pid)
 			syscall.Kill(-pid, syscall.SIGTERM)
@@ -273,7 +273,7 @@ func launchSDKProcess() error {
 		go func(workerId string) {
 			defer wg.Done()
 
-			bufLogger := tools.NewBufferedLogger(logger)
+			bufLogger := tools.NewBufferedLogger(bufLogger)
 			errorCount := 0
 			for {
 				childPids.mu.Lock()
@@ -281,7 +281,7 @@ func launchSDKProcess() error {
 					childPids.mu.Unlock()
 					return
 				}
-				logger.Printf(ctx, "Executing Python (worker %v): python %v", workerId, strings.Join(args, " "))
+				bufLogger.Printf(ctx, "Executing Python (worker %v): python %v", workerId, strings.Join(args, " "))
 				cmd := StartCommandEnv(map[string]string{"WORKER_ID": workerId}, os.Stdin, bufLogger, bufLogger, "python", args...)
 				childPids.v = append(childPids.v, cmd.Process.Pid)
 				childPids.mu.Unlock()
@@ -292,15 +292,15 @@ func launchSDKProcess() error {
 					errorCount += 1
 					bufLogger.FlushAtError(ctx)
 					if errorCount < 4 {
-						logger.Warnf(ctx, "Python (worker %v) exited %v times: %v\nrestarting SDK process",
+						bufLogger.Warnf(ctx, "Python (worker %v) exited %v times: %v\nrestarting SDK process",
 							workerId, errorCount, err)
 					} else {
-						logger.Fatalf(ctx, "Python (worker %v) exited %v times: %v\nout of retries, failing container",
+						bufLogger.Fatalf(ctx, "Python (worker %v) exited %v times: %v\nout of retries, failing container",
 							workerId, errorCount, err)
 					}
 				} else {
 					bufLogger.FlushAtDebug(ctx)
-					logger.Printf(ctx, "Python (worker %v) exited.", workerId)
+					bufLogger.Printf(ctx, "Python (worker %v) exited.", workerId)
 					break
 				}
 			}
@@ -332,12 +332,12 @@ func StartCommandEnv(env map[string]string, stdin io.Reader, stdout, stderr io.W
 }
 
 // setupVenv initializes a local Python venv and sets the corresponding env variables
-func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId string) (string, error) {
+func setupVenv(ctx context.Context, bufLogger *tools.BufferedLogger, baseDir, workerId string) (string, error) {
 	dir := filepath.Join(baseDir, "beam-venv-worker-"+workerId)
-	logger.Printf(ctx, "Initializing temporary Python venv in %v", dir)
+	bufLogger.Printf(ctx, "Initializing temporary Python venv in %v", dir)
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		// Probably leftovers from a previous run
-		logger.Printf(ctx, "Cleaning up previous venv ...")
+		bufLogger.Printf(ctx, "Cleaning up previous venv ...")
 		if err := os.RemoveAll(dir); err != nil {
 			return "", err
 		}
@@ -377,8 +377,8 @@ func setupAcceptableWheelSpecs() error {
 }
 
 // installSetupPackages installs Beam SDK and user dependencies.
-func installSetupPackages(ctx context.Context, logger *tools.Logger, files []string, workDir string, requirementsFiles []string) error {
-	bufLogger := tools.NewBufferedLogger(logger)
+func installSetupPackages(ctx context.Context, bufLogger *tools.c, files []string, workDir string, requirementsFiles []string) error {
+	bufLogger := tools.NewBufferedLogger(bufLogger)
 	bufLogger.Printf(ctx, "Installing setup packages ...")
 
 	if err := setupAcceptableWheelSpecs(); err != nil {
@@ -388,7 +388,7 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 	// Install the Dataflow Python SDK if one was staged. In released
 	// container images, SDK is already installed, but can be overriden
 	// using the --sdk_location pipeline option.
-	if err := installSdk(ctx, logger, files, workDir, sdkSrcFile, acceptableWhlSpecs, false); err != nil {
+	if err := installSdk(ctx, bufLogger, files, workDir, sdkSrcFile, acceptableWhlSpecs, false); err != nil {
 		return fmt.Errorf("failed to install SDK: %v", err)
 	}
 	pkgName := "apache-beam"
@@ -399,21 +399,21 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 	// The staged files will not disappear due to restarts because workDir is a
 	// folder that is mapped to the host (and therefore survives restarts).
 	for _, f := range requirementsFiles {
-		if err := pipInstallRequirements(ctx, logger, files, workDir, f); err != nil {
+		if err := pipInstallRequirements(ctx, bufLogger, files, workDir, f); err != nil {
 			return fmt.Errorf("failed to install requirements: %v", err)
 		}
 	}
-	if err := installExtraPackages(ctx, logger, files, extraPackagesFile, workDir); err != nil {
+	if err := installExtraPackages(ctx, bufLogger, files, extraPackagesFile, workDir); err != nil {
 		return fmt.Errorf("failed to install extra packages: %v", err)
 	}
-	if err := pipInstallPackage(ctx, logger, files, workDir, workflowFile, false, true, nil); err != nil {
+	if err := pipInstallPackage(ctx, bufLogger, files, workDir, workflowFile, false, true, nil); err != nil {
 		return fmt.Errorf("failed to install workflow: %v", err)
 	}
 	if err := logRuntimeDependencies(ctx, bufLogger); err != nil {
-		logger.Warnf(ctx, "couldn't fetch the runtime python dependencies: %v", err)
+		bufLogger.Warnf(ctx, "couldn't fetch the runtime python dependencies: %v", err)
 	}
 	if err := logSubmissionEnvDependencies(ctx, bufLogger, workDir); err != nil {
-		logger.Warnf(ctx, "couldn't fetch the submission environment dependencies: %v", err)
+		bufLogger.Warnf(ctx, "couldn't fetch the submission environment dependencies: %v", err)
 	}
 
 	return nil
