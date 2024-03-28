@@ -179,6 +179,7 @@ public final class LockFreeHistogram implements Histogram {
     dirty.set(true);
   }
 
+  @Override
   public void update(double... values) {
     for (double value : values) {
       updateInternal(value);
