@@ -27,6 +27,7 @@ from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
 from . import flatmap_function
+from . import flatmap_nofunction
 from . import flatmap_generator
 from . import flatmap_lambda
 from . import flatmap_multiple_arguments
@@ -66,6 +67,9 @@ def check_valid_plants(actual):
     'apache_beam.examples.snippets.transforms.elementwise.flatmap_function.print',
     str)
 @mock.patch(
+  'apache_beam.examples.snippets.transforms.elementwise.flatmap_nofunction.print',
+  str)
+@mock.patch(
     'apache_beam.examples.snippets.transforms.elementwise.flatmap_lambda.print',
     str)
 @mock.patch(
@@ -92,6 +96,9 @@ class FlatMapTest(unittest.TestCase):
 
   def test_flatmap_function(self):
     flatmap_function.flatmap_function(check_plants)
+
+  def test_flatmap_nofunction(self):
+    flatmap_nofunction.flatmap_nofunction(check_plants)
 
   def test_flatmap_lambda(self):
     flatmap_lambda.flatmap_lambda(check_plants)
