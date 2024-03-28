@@ -2158,7 +2158,7 @@ students = ...
 {{< /highlight >}}
 
 {{< paragraph class="language-yaml">}}
-Note that in Beam YAML `PCollections` are partitioned via string rather than integer values.
+Note that in Beam YAML, `PCollections` are partitioned via string rather than integer values.
 {{< /paragraph >}}
 
 ### 4.3. Requirements for writing user code for Beam transforms {#requirements-for-writing-user-code-for-beam-transforms}
@@ -2424,9 +2424,9 @@ to break it into multiple `PCollection`s.
 {{< /paragraph >}}
 
 {{< paragraph class="language-yaml">}}
-In Beam YAML one obtains multiple outputs by emitting all outputs to a single
+In Beam YAML, one obtains multiple outputs by emitting all outputs to a single
 `PCollection`, possibly with an extra field, and then using `Partition` to
-split this single `PCollection` into multiple distinct `PCollections`
+split this single `PCollection` into multiple distinct `PCollection`
 outputs.
 {{< /paragraph >}}
 
