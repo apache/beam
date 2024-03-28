@@ -54,7 +54,6 @@ limitations under the License.
   <tr><td><a href="/documentation/transforms/python/aggregation/combineglobally">CombineGlobally</a></td><td>Transforms to combine elements.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/combineperkey">CombinePerKey</a></td><td>Transforms to combine elements for each key.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/combinevalues">CombineValues</a></td><td>Transforms to combine keyed iterables.</td></tr>
-  <tr><td>CombineWithContext</td><td>Not available.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/count">Count</a></td><td>Counts the number of elements within each aggregation.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/distinct">Distinct</a></td><td>Produces a collection containing distinct elements from the input collection.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/groupbykey">GroupByKey</a></td><td>Takes a keyed collection of elements and produces a collection where each element consists of a key and all values associated with that key.</td></tr>
@@ -77,10 +76,8 @@ limitations under the License.
   <tr><td><a href="/documentation/transforms/python/other/flatten">Flatten</a></td><td>Given multiple input collections, produces a single output collection containing
   all elements from all of the input collections.
 </td></tr>
-  <tr><td>PAssert</td><td>Not available.</td></tr>
   <tr><td><a href="/documentation/transforms/python/other/reshuffle">Reshuffle</a></td><td>Given an input collection, redistributes the elements between workers. This is
   most useful for adjusting parallelism or preventing coupled failures.</td></tr>
-  <tr><td>View</td><td>Not available.</td></tr>
   <tr><td><a href="/documentation/transforms/python/other/windowinto">WindowInto</a></td><td>Logically divides up or groups the elements of a collection into finite
   windows according to a function.</td></tr>
 </table>
