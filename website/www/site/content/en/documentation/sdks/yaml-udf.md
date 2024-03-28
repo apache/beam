@@ -213,7 +213,7 @@ It can also be useful to send different elements to different places
 (similar to what is done with side outputs in other SDKs).
 While this can be done with a set of `Filter` operations, if every
 element has a single destination it can be more natural to use a `Partition`
-transform instead which send every element to a unique output.
+transform instead which sends every element to a unique output.
 For example, this will send all elements where `col1` is equal to `"a"` to the
 output `Partition.a`.
 
