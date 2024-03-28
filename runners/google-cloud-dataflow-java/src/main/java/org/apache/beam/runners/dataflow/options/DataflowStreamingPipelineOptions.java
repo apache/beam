@@ -166,6 +166,8 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   @Default.Integer(30000)
   int getPerWorkerMetricsUpdateReportingPeriodMillis();
 
+  void setPerWorkerMetricsUpdateReportingPeriodMillis();
+
   @Description("Limit on depth of user exception stack trace reported to cloud monitoring.")
   @Default.InstanceFactory(MaxStackTraceDepthToReportFactory.class)
   int getMaxStackTraceDepthToReport();
