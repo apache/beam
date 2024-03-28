@@ -62,7 +62,7 @@ class ValidateResponse(beam.DoFn):
             f"from feature store")
 
 
-@pytest.mark.it_postcommit
+@pytest.mark.uses_testcontainer
 class TestVertexAIFeatureStoreHandler(unittest.TestCase):
   def setUp(self) -> None:
     self.project = 'apache-beam-testing'
