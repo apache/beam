@@ -33,10 +33,10 @@ from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
+import redis
 from google.api_core.exceptions import TooManyRequests
 
 import apache_beam as beam
-import redis
 from apache_beam import pvalue
 from apache_beam.coders import coders
 from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
