@@ -500,7 +500,6 @@ task mockAPITests {
     "runner": "TestDataflowRunner",
     "project": "apache-beam-testing",
     "region": "us-west1",
-    "requirements_file": "$requirementsFile"
   ]
   def cmdArgs = mapToArgString(argMap)
   exec {
