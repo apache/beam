@@ -35,7 +35,6 @@
 def approximateunique(test=None):
   # [START approximateunique]
   import apache_beam as beam
-  from apache_beam.transforms.stats import ApproximateUnique
   import random
 
   with beam.Pipeline() as pipeline:
@@ -46,7 +45,7 @@ def approximateunique(test=None):
       result = (
           pipeline
           | 'create' >> beam.Create(data)
-          | 'get_estimate' >> ApproximateUnique.Globally(
+          | 'get_estimate' >> beam.ApproximateUnique.Globally(
               size=16)
           | beam.Map(print)
       )

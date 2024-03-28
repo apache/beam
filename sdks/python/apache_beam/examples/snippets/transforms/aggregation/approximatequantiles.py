@@ -35,12 +35,11 @@
 def approximatequantiles(test=None):
   # [START quantiles]
   import apache_beam as beam
-  from apache_beam.transforms.stats import ApproximateQuantiles
 
   with beam.Pipeline() as pipeline:
       quantiles = (pipeline
                    | 'Create data' >> beam.Create(list(range(1001)))
-                   | 'Compute quantiles' >> ApproximateQuantiles.Globally(5)
+                   | 'Compute quantiles' >> beam.ApproximateQuantiles.Globally(5)
                    | beam.Map(print))
       # [END approximatequantiles]
       if test:
