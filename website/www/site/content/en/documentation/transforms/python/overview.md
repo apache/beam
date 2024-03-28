@@ -48,7 +48,7 @@ limitations under the License.
 
 <table class="table-bordered table-striped">
   <tr><th>Transform</th><th>Description</th></tr>
-  <tr><td>ApproximateQuantiles</td><td>Not available. See <a href="https://issues.apache.org/jira/browse/BEAM-6694">BEAM-6694</a> for updates.</td></tr>
+  <tr><td><a href="/documentation/transforms/python/aggregation/approximatequantiles">ApproximateQuantiles</a></td><td>Given a distribution, find the approximate N-tiles.</td></tr>
   <tr><td>ApproximateUnique</td><td>Not available. See <a href="https://issues.apache.org/jira/browse/BEAM-6693">BEAM-6693</a> for updates.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/cogroupbykey">CoGroupByKey</a></td><td>Takes several keyed collections of elements and produces a collection where each element consists of a key and all values associated with that key.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/combineglobally">CombineGlobally</a></td><td>Transforms to combine elements.</td></tr>
