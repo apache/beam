@@ -631,6 +631,5 @@ options:
 
 ## Other Resources
 
-* [Example pipelines](https://gist.github.com/robertwb/2cb26973f1b1203e8f5f8f88c5764da0)
-* [More examples](https://github.com/Polber/beam/tree/jkinard/bug-bash/sdks/python/apache_beam/yaml/examples)
-* [Transform glossary](https://gist.github.com/robertwb/64e2f51ff88320eeb6ffd96634202df7)
+* [Example pipeline](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples)
+* [More examples](https://gist.github.com/robertwb/2cb26973f1b1203e8f5f8f88c5764da0)
