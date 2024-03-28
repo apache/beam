@@ -46,9 +46,9 @@ import apache_beam.dataframe.io
 import apache_beam.io
 import apache_beam.transforms.util
 from apache_beam.portability.api import schema_pb2
+from apache_beam.runners import pipeline_context
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.runners import pipeline_context
 from apache_beam.transforms import external
 from apache_beam.transforms import window
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform

@@ -22,11 +22,11 @@ import copy
 import glob
 import itertools
 import logging
-import mock
 import os
 import uuid
 import unittest
 
+import mock
 import yaml
 
 import apache_beam as beam
