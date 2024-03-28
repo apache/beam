@@ -45,12 +45,8 @@ def approximateunique(test=None):
       result = (
           pipeline
           | 'create' >> beam.Create(data)
-          | 'get_estimate' >> beam.ApproximateUnique.Globally(
-              size=16)
-          | beam.Map(print)
-      )
+          | 'get_estimate' >> beam.ApproximateUnique.Globally(size=16)
+          | beam.Map(print))
       # [END approximateunique]
       if test:
         test(result)
-
-

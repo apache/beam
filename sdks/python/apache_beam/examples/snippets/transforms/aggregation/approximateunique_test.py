@@ -28,6 +28,7 @@ from apache_beam.testing.util import assert_that, equal_to
 
 from . import approximateunique
 
+
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
     'apache_beam.examples.snippets.transforms.aggregation.approximateunique.print',
@@ -39,10 +40,10 @@ class ApproximateUniqueTest(unittest.TestCase):
       sample_size = 16
       error = 2 / math.sqrt(sample_size)
       assert_that(
-        approx_count
-        | 'compare' >> beam.FlatMap(
-          lambda x: [abs(x - actual_count) * 1.0 / actual_count <= error]),
-        equal_to([True]))
+          approx_count
+          | 'compare' >> beam.FlatMap(
+              lambda x: [abs(x - actual_count) * 1.0 / actual_count <= error]),
+          equal_to([True]))
 
     approximateunique.approximateunique(test=check_result)
 

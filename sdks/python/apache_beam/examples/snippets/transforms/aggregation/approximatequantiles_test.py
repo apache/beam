@@ -27,6 +27,7 @@ from apache_beam.testing.util import assert_that, equal_to
 
 from . import approximatequantiles
 
+
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
     'apache_beam.examples.snippets.transforms.aggregation.approximatequantiles.print',
@@ -34,15 +35,7 @@ from . import approximatequantiles
 class ApproximateQuantilesTest(unittest.TestCase):
   def test_approximatequantiles(self):
     def check_result(quantiles):
-      assert_that(
-        quantiles,
-        equal_to([[
-            0,
-            250,
-            500,
-            750,
-            1000
-        ]]))
+      assert_that(quantiles, equal_to([[0, 250, 500, 750, 1000]]))
 
     approximatequantiles.approximatequantiles(test=check_result)
 

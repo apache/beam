@@ -27,15 +27,14 @@ from . import batchelements
 
 
 def check_batches(actual):
-    expected = [['🍓', '🥕', '🍆'],
-      ['🍅', '🥕', '🍅'],
-      ['🌽', '🥕', '🍅', '🍆']]
-    assert_that(
-        actual, equal_to(expected))
+  expected = [['🍓', '🥕', '🍆'], ['🍅', '🥕', '🍅'], ['🌽', '🥕', '🍅', '🍆']]
+  assert_that(actual, equal_to(expected))
 
 
 def identity(x):
-    return x
+  return x
+
+
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 # pylint: disable=line-too-long
 @mock.patch(
