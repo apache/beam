@@ -16,29 +16,35 @@
 #
 
 """This module defines the Join operation."""
+import networkx as nx
 import apache_beam as beam
 from apache_beam.yaml import yaml_provider
 
 
-def _validate_isinstance(type, str):
+def _validate_type(type, str):
   error = ValueError('Invalid value for \'type\' in Join transform')
   print(type)
   if not isinstance(type, dict) and isinstance(type, str) != str:
     return error
   if isinstance(type, dict) and len(type) != 1 and next(
-      iter(type)) != 'outer' and not isinstance(type['outer'], list):
+      iter(type)) != 'outer' and not isinstance(type['outer'],
+                                                list):
     return error
-  if isinstance(type, str) and type not in ('inner', 'outer', 'left', 'right'):
+  if isinstance(type, str) and type not in (
+      'inner', 'outer', 'left', 'right'):
     return error
 
 
 def _validate_equalities(equalities, pcoll):
-  error = ValueError('Invalid value for \'equalities\' in Join transform')
+  error = ValueError(
+    'Invalid value for \'equalities\' in Join transform')
   if not isinstance(equalities, list):
     return error
+  input_edge_list = []
   for equality in equalities:
     if len(equality) != 2 and not isinstance(equality, dict):
       return error
+
     for input, col in equality.items():
       # TODO: look for an easier way to get field names in a Pcollection obj
       possible_cols = set()
@@ -47,6 +53,13 @@ def _validate_equalities(equalities, pcoll):
       if input not in pcoll.keys() or col not in possible_cols:
         return ValueError(
           'Invalid input alias or column name doesn\'t exist in the input')
+
+    input_edge_list.append(tuple(equality.keys()))
+
+  if not nx.is_connected(nx.Graph(input_edge_list)):
+    return ValueError(
+      'Inputs in equalities are not all connected'
+    )
 
 
 def _parse_fields(tables, fields):
@@ -59,13 +72,15 @@ def _parse_fields(tables, fields):
     if isinstance(cols, list):
       for col in cols:
         if col in named_columns:
-          return ValueError(f'same field name {col} specified more than once')
+          return ValueError(
+            f'same field name {col} specified more than once')
         output_fields.append(f'{input}.{col} AS {col}')
         named_columns.add(col)
     elif isinstance(cols, dict):
       for k, v in cols.items():
         if k in named_columns:
-          return ValueError(f'same field name {k} specified more than once')
+          return ValueError(
+            f'same field name {k} specified more than once')
         output_fields.append(f'{input}.{v} AS {k}')
         named_columns.add(k)
     else:
@@ -77,8 +92,9 @@ def _parse_fields(tables, fields):
 
 
 @beam.ptransform.ptransform_fn
-def _SqlJoinTransform(pcoll, sql_transform_constructor, type, equalities, fields=None):
-  _validate_isinstance(type, str)
+def _SqlJoinTransform(pcoll, sql_transform_constructor, type,
+                      equalities, fields=None):
+  _validate_type(type, str)
   _validate_equalities(equalities, pcoll)
 
   tables = list(pcoll)
