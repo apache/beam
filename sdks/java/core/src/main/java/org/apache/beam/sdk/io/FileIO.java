@@ -335,6 +335,12 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FileIO {
+  // The record count and buffering duration to trigger flushing records to a tmp file. Mainly
+  // used for writing unbounded data to avoid generating too many small files.
+  private static final int FILE_TRIGGERING_RECORD_COUNT = 100000;
+  private static final int FILE_TRIGGERING_BYTE_COUNT = 64 * 1024 * 1024; // 64MiB as of now
+  private static final Duration FILE_TRIGGERING_RECORD_BUFFERING_DURATION =
+      Duration.standardSeconds(5);
   private static final Logger LOG = LoggerFactory.getLogger(FileIO.class);
 
   /**
@@ -395,6 +401,9 @@ public class FileIO {
         .setIgnoreWindowing(false)
         .setAutoSharding(false)
         .setNoSpilling(false)
+        .setFileTriggeringRecordCount(FILE_TRIGGERING_RECORD_COUNT)
+        .setFileTriggeringByteCount(FILE_TRIGGERING_BYTE_COUNT)
+        .setFileTriggeringRecordBufferingDuration(FILE_TRIGGERING_RECORD_BUFFERING_DURATION)
         .build();
   }
 
@@ -409,6 +418,9 @@ public class FileIO {
         .setIgnoreWindowing(false)
         .setAutoSharding(false)
         .setNoSpilling(false)
+        .setFileTriggeringRecordCount(FILE_TRIGGERING_RECORD_COUNT)
+        .setFileTriggeringByteCount(FILE_TRIGGERING_BYTE_COUNT)
+        .setFileTriggeringRecordBufferingDuration(FILE_TRIGGERING_RECORD_BUFFERING_DURATION)
         .build();
   }
 
@@ -1453,6 +1465,10 @@ public class FileIO {
       resolvedSpec.setIgnoreWindowing(getIgnoreWindowing());
       resolvedSpec.setAutoSharding(getAutoSharding());
       resolvedSpec.setNoSpilling(getNoSpilling());
+      resolvedSpec.setFileTriggeringRecordCount(FILE_TRIGGERING_RECORD_COUNT);
+      resolvedSpec.setFileTriggeringByteCount(FILE_TRIGGERING_BYTE_COUNT);
+      resolvedSpec.setFileTriggeringRecordBufferingDuration(
+          FILE_TRIGGERING_RECORD_BUFFERING_DURATION);
 
       Write<DestinationT, UserT> resolved = resolvedSpec.build();
       WriteFiles<UserT, DestinationT, ?> writeFiles =
@@ -1469,7 +1485,9 @@ public class FileIO {
         writeFiles = writeFiles.withWindowedWrites();
       }
       if (getAutoSharding()) {
-        writeFiles = writeFiles.withAutoSharding()
+        writeFiles =
+            writeFiles
+                .withAutoSharding()
                 .withFileTriggeringByteCount(getFileTriggeringByteCount())
                 .withFileTriggeringRecordCount(getFileTriggeringRecordCount())
                 .withFileTriggeringRecordBufferingDuration(
