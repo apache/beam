@@ -24,7 +24,7 @@ limitations under the License.
 ## Examples
 
 {{< playground height="700px" >}}
-{{< playground_snippet language="py" path="SDK_PYTHON_ApproximateQuantiles" show="groupintobatches" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_ApproximateQuantiles" show="approximatequantiles" >}}
 {{< /playground >}}
 
 ## Related transforms
