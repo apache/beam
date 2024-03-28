@@ -212,10 +212,10 @@ criteria. This can be accomplished with a `Filter` transform, e.g.
 It can also be useful to send different elements to different places
 (similar to what is done with side outputs in other SDKs).
 While this can be done with a set of `Filter` operations, if every
-element has a single destination it can be more natural to use a `Split`
+element has a single destination it can be more natural to use a `Partition`
 transform instead which send every element to a unique output.
 For example, this will send all elements where `col1` is equal to `"a"` to the
-output `Split.a`.
+output `Partition.a`.
 
 ```
 - type: Partition
@@ -260,7 +260,7 @@ that are not in the named outputs (which would otherwise be an error):
 
 Sometimes one wants to split a PCollection into multiple PCollections
 that aren't necessarily disjoint.  To send elements to multiple (or no) outputs,
-one could use an iterable column and precede the `Split` with an `Explode`.
+one could use an iterable column and precede the `Partition` with an `Explode`.
 
 ```
 - type: Explode
