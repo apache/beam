@@ -48,4 +48,4 @@ def approximatequantiles(test=None):
 
 
 if __name__ == '__main__':
-  cogroupbykey()
+  approximatequantiles()
