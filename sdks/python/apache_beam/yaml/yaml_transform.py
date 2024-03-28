@@ -183,7 +183,7 @@ class ProviderSet:
   def __init__(self, providers: Mapping[str, Iterable[yaml_provider.Provider]]):
     self._providers = providers
     self._original_providers = set(p for ps in providers.values() for p in ps)
-    self._expanded = set()
+    self._expanded: Set[Provider] = set()
 
   def __contains__(self, key: str):
     return key in self._providers

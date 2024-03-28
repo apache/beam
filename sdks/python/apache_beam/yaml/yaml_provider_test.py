@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-import contextlib
 import logging
 import unittest
 

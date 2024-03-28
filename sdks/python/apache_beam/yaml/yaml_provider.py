@@ -122,9 +122,6 @@ class Provider:
     """
     return None
 
-  def extra_urns():
-    return ()
-
   def affinity(self, other: "Provider"):
     """Returns a value approximating how good it would be for this provider
     to be used immediately following a transform from the other provider
