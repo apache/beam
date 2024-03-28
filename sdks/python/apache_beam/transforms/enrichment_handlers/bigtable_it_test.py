@@ -148,7 +148,7 @@ def create_rows(table):
     row.commit()
 
 
-@pytest.mark.uses_redis
+@pytest.mark.it_postcommit
 class TestBigTableEnrichment(unittest.TestCase):
   def setUp(self):
     self.project_id = 'apache-beam-testing'

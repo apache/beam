@@ -491,13 +491,7 @@ task tftTests {
 task mockAPITests {
   dependsOn 'initializeForDataflowJob'
   dependsOn ':sdks:python:sdist'
-  def requirementsFile = "${rootDir}/sdks/python/apache_beam/io/requestresponse_tests_requirements.txt"
-  doFirst {
-      exec {
-        executable 'sh'
-        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
-      }
-    }
+
  doLast {
   def testOpts = basicTestOpts
   def argMap = [

@@ -203,7 +203,7 @@ class FakeCallerForCache(Caller[str, str]):
     pass
 
 
-@pytest.mark.uses_redis
+@pytest.mark.it_postcommit
 class TestRedisCache(unittest.TestCase):
   def setUp(self) -> None:
     self.retries = 3
