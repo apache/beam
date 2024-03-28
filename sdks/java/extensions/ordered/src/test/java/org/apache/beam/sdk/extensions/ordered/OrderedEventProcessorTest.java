@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.extensions.ordered.UnprocessedEvent.Reason;
@@ -31,8 +32,13 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
@@ -46,9 +52,6 @@ import org.junit.runners.JUnit4;
 /**
  * Ordered Processing tests use the same testing scenario. Events are sent in or out of sequence.
  * Each event is a string for a particular key. The output is a concatenation of all strings.
- *
- * <p>TODO: add tests for outputting buffered events in case of drainage. TODO: add batch processing
- * in parallel with streaming processing
  */
 @RunWith(JUnit4.class)
 public class OrderedEventProcessorTest {
@@ -62,6 +65,8 @@ public class OrderedEventProcessorTest {
   public static final boolean PRODUCE_STATUS_ON_EVERY_EVENT = true;
   public static final boolean STREAMING = true;
   public static final boolean BATCH = false;
+  public static final Set<KV<String, KV<Long, UnprocessedEvent<String>>>> NO_EXPECTED_DLQ_EVENTS =
+      Collections.emptySet();
   @Rule public final transient TestPipeline streamingPipeline = TestPipeline.create();
   @Rule public final transient TestPipeline batchPipeline = TestPipeline.create();
 
@@ -551,6 +556,92 @@ public class OrderedEventProcessorTest {
         DONT_PRODUCE_STATUS_ON_EVERY_EVENT);
   }
 
+  @Test
+  public void testWindowedProcessing() throws CannotProvideCoderException {
+
+    Instant base = new Instant(0);
+    TestStream<Event> values =
+        TestStream.create(streamingPipeline.getCoderRegistry().getCoder(Event.class))
+            .advanceWatermarkTo(base)
+            .addElements(
+                // Start of first window
+                TimestampedValue.of(
+                    Event.create(0, "id-1", "a"), base.plus(Duration.standardSeconds(1))),
+                TimestampedValue.of(
+                    Event.create(1, "id-1", "b"), base.plus(Duration.standardSeconds(2))),
+                TimestampedValue.of(
+                    Event.create(0, "id-2", "x"), base.plus(Duration.standardSeconds(1))),
+                TimestampedValue.of(
+                    Event.create(1, "id-2", "y"), base.plus(Duration.standardSeconds(2))),
+                TimestampedValue.of(
+                    Event.create(2, "id-2", "z"), base.plus(Duration.standardSeconds(2))),
+
+                // Start of second window. Numbering must start with 0 again.
+                TimestampedValue.of(
+                    Event.create(0, "id-1", "c"), base.plus(Duration.standardSeconds(10))),
+                TimestampedValue.of(
+                    Event.create(1, "id-1", "d"), base.plus(Duration.standardSeconds(11))))
+            .advanceWatermarkToInfinity();
+
+    Pipeline pipeline = streamingPipeline;
+
+    PCollection<Event> rawInput = pipeline.apply("Create Streaming Events", values);
+    PCollection<KV<String, KV<Long, String>>> input =
+        rawInput.apply("To KV", ParDo.of(new MapEventsToKV()));
+
+    input = input.apply("Window input", Window.into(FixedWindows.of(Duration.standardSeconds(5))));
+
+    StringBufferOrderedProcessingHandler handler =
+        new StringBufferOrderedProcessingHandler(
+            EMISSION_FREQUENCY_ON_EVERY_ELEMENT, INITIAL_SEQUENCE_OF_0);
+    handler.setMaxOutputElementsPerBundle(LARGE_MAX_RESULTS_PER_OUTPUT);
+    handler.setStatusUpdateFrequency(null);
+    handler.setProduceStatusUpdateOnEveryEvent(true);
+
+    OrderedEventProcessor<String, String, String, StringBuilderState> orderedEventProcessor =
+        OrderedEventProcessor.create(handler);
+
+    OrderedEventProcessorResult<String, String, String> processingResult =
+        input.apply("Process Events", orderedEventProcessor);
+
+    IntervalWindow window1 = new IntervalWindow(base, base.plus(Duration.standardSeconds(5)));
+    PAssert.that("Output matches in window 1", processingResult.output())
+        .inWindow(window1)
+        .containsInAnyOrder(
+            KV.of("id-1", "a"),
+            KV.of("id-1", "ab"),
+            KV.of("id-2", "x"),
+            KV.of("id-2", "xy"),
+            KV.of("id-2", "xyz"));
+
+    IntervalWindow window2 =
+        new IntervalWindow(
+            base.plus(Duration.standardSeconds(10)), base.plus(Duration.standardSeconds(15)));
+    PAssert.that("Output matches in window 2", processingResult.output())
+        .inWindow(window2)
+        .containsInAnyOrder(KV.of("id-1", "c"), KV.of("id-1", "cd"));
+
+    PAssert.that("Statuses match in window 1", processingResult.processingStatuses())
+        .inWindow(window1)
+        .containsInAnyOrder(
+            KV.of("id-1", OrderedProcessingStatus.create(0L, 0, null, null, 1, 1, 0, false)),
+            KV.of("id-1", OrderedProcessingStatus.create(1L, 0, null, null, 2, 2, 0, false)),
+            KV.of("id-2", OrderedProcessingStatus.create(0L, 0, null, null, 1, 1, 0, false)),
+            KV.of("id-2", OrderedProcessingStatus.create(1L, 0, null, null, 2, 2, 0, false)),
+            KV.of("id-2", OrderedProcessingStatus.create(2L, 0, null, null, 3, 3, 0, false)));
+
+    PAssert.that("Statuses match in window 2", processingResult.processingStatuses())
+        .inWindow(window2)
+        .containsInAnyOrder(
+            KV.of("id-1", OrderedProcessingStatus.create(0L, 0, null, null, 1, 1, 0, false)),
+            KV.of("id-1", OrderedProcessingStatus.create(1L, 0, null, null, 2, 2, 0, false)));
+
+    PAssert.that("Unprocessed events match", processingResult.unprocessedEvents())
+        .containsInAnyOrder(NO_EXPECTED_DLQ_EVENTS);
+
+    pipeline.run();
+  }
+
   private void testProcessing(
       Event[] events,
       Collection<KV<String, OrderedProcessingStatus>> expectedStatuses,
@@ -564,7 +655,7 @@ public class OrderedEventProcessorTest {
         events,
         expectedStatuses,
         expectedOutput,
-        Collections.emptySet() /* no events in DLQ */,
+        NO_EXPECTED_DLQ_EVENTS,
         emissionFrequency,
         initialSequence,
         maxResultsPerOutput,
@@ -603,6 +694,20 @@ public class OrderedEventProcessorTest {
         BATCH);
   }
 
+  /**
+   * The majority of the tests use this method. Testing is done in the global window.
+   *
+   * @param events
+   * @param expectedStatuses
+   * @param expectedOutput
+   * @param expectedDuplicates
+   * @param emissionFrequency
+   * @param initialSequence
+   * @param maxResultsPerOutput
+   * @param produceStatusOnEveryEvent
+   * @param streaming
+   * @throws @UnknownKeyFor @NonNull @Initialized CannotProvideCoderException
+   */
   private void doTest(
       Event[] events,
       Collection<KV<String, OrderedProcessingStatus>> expectedStatuses,
@@ -629,8 +734,7 @@ public class OrderedEventProcessorTest {
     handler.setMaxOutputElementsPerBundle(maxResultsPerOutput);
     if (produceStatusOnEveryEvent) {
       handler.setProduceStatusUpdateOnEveryEvent(true);
-      // This disables status updates emitted on timers. Needed for simpler testing when per event
-      // update is needed.
+      // This disables status updates emitted on timers.
       handler.setStatusUpdateFrequency(null);
     } else {
       handler.setStatusUpdateFrequency(
@@ -646,8 +750,8 @@ public class OrderedEventProcessorTest {
 
     if (streaming) {
       // Only in streaming the events will arrive in a pre-determined order and the statuses
-      // will be deterministic. In batch events can be processed in any order, so we skip status
-      // verification and rely on the output and unprocessed event matches.
+      // will be deterministic. In batch pipelines events can be processed in any order,
+      // so we skip status verification and rely on the output and unprocessed event matches.
       PAssert.that("Statuses match", processingResult.processingStatuses())
           .containsInAnyOrder(expectedStatuses);
     }
@@ -660,7 +764,9 @@ public class OrderedEventProcessorTest {
 
   private @UnknownKeyFor @NonNull @Initialized PCollection<Event> createBatchPCollection(
       Pipeline pipeline, Event[] events) {
-    return pipeline.apply("Create Batch Events", Create.of(Arrays.asList(events)));
+    return pipeline
+        .apply("Create Batch Events", Create.of(Arrays.asList(events)))
+        .apply("Reshuffle", Reshuffle.viaRandomKey());
   }
 
   private @UnknownKeyFor @NonNull @Initialized PCollection<Event> createStreamingPCollection(

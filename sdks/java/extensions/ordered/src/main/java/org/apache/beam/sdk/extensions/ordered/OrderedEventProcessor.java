@@ -372,9 +372,7 @@ public abstract class OrderedEventProcessor<
       if (produceStatusUpdateOnEveryEvent) {
         // During pipeline draining the window timestamp is set to a large value in the future.
         // Producing an event before that results in error, that's why this logic exist.
-        Instant statusTimestamp = Instant.now();
-        statusTimestamp =
-            statusTimestamp.isAfter(windowTimestamp) ? statusTimestamp : windowTimestamp;
+        Instant statusTimestamp = windowTimestamp;
 
         emitProcessingStatus(processingStatus, outputReceiver, statusTimestamp);
       }
@@ -570,10 +568,9 @@ public abstract class OrderedEventProcessor<
             "Setting the timer to output next batch of events for key '"
                 + processingState.getKey()
                 + "'");
-        // TODO: this work fine for global windows. Need to check what happens for other types of
-        // windows.
         // See GroupIntoBatches for examples on how to hold the timestamp.
         // TODO: test that on draining the pipeline all the results are still produced correctly.
+        // See: https://github.com/apache/beam/issues/30781
         largeBatchEmissionTimer.offset(Duration.millis(1)).setRelative();
       }
       return exceeded;
