@@ -23,8 +23,8 @@ import glob
 import itertools
 import logging
 import os
-import uuid
 import unittest
+import uuid
 
 import mock
 import yaml
