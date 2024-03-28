@@ -919,7 +919,7 @@ class WorkerHandlerManager(object):
             self.state_servicer,
             self._job_provision_info.for_environment(environment),
             grpc_server)
-        _LOGGER.info(
+        _LOGGER.debug(
             "Created Worker handler %s for environment %s (%s, %r)",
             worker_handler,
             environment_id,
