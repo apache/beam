@@ -20,8 +20,8 @@
 # pylint:disable=line-too-long
 
 # beam-playground:
-#   name: FlatMapFunction
-#   description: Demonstration of FlatMap transform usage with a function.
+#   name: FlatMapNoFunction
+#   description: Demonstration of FlatMap transform usage without a function.
 #   multifile: false
 #   default_example: false
 #   context_line: 44
