@@ -31,12 +31,15 @@ import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.junit.After;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class ChannelCacheTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   private ChannelCache cache;
 

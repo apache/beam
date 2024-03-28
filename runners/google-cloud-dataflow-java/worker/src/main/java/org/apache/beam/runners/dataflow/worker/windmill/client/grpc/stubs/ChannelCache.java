@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
 import java.io.PrintWriter;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import javax.annotation.concurrent.ThreadSafe;
@@ -29,6 +30,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBui
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalListener;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalListeners;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +40,8 @@ import org.slf4j.LoggerFactory;
  * href=https://grpc.io/docs/guides/performance/#java>gRPC recommendations</a> for re-using channels
  * when possible.
  *
- * @implNote Backed by {@link LoadingCache} which is thread-safe.
+ * @implNote Backed by {@link LoadingCache} which is thread-safe. Closes channels when they are
+ *     removed from the cache asynchronously via {@link java.util.concurrent.ExecutorService}.
  */
 @ThreadSafe
 public final class ChannelCache implements StatusDataProvider {
@@ -49,7 +53,11 @@ public final class ChannelCache implements StatusDataProvider {
       RemovalListener<WindmillServiceAddress, ManagedChannel> onChannelRemoved) {
     this.channelCache =
         CacheBuilder.newBuilder()
-            .removalListener(onChannelRemoved)
+            .removalListener(
+                RemovalListeners.asynchronous(
+                    onChannelRemoved,
+                    Executors.newCachedThreadPool(
+                        new ThreadFactoryBuilder().setNameFormat("GrpcChannelCloser").build())))
             .build(
                 new CacheLoader<WindmillServiceAddress, ManagedChannel>() {
                   @Override

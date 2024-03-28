@@ -36,6 +36,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -82,6 +83,7 @@ public class StreamingEngineClientTest {
           WorkerMetadataResponse.Endpoint.newBuilder()
               .setDirectEndpoint(DEFAULT_WINDMILL_SERVICE_ADDRESS.gcpServiceAddress().toString())
               .build());
+
   private static final long CLIENT_ID = 1L;
   private static final String JOB_ID = "jobId";
   private static final String PROJECT_ID = "projectId";
@@ -94,6 +96,7 @@ public class StreamingEngineClientTest {
           .build();
 
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   private final GrpcWindmillStreamFactory streamFactory =
       spy(GrpcWindmillStreamFactory.of(JOB_HEADER).build());
@@ -107,7 +110,6 @@ public class StreamingEngineClientTest {
           stubFactory, new ArrayList<>(), new ArrayList<>(), new HashSet<>());
   private final AtomicReference<StreamingEngineConnectionState> connections =
       new AtomicReference<>(StreamingEngineConnectionState.EMPTY);
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   private Server fakeStreamingEngineServer;
   private CountDownLatch getWorkerMetadataReady;
@@ -430,7 +432,7 @@ public class StreamingEngineClientTest {
 
     @SuppressWarnings("ReturnValueIgnored")
     private void waitForBudgetDistribution() throws InterruptedException {
-      getWorkBudgetDistributorTriggered.await();
+      getWorkBudgetDistributorTriggered.await(5, TimeUnit.SECONDS);
     }
 
     @Override
