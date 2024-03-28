@@ -49,11 +49,9 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class WindmillStreamSenderTest {
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final GetWorkRequest GET_WORK_REQUEST =
       GetWorkRequest.newBuilder().setClientId(1L).setJobId("job").setProjectId("project").build();
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-
   private final GrpcWindmillStreamFactory streamFactory =
       spy(
           GrpcWindmillStreamFactory.of(
@@ -70,6 +68,7 @@ public class WindmillStreamSenderTest {
           workItem,
           ackQueuedWorkItem,
           getWorkStreamLatencies) -> {};
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private ManagedChannel inProcessChannel;
   private CloudWindmillServiceV1Alpha1Stub stub;
 

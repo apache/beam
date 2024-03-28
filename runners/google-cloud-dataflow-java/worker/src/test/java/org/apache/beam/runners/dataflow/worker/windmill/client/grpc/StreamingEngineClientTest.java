@@ -36,7 +36,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -47,13 +46,12 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataR
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessSocketAddress;
@@ -96,30 +94,24 @@ public class StreamingEngineClientTest {
           .build();
 
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
-
-  private final Set<ManagedChannel> channels = new HashSet<>();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   private final GrpcWindmillStreamFactory streamFactory =
       spy(GrpcWindmillStreamFactory.of(JOB_HEADER).build());
-  private final WindmillStubFactory stubFactory =
+  private final ChannelCachingStubFactory stubFactory =
       new FakeWindmillStubFactory(
-          () -> {
-            ManagedChannel channel =
-                grpcCleanup.register(
-                    WindmillChannelFactory.inProcessChannel("StreamingEngineClientTest"));
-            channels.add(channel);
-            return channel;
-          });
+          () ->
+              grpcCleanup.register(
+                  WindmillChannelFactory.inProcessChannel("StreamingEngineClientTest")));
   private final GrpcDispatcherClient dispatcherClient =
       GrpcDispatcherClient.forTesting(
           stubFactory, new ArrayList<>(), new ArrayList<>(), new HashSet<>());
   private final AtomicReference<StreamingEngineConnectionState> connections =
       new AtomicReference<>(StreamingEngineConnectionState.EMPTY);
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
   private Server fakeStreamingEngineServer;
   private CountDownLatch getWorkerMetadataReady;
   private GetWorkerMetadataTestStub fakeGetWorkerMetadataStub;
-
   private StreamingEngineClient streamingEngineClient;
 
   private static WorkItemProcessor noOpProcessWorkItemFn() {
@@ -143,13 +135,15 @@ public class StreamingEngineClientTest {
   }
 
   private static WorkerMetadataResponse.Endpoint metadataResponseEndpoint(String workerToken) {
-    return WorkerMetadataResponse.Endpoint.newBuilder().setBackendWorkerToken(workerToken).build();
+    return WorkerMetadataResponse.Endpoint.newBuilder()
+        .setDirectEndpoint(DEFAULT_WINDMILL_SERVICE_ADDRESS.gcpServiceAddress().getHost())
+        .setBackendWorkerToken(workerToken)
+        .build();
   }
 
   @Before
   public void setUp() throws IOException {
-    channels.forEach(ManagedChannel::shutdownNow);
-    channels.clear();
+    stubFactory.shutdown();
     fakeStreamingEngineServer =
         grpcCleanup.register(
             InProcessServerBuilder.forName("StreamingEngineClientTest")
@@ -170,9 +164,8 @@ public class StreamingEngineClientTest {
   @After
   public void cleanUp() {
     Preconditions.checkNotNull(streamingEngineClient).finish();
-    fakeGetWorkerMetadataStub.close();
     fakeStreamingEngineServer.shutdownNow();
-    channels.forEach(ManagedChannel::shutdownNow);
+    stubFactory.shutdown();
   }
 
   private StreamingEngineClient newStreamingEngineClient(
@@ -390,8 +383,6 @@ public class StreamingEngineClientTest {
   private static class GetWorkerMetadataTestStub
       extends CloudWindmillMetadataServiceV1Alpha1Grpc
           .CloudWindmillMetadataServiceV1Alpha1ImplBase {
-    private static final WorkerMetadataResponse CLOSE_ALL_STREAMS =
-        WorkerMetadataResponse.newBuilder().setMetadataVersion(Long.MAX_VALUE).build();
     private final CountDownLatch ready;
     private @Nullable StreamObserver<WorkerMetadataResponse> responseObserver;
 
@@ -428,14 +419,6 @@ public class StreamingEngineClientTest {
         responseObserver.onNext(response);
       }
     }
-
-    private void close() {
-      if (responseObserver != null) {
-        // Send an empty response to close out all the streams and channels currently open in
-        // Streaming Engine Client.
-        responseObserver.onNext(CLOSE_ALL_STREAMS);
-      }
-    }
   }
 
   private static class TestGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
@@ -447,7 +430,7 @@ public class StreamingEngineClientTest {
 
     @SuppressWarnings("ReturnValueIgnored")
     private void waitForBudgetDistribution() throws InterruptedException {
-      getWorkBudgetDistributorTriggered.await(5, TimeUnit.SECONDS);
+      getWorkBudgetDistributorTriggered.await();
     }
 
     @Override
