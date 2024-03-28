@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toConcurrentMap;
 import static org.apache.beam.runners.dataflow.DataflowRunner.hasExperiment;
-import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.remoteChannel;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
@@ -98,7 +97,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.appliance.JniWindmillApplianceServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
@@ -110,8 +108,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommi
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.ChannelzServlet;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillServer;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
@@ -136,7 +132,6 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
@@ -401,7 +396,8 @@ public class StreamingDataflowWorker {
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
     StreamingCounters streamingCounters = StreamingCounters.create();
 
-    GrpcWindmillStreamFactory windmillStreamFactory = createWindmillStreamFactory(options, clientId);
+    GrpcWindmillStreamFactory windmillStreamFactory =
+        createWindmillStreamFactory(options, clientId);
     WindmillServerStub windmillServer =
         createWindmillServerStub(
             options,
@@ -531,21 +527,18 @@ public class StreamingDataflowWorker {
         !options.isEnableStreamingEngine() && options.getLocalWindmillHostport() != null
             ? GrpcWindmillServer.LOCALHOST_MAX_BACKOFF
             : Duration.millis(options.getWindmillServiceStreamMaxBackoffMillis());
-    return
-        GrpcWindmillStreamFactory.of(
-                JobHeader.newBuilder()
-                    .setJobId(options.getJobId())
-                    .setProjectId(options.getProject())
-                    .setWorkerId(options.getWorkerId())
-                    .setClientId(clientId)
-                    .build())
-            .setWindmillMessagesBetweenIsReadyChecks(
-                options.getWindmillMessagesBetweenIsReadyChecks())
-            .setMaxBackOffSupplier(() -> maxBackoff)
-            .setLogEveryNStreamFailures(
-                options.getWindmillServiceStreamingLogEveryNStreamFailures())
-            .setStreamingRpcBatchLimit(options.getWindmillServiceStreamingRpcBatchLimit())
-            .build();
+    return GrpcWindmillStreamFactory.of(
+            JobHeader.newBuilder()
+                .setJobId(options.getJobId())
+                .setProjectId(options.getProject())
+                .setWorkerId(options.getWorkerId())
+                .setClientId(clientId)
+                .build())
+        .setWindmillMessagesBetweenIsReadyChecks(options.getWindmillMessagesBetweenIsReadyChecks())
+        .setMaxBackOffSupplier(() -> maxBackoff)
+        .setLogEveryNStreamFailures(options.getWindmillServiceStreamingLogEveryNStreamFailures())
+        .setStreamingRpcBatchLimit(options.getWindmillServiceStreamingRpcBatchLimit())
+        .build();
   }
 
   @VisibleForTesting
