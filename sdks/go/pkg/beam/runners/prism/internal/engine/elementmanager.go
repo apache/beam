@@ -27,6 +27,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -167,6 +168,7 @@ type ElementManager struct {
 	livePending     atomic.Int64   // An accessible live pending count. DEBUG USE ONLY
 	pendingElements sync.WaitGroup // pendingElements counts all unprocessed elements in a job. Jobs with no pending elements terminate successfully.
 
+	processTimeEvents *ptQueue           // Manages sequence of stage updates when interfacing with processing time.
 	testStreamHandler *testStreamHandler // Optional test stream handler when a test stream is in the pipeline.
 }
 
@@ -534,10 +536,10 @@ func (em *ElementManager) StateForBundle(rb RunBundle) TentativeData {
 
 // reElementResiduals extracts the windowed value header from residual bytes, and explodes them
 // back out to their windows.
-func reElementResiduals(residuals [][]byte, inputInfo PColInfo, rb RunBundle) []element {
+func reElementResiduals(residuals []Residual, inputInfo PColInfo, rb RunBundle) []element {
 	var unprocessedElements []element
 	for _, residual := range residuals {
-		buf := bytes.NewBuffer(residual)
+		buf := bytes.NewBuffer(residual.Element)
 		ws, et, pn, err := exec.DecodeWindowedValueHeader(inputInfo.WDec, buf)
 		if err != nil {
 			if err == io.EOF {
@@ -574,6 +576,20 @@ func reElementResiduals(residuals [][]byte, inputInfo PColInfo, rb RunBundle) []
 	return unprocessedElements
 }
 
+// Residual represents the unprocessed portion of a single element.
+type Residual struct {
+	Element []byte
+	Delay   time.Duration // The relative time delay.
+	Bounded bool          // Whether this element is finite or not.
+}
+
+// Residuals is used to specify process continuations within a bundle.
+type Residuals struct {
+	Data                 []Residual
+	TransformID, InputID string                // We only allow one SDF at the root of a bundledescriptor so there should only be one each.
+	MinOutputWatermarks  map[string]mtime.Time // Output watermarks (technically per Residual, but aggregated here until it makes a difference.)
+}
+
 // PersistBundle uses the tentative bundle output to update the watermarks for the stage.
 // Each stage has two monotonically increasing watermarks, the input watermark, and the output
 // watermark.
@@ -583,7 +599,7 @@ func reElementResiduals(residuals [][]byte, inputInfo PColInfo, rb RunBundle) []
 //
 // PersistBundle takes in the stage ID, ID of the bundle associated with the pending
 // input elements, and the committed output elements.
-func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PColInfo, d TentativeData, inputInfo PColInfo, residuals [][]byte, estimatedOWM map[string]mtime.Time) {
+func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PColInfo, d TentativeData, inputInfo PColInfo, residuals Residuals) {
 	for output, data := range d.Raw {
 		info := col2Coders[output]
 		var newPending []element
@@ -678,7 +694,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	}
 
 	// Return unprocessed to this stage's pending
-	unprocessedElements := reElementResiduals(residuals, inputInfo, rb)
+	unprocessedElements := reElementResiduals(residuals.Data, inputInfo, rb)
 	// Add unprocessed back to the pending stack.
 	if len(unprocessedElements) > 0 {
 		count := stage.AddPending(unprocessedElements)
@@ -714,9 +730,9 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 
 	// If there are estimated output watermarks, set the estimated
 	// output watermark for the stage.
-	if len(estimatedOWM) > 0 {
+	if len(residuals.MinOutputWatermarks) > 0 {
 		estimate := mtime.MaxTimestamp
-		for _, t := range estimatedOWM {
+		for _, t := range residuals.MinOutputWatermarks {
 			estimate = mtime.Min(estimate, t)
 		}
 		stage.estimatedOutput = estimate
@@ -758,11 +774,11 @@ func (em *ElementManager) FailBundle(rb RunBundle) {
 
 // ReturnResiduals is called after a successful split, so the remaining work
 // can be re-assigned to a new bundle.
-func (em *ElementManager) ReturnResiduals(rb RunBundle, firstRsIndex int, inputInfo PColInfo, residuals [][]byte) {
+func (em *ElementManager) ReturnResiduals(rb RunBundle, firstRsIndex int, inputInfo PColInfo, residuals Residuals) {
 	stage := em.stages[rb.StageID]
 
 	stage.splitBundle(rb, firstRsIndex)
-	unprocessedElements := reElementResiduals(residuals, inputInfo, rb)
+	unprocessedElements := reElementResiduals(residuals.Data, inputInfo, rb)
 	if len(unprocessedElements) > 0 {
 		slog.Debug("ReturnResiduals: unprocessed elements", "bundle", rb, "count", len(unprocessedElements))
 		count := stage.AddPending(unprocessedElements)
@@ -1363,4 +1379,21 @@ func (ss *stageState) bundleReady(em *ElementManager) (mtime.Time, bool) {
 		}
 	}
 	return upstreamW, ready
+}
+
+// ProcessingTimeNow gives the current processing time for the runner.
+func (em *ElementManager) ProcessingTimeNow() time.Time {
+	if em.testStreamHandler != nil {
+		return em.testStreamHandler.Now()
+	}
+	// "Test" mode -> advance to next processing time event if any, to allow execution.
+
+	// "Production" mode, always real time now.
+	return time.Now()
+}
+
+// rebaseProcessingTime turns an absolute processing time to be relative to the provided local clock now.
+// Necessary to reasonably schedule ProcessingTime timers within a TestStream using pipeline.
+func (em *ElementManager) rebaseProcessingTime(localNow, scheduled mtime.Time) mtime.Time {
+	return localNow + (scheduled - mtime.Now())
 }
