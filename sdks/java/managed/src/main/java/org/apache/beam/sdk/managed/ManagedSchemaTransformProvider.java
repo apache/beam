@@ -43,7 +43,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 @AutoService(SchemaTransformProvider.class)
 public class ManagedSchemaTransformProvider
     extends TypedSchemaTransformProvider<ManagedSchemaTransformProvider.ManagedConfig> {
-  public static final String INPUT_TAG = "input";
 
   @Override
   public String identifier() {
