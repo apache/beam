@@ -21,9 +21,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.sdk.values.KV;
@@ -116,22 +116,38 @@ public class LockFreeHistogramTest {
   private static class UpdateHistogramRunnable implements Runnable {
     private final LockFreeHistogram histogram;
     private final int val;
+    private final CountDownLatch startSignal;
+    private final CountDownLatch doneSignal;
     private Optional<LockFreeHistogram.Snapshot> snapshot;
 
     private static final long valuesRecorded = 200L;
 
-    public UpdateHistogramRunnable(LockFreeHistogram histogram, int val) {
+    public UpdateHistogramRunnable(
+        LockFreeHistogram histogram,
+        int val,
+        CountDownLatch startSignal,
+        CountDownLatch doneSignal) {
       this.histogram = histogram;
       this.val = val;
+      this.startSignal = startSignal;
+      this.doneSignal = doneSignal;
       this.snapshot = Optional.empty();
     }
 
     @Override
     public void run() {
+      try {
+        startSignal.await();
+      } catch (InterruptedException e) {
+        return;
+      }
+
       for (long j = 0; j < valuesRecorded; j++) {
         histogram.update(val);
       }
       snapshot = histogram.getSnapshotAndReset();
+
+      doneSignal.countDown();
     }
 
     public long totalCountInSnapshot() {
@@ -149,20 +165,23 @@ public class LockFreeHistogramTest {
   @Test
   public void testUpdateAndSnapshots_MultipleThreads() {
     int numRunnables = 200;
+    CountDownLatch startSignal = new CountDownLatch(1);
+    CountDownLatch doneSignal = new CountDownLatch(numRunnables);
     ExecutorService executor = Executors.newFixedThreadPool(numRunnables);
+
     HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 10);
     LockFreeHistogram histogram =
         new LockFreeHistogram(KV.of(MetricName.named("name", "namespace"), bucketType));
 
     UpdateHistogramRunnable[] runnables = new UpdateHistogramRunnable[numRunnables];
     for (int i = 0; i < numRunnables; i++) {
-      runnables[i] = new UpdateHistogramRunnable(histogram, i);
+      runnables[i] = new UpdateHistogramRunnable(histogram, i, startSignal, doneSignal);
       executor.execute(runnables[i]);
     }
 
+    startSignal.countDown();
     try {
-      executor.shutdown();
-      executor.awaitTermination(30, TimeUnit.SECONDS);
+      doneSignal.await();
     } catch (InterruptedException e) {
       return;
     }
