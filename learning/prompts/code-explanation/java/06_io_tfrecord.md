@@ -62,9 +62,10 @@ public class ReadTFRecordFile {
 ```
 
 Response:
-This code snippet uses the Apache Beam TFRecordIO to read messages from TFRecord files.
+This code snippet uses the Apache Beam TFRecordIO connector to read messages from TFRecord files.
 
-The `ReadTFRecordFileOptions` interface defines the options that can be set when running the pipeline. In this case, it specifies the glob file pattern to read TFRecords from. Use `--filePattern` command line argument to set the file pattern when running the pipeline. The `@Description` annotation provides a description of the option, and `@Validation.Required` ensures that the option is required.
+The `ReadTFRecordFileOptions` interface defines the options that can be set when running the pipeline. In this case, it specifies the glob file pattern to read TFRecords from. Use the `--filePattern` command line argument to set the file pattern when running the pipeline. The `@Description` annotation provides a description of the option, and the `@Validation.Required` annotation ensures that the option is required.
+
 ```java
     public interface ReadTFRecordFileOptions extends PipelineOptions {
 
@@ -76,7 +77,8 @@ The `ReadTFRecordFileOptions` interface defines the options that can be set when
     }
 ```
 
-In the `main` method, the `PipelineOptionsFactory` is used to create a `ReadTFRecordFileOptions` object from the command-line arguments. The `Pipeline.create` method creates a new pipeline with the specified options.
+In the `main` method, the `PipelineOptionsFactory` class creates a `ReadTFRecordFileOptions` object from the command-line arguments. The `Pipeline.create` method creates a new pipeline with the specified options.
+
 ```java
         ReadTFRecordFileOptions options =
                 PipelineOptionsFactory.fromArgs(args)
@@ -85,7 +87,8 @@ In the `main` method, the `PipelineOptionsFactory` is used to create a `ReadTFRe
         Pipeline p = Pipeline.create(options);
 ```
 
-The `TFRecordIO.read` method is used to create a `TFRecordIO` object. The `from` method specifies the glob file pattern to read TFRecords from. The `withCompression` method specifies the compression type to use when reading the TFRecords. In this case, the compression type is set to `UNCOMPRESSED`. This means that the TFRecords are not compressed. This is the default compression type. The `apply` method is used to apply the transformation to the pipeline.
+The `TFRecordIO.read` method configures the TFRecord input operations. It specifies the file pattern for TFRecord files using the `from` method and defines the compression type as `UNCOMPRESSED` using the `withCompression` method. `UNCOMPRESSED` is the default compression type that ensures the TFRecords are read without compression. The `apply` method then applies the transformation to the pipeline.
+
 ```java
         p.apply(
                 "Read from TFRecord file",
@@ -105,7 +108,9 @@ The `TFRecordIO.read` method is used to create a `TFRecordIO` object. The `from`
                         }
                     }));
 ```
-Finally, the pipeline is executed using the `run` method.
+
+Finally, the `run` method executes the pipeline.
+
 ```java
         p.run();
 ```

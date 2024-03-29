@@ -61,13 +61,13 @@ What does this code do?
          p.run();
      }
  }
-
 ```
 
 Response:
-This code snippet uses the Apache Beam KafkaIO to read messages from a Kafka topic.
+This code snippet uses the Apache Beam KafkaIO connector to read messages from a Kafka topic.
 
-The `ReadKafkaTopicOptions` interface is used to specify the Kafka bootstrap server and topic name. The `@Description` annotation provides a description of the option. Use `--bootstrapServer` and `--topicName` command line arguments to set the bootstrap server and topic name when running the pipeline.
+The `ReadKafkaTopicOptions` interface specifies the Kafka bootstrap server and topic name. The `@Description` annotation provides a description of each option. When running the pipeline, use the command-line arguments `--bootstrapServer` and `--topicName` to set these parameters.
+
 ```java
      public interface ReadKafkaTopicOptions extends DataflowPipelineOptions {
          @Description("Kafka Bootstrap Server")
@@ -81,13 +81,16 @@ The `ReadKafkaTopicOptions` interface is used to specify the Kafka bootstrap ser
          void setTopicName(String value);
      }
 ```
-In the `main` method, the `PipelineOptionsFactory` is used to create a `ReadKafkaTopicOptions` object from the command-line arguments. The `Pipeline.create` method creates a new pipeline with the specified options.
+In the `main` method, the `PipelineOptionsFactory` class creates a `ReadKafkaTopicOptions` object from the command-line arguments. The `Pipeline.create` method creates a new pipeline with the specified options.
+
 ```java
         ReadKafkaTopicOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(ReadKafkaTopicOptions.class);
 
          Pipeline p = Pipeline.create(options);
 ```
-The pipeline is then used to read messages from the Kafka topic. The `KafkaIO.read()` method is used to configure the Kafka source with the bootstrap server, topic name, key and value deserializers. The `ParDo` transform is applied to log the message key and value.
+
+The pipeline reads messages from the specified Kafka topic using `KafkaIO.read()`. This method configures the Kafka source by providing the bootstrap server, topic name, key deserializer, and value deserializer. Then, the pipeline applies a `ParDo` transform to log the Kafka message key and value.
+
 ```java
                  .apply(KafkaIO.<Integer, String>read()
                          .withBootstrapServers(options.getBootstrapServer())
@@ -107,7 +110,9 @@ The pipeline is then used to read messages from the Kafka topic. The `KafkaIO.re
                          })
                  );
 ```
-Finally, the pipeline is executed using the `run` method.
+
+Finally, the `run` method executes the pipeline.
+
 ```java
          p.run();
 ```

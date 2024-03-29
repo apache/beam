@@ -2,7 +2,8 @@ Prompt:
 Write a sample Java code snippet that writes data to a TFRecord file using Apache Beam.
 
 Response:
-Your Apache Beam pipeline can write data to TFRecord file using the Apache Beam TFRecordIO connector.
+Your Apache Beam pipeline can write data to a TFRecord file using the Apache Beam TFRecordIO connector.
+
 Here is an example of how to use the TFRecordIO connector to accomplish this:
 
 ```java

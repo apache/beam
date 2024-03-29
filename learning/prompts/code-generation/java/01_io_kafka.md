@@ -2,10 +2,11 @@ Prompt:
 Write a sample Java code snippet that writes data to a Apache Kafka topic using Apache Beam.
 
 Response:
-Your Apache Beam pipeline can write data to Google Pub/Sub topic using the Apache Beam PubSubIO connector.
-Here is an example of how to use the KafkaIO connector to accomplish this:
-```java
+Your Apache Beam pipeline can write data to a Kafka topic using the Apache Beam PubSubIO connector.
 
+Here is an example of how to use the KafkaIO connector to accomplish this:
+
+```java
 package kafka;
 
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -73,6 +74,6 @@ public class WriteKafkaTopic {
         p.run();
     }
 }
-
 ```
+
 This code snippet utilizes the pipeline options pattern to parse command-line arguments.

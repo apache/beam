@@ -1,9 +1,11 @@
 Prompt:
-Write a sample Java code snippet that writes data to a JDBC sink  using Apache Beam.
+Write a sample Java code snippet that writes data to a JDBC sink using Apache Beam.
 
 Response:
-Your Apache Beam pipeline can write data to JDBC sink using the Apache Beam JdbcIO connector.
+Your Apache Beam pipeline can write data to an Oracle Java Database Connectivity (JDBC) enabled database using the Apache Beam JdbcIO connector.
+
 Here is an example of how to use the JdbcIO connector to accomplish this:
+
 ```java
 package jdbc;
 
@@ -20,7 +22,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 
-// Pipeline to write data to a JDBC sink using Apache Beam JdbcIO connector
+// Pipeline to write data to a JDBC sink using the Apache Beam JdbcIO connector
 public class WriteJdbcSink {
 
     // Class representing the data to be written to the JDBC sink
@@ -65,7 +67,7 @@ public class WriteJdbcSink {
 
         void setJdbcSinkUrl(String jdbcSinkUrl);
 
-        @Description("")
+        @Description("JDBC driver class name")
         @Default.String("org.postgresql.Driver")
         String getDriverClassName();
 
@@ -125,6 +127,4 @@ public class WriteJdbcSink {
         p.run();
     }
 }
-
-``
 This code snippet utilizes the pipeline options pattern to parse command-line arguments.

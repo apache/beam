@@ -70,7 +70,7 @@ public class ReadFormJdbcPartition {
 
     void setJdbcSourceUrl(String jdbcUrl);
 
-    @Description("")
+    @Description("JDBC driver class name")
     @Default.String("org.postgresql.Driver")
     String getDriverClassName();
 
@@ -124,12 +124,13 @@ public class ReadFormJdbcPartition {
     p.run();
   }
 }
-
 ```
-Response:
-This code snippet uses the Apache Beam JdbcIO to read from Jdbc source.
 
-The `SampleRow` class is used to represent the rows read from the JDBC source. It has three fields: `id`, `month`, and `amount`. The `ID_COLUMN`, `MONTH_COLUMN`, and `AMOUNT_COLUMN` constants represent the column names in the database table. The `toString` method is overridden to provide a string representation of the `SampleRow` object.
+Response:
+This code reads data from an Oracle Java Database Connectivity (JDBC) enabled database using the Apache Beam JdbcIO connector.
+
+The `SampleRow` class models the rows fetched from the JDBC source. It includes the fields `id`, `month`, and `amount` that correspond to the constants representing column names in the database table. Additionally, it overrides the `toString` method to provide a string representation of the `SampleRow` object.
+
 ```java
 public static class SampleRow implements Serializable {
     public static final String ID_COLUMN = "id";
@@ -153,10 +154,10 @@ public static class SampleRow implements Serializable {
       return "SampleRow{" + "id=" + id + ", month='" + month + "', amount='" + amount + '\'' + '}';
     }
   }
-
 ```
 
-The `CreateExampleRow` class implements the `JdbcIO.RowMapper` interface to map rows from the JDBC source to `ExampleRow` objects. The `mapRow` method reads the columns from the `ResultSet` and creates an `ExampleRow` object.
+The `CreateExampleRow` class implements the `JdbcIO.RowMapper` interface to map rows from the JDBC source to `ExampleRow` objects. The `mapRow` method extracts column values from the `ResultSet` interface and creates an `ExampleRow` object.
+
 ```java
   public static class CreateExampleRow implements JdbcIO.RowMapper<ExampleRow> {
     @Override
@@ -169,7 +170,8 @@ The `CreateExampleRow` class implements the `JdbcIO.RowMapper` interface to map 
   }
 ```
 
-The `ReadFromJdbcPartitionOptions` interface is used to specify the table name, JDBC source URL, driver class name, username, and password. The `@Description` annotation provides a description of the option. Use `--tableName`, `--jdbcSourceUrl`, `--driverClassName`, `--sourceUsername`, and `--sourcePassword` command line arguments to set these options when running the pipeline.
+The `ReadFromJdbcPartitionOptions` interface specifies the table name, JDBC source URL, driver class name, username, and password. The `@Description` annotation provides a description of the option. Use the command-line arguments `--tableName`, `--jdbcSourceUrl`, `--driverClassName`, `--sourceUsername`, and `--sourcePassword` to set these options when executing the pipeline.
+
 ```java
 public interface ReadFromJdbcPartitionOptions extends PipelineOptions {
     @Description("Table name to read from")
@@ -184,7 +186,7 @@ public interface ReadFromJdbcPartitionOptions extends PipelineOptions {
 
     void setJdbcSourceUrl(String jdbcUrl);
 
-    @Description("")
+    @Description("JDBC driver class name")
     @Default.String("org.postgresql.Driver")
     String getDriverClassName();
 
@@ -202,10 +204,9 @@ public interface ReadFromJdbcPartitionOptions extends PipelineOptions {
 
     void setSourcePassword(String password);
   }
-
 ```
 
-In the `main` method, the `PipelineOptionsFactory` is used to create a `ReadFromJdbcPartitionOptions` object from the command-line arguments. The `Pipeline.create` method creates a new pipeline with the specified options. The `DataSourceConfiguration` is created using the options for the JDBC source.
+In the `main method`, the `PipelineOptionsFactory` class creates a `ReadFromJdbcPartitionOptions` object from the command-line arguments. The `Pipeline.create` method creates a new pipeline with the specified options. The `DataSourceConfiguration` class represents a configuration object that encapsulates the necessary information for establishing the connection to the JDBC source.
 
 ```java
  ReadFromJdbcPartitionOptions options =
@@ -219,7 +220,7 @@ In the `main` method, the `PipelineOptionsFactory` is used to create a `ReadFrom
     Pipeline p = Pipeline.create(options);
 ```
 
-The `JdbcIO.readWithPartitions` method is used to read data from the JDBC source in parallel. The `withNumPartitions` method specifies the number of partitions to use. The `withPartitionColumn` method specifies the column to use for partitioning the data. The `withLowerBound` and `withUpperBound` methods specify the lower and upper bounds of the data to read.
+To read data from the JDBC source in parallel, the code snippet uses the `JdbcIO.readWithPartitions` method. The `.withNumPartitions()` method determines how many partitions the data will be split into for parallel processing. The `withPartitionColumn` method specifies the column to use for partitioning the data. The `withLowerBound` and `withUpperBound` methods specify the lower and upper bounds of the data to read.
 
 ```java
     p.apply(
@@ -244,7 +245,8 @@ The `JdbcIO.readWithPartitions` method is used to read data from the JDBC source
                 }));
 ```
 
-Finally, the pipeline is executed using the `run` method.
+Finally, the `run` method executes the pipeline.
+
 ```java
     p.run();
 ```
