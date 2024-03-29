@@ -24,7 +24,7 @@
 #   description: Demonstration of ApproximateUnique transform usage.
 #   multifile: false
 #   default_example: false
-#   context_line: 43
+#   context_line: 37
 #   categories:
 #   complexity: BASIC
 #   tags:
@@ -35,7 +35,6 @@
 def approximateunique(test=None):
   # [START approximateunique]
   import random
-
   import apache_beam as beam
 
   with beam.Pipeline() as pipeline:
