@@ -22,6 +22,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor.Guard;
 
@@ -185,10 +186,17 @@ public class BoundedQueueExecutor {
     try {
       executor.execute(
           () -> {
+            String threadName = Thread.currentThread().getName();
             try {
+              if (work instanceof Work) {
+                String workToken =
+                    String.format("%016x", ((Work) work).getWorkItem().getWorkToken());
+                Thread.currentThread().setName(threadName + ":" + workToken);
+              }
               work.run();
             } finally {
               decrementCounters(workBytes);
+              Thread.currentThread().setName(threadName);
             }
           });
     } catch (RuntimeException e) {
