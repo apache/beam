@@ -115,6 +115,15 @@ public class SpannerIOST extends IOStressTestBase {
             tableName, configuration.numColumns, (int) configuration.valueSizeBytes);
     // Create table
     resourceManager.executeDdlStatement(createTable);
+
+    if (configuration.exportMetricsToInfluxDB) {
+      configuration.influxHost =
+              TestProperties.getProperty("influxHost", "", TestProperties.Type.PROPERTY);
+      configuration.influxDatabase =
+              TestProperties.getProperty("influxDatabase", "", TestProperties.Type.PROPERTY);
+      configuration.influxMeasurement =
+              TestProperties.getProperty("influxMeasurement", "", TestProperties.Type.PROPERTY);
+    }
   }
 
   @After
@@ -319,7 +328,7 @@ public class SpannerIOST extends IOStressTestBase {
      * InfluxDB and displayed using Grafana. If set to false, metrics will be exported to BigQuery
      * and displayed with Looker Studio.
      */
-    @JsonProperty public boolean exportMetricsToInfluxDB = false;
+    @JsonProperty public boolean exportMetricsToInfluxDB = true;
 
     /** InfluxDB measurement to publish results to. * */
     @JsonProperty public String influxMeasurement = SpannerIOST.class.getName();
