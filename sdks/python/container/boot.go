@@ -38,7 +38,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx/expansionx"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/jsonpb"
@@ -152,7 +152,7 @@ func launchSDKProcess() error {
 
 	options, err := tools.ProtoToJSON(info.GetPipelineOptions())
 	if err != nil {
-		bufLogger.logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
+		*bufLogger.logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
 	// (2) Retrieve and install the staged packages.
@@ -188,7 +188,7 @@ func launchSDKProcess() error {
 	if err != nil {
 		fmtErr := fmt.Errorf("failed to retrieve staged files: %v", err)
 		// Send error message to logging service before returning up the call stack
-		bufLogger.logger.Errorf(ctx, fmtErr.Error())
+		*bufLogger.logger.Errorf(ctx, fmtErr.Error())
 		return fmtErr
 	}
 
@@ -209,7 +209,7 @@ func launchSDKProcess() error {
 	if setupErr := installSetupPackages(ctx, bufLogger, fileNames, dir, requirementsFiles); setupErr != nil {
 		fmtErr := fmt.Errorf("failed to install required packages: %v", setupErr)
 		// Send error message to logging service before returning up the call stack
-		bufLogger.logger.Errorf(ctx, fmtErr.Error())
+		*bufLogger.logger.Errorf(ctx, fmtErr.Error())
 		return fmtErr
 	}
 
@@ -254,7 +254,7 @@ func launchSDKProcess() error {
 				// have elapsed, i.e., as soon as all subprocesses have returned from Wait().
 				time.Sleep(5 * time.Second)
 				if err := syscall.Kill(-pid, syscall.SIGKILL); err == nil {
-					bufLogger.logger.Warnf(ctx, "Worker process %v did not respond, killed it.", pid)
+					*bufLogger.logger.Warnf(ctx, "Worker process %v did not respond, killed it.", pid)
 				}
 			}(pid)
 			syscall.Kill(-pid, syscall.SIGTERM)
@@ -291,10 +291,10 @@ func launchSDKProcess() error {
 					errorCount += 1
 					bufLogger.FlushAtError(ctx)
 					if errorCount < 4 {
-						bufLogger.logger.Warnf(ctx, "Python (worker %v) exited %v times: %v\nrestarting SDK process",
+						*bufLogger.logger.Warnf(ctx, "Python (worker %v) exited %v times: %v\nrestarting SDK process",
 							workerId, errorCount, err)
 					} else {
-						bufLogger.logger.Fatalf(ctx, "Python (worker %v) exited %v times: %v\nout of retries, failing container",
+						*bufLogger.logger.Fatalf(ctx, "Python (worker %v) exited %v times: %v\nout of retries, failing container",
 							workerId, errorCount, err)
 					}
 				} else {
@@ -377,7 +377,6 @@ func setupAcceptableWheelSpecs() error {
 
 // installSetupPackages installs Beam SDK and user dependencies.
 func installSetupPackages(ctx context.Context, bufLogger *tools.BufferedLogger, files []string, workDir string, requirementsFiles []string) error {
-	bufLogger := tools.NewBufferedLogger(bufLogger)
 	bufLogger.Printf(ctx, "Installing setup packages ...")
 
 	if err := setupAcceptableWheelSpecs(); err != nil {
@@ -409,10 +408,10 @@ func installSetupPackages(ctx context.Context, bufLogger *tools.BufferedLogger, 
 		return fmt.Errorf("failed to install workflow: %v", err)
 	}
 	if err := logRuntimeDependencies(ctx, bufLogger); err != nil {
-		bufLogger.logger.Warnf(ctx, "couldn't fetch the runtime python dependencies: %v", err)
+		*bufLogger.logger.Warnf(ctx, "couldn't fetch the runtime python dependencies: %v", err)
 	}
 	if err := logSubmissionEnvDependencies(ctx, bufLogger, workDir); err != nil {
-		bufLogger.logger.Warnf(ctx, "couldn't fetch the submission environment dependencies: %v", err)
+		*bufLogger.logger.Warnf(ctx, "couldn't fetch the submission environment dependencies: %v", err)
 	}
 
 	return nil
