@@ -39,6 +39,7 @@ class BatchElementsTest(unittest.TestCase):
   def test_tolist(self):
     def check(result):
       assert_that(result, equal_to([['🍓', '🥕', '🍆', '🍅']]))
+
     tolist.tolist(check)
 
 

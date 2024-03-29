@@ -39,12 +39,7 @@ def tolist(test=None):
   with beam.Pipeline() as pipeline:
     listed_produce = (
         pipeline
-        | 'Create produce' >> beam.Create([
-            '🍓',
-            '🥕',
-            '🍆',
-            '🍅'
-        ])
+        | 'Create produce' >> beam.Create(['🍓', '🥕', '🍆', '🍅'])
         | beam.combiners.ToList()
         | beam.Map(print))
     # [END tolist]
