@@ -8416,6 +8416,19 @@ for instance).&lt;/p>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kr">const&lt;/span> &lt;span class="nx">topDecile&lt;/span>: &lt;span class="kt">PCollection&lt;/span>&lt;span class="p">&amp;lt;&lt;/span>&lt;span class="nt">Student&lt;/span>&lt;span class="p">&amp;gt;&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">deciles&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">9&lt;/span>&lt;span class="p">];&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class='language-yaml snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Partition&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">by&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">str(percentile // 10)&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">language&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">python&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">outputs&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;0&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;1&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;2&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;3&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;4&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;5&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;6&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;7&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;8&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;9&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;10&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p class="language-yaml">Note that in Beam YAML, &lt;code>PCollections&lt;/code> are partitioned via string rather than integer values.&lt;/p>
 &lt;h3 id="requirements-for-writing-user-code-for-beam-transforms">4.3. Requirements for writing user code for Beam transforms&lt;/h3>
 &lt;p>When you build user code for a Beam transform, you should keep in mind the
 distributed nature of execution. For example, there might be many copies of your
@@ -8759,6 +8772,10 @@ use &lt;code>beam.ParDoN&lt;/code> which will return a &lt;code>[]beam.PCollecti
 from &lt;code>apply&lt;/code>). If you want to have multiple outputs, emit an object with distinct
 properties in your &lt;code>ParDo&lt;/code> operation and follow this operation with a &lt;code>Split&lt;/code>
 to break it into multiple &lt;code>PCollection&lt;/code>s.&lt;/p>
+&lt;p class="language-yaml">In Beam YAML, one obtains multiple outputs by emitting all outputs to a single
+&lt;code>PCollection&lt;/code>, possibly with an extra field, and then using &lt;code>Partition&lt;/code> to
+split this single &lt;code>PCollection&lt;/code> into multiple distinct &lt;code>PCollection&lt;/code>
+outputs.&lt;/p>
 &lt;h4 id="output-tags">4.5.1. Tags for multiple outputs&lt;/h4>
 &lt;p class="language-typescript">The &lt;code>Split&lt;/code> PTransform will take a PCollection of elements of the form
 &lt;code>{tagA?: A, tagB?: B, ...}&lt;/code> and return a object
@@ -19448,9 +19465,9 @@ The following example demonstrates how to create a pipeline that use the enrichm
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre tabindex="0">&lt;code>Row(user_id=&amp;#39;2963&amp;#39;, product_id=14235, sale_price=15.0, age=29.0, gender=&amp;#39;1&amp;#39;, state=&amp;#39;97&amp;#39;, country=&amp;#39;2&amp;#39;)
-Row(user_id=&amp;#39;21422&amp;#39;, product_id=11203, sale_price=12.0, age=36.0, state=&amp;#39;184&amp;#39;, gender=&amp;#39;1&amp;#39;, country=&amp;#39;5&amp;#39;)
-Row(user_id=&amp;#39;20592&amp;#39;, product_id=8579, sale_price=9.0, age=30.0, state=&amp;#39;86&amp;#39;, gender=&amp;#39;1&amp;#39;, country=&amp;#39;4&amp;#39;)&lt;/code>&lt;/pre>
+&lt;pre tabindex="0">&lt;code>Row(user_id=&amp;#39;2963&amp;#39;, product_id=14235, sale_price=15.0, age=12.0, state=&amp;#39;1&amp;#39;, gender=&amp;#39;1&amp;#39;, country=&amp;#39;1&amp;#39;)
+Row(user_id=&amp;#39;21422&amp;#39;, product_id=11203, sale_price=12.0, age=12.0, state=&amp;#39;0&amp;#39;, gender=&amp;#39;0&amp;#39;, country=&amp;#39;0&amp;#39;)
+Row(user_id=&amp;#39;20592&amp;#39;, product_id=8579, sale_price=9.0, age=12.0, state=&amp;#39;2&amp;#39;, gender=&amp;#39;1&amp;#39;, country=&amp;#39;2&amp;#39;)&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;/p>
