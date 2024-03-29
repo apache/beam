@@ -16,18 +16,20 @@
 # limitations under the License.
 #
 import math
-# pytype: skip-file
-
-import unittest
-
 import mock
+import unittest
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import assert_that, equal_to
 
 from . import approximateunique
+
+# pytype: skip-file
+
+
+
+
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)

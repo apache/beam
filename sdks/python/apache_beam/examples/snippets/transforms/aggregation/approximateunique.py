@@ -34,8 +34,9 @@
 
 def approximateunique(test=None):
   # [START approximateunique]
-  import apache_beam as beam
   import random
+
+  import apache_beam as beam
 
   with beam.Pipeline() as pipeline:
     data = list(range(1000))
