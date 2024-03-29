@@ -113,7 +113,7 @@ public class Managed {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setSource(IO source);
+      abstract Builder setSink(IO source);
 
       abstract Builder setConfig(String config);
 
@@ -123,7 +123,7 @@ public class Managed {
     }
 
     public Write to(IO source) {
-      return toBuilder().setSource(source).build();
+      return toBuilder().setSink(source).build();
     }
 
     public Write withConfigUrl(String configUrl) {
