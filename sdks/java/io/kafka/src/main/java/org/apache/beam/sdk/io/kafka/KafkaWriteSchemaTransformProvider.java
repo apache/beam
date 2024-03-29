@@ -28,6 +28,7 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
+import org.apache.beam.sdk.managed.ManagedSchemaTransformProvider;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
@@ -35,7 +36,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
-import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
@@ -58,7 +58,7 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@AutoService(SchemaTransformProvider.class)
+@AutoService(ManagedSchemaTransformProvider.class)
 public class KafkaWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration> {
