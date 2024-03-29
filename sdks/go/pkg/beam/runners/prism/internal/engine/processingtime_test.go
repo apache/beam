@@ -23,7 +23,7 @@ import (
 
 func TestProcessingTimeQueue(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
-		q := newPtQueue()
+		q := newStageRefreshQueue()
 		emptyTime, ok := q.Peek()
 		if ok != false {
 			t.Errorf("q.Peek() on empty queue should have returned false")
@@ -122,7 +122,7 @@ func TestProcessingTimeQueue(t *testing.T) {
 
 		for _, test := range tests {
 			t.Run(test.name, func(t *testing.T) {
-				q := newPtQueue()
+				q := newStageRefreshQueue()
 				for _, e := range test.events {
 					q.Schedule(e.t, e.stage)
 				}

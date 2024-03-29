@@ -117,6 +117,7 @@ func TestStatefulStages(t *testing.T) {
 		{pipeline: primitives.SetStateParDoClear},
 		{pipeline: primitives.TimersEventTimeBounded},
 		{pipeline: primitives.TimersEventTimeUnbounded},
+		{pipeline: primitives.TimersEventTimeTestStream},
 	}
 
 	configs := []struct {
@@ -201,6 +202,47 @@ func TestTestStream(t *testing.T) {
 		{"AllElementsPerKey", false, true},
 		{"OneElementPerKey", true, false},
 		{"OneElementPerBundle", true, true},
+	}
+	for _, config := range configs {
+		for _, test := range tests {
+			t.Run(initTestName(test.pipeline)+"_"+config.name, func(t *testing.T) {
+				t.Cleanup(func() {
+					engine.OneElementPerKey = false
+					engine.OneKeyPerBundle = false
+				})
+				engine.OneElementPerKey = config.OneElementPerKey
+				engine.OneKeyPerBundle = config.OneKeyPerBundle
+				p, s := beam.NewPipelineWithRoot()
+				test.pipeline(s)
+				_, err := executeWithT(context.Background(), t, p)
+				if err != nil {
+					t.Fatalf("pipeline failed, but feature should be implemented in Prism: %v", err)
+				}
+			})
+		}
+	}
+}
+
+// TestProcessingTime is the suite for validating behaviors around ProcessingTime.
+// Separate from the TestStream, Timers, and Triggers tests due to the unique nature
+// of the time domain.
+func FOOTestProcessingTime(t *testing.T) {
+	initRunner(t)
+
+	tests := []struct {
+		pipeline func(s beam.Scope)
+	}{
+		{pipeline: primitives.TimersProcessingTimeTestStream_Infinity},
+	}
+
+	configs := []struct {
+		name                              string
+		OneElementPerKey, OneKeyPerBundle bool
+	}{
+		{"Greedy", false, false},
+		// {"AllElementsPerKey", false, true},
+		// {"OneElementPerKey", true, false},
+		// {"OneElementPerBundle", true, true},
 	}
 	for _, config := range configs {
 		for _, test := range tests {

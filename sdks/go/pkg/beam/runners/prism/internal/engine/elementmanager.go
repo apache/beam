@@ -169,7 +169,7 @@ type ElementManager struct {
 	livePending     atomic.Int64   // An accessible live pending count. DEBUG USE ONLY
 	pendingElements sync.WaitGroup // pendingElements counts all unprocessed elements in a job. Jobs with no pending elements terminate successfully.
 
-	processTimeEvents *ptQueue           // Manages sequence of stage updates when interfacing with processing time.
+	processTimeEvents *stageRefreshQueue // Manages sequence of stage updates when interfacing with processing time.
 	testStreamHandler *testStreamHandler // Optional test stream handler when a test stream is in the pipeline.
 }
 
@@ -193,6 +193,7 @@ func NewElementManager(config Config) *ElementManager {
 		watermarkRefreshes: set[string]{},
 		inprogressBundles:  set[string]{},
 		refreshCond:        sync.Cond{L: &sync.Mutex{}},
+		processTimeEvents:  newStageRefreshQueue(),
 	}
 }
 
@@ -226,6 +227,12 @@ func (em *ElementManager) StageAggregates(ID string) {
 // processed by key.
 func (em *ElementManager) StageStateful(ID string) {
 	em.stages[ID].stateful = true
+}
+
+// StageProcessingTimeTimers indicates which timers are processingTime domain timers.
+func (em *ElementManager) StageProcessingTimeTimers(ID string, ptTimers map[string]bool) {
+	em.stages[ID].processingTimeTimers = ptTimers
+	fmt.Println("XXXX stage", ID, "with PT timers", ptTimers, "agg", em.stages[ID].aggregate, "stateful", em.stages[ID].stateful)
 }
 
 // AddTestStream provides a builder interface for the execution layer to build the test stream from
@@ -301,11 +308,15 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 		// If we have a test stream, clear out existing refreshes, so the test stream can
 		// insert any elements it needs.
 		if em.testStreamHandler != nil {
+			fmt.Println("XXXXX CLEARING OUT REFRESHSES", em.watermarkRefreshes)
 			em.watermarkRefreshes = singleSet(em.testStreamHandler.ID)
 		}
 
 		for {
 			em.refreshCond.L.Lock()
+			// Check if processing time has advanced before the wait loop.
+			// emNow := em.ProcessingTimeNow()
+			// em.watermarkRefreshes.merge(em.processTimeEvents.AdvanceTo(emNow))
 			// If there are no watermark refreshes available, we wait until there are.
 			for len(em.watermarkRefreshes) == 0 {
 				// Check to see if we must exit
@@ -316,23 +327,30 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 				default:
 				}
 				em.refreshCond.Wait() // until watermarks may have changed.
+
+				// Check if processing time has advanced while we waited, and add refreshes here. (TODO waking on real time here for prod mode)
+				// emNow := em.ProcessingTimeNow()
+				// em.watermarkRefreshes.merge(em.processTimeEvents.AdvanceTo(emNow))
 			}
 
 			// We know there is some work we can do that may advance the watermarks,
 			// refresh them, and see which stages have advanced.
 			advanced := em.refreshWatermarks()
+			fmt.Println("XXXXX refreshedWatermarks", advanced)
 
 			// Check each advanced stage, to see if it's able to execute based on the watermark.
 			for stageID := range advanced {
 				ss := em.stages[stageID]
 				watermark, ready := ss.bundleReady(em)
 				if ready {
+					// TODO Move handling ProcessingTime bundle fireing *HERE* to avoid nonsense against normal eventtime handling.
 					bundleID, ok, reschedule := ss.startBundle(watermark, nextBundID)
 					// Handle the reschedule even when there's no bundle.
 					if reschedule {
 						em.watermarkRefreshes.insert(stageID)
 					}
 					if !ok {
+						fmt.Println("XXXX Bundle Not Fired stage", stageID, "watermark", watermark, ss.pending, "aggregate", ss.aggregate)
 						continue
 					}
 					rb := RunBundle{StageID: stageID, BundleID: bundleID, Watermark: watermark}
@@ -346,6 +364,8 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 					case runStageCh <- rb:
 					}
 					em.refreshCond.L.Lock()
+				} else {
+					fmt.Println("XXXX BundleNotReady stage", stageID, "watermark", watermark, ss.pending, "aggregate", ss.aggregate)
 				}
 			}
 			em.checkForQuiescence(advanced)
@@ -385,6 +405,7 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) {
 	// There are no further incoming watermark changes, see if there are test stream events for this job.
 	nextEvent := em.testStreamHandler.NextEvent()
 	if nextEvent != nil {
+		fmt.Println("XXXX TestStreamEvent!", nextEvent)
 		nextEvent.Execute(em)
 		// Decrement pending for the event being processed.
 		em.addPending(-1)
@@ -705,6 +726,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 
 	// Add unprocessed back to the pending stack.
 	if len(unprocessedElements) > 0 {
+		// TODO actually reschedule based on the residuals delay...
 		count := stage.AddPending(unprocessedElements)
 		em.addPending(count)
 	}
@@ -768,8 +790,10 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 		tag string
 		win typex.Window
 	}
+	emNow := em.ProcessingTimeNow()
 
 	var pendingEventTimers []element
+	var pendingProcessingTimers map[mtime.Time][]element
 	for tentativeKey, timers := range d.timers {
 		keyToTimers := map[timerKey]element{}
 		for _, t := range timers {
@@ -787,13 +811,37 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 			elm.transform = tentativeKey.Transform
 			elm.family = tentativeKey.Family
 
-			pendingEventTimers = append(pendingEventTimers, elm)
+			if stage.processingTimeTimers[elm.family] {
+				// Conditionally rebase processing time? Could be handled directly in rebaseProcessingTime...
+				newTimerFire := em.rebaseProcessingTime(emNow, elm.timestamp)
+				fmt.Println("XXXXXXX Processing Time Timer:", elm.family, "rebased from", elm.timestamp, "to", newTimerFire, "using", emNow, "fireable?", newTimerFire < emNow)
+				elm.timestamp = newTimerFire
+				// Add pending rRocessing timers to the stage's processing time store & schedule event in the manager.
+				em.processTimeEvents.Schedule(newTimerFire, stage.ID)
+
+				if pendingProcessingTimers == nil {
+					pendingProcessingTimers = map[mtime.Time][]element{}
+				}
+				prev := pendingProcessingTimers[newTimerFire]
+				prev = append(prev, elm)
+				pendingProcessingTimers[newTimerFire] = prev
+			} else {
+				pendingEventTimers = append(pendingEventTimers, elm)
+			}
 		}
 	}
 
 	if len(pendingEventTimers) > 0 {
 		count := stage.AddPending(pendingEventTimers)
 		em.addPending(count)
+	}
+	if len(pendingProcessingTimers) > 0 {
+		count := stage.AddProcessingTimePending(pendingProcessingTimers)
+		fmt.Println("XXXXXXX Processing Time Timers:", stage.ID, "num pending:", count, "processingTimeFamilies", stage.processingTimeTimers, pendingProcessingTimers)
+		em.addPending(count)
+		for t := range pendingProcessingTimers {
+			em.processTimeEvents.Schedule(t, stage.ID)
+		}
 	}
 }
 
@@ -845,6 +893,9 @@ func (em *ElementManager) refreshWatermarks() set[string] {
 	// Need to have at least one refresh signal.
 	nextUpdates := set[string]{}
 	refreshed := set[string]{}
+	// Use a single consolidated processing time during a given refresh for consistency.
+	emNow := em.ProcessingTimeNow()
+
 	var i int
 	for stageID := range em.watermarkRefreshes {
 		// clear out old one.
@@ -854,6 +905,8 @@ func (em *ElementManager) refreshWatermarks() set[string] {
 
 		refreshes := ss.updateWatermarks(em)
 		nextUpdates.merge(refreshes)
+		ss.AdvanceProcessingTimeTo(emNow)
+
 		// cap refreshes incrementally.
 		if i < 10 {
 			i++
@@ -898,9 +951,10 @@ type stageState struct {
 	sides     []LinkID // PCollection IDs of side inputs that can block execution.
 
 	// Special handling bits
-	stateful  bool     // whether this stage uses state or timers, and needs keyed processing.
-	aggregate bool     // whether this stage needs to block for aggregation.
-	strat     winStrat // Windowing Strategy for aggregation fireings.
+	stateful             bool            // whether this stage uses state or timers, and needs keyed processing.
+	aggregate            bool            // whether this stage needs to block for aggregation.
+	strat                winStrat        // Windowing Strategy for aggregation fireings.
+	processingTimeTimers map[string]bool // Indicates which timer families use the processing time domain.
 
 	mu                 sync.Mutex
 	upstreamWatermarks sync.Map   // watermark set from inputPCollection's parent.
@@ -924,6 +978,8 @@ type stageState struct {
 	// This avoids scanning the heap to remove or access a hold for each element.
 	watermarkHolds          *holdTracker
 	inprogressHoldsByBundle map[string]map[mtime.Time]int // bundle to associated holds.
+
+	processTimeEvents *processingTimeElementQueue
 }
 
 // timerKey uniquely identifies a given timer within the space of a user key.
@@ -956,6 +1012,8 @@ func makeStageState(ID string, inputIDs, outputIDs []string, sides []LinkID) *st
 		input:           mtime.MinTimestamp,
 		output:          mtime.MinTimestamp,
 		estimatedOutput: mtime.MinTimestamp,
+
+		processTimeEvents: newPtQueue(),
 	}
 
 	// Initialize the upstream watermarks to minTime.
@@ -992,6 +1050,13 @@ func (ss *stageState) AddPending(newPending []element) int {
 			dnt.elements.Push(e)
 
 			if e.IsTimer() {
+				if ss.processingTimeTimers[e.family] {
+					// override the firing timestamp with the current output watermark
+					// TODO sort out bypassing event time timer behavior for processing time timers.
+					e.timestamp = ss.output
+					// TODO adjust the count
+					fmt.Println("XXXXXX Pending Adjusted Processing Time", e)
+				}
 				if lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]; ok {
 					// existing timer!
 					// don't increase the count this time, as "this" timer is already pending.
@@ -1032,6 +1097,31 @@ func (ss *stageState) AddPendingSide(newPending []element, tID, inputID string) 
 	}
 }
 
+// AddProcessingTimePending is to add elements and timers that rely on processing time to trigger.
+func (ss *stageState) AddProcessingTimePending(newPending map[mtime.Time][]element) int {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	var count int
+
+	// TODO sort out processing time watermark holds here.
+	// TODO sort out per key processing time uniqueness here (only "one" can be set for a given key+fam+window, just like event times.)
+	//   -  Only the last set one can work.
+	for t, event := range newPending {
+		count += len(event)
+		ss.processTimeEvents.Schedule(t, event)
+	}
+	return count
+}
+
+func (ss *stageState) AdvanceProcessingTimeTo(now mtime.Time) {
+	ss.mu.Lock()
+	events := ss.processTimeEvents.AdvanceTo(now)
+	ss.mu.Unlock()
+	for _, es := range events {
+		ss.AddPending(es)
+	}
+}
+
 // GetSideData returns side input data for the provided transform+input pair, valid to the watermark.
 func (ss *stageState) GetSideData(tID, inputID string, watermark mtime.Time) map[typex.Window][][]byte {
 	ss.mu.Lock()
@@ -1059,6 +1149,7 @@ func (em *ElementManager) GetSideData(sID, tID, inputID string, watermark mtime.
 func (ss *stageState) updateUpstreamWatermark(pcol string, upstream mtime.Time) {
 	// A stage will only have a single upstream watermark, so
 	// we simply set this.
+	fmt.Println("XXXXXXX updateUpstreamWatermark for", ss.ID, "in", pcol, upstream)
 	ss.upstreamWatermarks.Store(pcol, upstream)
 }
 
@@ -1112,6 +1203,9 @@ func (ss *stageState) startBundle(watermark mtime.Time, genBundID func() string)
 	var toProcess, notYet []element
 	for _, e := range ss.pending {
 		if !ss.aggregate || ss.aggregate && ss.strat.EarliestCompletion(e.window) < watermark {
+			if ss.aggregate {
+				fmt.Println("XXXXX SSSSSSSS aggregation stage", ss.ID, "earliest window", ss.strat.EarliestCompletion(e.window), "watermark", watermark)
+			}
 			toProcess = append(toProcess, e)
 		} else {
 			notYet = append(notYet, e)
@@ -1303,6 +1397,7 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 	}
 	refreshes := set[string]{}
 	// If bigger, advance the output watermark
+	fmt.Println("XXXX updating watermarks for", ss.ID, "update downstream?", newOut > ss.output, "input", ss.input, "output", ss.output, "newOut", newOut, "hold", minWatermarkHold)
 	if newOut > ss.output {
 		ss.output = newOut
 		for _, outputCol := range ss.outputIDs {
@@ -1350,7 +1445,7 @@ func (ss *stageState) bundleReady(em *ElementManager) (mtime.Time, bool) {
 	inputW := ss.input
 	_, upstreamW := ss.UpstreamWatermark()
 	if inputW == upstreamW {
-		slog.Debug("bundleReady: insufficient upstream watermark",
+		slog.Info("bundleReady: insufficient upstream watermark",
 			slog.String("stage", ss.ID),
 			slog.Group("watermark",
 				slog.Any("upstream", upstreamW),
@@ -1372,18 +1467,28 @@ func (ss *stageState) bundleReady(em *ElementManager) (mtime.Time, bool) {
 			ready = false
 		}
 	}
+	if ss.aggregate {
+		fmt.Println("XXXXXX SSSSSS aggregate stage", ss.ID, "bundleReady", "upstream", upstreamW, "input", inputW, ss.pending)
+	}
 	return upstreamW, ready
 }
 
 // ProcessingTimeNow gives the current processing time for the runner.
-func (em *ElementManager) ProcessingTimeNow() time.Time {
+func (em *ElementManager) ProcessingTimeNow() (ret mtime.Time) {
+	// defer func() {
+	// 	fmt.Println("XXXX ProcessingTimeNow -> ", ret, em.processTimeEvents.order)
+	// }()
 	if em.testStreamHandler != nil {
 		return em.testStreamHandler.Now()
 	}
 	// "Test" mode -> advance to next processing time event if any, to allow execution.
+	// if test mode...
+	if t, ok := em.processTimeEvents.Peek(); ok {
+		return t
+	}
 
 	// "Production" mode, always real time now.
-	return time.Now()
+	return mtime.Now()
 }
 
 // rebaseProcessingTime turns an absolute processing time to be relative to the provided local clock now.

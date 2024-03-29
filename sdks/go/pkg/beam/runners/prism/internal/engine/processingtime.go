@@ -16,6 +16,7 @@ package engine
 
 import (
 	"container/heap"
+	"fmt"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 )
@@ -65,25 +66,26 @@ func (h *mtimeHeap) Pop() any {
 	return x
 }
 
-// ptQueue manages ProcessingTime events, in particular, which stages need notification
+// stageRefreshQueue manages ProcessingTime events, in particular, which stages need notification
 // at which points in processing time they occur. It doesn't handle the interface between
 // walltime or any synthetic notions of time.
 //
-// ptQueue is not goroutine safe and relies on external concurrency for same.
-type ptQueue struct {
+// stageRefreshQueue is not goroutine safe and relies on external synchronization.
+type stageRefreshQueue struct {
 	events map[mtime.Time]set[string]
 	order  mtimeHeap
 }
 
-// newPtQueue creates an initialuzed ptQueue.
-func newPtQueue() *ptQueue {
-	return &ptQueue{
+// newStageRefreshQueue creates an initialized stageRefreshQueue.
+func newStageRefreshQueue() *stageRefreshQueue {
+	return &stageRefreshQueue{
 		events: map[mtime.Time]set[string]{},
 	}
 }
 
 // Schedule a stage event at the given time.
-func (q *ptQueue) Schedule(t mtime.Time, stageID string) {
+func (q *stageRefreshQueue) Schedule(t mtime.Time, stageID string) {
+	fmt.Println("XXXX stageRefreshQueue scheduled! ", t, stageID)
 	if s, ok := q.events[t]; ok {
 		// We already have a trigger at this time, mutate that instead.
 		if s.present(stageID) {
@@ -99,7 +101,7 @@ func (q *ptQueue) Schedule(t mtime.Time, stageID string) {
 
 // Peek returns the minimum time in the queue and whether it is valid.
 // If there are no times left in the queue, the boolean will be false.
-func (q *ptQueue) Peek() (mtime.Time, bool) {
+func (q *stageRefreshQueue) Peek() (mtime.Time, bool) {
 	if len(q.order) == 0 {
 		return mtime.MaxTimestamp, false
 	}
@@ -107,16 +109,61 @@ func (q *ptQueue) Peek() (mtime.Time, bool) {
 }
 
 // AdvanceTo takes in the current now time, and returns the set of ids that need a refresh.
-func (q *ptQueue) AdvanceTo(now mtime.Time) set[string] {
+func (q *stageRefreshQueue) AdvanceTo(now mtime.Time) set[string] {
 	// If there are no elements, then we're done.
 	notify := set[string]{}
 	for {
 		if len(q.order) == 0 || q.order[0] > now {
+			t, ok := q.Peek()
+			fmt.Println("XXXX stageRefreshQueue advanced to ", now, "refreshed", notify, "next time?", ok, t, t-now)
 			return notify
 		}
 		// pop elements off the queue until the next time is later than now.
 		next := heap.Pop(&q.order).(mtime.Time)
 		notify.merge(q.events[next])
+		delete(q.events, next)
+	}
+}
+
+// newPtQueue creates an initialized processingTimeElementQueue.
+func newPtQueue() *processingTimeElementQueue {
+	return &processingTimeElementQueue{
+		events: map[mtime.Time][]element{},
+	}
+}
+
+// processingTimeElementQueue tracks the actual elements associated with a given processing time.
+//
+// processingTimeElementQueue is not goroutine safe and relies on external synchronization.
+type processingTimeElementQueue struct {
+	events map[mtime.Time][]element
+	order  mtimeHeap
+}
+
+// Schedule elements for the given processing time. Takes ownership of the
+// passed in slice of elements.
+func (q *processingTimeElementQueue) Schedule(t mtime.Time, event []element) {
+	if s, ok := q.events[t]; ok {
+		// We already have a trigger at this time, mutate that instead.
+		s = append(s, event...)
+		q.events[t] = s
+		return
+	}
+	q.events[t] = event
+	heap.Push(&q.order, t)
+}
+
+// AdvanceTo takes in the current now time, and returns the set of ids that need a refresh.
+func (q *processingTimeElementQueue) AdvanceTo(now mtime.Time) [][]element {
+	// If there are no elements, then we're done.
+	var ret [][]element
+	for {
+		if len(q.order) == 0 || q.order[0] > now {
+			return ret
+		}
+		// pop elements off the queue until the next time is later than now.
+		next := heap.Pop(&q.order).(mtime.Time)
+		ret = append(ret, q.events[next])
 		delete(q.events, next)
 	}
 }

@@ -310,6 +310,9 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 			if stage.stateful {
 				em.StageStateful(stage.ID)
 			}
+			if len(stage.processingTimeTimers) > 0 {
+				em.StageProcessingTimeTimers(stage.ID, stage.processingTimeTimers)
+			}
 		default:
 			err := fmt.Errorf("unknown environment[%v]", t.GetEnvironmentId())
 			slog.Error("Execute", err)

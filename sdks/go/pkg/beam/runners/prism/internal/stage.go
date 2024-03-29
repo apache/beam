@@ -55,15 +55,16 @@ type link struct {
 // account, but all serialization boundaries remain since the pcollections
 // would continue to get serialized.
 type stage struct {
-	ID           string
-	transforms   []string
-	primaryInput string          // PCollection used as the parallel input.
-	outputs      []link          // PCollections that must escape this stage.
-	sideInputs   []engine.LinkID // Non-parallel input PCollections and their consumers
-	internalCols []string        // PCollections that escape. Used for precise coder sending.
-	envID        string
-	stateful     bool
-	hasTimers    []string
+	ID                   string
+	transforms           []string
+	primaryInput         string          // PCollection used as the parallel input.
+	outputs              []link          // PCollections that must escape this stage.
+	sideInputs           []engine.LinkID // Non-parallel input PCollections and their consumers
+	internalCols         []string        // PCollections that escape. Used for precise coder sending.
+	envID                string
+	stateful             bool
+	hasTimers            []string
+	processingTimeTimers map[string]bool
 
 	exe              transformExecuter
 	inputTransformID string
@@ -367,6 +368,12 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 		}
 		for timerID, v := range pardo.GetTimerFamilySpecs() {
 			stg.hasTimers = append(stg.hasTimers, tid)
+			if v.TimeDomain == pipepb.TimeDomain_PROCESSING_TIME {
+				if stg.processingTimeTimers == nil {
+					stg.processingTimeTimers = map[string]bool{}
+				}
+				stg.processingTimeTimers[timerID] = true
+			}
 			rewrite = true
 			newCid, err := lpUnknownCoders(v.GetTimerFamilyCoderId(), coders, comps.GetCoders())
 			if err != nil {

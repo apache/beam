@@ -66,8 +66,8 @@ type tagState struct {
 
 // Now represents the overridden ProcessingTime, which is only advanced when directed by an event.
 // Overrides the elementManager "clock".
-func (ts *testStreamHandler) Now() time.Time {
-	return ts.processingTime
+func (ts *testStreamHandler) Now() mtime.Time {
+	return mtime.FromTime(ts.processingTime)
 }
 
 // TagsToPCollections recieves the map of local output tags to global pcollection ids.
@@ -217,6 +217,8 @@ func (ev tsWatermarkEvent) Execute(em *ElementManager) {
 	em.testStreamHandler.tagState[ev.Tag] = t
 
 	// Update the upstream watermarks in the consumers.
+
+	fmt.Println("XXXXX updating watermark to", t.watermark, "for stages", em.consumers[t.pcollection])
 	for _, sID := range em.consumers[t.pcollection] {
 		ss := em.stages[sID]
 		ss.updateUpstreamWatermark(ss.inputID, t.watermark)
@@ -234,6 +236,10 @@ type tsProcessingTimeEvent struct {
 // Execute this ProcessingTime event by advancing the synthetic processing time.
 func (ev tsProcessingTimeEvent) Execute(em *ElementManager) {
 	em.testStreamHandler.processingTime = em.testStreamHandler.processingTime.Add(ev.AdvanceBy)
+
+	// // Add the refreshes now so our block prevention logic works.
+	// emNow := em.ProcessingTimeNow()
+	// em.watermarkRefreshes.merge(em.processTimeEvents.AdvanceTo(emNow))
 }
 
 // tsFinalEvent is the "last" event we perform after all preceeding events.
