@@ -630,7 +630,9 @@ def avro_atomic_value_to_beam_atomic_value(avro_type: str, value):
   unsigned because VarInt.java expects the number to be unsigned when
   decoding the number.
   """
-  if avro_type == "int":
+  if value is None:
+    return value
+  elif avro_type == "int":
     return ctypes.c_uint32(value).value
   elif avro_type == "long":
     return ctypes.c_uint64(value).value
@@ -656,7 +658,7 @@ def avro_value_to_beam_value(
   elif type_info == "map_type":
     if beam_type.map_type.key_type.atomic_type != schema_pb2.STRING:
       raise TypeError(
-          f'Only strings allowd as map keys when converting from AVRO, '
+          f'Only strings allowed as map keys when converting from AVRO, '
           f'found {beam_type}')
     value_converter = avro_value_to_beam_value(beam_type.map_type.value_type)
     return lambda value: {k: value_converter(v) for (k, v) in value.items()}
@@ -686,9 +688,9 @@ def beam_type_to_avro_type(beam_type: schema_pb2.FieldType) -> _AvroSchemaType:
   if type_info == "atomic_type":
     avro_primitive = BEAM_PRIMITIVES_TO_AVRO_PRIMITIVES[beam_type.atomic_type]
     if beam_type.nullable:
-      return ['null', avro_primitive]
+      return [avro_primitive, 'null']
     else:
-      return {'type': avro_primitive}
+      return avro_primitive
   elif type_info == "array_type":
     return {
         'type': 'array',
@@ -702,7 +704,7 @@ def beam_type_to_avro_type(beam_type: schema_pb2.FieldType) -> _AvroSchemaType:
   elif type_info == "map_type":
     if beam_type.map_type.key_type.atomic_type != schema_pb2.STRING:
       raise TypeError(
-          f'Only strings allowd as map keys when converting to AVRO, '
+          f'Only strings allowed as map keys when converting to AVRO, '
           f'found {beam_type}')
     return {
         'type': 'map',
@@ -717,7 +719,7 @@ def beam_type_to_avro_type(beam_type: schema_pb2.FieldType) -> _AvroSchemaType:
         } for field in beam_type.row_type.schema.fields],
     }
   else:
-    raise ValueError(f"Unconvertale type: {beam_type}")
+    raise ValueError(f"Unconvertable type: {beam_type}")
 
 
 def beam_row_to_avro_dict(
@@ -739,7 +741,9 @@ def beam_atomic_value_to_avro_atomic_value(avro_type: str, value):
   avro_atomic_value_to_beam_atomic_value we need to convert
   back to a signed number.
   """
-  if avro_type == "int":
+  if value is None:
+    return value
+  elif avro_type == "int":
     return ctypes.c_int32(value).value
   elif avro_type == "long":
     return ctypes.c_int64(value).value
