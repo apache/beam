@@ -331,7 +331,8 @@ class DataflowRunner(PipelineRunner):
             not pipeline._options.view_as(
                 TypeOptions).allow_non_deterministic_key_coders))
 
-  def run_pipeline(self, pipeline, options, pipeline_proto=None):
+  def run_pipeline(
+      self, pipeline, options, pipeline_proto=None, display_data=None):
     """Remotely executes entire pipeline or parts reachable from node."""
     if _is_runner_v2_disabled(options):
       raise ValueError(
@@ -466,7 +467,8 @@ class DataflowRunner(PipelineRunner):
       debug_options.add_experiment(
           'min_cpu_platform=' + worker_options.min_cpu_platform)
 
-    self.job = apiclient.Job(options, self.proto_pipeline)
+    self.job = apiclient.Job(
+        options, self.proto_pipeline, display_data=display_data)
 
     test_options = options.view_as(TestOptions)
     # If it is a dry run, return without submitting the job.

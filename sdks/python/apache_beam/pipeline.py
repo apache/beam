@@ -526,7 +526,7 @@ class Pipeline(HasDisplayData):
     for override in replacements:
       self._check_replacement(override)
 
-  def run(self, test_runner_api='AUTO'):
+  def run(self, test_runner_api='AUTO', display_data=None):
     # type: (Union[bool, str]) -> PipelineResult
 
     """Runs the pipeline. Returns whatever our runner returns after running."""
@@ -560,7 +560,8 @@ class Pipeline(HasDisplayData):
         return Pipeline.from_runner_api(
             self.to_runner_api(use_fake_coders=True),
             self.runner,
-            self._options).run(False)
+            self._options).run(
+                False, display_data=self._display_data)
 
       if (self._options.view_as(TypeOptions).runtime_type_check and
           self._options.view_as(TypeOptions).performance_runtime_type_check):
@@ -584,7 +585,8 @@ class Pipeline(HasDisplayData):
           pickler.dump_session(os.path.join(tmpdir, 'main_session.pickle'))
         finally:
           shutil.rmtree(tmpdir)
-      return self.runner.run_pipeline(self, self._options)
+      return self.runner.run_pipeline(
+          self, self._options, display_data=display_data)
     finally:
       if not is_in_ipython():
         shutil.rmtree(self.local_tempdir, ignore_errors=True)

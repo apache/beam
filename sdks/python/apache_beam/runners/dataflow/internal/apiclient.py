@@ -69,6 +69,7 @@ from apache_beam.runners.portability.stager import Stager
 from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.environments import is_apache_beam_container
 from apache_beam.utils import retry
 from apache_beam.utils import proto_utils
@@ -92,7 +93,8 @@ class Environment(object):
       options,
       environment_version,
       proto_pipeline_staged_url,
-      proto_pipeline=None):
+      proto_pipeline=None,
+      display_data=None):
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     self.worker_options = options.view_as(WorkerOptions)
@@ -283,7 +285,13 @@ class Environment(object):
               key='options', value=to_json_value(options_dict)))
 
       dd = DisplayData.create_from_options(options)
-      items = [item.get_dict() for item in dd.items]
+      items = {
+          k: (v if DisplayDataItem._get_value_type(v) is not None else str(v))
+          for k,
+          v in display_data.items()
+      }
+      dd2 = DisplayData('', items)
+      items = [item.get_dict() for item in (dd.items + dd2.items)]
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='display_data', value=to_json_value(items)))
@@ -381,8 +389,9 @@ class Job(object):
       job_name = Job._build_default_job_name(getpass.getuser())
     return job_name
 
-  def __init__(self, options, proto_pipeline):
+  def __init__(self, options, proto_pipeline, display_data=None):
     self.options = options
+    self.display_data = display_data
     validate_pipeline_graph(proto_pipeline)
     self.proto_pipeline = proto_pipeline
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
@@ -805,6 +814,7 @@ class DataflowApplicationClient(object):
             shared_names.STAGED_PIPELINE_FILENAME),
         packages=resources,
         options=job.options,
+        display_data=job.display_data,
         environment_version=self.environment_version,
         proto_pipeline=job.proto_pipeline).proto
     _LOGGER.debug('JOB: %s', job)

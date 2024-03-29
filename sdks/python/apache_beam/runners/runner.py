@@ -173,7 +173,8 @@ class PipelineRunner(object):
   def run_pipeline(
       self,
       pipeline,  # type: Pipeline
-      options  # type: PipelineOptions
+      options,  # type: PipelineOptions
+      display_data=None
   ):
     # type: (...) -> PipelineResult
 
