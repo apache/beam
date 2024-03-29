@@ -19,7 +19,10 @@ import logging
 import unittest
 
 import apache_beam as beam
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml import yaml_transform
 
 
 class FakeTransform(beam.PTransform):
@@ -27,15 +30,26 @@ class FakeTransform(beam.PTransform):
     self.creator = creator
     self.urn = urn
 
+  def expand(self, pcoll):
+    return pcoll | beam.Map(lambda x: x + ((self.urn, self.creator), ))
+
 
 class FakeExternalProvider(yaml_provider.ExternalProvider):
-  def __init__(self, id, known_transforms, extra_transform_urns):
+  def __init__(
+      self, id, known_transforms, extra_transform_urns, error_on_use=False):
     super().__init__(known_transforms, None)
     self._id = id
     self._schema_transforms = {urn: None for urn in extra_transform_urns}
+    self._error_on_use = error_on_use
 
   def create_transform(self, type, *unused_args, **unused_kwargs):
+    if self._error_on_use:
+      raise RuntimeError(f'Provider {self._id} should not be used.')
     return FakeTransform(self._id, self._urns[type])
+
+  def available(self):
+    # Claim we're available even if we error on use.
+    return True
 
 
 class YamlProvidersTest(unittest.TestCase):
@@ -68,6 +82,37 @@ class YamlProvidersTest(unittest.TestCase):
     t = newR.create_transform('RenamedB', {}, None)
     self.assertEqual('A', t.creator)
     self.assertEqual('b:urn', t.urn)
+
+  def test_extended_providers_reused(self):
+    providerA = FakeExternalProvider("A", {'A': 'a:urn'}, ['b:urn'])
+    providerB = FakeExternalProvider(
+        "B", {
+            'B': 'b:urn', 'C': 'c:urn'
+        }, [], error_on_use=True)
+    providerR = yaml_provider.RenamingProvider(  # keep wrapping
+        {'RenamedB': 'B', 'RenamedC': 'C' },
+        {'RenamedB': {},  'RenamedC': {}},
+        providerB)
+
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | 'Yaml1' >> yaml_transform.YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: Create
+              config:
+                  elements: [0]
+            - type: A
+            - type: B
+            - type: RenamedB
+          ''',
+          providers=[providerA, providerB, providerR])
+      # All of these transforms should be serviced by providerA,
+      # negating the need to invoke providerB.
+      assert_that(
+          result,
+          equal_to([(0, ('a:urn', 'A'), ('b:urn', 'A'), ('b:urn', 'A'))]))
 
 
 if __name__ == '__main__':
