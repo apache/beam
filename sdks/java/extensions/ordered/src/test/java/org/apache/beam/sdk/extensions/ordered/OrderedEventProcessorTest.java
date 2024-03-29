@@ -27,14 +27,19 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.extensions.ordered.UnprocessedEvent.Reason;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -42,6 +47,8 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
+import org.hamcrest.BaseMatcher;
+import org.hamcrest.Description;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -273,6 +280,42 @@ public class OrderedEventProcessorTest {
         expectedStatuses,
         expectedOutput,
         duplicates,
+        EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
+        INITIAL_SEQUENCE_OF_0,
+        LARGE_MAX_RESULTS_PER_OUTPUT,
+        DONT_PRODUCE_STATUS_ON_EVERY_EVENT);
+  }
+
+  @Test
+  public void testHandlingOfCheckedExceptions() throws CannotProvideCoderException {
+    Event[] events = {
+      Event.create(0, "id-1", "a"),
+      Event.create(1, "id-1", "b"),
+      Event.create(2, "id-1", StringBuilderState.BAD_VALUE),
+      Event.create(3, "id-1", "c"),
+    };
+
+    Collection<KV<String, OrderedProcessingStatus>> expectedStatuses = new ArrayList<>();
+    expectedStatuses.add(
+        KV.of("id-1", OrderedProcessingStatus.create(1L, 1, 3L, 3L, events.length, 2, 0, false)));
+
+    Collection<KV<String, String>> expectedOutput = new ArrayList<>();
+    expectedOutput.add(KV.of("id-1", "a"));
+    expectedOutput.add(KV.of("id-1", "ab"));
+
+    Collection<KV<String, KV<Long, UnprocessedEvent<String>>>> failedEvents = new ArrayList<>();
+    failedEvents.add(
+        KV.of(
+            "id-1",
+            KV.of(
+                2L,
+                UnprocessedEvent.create(StringBuilderState.BAD_VALUE, Reason.exception_thrown))));
+
+    testProcessing(
+        events,
+        expectedStatuses,
+        expectedOutput,
+        failedEvents,
         EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
         INITIAL_SEQUENCE_OF_0,
         LARGE_MAX_RESULTS_PER_OUTPUT,
@@ -700,7 +743,7 @@ public class OrderedEventProcessorTest {
    * @param events
    * @param expectedStatuses
    * @param expectedOutput
-   * @param expectedDuplicates
+   * @param expectedUnprocessedEvents
    * @param emissionFrequency
    * @param initialSequence
    * @param maxResultsPerOutput
@@ -712,7 +755,7 @@ public class OrderedEventProcessorTest {
       Event[] events,
       Collection<KV<String, OrderedProcessingStatus>> expectedStatuses,
       Collection<KV<String, String>> expectedOutput,
-      Collection<KV<String, KV<Long, UnprocessedEvent<String>>>> expectedDuplicates,
+      Collection<KV<String, KV<Long, UnprocessedEvent<String>>>> expectedUnprocessedEvents,
       int emissionFrequency,
       long initialSequence,
       int maxResultsPerOutput,
@@ -756,9 +799,32 @@ public class OrderedEventProcessorTest {
           .containsInAnyOrder(expectedStatuses);
     }
 
-    PAssert.that("Unprocessed events match", processingResult.unprocessedEvents())
-        .containsInAnyOrder(expectedDuplicates);
+    // This is a temporary workaround until PAssert changes.
+    boolean unprocessedEventsHaveExceptionStackTrace = false;
+    for (KV<String, KV<Long, UnprocessedEvent<String>>> event : expectedUnprocessedEvents) {
+      if (event.getValue().getValue().getReason() == Reason.exception_thrown) {
+        unprocessedEventsHaveExceptionStackTrace = true;
+        break;
+      }
+    }
 
+    if (unprocessedEventsHaveExceptionStackTrace) {
+      PAssert.thatSingleton(
+              "Unprocessed event count",
+              processingResult
+                  .unprocessedEvents()
+                  .apply(
+                      "Window",
+                      Window.<KV<String, KV<Long, UnprocessedEvent<String>>>>into(
+                              new GlobalWindows())
+                          .triggering(Repeatedly.forever(AfterWatermark.pastEndOfWindow()))
+                          .discardingFiredPanes())
+                  .apply("Count", Count.globally()))
+          .isEqualTo((long) expectedUnprocessedEvents.size());
+    } else {
+      PAssert.that("Unprocessed events match", processingResult.unprocessedEvents())
+          .containsInAnyOrder(expectedUnprocessedEvents);
+    }
     pipeline.run();
   }
 
@@ -788,5 +854,53 @@ public class OrderedEventProcessorTest {
     // Needed to force the processing time based timers.
     messageFlow = messageFlow.advanceProcessingTime(Duration.standardMinutes(15));
     return pipeline.apply("Create Streaming Events", messageFlow.advanceWatermarkToInfinity());
+  }
+
+  /**
+   * Unprocessed event's explanation contains stacktraces which makes tests very brittle because it
+   * requires hardcoding the line numbers in the code. We use this matcher to only compare on the
+   * first line of the explanation.
+   */
+  static class UnprocessedEventMatcher
+      extends BaseMatcher<KV<String, KV<Long, UnprocessedEvent<String>>>>
+      implements SerializableMatcher<KV<String, KV<Long, UnprocessedEvent<String>>>> {
+
+    private KV<String, KV<Long, UnprocessedEvent<String>>> element;
+
+    public UnprocessedEventMatcher(KV<String, KV<Long, UnprocessedEvent<String>>> element) {
+      this.element = element;
+    }
+
+    @Override
+    public boolean matches(Object actual) {
+      KV<String, KV<Long, UnprocessedEvent<String>>> toMatch =
+          (KV<String, KV<Long, UnprocessedEvent<String>>>) actual;
+
+      UnprocessedEvent<String> originalEvent = element.getValue().getValue();
+      UnprocessedEvent<String> eventToMatch = toMatch.getValue().getValue();
+
+      return element.getKey().equals(toMatch.getKey())
+          && element.getValue().getKey().equals(toMatch.getValue().getKey())
+          && originalEvent.getEvent().equals(eventToMatch.getEvent())
+          && originalEvent.getReason() == eventToMatch.getReason()
+          && normalizeExplanation(originalEvent.getExplanation())
+              .equals(normalizeExplanation(eventToMatch.getExplanation()));
+    }
+
+    @Override
+    public void describeTo(Description description) {
+      description.appendText("Just some text...");
+    }
+
+    static String normalizeExplanation(String value) {
+      if (value == null) {
+        return "";
+      }
+      String firstLine = value.split("\n", 1)[0];
+      if (firstLine.contains("Exception")) {
+        return firstLine;
+      }
+      return value;
+    }
   }
 }

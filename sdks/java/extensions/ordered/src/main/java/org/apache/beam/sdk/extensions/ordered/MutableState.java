@@ -27,8 +27,10 @@ public interface MutableState<EventT, ResultT> extends Serializable {
    * error.
    *
    * @param event to be processed
+   * @throws Exception if a checked exception is thrown, the event will be output into {@link
+   *     OrderedEventProcessorResult#unprocessedEvents()} with
    */
-  void mutate(EventT event);
+  void mutate(EventT event) throws Exception;
 
   /**
    * This method is called after each state mutation.

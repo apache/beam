@@ -321,7 +321,7 @@ public abstract class OrderedEventProcessor<
         numberOfResultsBeforeBundleStart = processingState.getResultCount();
       }
 
-      processingState.recordReceived();
+      processingState.eventReceived();
 
       StateTypeT state =
           processNewEvent(
@@ -389,10 +389,10 @@ public abstract class OrderedEventProcessor<
                   processingState.getKey(),
                   OrderedProcessingStatus.create(
                       processingState.getLastOutputSequence(),
-                      processingState.getBufferedRecordCount(),
+                      processingState.getBufferedEventCount(),
                       processingState.getEarliestBufferedSequence(),
                       processingState.getLatestBufferedSequence(),
-                      processingState.getRecordsReceived(),
+                      processingState.getEventsReceived(),
                       processingState.getResultCount(),
                       processingState.getDuplicates(),
                       processingState.isLastEventReceived())),
@@ -461,7 +461,18 @@ public abstract class OrderedEventProcessor<
         // Event matches expected sequence
         state = currentStateState.read();
 
-        state.mutate(currentEvent);
+        try {
+          state.mutate(currentEvent);
+        } catch (Exception e) {
+          outputReceiver
+              .get(unprocessedEventsTupleTag)
+              .output(
+                  KV.of(
+                      processingState.getKey(),
+                      KV.of(currentSequence, UnprocessedEvent.create(currentEvent, e))));
+          return null;
+        }
+
         ResultTypeT result = state.produceResult();
         if (result != null) {
           outputReceiver.get(mainOutputTupleTag).output(KV.of(processingState.getKey(), result));
@@ -544,7 +555,20 @@ public abstract class OrderedEventProcessor<
           break;
         }
 
-        state.mutate(bufferedEvent);
+        try {
+          state.mutate(bufferedEvent);
+        } catch (Exception e) {
+          outputReceiver
+              .get(unprocessedEventsTupleTag)
+              .output(
+                  KV.of(
+                      processingState.getKey(),
+                      KV.of(eventSequence, UnprocessedEvent.create(bufferedEvent, e))));
+          // There is a chance that the next event will have the same sequence number and will
+          // process successfully.
+          continue;
+        }
+
         ResultTypeT result = state.produceResult();
         if (result != null) {
           outputReceiver.get(mainOutputTupleTag).output(KV.of(processingState.getKey(), result));

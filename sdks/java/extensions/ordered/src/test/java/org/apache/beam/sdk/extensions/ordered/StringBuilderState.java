@@ -41,6 +41,8 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 @DefaultCoder(StringBuilderStateCoder.class)
 class StringBuilderState implements MutableState<String, String> {
 
+  public static final String BAD_VALUE = "throw exception if you see me";
+
   private int emissionFrequency = 1;
   private long currentlyEmittedElementNumber;
 
@@ -54,11 +56,19 @@ class StringBuilderState implements MutableState<String, String> {
       String initialEvent, int emissionFrequency, long currentlyEmittedElementNumber) {
     this.emissionFrequency = emissionFrequency;
     this.currentlyEmittedElementNumber = currentlyEmittedElementNumber;
-    mutate(initialEvent);
+    try {
+      mutate(initialEvent);
+    } catch (Exception e) {
+      // this shouldn't happen because the input should be pre-validated.
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
-  public void mutate(String event) {
+  public void mutate(String event) throws Exception {
+    if (event.equals(BAD_VALUE)) {
+      throw new Exception("Validation failed");
+    }
     state.append(event);
   }
 

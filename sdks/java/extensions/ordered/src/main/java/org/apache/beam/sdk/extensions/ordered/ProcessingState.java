@@ -41,11 +41,11 @@ class ProcessingState<KeyT> {
   @Nullable private Long lastOutputSequence;
   @Nullable private Long latestBufferedSequence;
   @Nullable private Long earliestBufferedSequence;
-  private long bufferedRecordCount;
+  private long bufferedEventCount;
 
   private boolean lastEventReceived;
 
-  private long recordsReceived;
+  private long eventsReceived;
 
   private long duplicates;
 
@@ -55,7 +55,7 @@ class ProcessingState<KeyT> {
 
   public ProcessingState(KeyT key) {
     this.key = key;
-    this.bufferedRecordCount = 0;
+    this.bufferedEventCount = 0;
     this.lastOutputSequence = null;
     this.earliestBufferedSequence = null;
     this.latestBufferedSequence = null;
@@ -68,15 +68,15 @@ class ProcessingState<KeyT> {
    * @param lastOutputSequence
    * @param earliestBufferedSequence
    * @param latestBufferedSequence
-   * @param bufferedRecordCount
+   * @param bufferedEventCount
    */
   ProcessingState(
       KeyT key,
       @Nullable Long lastOutputSequence,
       @Nullable Long earliestBufferedSequence,
       @Nullable Long latestBufferedSequence,
-      long bufferedRecordCount,
-      long recordsReceived,
+      long bufferedEventCount,
+      long eventsReceived,
       long duplicates,
       long resultCount,
       boolean lastEventReceived) {
@@ -84,8 +84,8 @@ class ProcessingState<KeyT> {
     this.lastOutputSequence = lastOutputSequence;
     this.earliestBufferedSequence = earliestBufferedSequence;
     this.latestBufferedSequence = latestBufferedSequence;
-    this.bufferedRecordCount = bufferedRecordCount;
-    this.recordsReceived = recordsReceived;
+    this.bufferedEventCount = bufferedEventCount;
+    this.eventsReceived = eventsReceived;
     this.duplicates = duplicates;
     this.resultCount = resultCount;
     this.lastEventReceived = lastEventReceived;
@@ -106,12 +106,12 @@ class ProcessingState<KeyT> {
     return earliestBufferedSequence;
   }
 
-  public long getBufferedRecordCount() {
-    return bufferedRecordCount;
+  public long getBufferedEventCount() {
+    return bufferedEventCount;
   }
 
-  public long getRecordsReceived() {
-    return recordsReceived;
+  public long getEventsReceived() {
+    return eventsReceived;
   }
 
   public boolean isLastEventReceived() {
@@ -153,7 +153,7 @@ class ProcessingState<KeyT> {
    * @param isLastEvent
    */
   void eventBuffered(long sequenceNumber, boolean isLastEvent) {
-    bufferedRecordCount++;
+    bufferedEventCount++;
     latestBufferedSequence =
         Math.max(
             sequenceNumber,
@@ -172,10 +172,10 @@ class ProcessingState<KeyT> {
    * @param sequence of the processed event
    */
   public void processedBufferedEvent(long sequence) {
-    bufferedRecordCount--;
+    bufferedEventCount--;
     lastOutputSequence = sequence;
 
-    if (bufferedRecordCount == 0) {
+    if (bufferedEventCount == 0) {
       earliestBufferedSequence = latestBufferedSequence = null;
     } else {
       // We don't know for sure that it's the earliest record yet, but OrderedEventProcessor will
@@ -204,9 +204,9 @@ class ProcessingState<KeyT> {
       return false;
     }
     ProcessingState<?> that = (ProcessingState<?>) o;
-    return bufferedRecordCount == that.bufferedRecordCount
+    return bufferedEventCount == that.bufferedEventCount
         && lastEventReceived == that.lastEventReceived
-        && recordsReceived == that.recordsReceived
+        && eventsReceived == that.eventsReceived
         && duplicates == that.duplicates
         && Objects.equals(lastOutputSequence, that.lastOutputSequence)
         && Objects.equals(latestBufferedSequence, that.latestBufferedSequence)
@@ -221,20 +221,20 @@ class ProcessingState<KeyT> {
         lastOutputSequence,
         latestBufferedSequence,
         earliestBufferedSequence,
-        bufferedRecordCount,
+        bufferedEventCount,
         lastEventReceived,
-        recordsReceived,
+        eventsReceived,
         duplicates,
         resultCount,
         key);
   }
 
   public boolean isProcessingCompleted() {
-    return lastEventReceived && bufferedRecordCount == 0;
+    return lastEventReceived && bufferedEventCount == 0;
   }
 
-  public void recordReceived() {
-    recordsReceived++;
+  public void eventReceived() {
+    eventsReceived++;
   }
 
   public boolean isNextEvent(long sequence) {
@@ -253,7 +253,7 @@ class ProcessingState<KeyT> {
     boolean result = lastOutputSequence != null && lastOutputSequence == currentSequence;
     if (result) {
       duplicates++;
-      if (--bufferedRecordCount == 0) {
+      if (--bufferedEventCount == 0) {
         earliestBufferedSequence = latestBufferedSequence = null;
       }
     }
@@ -302,8 +302,8 @@ class ProcessingState<KeyT> {
       NULLABLE_LONG_CODER.encode(value.getLastOutputSequence(), outStream);
       NULLABLE_LONG_CODER.encode(value.getEarliestBufferedSequence(), outStream);
       NULLABLE_LONG_CODER.encode(value.getLatestBufferedSequence(), outStream);
-      LONG_CODER.encode(value.getBufferedRecordCount(), outStream);
-      LONG_CODER.encode(value.getRecordsReceived(), outStream);
+      LONG_CODER.encode(value.getBufferedEventCount(), outStream);
+      LONG_CODER.encode(value.getEventsReceived(), outStream);
       LONG_CODER.encode(value.getDuplicates(), outStream);
       LONG_CODER.encode(value.getResultCount(), outStream);
       BOOLEAN_CODER.encode(value.isLastEventReceived(), outStream);
