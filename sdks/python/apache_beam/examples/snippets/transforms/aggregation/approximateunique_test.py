@@ -28,10 +28,6 @@ from . import approximateunique
 # pytype: skip-file
 
 
-
-
-
-
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
     'apache_beam.examples.snippets.transforms.aggregation.'
