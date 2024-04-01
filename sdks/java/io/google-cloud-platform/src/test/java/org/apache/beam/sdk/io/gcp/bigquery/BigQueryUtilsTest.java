@@ -1005,6 +1005,22 @@ public class BigQueryUtilsTest {
   }
 
   @Test
+  public void testToBeamRow_projection() {
+    long testId = 123L;
+    // recordSchema is a projection of FLAT_TYPE schema
+    org.apache.avro.Schema recordSchema =
+        org.apache.avro.SchemaBuilder.record("__root__").fields().optionalLong("id").endRecord();
+    GenericData.Record record = new GenericData.Record(recordSchema);
+    record.put("id", testId);
+
+    Row expected = Row.withSchema(FLAT_TYPE).withFieldValue("id", testId).build();
+    Row actual =
+        BigQueryUtils.toBeamRow(
+            record, FLAT_TYPE, BigQueryUtils.ConversionOptions.builder().build());
+    assertEquals(expected, actual);
+  }
+
+  @Test
   public void testToTableSpec() {
     TableReference withProject =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
