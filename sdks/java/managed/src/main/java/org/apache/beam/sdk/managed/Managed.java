@@ -25,15 +25,6 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 
 public class Managed {
-  protected enum Type {
-    READ,
-    WRITE
-  }
-
-  public enum IO {
-    ICEBERG
-  }
-
   public static Read read() {
     return new AutoValue_Managed_Read.Builder().setPattern(Read.PATTERN).build();
   }
