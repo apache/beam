@@ -38,8 +38,8 @@ from typing import Union
 
 import apache_beam as beam
 from apache_beam import coders
-from apache_beam import typehints
 from apache_beam import pvalue
+from apache_beam import typehints
 from apache_beam.metrics import Metrics
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
