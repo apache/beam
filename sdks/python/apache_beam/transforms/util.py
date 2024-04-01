@@ -1677,7 +1677,7 @@ class WaitOn(PTransform):
     sides = [
         pvalue.AsIter(
             side
-            | f"WaitFor{ix}" >> (beam.FlatMap(lambda x: ()) | GroupByKey()))
+            | f"WaitOn{ix}" >> (beam.FlatMap(lambda x: ()) | GroupByKey()))
         for (ix, side) in enumerate(self._to_be_waited_on)
     ]
     return pcoll | beam.Map(lambda x, *unused_sides: x, *sides)
