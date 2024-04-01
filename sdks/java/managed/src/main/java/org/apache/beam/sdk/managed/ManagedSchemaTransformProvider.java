@@ -26,7 +26,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -37,41 +39,44 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 
 @AutoService(SchemaTransformProvider.class)
-public class ManagedSchemaTransformProvider
+class ManagedSchemaTransformProvider
     extends TypedSchemaTransformProvider<ManagedSchemaTransformProvider.ManagedConfig> {
+  private static final String MANAGED_NAMESPACE = "managed";
 
   @Override
   public String identifier() {
     return "beam:schematransform:org.apache.beam:managed:v1";
   }
 
-  private Map<String, SchemaTransformProvider> schemaTransformProviders = new HashMap<>();
+  private final Map<String, SchemaTransformProvider> schemaTransformProviders = new HashMap<>();
 
-  private ManagedSchemaTransformProvider() {
+  private ManagedSchemaTransformProvider(Pattern pattern) {
     try {
-      for (SchemaTransformProvider schemaTransformProvider :
-          ServiceLoader.load(ManagedSchemaTransformProvider.class)) {
+      for (SchemaTransformProvider schemaTransformProvider : ServiceLoader.load(SchemaTransformProvider.class)) {
         if (schemaTransformProviders.containsKey(schemaTransformProvider.identifier())) {
           throw new IllegalArgumentException(
-              "Found multiple SchemaTransformProvider implementations with the same identifier "
-                  + schemaTransformProvider.identifier());
+                  "Found multiple SchemaTransformProvider implementations with the same identifier "
+                          + schemaTransformProvider.identifier());
         }
         schemaTransformProviders.put(schemaTransformProvider.identifier(), schemaTransformProvider);
       }
     } catch (Exception e) {
       throw new RuntimeException(e.getMessage());
     }
+
+    schemaTransformProviders.entrySet().removeIf(e -> !pattern.matcher(e.getKey()).matches());
   }
 
   private static @Nullable ManagedSchemaTransformProvider managedProvider = null;
 
-  public static ManagedSchemaTransformProvider of() {
+  public static ManagedSchemaTransformProvider of(Pattern pattern) {
     if (managedProvider == null) {
-      managedProvider = new ManagedSchemaTransformProvider();
+      managedProvider = new ManagedSchemaTransformProvider(pattern);
     }
     return managedProvider;
   }
@@ -84,10 +89,7 @@ public class ManagedSchemaTransformProvider
     }
 
     @SchemaFieldDescription("Identifier of the underlying IO to instantiate.")
-    public abstract String getIdentifier();
-
-    @SchemaFieldDescription("Specifies whether this is a read or write IO.")
-    public abstract String getType();
+    public abstract String getTransformIdentifier();
 
     @SchemaFieldDescription("URL path to the YAML config file used to build the underlying IO.")
     public abstract @Nullable String getConfigUrl();
@@ -97,9 +99,7 @@ public class ManagedSchemaTransformProvider
 
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setIdentifier(String identifier);
-
-      public abstract Builder setType(String type);
+      public abstract Builder setTransformIdentifier(String identifier);
 
       public abstract Builder setConfigUrl(String configUrl);
 
@@ -114,24 +114,16 @@ public class ManagedSchemaTransformProvider
       checkArgument(
           !(configExists && configUrlExists) && (configExists || configUrlExists),
           "Please specify a config or a config URL, but not both.");
-
-      Set<String> validOperations = Sets.newHashSet(Managed.READ, Managed.WRITE);
-      checkArgument(
-          validOperations.contains(getType()),
-          "Invalid operation type. Please specify one of %s",
-          validOperations);
     }
   }
 
   @Override
   protected SchemaTransform from(ManagedConfig managedConfig) {
-    checkArgument(
-        schemaTransformProviders.containsKey(managedConfig.getIdentifier()),
-        "Could not find transform with identifier %s, or it may not be supported",
-        managedConfig.getIdentifier());
-
-    SchemaTransformProvider schemaTransformProvider =
-        schemaTransformProviders.get(managedConfig.getIdentifier());
+    managedConfig.validate();
+    SchemaTransformProvider schemaTransformProvider = Preconditions.checkNotNull(
+            schemaTransformProviders.get(managedConfig.getTransformIdentifier()),
+            "Could not find transform with identifier %s, or it may not be supported",
+            managedConfig.getTransformIdentifier());
 
     // parse config before expansion to check if it matches underlying transform's config schema
     Schema transformConfigSchema = schemaTransformProvider.configurationSchema();
@@ -146,20 +138,16 @@ public class ManagedSchemaTransformProvider
           e);
     }
 
-    return new ManagedSchemaTransform(managedConfig, transformConfig, schemaTransformProvider);
+    return new ManagedSchemaTransform(transformConfig, schemaTransformProvider);
   }
 
   protected static class ManagedSchemaTransform extends SchemaTransform {
-    private final ManagedConfig managedConfig;
     private final Row transformConfig;
     private final SchemaTransformProvider underlyingTransformProvider;
 
     ManagedSchemaTransform(
-        ManagedConfig managedConfig,
         Row transformConfig,
         SchemaTransformProvider underlyingTransformProvider) {
-      managedConfig.validate();
-      this.managedConfig = managedConfig;
       this.transformConfig = transformConfig;
       this.underlyingTransformProvider = underlyingTransformProvider;
     }
@@ -168,11 +156,7 @@ public class ManagedSchemaTransformProvider
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       SchemaTransform underlyingTransform = underlyingTransformProvider.from(transformConfig);
 
-      if (managedConfig.getType().equalsIgnoreCase(Managed.READ)) {
-        return PCollectionRowTuple.empty(input.getPipeline()).apply(underlyingTransform);
-      } else {
-        return input.apply(underlyingTransform);
-      }
+      return input.apply(underlyingTransform);
     }
   }
 
@@ -181,7 +165,7 @@ public class ManagedSchemaTransformProvider
     if (!Strings.isNullOrEmpty(config.getConfigUrl())) {
       try {
         transformYamlConfig =
-            FileSystems.open(FileSystems.matchSingleFileSpec(config.getConfigUrl()).resourceId())
+            FileSystems.open(FileSystems.matchSingleFileSpec(Preconditions.checkNotNull(config.getConfigUrl())).resourceId())
                 .toString();
       } catch (IOException e) {
         throw new RuntimeException(e);
@@ -190,13 +174,14 @@ public class ManagedSchemaTransformProvider
       transformYamlConfig = config.getConfig();
     }
 
-    return yamlToBeamRow(transformYamlConfig, transformSchema);
+    return yamlToBeamRow(Preconditions.checkNotNull(transformYamlConfig), transformSchema);
   }
 
   // TODO: implement this method
   private static Row yamlToBeamRow(String yaml, Schema schema) throws Exception {
     // parse yaml string and convert to Row
     // throw an exception if there are missing required fields or if types don't match
+    System.out.println(yaml);
     return Row.nullRow(schema);
   }
 }

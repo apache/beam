@@ -19,29 +19,36 @@ package org.apache.beam.sdk.managed;
 
 import com.google.auto.value.AutoValue;
 import java.util.Map;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 public class Managed {
-  public static final String READ = "READ";
-  public static final String WRITE = "WRITE";
+  protected enum Type {
+    READ,
+    WRITE
+  }
+
 
   public enum IO {
     ICEBERG
   }
 
   public static Read read() {
-    return new AutoValue_Managed_Read.Builder().build();
+    return new AutoValue_Managed_Read.Builder()
+            .setPattern(Read.PATTERN)
+            .build();
   }
 
   @AutoValue
   public abstract static class Read extends SchemaTransform {
-    private final Map<IO, String> identifiers =
-        ImmutableMap.of(IO.ICEBERG, "beam:schematransform:org.apache.beam:iceberg_read:v1");
+    protected static final Pattern PATTERN = Pattern.compile("beam:schematransform:org.apache.beam:[\\w-]+_read[\\w-]*:[\\w-]+");
 
-    abstract IO getSource();
+
+    abstract String getSource();
+
+    abstract Pattern getPattern();
 
     abstract @Nullable String getConfig();
 
@@ -51,7 +58,9 @@ public class Managed {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setSource(IO source);
+      abstract Builder setSource(String source);
+
+      abstract Builder setPattern(Pattern pattern);
 
       abstract Builder setConfig(String config);
 
@@ -60,8 +69,8 @@ public class Managed {
       abstract Read build();
     }
 
-    public Read from(IO source) {
-      return toBuilder().setSource(source).build();
+    public Read from(String identifier) {
+      return toBuilder().setSource(identifier).build();
     }
 
     public Read withConfigUrl(String configUrl) {
@@ -69,41 +78,41 @@ public class Managed {
     }
 
     public Read withConfig(String config) {
-      return toBuilder().setConfigUrl(config).build();
+      return toBuilder().setConfig(config).build();
     }
 
     public Read withConfig(Map<String, Object> config) {
-      return toBuilder().setConfigUrl(mapToYamlString(config)).build();
+      return toBuilder().setConfig(mapToYamlString(config)).build();
     }
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      String underlyingTransformIdentifier = identifiers.get(getSource());
-
       ManagedSchemaTransformProvider.ManagedConfig managedConfig =
           ManagedSchemaTransformProvider.ManagedConfig.builder()
-              .setIdentifier(underlyingTransformIdentifier)
-              .setType(READ)
+              .setTransformIdentifier(getSource())
               .setConfig(getConfig())
               .setConfigUrl(getConfigUrl())
               .build();
 
-      SchemaTransform underlyingTransform = ManagedSchemaTransformProvider.of().from(managedConfig);
+      SchemaTransform underlyingTransform = ManagedSchemaTransformProvider.of(getPattern()).from(managedConfig);
 
       return input.apply(underlyingTransform);
     }
   }
 
   public static Write write() {
-    return new AutoValue_Managed_Write.Builder().build();
+    return new AutoValue_Managed_Write.Builder()
+            .setPattern(Write.PATTERN)
+            .build();
   }
 
   @AutoValue
   public abstract static class Write extends SchemaTransform {
-    private final Map<IO, String> identifiers =
-        ImmutableMap.of(IO.ICEBERG, "beam:schematransform:org.apache.beam:iceberg_write:v1");
+    protected static final Pattern PATTERN = Pattern.compile("beam:schematransform:org.apache.beam:[\\w-]+_write[\\w-]*:[\\w-]+");
 
-    abstract IO getSink();
+    abstract String getSink();
+
+    abstract Pattern getPattern();
 
     abstract @Nullable String getConfig();
 
@@ -113,7 +122,9 @@ public class Managed {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setSink(IO source);
+      abstract Builder setSink(String source);
+
+      abstract Builder setPattern(Pattern pattern);
 
       abstract Builder setConfig(String config);
 
@@ -122,7 +133,7 @@ public class Managed {
       abstract Write build();
     }
 
-    public Write to(IO source) {
+    public Write to(String source) {
       return toBuilder().setSink(source).build();
     }
 
@@ -131,26 +142,23 @@ public class Managed {
     }
 
     public Write withConfig(String config) {
-      return toBuilder().setConfigUrl(config).build();
+      return toBuilder().setConfig(config).build();
     }
 
     public Write withConfig(Map<String, Object> config) {
-      return toBuilder().setConfigUrl(mapToYamlString(config)).build();
+      return toBuilder().setConfig(mapToYamlString(config)).build();
     }
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      String underlyingTransformIdentifier = identifiers.get(getSink());
-
       ManagedSchemaTransformProvider.ManagedConfig managedConfig =
           ManagedSchemaTransformProvider.ManagedConfig.builder()
-              .setIdentifier(underlyingTransformIdentifier)
-              .setType(WRITE)
+              .setTransformIdentifier(getSink())
               .setConfig(getConfig())
               .setConfigUrl(getConfigUrl())
               .build();
 
-      SchemaTransform underlyingTransform = ManagedSchemaTransformProvider.of().from(managedConfig);
+      SchemaTransform underlyingTransform = ManagedSchemaTransformProvider.of(getPattern()).from(managedConfig);
 
       return input.apply(underlyingTransform);
     }
