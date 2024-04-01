@@ -30,21 +30,18 @@ public class Managed {
     WRITE
   }
 
-
   public enum IO {
     ICEBERG
   }
 
   public static Read read() {
-    return new AutoValue_Managed_Read.Builder()
-            .setPattern(Read.PATTERN)
-            .build();
+    return new AutoValue_Managed_Read.Builder().setPattern(Read.PATTERN).build();
   }
 
   @AutoValue
   public abstract static class Read extends SchemaTransform {
-    protected static final Pattern PATTERN = Pattern.compile("beam:schematransform:org.apache.beam:[\\w-]+_read[\\w-]*:[\\w-]+");
-
+    protected static final Pattern PATTERN =
+        Pattern.compile("beam:schematransform:org.apache.beam:[\\w-]+_read[\\w-]*:[\\w-]+");
 
     abstract String getSource();
 
@@ -94,21 +91,21 @@ public class Managed {
               .setConfigUrl(getConfigUrl())
               .build();
 
-      SchemaTransform underlyingTransform = ManagedSchemaTransformProvider.of(getPattern()).from(managedConfig);
+      SchemaTransform underlyingTransform =
+          ManagedSchemaTransformProvider.of(getPattern()).from(managedConfig);
 
       return input.apply(underlyingTransform);
     }
   }
 
   public static Write write() {
-    return new AutoValue_Managed_Write.Builder()
-            .setPattern(Write.PATTERN)
-            .build();
+    return new AutoValue_Managed_Write.Builder().setPattern(Write.PATTERN).build();
   }
 
   @AutoValue
   public abstract static class Write extends SchemaTransform {
-    protected static final Pattern PATTERN = Pattern.compile("beam:schematransform:org.apache.beam:[\\w-]+_write[\\w-]*:[\\w-]+");
+    protected static final Pattern PATTERN =
+        Pattern.compile("beam:schematransform:org.apache.beam:[\\w-]+_write[\\w-]*:[\\w-]+");
 
     abstract String getSink();
 
@@ -158,7 +155,8 @@ public class Managed {
               .setConfigUrl(getConfigUrl())
               .build();
 
-      SchemaTransform underlyingTransform = ManagedSchemaTransformProvider.of(getPattern()).from(managedConfig);
+      SchemaTransform underlyingTransform =
+          ManagedSchemaTransformProvider.of(getPattern()).from(managedConfig);
 
       return input.apply(underlyingTransform);
     }

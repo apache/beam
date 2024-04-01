@@ -25,10 +25,8 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
-import java.util.Set;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -41,7 +39,6 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 
 @AutoService(SchemaTransformProvider.class)
 class ManagedSchemaTransformProvider
@@ -57,11 +54,12 @@ class ManagedSchemaTransformProvider
 
   private ManagedSchemaTransformProvider(Pattern pattern) {
     try {
-      for (SchemaTransformProvider schemaTransformProvider : ServiceLoader.load(SchemaTransformProvider.class)) {
+      for (SchemaTransformProvider schemaTransformProvider :
+          ServiceLoader.load(SchemaTransformProvider.class)) {
         if (schemaTransformProviders.containsKey(schemaTransformProvider.identifier())) {
           throw new IllegalArgumentException(
-                  "Found multiple SchemaTransformProvider implementations with the same identifier "
-                          + schemaTransformProvider.identifier());
+              "Found multiple SchemaTransformProvider implementations with the same identifier "
+                  + schemaTransformProvider.identifier());
         }
         schemaTransformProviders.put(schemaTransformProvider.identifier(), schemaTransformProvider);
       }
@@ -120,7 +118,8 @@ class ManagedSchemaTransformProvider
   @Override
   protected SchemaTransform from(ManagedConfig managedConfig) {
     managedConfig.validate();
-    SchemaTransformProvider schemaTransformProvider = Preconditions.checkNotNull(
+    SchemaTransformProvider schemaTransformProvider =
+        Preconditions.checkNotNull(
             schemaTransformProviders.get(managedConfig.getTransformIdentifier()),
             "Could not find transform with identifier %s, or it may not be supported",
             managedConfig.getTransformIdentifier());
@@ -146,8 +145,7 @@ class ManagedSchemaTransformProvider
     private final SchemaTransformProvider underlyingTransformProvider;
 
     ManagedSchemaTransform(
-        Row transformConfig,
-        SchemaTransformProvider underlyingTransformProvider) {
+        Row transformConfig, SchemaTransformProvider underlyingTransformProvider) {
       this.transformConfig = transformConfig;
       this.underlyingTransformProvider = underlyingTransformProvider;
     }
@@ -165,7 +163,10 @@ class ManagedSchemaTransformProvider
     if (!Strings.isNullOrEmpty(config.getConfigUrl())) {
       try {
         transformYamlConfig =
-            FileSystems.open(FileSystems.matchSingleFileSpec(Preconditions.checkNotNull(config.getConfigUrl())).resourceId())
+            FileSystems.open(
+                    FileSystems.matchSingleFileSpec(
+                            Preconditions.checkNotNull(config.getConfigUrl()))
+                        .resourceId())
                 .toString();
       } catch (IOException e) {
         throw new RuntimeException(e);
