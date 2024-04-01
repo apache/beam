@@ -1676,8 +1676,8 @@ class WaitOn(PTransform):
     # ensures the respective window finishes before advancing the timestamp.
     sides = [
         pvalue.AsIter(
-            pcoll
+            side
             | f"WaitFor{ix}" >> (beam.FlatMap(lambda x: ()) | GroupByKey()))
-        for (ix, pcoll) in enumerate(self._to_be_waited_on)
+        for (ix, side) in enumerate(self._to_be_waited_on)
     ]
     return pcoll | beam.Map(lambda x, *unused_sides: x, *sides)
