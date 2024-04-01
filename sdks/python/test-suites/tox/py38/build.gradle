@@ -136,9 +136,9 @@ preCommitPyCoverage.dependsOn "testPy38tft-113"
 // test.dependsOn "testPy38onnx-113"
 // postCommitPyDep.dependsOn "testPy38onnx-113"
 // Create a test task for each minor version of tensorflow
-toxTask "testPy38tensorflow-212", "py38-tensorflow-212", "${posargs}"
-test.dependsOn "testPy38tensorflow-212"
-preCommitPyCoverage.dependsOn "testPy38tensorflow-212"
+toxTask "testPy38tensorflow-214", "py38-tensorflow-214", "${posargs}"
+test.dependsOn "testPy38tensorflow-214"
+preCommitPyCoverage.dependsOn "testPy38tensorflow-214"
 
 // Create a test task for each minor version of transformers
 toxTask "testPy38transformers-428", "py38-transformers-428", "${posargs}"
