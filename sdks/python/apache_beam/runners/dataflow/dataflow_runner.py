@@ -465,6 +465,8 @@ class DataflowRunner(PipelineRunner):
           'min_cpu_platform=' + worker_options.min_cpu_platform)
 
     self.job = apiclient.Job(options, self.proto_pipeline)
+    print(self.proto_pipeline)
+    return
 
     test_options = options.view_as(TestOptions)
     # If it is a dry run, return without submitting the job.

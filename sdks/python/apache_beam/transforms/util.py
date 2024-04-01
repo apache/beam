@@ -78,7 +78,6 @@ from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.sharded_key import ShardedKey
 
 if TYPE_CHECKING:
-  from apache_beam import pvalue
   from apache_beam.runners.pipeline_context import PipelineContext
 
 __all__ = [
@@ -1675,7 +1674,6 @@ class WaitOn(PTransform):
     # All we care about is the watermark, not the data itself.
     # The GroupByKey avoids writing empty files for each shard, and also
     # ensures the respective window finishes before advancing the timestamp.
-    from apache_beam.transforms.util import Reshuffle
     sides = [
         pvalue.AsIter(
             pcoll
