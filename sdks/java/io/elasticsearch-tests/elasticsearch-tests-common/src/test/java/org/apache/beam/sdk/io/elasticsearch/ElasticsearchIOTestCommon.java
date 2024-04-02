@@ -228,7 +228,7 @@ class ElasticsearchIOTestCommon implements Serializable {
             ElasticsearchIO.read()
                 .withConnectionConfiguration(connectionConfiguration)
                 // set to default value, useful just to test parameter passing.
-                .withScrollKeepalive("5m")
+                .withIteratorKeepalive("5m")
                 // set to default value, useful just to test parameter passing.
                 .withBatchSize(100L));
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(numDocs);

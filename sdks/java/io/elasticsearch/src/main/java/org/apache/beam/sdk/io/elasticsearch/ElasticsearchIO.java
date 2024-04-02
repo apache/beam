@@ -1079,6 +1079,7 @@ public class ElasticsearchIO {
   abstract static class BoundedElasticsearchReader extends BoundedSource.BoundedReader<String> {
     private static final Counter READ =
         Metrics.counter(BoundedElasticsearchScrollReader.class, "es-read-document-count");
+    private static final String MATCH_ALL_QUERY = "\"query\": { \"match_all\": {} }";
 
     protected final BoundedElasticsearchSource source;
 
@@ -1101,10 +1102,12 @@ public class ElasticsearchIO {
 
     protected abstract void updateIteratorId(JsonNode searchResult);
 
+    protected abstract String matchAllQueryString();
+
     protected String createBaseQuery() {
       String query = source.spec.getQuery() != null ? source.spec.getQuery().get() : null;
       if (query == null) {
-        query = "\"query\": { \"match_all\": {} }";
+        query = matchAllQueryString();
       }
       return query;
     }
@@ -1189,6 +1192,11 @@ public class ElasticsearchIO {
     }
 
     @Override
+    protected String matchAllQueryString() {
+      return String.format("{%s}", BoundedElasticsearchReader.MATCH_ALL_QUERY);
+    }
+
+    @Override
     protected Request createStartRequest() {
       String query = String.format("{%s}", createBaseQuery());
       if ((source.backendVersion >= 5) && source.numSlices != null && source.numSlices > 1) {
@@ -1248,6 +1256,11 @@ public class ElasticsearchIO {
 
     public BoundedElasticsearchPITReader(BoundedElasticsearchSource source) {
       super(source);
+    }
+
+    @Override
+    protected String matchAllQueryString() {
+      return String.format("{%s}", BoundedElasticsearchReader.MATCH_ALL_QUERY);
     }
 
     @Override
