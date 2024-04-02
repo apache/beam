@@ -40,6 +40,7 @@ from .groupby_two_exprs import groupby_two_exprs
 
 #
 # Temporarily skip all tests in file
+# TODO: Reenable https://github.com/apache/beam/issues/30778
 __test__ = False
 
 
