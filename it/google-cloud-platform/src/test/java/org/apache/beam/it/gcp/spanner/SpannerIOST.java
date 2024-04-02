@@ -72,6 +72,7 @@ public class SpannerIOST extends IOStressTestBase {
 
   private static final String READ_ELEMENT_METRIC_NAME = "read_count";
   private static final String WRITE_ELEMENT_METRIC_NAME = "write_count";
+  private static final int INSTANCE_NODE_COUNT = 30;
 
   private String tableName;
   private String testConfigName;
@@ -92,7 +93,8 @@ public class SpannerIOST extends IOStressTestBase {
                 .format(java.time.Instant.now())
             + UUID.randomUUID().toString().replace("-", "").substring(0, 10);
 
-    resourceManager = SpannerResourceManager.builder(testName, project, region).build();
+    resourceManager =
+        SpannerResourceManager.builder(testName, project, region, INSTANCE_NODE_COUNT).build();
 
     // parse configuration
     testConfigName =
@@ -118,11 +120,11 @@ public class SpannerIOST extends IOStressTestBase {
 
     if (configuration.exportMetricsToInfluxDB) {
       configuration.influxHost =
-              TestProperties.getProperty("influxHost", "", TestProperties.Type.PROPERTY);
+          TestProperties.getProperty("influxHost", "", TestProperties.Type.PROPERTY);
       configuration.influxDatabase =
-              TestProperties.getProperty("influxDatabase", "", TestProperties.Type.PROPERTY);
+          TestProperties.getProperty("influxDatabase", "", TestProperties.Type.PROPERTY);
       configuration.influxMeasurement =
-              TestProperties.getProperty("influxMeasurement", "", TestProperties.Type.PROPERTY);
+          TestProperties.getProperty("influxMeasurement", "", TestProperties.Type.PROPERTY);
     }
   }
 
@@ -143,7 +145,7 @@ public class SpannerIOST extends IOStressTestBase {
                   Configuration.class),
               "large",
               Configuration.fromJsonString(
-                  "{\"numRecords\":10000000,\"rowsPerSecond\":25000,\"minutes\":100,\"valueSizeBytes\":1000,\"pipelineTimeout\":300,\"runner\":\"DataflowRunner\"}",
+                  "{\"numRecords\":10000000,\"rowsPerSecond\":25000,\"minutes\":30,\"valueSizeBytes\":1000,\"pipelineTimeout\":300,\"runner\":\"DataflowRunner\"}",
                   Configuration.class));
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -252,7 +254,8 @@ public class SpannerIOST extends IOStressTestBase {
             SpannerIO.write()
                 .withProjectId(project)
                 .withInstanceId(resourceManager.getInstanceId())
-                .withDatabaseId(resourceManager.getDatabaseId()));
+                .withDatabaseId(resourceManager.getDatabaseId())
+                .withCommitDeadline(org.joda.time.Duration.standardMinutes(2)));
 
     PipelineLauncher.LaunchConfig options =
         PipelineLauncher.LaunchConfig.builder("write-spanner")
