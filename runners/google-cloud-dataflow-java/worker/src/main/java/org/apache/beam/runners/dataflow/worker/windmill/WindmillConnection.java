@@ -33,6 +33,7 @@ public abstract class WindmillConnection {
     WindmillConnection.Builder windmillWorkerConnection = WindmillConnection.builder();
 
     windmillEndpoint.workerToken().ifPresent(windmillWorkerConnection::setBackendWorkerToken);
+    windmillEndpoint.directEndpoint().ifPresent(windmillWorkerConnection::setDirectEndpoint);
     windmillWorkerConnection.setStub(endpointToStubFn.apply(windmillEndpoint));
 
     return windmillWorkerConnection.build();
@@ -44,11 +45,15 @@ public abstract class WindmillConnection {
 
   public abstract Optional<String> backendWorkerToken();
 
+  public abstract Optional<WindmillServiceAddress> directEndpoint();
+
   public abstract CloudWindmillServiceV1Alpha1Stub stub();
 
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setBackendWorkerToken(String backendWorkerToken);
+
+    public abstract Builder setDirectEndpoint(WindmillServiceAddress value);
 
     abstract Builder setStub(CloudWindmillServiceV1Alpha1Stub stub);
 
