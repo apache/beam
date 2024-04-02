@@ -28,10 +28,10 @@ import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.clo
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.splitRequestToApproximateSplitRequest;
 import static org.apache.beam.runners.dataflow.worker.counters.CounterName.named;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.eq;
@@ -340,7 +340,7 @@ public class MapTaskExecutorTest {
       assertThat(
           context3.metricsContainer().getUpdates().counterUpdates(),
           contains(metricUpdate("TestMetric", "MetricCounter", o3, 3L)));
-      assertEquals(0, stateTracker.getMillisSinceBundleStart()); 
+      assertEquals(0, stateTracker.getMillisSinceBundleStart());
     }
   }
 
@@ -475,7 +475,6 @@ public class MapTaskExecutorTest {
       inOrder.verify(o1).finish();
       inOrder.verify(o2).finish(); // this fails
       inOrder.verify(stateTracker).reset();
-      
 
       // Order of abort doesn't matter
       Mockito.verify(o1).abort();
