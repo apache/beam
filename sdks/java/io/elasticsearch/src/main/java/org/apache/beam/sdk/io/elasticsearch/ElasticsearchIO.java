@@ -220,7 +220,7 @@ public class ElasticsearchIO {
     // with big documents and still a good compromise for performances
     return new AutoValue_ElasticsearchIO_Read.Builder()
         .setWithMetadata(false)
-        .setScrollKeepalive("5m")
+        .setIteratorKeepalive("5m")
         .setBatchSize(100L)
         .setUsePITSearch(false)
         .build();
@@ -762,7 +762,7 @@ public class ElasticsearchIO {
 
     abstract boolean isWithMetadata();
 
-    abstract String getScrollKeepalive();
+    abstract String getIteratorKeepalive();
 
     abstract long getBatchSize();
 
@@ -778,7 +778,7 @@ public class ElasticsearchIO {
 
       abstract Builder setWithMetadata(boolean withMetadata);
 
-      abstract Builder setScrollKeepalive(String scrollKeepalive);
+      abstract Builder setIteratorKeepalive(String iteratorKeepalive);
 
       abstract Builder setBatchSize(long batchSize);
 
@@ -841,13 +841,27 @@ public class ElasticsearchIO {
      * href="https://www.elastic.co/guide/en/elasticsearch/reference/7.17/search-request-scroll.html">scroll
      * API</a> Default is "5m". Change this only if you get "No search context found" errors.
      *
+     * @deprecated use {@link Read#withIteratorKeepalive} instead
      * @param scrollKeepalive keepalive duration of the scroll
      * @return a {@link PTransform} reading data from Elasticsearch.
      */
+    @Deprecated
     public Read withScrollKeepalive(String scrollKeepalive) {
-      checkArgument(scrollKeepalive != null, "scrollKeepalive can not be null");
-      checkArgument(!"0m".equals(scrollKeepalive), "scrollKeepalive can not be 0m");
-      return builder().setScrollKeepalive(scrollKeepalive).build();
+      return this.withIteratorKeepalive(scrollKeepalive);
+    }
+
+    /**
+     * Sets the iterator keepalive. This setting should work the same for Scroll or Point In Team
+     * search iteration. Default is "5m". Change this only if you get "No search context found"
+     * errors.
+     *
+     * @param iteratorKeepalive keepalive duration of the selected iterator.
+     * @return a {@link PTransform} reading data from Elasticsearch.
+     */
+    public Read withIteratorKeepalive(String iteratorKeepalive) {
+      checkArgument(iteratorKeepalive != null, "scrollKeepalive can not be null");
+      checkArgument(!"0m".equals(iteratorKeepalive), "scrollKeepalive can not be 0m");
+      return builder().setIteratorKeepalive(iteratorKeepalive).build();
     }
 
     /**
@@ -887,7 +901,7 @@ public class ElasticsearchIO {
       builder.addIfNotNull(DisplayData.item("query", getQuery()));
       builder.addIfNotNull(DisplayData.item("withMetadata", isWithMetadata()));
       builder.addIfNotNull(DisplayData.item("batchSize", getBatchSize()));
-      builder.addIfNotNull(DisplayData.item("scrollKeepalive", getScrollKeepalive()));
+      builder.addIfNotNull(DisplayData.item("iteratorKeepalive", getIteratorKeepalive()));
       builder.addIfNotNull(DisplayData.item("usePointInTimeSearch", getUsePITSearch()));
       getConnectionConfiguration().populateDisplayData(builder);
     }
@@ -1185,7 +1199,7 @@ public class ElasticsearchIO {
       }
       String endPoint = source.spec.getConnectionConfiguration().getSearchEndPoint();
       Map<String, String> params = new HashMap<>();
-      params.put("scroll", source.spec.getScrollKeepalive());
+      params.put("scroll", source.spec.getIteratorKeepalive());
       HttpEntity queryEntity = new NStringEntity(query, ContentType.APPLICATION_JSON);
       Request request = new Request("GET", endPoint);
       request.addParameters(params);
@@ -1198,7 +1212,7 @@ public class ElasticsearchIO {
       String requestBody =
           String.format(
               "{\"scroll\" : \"%s\",\"scroll_id\" : \"%s\"}",
-              source.spec.getScrollKeepalive(), iteratorId);
+              source.spec.getIteratorKeepalive(), iteratorId);
       HttpEntity scrollEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
       Request request = new Request("GET", "/_search/scroll");
       request.addParameters(Collections.emptyMap());
@@ -1257,7 +1271,7 @@ public class ElasticsearchIO {
       String endPoint =
           String.format("/%s/_pit", source.spec.getConnectionConfiguration().getIndex());
       Map<String, String> params = new HashMap<>();
-      params.put("keep_alive", source.spec.getScrollKeepalive());
+      params.put("keep_alive", source.spec.getIteratorKeepalive());
       Request request = new Request("POST", endPoint);
       request.addParameters(params);
       return request;
