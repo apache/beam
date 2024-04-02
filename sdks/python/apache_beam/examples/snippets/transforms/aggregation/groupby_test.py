@@ -230,7 +230,7 @@ def check_global_aggregate_result(grouped):
       grouped | beam.Map(normalize),
       equal_to([
           #[START global_aggregate_result]
-          NamedTuple(min_price=1.77, mean_price=7 / 3, max_price=4.00),
+          NamedTuple(min_price=1.00, mean_price=7 / 3, max_price=4.00),
           #[END global_aggregate_result]
       ]))
 
