@@ -62,6 +62,8 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Upgraded Avro version to 1.11.3, kafka-avro-serializer and kafka-schema-registry-client versions to 7.6.0 (Java) ([#X](https://github.com/apache/beam/pull/30638)).
+  The newer Avro package is known to have breaking changes. If you are affected, you can keep pinned to older Avro versions which are also tested with Beam.
 
 ## New Features / Improvements
 
