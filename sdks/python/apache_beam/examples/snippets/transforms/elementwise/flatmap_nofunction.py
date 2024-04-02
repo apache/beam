@@ -51,4 +51,4 @@ def flatmap_nofunction(test=None):
 
 
 if __name__ == '__main__':
-  flatmap_function()
+  flatmap_nofunction()
