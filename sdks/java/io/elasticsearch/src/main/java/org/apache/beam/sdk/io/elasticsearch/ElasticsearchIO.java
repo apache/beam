@@ -883,6 +883,17 @@ public class ElasticsearchIO {
       return builder().setBatchSize(batchSize).build();
     }
 
+    /**
+     * Configures the source to user Point In Time search iteration while reading data from
+     * Elasticsearch. See <a
+     * href="https://www.elastic.co/guide/en/elasticsearch/reference/current/point-in-time-api.html">
+     * Point in time search.</a> This iteration mode for searches does not have the same size
+     * constrains the Scroll API have (slice counts, batch size or how deep the iteration is). By
+     * default this iteration mode will use the {@code @timestamp} meta property on the indexed
+     * documents to consistently retrieve the data when failures occur on an specific read work.
+     *
+     * @return a {@link PTransform} reading data from Elasticsearch.
+     */
     public Read withPointInTimeSearch() {
       return builder().setUsePITSearch(true).build();
     }
@@ -1114,11 +1125,17 @@ public class ElasticsearchIO {
 
     @Override
     public boolean start() throws IOException {
-      restClient = source.spec.getConnectionConfiguration().createClient();
-      Response response = restClient.performRequest(createStartRequest());
-      JsonNode searchResult = parseResponse(response.getEntity());
-      updateIteratorId(searchResult);
-      return processResult(searchResult);
+      Request request = createStartRequest();
+      try {
+        restClient = source.spec.getConnectionConfiguration().createClient();
+        Response response = restClient.performRequest(request);
+        JsonNode searchResult = parseResponse(response.getEntity());
+        updateIteratorId(searchResult);
+        return processResult(searchResult);
+      } catch (IOException ex) {
+        LOG.error("Failed to request start reading, request {}", request.getEntity().toString());
+        throw ex;
+      }
     }
 
     @Override
@@ -1133,10 +1150,15 @@ public class ElasticsearchIO {
 
     protected boolean performAdvance() throws IOException {
       Request advance = createAdvanceRequest();
-      Response response = restClient.performRequest(advance);
-      JsonNode searchResult = parseResponse(response.getEntity());
-      updateIteratorId(searchResult);
-      return processResult(searchResult);
+      try {
+        Response response = restClient.performRequest(advance);
+        JsonNode searchResult = parseResponse(response.getEntity());
+        updateIteratorId(searchResult);
+        return processResult(searchResult);
+      } catch (IOException ex) {
+        LOG.error("Failed to request advance reading, request {}", advance.getEntity().toString());
+        throw ex;
+      }
     }
 
     protected boolean readNextBatchAndReturnFirstDocument(JsonNode searchResult) {
@@ -1169,9 +1191,13 @@ public class ElasticsearchIO {
 
     @Override
     public void close() throws IOException {
+      Request closeRequest = createCloseRequest();
       // clear the selected iterator
       try {
-        restClient.performRequest(createCloseRequest());
+        restClient.performRequest(closeRequest);
+      } catch (IOException ex) {
+        LOG.error(
+            "Failed to request close, request {}", closeRequest.getEntity().toString());
       } finally {
         if (restClient != null) {
           restClient.close();
