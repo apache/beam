@@ -32,7 +32,7 @@ const jobManager = {
      * Cancel a Job.
      * Invokes backend handler to request a Job cancellation state.
      * @param jobId
-     * TODO(damondouglas@) Send request to backend service. https://github.com/apache/beam/issues/29669
+     * TODO(https://github.com/apache/beam/issues/29669) Send request to backend service.
      */
     cancel: function(jobId) {
         console.debug(`cancel button for Job: ${jobId} clicked`)
