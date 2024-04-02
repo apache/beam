@@ -28,6 +28,7 @@ import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.clo
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.splitRequestToApproximateSplitRequest;
 import static org.apache.beam.runners.dataflow.worker.counters.CounterName.named;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
@@ -152,6 +153,7 @@ public class MapTaskExecutorTest {
     inOrder.verify(o1).finish();
     inOrder.verify(o2).finish();
     inOrder.verify(o3).finish();
+    inOrder.verify(stateTracker).reset();
   }
 
   private TestOperation createOperation(String stepName, long count) {
@@ -338,6 +340,7 @@ public class MapTaskExecutorTest {
       assertThat(
           context3.metricsContainer().getUpdates().counterUpdates(),
           contains(metricUpdate("TestMetric", "MetricCounter", o3, 3L)));
+      assertEquals(0, stateTracker.getMillisSinceBundleStart()); 
     }
   }
 
@@ -401,15 +404,16 @@ public class MapTaskExecutorTest {
     Operation o3 = Mockito.mock(Operation.class);
     Mockito.doThrow(new Exception("in start")).when(o2).start();
 
-    ExecutionStateTracker stateTracker = ExecutionStateTracker.newForTest();
+    ExecutionStateTracker stateTracker = Mockito.mock(ExecutionStateTracker.class);
     try (MapTaskExecutor executor =
         new MapTaskExecutor(Arrays.<Operation>asList(o1, o2, o3), counterSet, stateTracker)) {
       executor.execute();
       fail("Should have thrown");
     } catch (Exception e) {
-      InOrder inOrder = Mockito.inOrder(o1, o2, o3);
+      InOrder inOrder = Mockito.inOrder(o1, o2, o3, stateTracker);
       inOrder.verify(o3).start();
       inOrder.verify(o2).start();
+      inOrder.verify(stateTracker).reset();
 
       // Order of abort doesn't matter
       Mockito.verify(o1).abort();
@@ -426,18 +430,19 @@ public class MapTaskExecutorTest {
     Operation o3 = Mockito.mock(Operation.class);
     Mockito.doThrow(new Exception("in finish")).when(o2).finish();
 
-    ExecutionStateTracker stateTracker = ExecutionStateTracker.newForTest();
+    ExecutionStateTracker stateTracker = Mockito.mock(ExecutionStateTracker.class);
     try (MapTaskExecutor executor =
         new MapTaskExecutor(Arrays.<Operation>asList(o1, o2, o3), counterSet, stateTracker)) {
       executor.execute();
       fail("Should have thrown");
     } catch (Exception e) {
-      InOrder inOrder = Mockito.inOrder(o1, o2, o3);
+      InOrder inOrder = Mockito.inOrder(o1, o2, o3, stateTracker);
       inOrder.verify(o3).start();
       inOrder.verify(o2).start();
       inOrder.verify(o1).start();
       inOrder.verify(o1).finish();
       inOrder.verify(o2).finish();
+      inOrder.verify(stateTracker).reset();
 
       // Order of abort doesn't matter
       Mockito.verify(o1).abort();
@@ -456,19 +461,21 @@ public class MapTaskExecutorTest {
     Mockito.doThrow(new Exception("in finish")).when(o2).finish();
     Mockito.doThrow(new Exception("suppressed in abort")).when(o3).abort();
 
-    ExecutionStateTracker stateTracker = ExecutionStateTracker.newForTest();
+    ExecutionStateTracker stateTracker = Mockito.mock(ExecutionStateTracker.class);
     try (MapTaskExecutor executor =
         new MapTaskExecutor(Arrays.<Operation>asList(o1, o2, o3, o4), counterSet, stateTracker)) {
       executor.execute();
       fail("Should have thrown");
     } catch (Exception e) {
-      InOrder inOrder = Mockito.inOrder(o1, o2, o3, o4);
+      InOrder inOrder = Mockito.inOrder(o1, o2, o3, o4, stateTracker);
       inOrder.verify(o4).start();
       inOrder.verify(o3).start();
       inOrder.verify(o2).start();
       inOrder.verify(o1).start();
       inOrder.verify(o1).finish();
       inOrder.verify(o2).finish(); // this fails
+      inOrder.verify(stateTracker).reset();
+      
 
       // Order of abort doesn't matter
       Mockito.verify(o1).abort();
@@ -491,7 +498,7 @@ public class MapTaskExecutorTest {
     ReadOperation o1 = Mockito.mock(ReadOperation.class);
     ReadOperation o2 = Mockito.mock(ReadOperation.class);
 
-    ExecutionStateTracker stateTracker = ExecutionStateTracker.newForTest();
+    ExecutionStateTracker stateTracker = Mockito.mock(ExecutionStateTracker.class);
     MapTaskExecutor executor =
         new MapTaskExecutor(Arrays.<Operation>asList(o1, o2), counterSet, stateTracker);
     Mockito.doAnswer(
@@ -504,5 +511,6 @@ public class MapTaskExecutorTest {
     executor.execute();
     Mockito.verify(o1, atLeastOnce()).abortReadLoop();
     Mockito.verify(o2, atLeastOnce()).abortReadLoop();
+    Mockito.verify(stateTracker).reset();
   }
 }

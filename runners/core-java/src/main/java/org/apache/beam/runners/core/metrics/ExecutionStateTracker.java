@@ -306,6 +306,11 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     return millisSinceLastTransition;
   }
 
+  /** Return the time since the last transition. */
+  public long getMillisSinceBundleStart() {
+    return millisSinceBundleStart;
+  }
+
   /** Return the number of transitions since the last sample. */
   public long getTransitionsAtLastSample() {
     return transitionsAtLastSample;
