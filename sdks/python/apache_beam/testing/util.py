@@ -261,6 +261,7 @@ def assert_that(
   """
   assert isinstance(actual, pvalue.PCollection), (
       '%s is not a supported type for Beam assert' % type(actual))
+  pipeline = actual.pipeline
   if getattr(actual.pipeline, 'result', None):
     # The pipeline was already run. The user most likely called assert_that
     # after the pipeleline context.
