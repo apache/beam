@@ -170,6 +170,10 @@ dataframe_dependency = [
     'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.1;python_version>="3.8"',
 ]
 
+js2py_dependency = ['']
+if sys.version_info.minor < 12:
+  js2py_dependency = ['js2py>=0.74,<1']
+
 
 def find_by_ext(root_dir, ext):
   for root, _, files in os.walk(root_dir):
@@ -368,7 +372,6 @@ if __name__ == '__main__':
           'grpcio>=1.33.1,!=1.48.0,<2',
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
-          'js2py>=0.74,<1',
           'jsonschema>=4.0.0,<5.0.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
@@ -400,7 +403,7 @@ if __name__ == '__main__':
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
-      ] + pyarrow_dependency,
+      ] + pyarrow_dependency + js2py_dependency,
       python_requires=python_requires,
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
