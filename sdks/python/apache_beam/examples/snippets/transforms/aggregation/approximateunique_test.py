@@ -16,10 +16,10 @@
 # limitations under the License.
 #
 import math
-import mock
 import unittest
 
 import apache_beam as beam
+import mock
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that, equal_to
 

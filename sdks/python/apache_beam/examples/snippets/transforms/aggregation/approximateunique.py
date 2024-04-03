@@ -35,6 +35,7 @@
 def approximateunique(test=None):
   # [START approximateunique]
   import random
+
   import apache_beam as beam
 
   with beam.Pipeline() as pipeline:
