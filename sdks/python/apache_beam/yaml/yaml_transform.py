@@ -33,6 +33,7 @@ import yaml
 from yaml.loader import SafeLoader
 
 import apache_beam as beam
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 from apache_beam.yaml import yaml_provider
@@ -128,6 +129,10 @@ def empty_if_explicitly_empty(io):
 
 class SafeLineLoader(SafeLoader):
   """A yaml loader that attaches line information to mappings and strings."""
+  def __init__(self, stream):
+    super().__init__(stream)
+    self.add_constructor('!include', SafeLineLoader.include)
+
   class TaggedString(str):
     """A string class to which we can attach metadata.
 
@@ -176,6 +181,12 @@ class SafeLineLoader(SafeLoader):
       return obj.get('__line__', 'unknown')
     else:
       return getattr(obj, '_line_', 'unknown')
+
+  def include(self, node):
+    filename = self.construct_scalar(node)
+
+    with FileSystems.open(filename) as f:
+      return yaml.load(f.read().decode(), SafeLineLoader)
 
 
 class LightweightScope(object):

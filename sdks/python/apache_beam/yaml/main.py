@@ -23,7 +23,6 @@ import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.typehints.schemas import LogicalType
 from apache_beam.typehints.schemas import MillisInstant
-from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 
 # Workaround for https://github.com/apache/beam/issues/28151.
@@ -46,11 +45,6 @@ def _configure_parser(argv):
       help='none: do no pipeline validation against the schema; '
       'generic: validate the pipeline shape, but not individual transforms; '
       'per_transform: also validate the config of known transforms')
-  parser.add_argument(
-      '--providers', help='A yaml description of the providers to attach.')
-  parser.add_argument(
-      '--providers_file',
-      help='A file containing a yaml description of the providers to attach.')
   return parser.parse_known_args(argv)
 
 
@@ -70,25 +64,10 @@ def _pipeline_spec_from_args(known_args):
   return pipeline_yaml
 
 
-def _provider_spec_from_args(known_args):
-  if known_args.providers_file and known_args.providers:
-    raise ValueError("Only one of providers or providers_file can be set.")
-  elif known_args.providers_file:
-    with FileSystems.open(known_args.providers_file) as fin:
-      provider_spec = yaml.load(
-          fin.read().decode(), Loader=yaml_transform.SafeLineLoader)
-      return yaml_provider.parse_providers(provider_spec)
-  elif known_args.providers:
-    return known_args.providers
-
-  return None
-
-
 def run(argv=None):
   known_args, pipeline_args = _configure_parser(argv)
   pipeline_yaml = _pipeline_spec_from_args(known_args)
   pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
-  provider_spec = _provider_spec_from_args(known_args)
 
   with beam.Pipeline(  # linebreak for better yapf formatting
       options=beam.options.pipeline_options.PipelineOptions(
@@ -99,10 +78,7 @@ def run(argv=None):
       display_data={'yaml': pipeline_yaml}) as p:
     print("Building pipeline...")
     yaml_transform.expand_pipeline(
-        p,
-        pipeline_spec,
-        providers=provider_spec,
-        validate_schema=known_args.json_schema_validation)
+        p, pipeline_spec, validate_schema=known_args.json_schema_validation)
     print("Running pipeline...")
 
 
