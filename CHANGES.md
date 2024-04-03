@@ -52,6 +52,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
+
 # [2.56.0] - Unreleased
 
 ## Highlights
@@ -85,6 +86,12 @@
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
+
+# [2.55.1] - Unreleased
+
+## Bugfixes
+
+* Fixed issue that broke WriteToJson in languages other than Java (X-lang) ([#30776](https://github.com/apache/beam/issues/30776)).
 
 # [2.55.0] - 2024-03-25
 
