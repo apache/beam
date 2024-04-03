@@ -32,6 +32,9 @@ public class NoOpHistogram implements Histogram {
   public void update(double value) {}
 
   @Override
+  public void update(double... value) {}
+
+  @Override
   public MetricName getName() {
     return name;
   }

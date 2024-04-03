@@ -61,11 +61,6 @@ public class BigtableWriteSchemaTransformProvider
   private static final String INPUT_TAG = "input";
 
   @Override
-  protected Class<BigtableWriteSchemaTransformConfiguration> configurationClass() {
-    return BigtableWriteSchemaTransformConfiguration.class;
-  }
-
-  @Override
   protected SchemaTransform from(BigtableWriteSchemaTransformConfiguration configuration) {
     return new BigtableWriteSchemaTransform(configuration);
   }
@@ -78,11 +73,6 @@ public class BigtableWriteSchemaTransformProvider
   @Override
   public List<String> inputCollectionNames() {
     return Collections.singletonList(INPUT_TAG);
-  }
-
-  @Override
-  public List<String> outputCollectionNames() {
-    return Collections.emptyList();
   }
 
   /** Configuration for writing to Bigtable. */

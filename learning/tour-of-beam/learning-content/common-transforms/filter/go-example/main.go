@@ -27,39 +27,39 @@
 package main
 
 import (
-    "context"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
-    "github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
+	"context"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 )
 
 func main() {
-    ctx := context.Background()
+	ctx := context.Background()
+	beam.Init()
 
-    p, s := beam.NewPipelineWithRoot()
+	p, s := beam.NewPipelineWithRoot()
 
-    // List of elements
-    input := beam.Create(s, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+	// List of elements
+	input := beam.Create(s, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
-    // The [input] filtered with the applyTransform()
-    output := applyTransform(s, input)
+	// The [input] filtered with the applyTransform()
+	output := applyTransform(s, input)
 
-    debug.Printf(s, "PCollection filtered value: %v", output)
+	debug.Printf(s, "PCollection filtered value: %v", output)
 
-    err := beamx.Run(ctx, p)
+	err := beamx.Run(ctx, p)
 
-    if err != nil {
-        log.Exitf(context.Background(), "Failed to execute job: %v", err)
-    }
+	if err != nil {
+		log.Exitf(ctx, "Failed to execute job: %v", err)
+	}
 }
 
 // The method filters the collection so that the numbers are even
 func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
-    return filter.Exclude(s, input, func(element int) bool {
-        return element % 2 == 1
-    })
+	return filter.Exclude(s, input, func(element int) bool {
+		return element%2 == 1
+	})
 }
-
-

@@ -1225,9 +1225,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     DataflowPackage stagedPipeline =
         options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
     dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
-    // Now rewrite things to be as needed for v1 (mutates the pipeline)
-    // This way the job submitted is valid for v1 and v2, simultaneously
-    replaceV1Transforms(pipeline);
+
+    if (useUnifiedWorker(options)) {
+      LOG.info("Skipping v1 transform replacements since job will run on v2.");
+    } else {
+      // Now rewrite things to be as needed for v1 (mutates the pipeline)
+      // This way the job submitted is valid for v1 and v2, simultaneously
+      replaceV1Transforms(pipeline);
+    }
     // Capture the SdkComponents for look up during step translations
     SdkComponents dataflowV1Components = SdkComponents.create();
     dataflowV1Components.registerEnvironment(

@@ -664,8 +664,8 @@ class BeamModulePlugin implements Plugin<Project> {
         antlr_runtime                               : "org.antlr:antlr4-runtime:4.7",
         args4j                                      : "args4j:args4j:2.33",
         auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
-        avro                                        : "org.apache.avro:avro:1.8.2",
-        avro_tests                                  : "org.apache.avro:avro:1.8.2:tests",
+        avro                                        : "org.apache.avro:avro:1.11.3",
+        avro_tests                                  : "org.apache.avro:avro:1.11.3:tests",
         aws_java_sdk_cloudwatch                     : "com.amazonaws:aws-java-sdk-cloudwatch:$aws_java_sdk_version",
         aws_java_sdk_core                           : "com.amazonaws:aws-java-sdk-core:$aws_java_sdk_version",
         aws_java_sdk_dynamodb                       : "com.amazonaws:aws-java-sdk-dynamodb:$aws_java_sdk_version",
@@ -1278,6 +1278,13 @@ class BeamModulePlugin implements Plugin<Project> {
         '**/AutoValue_*'
       ]
 
+      def jacocoEnabled = project.hasProperty('enableJacocoReport')
+      if (jacocoEnabled) {
+        project.tasks.withType(Test) {
+          finalizedBy project.jacocoTestReport
+        }
+      }
+
       project.test {
         jacoco {
           excludes = jacocoExcludes
@@ -1285,13 +1292,23 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       project.jacocoTestReport {
-        doFirst {
-          getClassDirectories().setFrom(project.files(
-              project.fileTree(
-              dir: "${project.rootDir}",
-              exclude: jacocoExcludes
-              )
-              )
+        getClassDirectories().setFrom(project.files(
+            project.fileTree(
+            dir: project.getLayout().getBuildDirectory().dir("classes/java/main"),
+            excludes: jacocoExcludes
+            )
+            ))
+        getSourceDirectories().setFrom(
+            project.files(project.sourceSets.main.allSource.srcDirs)
+            )
+        getExecutionData().setFrom(project.file(
+            project.getLayout().getBuildDirectory().file("jacoco/test.exec")
+            ))
+        reports {
+          html.required = true
+          xml.required = true
+          html.outputLocation = project.file(
+              project.getLayout().getBuildDirectory().dir("jacoco/report")
               )
         }
       }
@@ -2448,7 +2465,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // TODO: Decide whether this should be inlined into the one project that relies on it
     // or be left here.
     project.ext.applyAvroNature = {
-      project.apply plugin: "com.commercehub.gradle.plugin.avro"
+      project.apply plugin: "com.github.davidmc24.gradle.plugin.avro"
 
       // add dependency BeamModulePlugin defined custom tasks
       // they are defined only when certain flags are provided (e.g. -Prelease; -Ppublishing, etc)
@@ -2504,7 +2521,7 @@ class BeamModulePlugin implements Plugin<Project> {
         argsNeeded.add("--gcpRegion=${config.gcpRegion}")
       }
       if (config.gcsBucket) {
-        argsNeeded.add("--gcsBucket=${config.gcsBucket}")
+        argsNeeded.add("--gcsBucket=${config.gcsBucket}/${randomUUID().toString()}")
       }
       if (config.bqDataset) {
         argsNeeded.add("--bqDataset=${config.bqDataset}")

@@ -22,9 +22,7 @@ This can range from very tech-focused talks, to more business- and use case-focu
 
 People who have a recording related to Apache Beam can share this on the channel. The process is documented below.
 
-The YouTube channel found here is owned by the Apache Beam PMC.
-
-<iframe class="video video--medium-size" width="560" height="340" src="https://www.youtube.com/embed/bhj4Bjczb8I" frameborder="0" allowfullscreen></iframe>
+The YouTube channel found [here](https://www.youtube.com/channel/UChNnb_YO_7B0HlW6FhAXZZQ) is owned by the Apache Beam PMC.
 
 ## Process to add videos to the Apache Beam YouTube channel
 
