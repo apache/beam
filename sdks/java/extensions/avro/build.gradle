@@ -86,6 +86,7 @@ dependencies {
     "avroVersion$k" library.java.slf4j_jdk14
     "avroVersion$k" "org.tukaani:xz:1.9" // marked as optional in avro
     "avroVersion$k" library.java.zstd_jni // marked as optional in avro
+    "avroVersion$k" "org.apache.avro:avro:$v:tests"
     "avroVersion${k}Generate" "org.apache.avro:avro-tools:$v"
   }
 }
