@@ -732,7 +732,7 @@ public class Pipeline {
     for (ErrorHandler<?, ?> errorHandler : errorHandlers) {
       if (!errorHandler.isClosed()) {
         throw new IllegalStateException(
-            "One or more ErrorHandlers aren't closed, and this pipeline"
+            "One or more ErrorHandlers aren't closed, and this pipeline "
                 + "cannot be run. See the ErrorHandler documentation for expected usage");
       }
     }
