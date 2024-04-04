@@ -116,7 +116,7 @@ public class JmsIOIT implements Serializable {
     void setLocalJmsBrokerEnabled(boolean isEnabled);
 
     @Description("JMS Read Timeout in seconds")
-    @Default.Integer(30)
+    @Default.Integer(180)
     Integer getReadTimeout();
 
     void setReadTimeout(Integer timeout);
