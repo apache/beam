@@ -18,17 +18,22 @@
 package org.apache.beam.sdk.managed;
 
 import com.google.auto.value.AutoValue;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 public class Managed {
   public static Read read() {
-    return new AutoValue_Managed_Read.Builder().build();
+    return new AutoValue_Managed_Read.Builder()
+        .setSupportedIdentifiers(new ArrayList<>(Read.TRANSFORMS.values()))
+        .build();
   }
 
   @AutoValue
@@ -44,15 +49,19 @@ public class Managed {
 
     abstract @Nullable String getConfigUrl();
 
+    abstract List<String> getSupportedIdentifiers();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setSource(String source);
 
-      abstract Builder setConfig(String config);
+      abstract Builder setConfig(@Nullable String config);
 
-      abstract Builder setConfigUrl(String configUrl);
+      abstract Builder setConfigUrl(@Nullable String configUrl);
+
+      abstract Builder setSupportedIdentifiers(List<String> supportedIdentifiers);
 
       abstract Read build();
     }
@@ -78,6 +87,11 @@ public class Managed {
       return toBuilder().setConfig(YamlUtils.yamlStringFromMap(config)).build();
     }
 
+    @VisibleForTesting
+    Read withSupportedIdentifiers(List<String> supportedIdentifiers) {
+      return toBuilder().setSupportedIdentifiers(supportedIdentifiers).build();
+    }
+
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       ManagedSchemaTransformProvider.ManagedConfig managedConfig =
@@ -95,7 +109,9 @@ public class Managed {
   }
 
   public static Write write() {
-    return new AutoValue_Managed_Write.Builder().build();
+    return new AutoValue_Managed_Write.Builder()
+        .setSupportedIdentifiers(new ArrayList<>(Write.TRANSFORMS.values()))
+        .build();
   }
 
   @AutoValue
@@ -111,6 +127,8 @@ public class Managed {
 
     abstract @Nullable String getConfigUrl();
 
+    abstract List<String> getSupportedIdentifiers();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -120,6 +138,8 @@ public class Managed {
       abstract Builder setConfig(String config);
 
       abstract Builder setConfigUrl(String configUrl);
+
+      abstract Builder setSupportedIdentifiers(List<String> supportedIdentifiers);
 
       abstract Write build();
     }
@@ -143,6 +163,11 @@ public class Managed {
 
     public Write withConfig(Map<String, Object> config) {
       return toBuilder().setConfig(YamlUtils.yamlStringFromMap(config)).build();
+    }
+
+    @VisibleForTesting
+    Write withSupportedIdentifiers(List<String> supportedIdentifiers) {
+      return toBuilder().setSupportedIdentifiers(supportedIdentifiers).build();
     }
 
     @Override
