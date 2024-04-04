@@ -368,6 +368,7 @@ if __name__ == '__main__':
           'grpcio>=1.33.1,!=1.48.0,<2',
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
+          # https://github.com/PiotrDabkowski/Js2Py/issues/317
           'js2py>=0.74,<1; python_version<"3.12"',
           'jsonschema>=4.0.0,<5.0.0',
           'jsonpickle>=3.0.0,<4.0.0',
