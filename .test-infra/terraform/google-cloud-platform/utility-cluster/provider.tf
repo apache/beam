@@ -19,7 +19,7 @@
 
 terraform {
    backend "gcs" {
-    prefix = "vdjerek-test"
+    prefix = "beam-utility"
    }
 
   required_providers {

@@ -22,6 +22,7 @@ resource "helm_release" "strimzi-helm-release" {
   create_namespace = true
   repository = "https://strimzi.io/charts/"
   chart      = "strimzi-kafka-operator"
+  version = "0.40.0"
   
   atomic = "true"
   timeout = 500
