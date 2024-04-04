@@ -169,7 +169,7 @@ def _SqlJoinTransform(
     sql_transform_constructor,
     type: Union[str, Dict[str, List]],
     equalities: Union[str, List[Dict[str, str]]],
-    fields: Optional[Dict[str, Any]]=None):
+    fields: Optional[Dict[str, Any]] = None):
   """Joins two or more inputs using a specfied condition.
 
   Args:
