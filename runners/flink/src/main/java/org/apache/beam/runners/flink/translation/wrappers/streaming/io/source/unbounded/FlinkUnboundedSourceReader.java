@@ -21,6 +21,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -75,6 +77,11 @@ public class FlinkUnboundedSourceReader<T>
   private int currentReaderIndex;
   private volatile boolean shouldEmitWatermark;
 
+  /** Pending checkpoints which have not been acknowledged yet. */
+  private transient LinkedHashMap<Long, List<UnboundedSource.CheckpointMark>> pendingCheckpoints;
+  /** Keep a maximum of 32 checkpoints for {@code CheckpointMark.finalizeCheckpoint()}. */
+  private static final int MAX_NUMBER_PENDING_CHECKPOINTS = 32;
+
   public FlinkUnboundedSourceReader(
       String stepName,
       SourceReaderContext context,
@@ -84,6 +91,7 @@ public class FlinkUnboundedSourceReader<T>
     this.readers = new ArrayList<>();
     this.dataAvailableFutureRef = new AtomicReference<>(DUMMY_FUTURE);
     this.currentReaderIndex = 0;
+    pendingCheckpoints = new LinkedHashMap<>();
   }
 
   @VisibleForTesting
@@ -97,6 +105,7 @@ public class FlinkUnboundedSourceReader<T>
     this.readers = new ArrayList<>();
     this.dataAvailableFutureRef = new AtomicReference<>(DUMMY_FUTURE);
     this.currentReaderIndex = 0;
+    pendingCheckpoints = new LinkedHashMap<>();
   }
 
   @Override
@@ -215,6 +224,50 @@ public class FlinkUnboundedSourceReader<T>
       throws IOException {
     Source<T> beamSource = sourceSplit.getBeamSplitSource();
     return createUnboundedSourceReader(beamSource, sourceSplit.getSplitState());
+  }
+
+  @Override
+  public List<FlinkSourceSplit<T>> snapshotState(long checkpointId) {
+
+    List<UnboundedSource.CheckpointMark> checkpointMarks = new ArrayList<>(allReaders().size());
+    allReaders()
+        .forEach(
+            (splitId, readerAndOutput) -> {
+              UnboundedSource.UnboundedReader<T> reader = asUnbounded(readerAndOutput.reader);
+              checkpointMarks.add(reader.getCheckpointMark());
+            });
+
+    // cleanup old pending checkpoints and add new checkpoint
+    int diff = pendingCheckpoints.size() - MAX_NUMBER_PENDING_CHECKPOINTS;
+    if (diff >= 0) {
+      for (Iterator<Long> iterator = pendingCheckpoints.keySet().iterator(); diff >= 0; diff--) {
+        iterator.next();
+        iterator.remove();
+      }
+    }
+    pendingCheckpoints.put(checkpointId, checkpointMarks);
+    return super.snapshotState(checkpointId);
+  }
+
+  @Override
+  public void notifyCheckpointComplete(long checkpointId) throws Exception {
+
+    List<UnboundedSource.CheckpointMark> checkpointMarks = pendingCheckpoints.get(checkpointId);
+    if (checkpointMarks != null) {
+
+      // remove old checkpoints including the current one
+      Iterator<Long> iterator = pendingCheckpoints.keySet().iterator();
+      long currentId;
+      do {
+        currentId = iterator.next();
+        iterator.remove();
+      } while (currentId != checkpointId);
+
+      // confirm all marks
+      for (UnboundedSource.CheckpointMark mark : checkpointMarks) {
+        mark.finalizeCheckpoint();
+      }
+    }
   }
 
   // -------------- private helper methods ----------------

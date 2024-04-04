@@ -282,6 +282,31 @@ public class FlinkUnboundedSourceReaderTest
     }
   }
 
+  @Test
+  public void testCheckMarksFinalized() throws Exception {
+
+    final int numSplits = 2;
+    final int numRecordsPerSplit = 10;
+
+    List<FlinkSourceSplit<KV<Integer, Integer>>> splits =
+        createSplits(numSplits, numRecordsPerSplit, 0);
+    RecordsValidatingOutput validatingOutput = new RecordsValidatingOutput(splits);
+    // Create a reader, take a snapshot.
+    try (SourceReader<
+            WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
+            FlinkSourceSplit<KV<Integer, Integer>>>
+        reader = createReader()) {
+      List<Integer> finalizeTracker = new ArrayList<>();
+      TestCountingSource.setFinalizeTracker(finalizeTracker);
+      pollAndValidate(reader, splits, validatingOutput, numSplits * numRecordsPerSplit / 2);
+      assertTrue(finalizeTracker.isEmpty());
+      reader.snapshotState(0L);
+      // notifyCheckpointComplete is normally called by the SourceOperator
+      reader.notifyCheckpointComplete(0L);
+      assertFalse(finalizeTracker.isEmpty());
+    }
+  }
+
   // --------------- private helper classes -----------------
   /** A source whose advance() method only returns true occasionally. */
   private static class DummySource extends TestCountingSource {
