@@ -16,27 +16,20 @@
  * limitations under the License.
  */
 
-resource "random_string" "postfix" {
-  length  = 6
-  upper   = false
-  special = false
+resource "helm_release" "strimzi-helm-release" {
+  name       = "strimzi"
+  namespace  = "strimzi"
+  create_namespace = true
+  repository = "https://strimzi.io/charts/"
+  chart      = "strimzi-kafka-operator"
+  
+  atomic = "true"
+  timeout = 500
+
+  set {
+    name  = "watchAnyNamespace"
+    value = "true"
+  }
+  depends_on = [ module.gke.google_container_cluster ]
 }
 
-resource "google_container_cluster" "default" {
-  depends_on          = [google_project_service.required]
-  deletion_protection = false
-  name                = coalesce(var.cluster_name_override,"${var.cluster_name_prefix}-${random_string.postfix.result}")
-  location            = var.region
-  enable_autopilot    = true
-  network             = data.google_compute_network.default.id
-  subnetwork          = data.google_compute_subnetwork.default.id
-  private_cluster_config {
-    enable_private_nodes    = true
-    enable_private_endpoint = false
-  }
-  cluster_autoscaling {
-    auto_provisioning_defaults {
-      service_account = var.service_account_id
-    }
-  }
-}

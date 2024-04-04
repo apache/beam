@@ -26,7 +26,7 @@ metadata:
   name: beam-testing-cluster
 spec:
   kafka:
-    version: 3.4.0
+    version: 3.6.0
     replicas: 3
     config:
       offsets.topic.replication.factor: 3

@@ -16,27 +16,14 @@
  * limitations under the License.
  */
 
-resource "random_string" "postfix" {
-  length  = 6
-  upper   = false
-  special = false
-}
+module "gke" {
+  source = "../google-kubernetes-engine"
+  project    = "apache-beam-testing"
+  network    = "default"
+  subnetwork = "default-f91f013bcf8bd369"
+  region     = "us-central1"
+  cluster_name_prefix = "beam-utility"
+  service_account_id = "beam-github-actions@apache-beam-testing.iam.gserviceaccount.com"
+  cluster_name_override = "beam-utility"
 
-resource "google_container_cluster" "default" {
-  depends_on          = [google_project_service.required]
-  deletion_protection = false
-  name                = coalesce(var.cluster_name_override,"${var.cluster_name_prefix}-${random_string.postfix.result}")
-  location            = var.region
-  enable_autopilot    = true
-  network             = data.google_compute_network.default.id
-  subnetwork          = data.google_compute_subnetwork.default.id
-  private_cluster_config {
-    enable_private_nodes    = true
-    enable_private_endpoint = false
-  }
-  cluster_autoscaling {
-    auto_provisioning_defaults {
-      service_account = var.service_account_id
-    }
-  }
 }

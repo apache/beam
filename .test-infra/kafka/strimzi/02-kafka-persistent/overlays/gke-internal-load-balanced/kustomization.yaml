@@ -18,8 +18,6 @@
 # This overlay patches the base strimzi kafka cluster with a GKE TCP
 # internal load balancer ingress
 
-namespace: strimzi
-
 resources:
 - ../../base/v0.33.2
 patchesStrategicMerge:
