@@ -25,14 +25,6 @@ applyJavaNature(
 description = "Apache Beam :: IT :: Kafka"
 ext.summary = "Integration test utilities for Kafka."
 
-configurations.all {
-    exclude group: 'ch.qos.logback', module: 'logback-classic'
-    exclude group: 'org.slf4j', module: 'slf4j-jdk14'
-    exclude group: 'org.slf4j', module: 'slf4j-log4j12'
-    exclude group: 'org.slf4j', module: 'slf4j-reload4j'
-    exclude group: "org.slf4j", module: "jul-to-slf4j"
-}
-
 dependencies {
     implementation project(path: ":it:testcontainers", configuration: "shadow")
     implementation library.java.testcontainers_kafka

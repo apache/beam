@@ -64,8 +64,15 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-/** PubSubIO performance tests. */
-public class PubSubIOLT extends IOLoadTestBase {
+/**
+ * PubsubIO load test.
+ *
+ * <p>Usage: <br>
+ * - To run medium-scale load tests: {@code gradle :it:google-cloud-platform:PubsubLoadTestMedium}
+ * <br>
+ * - To run large-scale load tests: {@code gradle :it:google-cloud-platform:PubsubLoadTestLarge}
+ */
+public class PubsubIOLT extends IOLoadTestBase {
 
   private static final int NUMBER_OF_BUNDLES_FOR_LOCAL = 10;
   private static final int NUMBER_OF_BUNDLES_FOR_MEDIUM_AND_LARGE = 20;
@@ -88,17 +95,17 @@ public class PubSubIOLT extends IOLoadTestBase {
       TEST_CONFIGS_PRESET =
           ImmutableMap.of(
               "local",
-              PubSubIOLT.Configuration.fromJsonString(
+              Configuration.fromJsonString(
                   "{\"numRecords\":200,\"valueSizeBytes\":1000,\"pipelineTimeout\":7,\"runner\":\"DirectRunner\",\"numWorkers\":1}",
-                  PubSubIOLT.Configuration.class), // 0.2 MB
+                  Configuration.class), // 0.2 MB
               "medium",
-              PubSubIOLT.Configuration.fromJsonString(
+              Configuration.fromJsonString(
                   "{\"numRecords\":10000000,\"valueSizeBytes\":1000,\"pipelineTimeout\":20,\"runner\":\"DataflowRunner\",\"numWorkers\":10}",
-                  PubSubIOLT.Configuration.class), // 10 GB
+                  Configuration.class), // 10 GB
               "large",
-              PubSubIOLT.Configuration.fromJsonString(
+              Configuration.fromJsonString(
                   "{\"numRecords\":100000000,\"valueSizeBytes\":1000,\"pipelineTimeout\":50,\"runner\":\"DataflowRunner\",\"numWorkers\":20}",
-                  PubSubIOLT.Configuration.class) // 100 GB
+                  Configuration.class) // 100 GB
               );
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -119,8 +126,7 @@ public class PubSubIOLT extends IOLoadTestBase {
     configuration = TEST_CONFIGS_PRESET.get(testConfigName);
     if (configuration == null) {
       try {
-        configuration =
-            PubSubIOLT.Configuration.fromJsonString(testConfigName, PubSubIOLT.Configuration.class);
+        configuration = Configuration.fromJsonString(testConfigName, Configuration.class);
       } catch (IOException e) {
         throw new IllegalArgumentException(
             String.format(
@@ -379,7 +385,7 @@ public class PubSubIOLT extends IOLoadTestBase {
     }
   }
 
-  /** Mapper class to convert data from KV<byte[], byte[]> to PubSubMessage. */
+  /** Mapper class to convert data from KV<byte[], byte[]> to PubsubMessage. */
   private static class MapKVtoPubSubMessage extends DoFn<KV<byte[], byte[]>, PubsubMessage> {
     @ProcessElement
     public void process(ProcessContext context) {
@@ -389,7 +395,7 @@ public class PubSubIOLT extends IOLoadTestBase {
     }
   }
 
-  /** Example of Generic class to test PubSubIO.writeAvros()/readAvros methods. */
+  /** Example of Generic class to test PubsubIO.writeAvros() / readAvros() methods. */
   static class GenericClass implements Serializable {
     byte[] byteField;
 
@@ -426,7 +432,7 @@ public class PubSubIOLT extends IOLoadTestBase {
     PUBSUB_MESSAGE
   }
 
-  /** Options for PubSub IO load test. */
+  /** Options for Pubsub IO load test. */
   static class Configuration extends SyntheticSourceOptions {
     /** Pipeline timeout in minutes. Must be a positive value. */
     @JsonProperty public int pipelineTimeout = 20;

@@ -113,9 +113,14 @@ tasks.register(
         + System.properties
 )
 tasks.register(
-        "PubSubPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'PubSubIOLT',
-        ['configuration':'large', 'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        "PubsubLoadTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'PubsubIOLT',
+        ['configuration':'medium', 'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
         + System.properties
+)
+tasks.register(
+        "PubsubLoadTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'PubsubIOLT',
+        ['configuration':'large', 'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+                + System.properties
 )
 tasks.register(
         "WordCountIntegrationTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'WordCountIT',

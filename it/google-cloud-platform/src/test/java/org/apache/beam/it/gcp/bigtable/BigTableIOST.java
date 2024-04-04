@@ -26,7 +26,6 @@ import com.google.bigtable.v2.Mutation;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
-import java.text.ParseException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -158,7 +157,7 @@ public final class BigTableIOST extends IOStressTestBase {
 
   /** Run stress test with configurations specified by TestProperties. */
   @Test
-  public void runTest() throws IOException, ParseException, InterruptedException {
+  public void runTest() throws IOException {
     if (configuration.exportMetricsToInfluxDB) {
       influxDBSettings =
           InfluxDBSettings.builder()
