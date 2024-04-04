@@ -136,4 +136,8 @@ public class YamlUtils {
         .map(field -> toBeamValue(field, yamlMap.get(field.getName())))
         .collect(toRow(rowSchema));
   }
+
+  public static String yamlStringFromMap(Map<String, Object> map) {
+    return new Yaml().dumpAsMap(map);
+  }
 }

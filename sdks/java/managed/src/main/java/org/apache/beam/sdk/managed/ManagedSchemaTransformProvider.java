@@ -22,10 +22,10 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
-import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
@@ -35,6 +35,7 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.base.Preconditions;
@@ -43,7 +44,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 @AutoService(SchemaTransformProvider.class)
 class ManagedSchemaTransformProvider
     extends TypedSchemaTransformProvider<ManagedSchemaTransformProvider.ManagedConfig> {
-  private static final String MANAGED_NAMESPACE = "managed";
 
   @Override
   public String identifier() {
@@ -52,7 +52,7 @@ class ManagedSchemaTransformProvider
 
   private final Map<String, SchemaTransformProvider> schemaTransformProviders = new HashMap<>();
 
-  private ManagedSchemaTransformProvider(Pattern pattern) {
+  private ManagedSchemaTransformProvider(Collection<String> identifiers) {
     try {
       for (SchemaTransformProvider schemaTransformProvider :
           ServiceLoader.load(SchemaTransformProvider.class)) {
@@ -67,14 +67,14 @@ class ManagedSchemaTransformProvider
       throw new RuntimeException(e.getMessage());
     }
 
-    schemaTransformProviders.entrySet().removeIf(e -> !pattern.matcher(e.getKey()).matches());
+    schemaTransformProviders.entrySet().removeIf(e -> !identifiers.contains(e.getKey()));
   }
 
   private static @Nullable ManagedSchemaTransformProvider managedProvider = null;
 
-  public static ManagedSchemaTransformProvider of(Pattern pattern) {
+  public static ManagedSchemaTransformProvider of(Collection<String> supportedIdentifiers) {
     if (managedProvider == null) {
-      managedProvider = new ManagedSchemaTransformProvider(pattern);
+      managedProvider = new ManagedSchemaTransformProvider(supportedIdentifiers);
     }
     return managedProvider;
   }
@@ -175,14 +175,6 @@ class ManagedSchemaTransformProvider
       transformYamlConfig = config.getConfig();
     }
 
-    return yamlToBeamRow(Preconditions.checkNotNull(transformYamlConfig), transformSchema);
-  }
-
-  // TODO: implement this method
-  private static Row yamlToBeamRow(String yaml, Schema schema) throws Exception {
-    // parse yaml string and convert to Row
-    // throw an exception if there are missing required fields or if types don't match
-    System.out.println(yaml);
-    return Row.nullRow(schema);
+    return YamlUtils.toBeamRow(transformYamlConfig, transformSchema);
   }
 }

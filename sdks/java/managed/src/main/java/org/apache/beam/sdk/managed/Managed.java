@@ -19,24 +19,26 @@ package org.apache.beam.sdk.managed;
 
 import com.google.auto.value.AutoValue;
 import java.util.Map;
-import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 public class Managed {
   public static Read read() {
-    return new AutoValue_Managed_Read.Builder().setPattern(Read.PATTERN).build();
+    return new AutoValue_Managed_Read.Builder().build();
   }
 
   @AutoValue
   public abstract static class Read extends SchemaTransform {
-    protected static final Pattern PATTERN =
-        Pattern.compile("beam:schematransform:org.apache.beam:[\\w-]+_read[\\w-]*:[\\w-]+");
+    public static Map<String, String> TRANSFORMS =
+        ImmutableMap.<String, String>builder()
+            .put("iceberg", "beam:schematransform:org.apache.beam:iceberg_read:v1")
+            .build();
 
     abstract String getSource();
-
-    abstract Pattern getPattern();
 
     abstract @Nullable String getConfig();
 
@@ -48,8 +50,6 @@ public class Managed {
     abstract static class Builder {
       abstract Builder setSource(String source);
 
-      abstract Builder setPattern(Pattern pattern);
-
       abstract Builder setConfig(String config);
 
       abstract Builder setConfigUrl(String configUrl);
@@ -57,8 +57,13 @@ public class Managed {
       abstract Read build();
     }
 
-    public Read from(String identifier) {
-      return toBuilder().setSource(identifier).build();
+    public Read from(String source) {
+      Preconditions.checkArgument(
+          TRANSFORMS.containsKey(source.toLowerCase()),
+          "An unsupported source was specified: '%s'. Please specify one of the following source: %s",
+          source,
+          TRANSFORMS.keySet());
+      return toBuilder().setSource(TRANSFORMS.get(source.toLowerCase())).build();
     }
 
     public Read withConfigUrl(String configUrl) {
@@ -70,7 +75,7 @@ public class Managed {
     }
 
     public Read withConfig(Map<String, Object> config) {
-      return toBuilder().setConfig(mapToYamlString(config)).build();
+      return toBuilder().setConfig(YamlUtils.yamlStringFromMap(config)).build();
     }
 
     @Override
@@ -83,24 +88,24 @@ public class Managed {
               .build();
 
       SchemaTransform underlyingTransform =
-          ManagedSchemaTransformProvider.of(getPattern()).from(managedConfig);
+          ManagedSchemaTransformProvider.of(TRANSFORMS.values()).from(managedConfig);
 
       return input.apply(underlyingTransform);
     }
   }
 
   public static Write write() {
-    return new AutoValue_Managed_Write.Builder().setPattern(Write.PATTERN).build();
+    return new AutoValue_Managed_Write.Builder().build();
   }
 
   @AutoValue
   public abstract static class Write extends SchemaTransform {
-    protected static final Pattern PATTERN =
-        Pattern.compile("beam:schematransform:org.apache.beam:[\\w-]+_write[\\w-]*:[\\w-]+");
+    public static Map<String, String> TRANSFORMS =
+        ImmutableMap.<String, String>builder()
+            .put("iceberg", "beam:schematransform:org.apache.beam:iceberg_write:v1")
+            .build();
 
     abstract String getSink();
-
-    abstract Pattern getPattern();
 
     abstract @Nullable String getConfig();
 
@@ -112,8 +117,6 @@ public class Managed {
     abstract static class Builder {
       abstract Builder setSink(String source);
 
-      abstract Builder setPattern(Pattern pattern);
-
       abstract Builder setConfig(String config);
 
       abstract Builder setConfigUrl(String configUrl);
@@ -121,8 +124,13 @@ public class Managed {
       abstract Write build();
     }
 
-    public Write to(String source) {
-      return toBuilder().setSink(source).build();
+    public Write to(String sink) {
+      Preconditions.checkArgument(
+          TRANSFORMS.containsKey(sink.toLowerCase()),
+          "An unsupported sink was specified: '%s'. Please specify one of the following sinks: %s",
+          sink,
+          TRANSFORMS.keySet());
+      return toBuilder().setSink(TRANSFORMS.get(sink.toLowerCase())).build();
     }
 
     public Write withConfigUrl(String configUrl) {
@@ -134,7 +142,7 @@ public class Managed {
     }
 
     public Write withConfig(Map<String, Object> config) {
-      return toBuilder().setConfig(mapToYamlString(config)).build();
+      return toBuilder().setConfig(YamlUtils.yamlStringFromMap(config)).build();
     }
 
     @Override
@@ -147,14 +155,9 @@ public class Managed {
               .build();
 
       SchemaTransform underlyingTransform =
-          ManagedSchemaTransformProvider.of(getPattern()).from(managedConfig);
+          ManagedSchemaTransformProvider.of(TRANSFORMS.values()).from(managedConfig);
 
       return input.apply(underlyingTransform);
     }
-  }
-
-  // TODO: implement this
-  private static String mapToYamlString(Map<String, Object> map) {
-    return "";
   }
 }
