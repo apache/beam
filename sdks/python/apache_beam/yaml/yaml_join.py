@@ -16,75 +16,103 @@
 #
 
 """This module defines the Join operation."""
+from typing import Any, Dict, List, Union
 import networkx as nx
 import apache_beam as beam
 from apache_beam.yaml import yaml_provider
 
 
-def _validate_type(type, str):
-  error = ValueError('Invalid value for \'type\' in Join transform')
-  print(type)
-  if not isinstance(type, dict) and isinstance(type, str) != str:
-    return error
-  if isinstance(type, dict) and len(type) != 1 and next(
-      iter(type)) != 'outer' and not isinstance(type['outer'],
-                                                list):
-    return error
+def _validate_input(pcolls):
+  error_prefix = f'Invalid input {pcolls} specified.'
+  if not isinstance(pcolls, dict):
+    raise ValueError(f'{error_prefix} It must be a dict.')
+  if len(pcolls) < 2:
+    raise ValueError(f'{error_prefix} There should be at least 2 inputs to join.')
+
+
+def _validate_type(type):
+  error_prefix = f'Invalid value "{type}" for "type". It should be'
+  if not isinstance(type, dict) and not isinstance(type, str):
+    raise ValueError(f'{error_prefix} a dict or a str.')
+  if isinstance(type, dict):
+    error = ValueError(f'{error_prefix} a dictionary of type [str, list[str]] and have only one element with the key "outer".')
+    if len(type) != 1:
+      raise error
+    if next(iter(type)) != 'outer':
+      raise error
+    if not isinstance(type['outer'],list):
+      raise error
   if isinstance(type, str) and type not in (
       'inner', 'outer', 'left', 'right'):
-    return error
+    raise ValueError(f'{error_prefix} one of the following: "inner", "outer", "left", "right"')
 
 
-def _validate_equalities(equalities, pcoll):
-  error = ValueError(
-    'Invalid value for \'equalities\' in Join transform')
+def _validate_equalities(equalities, pcolls):
+  error_prefix = f'Invalid value "{equalities}" for "equalities".'
+
+  valid_cols = {}
+  for input in pcolls.keys():
+    fields = set()
+    for field in pcolls[input].element_type._fields:
+      fields.add(field[0])
+    valid_cols[input] = fields
+
+  if isinstance(equalities, str):
+    for input in valid_cols.keys():
+      if equalities not in valid_cols[input]:
+        raise ValueError(f'{error_prefix} When "equalities" is a str, it must be a field name that exists in all the specified inputs.')
+    equality = {input: equalities for input in pcolls.keys()}
+    return [equality]
+
   if not isinstance(equalities, list):
-    return error
+    raise ValueError(f'{error_prefix} It should be a str or a list.')
   input_edge_list = []
   for equality in equalities:
-    if len(equality) != 2 and not isinstance(equality, dict):
-      return error
+    invalid_dict_error = ValueError(f'{error_prefix} {equality} should be a dict[str, str] containing at least 2 items.')
+    if not isinstance(equality, dict):
+      raise invalid_dict_error
+    if len(equality) < 2:
+      raise invalid_dict_error
 
     for input, col in equality.items():
-      # TODO: look for an easier way to get field names in a Pcollection obj
-      possible_cols = set()
-      for field in pcoll['f'].element_type._fields:
-        possible_cols.add(field[0])
-      if input not in pcoll.keys() or col not in possible_cols:
-        return ValueError(
-          'Invalid input alias or column name doesn\'t exist in the input')
+      if input not in pcolls.keys():
+        raise ValueError(f'{error_prefix} "{input}" is not a specified alias in "input"')
+      if col not in valid_cols[input]:
+        raise ValueError(f'{error_prefix} "{col}" is not a valid field in "{input}"')
 
-    input_edge_list.append(tuple(equality.keys()))
+    # input_edge_list.append(tuple(equality.keys()))
 
-  if not nx.is_connected(nx.Graph(input_edge_list)):
-    return ValueError(
-      'Inputs in equalities are not all connected'
-    )
+  # if not nx.is_connected(nx.Graph(input_edge_list)):
+  #   raise ValueError(
+  #     'Inputs in equalities are not all connected'
+  #   )
+  
+  return equalities
 
 
 def _parse_fields(tables, fields):
-  # TODO(titodo) - consider taking all validations to a preprocessing fn
   output_fields = []
   named_columns = set()
   for input, cols in fields.items():
+    error_prefix = f'Invalid input "{input}" for fields.'
     if input not in tables:
-      return ValueError(f'invalid input {input}')
+      raise ValueError(error_prefix)
     if isinstance(cols, list):
       for col in cols:
         if col in named_columns:
-          return ValueError(
-            f'same field name {col} specified more than once')
+          raise ValueError(
+            f'{error_prefix} Same field name "{col}" was specified more than once.')
         output_fields.append(f'{input}.{col} AS {col}')
         named_columns.add(col)
     elif isinstance(cols, dict):
       for k, v in cols.items():
         if k in named_columns:
-          return ValueError(
-            f'same field name {k} specified more than once')
+          raise ValueError(
+            f'{error_prefix} Same field name "{k}" was specified more than once.')
         output_fields.append(f'{input}.{v} AS {k}')
         named_columns.add(k)
     else:
-      return ValueError(f'invalid entry for fields')
+      raise ValueError(error_prefix)
   for table in tables:
     if table not in fields.keys():
       output_fields.append(f'{table}.*')
@@ -92,19 +120,63 @@ def _parse_fields(tables, fields):
 
 
 @beam.ptransform.ptransform_fn
-def _SqlJoinTransform(pcoll, sql_transform_constructor, type,
-                      equalities, fields=None):
-  _validate_type(type, str)
-  _validate_equalities(equalities, pcoll)
+def _SqlJoinTransform(
+  pcolls,
+  sql_transform_constructor,
+  type: Union[str, Dict[str, List]],
+  equalities: Union[str, List[Dict[str, str]]],
+  fields: Dict[str, Any]=None
+  ):
+  """Joins two or more inputs using a specfied condition.
 
-  tables = list(pcoll)
-  outer = []
+  Args:
+    type: The type of join. Could be a string value in ["inner", "left", "right", "outer"]
+        that specifies the type of join to be performed. For scenarios with multiple inputs
+        to join where different join types are desired, specify the inputs to be outer joined.
+        For example, {outer: [input1, input2]} means that input1 & input2 will be outer
+        joined using the conditions specified, while other inputs will be inner joined.
+    equalities: The condition to join on. A list of sets of columns that should be equal to 
+        fulfill the join condition. For the simple scenario to join on the same column 
+        across all inputs and the column name is the same, specify the column name as a str.
+    fields: The fields to be outputted. A mapping with the input alias as the key and the
+        fields in the input to be outputted. The value in the map can either be a dictionary
+        with the new field name as the key and the original field name as the value
+        (e.g new_field_name: field_name), or a list of the fields to be outputted with their
+        original names (e.g [col1, col2, col3]), or an '*' indicating all fields in the input
+        will be outputted. If not specified, all fields from all inputs will be outputted.
+  """
+
+  _validate_input(pcolls)
+  _validate_type(type)
+  equalities = _validate_equalities(equalities, pcolls)
+
+  equalities_in_pairs = [] 
+  tables_edge_list = []
+  for equality in equalities:
+    inputs = list(equality.keys())
+    first_input = inputs[0]
+    for input in inputs[1:]:
+      equalities_in_pairs.append({
+        first_input: equality[first_input],
+        input: equality[input]})
+      tables_edge_list.append([first_input, input])
+  disconnected_tables = [
+    list(component)[0] for component in list(
+      nx.connected_components(nx.Graph(tables_edge_list)))]
+  # a len of 1 means all inputs are connected
+  disconnected_tables = [] if len(disconnected_tables) == 1 else disconnected_tables
+
+  tables = list(pcolls.keys())
   if isinstance(type, dict):
     outer = type['outer']
-  base_table = tables[0]
-  conditioned = {base_table}
+  else:
+    outer = []
+  first_table = tables[0]
+  conditioned = [first_table]
 
   def generate_join_type(left, right):
+    if right in disconnected_tables:
+      return 'CROSS'
     if left in outer and right in outer:
       return 'FULL'
     if left in outer:
@@ -123,10 +195,8 @@ def _SqlJoinTransform(pcoll, sql_transform_constructor, type,
     join_conditions[curr_table] = f' {join_type} JOIN {curr_table}'
     prev_table = curr_table
 
-  for equality in equalities:
-    keys = list(equality)
-    left, right = keys[0], keys[1]
-    # TODO(titodo) - shorten this and reduce repitition
+  for equality in equalities_in_pairs:
+    left, right = equality.keys()
     if left in conditioned and right in conditioned:
       t = tables[max(tables.index(left), tables.index(right))]
       join_conditions[
@@ -134,25 +204,24 @@ def _SqlJoinTransform(pcoll, sql_transform_constructor, type,
     elif left in conditioned:
       join_conditions[
         right] = f'{join_conditions[right]} ON {left}.{equality[left]} = {right}.{equality[right]}'
-      conditioned.add(right)
+      conditioned.append(right)
     elif right in conditioned:
       join_conditions[
         left] = f'{join_conditions[left]} ON {left}.{equality[left]} = {right}.{equality[right]}'
-      conditioned.add(left)
+      conditioned.append(left)
     else:
       t = tables[max(tables.index(left), tables.index(right))]
       join_conditions[
         t] = f'{join_conditions[t]} ON {left}.{equality[left]} = {right}.{equality[right]}'
-      conditioned.add(t)
+      conditioned.append(t)
 
-  selects = '*'
   if fields:
     selects = ', '.join(_parse_fields(tables, fields))
-  query = f'SELECT {selects} FROM {base_table}'
-  for condition in join_conditions.values():
-    query += condition
-  print(query)
-  return pcoll | sql_transform_constructor(query)
+  else:
+    selects = '*'
+  query = f'SELECT {selects} FROM {first_table}'
+  query += ' '.join(condition for condition in join_conditions.values())
+  return pcolls | sql_transform_constructor(query)
 
 
 def create_join_providers():

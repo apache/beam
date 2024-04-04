@@ -159,6 +159,35 @@ class YamlJoinTest(unittest.TestCase):
         ]))
 
 
+  def test_join_with_equalities_shorthand(self):
+    with beam.Pipeline(
+        options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+      fruits = p | "fruits" >> beam.Create(FRUITS)
+      quantities = p | "quantities" >> beam.Create(QUANTITIES)
+      categories = p | "categories" >> beam.Create(CATEGORIES)
+
+      result = {"fruits": fruits, "quantities": quantities,
+                "categories": categories} | YamlTransform(
+        '''
+        type: Join
+        input:
+          f: fruits
+          q: quantities
+          c: categories
+        config:
+          type: inner
+          equalities: name
+        '''
+      ) | ToRow()
+
+      assert_that(
+        result,
+        equal_to([
+          beam.Row(id=1, name='raspberry', name0='raspberry', quantity=1, name1='raspberry', category='juicy'),
+          beam.Row(id=2, name='blackberry', name0='blackberry', quantity=2, name1='blackberry', category='dry')]))
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
