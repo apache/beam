@@ -35,7 +35,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.yaml.snakeyaml.Yaml;
 
 public class YamlUtils {
-  public static final Map<Schema.TypeName, Function<String, @Nullable Object>> YAML_VALUE_PARSERS =
+  private static final Map<Schema.TypeName, Function<String, @Nullable Object>> YAML_VALUE_PARSERS =
       ImmutableMap
           .<Schema.TypeName,
               Function<String, @org.checkerframework.checker.nullness.qual.Nullable Object>>
@@ -52,24 +52,30 @@ public class YamlUtils {
           .put(Schema.TypeName.BYTES, str -> BaseEncoding.base64().decode(str))
           .build();
 
-  public static Row toBeamRow(String yamlString, Schema schema) {
-    Yaml yaml = new Yaml();
-    Object yamlMap = yaml.load(yamlString);
-    if (yamlMap == null) {
-      if (schema.getFieldCount() == 0) {
-        return Row.withSchema(schema).build();
+  public static Row toBeamRow(@Nullable String yamlString, Schema schema) {
+    if (yamlString == null || yamlString.isEmpty()) {
+      List<Field> requiredFields =
+          schema.getFields().stream()
+              .filter(field -> !field.getType().getNullable())
+              .collect(Collectors.toList());
+      if (requiredFields.isEmpty()) {
+        return Row.nullRow(schema);
       } else {
         throw new IllegalArgumentException(
-            "Received an empty YAML value, but output schema is not empty");
+            String.format(
+                "Received an empty YAML string, but output schema contains required fields: %s",
+                requiredFields));
       }
     }
+    Yaml yaml = new Yaml();
+    Object yamlMap = yaml.load(yamlString);
 
     Preconditions.checkArgument(
         yamlMap instanceof Map,
         "Expected a YAML mapping but got type '%s' instead.",
-        yamlMap.getClass());
+        Preconditions.checkNotNull(yamlMap).getClass());
 
-    return toBeamRow((Map<String, Object>) yamlMap, schema);
+    return toBeamRow((Map<String, Object>) Preconditions.checkNotNull(yamlMap), schema);
   }
 
   private static @Nullable Object toBeamValue(Field field, @Nullable Object yamlValue) {

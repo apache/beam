@@ -38,7 +38,7 @@ import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
 @AutoService(SchemaTransformProvider.class)
@@ -99,9 +99,9 @@ class ManagedSchemaTransformProvider
     public abstract static class Builder {
       public abstract Builder setTransformIdentifier(String identifier);
 
-      public abstract Builder setConfigUrl(String configUrl);
+      public abstract Builder setConfigUrl(@Nullable String configUrl);
 
-      public abstract Builder setConfig(String config);
+      public abstract Builder setConfig(@Nullable String config);
 
       public abstract ManagedConfig build();
     }

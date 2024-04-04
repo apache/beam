@@ -25,22 +25,31 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 public class Managed {
-  public static Read read() {
+  public static final String ICEBERG = "iceberg";
+
+  public static Read read(String source) {
+
     return new AutoValue_Managed_Read.Builder()
+        .setSource(
+            Preconditions.checkNotNull(
+                Read.TRANSFORMS.get(source.toLowerCase()),
+                "An unsupported source was specified: '%s'. Please specify one of the following source: %s",
+                source,
+                Read.TRANSFORMS.keySet()))
         .setSupportedIdentifiers(new ArrayList<>(Read.TRANSFORMS.values()))
         .build();
   }
 
   @AutoValue
   public abstract static class Read extends SchemaTransform {
-    public static Map<String, String> TRANSFORMS =
+    public static final Map<String, String> TRANSFORMS =
         ImmutableMap.<String, String>builder()
-            .put("iceberg", "beam:schematransform:org.apache.beam:iceberg_read:v1")
+            .put(ICEBERG, "beam:schematransform:org.apache.beam:iceberg_read:v1")
             .build();
 
     abstract String getSource();
@@ -64,15 +73,6 @@ public class Managed {
       abstract Builder setSupportedIdentifiers(List<String> supportedIdentifiers);
 
       abstract Read build();
-    }
-
-    public Read from(String source) {
-      Preconditions.checkArgument(
-          TRANSFORMS.containsKey(source.toLowerCase()),
-          "An unsupported source was specified: '%s'. Please specify one of the following source: %s",
-          source,
-          TRANSFORMS.keySet());
-      return toBuilder().setSource(TRANSFORMS.get(source.toLowerCase())).build();
     }
 
     public Read withConfigUrl(String configUrl) {
@@ -108,17 +108,23 @@ public class Managed {
     }
   }
 
-  public static Write write() {
+  public static Write write(String sink) {
     return new AutoValue_Managed_Write.Builder()
+        .setSink(
+            Preconditions.checkNotNull(
+                Write.TRANSFORMS.get(sink.toLowerCase()),
+                "An unsupported sink was specified: '%s'. Please specify one of the following sinks: %s",
+                sink,
+                Write.TRANSFORMS.keySet()))
         .setSupportedIdentifiers(new ArrayList<>(Write.TRANSFORMS.values()))
         .build();
   }
 
   @AutoValue
   public abstract static class Write extends SchemaTransform {
-    public static Map<String, String> TRANSFORMS =
+    public static final Map<String, String> TRANSFORMS =
         ImmutableMap.<String, String>builder()
-            .put("iceberg", "beam:schematransform:org.apache.beam:iceberg_write:v1")
+            .put(ICEBERG, "beam:schematransform:org.apache.beam:iceberg_write:v1")
             .build();
 
     abstract String getSink();
@@ -135,22 +141,13 @@ public class Managed {
     abstract static class Builder {
       abstract Builder setSink(String source);
 
-      abstract Builder setConfig(String config);
+      abstract Builder setConfig(@Nullable String config);
 
-      abstract Builder setConfigUrl(String configUrl);
+      abstract Builder setConfigUrl(@Nullable String configUrl);
 
       abstract Builder setSupportedIdentifiers(List<String> supportedIdentifiers);
 
       abstract Write build();
-    }
-
-    public Write to(String sink) {
-      Preconditions.checkArgument(
-          TRANSFORMS.containsKey(sink.toLowerCase()),
-          "An unsupported sink was specified: '%s'. Please specify one of the following sinks: %s",
-          sink,
-          TRANSFORMS.keySet());
-      return toBuilder().setSink(TRANSFORMS.get(sink.toLowerCase())).build();
     }
 
     public Write withConfigUrl(String configUrl) {

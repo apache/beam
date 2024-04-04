@@ -28,5 +28,8 @@ ext.summary = """Library that provides managed IOs."""
 
 dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation library.java.vendored_guava_32_1_2_jre
+
+    testImplementation library.java.junit
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

@@ -55,7 +55,9 @@ public class YamlUtilsTest {
     Schema schema = Schema.builder().addStringField("dummy").build();
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Received an empty YAML value, but output schema is not empty");
+    thrown.expectMessage(
+        "Received an empty YAML string, but output schema contains required fields");
+    thrown.expectMessage("dummy");
 
     YamlUtils.toBeamRow("", schema);
   }
