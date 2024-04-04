@@ -22,5 +22,4 @@ self.empty_line_counter = Metrics.counter(self.__class__, 'empty_lines')
 
 For implementation details, see the [WordCount example with metrics](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_with_metrics.py).
 
-
 You can export metrics to external sinks. Spark and Flink runners support REST HTTP and Graphite.
