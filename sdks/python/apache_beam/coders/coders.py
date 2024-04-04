@@ -139,6 +139,7 @@ def deserialize_coder(serialized):
 
 class Coder(object):
   """Base class for coders."""
+
   def encode(self, value):
     # type: (Any) -> bytes
 
@@ -331,6 +332,7 @@ class Coder(object):
     A corresponding to_runner_api_parameter method would be expected that
     returns the tuple ('beam:fn:foo', FooPayload)
     """
+
     def register(fn):
       cls._known_urns[urn] = parameter_type, fn
       return fn
@@ -403,6 +405,7 @@ def _pickle_from_runner_api_parameter(payload, components, context):
 
 class StrUtf8Coder(Coder):
   """A coder used for reading and writing strings as UTF-8."""
+
   def encode(self, value):
     return value.encode('utf-8')
 
@@ -422,6 +425,7 @@ Coder.register_structured_urn(common_urns.coders.STRING_UTF8.urn, StrUtf8Coder)
 
 class ToBytesCoder(Coder):
   """A default string coder used if no sink coder is specified."""
+
   def encode(self, value):
     return value if isinstance(value, bytes) else str(value).encode('utf-8')
 
@@ -444,6 +448,7 @@ class FastCoder(Coder):
   this class inverts that by defining encode() and decode() in terms of
   _create_impl().
   """
+
   def encode(self, value):
     """Encodes the given object into a byte string."""
     return self.get_impl().encode(value)
@@ -461,6 +466,7 @@ class FastCoder(Coder):
 
 class BytesCoder(FastCoder):
   """Byte string coder."""
+
   def _create_impl(self):
     return coder_impl.BytesCoderImpl()
 
@@ -482,6 +488,7 @@ Coder.register_structured_urn(common_urns.coders.BYTES.urn, BytesCoder)
 
 
 class BooleanCoder(FastCoder):
+
   def _create_impl(self):
     return coder_impl.BooleanCoderImpl()
 
@@ -503,6 +510,7 @@ Coder.register_structured_urn(common_urns.coders.BOOL.urn, BooleanCoder)
 
 
 class MapCoder(FastCoder):
+
   def __init__(self, key_coder, value_coder):
     # type: (Coder, Coder) -> None
     self._key_coder = key_coder
@@ -548,6 +556,7 @@ class MapCoder(FastCoder):
 # This is a separate class from MapCoder as the former is a standard coder with
 # no way to carry the is_deterministic bit.
 class DeterministicMapCoder(FastCoder):
+
   def __init__(self, key_coder, value_coder):
     # type: (Coder, Coder) -> None
     assert key_coder.is_deterministic()
@@ -576,6 +585,7 @@ class DeterministicMapCoder(FastCoder):
 
 
 class NullableCoder(FastCoder):
+
   def __init__(self, value_coder):
     # type: (Coder) -> None
     self._value_coder = value_coder
@@ -630,6 +640,7 @@ Coder.register_structured_urn(common_urns.coders.NULLABLE.urn, NullableCoder)
 
 class VarIntCoder(FastCoder):
   """Variable-length integer coder."""
+
   def _create_impl(self):
     return coder_impl.VarIntCoderImpl()
 
@@ -652,6 +663,7 @@ Coder.register_structured_urn(common_urns.coders.VARINT.urn, VarIntCoder)
 
 class BigEndianShortCoder(FastCoder):
   """A coder used for big-endian int16 values."""
+
   def _create_impl(self):
     return coder_impl.BigEndianShortCoderImpl()
 
@@ -671,6 +683,7 @@ class BigEndianShortCoder(FastCoder):
 
 class SinglePrecisionFloatCoder(FastCoder):
   """A coder used for single-precision floating-point values."""
+
   def _create_impl(self):
     return coder_impl.SinglePrecisionFloatCoderImpl()
 
@@ -696,6 +709,7 @@ class FloatCoder(FastCoder):
   :class:`SinglePrecisionFloatCoder` for a single-precision version of this
   coder.
   """
+
   def _create_impl(self):
     return coder_impl.FloatCoderImpl()
 
@@ -718,6 +732,7 @@ Coder.register_structured_urn(common_urns.coders.DOUBLE.urn, FloatCoder)
 
 class TimestampCoder(FastCoder):
   """A coder used for timeutil.Timestamp values."""
+
   def _create_impl(self):
     return coder_impl.TimestampCoderImpl()
 
@@ -736,6 +751,7 @@ class _TimerCoder(FastCoder):
   """A coder used for timer values.
 
   For internal use."""
+
   def __init__(self, key_coder, window_coder):
     # type: (Coder, Coder) -> None
     self._key_coder = key_coder
@@ -769,6 +785,7 @@ Coder.register_structured_urn(common_urns.coders.TIMER.urn, _TimerCoder)
 
 class SingletonCoder(FastCoder):
   """A coder that always encodes exactly one value."""
+
   def __init__(self, value):
     self._value = value
 
@@ -806,6 +823,7 @@ def maybe_dill_loads(o):
 
 class _PickleCoderBase(FastCoder):
   """Base class for pickling coders."""
+
   def is_deterministic(self):
     # type: () -> bool
     # Note that the default coder, the PickleCoder, is not deterministic (for
@@ -836,6 +854,7 @@ class _PickleCoderBase(FastCoder):
 
 class _MemoizingPickleCoder(_PickleCoderBase):
   """Coder using Python's pickle functionality with memoization."""
+
   def __init__(self, cache_size=16):
     super().__init__()
     self.cache_size = cache_size
@@ -863,6 +882,7 @@ class _MemoizingPickleCoder(_PickleCoderBase):
 
 class PickleCoder(_PickleCoderBase):
   """Coder using Python's pickle functionality."""
+
   def _create_impl(self):
     dumps = pickle.dumps
     protocol = pickle.HIGHEST_PROTOCOL
@@ -878,12 +898,14 @@ class PickleCoder(_PickleCoderBase):
 
 class DillCoder(_PickleCoderBase):
   """Coder using dill's pickle functionality."""
+
   def _create_impl(self):
     return coder_impl.CallbackCoderImpl(maybe_dill_dumps, maybe_dill_loads)
 
 
 class DeterministicFastPrimitivesCoder(FastCoder):
   """Throws runtime errors when encoding non-deterministic values."""
+
   def __init__(self, coder, step_label):
     self._underlying_coder = coder
     self._step_label = step_label
@@ -916,6 +938,7 @@ class FastPrimitivesCoder(FastCoder):
 
   For unknown types, falls back to another coder (e.g. PickleCoder).
   """
+
   def __init__(self, fallback_coder=PickleCoder()):
     # type: (Coder) -> None
     self._fallback_coder = fallback_coder
@@ -962,6 +985,7 @@ class FakeDeterministicFastPrimitivesCoder(FastPrimitivesCoder):
   This can be registered as a fallback coder to go back to the behavior before
   deterministic encoding was enforced (BEAM-11719).
   """
+
   def is_deterministic(self):
     return True
 
@@ -1013,6 +1037,7 @@ class ProtoCoder(FastCoder):
   any protobuf Message object.
 
   """
+
   def __init__(self, proto_message_type):
     # type: (Type[google.protobuf.message.Message]) -> None
     self.proto_message_type = proto_message_type
@@ -1058,6 +1083,7 @@ class DeterministicProtoCoder(ProtoCoder):
   version of the protoc compiler what was used to generate the protobuf
   messages.
   """
+
   def _create_impl(self):
     return coder_impl.DeterministicProtoCoderImpl(self.proto_message_type)
 
@@ -1075,6 +1101,7 @@ class ProtoPlusCoder(FastCoder):
   ProtoPlusCoder is registered in the global CoderRegistry as the default coder
   for any proto.Message object.
   """
+
   def __init__(self, proto_plus_message_type):
     # type: (Type[proto.Message]) -> None
     self.proto_plus_message_type = proto_plus_message_type
@@ -1110,6 +1137,7 @@ AVRO_GENERIC_CODER_URN = "beam:coder:avro:generic:v1"
 
 class AvroGenericCoder(FastCoder):
   """A coder used for AvroRecord values."""
+
   def __init__(self, schema):
     self.schema = schema
 
@@ -1141,6 +1169,7 @@ class AvroGenericCoder(FastCoder):
 
 class TupleCoder(FastCoder):
   """Coder of tuple objects."""
+
   def __init__(self, components):
     # type: (Iterable[Coder]) -> None
     self._coders = tuple(components)
@@ -1217,6 +1246,7 @@ class TupleCoder(FastCoder):
 
 class TupleSequenceCoder(FastCoder):
   """Coder of homogeneous tuple objects."""
+
   def __init__(self, elem_coder):
     # type: (Coder) -> None
     self._elem_coder = elem_coder
@@ -1260,6 +1290,7 @@ class TupleSequenceCoder(FastCoder):
 
 class ListLikeCoder(FastCoder):
   """Coder of iterables of homogeneous objects."""
+
   def __init__(self, elem_coder):
     # type: (Coder) -> None
     self._elem_coder = elem_coder
@@ -1303,6 +1334,7 @@ class ListLikeCoder(FastCoder):
 
 class IterableCoder(ListLikeCoder):
   """Coder of iterables of homogeneous objects."""
+
   def to_type_hint(self):
     return typehints.Iterable[self._elem_coder.to_type_hint()]
 
@@ -1312,6 +1344,7 @@ Coder.register_structured_urn(common_urns.coders.ITERABLE.urn, IterableCoder)
 
 class ListCoder(ListLikeCoder):
   """Coder of Python lists."""
+
   def to_type_hint(self):
     return typehints.List[self._elem_coder.to_type_hint()]
 
@@ -1321,6 +1354,7 @@ class ListCoder(ListLikeCoder):
 
 class GlobalWindowCoder(SingletonCoder):
   """Coder for global windows."""
+
   def __init__(self):
     from apache_beam.transforms import window
     super().__init__(window.GlobalWindow())
@@ -1332,6 +1366,7 @@ Coder.register_structured_urn(
 
 class IntervalWindowCoder(FastCoder):
   """Coder for an window defined by a start timestamp and a duration."""
+
   def _create_impl(self):
     return coder_impl.IntervalWindowCoderImpl()
 
@@ -1352,6 +1387,7 @@ Coder.register_structured_urn(
 
 class WindowedValueCoder(FastCoder):
   """Coder for windowed values."""
+
   def __init__(self, wrapped_value_coder, window_coder=None):
     # type: (Coder, Optional[Coder]) -> None
     if not window_coder:
@@ -1409,6 +1445,7 @@ Coder.register_structured_urn(
 
 class ParamWindowedValueCoder(WindowedValueCoder):
   """A coder used for parameterized windowed values."""
+
   def __init__(self, payload, components):
     super().__init__(components[0], components[1])
     self.payload = payload
@@ -1451,6 +1488,7 @@ class LengthPrefixCoder(FastCoder):
   """For internal use only; no backwards-compatibility guarantees.
 
   Coder which prefixes the length of the encoded object in the stream."""
+
   def __init__(self, value_coder):
     # type: (Coder) -> None
     self._value_coder = value_coder
@@ -1552,6 +1590,7 @@ class StateBackedIterableCoder(FastCoder):
 
 class ShardedKeyCoder(FastCoder):
   """A coder for sharded key."""
+
   def __init__(self, key_coder):
     # type: (Coder) -> None
     self._key_coder = key_coder
@@ -1601,6 +1640,7 @@ class TimestampPrefixingWindowCoder(FastCoder):
 
   Coder which prefixes the max timestamp of arbitrary window to its encoded
   form."""
+
   def __init__(self, window_coder: Coder) -> None:
     self._window_coder = window_coder
 
@@ -1636,6 +1676,7 @@ class TimestampPrefixingOpaqueWindowCoder(FastCoder):
   """For internal use only; no backwards-compatibility guarantees.
 
   Coder which decodes windows as bytes."""
+
   def __init__(self) -> None:
     pass
 
@@ -1661,6 +1702,7 @@ Coder.register_structured_urn(
 
 
 class BigIntegerCoder(FastCoder):
+
   def _create_impl(self):
     return coder_impl.BigIntegerCoderImpl()
 
@@ -1679,6 +1721,7 @@ class BigIntegerCoder(FastCoder):
 
 
 class DecimalCoder(FastCoder):
+
   def _create_impl(self):
     return coder_impl.DecimalCoderImpl()
 
