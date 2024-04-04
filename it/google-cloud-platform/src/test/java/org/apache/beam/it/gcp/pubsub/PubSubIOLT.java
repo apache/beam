@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.text.ParseException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -219,8 +218,8 @@ public class PubSubIOLT extends IOLoadTestBase {
       // streaming read pipeline does not end itself
       // Fail the test if read pipeline (streaming) not in running state.
       assertEquals(
-              PipelineLauncher.JobState.RUNNING,
-              pipelineLauncher.getJobStatus(project, region, readLaunchInfo.jobId()));
+          PipelineLauncher.JobState.RUNNING,
+          pipelineLauncher.getJobStatus(project, region, readLaunchInfo.jobId()));
     } finally {
       cancelJobIfRunning(writeLaunchInfo);
       cancelJobIfRunning(readLaunchInfo);
@@ -258,10 +257,7 @@ public class PubSubIOLT extends IOLoadTestBase {
         configuration.exportMetricsToInfluxDB,
         influxDBSettings);
     exportMetrics(
-        readLaunchInfo,
-        readMetricsConfig,
-        configuration.exportMetricsToInfluxDB,
-        influxDBSettings);
+        readLaunchInfo, readMetricsConfig, configuration.exportMetricsToInfluxDB, influxDBSettings);
   }
 
   private PipelineLauncher.LaunchInfo testWrite(WriteAndReadFormat format) throws IOException {
