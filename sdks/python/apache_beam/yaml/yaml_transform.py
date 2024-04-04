@@ -491,7 +491,7 @@ def expand_leaf_transform(spec, scope):
     return {f'out{ix}': pcoll for (ix, pcoll) in enumerate(outputs)}
   elif isinstance(outputs, beam.PCollection):
     return {'out': outputs}
-  elif outputs is None:
+  elif outputs is None or isinstance(outputs, beam.pvalue.PDone):
     return {}
   else:
     raise ValueError(
