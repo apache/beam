@@ -22,4 +22,4 @@ For more details about the WordCount example, see the [WordCount source code in 
 
 The [Direct Runner](https://beam.apache.org/documentation/runners/direct/) executes the pipeline on your local machine. It is helpful for testing and debugging purposes.
 
-For instructions about how to configure your development environment and runner, see the quickstarts for [Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py) and [Go](https://beam.apache.org/get-started/quickstart-go).
+For instructions about how to configure your development environment and runner, see the quickstarts for [Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py), and [Go](https://beam.apache.org/get-started/quickstart-go).
