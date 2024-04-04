@@ -16,7 +16,12 @@
 #
 
 """This module defines the Join operation."""
-from typing import Any, Dict, List, Union
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
+
 import apache_beam as beam
 from apache_beam.yaml import yaml_provider
 
@@ -164,7 +169,7 @@ def _SqlJoinTransform(
     sql_transform_constructor,
     type: Union[str, Dict[str, List]],
     equalities: Union[str, List[Dict[str, str]]],
-    fields: Dict[str, Any] = None):
+    fields: Optional[Dict[str, Any]]=None):
   """Joins two or more inputs using a specfied condition.
 
   Args:
@@ -191,11 +196,11 @@ def _SqlJoinTransform(
 
   _validate_input(pcolls)
   _validate_type(type)
-  equalities = _validate_equalities(equalities, pcolls)
+  validate_equalities = _validate_equalities(equalities, pcolls)
 
   equalities_in_pairs = []
   tables_edge_list = []
-  for equality in equalities:
+  for equality in validate_equalities:
     inputs = list(equality.keys())
     first_input = inputs[0]
     for input in inputs[1:]:
