@@ -21,46 +21,43 @@ import unittest
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.utils import python_callable
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 
 class ToRow(beam.PTransform):
   def expand(self, pcoll):
-    return pcoll | beam.Map(
-      lambda row: beam.Row(**row._asdict()))
+    return pcoll | beam.Map(lambda row: beam.Row(**row._asdict()))
 
 
 FRUITS = [
-  beam.Row(id=1, name='raspberry'),
-  beam.Row(id=2, name='blackberry'),
+    beam.Row(id=1, name='raspberry'),
+    beam.Row(id=2, name='blackberry'),
 ]
 
 QUANTITIES = [
-  beam.Row(name='raspberry', quantity=1),
-  beam.Row(name='blackberry', quantity=2),
-  beam.Row(name='blueberry', quantity=3),
+    beam.Row(name='raspberry', quantity=1),
+    beam.Row(name='blackberry', quantity=2),
+    beam.Row(name='blueberry', quantity=3),
 ]
 
 CATEGORIES = [
-  beam.Row(name='raspberry', category='juicy'),
-  beam.Row(name='blackberry', category='dry'),
-  beam.Row(name='blueberry', category='dry'),
-  beam.Row(name='blueberry', category='juicy'),
+    beam.Row(name='raspberry', category='juicy'),
+    beam.Row(name='blackberry', category='dry'),
+    beam.Row(name='blueberry', category='dry'),
+    beam.Row(name='blueberry', category='juicy'),
 ]
 
 
 class YamlJoinTest(unittest.TestCase):
   def test_basic_join(self):
-    with beam.Pipeline(
-        options=beam.options.pipeline_options.PipelineOptions(
-            pickle_library='cloudpickle')) as p:
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
       fruits = p | "fruits" >> beam.Create(FRUITS)
       quantities = p | "quantities" >> beam.Create(QUANTITIES)
-
-      result = {"fruits": fruits,
-                "quantities": quantities} | YamlTransform(
-        '''
+      result = {
+          "fruits": fruits, "quantities": quantities
+      } | YamlTransform(
+          '''
         type: Join
         input:
           f: fruits
@@ -70,29 +67,24 @@ class YamlJoinTest(unittest.TestCase):
           equalities:
             - f: name
               q: name
-        '''
-      ) | ToRow()
-
+        ''') | ToRow()
       assert_that(
-        result,
-        equal_to([
-          beam.Row(id=1, name='raspberry', name0='raspberry',
-                   quantity=1),
-          beam.Row(id=2, name='blackberry', name0='blackberry',
-                   quantity=2)
-        ]))
+          result,
+          equal_to([
+              beam.Row(id=1, name='raspberry', name0='raspberry', quantity=1),
+              beam.Row(id=2, name='blackberry', name0='blackberry', quantity=2)
+          ]))
 
   def test_join_three_inputs(self):
-    with beam.Pipeline(
-        options=beam.options.pipeline_options.PipelineOptions(
-            pickle_library='cloudpickle')) as p:
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
       fruits = p | "fruits" >> beam.Create(FRUITS)
       quantities = p | "quantities" >> beam.Create(QUANTITIES)
       categories = p | "categories" >> beam.Create(CATEGORIES)
-
-      result = {"fruits": fruits, "quantities": quantities,
-                "categories": categories} | YamlTransform(
-        '''
+      result = {
+          "fruits": fruits, "quantities": quantities, "categories": categories
+      } | YamlTransform(
+          '''
         type: Join
         input:
           f: fruits
@@ -105,29 +97,36 @@ class YamlJoinTest(unittest.TestCase):
               q: name
             - f: name
               c: name
-        '''
-      ) | ToRow()
-
+        ''') | ToRow()
       assert_that(
-        result,
-        equal_to([
-          beam.Row(id=1, name='raspberry', name0='raspberry',
-                   quantity=1, name1='raspberry', category='juicy'),
-          beam.Row(id=2, name='blackberry', name0='blackberry',
-                   quantity=2, name1='blackberry', category='dry')
-        ]))
+          result,
+          equal_to([
+              beam.Row(
+                  id=1,
+                  name='raspberry',
+                  name0='raspberry',
+                  quantity=1,
+                  name1='raspberry',
+                  category='juicy'),
+              beam.Row(
+                  id=2,
+                  name='blackberry',
+                  name0='blackberry',
+                  quantity=2,
+                  name1='blackberry',
+                  category='dry')
+          ]))
 
   def test_join_with_fields(self):
-    with beam.Pipeline(
-        options=beam.options.pipeline_options.PipelineOptions(
-          pickle_library='cloudpickle')) as p:
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
       fruits = p | "fruits" >> beam.Create(FRUITS)
       quantities = p | "quantities" >> beam.Create(QUANTITIES)
       categories = p | "categories" >> beam.Create(CATEGORIES)
-
-      result = {"fruits": fruits, "quantities": quantities,
-                "categories": categories} | YamlTransform(
-        '''
+      result = {
+          "fruits": fruits, "quantities": quantities, "categories": categories
+      } | YamlTransform(
+          '''
         type: Join
         input:
           f: fruits
@@ -146,30 +145,36 @@ class YamlJoinTest(unittest.TestCase):
             q:
               - name
               - quantity    
-        '''
-      ) | ToRow()
+        ''') | ToRow()
 
       assert_that(
-        result,
-        equal_to([
-          beam.Row(f_id=1, name='raspberry', quantity=1,
-                   name0='raspberry', category='juicy'),
-          beam.Row(f_id=2, name='blackberry', quantity=2,
-                   name0='blackberry', category='dry')
-        ]))
-
+          result,
+          equal_to([
+              beam.Row(
+                  f_id=1,
+                  name='raspberry',
+                  quantity=1,
+                  name0='raspberry',
+                  category='juicy'),
+              beam.Row(
+                  f_id=2,
+                  name='blackberry',
+                  quantity=2,
+                  name0='blackberry',
+                  category='dry')
+          ]))
 
   def test_join_with_equalities_shorthand(self):
-    with beam.Pipeline(
-        options=beam.options.pipeline_options.PipelineOptions(
-          pickle_library='cloudpickle')) as p:
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
       fruits = p | "fruits" >> beam.Create(FRUITS)
       quantities = p | "quantities" >> beam.Create(QUANTITIES)
       categories = p | "categories" >> beam.Create(CATEGORIES)
 
-      result = {"fruits": fruits, "quantities": quantities,
-                "categories": categories} | YamlTransform(
-        '''
+      result = {
+          "fruits": fruits, "quantities": quantities, "categories": categories
+      } | YamlTransform(
+          '''
         type: Join
         input:
           f: fruits
@@ -178,14 +183,26 @@ class YamlJoinTest(unittest.TestCase):
         config:
           type: inner
           equalities: name
-        '''
-      ) | ToRow()
+        ''') | ToRow()
 
       assert_that(
-        result,
-        equal_to([
-          beam.Row(id=1, name='raspberry', name0='raspberry', quantity=1, name1='raspberry', category='juicy'),
-          beam.Row(id=2, name='blackberry', name0='blackberry', quantity=2, name1='blackberry', category='dry')]))
+          result,
+          equal_to([
+              beam.Row(
+                  id=1,
+                  name='raspberry',
+                  name0='raspberry',
+                  quantity=1,
+                  name1='raspberry',
+                  category='juicy'),
+              beam.Row(
+                  id=2,
+                  name='blackberry',
+                  name0='blackberry',
+                  quantity=2,
+                  name1='blackberry',
+                  category='dry')
+          ]))
 
 
 if __name__ == '__main__':
