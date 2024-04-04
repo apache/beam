@@ -741,7 +741,7 @@ public class CoGbkResult {
       int unionTag,
       int minElementsPerTag,
       List<Iterable<?>> sharedValueMap,
-      boolean sharedSeenEnd[]) {
+      boolean[] sharedSeenEnd) {
     return () ->
         new RecordingFilteringIterator(
             taggedIteratable, unionTag, minElementsPerTag, sharedValueMap, sharedSeenEnd);
@@ -784,7 +784,7 @@ public class CoGbkResult {
         int unionTag,
         int minElementsPerTag,
         List<Iterable<?>> sharedValueMap,
-        boolean sharedSeenEnd[]) {
+        boolean[] sharedSeenEnd) {
       this.taggedIterable = taggedIteratable;
       this.taggedIterator = taggedIteratable.iterator();
       this.unionTag = unionTag;
