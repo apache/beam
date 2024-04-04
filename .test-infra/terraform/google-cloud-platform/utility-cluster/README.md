@@ -37,5 +37,5 @@ terraform plan
 ```
 ## Step 3. Apply the module.
 ```
-terraform apply 
+terraform apply
 ```

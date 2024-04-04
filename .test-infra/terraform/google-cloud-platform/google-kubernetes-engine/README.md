@@ -50,7 +50,7 @@ Edit with your IDE terraform plugin installed and it will autocomplete the
 variable names.
 
 ## Name override
-If you need a predictable name (omit the suffix) you can set the `cluster_name_override` in order to set the name. Keep in mind that you can cause conflicts so use with care. Using this option still needs `cluster_name_prefix` but its not use so set it to the same value. 
+If you need a predictable name (omit the suffix) you can set the `cluster_name_override` in order to set the name. Keep in mind that you can cause conflicts so use with care. Using this option still needs `cluster_name_prefix` but its not use so set it to the same value.
 
 # Step 2. Initialize and apply the terraform module.
 
