@@ -19,7 +19,9 @@
 
 # Overview
 
-This module will provision a utility cluster which is used to run infrastructure needed for tests running in beam CI
+This module will provision a utility cluster which is used to run infrastructure needed for tests running in beam CI.
+
+The purpose of this cluster is to run the necessary tooling that the tests in CI require. Right now it will run Kafka clusters but in the future plan is to have hadoop, flink and any other utility that the test might need which was historically the purpose of `datastores-io` cluster. Unlike `datastores-io` this cluster will be managed by code with Terraform.
 
 # Deployment
 
