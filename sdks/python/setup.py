@@ -426,9 +426,6 @@ if __name__ == '__main__':
               'pytest>=7.1.2,<8.0',
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
-              # Pydantic is now a transitive dep. Some test suites install an
-              # incorrect version: https://github.com/apache/beam/issues/30852
-              'pydantic>=2.0.1',
               'scikit-learn>=0.20.0',
               'sqlalchemy>=1.3,<2.0',
               'psycopg2-binary>=2.8.5,<3.0.0',
