@@ -2,7 +2,7 @@ Prompt:
 What is a timer in Apache Beam?
 
 Response:
-In Apache Beam, a [timer](https://beam.apache.org/documentation/basics/#state-and-timers) is a per-key timer callback API that enables delayed processing of data stored using the [State API](https://beam.apache.org/documentation/programming-guide/#state-and-timers)
+In Apache Beam, a [timer](https://beam.apache.org/documentation/basics/#state-and-timers) is a per-key timer callback API that enables delayed processing of data stored using the [State API](https://beam.apache.org/documentation/programming-guide/#state-and-timers).
 
 Apache Beam provides two [types of timers](https://beam.apache.org/documentation/programming-guide/#timers): processing time timers and event time timers. Processing time timers are based on the system clock. Event time timers are based on the timestamps of the data elements.
 
