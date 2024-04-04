@@ -227,6 +227,8 @@ public class JmsIO {
 
     abstract @Nullable Duration getReceiveTimeout();
 
+    abstract @Nullable Duration getCheckpointTimeout();
+
     abstract boolean isRequiresDeduping();
 
     abstract Builder<T> builder();
@@ -256,6 +258,8 @@ public class JmsIO {
       abstract Builder<T> setCloseTimeout(Duration closeTimeout);
 
       abstract Builder<T> setReceiveTimeout(Duration receiveTimeout);
+
+      abstract Builder<T> setCheckpointTimeout(Duration checkpointTimeout);
 
       abstract Builder<T> setRequiresDeduping(boolean requiresDeduping);
 
@@ -417,6 +421,20 @@ public class JmsIO {
     }
 
     /**
+     * Messages are acknowledged when finalize checkpoints. In some implementations, the messages in
+     * the internal buffer are not redelivered until termination of the session. In the case of low
+     * throughput pipelines, runner may not finalize a previously issued checkpoint timely and
+     * causing processing delay or stuck.
+     *
+     * <p>If set, a checkpoint will be discarded if not finalized within the timeout, which means
+     * all messages read within this checkpoint will get redelivered. This may introduce duplicates,
+     * and consider using {@link Read#withRequiresDeduping} along with this option.
+     */
+    public Read<T> withCheckpointTimeout(Duration checkpointTimeout) {
+      return builder().setCheckpointTimeout(checkpointTimeout).build();
+    }
+
+    /**
      * If set, requires runner deduplication for the messages. Each message is identified by its
      * {@code JMSMessageID}.
      */
@@ -538,6 +556,8 @@ public class JmsIO {
     private Instant currentTimestamp;
     private byte[] currentID;
     private long receiveTimeoutMillis;
+
+    private long checkpointTimeoutMillis;
     private PipelineOptions options;
 
     public UnboundedJmsReader(UnboundedJmsSource<T> source, PipelineOptions options) {
@@ -546,6 +566,9 @@ public class JmsIO {
       this.currentMessage = null;
       this.currentID = new byte[0];
       this.options = options;
+      Duration rcheckpointTimeout =
+          MoreObjects.firstNonNull(source.spec.getCheckpointTimeout(), Duration.ZERO);
+      checkpointTimeoutMillis = rcheckpointTimeout.getMillis();
     }
 
     /** recreate session and consumer. */
@@ -673,6 +696,7 @@ public class JmsIO {
     }
 
     @Override
+    @SuppressWarnings("FutureReturnValueIgnored")
     public CheckpointMark getCheckpointMark() {
       if (checkpointMarkPreparer.isEmpty()) {
         return checkpointMarkPreparer.emptyCheckpoint();
@@ -689,7 +713,15 @@ public class JmsIO {
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
-      return checkpointMarkPreparer.newCheckpoint(consumerToClose, sessionTofinalize);
+      JmsCheckpointMark checkPoint =
+          checkpointMarkPreparer.newCheckpoint(consumerToClose, sessionTofinalize);
+      if (checkpointTimeoutMillis > 0) {
+        ScheduledExecutorService executorService =
+            options.as(ExecutorOptions.class).getScheduledExecutorService();
+        executorService.schedule(
+            checkPoint::closeSession, checkpointTimeoutMillis, TimeUnit.MILLISECONDS);
+      }
+      return checkPoint;
     }
 
     @Override

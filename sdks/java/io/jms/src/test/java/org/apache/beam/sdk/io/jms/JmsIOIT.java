@@ -39,8 +39,8 @@ import javax.jms.Message;
 import javax.jms.QueueBrowser;
 import javax.jms.Session;
 import javax.jms.TextMessage;
-import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.command.ActiveMQTextMessage;
+import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -138,14 +138,14 @@ public class JmsIOIT implements Serializable {
   @Parameterized.Parameters(name = "with client class {3}")
   public static Collection<Object[]> connectionFactories() {
     return ImmutableList.of(
+        // new Object[] {
+        // "vm://localhost", 5672, "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class
+        // },
+        // TODO(https://github.com/apache/beam/issues/26175) Test failure on direct runner due to
+        //  JmsIO read on amqp slow on CI (passed locally)
         new Object[] {
-          "vm://localhost", 5672, "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class
+          "amqp://localhost", 5672, "jms.forceAsyncAcks=true", JmsConnectionFactory.class
         });
-    // TODO(https://github.com/apache/beam/issues/26175) Test failure on direct runner due to
-    //  JmsIO read on amqp slow on CI (passed locally)
-    // new Object[] {
-    //   "amqp://localhost", 5672, "jms.forceAsyncAcks=false", JmsConnectionFactory.class
-    // });
   }
 
   private final CommonJms commonJms;
@@ -173,6 +173,7 @@ public class JmsIOIT implements Serializable {
       connectionFactoryClass = this.commonJms.getConnectionFactoryClass();
       // use a small number of record for local integration test
       OPTIONS.setNumberOfRecords(10000);
+      OPTIONS.as(DirectOptions.class).setTargetParallelism(1);
     }
   }
 
@@ -216,6 +217,9 @@ public class JmsIOIT implements Serializable {
         String.format(
             "actual number of records %d smaller than expected: %d.", actualRecords, ackRecords),
         ackRecords <= actualRecords);
+    System.err.printf(
+        "Total record: %d, actual record: %d, unack record: %d\n",
+        OPTIONS.getNumberOfRecords(), actualRecords, unackRecords);
     collectAndPublishMetrics(writeResult, readResult);
   }
 
@@ -238,7 +242,8 @@ public class JmsIOIT implements Serializable {
                 .withPassword(PASSWORD)
                 .withCoder(SerializableCoder.of(String.class))
                 .withConnectionFactory(connectionFactory)
-                .withMessageMapper(getJmsMessageMapper()))
+                .withMessageMapper(getJmsMessageMapper())
+                .withCheckpointTimeout(Duration.standardSeconds(5)))
         .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)))
         .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
     return pipelineRead.run();

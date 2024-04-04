@@ -58,7 +58,11 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
 
   /** Acknowledge all outstanding message. */
   @Override
-  public void finalizeCheckpoint() {
+  public synchronized void finalizeCheckpoint() {
+    closeSession();
+  }
+
+  synchronized void closeSession() {
     try {
       // Jms spec will implicitly acknowledge _all_ messaged already received by the same
       // session if one message in this session is being acknowledged.
