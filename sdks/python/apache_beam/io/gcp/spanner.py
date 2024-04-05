@@ -288,6 +288,7 @@ class WriteToSpannerSchema(NamedTuple):
   commit_deadline: Optional[int]
   max_cumulative_backoff: Optional[int]
   failure_mode: Optional[str]
+  high_priority: Optional[bool]
 
 
 _CLASS_DOC = \
@@ -426,6 +427,7 @@ class SpannerDelete(ExternalTransform):
                 commit_deadline=commit_deadline,
                 max_cumulative_backoff=max_cumulative_backoff,
                 failure_mode=_get_enum_name(failure_mode),
+                high_priority=high_priority,
             ),
         ),
         expansion_service=expansion_service or default_io_expansion_service(),
@@ -459,6 +461,7 @@ class SpannerInsert(ExternalTransform):
       max_cumulative_backoff=None,
       expansion_service=None,
       failure_mode=None,
+      high_priority=None,
   ):
     max_cumulative_backoff = int(
         max_cumulative_backoff) if max_cumulative_backoff else None
@@ -480,6 +483,7 @@ class SpannerInsert(ExternalTransform):
                 commit_deadline=commit_deadline,
                 max_cumulative_backoff=max_cumulative_backoff,
                 failure_mode=_get_enum_name(failure_mode),
+                high_priority=high_priority,
             ),
         ),
         expansion_service=expansion_service or default_io_expansion_service(),
@@ -513,6 +517,7 @@ class SpannerReplace(ExternalTransform):
       max_cumulative_backoff=None,
       expansion_service=None,
       failure_mode=None,
+      high_priority=None,
   ):
     max_cumulative_backoff = int(
         max_cumulative_backoff) if max_cumulative_backoff else None
@@ -534,6 +539,7 @@ class SpannerReplace(ExternalTransform):
                 commit_deadline=commit_deadline,
                 max_cumulative_backoff=max_cumulative_backoff,
                 failure_mode=_get_enum_name(failure_mode),
+                high_priority=high_priority,
             ),
         ),
         expansion_service=expansion_service or default_io_expansion_service(),
@@ -567,6 +573,7 @@ class SpannerInsertOrUpdate(ExternalTransform):
       max_cumulative_backoff=None,
       failure_mode=None,
       expansion_service=None,
+      high_priority=None,
   ):
     max_cumulative_backoff = int(
         max_cumulative_backoff) if max_cumulative_backoff else None
@@ -588,6 +595,7 @@ class SpannerInsertOrUpdate(ExternalTransform):
                 commit_deadline=commit_deadline,
                 max_cumulative_backoff=max_cumulative_backoff,
                 failure_mode=_get_enum_name(failure_mode),
+                high_priority=high_priority,
             ),
         ),
         expansion_service=expansion_service or default_io_expansion_service(),
@@ -621,6 +629,7 @@ class SpannerUpdate(ExternalTransform):
       max_cumulative_backoff=None,
       failure_mode=None,
       expansion_service=None,
+      high_priority=None,
   ):
     max_cumulative_backoff = int(
         max_cumulative_backoff) if max_cumulative_backoff else None
@@ -642,6 +651,7 @@ class SpannerUpdate(ExternalTransform):
                 commit_deadline=commit_deadline,
                 max_cumulative_backoff=max_cumulative_backoff,
                 failure_mode=_get_enum_name(failure_mode),
+                high_priority=high_priority,
             ),
         ),
         expansion_service=expansion_service or default_io_expansion_service(),
