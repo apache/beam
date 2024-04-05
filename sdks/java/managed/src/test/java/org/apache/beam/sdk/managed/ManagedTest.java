@@ -82,7 +82,7 @@ public class ManagedTest {
   }
 
   @Test
-  public void testManagedTestProviderWithMapConfig() {
+  public void testManagedTestProviderWithConfigMap() {
     Managed.Write writeOp =
         Managed.write(Managed.ICEBERG)
             .toBuilder()
@@ -90,19 +90,6 @@ public class ManagedTest {
             .build()
             .withSupportedIdentifiers(Arrays.asList(TestSchemaTransformProvider.IDENTIFIER))
             .withConfig(ImmutableMap.of("extra_string", "abc", "extra_integer", 123));
-
-    runTestProviderTest(writeOp);
-  }
-
-  @Test
-  public void testManagedTestProviderWithStringConfig() {
-    Managed.Write writeOp =
-        Managed.write(Managed.ICEBERG)
-            .toBuilder()
-            .setSink(TestSchemaTransformProvider.IDENTIFIER)
-            .build()
-            .withSupportedIdentifiers(Arrays.asList(TestSchemaTransformProvider.IDENTIFIER))
-            .withConfig("extra_string: abc\nextra_integer: 123");
 
     runTestProviderTest(writeOp);
   }

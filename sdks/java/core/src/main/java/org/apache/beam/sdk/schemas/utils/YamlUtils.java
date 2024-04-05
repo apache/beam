@@ -162,7 +162,10 @@ public class YamlUtils {
     return getSnakeCase ? CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, str) : str;
   }
 
-  public static String yamlStringFromMap(Map<String, Object> map) {
+  public static String yamlStringFromMap(@Nullable Map<String, Object> map) {
+    if (map == null || map.isEmpty()) {
+      return "";
+    }
     return new Yaml().dumpAsMap(map);
   }
 }

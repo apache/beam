@@ -23,17 +23,60 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
+/**
+ * Top-level {@link org.apache.beam.sdk.transforms.PTransform}s that build and instantiate turnkey transforms.
+ *
+ * <h3>Available transforms</h3>
+ *
+ * <p>This API currently supports two operations: {@link Read} and {@link Write}. Each one enumerates the available
+ * transforms in a {@code TRANSFORMS} map.
+ *
+ * <h3>Building a Managed turnkey transform</h3>
+ *
+ * <p>Turnkey transforms are represented as {@link SchemaTransform}s, which means each one has a defined configuration.
+ * A given transform can be built with a {@code Map<String, Object>} that specifies arguments using like so:
+ * <pre>{@code
+ * PCollectionRowTuple output = Managed.read(ICEBERG)
+ *      .withConfig(ImmutableMap.<String, Map>.builder()
+ *          .put("foo", "abc")
+ *          .put("bar", 123)
+ *          .build());
+ * }</pre>
+ *
+ * <p>Instead of specifying configuration arguments directly in the code, one can provide the location to a YAML file
+ * that contains this information. Say we have the following YAML file:
+ *
+ * <pre>{@code
+ * foo: "abc"
+ * bar: 123
+ * }</pre>
+ *
+ * <p>The file's path can be passed in to the Managed API like so:
+ *
+ * <pre>{@code
+ * PCollectionRowTuple output = Managed.write(ICEBERG)
+ *      .withConfigUrl(<config path>);
+ * }</pre>
+ */
 public class Managed {
 
   // TODO: Dynamically generate a list of supported transforms
   public static final String ICEBERG = "iceberg";
 
+
+  /**
+   * Instantiates a {@link Managed.Read} transform for the specified source. The supported managed sources are:
+   * <ul>
+   *   <li>{@link Managed#ICEBERG} : Read from Apache Iceberg
+   * </ul>
+   */
   public static Read read(String source) {
 
     return new AutoValue_Managed_Read.Builder()
@@ -77,16 +120,20 @@ public class Managed {
       abstract Read build();
     }
 
-    public Read withConfigUrl(String configUrl) {
-      return toBuilder().setConfigUrl(configUrl).build();
-    }
-
-    public Read withConfig(String config) {
-      return toBuilder().setConfig(config).build();
-    }
-
+    /**
+     * Use the input Map of configuration arguments to build and instantiate the underlying transform.
+     * The map can ignore nullable parameters, but needs to include all required parameters. Check the
+     * underlying transform's schema ({@link SchemaTransformProvider#configurationSchema()}) to see which parameters are available.
+     */
     public Read withConfig(Map<String, Object> config) {
       return toBuilder().setConfig(YamlUtils.yamlStringFromMap(config)).build();
+    }
+
+    /**
+     * Like {@link #withConfig(Map)}, but instead extracts the configuration arguments from a specified YAML file location.
+     */
+    public Read withConfigUrl(String configUrl) {
+      return toBuilder().setConfigUrl(configUrl).build();
     }
 
     @VisibleForTesting
@@ -110,6 +157,12 @@ public class Managed {
     }
   }
 
+  /**
+   * Instantiates a {@link Managed.Write} transform for the specified sink. The supported managed sinks are:
+   * <ul>
+   *   <li>{@link Managed#ICEBERG} : Write to Apache Iceberg
+   * </ul>
+   */
   public static Write write(String sink) {
     return new AutoValue_Managed_Write.Builder()
         .setSink(
@@ -152,17 +205,22 @@ public class Managed {
       abstract Write build();
     }
 
+    /**
+     * Use the input Map of configuration arguments to build and instantiate the underlying sink.
+     * The map can ignore nullable parameters, but needs to include all required parameters. Check the
+     * underlying sink's configuration schema to see which parameters are available.
+     */
+    public Write withConfig(Map<String, Object> config) {
+      return toBuilder().setConfig(YamlUtils.yamlStringFromMap(config)).build();
+    }
+
+    /**
+     * Like {@link #withConfig(Map)}, but instead extracts the configuration arguments from a specified YAML file location.
+     */
     public Write withConfigUrl(String configUrl) {
       return toBuilder().setConfigUrl(configUrl).build();
     }
 
-    public Write withConfig(String config) {
-      return toBuilder().setConfig(config).build();
-    }
-
-    public Write withConfig(Map<String, Object> config) {
-      return toBuilder().setConfig(YamlUtils.yamlStringFromMap(config)).build();
-    }
 
     @VisibleForTesting
     Write withSupportedIdentifiers(List<String> supportedIdentifiers) {
