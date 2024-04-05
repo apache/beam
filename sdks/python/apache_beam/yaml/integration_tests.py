@@ -67,7 +67,7 @@ def replace_recursive(spec, vars):
     }
   elif isinstance(spec, list):
     return [replace_recursive(value, vars) for value in spec]
-  elif isinstance(spec, str) and '{' in spec:
+  elif isinstance(spec, str) and '{' in spec and '{\n' not in spec:
     try:
       return spec.format(**vars)
     except Exception as exn:
@@ -157,7 +157,8 @@ def create_test_methods(spec):
 def parse_test_files(filepattern):
   for path in glob.glob(filepattern):
     with open(path) as fin:
-      suite_name = os.path.splitext(os.path.basename(path))[0].title() + 'Test'
+      suite_name = os.path.splitext(os.path.basename(path))[0].title().replace(
+          '-', '') + 'Test'
       print(path, suite_name)
       methods = dict(
           create_test_methods(
