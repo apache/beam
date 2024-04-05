@@ -875,7 +875,7 @@ def create_java_builtin_provider():
   # where possible.  This would also require extra care in skipping these
   # common transforms when doing the provider affinity analysis.
 
-  def java_window_into(java_provider, **config):
+  def java_window_into(java_provider, windowing):
     """Parses the config into a WindowingStrategy and invokes the Java class.
 
     Though it would not be that difficult to implement this in Java as well,
@@ -883,7 +883,7 @@ def create_java_builtin_provider():
     it evolves).
     """
     windowing_strategy = YamlProviders.WindowInto._parse_window_spec(
-        config).get_windowing(None)
+        windowing).get_windowing(None)
     # No context needs to be preserved for the basic WindowFns.
     empty_context = pipeline_context.PipelineContext()
     return java_provider.create_transform(
