@@ -3,7 +3,6 @@ What is a pipeline development lifecycle in Apache Beam?
 
 Response:
 The Apache Beam pipeline development lifecycle is an iterative process that usually involves the following steps:
-
 - Design your pipeline.
 - Develop your pipeline code.
 - Test your pipeline.
