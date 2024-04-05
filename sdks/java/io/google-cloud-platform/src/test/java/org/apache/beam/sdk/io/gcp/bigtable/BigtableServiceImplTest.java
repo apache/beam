@@ -49,6 +49,7 @@ import com.google.cloud.bigtable.data.v2.internal.RequestContext;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.RowAdapter;
 import com.google.cloud.bigtable.data.v2.models.RowMutationEntry;
+import com.google.cloud.bigtable.data.v2.models.TargetId;
 import com.google.cloud.bigtable.data.v2.stub.EnhancedBigtableStub;
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
@@ -811,7 +812,7 @@ public class BigtableServiceImplTest {
    */
   @Test
   public void testWrite() throws IOException {
-    doReturn(mockBatcher).when(mockBigtableDataClient).newBulkMutationBatcher(any());
+    doReturn(mockBatcher).when(mockBigtableDataClient).newBulkMutationBatcher((TargetId) any());
     SettableApiFuture<Void> fakeFuture = SettableApiFuture.create();
     when(mockBatcher.closeAsync()).thenReturn(fakeFuture);
     ArgumentCaptor<RowMutationEntry> captor = ArgumentCaptor.forClass(RowMutationEntry.class);
