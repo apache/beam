@@ -27,10 +27,10 @@ from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
 from . import flatmap_function
-from . import flatmap_nofunction
 from . import flatmap_generator
 from . import flatmap_lambda
 from . import flatmap_multiple_arguments
+from . import flatmap_nofunction
 from . import flatmap_side_inputs_dict
 from . import flatmap_side_inputs_iter
 from . import flatmap_side_inputs_singleton
