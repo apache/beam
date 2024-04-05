@@ -57,10 +57,7 @@ follows:</p><pre tabindex=0><code>pip install apache_beam[yaml,gcp]
 </code></pre><p>In addition, several of the provided transforms, such as the SQL transform, are
 implemented in Java and require a working Java interpeter. When you a run a
 pipeline with these transforms, the required artifacts are automatically
-downloaded from the Apache Maven repositories. To execute these cross-language
-transforms locally, you must have Docker installed on your local machine.
-Docker is not required when running a pipeline with a non-local runner such as
-Flink or Dataflow.</p><h2 id=getting-started>Getting started</h2><p>Use a text editor to create a file named <code>pipeline.yaml</code>. Paste the following
+downloaded from the Apache Maven repositories.</p><h2 id=getting-started>Getting started</h2><p>Use a text editor to create a file named <code>pipeline.yaml</code>. Paste the following
 text into the file and save:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>pipeline</span><span class=p>:</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>transforms</span><span class=p>:</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>Create</span><span class=w>
