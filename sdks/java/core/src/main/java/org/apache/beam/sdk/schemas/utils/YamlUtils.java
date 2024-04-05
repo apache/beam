@@ -28,6 +28,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
@@ -53,6 +54,11 @@ public class YamlUtils {
           .build();
 
   public static Row toBeamRow(@Nullable String yamlString, Schema schema) {
+    return toBeamRow(yamlString, schema, false);
+  }
+
+  public static Row toBeamRow(
+      @Nullable String yamlString, Schema schema, boolean convertNamesToCamelCase) {
     if (yamlString == null || yamlString.isEmpty()) {
       List<Field> requiredFields =
           schema.getFields().stream()
@@ -75,10 +81,12 @@ public class YamlUtils {
         "Expected a YAML mapping but got type '%s' instead.",
         Preconditions.checkNotNull(yamlMap).getClass());
 
-    return toBeamRow((Map<String, Object>) Preconditions.checkNotNull(yamlMap), schema);
+    return toBeamRow(
+        (Map<String, Object>) Preconditions.checkNotNull(yamlMap), schema, convertNamesToCamelCase);
   }
 
-  private static @Nullable Object toBeamValue(Field field, @Nullable Object yamlValue) {
+  private static @Nullable Object toBeamValue(
+      Field field, @Nullable Object yamlValue, boolean convertNamesToCamelCase) {
     FieldType fieldType = field.getType();
 
     if (yamlValue == null) {
@@ -112,7 +120,10 @@ public class YamlUtils {
               fieldType);
       return ((List<Object>) yamlValue)
           .stream()
-              .map(v -> Preconditions.checkNotNull(toBeamValue(field.withType(innerType), v)))
+              .map(
+                  v ->
+                      Preconditions.checkNotNull(
+                          toBeamValue(field.withType(innerType), v, convertNamesToCamelCase)))
               .collect(Collectors.toList());
     }
 
@@ -124,7 +135,7 @@ public class YamlUtils {
                 "Received a YAML '%s' type, but output schema field '%s' does not define a Row Schema",
                 yamlValue.getClass(),
                 fieldType);
-        return toBeamRow((Map<String, Object>) yamlValue, nestedSchema);
+        return toBeamRow((Map<String, Object>) yamlValue, nestedSchema, convertNamesToCamelCase);
       } else if (fieldType.getTypeName() == Schema.TypeName.MAP) {
         return yamlValue;
       }
@@ -136,11 +147,19 @@ public class YamlUtils {
   }
 
   @SuppressWarnings("nullness")
-  public static Row toBeamRow(Map<String, Object> yamlMap, Schema rowSchema) {
-
+  public static Row toBeamRow(Map<String, Object> yamlMap, Schema rowSchema, boolean toCamelCase) {
     return rowSchema.getFields().stream()
-        .map(field -> toBeamValue(field, yamlMap.get(field.getName())))
+        .map(
+            field ->
+                toBeamValue(
+                    field,
+                    yamlMap.get(maybeGetSnakeCase(field.getName(), toCamelCase)),
+                    toCamelCase))
         .collect(toRow(rowSchema));
+  }
+
+  private static String maybeGetSnakeCase(String str, boolean getSnakeCase) {
+    return getSnakeCase ? CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, str) : str;
   }
 
   public static String yamlStringFromMap(Map<String, Object> map) {

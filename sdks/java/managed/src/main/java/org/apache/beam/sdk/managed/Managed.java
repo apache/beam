@@ -38,7 +38,7 @@ public class Managed {
         .setSource(
             Preconditions.checkNotNull(
                 Read.TRANSFORMS.get(source.toLowerCase()),
-                "An unsupported source was specified: '%s'. Please specify one of the following source: %s",
+                "An unsupported source was specified: '%s'. Please specify one of the following sources: %s",
                 source,
                 Read.TRANSFORMS.keySet()))
         .setSupportedIdentifiers(new ArrayList<>(Read.TRANSFORMS.values()))
@@ -64,7 +64,7 @@ public class Managed {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setSource(String source);
+      abstract Builder setSource(String sourceIdentifier);
 
       abstract Builder setConfig(@Nullable String config);
 
@@ -102,7 +102,7 @@ public class Managed {
               .build();
 
       SchemaTransform underlyingTransform =
-          ManagedSchemaTransformProvider.of(TRANSFORMS.values()).from(managedConfig);
+          new ManagedSchemaTransformProvider(getSupportedIdentifiers()).from(managedConfig);
 
       return input.apply(underlyingTransform);
     }
@@ -139,7 +139,7 @@ public class Managed {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setSink(String source);
+      abstract Builder setSink(String sinkIdentifier);
 
       abstract Builder setConfig(@Nullable String config);
 
@@ -177,7 +177,7 @@ public class Managed {
               .build();
 
       SchemaTransform underlyingTransform =
-          ManagedSchemaTransformProvider.of(TRANSFORMS.values()).from(managedConfig);
+          new ManagedSchemaTransformProvider(getSupportedIdentifiers()).from(managedConfig);
 
       return input.apply(underlyingTransform);
     }

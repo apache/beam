@@ -22,12 +22,15 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -38,11 +41,12 @@ import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
 @AutoService(SchemaTransformProvider.class)
-class ManagedSchemaTransformProvider
+public class ManagedSchemaTransformProvider
     extends TypedSchemaTransformProvider<ManagedSchemaTransformProvider.ManagedConfig> {
 
   @Override
@@ -52,7 +56,9 @@ class ManagedSchemaTransformProvider
 
   private final Map<String, SchemaTransformProvider> schemaTransformProviders = new HashMap<>();
 
-  private ManagedSchemaTransformProvider(Collection<String> identifiers) {
+  public ManagedSchemaTransformProvider() {}
+
+  public ManagedSchemaTransformProvider(Collection<String> identifiers) {
     try {
       for (SchemaTransformProvider schemaTransformProvider :
           ServiceLoader.load(SchemaTransformProvider.class)) {
@@ -68,15 +74,6 @@ class ManagedSchemaTransformProvider
     }
 
     schemaTransformProviders.entrySet().removeIf(e -> !identifiers.contains(e.getKey()));
-  }
-
-  private static @Nullable ManagedSchemaTransformProvider managedProvider = null;
-
-  public static ManagedSchemaTransformProvider of(Collection<String> supportedIdentifiers) {
-    if (managedProvider == null) {
-      managedProvider = new ManagedSchemaTransformProvider(supportedIdentifiers);
-    }
-    return managedProvider;
   }
 
   @DefaultSchema(AutoValueSchema.class)
@@ -158,16 +155,16 @@ class ManagedSchemaTransformProvider
     }
   }
 
-  private static Row getRowConfig(ManagedConfig config, Schema transformSchema) throws Exception {
+  @VisibleForTesting
+  static Row getRowConfig(ManagedConfig config, Schema transformSchema) {
     String transformYamlConfig;
     if (!Strings.isNullOrEmpty(config.getConfigUrl())) {
       try {
-        transformYamlConfig =
-            FileSystems.open(
-                    FileSystems.matchSingleFileSpec(
-                            Preconditions.checkNotNull(config.getConfigUrl()))
-                        .resourceId())
-                .toString();
+        MatchResult.Metadata fileMetaData =
+            FileSystems.matchSingleFileSpec(Preconditions.checkNotNull(config.getConfigUrl()));
+        ByteBuffer buffer = ByteBuffer.allocate((int) fileMetaData.sizeBytes());
+        FileSystems.open(fileMetaData.resourceId()).read(buffer);
+        transformYamlConfig = new String(buffer.array(), StandardCharsets.US_ASCII);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
@@ -175,6 +172,11 @@ class ManagedSchemaTransformProvider
       transformYamlConfig = config.getConfig();
     }
 
-    return YamlUtils.toBeamRow(transformYamlConfig, transformSchema);
+    return YamlUtils.toBeamRow(transformYamlConfig, transformSchema, true);
+  }
+
+  @VisibleForTesting
+  Map<String, SchemaTransformProvider> getAllProviders() {
+    return schemaTransformProviders;
   }
 }
