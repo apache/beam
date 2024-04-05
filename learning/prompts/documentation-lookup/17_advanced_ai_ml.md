@@ -1,5 +1,5 @@
 Prompt:
-What are AI and ML capabilities in Apache Beam?
+What are the AI and ML capabilities in Apache Beam?
 
 Response:
 Apache Beam has several built-in [AI and ML capabilities](https://beam.apache.org/documentation/ml/overview/) that enable you to:
