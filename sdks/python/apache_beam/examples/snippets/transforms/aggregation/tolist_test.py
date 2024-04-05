@@ -19,6 +19,7 @@
 import mock
 import unittest
 
+import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that, equal_to
 
@@ -38,7 +39,17 @@ def identity(x):
 class BatchElementsTest(unittest.TestCase):
   def test_tolist(self):
     def check(result):
-      assert_that(result, equal_to([['🍓', '🥕', '🍆', '🍅']]))
+      assert_that(
+          result
+          | 'Flatten' >> beam.FlatMap(identity)
+          | 'Count' >> beam.combiners.Count.PerElement(),
+          equal_to([('🍓', 1), ('🥕', 1), ('🍆', 1), ('🍅', 1)]),
+          label='Check counts')
+      assert_that(
+          result
+          | beam.Map(lambda x: isinstance(x, list)),
+          equal_to([True]),
+          label='Check type')
 
     tolist.tolist(check)
 
