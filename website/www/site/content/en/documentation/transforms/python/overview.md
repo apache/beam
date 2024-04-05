@@ -66,6 +66,7 @@ limitations under the License.
   <tr><td><a href="/documentation/transforms/python/aggregation/min">Min</a></td><td>Gets the element with the minimum value within each aggregation.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/sample">Sample</a></td><td>Randomly select some number of elements from each aggregation.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/sum">Sum</a></td><td>Sums all the elements within each aggregation.</td></tr>
+  <tr><td><a href="/documentation/transforms/python/aggregation/tolist">ToList</a></td><td>Aggregates all elements into a single list.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/top">Top</a></td><td>Compute the largest element(s) in each aggregation.</td></tr>
 </table>
 
