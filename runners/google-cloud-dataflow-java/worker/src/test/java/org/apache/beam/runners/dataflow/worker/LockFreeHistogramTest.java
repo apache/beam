@@ -20,10 +20,13 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.sdk.values.KV;
@@ -113,48 +116,31 @@ public class LockFreeHistogramTest {
   }
 
   /** A runnable records 200 values and then calls getSnapshotAndReset. */
-  private static class UpdateHistogramRunnable implements Runnable {
+  private static class UpdateHistogramRunnable implements Callable<Long> {
     private final LockFreeHistogram histogram;
     private final int val;
-    private final CountDownLatch startSignal;
-    private final CountDownLatch doneSignal;
     private Optional<LockFreeHistogram.Snapshot> snapshot;
 
     private static final long valuesRecorded = 200L;
 
-    public UpdateHistogramRunnable(
-        LockFreeHistogram histogram,
-        int val,
-        CountDownLatch startSignal,
-        CountDownLatch doneSignal) {
+    public UpdateHistogramRunnable(LockFreeHistogram histogram, int val) {
       this.histogram = histogram;
       this.val = val;
-      this.startSignal = startSignal;
-      this.doneSignal = doneSignal;
       this.snapshot = Optional.empty();
     }
 
     @Override
-    public void run() {
-      try {
-        startSignal.await();
-      } catch (InterruptedException e) {
-        return;
-      }
-
+    public Long call() {
       for (long j = 0; j < valuesRecorded; j++) {
         histogram.update(val);
       }
       snapshot = histogram.getSnapshotAndReset();
 
-      doneSignal.countDown();
-    }
-
-    public long totalCountInSnapshot() {
       if (snapshot.isPresent()) {
         return snapshot.get().totalCount();
+      } else {
+        return 0L;
       }
-      return 0;
     }
 
     public static long numValuesRecorded() {
@@ -165,34 +151,32 @@ public class LockFreeHistogramTest {
   @Test
   public void testUpdateAndSnapshots_MultipleThreads() {
     int numRunnables = 200;
-    CountDownLatch startSignal = new CountDownLatch(1);
-    CountDownLatch doneSignal = new CountDownLatch(numRunnables);
     ExecutorService executor = Executors.newFixedThreadPool(numRunnables);
 
     HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 10);
     LockFreeHistogram histogram =
         new LockFreeHistogram(KV.of(MetricName.named("name", "namespace"), bucketType));
 
-    UpdateHistogramRunnable[] runnables = new UpdateHistogramRunnable[numRunnables];
+    List<UpdateHistogramRunnable> callables = new ArrayList<>();
+
     for (int i = 0; i < numRunnables; i++) {
-      runnables[i] = new UpdateHistogramRunnable(histogram, i, startSignal, doneSignal);
-      executor.execute(runnables[i]);
+      callables.add(new UpdateHistogramRunnable(histogram, i));
     }
 
-    startSignal.countDown();
+    long totalValuesRecorded = 0;
+
     try {
-      doneSignal.await();
-    } catch (InterruptedException e) {
+      List<Future<Long>> futures = executor.invokeAll(callables);
+      for (Future<Long> future : futures) {
+        totalValuesRecorded += future.get();
+      }
+    } catch (Exception e) {
       return;
     }
 
     Optional<LockFreeHistogram.Snapshot> finalSnapshot = histogram.getSnapshotAndReset();
-    long totalValuesRecorded = 0;
     if (finalSnapshot.isPresent()) {
       totalValuesRecorded += finalSnapshot.get().totalCount();
-    }
-    for (UpdateHistogramRunnable runnable : runnables) {
-      totalValuesRecorded += runnable.totalCountInSnapshot();
     }
 
     assertThat(
