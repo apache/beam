@@ -271,7 +271,8 @@ def assert_that(
   # Usually, the uniqueness of the label is left to the pipeline
   # writer to guarantee. Since we're in a testing context, we'll
   # just automatically append a number to the label if it's
-  # already in use.
+  # already in use, as tests don't typically have to worry about
+  # long-term update compatibility stability of stage names.
   if label in pipeline.applied_labels:
     label_idx = 2
     while f"{label}_{label_idx}" in pipeline.applied_labels:
