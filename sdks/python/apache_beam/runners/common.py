@@ -1998,10 +1998,18 @@ def merge_common_environments(pipeline_proto, inplace=False):
     pipeline_proto = copy.copy(pipeline_proto)
 
   for t in pipeline_proto.components.transforms.values():
-    if t.environment_id in environment_remappings:
+    if t.environment_id not in pipeline_proto.components.environments:
+      # TODO(https://github.com/apache/beam/issues/30876): Remove this
+      #  workaround.
+      continue
+    if t.environment_id:
       t.environment_id = environment_remappings[t.environment_id]
   for w in pipeline_proto.components.windowing_strategies.values():
-    if w.environment_id in environment_remappings:
+    if w.environment_id not in pipeline_proto.components.environments:
+      # TODO(https://github.com/apache/beam/issues/30876): Remove this
+      #  workaround.
+      continue
+    if w.environment_id:
       w.environment_id = environment_remappings[w.environment_id]
   for e in set(pipeline_proto.components.environments.keys()) - set(
       environment_remappings.values()):
