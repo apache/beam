@@ -211,6 +211,14 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
   void setWindmillServiceStreamMaxBackoffMillis(int value);
 
+  @Description(
+      "If true, Dataflow streaming pipeline will be running in direct path mode."
+          + " VMs must have IPv6 enabled for this to work.")
+  @Default.Boolean(false)
+  boolean getIsWindmillServiceDirectPathEnabled();
+
+  void setIsWindmillServiceDirectPathEnabled(boolean isWindmillServiceDirectPathEnabled);
+
   /**
    * Factory for creating local Windmill address. Reads from system propery 'windmill.hostport' for
    * backwards compatibility.

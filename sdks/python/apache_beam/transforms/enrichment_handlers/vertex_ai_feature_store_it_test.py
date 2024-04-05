@@ -27,6 +27,7 @@ from apache_beam.testing.util import BeamAssertException
 
 # pylint: disable=ungrouped-imports
 try:
+  from google.api_core.exceptions import NotFound
   from testcontainers.redis import RedisContainer
   from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.transforms.enrichment_handlers.utils import ExceptionLevel
@@ -61,7 +62,7 @@ class ValidateResponse(beam.DoFn):
             f"from feature store")
 
 
-@pytest.mark.uses_redis
+@pytest.mark.uses_testcontainer
 class TestVertexAIFeatureStoreHandler(unittest.TestCase):
   def setUp(self) -> None:
     self.project = 'apache-beam-testing'
@@ -71,7 +72,7 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
     self.entity_type_name = "entity_id"
     self.api_endpoint = "us-central1-aiplatform.googleapis.com"
     self.feature_ids = ['title', 'genres']
-
+    self.retries = 3
     self._start_container()
 
   def _start_container(self):
@@ -123,6 +124,26 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
           | beam.Create(requests)
           | Enrichment(handler)
           | beam.ParDo(ValidateResponse(expected_fields)))
+
+  def test_vertex_ai_feature_store_wrong_name(self):
+    requests = [
+        beam.Row(entity_id="847", name='cardigan jacket'),
+        beam.Row(entity_id="16050", name='stripe t-shirt'),
+    ]
+
+    with self.assertRaises(NotFound):
+      handler = VertexAIFeatureStoreEnrichmentHandler(
+          project=self.project,
+          location=self.location,
+          api_endpoint=self.api_endpoint,
+          feature_store_name="incorrect_name",
+          feature_view_name=self.feature_view_name,
+          row_key=self.entity_type_name,
+      )
+      test_pipeline = beam.Pipeline()
+      _ = (test_pipeline | beam.Create(requests) | Enrichment(handler))
+      res = test_pipeline.run()
+      res.wait_until_finish()
 
   def test_vertex_ai_feature_store_bigtable_serving_enrichment_bad(self):
     requests = [
@@ -203,18 +224,18 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
     ]
     feature_store_id = "invalid_name"
     entity_type_id = "movies"
-    handler = VertexAIFeatureStoreLegacyEnrichmentHandler(
-        project=self.project,
-        location=self.location,
-        api_endpoint=self.api_endpoint,
-        feature_store_id=feature_store_id,
-        entity_type_id=entity_type_id,
-        feature_ids=self.feature_ids,
-        row_key=self.entity_type_name,
-        exception_level=ExceptionLevel.RAISE,
-    )
 
-    with self.assertRaises(ValueError):
+    with self.assertRaises(NotFound):
+      handler = VertexAIFeatureStoreLegacyEnrichmentHandler(
+          project=self.project,
+          location=self.location,
+          api_endpoint=self.api_endpoint,
+          feature_store_id=feature_store_id,
+          entity_type_id=entity_type_id,
+          feature_ids=self.feature_ids,
+          row_key=self.entity_type_name,
+          exception_level=ExceptionLevel.RAISE,
+      )
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline

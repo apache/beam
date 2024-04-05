@@ -15,29 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.streaming;
+package org.apache.beam.sdk.extensions.ordered;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import java.io.Serializable;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
-/** Value class for a queued commit. */
+/**
+ * Event class to be used in testing.
+ *
+ * <p>The event simulate a string being emitted for a particular key, e.g., sensor id or customer
+ * id.
+ */
+@DefaultSchema(AutoValueSchema.class)
 @AutoValue
-public abstract class Commit {
+public abstract class Event implements Serializable {
 
-  public static Commit create(
-      WorkItemCommitRequest request, ComputationState computationState, Work work) {
-    Preconditions.checkArgument(request.getSerializedSize() > 0);
-    return new AutoValue_Commit(request, computationState, work);
+  public static Event create(long sequence, String groupId, String value) {
+    return new AutoValue_Event(sequence, groupId, value);
   }
 
-  public abstract WorkItemCommitRequest request();
+  /** @return event sequence number */
+  public abstract long getSequence();
 
-  public abstract ComputationState computationState();
+  /** @return the group id event is associated with */
+  public abstract String getKey();
 
-  public abstract Work work();
-
-  public final int getSize() {
-    return request().getSerializedSize();
-  }
+  /** @return value of the event */
+  public abstract String getValue();
 }

@@ -1,3 +1,4 @@
+# coding=utf-8
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -14,5 +15,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-redis
-google-cloud-aiplatform
+
+pipeline:
+  type: chain
+  transforms:
+    - type: Create
+      name: Create produce
+      config:
+        elements:
+          - produce: '🥕'
+            amount: 3
+          - produce: '🥕'
+            amount: 2
+          - produce: '🍆'
+            amount: 1
+          - produce: '🍅'
+            amount: 4
+          - produce: '🍅'
+            amount: 5
+          - produce: '🍅'
+            amount: 3
+    - type: Combine
+      name: Get max value per key
+      config:
+        language: python
+        group_by: produce
+        combine:
+          amount: max
+    - type: LogForTesting
+
+options:
+  yaml_experimental_features: Combine
+
+# Expected:
+#  Row(produce='🥕', amount=3)
+#  Row(produce='🍆', amount=1)
+#  Row(produce='🍅', amount=5)

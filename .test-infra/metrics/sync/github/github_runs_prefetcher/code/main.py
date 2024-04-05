@@ -269,6 +269,7 @@ async def fetch(url, semaphore, params=None, headers=None, request_id=None):
 
 async def fetch_workflow_runs():
     def append_workflow_runs(workflow, runs):
+        workflow_runs = {}
         for run in runs:
             # Getting rid of all runs with a "skipped" status to display
             # only actual runs
@@ -278,15 +279,17 @@ async def fetch_workflow_runs():
                     status = run["conclusion"]
                 elif run["status"] != "cancelled":
                     status = run["status"]
-                workflow.runs.append(
-                    WorkflowRun(
-                        run["id"],
-                        status,
-                        run["html_url"],
-                        workflow.id,
-                        datetime.strptime(run["run_started_at"], "%Y-%m-%dT%H:%M:%SZ"),
-                    )
+                workflow_run = WorkflowRun(
+                    run["id"],
+                    status,
+                    run["html_url"],
+                    workflow.id,
+                    datetime.strptime(run["run_started_at"], "%Y-%m-%dT%H:%M:%SZ"),
                 )
+                if workflow_runs.get(workflow_run.id):
+                    print(f"Duplicate run for {workflow.id} workflow: {workflow_run.id}")
+                workflow_runs[workflow_run.id] = workflow_run
+        workflow.runs.extend(workflow_runs.values())
 
     url = f"https://api.github.com/repos/{GIT_ORG}/beam/actions/workflows"
     headers = {"Authorization": get_token()}
@@ -428,7 +431,8 @@ def save_workflows(workflows):
       url text NOT NULL,
       dashboard_category text NOT NULL,
       threshold real NOT NULL,
-      is_flaky boolean NOT NULL)\n"""
+      is_flaky boolean NOT NULL,
+      retrieved_at timestamp with time zone NOT NULL)\n"""
     create_workflow_runs_table_query = f"""
     CREATE TABLE IF NOT EXISTS {workflow_runs_table_name} (
         run_id text NOT NULL PRIMARY KEY,
@@ -441,13 +445,14 @@ def save_workflows(workflows):
     cursor.execute(create_workflows_table_query)
     cursor.execute(create_workflow_runs_table_query)
     insert_workflows_query = f"""
-    INSERT INTO {workflows_table_name} (workflow_id, name, filename, url,  dashboard_category, threshold, is_flaky)
+    INSERT INTO {workflows_table_name} (workflow_id, name, filename, url,  dashboard_category, threshold, is_flaky, retrieved_at)
     VALUES %s"""
     insert_workflow_runs_query = f"""
     INSERT INTO {workflow_runs_table_name} (run_id, run_number, status, url, workflow_id, started_at)
     VALUES %s"""
     insert_workflows = []
     insert_workflow_runs = []
+    current_date = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
     for workflow in workflows:
         insert_workflows.append(
             (
@@ -458,6 +463,7 @@ def save_workflows(workflows):
                 workflow.category,
                 workflow.threshold,
                 workflow.is_flaky,
+                current_date,
             )
         )
         for idx, run in enumerate(workflow.runs):

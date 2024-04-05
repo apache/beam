@@ -32,12 +32,12 @@ LogicalType.register_logical_type(MillisInstant)
 def _configure_parser(argv):
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '--pipeline_spec',
       '--yaml_pipeline',
+      '--pipeline_spec',
       help='A yaml description of the pipeline to run.')
   parser.add_argument(
-      '--pipeline_spec_file',
       '--yaml_pipeline_file',
+      '--pipeline_spec_file',
       help='A file containing a yaml description of the pipeline to run.')
   parser.add_argument(
       '--json_schema_validation',
@@ -49,17 +49,17 @@ def _configure_parser(argv):
 
 
 def _pipeline_spec_from_args(known_args):
-  if known_args.pipeline_spec_file and known_args.pipeline_spec:
+  if known_args.yaml_pipeline_file and known_args.yaml_pipeline:
     raise ValueError(
-        "Exactly one of pipeline_spec or pipeline_spec_file must be set.")
-  elif known_args.pipeline_spec_file:
-    with FileSystems.open(known_args.pipeline_spec_file) as fin:
+        "Exactly one of yaml_pipeline or yaml_pipeline_file must be set.")
+  elif known_args.yaml_pipeline_file:
+    with FileSystems.open(known_args.yaml_pipeline_file) as fin:
       pipeline_yaml = fin.read().decode()
-  elif known_args.pipeline_spec:
-    pipeline_yaml = known_args.pipeline_spec
+  elif known_args.yaml_pipeline:
+    pipeline_yaml = known_args.yaml_pipeline
   else:
     raise ValueError(
-        "Exactly one of pipeline_spec or pipeline_spec_file must be set.")
+        "Exactly one of yaml_pipeline or yaml_pipeline_file must be set.")
 
   return pipeline_yaml
 

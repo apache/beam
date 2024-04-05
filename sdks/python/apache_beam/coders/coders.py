@@ -1628,6 +1628,34 @@ Coder.register_structured_urn(
     common_urns.coders.CUSTOM_WINDOW.urn, TimestampPrefixingWindowCoder)
 
 
+class TimestampPrefixingOpaqueWindowCoder(FastCoder):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Coder which decodes windows as bytes."""
+  def __init__(self) -> None:
+    pass
+
+  def _create_impl(self):
+    return coder_impl.TimestampPrefixingOpaqueWindowCoderImpl()
+
+  def is_deterministic(self) -> bool:
+    return True
+
+  def __repr__(self):
+    return 'TimestampPrefixingOpaqueWindowCoder'
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash((type(self)))
+
+
+Coder.register_structured_urn(
+    python_urns.TIMESTAMP_PREFIXED_OPAQUE_WINDOW_CODER,
+    TimestampPrefixingOpaqueWindowCoder)
+
+
 class BigIntegerCoder(FastCoder):
   def _create_impl(self):
     return coder_impl.BigIntegerCoderImpl()

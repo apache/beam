@@ -16,6 +16,7 @@
 import os
 import re
 import requests
+from datetime import datetime
 from github import Github
 from github import Auth
 
@@ -34,12 +35,14 @@ class Alert:
         workflow_name,
         workflow_filename,
         workflow_threshold,
+        workflow_retrieved_at,
     ):
         self.workflow_id = workflow_id
         self.workflow_url = workflow_url
         self.workflow_name = workflow_name
         self.workflow_filename = workflow_filename
         self.workflow_threshold = round(float(workflow_threshold), 2)
+        self.workflow_retrieved_at = workflow_retrieved_at
 
 
 def get_workflow_issues(issues):
@@ -89,6 +92,7 @@ def get_grafana_alerts():
                     alert["labels"]["workflow_name"],
                     alert["labels"]["workflow_filename"],
                     alert["labels"]["workflow_threshold"],
+                    datetime.fromisoformat(alert["labels"]["workflow_retrieved_at"]),
                 )
             )
     return alerts
@@ -114,6 +118,8 @@ def main():
             issue = workflow_closed_issues[alert.workflow_id]
             if READ_ONLY == "true":
                 print("READ_ONLY is true, not reopening issue")
+            elif issue.closed_at > alert.workflow_retrieved_at:
+                print(f"The issue for the workflow {alert.workflow_id} has been closed, skipping")
             else:
                 issue.edit(state="open")
                 issue.create_comment(body="Reopening since the workflow is still flaky")
@@ -121,7 +127,7 @@ def main():
         elif alert.workflow_id not in workflow_open_issues.keys():
             create_github_issue(repo, alert)
         else:
-            print("Issue is already open, skipping")
+            print(f"The issue for the workflow {alert.workflow_id} is already open, skipping")
 
     g.close()
 
