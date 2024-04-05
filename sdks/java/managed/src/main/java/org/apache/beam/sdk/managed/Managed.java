@@ -30,6 +30,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 public class Managed {
+
+  // TODO: Dynamically generate a list of supported transforms
   public static final String ICEBERG = "iceberg";
 
   public static Read read(String source) {

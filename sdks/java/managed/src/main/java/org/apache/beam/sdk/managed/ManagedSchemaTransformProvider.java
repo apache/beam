@@ -78,7 +78,8 @@ public class ManagedSchemaTransformProvider
 
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
-  public abstract static class ManagedConfig {
+  @VisibleForTesting
+  abstract static class ManagedConfig {
     public static Builder builder() {
       return new AutoValue_ManagedSchemaTransformProvider_ManagedConfig.Builder();
     }
@@ -137,7 +138,7 @@ public class ManagedSchemaTransformProvider
     return new ManagedSchemaTransform(transformConfig, schemaTransformProvider);
   }
 
-  protected static class ManagedSchemaTransform extends SchemaTransform {
+  private static class ManagedSchemaTransform extends SchemaTransform {
     private final Row transformConfig;
     private final SchemaTransformProvider underlyingTransformProvider;
 
