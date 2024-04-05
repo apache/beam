@@ -115,7 +115,7 @@ def provider_sets(spec, require_available=False):
       if len(filter_to_available(t, standard_providers[t])) > 1
   }
   if not multiple_providers:
-    return 'only', standard_providers
+    yield ('only', standard_providers)
   else:
     names, provider_lists = zip(*sorted(multiple_providers.items()))
     for ix, c in enumerate(itertools.product(*provider_lists)):
