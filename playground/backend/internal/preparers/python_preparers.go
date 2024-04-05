@@ -26,6 +26,7 @@ import (
 )
 
 const (
+	addLogHandlerCode       = "import logging\nlogging.basicConfig(\n    level=logging.INFO,\n    format=\"%(asctime)s [%(levelname)s] %(message)s\",\n    handlers=[\n        logging.FileHandler(\"logs.log\"),\n    ]\n)\n"
 	oneIndentation          = "  "
 	findWithPipelinePattern = `(\s*)with.+Pipeline.+as (.+):`
 	indentationPattern      = `^(%s){0,1}\w+`
@@ -111,6 +112,9 @@ func addCodeToFile(args ...interface{}) error {
 // saveLogs rewrites all lines from file with adding additional code to another file
 // New code is added to the top of the file.
 func saveLogs(from *os.File, to *os.File) error {
+	if err := writeToFile(to, addLogHandlerCode); err != nil {
+		return err
+	}
 	scanner := bufio.NewScanner(from)
 	for scanner.Scan() {
 		line := scanner.Text()

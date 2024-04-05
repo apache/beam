@@ -53,6 +53,7 @@ func TestGetPythonPreparers(t *testing.T) {
 }
 
 func Test_addCodeToFile(t *testing.T) {
+	wantCode := "import logging\nlogging.basicConfig(\n    level=logging.INFO,\n    format=\"%(asctime)s [%(levelname)s] %(message)s\",\n    handlers=[\n        logging.FileHandler(\"logs.log\"),\n    ]\n)\n" + pyCode
 
 	type args struct {
 		args []interface{}
@@ -60,6 +61,7 @@ func Test_addCodeToFile(t *testing.T) {
 	tests := []struct {
 		name     string
 		args     args
+		wantCode string
 		wantErr  bool
 	}{
 		{
@@ -74,6 +76,7 @@ func Test_addCodeToFile(t *testing.T) {
 			// As a result, want to receive an updated code
 			name:     "Original file exists",
 			args:     args{[]interface{}{correctPyFile, saveLogs}},
+			wantCode: wantCode,
 			wantErr:  false,
 		},
 	}
@@ -86,6 +89,9 @@ func Test_addCodeToFile(t *testing.T) {
 				data, err := os.ReadFile(tt.args.args[0].(string))
 				if err != nil {
 					t.Errorf("addToCode() unexpected error = %v", err)
+				}
+				if !strings.EqualFold(string(data), tt.wantCode) {
+					t.Errorf("addToCode() code = {%v}, wantCode {%v}", string(data), tt.wantCode)
 				}
 			}
 		})
