@@ -124,7 +124,6 @@ tasks.register("yamlIntegrationTests") {
       args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py"
     }
   }
-  outputs.file "${buildDir}/yaml-ref.html"
 }
 
 // Create Python wheels for given platform and Python version
