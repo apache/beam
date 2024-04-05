@@ -1,7 +1,8 @@
 Prompt:
-What is Splittable DoFn in Apache Beam?
+What is a splittable `DoFn` in Apache Beam?
+
 Response:
-A splittable `DoFn` (SDF) is a generalization of [`DoFn`](https://beam.apache.org/documentation/programming-guide/#pardo) that lets you process elements in a non-monolithic way. A splittable `DoFn` makes it easier to create complex, modular I/O connectors in Beam .
+A splittable `DoFn` (SDF) is a generalization of [`DoFn`](https://beam.apache.org/documentation/programming-guide/#pardo) that lets you process elements in a non-monolithic way. A splittable `DoFn` makes it easier to create complex, modular I/O connectors in Apache Beam.
 When you apply a splittable `DoFn` to an element, the runner can split the element’s processing into smaller tasks. You can checkpoint the processing of an element, and you can split the remaining work to yield additional parallelism.
 
 At a high level, an SDF is responsible for processing element and restriction pairs. A restriction represents a subset of work that would have been necessary to have been done when processing the element.
@@ -15,4 +16,3 @@ Executing a [Splittable `DoFn`](https://beam.apache.org/documentation/programmin
 For an example, see the [Splittable DoFn module](https://tour.beam.apache.org/tour/python/splittable-dofn/splittable) in the Tour of Beam.
 
 For more information, see the [community blog post](https://beam.apache.org/blog/splittable-do-fn-is-available/).
-
