@@ -13,6 +13,6 @@ Executing a [splittable `DoFn`](https://beam.apache.org/documentation/programmin
 3. The runner redistributes the element and restriction pairs to several workers.
 4. Element and restriction pairs are processed in parallel. For example, the file is read. Within this last step, the element and restriction pair can pause its own processing or be split into further element and restriction pairs.
 
-For an example, see the [Splittable DoFn module](https://tour.beam.apache.org/tour/python/splittable-dofn/splittable) in the Tour of Beam.
+For an example, see the [Splittable `DoFn` module](https://tour.beam.apache.org/tour/python/splittable-dofn/splittable) in the Tour of Beam.
 
 For more information, see the [community blog post](https://beam.apache.org/blog/splittable-do-fn-is-available/).
