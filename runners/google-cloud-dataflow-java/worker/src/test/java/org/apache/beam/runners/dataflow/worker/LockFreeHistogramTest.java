@@ -116,14 +116,14 @@ public class LockFreeHistogramTest {
   }
 
   /** A runnable records 200 values and then calls getSnapshotAndReset. */
-  private static class UpdateHistogramRunnable implements Callable<Long> {
+  private static class UpdateHistogramCallable implements Callable<Long> {
     private final LockFreeHistogram histogram;
     private final int val;
     private Optional<LockFreeHistogram.Snapshot> snapshot;
 
     private static final long valuesRecorded = 200L;
 
-    public UpdateHistogramRunnable(LockFreeHistogram histogram, int val) {
+    public UpdateHistogramCallable(LockFreeHistogram histogram, int val) {
       this.histogram = histogram;
       this.val = val;
       this.snapshot = Optional.empty();
@@ -157,10 +157,10 @@ public class LockFreeHistogramTest {
     LockFreeHistogram histogram =
         new LockFreeHistogram(KV.of(MetricName.named("name", "namespace"), bucketType));
 
-    List<UpdateHistogramRunnable> callables = new ArrayList<>();
+    List<UpdateHistogramCallable> callables = new ArrayList<>();
 
     for (int i = 0; i < numRunnables; i++) {
-      callables.add(new UpdateHistogramRunnable(histogram, i));
+      callables.add(new UpdateHistogramCallable(histogram, i));
     }
 
     long totalValuesRecorded = 0;
@@ -180,6 +180,6 @@ public class LockFreeHistogramTest {
     }
 
     assertThat(
-        totalValuesRecorded, equalTo(numRunnables * UpdateHistogramRunnable.numValuesRecorded()));
+        totalValuesRecorded, equalTo(numRunnables * UpdateHistogramCallable.numValuesRecorded()));
   }
 }
