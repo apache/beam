@@ -34,6 +34,15 @@ resource "google_container_cluster" "default" {
     enable_private_nodes    = true
     enable_private_endpoint = false
   }
+  node_config {
+    oauth_scopes = [ 
+      "https://www.googleapis.com/auth/cloud-platform",
+      "https://www.googleapis.com/auth/userinfo.email" 
+      ]
+    reservation_affinity {
+      consume_reservation_type = "NO_RESERVATION"
+    }
+  }
   cluster_autoscaling {
     auto_provisioning_defaults {
       service_account = var.service_account_id
