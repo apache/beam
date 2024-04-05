@@ -23,7 +23,15 @@ on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: [ "model/**","sdks/python/**","release/**",".github/workflows/beam_PreCommit_Yaml_Xlang_Direct.yml"]
+    paths:
+      - "model/**"
+      - "release/**"
+      - "sdks/python/**"
+      - "sdks/java/extensions/schemaio-expansion-service/**"
+      - "sdks/java/extensions/sql/**"
+      - "sdks/java/io/expansion-service/**"
+      - "sdks/java/io/google-cloud-platform/**"
+      - ".github/workflows/beam_PreCommit_Yaml_Xlang_Direct.yml"
   schedule:
     - cron: '30 5/6 * * *'
   workflow_dispatch:
