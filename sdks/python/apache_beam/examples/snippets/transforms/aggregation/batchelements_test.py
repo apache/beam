@@ -31,17 +31,18 @@ def check_batches(actual):
   # How the elements are grouped is not guaranteed, so we just
   # check that all elements are lists and then count the elements
   # to make sure none are lost.
-  all_elements_are_lists = (actual
-                            | 'Check type' >> beam.Map(lambda x: isinstance(x, list))
-                            | 'All elements are lists' >> beam.CombineGlobally(all))
+  all_elements_are_lists = (
+      actual
+      | 'Check type' >> beam.Map(lambda x: isinstance(x, list))
+      | 'All elements are lists' >> beam.CombineGlobally(all))
   assert_that(all_elements_are_lists, equal_to([True]))
 
-  assert_that(actual
-              | beam.FlatMap(lambda x: x)
-              | 'Count' >> beam.combiners.Count.PerElement(),
-              equal_to([('🍓', 1), ('🥕', 3), ('🍆', 2), ('🍅', 3), ('🌽', 1)]),
-              label='Check counts')
-
+  assert_that(
+      actual
+      | beam.FlatMap(lambda x: x)
+      | 'Count' >> beam.combiners.Count.PerElement(),
+      equal_to([('🍓', 1), ('🥕', 3), ('🍆', 2), ('🍅', 3), ('🌽', 1)]),
+      label='Check counts')
 
 
 def identity(x):
@@ -51,8 +52,8 @@ def identity(x):
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 # pylint: disable=line-too-long
 @mock.patch(
-  'apache_beam.examples.snippets.transforms.aggregation.batchelements.print',
-  identity)
+    'apache_beam.examples.snippets.transforms.aggregation.batchelements.print',
+    identity)
 # pylint: enable=line-too-long
 class BatchElementsTest(unittest.TestCase):
   def test_batchelements(self):
