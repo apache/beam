@@ -289,7 +289,7 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
       private @Nullable Duration commitDeadline;
       private @Nullable Duration maxCumulativeBackoff;
       private @Nullable String failureMode;
-      private @Nullable Boolean highPriority;
+      private Boolean highPriority = false;
 
       public void setTable(String table) {
         this.table = table;
@@ -329,7 +329,7 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
         this.failureMode = failureMode;
       }
 
-      public void setHighPriority(@Nullable Boolean highPriority) {
+      public void setHighPriority(Boolean highPriority) {
         this.highPriority = highPriority;
       }
     }
@@ -346,7 +346,7 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
               .withDatabaseId(configuration.databaseId)
               .withInstanceId(configuration.instanceId);
 
-      if (configuration.highPriority != null && configuration.highPriority) {
+      if (configuration.highPriority) {
         writeTransform = writeTransform.withHighPriority();
       }
       if (configuration.maxBatchSizeBytes != null) {

@@ -288,7 +288,7 @@ class WriteToSpannerSchema(NamedTuple):
   commit_deadline: Optional[int]
   max_cumulative_backoff: Optional[int]
   failure_mode: Optional[str]
-  high_priority: Optional[bool]
+  high_priority: bool
 
 
 _CLASS_DOC = \
@@ -406,6 +406,7 @@ class SpannerDelete(ExternalTransform):
       max_cumulative_backoff=None,
       failure_mode=None,
       expansion_service=None,
+      high_priority=False,
   ):
     max_cumulative_backoff = int(
         max_cumulative_backoff) if max_cumulative_backoff else None
@@ -461,7 +462,7 @@ class SpannerInsert(ExternalTransform):
       max_cumulative_backoff=None,
       expansion_service=None,
       failure_mode=None,
-      high_priority=None,
+      high_priority=False,
   ):
     max_cumulative_backoff = int(
         max_cumulative_backoff) if max_cumulative_backoff else None
@@ -517,7 +518,7 @@ class SpannerReplace(ExternalTransform):
       max_cumulative_backoff=None,
       expansion_service=None,
       failure_mode=None,
-      high_priority=None,
+      high_priority=False,
   ):
     max_cumulative_backoff = int(
         max_cumulative_backoff) if max_cumulative_backoff else None
@@ -573,7 +574,7 @@ class SpannerInsertOrUpdate(ExternalTransform):
       max_cumulative_backoff=None,
       failure_mode=None,
       expansion_service=None,
-      high_priority=None,
+      high_priority=False,
   ):
     max_cumulative_backoff = int(
         max_cumulative_backoff) if max_cumulative_backoff else None
@@ -629,7 +630,7 @@ class SpannerUpdate(ExternalTransform):
       max_cumulative_backoff=None,
       failure_mode=None,
       expansion_service=None,
-      high_priority=None,
+      high_priority=False,
   ):
     max_cumulative_backoff = int(
         max_cumulative_backoff) if max_cumulative_backoff else None
