@@ -156,7 +156,7 @@ public class MorePipelineTest {
                   checkState(
                       viewRef.compareAndSet(null, createViewTransform.getView()),
                       "Found more than one instance of a CreatePCollectionView when"
-                          + "attempting to replace %s, found [%s, %s]",
+                          + " attempting to replace %s, found [%s, %s]",
                       transform.getTransform(),
                       viewRef.get(),
                       createViewTransform.getView());
