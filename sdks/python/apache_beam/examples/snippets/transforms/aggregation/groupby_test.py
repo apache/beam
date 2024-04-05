@@ -37,8 +37,7 @@ from .groupby_simple_aggregate import simple_aggregate
 from .groupby_two_exprs import groupby_two_exprs
 
 #
-# Temporarily skip all tests in file
-# TODO: Uncomment asserts
+# TODO: Remove early returns in check functions
 #  https://github.com/apache/beam/issues/30778
 
 
@@ -78,168 +77,168 @@ NamedTuple = beam.Row
 
 
 def check_groupby_expr_result(grouped):
-  pass  # TODO: Uncomment asserts
-  # assert_that(
-  #     grouped | beam.MapTuple(normalize_kv),
-  #     equal_to([
-  #         #[START groupby_expr_result]
-  #         ('s', ['strawberry']),
-  #         ('r', ['raspberry']),
-  #         ('b', ['banana', 'blackberry', 'blueberry']),
-  #         #[END groupby_expr_result]
-  #     ]))
+  return # TODO: Remove early return and fix the test
+  assert_that(
+      grouped | beam.MapTuple(normalize_kv),
+      equal_to([
+          #[START groupby_expr_result]
+          ('s', ['strawberry']),
+          ('r', ['raspberry']),
+          ('b', ['banana', 'blackberry', 'blueberry']),
+          #[END groupby_expr_result]
+      ]))
 
 
 def check_groupby_two_exprs_result(grouped):
-  pass  # TODO: Uncomment asserts
-  # assert_that(
-  #     grouped | beam.MapTuple(normalize_kv),
-  #     equal_to([
-  #         #[START groupby_two_exprs_result]
-  #         (NamedTuple(letter='s', is_berry=True), ['strawberry']),
-  #         (NamedTuple(letter='r', is_berry=True), ['raspberry']),
-  #         (NamedTuple(letter='b', is_berry=True), ['blackberry', 'blueberry']),
-  #         (NamedTuple(letter='b', is_berry=False), ['banana']),
-  #         #[END groupby_two_exprs_result]
-  #     ]))
+  return # TODO: Remove early return and fix the test
+  assert_that(
+      grouped | beam.MapTuple(normalize_kv),
+      equal_to([
+          #[START groupby_two_exprs_result]
+          (NamedTuple(letter='s', is_berry=True), ['strawberry']),
+          (NamedTuple(letter='r', is_berry=True), ['raspberry']),
+          (NamedTuple(letter='b', is_berry=True), ['blackberry', 'blueberry']),
+          (NamedTuple(letter='b', is_berry=False), ['banana']),
+          #[END groupby_two_exprs_result]
+      ]))
 
 
 def check_groupby_attr_result(grouped):
-  pass  # TODO: Uncomment asserts
-  # assert_that(
-  #     grouped | beam.MapTuple(normalize_kv),
-  #     equal_to([
-  #         #[START groupby_attr_result]
-  #         (
-  #             'pie',
-  #             [
-  #                 beam.Row(
-  #                     recipe='pie',
-  #                     fruit='strawberry',
-  #                     quantity=3,
-  #                     unit_price=1.50),
-  #                 beam.Row(
-  #                     recipe='pie',
-  #                     fruit='raspberry',
-  #                     quantity=1,
-  #                     unit_price=3.50),
-  #                 beam.Row(
-  #                     recipe='pie',
-  #                     fruit='blackberry',
-  #                     quantity=1,
-  #                     unit_price=4.00),
-  #                 beam.Row(
-  #                     recipe='pie',
-  #                     fruit='blueberry',
-  #                     quantity=1,
-  #                     unit_price=2.00),
-  #             ]),
-  #         (
-  #             'muffin',
-  #             [
-  #                 beam.Row(
-  #                     recipe='muffin',
-  #                     fruit='blueberry',
-  #                     quantity=2,
-  #                     unit_price=2.00),
-  #                 beam.Row(
-  #                     recipe='muffin',
-  #                     fruit='banana',
-  #                     quantity=3,
-  #                     unit_price=1.00),
-  #             ]),
-  #         #[END groupby_attr_result]
-  #     ]))
+  return # TODO: Remove early return and fix the test
+  assert_that(
+      grouped | beam.MapTuple(normalize_kv),
+      equal_to([
+          #[START groupby_attr_result]
+          (
+              'pie',
+              [
+                  beam.Row(
+                      recipe='pie',
+                      fruit='strawberry',
+                      quantity=3,
+                      unit_price=1.50),
+                  beam.Row(
+                      recipe='pie',
+                      fruit='raspberry',
+                      quantity=1,
+                      unit_price=3.50),
+                  beam.Row(
+                      recipe='pie',
+                      fruit='blackberry',
+                      quantity=1,
+                      unit_price=4.00),
+                  beam.Row(
+                      recipe='pie',
+                      fruit='blueberry',
+                      quantity=1,
+                      unit_price=2.00),
+              ]),
+          (
+              'muffin',
+              [
+                  beam.Row(
+                      recipe='muffin',
+                      fruit='blueberry',
+                      quantity=2,
+                      unit_price=2.00),
+                  beam.Row(
+                      recipe='muffin',
+                      fruit='banana',
+                      quantity=3,
+                      unit_price=1.00),
+              ]),
+          #[END groupby_attr_result]
+      ]))
 
 
 def check_groupby_attr_expr_result(grouped):
-  pass  # TODO: Uncomment asserts
-  # assert_that(
-  #     grouped | beam.MapTuple(normalize_kv),
-  #     equal_to([
-  #         #[START groupby_attr_expr_result]
-  #       (
-  #         NamedTuple(recipe='pie', is_berry=True),
-  #         [
-  #           beam.Row(
-  #             recipe='pie',
-  #             fruit='strawberry',
-  #             quantity=3,
-  #             unit_price=1.50),
-  #           beam.Row(
-  #             recipe='pie',
-  #             fruit='raspberry',
-  #             quantity=1,
-  #             unit_price=3.50),
-  #           beam.Row(
-  #             recipe='pie',
-  #             fruit='blackberry',
-  #             quantity=1,
-  #             unit_price=4.00),
-  #           beam.Row(
-  #             recipe='pie',
-  #             fruit='blueberry',
-  #             quantity=1,
-  #             unit_price=2.00),
-  #         ]),
-  #       (
-  #         NamedTuple(recipe='muffin', is_berry=True),
-  #         [
-  #           beam.Row(
-  #             recipe='muffin',
-  #             fruit='blueberry',
-  #             quantity=2,
-  #             unit_price=2.00),
-  #         ]),
-  #       (
-  #         NamedTuple(recipe='muffin', is_berry=False),
-  #         [
-  #           beam.Row(
-  #             recipe='muffin',
-  #             fruit='banana',
-  #             quantity=3,
-  #             unit_price=1.00),
-  #         ]),
-  #         #[END groupby_attr_expr_result]
-  #     ]))
+  return # TODO: Remove early return and fix the test
+  assert_that(
+      grouped | beam.MapTuple(normalize_kv),
+      equal_to([
+          #[START groupby_attr_expr_result]
+        (
+          NamedTuple(recipe='pie', is_berry=True),
+          [
+            beam.Row(
+              recipe='pie',
+              fruit='strawberry',
+              quantity=3,
+              unit_price=1.50),
+            beam.Row(
+              recipe='pie',
+              fruit='raspberry',
+              quantity=1,
+              unit_price=3.50),
+            beam.Row(
+              recipe='pie',
+              fruit='blackberry',
+              quantity=1,
+              unit_price=4.00),
+            beam.Row(
+              recipe='pie',
+              fruit='blueberry',
+              quantity=1,
+              unit_price=2.00),
+          ]),
+        (
+          NamedTuple(recipe='muffin', is_berry=True),
+          [
+            beam.Row(
+              recipe='muffin',
+              fruit='blueberry',
+              quantity=2,
+              unit_price=2.00),
+          ]),
+        (
+          NamedTuple(recipe='muffin', is_berry=False),
+          [
+            beam.Row(
+              recipe='muffin',
+              fruit='banana',
+              quantity=3,
+              unit_price=1.00),
+          ]),
+          #[END groupby_attr_expr_result]
+      ]))
 
 
 def check_simple_aggregate_result(grouped):
-  pass  # TODO: Uncomment asserts
-  # assert_that(
-  #     grouped | beam.MapTuple(normalize_kv),
-  #     equal_to([
-  #         #[START simple_aggregate_result]
-  #         NamedTuple(fruit='strawberry', total_quantity=3),
-  #         NamedTuple(fruit='raspberry', total_quantity=1),
-  #         NamedTuple(fruit='blackberry', total_quantity=1),
-  #         NamedTuple(fruit='blueberry', total_quantity=3),
-  #         NamedTuple(fruit='banana', total_quantity=3),
-  #         #[END simple_aggregate_result]
-  #     ]))
+  return # TODO: Remove early return and fix the test
+  assert_that(
+      grouped | beam.MapTuple(normalize_kv),
+      equal_to([
+          #[START simple_aggregate_result]
+          NamedTuple(fruit='strawberry', total_quantity=3),
+          NamedTuple(fruit='raspberry', total_quantity=1),
+          NamedTuple(fruit='blackberry', total_quantity=1),
+          NamedTuple(fruit='blueberry', total_quantity=3),
+          NamedTuple(fruit='banana', total_quantity=3),
+          #[END simple_aggregate_result]
+      ]))
 
 
 def check_expr_aggregate_result(grouped):
-  pass  # TODO: Uncomment asserts
-  # assert_that(
-  #     grouped | beam.Map(normalize),
-  #     equal_to([
-  #         #[START expr_aggregate_result]
-  #         NamedTuple(recipe='pie', total_quantity=6, price=14.00),
-  #         NamedTuple(recipe='muffin', total_quantity=5, price=7.00),
-  #         #[END expr_aggregate_result]
-  #     ]))
+  return # TODO: Remove early return and fix the test
+  assert_that(
+      grouped | beam.Map(normalize),
+      equal_to([
+          #[START expr_aggregate_result]
+          NamedTuple(recipe='pie', total_quantity=6, price=14.00),
+          NamedTuple(recipe='muffin', total_quantity=5, price=7.00),
+          #[END expr_aggregate_result]
+      ]))
 
 
 def check_global_aggregate_result(grouped):
-  pass  # TODO: Uncomment asserts
-  # assert_that(
-  #     grouped | beam.Map(normalize),
-  #     equal_to([
-  #         #[START global_aggregate_result]
-  #         NamedTuple(min_price=1.00, mean_price=7 / 3, max_price=4.00),
-  #         #[END global_aggregate_result]
-  #     ]))
+  return # TODO: Remove early return and fix the test
+  assert_that(
+      grouped | beam.Map(normalize),
+      equal_to([
+          #[START global_aggregate_result]
+          NamedTuple(min_price=1.00, mean_price=7 / 3, max_price=4.00),
+          #[END global_aggregate_result]
+      ]))
 
 
 @mock.patch(
