@@ -587,7 +587,7 @@ public class KafkaIO {
         .setCommitOffsetsInFinalizeEnabled(false)
         .setDynamicRead(false)
         .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
-        .setConsumerPollingTimeout(Duration.standardSeconds(1l))
+        .setConsumerPollingTimeout(Duration.standardSeconds(1L))
         .build();
   }
 
@@ -1345,7 +1345,8 @@ public class KafkaIO {
      * The default is 1 second.
      */
     public Read<K, V> withConsumerPollingTimeout(Duration duration) {
-      checkState(duration == null || duration.compareTo(Duration.ZERO) > 0,
+      checkState(
+          duration == null || duration.compareTo(Duration.ZERO) > 0,
           "Consumer polling timeout must be greater than 0.");
       return toBuilder().setConsumerPollingTimeout(duration).build();
     }
@@ -2122,7 +2123,7 @@ public class KafkaIO {
           .setBounded(false)
           .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
           .setBadRecordErrorHandler(new ErrorHandler.DefaultErrorHandler<>())
-          .setConsumerPollingTimeout(Duration.standardSeconds(1l))
+          .setConsumerPollingTimeout(Duration.standardSeconds(1L))
           .build()
           .withProcessingTime()
           .withMonotonicallyIncreasingWatermarkEstimator();
@@ -2388,7 +2389,7 @@ public class KafkaIO {
      * Sets the timeout time for Kafka consumer polling request in the {@link ReadFromKafkaDoFn}.
      * The default is 1 second.
      */
-    public ReadSourceDescriptors<K, V> withConsumerPollingTimeout( @Nullable Duration duration ) {
+    public ReadSourceDescriptors<K, V> withConsumerPollingTimeout(@Nullable Duration duration) {
       return toBuilder().setConsumerPollingTimeout(duration).build();
     }
 

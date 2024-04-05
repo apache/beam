@@ -191,7 +191,7 @@ abstract class ReadFromKafkaDoFn<K, V>
     this.checkStopReadingFn = transform.getCheckStopReadingFn();
     this.badRecordRouter = transform.getBadRecordRouter();
     this.recordTag = recordTag;
-    if(transform.getConsumerPollingTimeout() != null) {
+    if (transform.getConsumerPollingTimeout() != null) {
       this.consumerPollingTimeout =
           java.time.Duration.ofMillis(transform.getConsumerPollingTimeout().getMillis());
     } else {

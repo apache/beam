@@ -642,16 +642,17 @@ public class ReadFromKafkaDoFnTest {
   }
 
   @Test
-  public void testConstructorWithPollTimeout(){
-    ReadSourceDescriptors<String, String> descriptors =
-        makeReadSourceDescriptor(consumer);
+  public void testConstructorWithPollTimeout() {
+    ReadSourceDescriptors<String, String> descriptors = makeReadSourceDescriptor(consumer);
     // default poll timeout = 1 scond
     ReadFromKafkaDoFn<String, String> dofnInstance = ReadFromKafkaDoFn.create(descriptors, RECORDS);
-    Assert.assertEquals(Duration.ofSeconds(1l), dofnInstance.consumerPollingTimeout);
+    Assert.assertEquals(Duration.ofSeconds(1L), dofnInstance.consumerPollingTimeout);
     // updated timeout = 5 seconds
-    descriptors = descriptors.withConsumerPollingTimeout(org.joda.time.Duration.standardSeconds(5l));
-    ReadFromKafkaDoFn<String, String> dofnInstanceNew = ReadFromKafkaDoFn.create(descriptors, RECORDS);
-    Assert.assertEquals(Duration.ofSeconds(5l), dofnInstanceNew.consumerPollingTimeout);
+    descriptors =
+        descriptors.withConsumerPollingTimeout(org.joda.time.Duration.standardSeconds(5L));
+    ReadFromKafkaDoFn<String, String> dofnInstanceNew =
+        ReadFromKafkaDoFn.create(descriptors, RECORDS);
+    Assert.assertEquals(Duration.ofSeconds(5L), dofnInstanceNew.consumerPollingTimeout);
   }
 
   private BoundednessVisitor testBoundedness(
