@@ -65,9 +65,6 @@ In addition, several of the provided transforms (such as SQL) are implemented
 in Java and their expansion will require a working Java interpeter. (The
 requisite artifacts will be automatically downloaded from the apache maven
 repositories, so no further installs will be required.)
-Docker is also currently required for local execution of these
-cross-language-requiring transforms, but not for submission to a non-local
-runner such as Flink or Dataflow.
 
 Once the prerequisites are installed, you can execute a pipeline defined
 in a yaml file as
