@@ -58,7 +58,7 @@ public class ManagedSchemaTransformProvider
 
   public ManagedSchemaTransformProvider() {}
 
-  public ManagedSchemaTransformProvider(Collection<String> identifiers) {
+  ManagedSchemaTransformProvider(Collection<String> identifiers) {
     try {
       for (SchemaTransformProvider schemaTransformProvider :
           ServiceLoader.load(SchemaTransformProvider.class)) {

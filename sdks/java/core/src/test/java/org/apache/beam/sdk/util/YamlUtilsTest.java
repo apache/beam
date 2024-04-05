@@ -129,7 +129,7 @@ public class YamlUtilsTest {
     YamlUtils.toBeamRow(invalidYaml, schema);
   }
 
-  final Schema FLAT_SCHEMA =
+  private static final Schema FLAT_SCHEMA =
       Schema.builder()
           .addByteField("byte_field")
           .addInt16Field("int16_field")
@@ -143,7 +143,7 @@ public class YamlUtilsTest {
           .addByteArrayField("bytes_field")
           .build();
 
-  final Row FLAT_ROW =
+  private static final Row FLAT_ROW =
       Row.withSchema(FLAT_SCHEMA)
           .withFieldValue("byte_field", Byte.valueOf("123"))
           .withFieldValue("int16_field", Short.valueOf("16"))
@@ -157,7 +157,7 @@ public class YamlUtilsTest {
           .withFieldValue("bytes_field", BaseEncoding.base64().decode("abc"))
           .build();
 
-  String FLAT_YAML =
+  private static final String FLAT_YAML =
       "byte_field: 123\n"
           + "int16_field: 16\n"
           + "int32_field: 32\n"
@@ -190,11 +190,13 @@ public class YamlUtilsTest {
     assertEquals(expectedRow, YamlUtils.toBeamRow(topLevelYaml, schema));
   }
 
-  String INT_ARRAY_YAML = "arr:\n" + "  - 1\n" + "  - 2\n" + "  - 3\n" + "  - 4\n" + "  - 5\n";
+  private static final String INT_ARRAY_YAML =
+      "arr:\n" + "  - 1\n" + "  - 2\n" + "  - 3\n" + "  - 4\n" + "  - 5\n";
 
-  Schema INT_ARRAY_SCHEMA = Schema.builder().addArrayField("arr", Schema.FieldType.INT32).build();
+  private static final Schema INT_ARRAY_SCHEMA =
+      Schema.builder().addArrayField("arr", Schema.FieldType.INT32).build();
 
-  Row INT_ARRAY_ROW =
+  private static final Row INT_ARRAY_ROW =
       Row.withSchema(INT_ARRAY_SCHEMA)
           .withFieldValue("arr", IntStream.range(1, 6).boxed().collect(Collectors.toList()))
           .build();
