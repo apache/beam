@@ -1,5 +1,6 @@
 Prompt:
 What are AI and ML capabilities in Apache Beam?
+
 Response:
 Apache Beam has several built-in [AI and ML capabilities](https://beam.apache.org/documentation/ml/overview/) that enable you to:
 - Process large datasets for both preprocessing and model inference.
