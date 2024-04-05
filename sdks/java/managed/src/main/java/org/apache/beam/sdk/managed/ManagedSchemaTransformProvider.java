@@ -165,7 +165,7 @@ public class ManagedSchemaTransformProvider
             FileSystems.matchSingleFileSpec(Preconditions.checkNotNull(config.getConfigUrl()));
         ByteBuffer buffer = ByteBuffer.allocate((int) fileMetaData.sizeBytes());
         FileSystems.open(fileMetaData.resourceId()).read(buffer);
-        transformYamlConfig = new String(buffer.array(), StandardCharsets.US_ASCII);
+        transformYamlConfig = new String(buffer.array(), StandardCharsets.UTF_8);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
