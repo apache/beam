@@ -231,7 +231,7 @@ class StateCache(object):
   """
   def __init__(self, max_weight):
     # type: (int) -> None
-    _LOGGER.debug('Creating state cache with size %s', max_weight)
+    _LOGGER.info('Creating state cache with size %s', max_weight)
     self._max_weight = max_weight
     self._current_weight = 0
     self._cache = collections.OrderedDict(
