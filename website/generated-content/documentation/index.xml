@@ -20209,7 +20209,25 @@ data-width="100%"
 data-height="700px"
 >&lt;/div>
 &lt;/div>
-&lt;h3 id="example-3-flatmap-with-a-lambda-function">Example 3: FlatMap with a lambda function&lt;/h3>
+&lt;h3 id="example-3-flatmap-without-a-function">Example 3: FlatMap without a function&lt;/h3>
+&lt;p>A common use case of &lt;code>FlatMap&lt;/code> is to flatten a &lt;code>PCollection&lt;/code> of iterables into a &lt;code>PCollection&lt;/code> of elements. To do that, don&amp;rsquo;t specify the function argument to &lt;code>FlatMap&lt;/code>, which uses the identity mapping function.&lt;/p>
+&lt;div class="playground-wrapper">
+&lt;div class="playground-snippets">
+&lt;div
+class="language-py playground-snippet"
+data-sdk="python"
+data-path="SDK_PYTHON_FlatMapNoFunction"
+data-show="flatmap_no_function"
+>&lt;/div>
+&lt;/div>
+&lt;div
+class="code-snippet code-snippet-playground"
+data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FlatMapNoFunction%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22flatmap_no_function%22%7d%5d"
+data-width="100%"
+data-height="700px"
+>&lt;/div>
+&lt;/div>
+&lt;h3 id="example-4-flatmap-with-a-lambda-function">Example 4: FlatMap with a lambda function&lt;/h3>
 &lt;p>For this example, we want to flatten a &lt;code>PCollection&lt;/code> of lists of &lt;code>str&lt;/code>s into a &lt;code>PCollection&lt;/code> of &lt;code>str&lt;/code>s.
 Each input element is already an &lt;code>iterable&lt;/code>, where each element is what we want in the resulting &lt;code>PCollection&lt;/code>.
 We use a lambda function that returns the same input element it received.&lt;/p>
@@ -20229,7 +20247,7 @@ data-width="100%"
 data-height="700px"
 >&lt;/div>
 &lt;/div>
-&lt;h3 id="example-4-flatmap-with-a-generator">Example 4: FlatMap with a generator&lt;/h3>
+&lt;h3 id="example-5-flatmap-with-a-generator">Example 5: FlatMap with a generator&lt;/h3>
 &lt;p>For this example, we want to flatten a &lt;code>PCollection&lt;/code> of lists of &lt;code>str&lt;/code>s into a &lt;code>PCollection&lt;/code> of &lt;code>str&lt;/code>s.
 We use a generator to iterate over the input list and yield each of the elements.
 Each yielded result in the generator is an element in the resulting &lt;code>PCollection&lt;/code>.&lt;/p>
@@ -20249,7 +20267,7 @@ data-width="100%"
 data-height="700px"
 >&lt;/div>
 &lt;/div>
-&lt;h3 id="example-5-flatmaptuple-for-key-value-pairs">Example 5: FlatMapTuple for key-value pairs&lt;/h3>
+&lt;h3 id="example-6-flatmaptuple-for-key-value-pairs">Example 6: FlatMapTuple for key-value pairs&lt;/h3>
 &lt;p>If your &lt;code>PCollection&lt;/code> consists of &lt;code>(key, value)&lt;/code> pairs,
 you can use &lt;code>FlatMapTuple&lt;/code> to unpack them into different function arguments.&lt;/p>
 &lt;div class="playground-wrapper">
@@ -20268,7 +20286,7 @@ data-width="100%"
 data-height="700px"
 >&lt;/div>
 &lt;/div>
-&lt;h3 id="example-6-flatmap-with-multiple-arguments">Example 6: FlatMap with multiple arguments&lt;/h3>
+&lt;h3 id="example-7-flatmap-with-multiple-arguments">Example 7: FlatMap with multiple arguments&lt;/h3>
 &lt;p>You can pass functions with multiple arguments to &lt;code>FlatMap&lt;/code>.
 They are passed as additional positional arguments or keyword arguments to the function.&lt;/p>
 &lt;p>In this example, &lt;code>split_words&lt;/code> takes &lt;code>text&lt;/code> and &lt;code>delimiter&lt;/code> as arguments.&lt;/p>
@@ -20288,7 +20306,7 @@ data-width="100%"
 data-height="700px"
 >&lt;/div>
 &lt;/div>
-&lt;h3 id="example-7-flatmap-with-side-inputs-as-singletons">Example 7: FlatMap with side inputs as singletons&lt;/h3>
+&lt;h3 id="example-8-flatmap-with-side-inputs-as-singletons">Example 8: FlatMap with side inputs as singletons&lt;/h3>
 &lt;p>If the &lt;code>PCollection&lt;/code> has a single value, such as the average from another computation,
 passing the &lt;code>PCollection&lt;/code> as a &lt;em>singleton&lt;/em> accesses that value.&lt;/p>
 &lt;p>In this example, we pass a &lt;code>PCollection&lt;/code> the value &lt;code>','&lt;/code> as a singleton.
@@ -20309,7 +20327,7 @@ data-width="100%"
 data-height="700px"
 >&lt;/div>
 &lt;/div>
-&lt;h3 id="example-8-flatmap-with-side-inputs-as-iterators">Example 8: FlatMap with side inputs as iterators&lt;/h3>
+&lt;h3 id="example-9-flatmap-with-side-inputs-as-iterators">Example 9: FlatMap with side inputs as iterators&lt;/h3>
 &lt;p>If the &lt;code>PCollection&lt;/code> has multiple values, pass the &lt;code>PCollection&lt;/code> as an &lt;em>iterator&lt;/em>.
 This accesses elements lazily as they are needed,
 so it is possible to iterate over large &lt;code>PCollection&lt;/code>s that won&amp;rsquo;t fit into memory.&lt;/p>
@@ -20333,7 +20351,7 @@ data-height="700px"
 &lt;p>&lt;strong>Note&lt;/strong>: You can pass the &lt;code>PCollection&lt;/code> as a &lt;em>list&lt;/em> with &lt;code>beam.pvalue.AsList(pcollection)&lt;/code>,
 but this requires that all the elements fit into memory.&lt;/p>
 &lt;/blockquote>
-&lt;h3 id="example-9-flatmap-with-side-inputs-as-dictionaries">Example 9: FlatMap with side inputs as dictionaries&lt;/h3>
+&lt;h3 id="example-10-flatmap-with-side-inputs-as-dictionaries">Example 10: FlatMap with side inputs as dictionaries&lt;/h3>
 &lt;p>If a &lt;code>PCollection&lt;/code> is small enough to fit into memory, then that &lt;code>PCollection&lt;/code> can be passed as a &lt;em>dictionary&lt;/em>.
 Each element must be a &lt;code>(key, value)&lt;/code> pair.
 Note that all the elements of the &lt;code>PCollection&lt;/code> must fit into memory for this.
