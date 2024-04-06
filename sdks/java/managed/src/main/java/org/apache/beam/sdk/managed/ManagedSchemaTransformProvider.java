@@ -58,7 +58,7 @@ public class ManagedSchemaTransformProvider
 
   public ManagedSchemaTransformProvider() {}
 
-  ManagedSchemaTransformProvider(Collection<String> identifiers) {
+  ManagedSchemaTransformProvider(Collection<String> supportedIdentifiers) {
     try {
       for (SchemaTransformProvider schemaTransformProvider :
           ServiceLoader.load(SchemaTransformProvider.class)) {
@@ -73,7 +73,7 @@ public class ManagedSchemaTransformProvider
       throw new RuntimeException(e.getMessage());
     }
 
-    schemaTransformProviders.entrySet().removeIf(e -> !identifiers.contains(e.getKey()));
+    schemaTransformProviders.entrySet().removeIf(e -> !supportedIdentifiers.contains(e.getKey()));
   }
 
   @DefaultSchema(AutoValueSchema.class)

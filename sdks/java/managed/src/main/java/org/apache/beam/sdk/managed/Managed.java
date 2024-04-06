@@ -46,11 +46,12 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * specifies arguments using like so:
  *
  * <pre>{@code
- * PCollectionRowTuple output = Managed.read(ICEBERG)
- *      .withConfig(ImmutableMap.<String, Map>.builder()
- *          .put("foo", "abc")
- *          .put("bar", 123)
- *          .build());
+ * PCollectionRowTuple output = p.apply(
+ *       Managed.read(ICEBERG)
+ *           .withConfig(ImmutableMap.<String, Map>.builder()
+ *               .put("foo", "abc")
+ *               .put("bar", 123)
+ *               .build()));
  * }</pre>
  *
  * <p>Instead of specifying configuration arguments directly in the code, one can provide the
@@ -64,14 +65,24 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * <p>The file's path can be passed in to the Managed API like so:
  *
  * <pre>{@code
- * PCollectionRowTuple output = Managed.write(ICEBERG)
- *      .withConfigUrl(<config path>);
+ * PCollectionRowTuple output = pipeline.apply(
+ *     Managed.write(ICEBERG)
+ *         .withConfigUrl(<config path>));
  * }</pre>
  */
 public class Managed {
 
   // TODO: Dynamically generate a list of supported transforms
   public static final String ICEBERG = "iceberg";
+
+  public static final Map<String, String> READ_TRANSFORMS =
+      ImmutableMap.<String, String>builder()
+          .put(ICEBERG, "beam:schematransform:org.apache.beam:iceberg_read:v1")
+          .build();
+  public static final Map<String, String> WRITE_TRANSFORMS =
+      ImmutableMap.<String, String>builder()
+          .put(ICEBERG, "beam:schematransform:org.apache.beam:iceberg_write:v1")
+          .build();
 
   /**
    * Instantiates a {@link Managed.Read} transform for the specified source. The supported managed
@@ -81,86 +92,17 @@ public class Managed {
    *   <li>{@link Managed#ICEBERG} : Read from Apache Iceberg
    * </ul>
    */
-  public static Read read(String source) {
+  public static ManagedTransform read(String source) {
 
-    return new AutoValue_Managed_Read.Builder()
-        .setSource(
+    return new AutoValue_Managed_ManagedTransform.Builder()
+        .setIdentifier(
             Preconditions.checkNotNull(
-                Read.TRANSFORMS.get(source.toLowerCase()),
+                READ_TRANSFORMS.get(source.toLowerCase()),
                 "An unsupported source was specified: '%s'. Please specify one of the following sources: %s",
                 source,
-                Read.TRANSFORMS.keySet()))
-        .setSupportedIdentifiers(new ArrayList<>(Read.TRANSFORMS.values()))
+                READ_TRANSFORMS.keySet()))
+        .setSupportedIdentifiers(new ArrayList<>(READ_TRANSFORMS.values()))
         .build();
-  }
-
-  @AutoValue
-  public abstract static class Read extends SchemaTransform {
-    public static final Map<String, String> TRANSFORMS =
-        ImmutableMap.<String, String>builder()
-            .put(ICEBERG, "beam:schematransform:org.apache.beam:iceberg_read:v1")
-            .build();
-
-    abstract String getSource();
-
-    abstract @Nullable String getConfig();
-
-    abstract @Nullable String getConfigUrl();
-
-    abstract List<String> getSupportedIdentifiers();
-
-    abstract Builder toBuilder();
-
-    @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setSource(String sourceIdentifier);
-
-      abstract Builder setConfig(@Nullable String config);
-
-      abstract Builder setConfigUrl(@Nullable String configUrl);
-
-      abstract Builder setSupportedIdentifiers(List<String> supportedIdentifiers);
-
-      abstract Read build();
-    }
-
-    /**
-     * Use the input Map of configuration arguments to build and instantiate the underlying
-     * transform. The map can ignore nullable parameters, but needs to include all required
-     * parameters. Check the underlying transform's schema ({@link
-     * SchemaTransformProvider#configurationSchema()}) to see which parameters are available.
-     */
-    public Read withConfig(Map<String, Object> config) {
-      return toBuilder().setConfig(YamlUtils.yamlStringFromMap(config)).build();
-    }
-
-    /**
-     * Like {@link #withConfig(Map)}, but instead extracts the configuration arguments from a
-     * specified YAML file location.
-     */
-    public Read withConfigUrl(String configUrl) {
-      return toBuilder().setConfigUrl(configUrl).build();
-    }
-
-    @VisibleForTesting
-    Read withSupportedIdentifiers(List<String> supportedIdentifiers) {
-      return toBuilder().setSupportedIdentifiers(supportedIdentifiers).build();
-    }
-
-    @Override
-    public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      ManagedSchemaTransformProvider.ManagedConfig managedConfig =
-          ManagedSchemaTransformProvider.ManagedConfig.builder()
-              .setTransformIdentifier(getSource())
-              .setConfig(getConfig())
-              .setConfigUrl(getConfigUrl())
-              .build();
-
-      SchemaTransform underlyingTransform =
-          new ManagedSchemaTransformProvider(getSupportedIdentifiers()).from(managedConfig);
-
-      return input.apply(underlyingTransform);
-    }
   }
 
   /**
@@ -171,26 +113,21 @@ public class Managed {
    *   <li>{@link Managed#ICEBERG} : Write to Apache Iceberg
    * </ul>
    */
-  public static Write write(String sink) {
-    return new AutoValue_Managed_Write.Builder()
-        .setSink(
+  public static ManagedTransform write(String sink) {
+    return new AutoValue_Managed_ManagedTransform.Builder()
+        .setIdentifier(
             Preconditions.checkNotNull(
-                Write.TRANSFORMS.get(sink.toLowerCase()),
+                WRITE_TRANSFORMS.get(sink.toLowerCase()),
                 "An unsupported sink was specified: '%s'. Please specify one of the following sinks: %s",
                 sink,
-                Write.TRANSFORMS.keySet()))
-        .setSupportedIdentifiers(new ArrayList<>(Write.TRANSFORMS.values()))
+                WRITE_TRANSFORMS.keySet()))
+        .setSupportedIdentifiers(new ArrayList<>(WRITE_TRANSFORMS.values()))
         .build();
   }
 
   @AutoValue
-  public abstract static class Write extends SchemaTransform {
-    public static final Map<String, String> TRANSFORMS =
-        ImmutableMap.<String, String>builder()
-            .put(ICEBERG, "beam:schematransform:org.apache.beam:iceberg_write:v1")
-            .build();
-
-    abstract String getSink();
+  abstract static class ManagedTransform extends SchemaTransform {
+    abstract String getIdentifier();
 
     abstract @Nullable String getConfig();
 
@@ -202,7 +139,7 @@ public class Managed {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setSink(String sinkIdentifier);
+      abstract Builder setIdentifier(String identifier);
 
       abstract Builder setConfig(@Nullable String config);
 
@@ -210,15 +147,16 @@ public class Managed {
 
       abstract Builder setSupportedIdentifiers(List<String> supportedIdentifiers);
 
-      abstract Write build();
+      abstract ManagedTransform build();
     }
 
     /**
-     * Use the input Map of configuration arguments to build and instantiate the underlying sink.
-     * The map can ignore nullable parameters, but needs to include all required parameters. Check
-     * the underlying sink's configuration schema to see which parameters are available.
+     * Use the input Map of configuration arguments to build and instantiate the underlying
+     * transform. The map can ignore nullable parameters, but needs to include all required
+     * parameters. Check the underlying transform's schema ({@link
+     * SchemaTransformProvider#configurationSchema()}) to see which parameters are available.
      */
-    public Write withConfig(Map<String, Object> config) {
+    public ManagedTransform withConfig(Map<String, Object> config) {
       return toBuilder().setConfig(YamlUtils.yamlStringFromMap(config)).build();
     }
 
@@ -226,12 +164,12 @@ public class Managed {
      * Like {@link #withConfig(Map)}, but instead extracts the configuration arguments from a
      * specified YAML file location.
      */
-    public Write withConfigUrl(String configUrl) {
+    public ManagedTransform withConfigUrl(String configUrl) {
       return toBuilder().setConfigUrl(configUrl).build();
     }
 
     @VisibleForTesting
-    Write withSupportedIdentifiers(List<String> supportedIdentifiers) {
+    ManagedTransform withSupportedIdentifiers(List<String> supportedIdentifiers) {
       return toBuilder().setSupportedIdentifiers(supportedIdentifiers).build();
     }
 
@@ -239,7 +177,7 @@ public class Managed {
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       ManagedSchemaTransformProvider.ManagedConfig managedConfig =
           ManagedSchemaTransformProvider.ManagedConfig.builder()
-              .setTransformIdentifier(getSink())
+              .setTransformIdentifier(getIdentifier())
               .setConfig(getConfig())
               .setConfigUrl(getConfigUrl())
               .build();

@@ -60,7 +60,7 @@ public class ManagedTest {
           Row.withSchema(SCHEMA).withFieldValue("str", "b").withFieldValue("int", 2).build(),
           Row.withSchema(SCHEMA).withFieldValue("str", "c").withFieldValue("int", 3).build());
 
-  public void runTestProviderTest(Managed.Write writeOp) {
+  public void runTestProviderTest(Managed.ManagedTransform writeOp) {
     PCollection<Row> rows =
         PCollectionRowTuple.of("input", pipeline.apply(Create.of(ROWS)).setRowSchema(SCHEMA))
             .apply(writeOp)
@@ -83,10 +83,10 @@ public class ManagedTest {
 
   @Test
   public void testManagedTestProviderWithConfigMap() {
-    Managed.Write writeOp =
+    Managed.ManagedTransform writeOp =
         Managed.write(Managed.ICEBERG)
             .toBuilder()
-            .setSink(TestSchemaTransformProvider.IDENTIFIER)
+            .setIdentifier(TestSchemaTransformProvider.IDENTIFIER)
             .build()
             .withSupportedIdentifiers(Arrays.asList(TestSchemaTransformProvider.IDENTIFIER))
             .withConfig(ImmutableMap.of("extra_string", "abc", "extra_integer", 123));
@@ -101,10 +101,10 @@ public class ManagedTest {
             .toFile()
             .getAbsolutePath();
 
-    Managed.Write writeOp =
+    Managed.ManagedTransform writeOp =
         Managed.write(Managed.ICEBERG)
             .toBuilder()
-            .setSink(TestSchemaTransformProvider.IDENTIFIER)
+            .setIdentifier(TestSchemaTransformProvider.IDENTIFIER)
             .build()
             .withSupportedIdentifiers(Arrays.asList(TestSchemaTransformProvider.IDENTIFIER))
             .withConfigUrl(yamlConfigPath);
