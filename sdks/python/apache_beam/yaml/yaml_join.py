@@ -76,7 +76,8 @@ def _validate_equalities(equalities, pcolls):
 
   if not isinstance(equalities, list):
     raise ValueError(f'{error_prefix} It should be a str or a list.')
-  # input_edge_list = []
+
+  input_edge_list = []
   for equality in equalities:
     invalid_dict_error = ValueError(
         f'{error_prefix} {equality} '
@@ -94,12 +95,11 @@ def _validate_equalities(equalities, pcolls):
         raise ValueError(
             f'{error_prefix} "{col}" is not a valid field in "{input}"')
 
-    # input_edge_list.append(tuple(equality.keys()))
+    input_edge_list.append(tuple(equality.keys()))
 
-  # if not nx.is_connected(nx.Graph(input_edge_list)):
-  #   raise ValueError(
-  #     'Inputs in equalities are not all connected'
-  #   )
+  if not _is_connected(input_edge_list):
+    raise ValueError(
+        f'{error_prefix} All the inputs in equalities are not connected.')
 
   return equalities
 
@@ -135,11 +135,8 @@ def _parse_fields(tables, fields):
   return output_fields
 
 
-def _get_disconnected_inputs(edge_list):
+def _is_connected(edge_list):
   graph = {}
-  visited = set()
-  first_nodes = []
-
   for edge in edge_list:
     u, v = edge
     if u not in graph:
@@ -149,18 +146,16 @@ def _get_disconnected_inputs(edge_list):
     graph[u].append(v)
     graph[v].append(u)
 
-  def dfs(node):
+  visited = set()
+  stack = [next(iter(graph))]
+  while stack:
+    node = stack.pop()
     visited.add(node)
     for neighbor in graph[node]:
       if neighbor not in visited:
-        dfs(neighbor)
+        stack.append(neighbor)
 
-  for node in graph:
-    if node not in visited:
-      first_nodes.append(node)
-      dfs(node)
-
-  return first_nodes[1:]
+  return len(visited) == len(graph)
 
 
 @beam.ptransform.ptransform_fn
@@ -208,7 +203,6 @@ def _SqlJoinTransform(
           first_input: equality[first_input], input: equality[input]
       })
       tables_edge_list.append([first_input, input])
-  disconnected_tables = _get_disconnected_inputs(tables_edge_list)
 
   tables = list(pcolls.keys())
   if isinstance(type, dict):
@@ -219,8 +213,6 @@ def _SqlJoinTransform(
   conditioned = [first_table]
 
   def generate_join_type(left, right):
-    if right in disconnected_tables:
-      return 'CROSS'
     if left in outer and right in outer:
       return 'FULL'
     if left in outer:
