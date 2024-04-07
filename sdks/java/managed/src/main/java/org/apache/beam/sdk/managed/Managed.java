@@ -46,7 +46,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * specifies arguments using like so:
  *
  * <pre>{@code
- * PCollectionRowTuple output = p.apply(
+ * PCollectionRowTuple output = PCollectionRowTuple.empty(pipeline).apply(
  *       Managed.read(ICEBERG)
  *           .withConfig(ImmutableMap.<String, Map>.builder()
  *               .put("foo", "abc")
@@ -65,7 +65,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * <p>The file's path can be passed in to the Managed API like so:
  *
  * <pre>{@code
- * PCollectionRowTuple output = pipeline.apply(
+ * PCollectionRowTuple input = PCollectionRowTuple.of("input", pipeline.apply(Create.of(...)))
+ *
+ * PCollectionRowTuple output = input.apply(
  *     Managed.write(ICEBERG)
  *         .withConfigUrl(<config path>));
  * }</pre>
