@@ -392,6 +392,7 @@ if __name__ == '__main__':
           'pydot>=1.2.0,<2',
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',
+          'redis>=5.0.0,<6',
           'regex>=2020.6.8',
           'requests>=2.24.0,<3.0.0',
           'typing-extensions>=3.7.0',
@@ -430,7 +431,7 @@ if __name__ == '__main__':
               'psycopg2-binary>=2.8.5,<3.0.0',
               'testcontainers[mysql]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
-              'hypothesis>5.0.0,<=7.0.0',
+              'hypothesis>5.0.0,<7.0.0',
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',

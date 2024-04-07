@@ -24,6 +24,8 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
+import collections
+import copy
 import logging
 import sys
 import threading
@@ -43,6 +45,7 @@ from apache_beam.coders import coders
 from apache_beam.internal import util
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.runners.sdf_utils import NoOpWatermarkEstimatorProvider
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
@@ -52,6 +55,7 @@ from apache_beam.runners.sdf_utils import ThreadsafeRestrictionTracker
 from apache_beam.runners.sdf_utils import ThreadsafeWatermarkEstimator
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import core
+from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 from apache_beam.transforms.core import RestrictionProvider
 from apache_beam.transforms.core import WatermarkEstimatorProvider
@@ -1941,3 +1945,73 @@ def validate_pipeline_graph(pipeline_proto):
 
   for t in pipeline_proto.root_transform_ids:
     validate_transform(t)
+
+
+def merge_common_environments(pipeline_proto, inplace=False):
+  def dep_key(dep):
+    if dep.type_urn == common_urns.artifact_types.FILE.urn:
+      payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
+          dep.type_payload)
+      if payload.sha256:
+        type_info = 'sha256', payload.sha256
+      else:
+        type_info = 'path', payload.path
+    elif dep.type_urn == common_urns.artifact_types.URL.urn:
+      payload = beam_runner_api_pb2.ArtifactUrlPayload.FromString(
+          dep.type_payload)
+      if payload.sha256:
+        type_info = 'sha256', payload.sha256
+      else:
+        type_info = 'url', payload.url
+    else:
+      type_info = dep.type_urn, dep.type_payload
+    return type_info, dep.role_urn, dep.role_payload
+
+  def base_env_key(env):
+    return (
+        env.urn,
+        env.payload,
+        tuple(sorted(env.capabilities)),
+        tuple(sorted(env.resource_hints.items())),
+        tuple(sorted(dep_key(dep) for dep in env.dependencies)))
+
+  def env_key(env):
+    return tuple(
+        sorted(
+            base_env_key(e)
+            for e in environments.expand_anyof_environments(env)))
+
+  canonical_environments = collections.defaultdict(list)
+  for env_id, env in pipeline_proto.components.environments.items():
+    canonical_environments[env_key(env)].append(env_id)
+
+  if len(canonical_environments) == len(pipeline_proto.components.environments):
+    # All environments are already sufficiently distinct.
+    return pipeline_proto
+
+  environment_remappings = {
+      e: es[0]
+      for es in canonical_environments.values() for e in es
+  }
+
+  if not inplace:
+    pipeline_proto = copy.copy(pipeline_proto)
+
+  for t in pipeline_proto.components.transforms.values():
+    if t.environment_id not in pipeline_proto.components.environments:
+      # TODO(https://github.com/apache/beam/issues/30876): Remove this
+      #  workaround.
+      continue
+    if t.environment_id:
+      t.environment_id = environment_remappings[t.environment_id]
+  for w in pipeline_proto.components.windowing_strategies.values():
+    if w.environment_id not in pipeline_proto.components.environments:
+      # TODO(https://github.com/apache/beam/issues/30876): Remove this
+      #  workaround.
+      continue
+    if w.environment_id:
+      w.environment_id = environment_remappings[w.environment_id]
+  for e in set(pipeline_proto.components.environments.keys()) - set(
+      environment_remappings.values()):
+    del pipeline_proto.components.environments[e]
+  return pipeline_proto

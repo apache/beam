@@ -26,8 +26,11 @@ from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
 from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.common import DoFnSignature
 from apache_beam.runners.common import PerWindowInvoker
+from apache_beam.runners.common import merge_common_environments
+from apache_beam.runners.portability.expansion_service_test import FibTransform
 from apache_beam.runners.sdf_utils import SplitResultPrimary
 from apache_beam.runners.sdf_utils import SplitResultResidual
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -582,6 +585,62 @@ class PerWindowInvokerSplitTest(unittest.TestCase):
             expected_residual_windows,
         ))
     self.assertEqual(stop_index, 2)
+
+
+class UtilitiesTest(unittest.TestCase):
+  def test_equal_environments_merged(self):
+    pipeline_proto = merge_common_environments(
+        beam_runner_api_pb2.Pipeline(
+            components=beam_runner_api_pb2.Components(
+                environments={
+                    'a1': beam_runner_api_pb2.Environment(urn='A'),
+                    'a2': beam_runner_api_pb2.Environment(urn='A'),
+                    'b1': beam_runner_api_pb2.Environment(
+                        urn='B', payload=b'x'),
+                    'b2': beam_runner_api_pb2.Environment(
+                        urn='B', payload=b'x'),
+                    'b3': beam_runner_api_pb2.Environment(
+                        urn='B', payload=b'y'),
+                },
+                transforms={
+                    't1': beam_runner_api_pb2.PTransform(
+                        unique_name='t1', environment_id='a1'),
+                    't2': beam_runner_api_pb2.PTransform(
+                        unique_name='t2', environment_id='a2'),
+                },
+                windowing_strategies={
+                    'w1': beam_runner_api_pb2.WindowingStrategy(
+                        environment_id='b1'),
+                    'w2': beam_runner_api_pb2.WindowingStrategy(
+                        environment_id='b2'),
+                })))
+    self.assertEqual(len(pipeline_proto.components.environments), 3)
+    self.assertTrue(('a1' in pipeline_proto.components.environments)
+                    ^ ('a2' in pipeline_proto.components.environments))
+    self.assertTrue(('b1' in pipeline_proto.components.environments)
+                    ^ ('b2' in pipeline_proto.components.environments))
+    self.assertEqual(
+        len(
+            set(
+                t.environment_id
+                for t in pipeline_proto.components.transforms.values())),
+        1)
+    self.assertEqual(
+        len(
+            set(
+                w.environment_id for w in
+                pipeline_proto.components.windowing_strategies.values())),
+        1)
+
+  def test_external_merged(self):
+    p = beam.Pipeline()
+    # This transform recursively creates several external environments.
+    _ = p | FibTransform(4)
+    pipeline_proto = p.to_runner_api()
+    # All our external environments are equal and consolidated.
+    # We also have a placeholder "default" environment that has not been
+    # resolved do anything concrete yet.
+    self.assertEqual(len(pipeline_proto.components.environments), 2)
 
 
 if __name__ == '__main__':
