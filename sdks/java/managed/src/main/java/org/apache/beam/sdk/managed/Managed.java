@@ -128,13 +128,14 @@ public class Managed {
   }
 
   @AutoValue
-  abstract static class ManagedTransform extends SchemaTransform {
+  public abstract static class ManagedTransform extends SchemaTransform {
     abstract String getIdentifier();
 
     abstract @Nullable String getConfig();
 
     abstract @Nullable String getConfigUrl();
 
+    @VisibleForTesting
     abstract List<String> getSupportedIdentifiers();
 
     abstract Builder toBuilder();
@@ -147,6 +148,7 @@ public class Managed {
 
       abstract Builder setConfigUrl(@Nullable String configUrl);
 
+      @VisibleForTesting
       abstract Builder setSupportedIdentifiers(List<String> supportedIdentifiers);
 
       abstract ManagedTransform build();
