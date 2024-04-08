@@ -13,16 +13,17 @@ class JsonOptions(PipelineOptions):
     @classmethod
     def _add_argparse_args(cls, parser):
         parser.add_argument(
-            '--file_path',
+            "--file_path",
             default="gs://your-bucket/your-file.json",
-            help='Json file path'
+            help="Json file path",
         )
+
 
 options = JsonOptions()
 with beam.Pipeline(options=options) as p:
-    output = (p | "Read from Json file" >> ReadFromJson(
-        path=options.file_path,
-        lines=False
-        )
-        | "Log Data" >> Map(logging.info))
+    output = (
+        p
+        | "Read from Json file" >> ReadFromJson(path=options.file_path, lines=False)
+        | "Log Data" >> Map(logging.info)
+    )
 ```
