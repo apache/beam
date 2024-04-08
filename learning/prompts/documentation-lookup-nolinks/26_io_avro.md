@@ -10,18 +10,16 @@ Here is an example of Apache Beam pipeline code for reading data from an Avro fi
 
 ```python
 class ReadAvroOptions(PipelineOptions):
-
     @classmethod
     def _add_argparse_args(cls, parser):
-      parser.add_argument(
-          "--path",
-          default="gs://cloud-samples-data/bigquery/us-states/*.avro",
-          help="GCS path to read from")
+        parser.add_argument(
+            "--path",
+            default="gs://cloud-samples-data/bigquery/us-states/*.avro",
+            help="GCS path to read from",
+        )
 
-  options = ReadAvroOptions()
+    options = ReadAvroOptions()
 
-  with beam.Pipeline(options=options) as p:
-
-    (p | "Read from Avro" >> ReadFromAvro(options.path)
-       | Map(logging.info))
+    with beam.Pipeline(options=options) as p:
+        (p | "Read from Avro" >> ReadFromAvro(options.path) | Map(logging.info))
 ```
