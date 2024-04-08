@@ -72,6 +72,7 @@
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* Default consumer polling timeout for KafkaIO.Read was increased from 1 second to 2 seconds. Use KafkaIO.read().withConsumerPollingTimeout(Duration duration) to configure this timeout value when necessary ([#30870](https://github.com/apache/beam/pull/30877)).
 
 ## Deprecations
 
@@ -80,7 +81,6 @@
 ## Bugfixes
 
 * Fixed locking issue when shutting down inactive bundle processors. Symptoms of this issue include slowness or stuckness in long-running jobs (Python) ([#30679](https://github.com/apache/beam/pull/30679)).
-* Fixed kafka polling issue due to short consumer polling timeout time. Changes to make the consumer polling timeout configurable for KafkaIO.Read with new command: KafkaIO.read().withConsumerPollingTimeout(Duration duration). Default timeout has been increased from 1 second to 2 seconds( [#30870](https://github.com/apache/beam/pull/30877)).
 
 ## Security Fixes
 * Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
