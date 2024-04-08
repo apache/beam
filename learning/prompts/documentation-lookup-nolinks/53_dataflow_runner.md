@@ -55,7 +55,7 @@ mvn -Pdataflow-runner compile exec:java \
   --output=gs://BUCKET_NAME/output \
   --runner=DataflowRunner \
   --region=REGION
-   ```
+```
 
 For the Apache Beam Python SDK, in your terminal, run the following command:
 
