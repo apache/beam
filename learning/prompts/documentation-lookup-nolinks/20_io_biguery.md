@@ -18,10 +18,10 @@ Here is an example of Apache Beam pipeline code for reading from BigQuery:
 from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 
 with beam.Pipeline(options=options) as p:
-  # read from a table
-    lines_table = p | 'Read' >> ReadFromBigQuery(table=table)
-  # read from a query
-    lines_query = p | 'Read' >> ReadFromBigQuery(query="SELECT * FROM table")
+    # read from a table
+    lines_table = p | "Read" >> ReadFromBigQuery(table=table)
+    # read from a query
+    lines_query = p | "Read" >> ReadFromBigQuery(query="SELECT * FROM table")
 ```
 
 Here is an example of Apache Beam pipeline code for writing to BigQuery:
