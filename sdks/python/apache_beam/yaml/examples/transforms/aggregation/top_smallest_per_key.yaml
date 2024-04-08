@@ -50,9 +50,6 @@ pipeline:
                 reverse: true
     - type: LogForTesting
 
-options:
-  yaml_experimental_features: Combine
-
 # Expected:
 #  Row(produce='🥕', smallest=[2, 3])
 #  Row(produce='🍆', smallest=[1])
