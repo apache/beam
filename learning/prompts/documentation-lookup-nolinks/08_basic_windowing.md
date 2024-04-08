@@ -13,8 +13,8 @@ The following code snippet shows how to divide a `PCollection` into 60-second wi
 ```python
 from apache_beam import beam
 from apache_beam import window
-fixed_windowed_items = (
-    items | 'window' >> beam.WindowInto(window.FixedWindows(60)))
+
+fixed_windowed_items = items | 'window' >> beam.WindowInto(window.FixedWindows(60))
 ```
 
 Beam provides a number of built-in windowing functions that you can use to subdivide your data into different types of windows:
