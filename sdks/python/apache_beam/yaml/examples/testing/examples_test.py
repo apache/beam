@@ -75,6 +75,8 @@ def create_test_method(
           **yaml_transform.SafeLineLoader.strip_metadata(pipeline_spec.get(
               'options', {})))) as p:
         actual = yaml_transform.expand_pipeline(p, pipeline_spec)
+        if not actual:
+          actual = p.transforms_stack[0].parts[-1].outputs[None]
         check_output(expected)(actual)
 
   return test_yaml_example
@@ -104,9 +106,13 @@ class YamlExamplesTestSuite:
     return type(name, (unittest.TestCase, ), dict(cls.parse_test_methods(path)))
 
   @classmethod
-  def register_test_preprocessor(cls, test_name: str):
+  def register_test_preprocessor(cls, test_names: Union[str, List]):
+    if isinstance(test_names, str):
+      test_names = [test_names]
+
     def apply(preprocessor):
-      cls._test_preprocessor[test_name] = preprocessor
+      for test_name in test_names:
+        cls._test_preprocessor[test_name] = preprocessor
       return preprocessor
 
     return apply
@@ -114,7 +120,7 @@ class YamlExamplesTestSuite:
 
 @YamlExamplesTestSuite.register_test_preprocessor('test_wordcount_minimal_yaml')
 def _wordcount_test_preprocessor(
-    test_spec: str, expected: List[str], env: TestEnvironment):
+    test_spec: dict, expected: List[str], env: TestEnvironment):
   all_words = []
   for element in expected:
     word = element.split('=')[1].split(',')[0].replace("'", '')
@@ -137,17 +143,39 @@ def _wordcount_test_preprocessor(
       env.input_file('kinglear.txt', '\n'.join(lines)))
 
 
+@YamlExamplesTestSuite.register_test_preprocessor(
+    ['test_simple_filter_yaml', 'test_simple_filter_and_combine_yaml'])
+def _resources_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+
+  resources_dir = YAML_DOCS_DIR + '/../resources/'
+  if pipeline := test_spec.get('pipeline', None):
+    for i, transform in enumerate(pipeline.get('transforms', [])):
+      if transform.get('type', '').startswith('WriteTo'):
+        transform['type'] = 'LogForTesting'
+        transform['config'] = {
+            k: v
+            for k,
+            v in transform.get('config', {}).items() if k.startswith('__')
+        }
+      for k, v in transform.get('config', {}).items():
+        if 'resources/' in str(v):
+          pipeline['transforms'][i]['config'][k] = resources_dir
+
+  return test_spec
+
+
 YAML_DOCS_DIR = os.path.join(os.path.dirname(__file__))
 ExamplesTest = YamlExamplesTestSuite(
-    'ExamplesTest', os.path.join(YAML_DOCS_DIR, '*.yaml')).run()
+    'ExamplesTest', os.path.join(YAML_DOCS_DIR, '../*.yaml')).run()
 
 ElementWiseTest = YamlExamplesTestSuite(
     'ElementwiseExamplesTest',
-    os.path.join(YAML_DOCS_DIR, 'transforms/elementwise/*.yaml')).run()
+    os.path.join(YAML_DOCS_DIR, '../transforms/elementwise/*.yaml')).run()
 
 AggregationTest = YamlExamplesTestSuite(
     'AggregationExamplesTest',
-    os.path.join(YAML_DOCS_DIR, 'transforms/aggregation/*.yaml')).run()
+    os.path.join(YAML_DOCS_DIR, '../transforms/aggregation/*.yaml')).run()
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
