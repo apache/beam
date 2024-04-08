@@ -1554,7 +1554,7 @@ public class KafkaIO {
         if (kafkaRead.getBadRecordErrorHandler() != null) {
           LOG.warn(
               "The Legacy implementation of Kafka Read does not support writing malformed"
-                  + "messages to an error handler. Use the SDF implementation instead.");
+                  + " messages to an error handler. Use the SDF implementation instead.");
         }
         // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
         Unbounded<KafkaRecord<K, V>> unbounded =

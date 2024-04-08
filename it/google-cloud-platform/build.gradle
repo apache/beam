@@ -93,5 +93,7 @@ tasks.register("BigQueryStorageApiStreamingPerformanceTest", IoPerformanceTestUt
 tasks.register("PubSubPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'PubSubIOLT', ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
 tasks.register("PubSubStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'PubSubIOST', ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']  + System.properties)
 tasks.register("PubSubStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'PubSubIOST', ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']  + System.properties)
+tasks.register("SpannerStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'SpannerIOST', ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'] + System.properties)
+tasks.register("SpannerStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'SpannerIOST', ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'] + System.properties)
 tasks.register("WordCountIntegrationTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'WordCountIT', ['project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
 
