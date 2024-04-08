@@ -40,7 +40,9 @@ class ExpansionServiceServicer(
     beam_expansion_api_pb2_grpc.ExpansionServiceServicer):
   def __init__(self, options=None, loopback_address=None):
     self._options = options or beam_pipeline.PipelineOptions(
-        environment_type=python_urns.EMBEDDED_PYTHON, sdk_location='container')
+        flags=[],
+        environment_type=python_urns.EMBEDDED_PYTHON,
+        sdk_location='container')
     default_environment = (environments.Environment.from_options(self._options))
     if loopback_address:
       loopback_environment = environments.Environment.from_options(
