@@ -223,7 +223,7 @@ abstract class ReadFromKafkaDoFn<K, V>
 
   private transient @Nullable LoadingCache<TopicPartition, AverageRecordSize> avgRecordSize;
 
-  private static final java.time.Duration KAFKA_POLL_TIMEOUT = java.time.Duration.ofSeconds(1);
+  private static final java.time.Duration KAFKA_POLL_TIMEOUT = java.time.Duration.ofSeconds(2);
 
   @VisibleForTesting final java.time.Duration consumerPollingTimeout;
   @VisibleForTesting final DeserializerProvider<K> keyDeserializerProvider;
@@ -527,6 +527,8 @@ abstract class ReadFromKafkaDoFn<K, V>
       elapsed = sw.elapsed();
       if (elapsed.toMillis() >= consumerPollingTimeout.toMillis()) {
         // timeout is over
+        LOG.warn("No messages retrieved with polling timeout {} seconds. Consider increasing the consumer polling timeout using withConsumerPollingTimeout method.",
+            consumerPollingTimeout.getSeconds());
         return rawRecords;
       }
     }

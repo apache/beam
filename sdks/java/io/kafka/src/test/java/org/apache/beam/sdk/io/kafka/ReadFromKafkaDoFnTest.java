@@ -646,7 +646,7 @@ public class ReadFromKafkaDoFnTest {
     ReadSourceDescriptors<String, String> descriptors = makeReadSourceDescriptor(consumer);
     // default poll timeout = 1 scond
     ReadFromKafkaDoFn<String, String> dofnInstance = ReadFromKafkaDoFn.create(descriptors, RECORDS);
-    Assert.assertEquals(Duration.ofSeconds(1L), dofnInstance.consumerPollingTimeout);
+    Assert.assertEquals(Duration.ofSeconds(2L), dofnInstance.consumerPollingTimeout);
     // updated timeout = 5 seconds
     descriptors =
         descriptors.withConsumerPollingTimeout(org.joda.time.Duration.standardSeconds(5L));
