@@ -14,24 +14,24 @@ The following Java code implements two additional output `PCollection` objects f
 
 ```java
 // Input PCollection that contains strings.
-  PCollection<String> input = ...;
+PCollection<String> input = ...;
 // Output tag for the main output PCollection of strings.
-final TupleTag<String> mainOutputTag = new TupleTag<String>(){};
+final TupleTag<String> mainOutputTag = new TupleTag<String>() {};
 // Output tag for the additional output PCollection of strings.
-final TupleTag<String> additionalOutputTagString = new TupleTag<Integer>(){};
+final TupleTag<String> additionalOutputTagString = new TupleTag<Integer>() {};
 // Output tag for the additional output PCollection of integers.
-final TupleTag<Integer> additionalOutputTagIntegers = new TupleTag<Integer>(){};
+final TupleTag<Integer> additionalOutputTagIntegers = new TupleTag<Integer>() {};
 
 PCollectionTuple results = input.apply(ParDo
-          .of(new DoFn<String, String>() {
-            // DoFn continues here.
-            ...
-          })
-          // Specify the tag for the main output.
-          .withOutputTags(mainOutputTag,
-          // Specify the tags for the two additional outputs as a TupleTagList.
-                          TupleTagList.of(additionalOutputTagString)
-                                      .and(additionalOutputTagIntegers)));
+    .of(new DoFn<String, String>() {
+        // DoFn continues here.
+        ...
+    })
+    // Specify the tag for the main output.
+    .withOutputTags(mainOutputTag,
+        // Specify the tags for the two additional outputs as a TupleTagList.
+        TupleTagList.of(additionalOutputTagString)
+        .and(additionalOutputTagIntegers)));
 ```
 
 The `processElement` method can emit elements to the main output or any additional output by invoking the output method on the `MultiOutputReceiver` object. The output method takes the tag of the output and the element to be emitted as arguments.
