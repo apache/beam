@@ -87,7 +87,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.55.1] - Unreleased
+# [2.55.1]
 
 ## Bugfixes
 
