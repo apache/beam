@@ -30,12 +30,13 @@ Here is an example of Apache Beam pipeline code for writing to BigQuery:
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
 
 with beam.Pipeline(options=options) as p:
-  # write to a table
-    p | 'Write' >> beam.io.WriteToBigQuery(
+    # write to a table
+    p | "Write" >> beam.io.WriteToBigQuery(
         table,
         schema=TABLE_SCHEMA,
         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-        write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)
+        write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+    )
 ```
 
 To get started with BigQuery and Apache Beam, see the examples in the Dataflow Cookbook GitHub repository.
