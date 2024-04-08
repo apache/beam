@@ -859,8 +859,8 @@ public class ElasticsearchIO {
      * @return a {@link PTransform} reading data from Elasticsearch.
      */
     public Read withIteratorKeepalive(String iteratorKeepalive) {
-      checkArgument(iteratorKeepalive != null, "scrollKeepalive can not be null");
-      checkArgument(!"0m".equals(iteratorKeepalive), "scrollKeepalive can not be 0m");
+      checkArgument(iteratorKeepalive != null, "iteratorKeepalive can not be null");
+      checkArgument(!"0m".equals(iteratorKeepalive), "iteratorKeepalive can not be 0m");
       return builder().setIteratorKeepalive(iteratorKeepalive).build();
     }
 
@@ -895,7 +895,7 @@ public class ElasticsearchIO {
      * @return a {@link PTransform} reading data from Elasticsearch.
      */
     public Read withPointInTimeSearch() {
-      return builder().setUsePITSearch(true).build();
+      return builder().setUsePITSearch(true).setBatchSize(1000).build();
     }
 
     @Override
@@ -1125,17 +1125,11 @@ public class ElasticsearchIO {
 
     @Override
     public boolean start() throws IOException {
-      Request request = createStartRequest();
-      try {
-        restClient = source.spec.getConnectionConfiguration().createClient();
-        Response response = restClient.performRequest(request);
-        JsonNode searchResult = parseResponse(response.getEntity());
-        updateIteratorId(searchResult);
-        return processResult(searchResult);
-      } catch (IOException ex) {
-        LOG.error("Failed to request start reading, request {}", request.getEntity().toString());
-        throw ex;
-      }
+      restClient = source.spec.getConnectionConfiguration().createClient();
+      Response response = restClient.performRequest(createStartRequest());
+      JsonNode searchResult = parseResponse(response.getEntity());
+      updateIteratorId(searchResult);
+      return processResult(searchResult);
     }
 
     @Override
@@ -1149,16 +1143,10 @@ public class ElasticsearchIO {
     }
 
     protected boolean performAdvance() throws IOException {
-      Request advance = createAdvanceRequest();
-      try {
-        Response response = restClient.performRequest(advance);
-        JsonNode searchResult = parseResponse(response.getEntity());
-        updateIteratorId(searchResult);
-        return processResult(searchResult);
-      } catch (IOException ex) {
-        LOG.error("Failed to request advance reading, request {}", advance.getEntity().toString());
-        throw ex;
-      }
+      Response response = restClient.performRequest(createAdvanceRequest());
+      JsonNode searchResult = parseResponse(response.getEntity());
+      updateIteratorId(searchResult);
+      return processResult(searchResult);
     }
 
     protected boolean readNextBatchAndReturnFirstDocument(JsonNode searchResult) {
@@ -1195,9 +1183,6 @@ public class ElasticsearchIO {
       // clear the selected iterator
       try {
         restClient.performRequest(closeRequest);
-      } catch (IOException ex) {
-        LOG.error(
-            "Failed to request close, request {}", closeRequest.getEntity().toString());
       } finally {
         if (restClient != null) {
           restClient.close();
@@ -1224,7 +1209,7 @@ public class ElasticsearchIO {
 
     @Override
     protected Request createStartRequest() {
-      String query = String.format("{%s}", createBaseQuery());
+      String query = createBaseQuery();
       if ((source.backendVersion >= 5) && source.numSlices != null && source.numSlices > 1) {
         // if there is more than one slice, add the slice to the user query
         String sliceQuery =
@@ -1286,7 +1271,7 @@ public class ElasticsearchIO {
 
     @Override
     protected String matchAllQueryString() {
-      return String.format("{%s}", BoundedElasticsearchReader.MATCH_ALL_QUERY);
+      return String.format("%s", BoundedElasticsearchReader.MATCH_ALL_QUERY);
     }
 
     @Override
@@ -1329,7 +1314,7 @@ public class ElasticsearchIO {
       String sliceQuery =
           source.numSlices > 1
               ? String.format(
-                  "\"slice\" : {\"id\" : %s,\"max\" : %s},", source.sliceId, source.numSlices)
+                  "\"slice\" : {\"id\" : %s, \"max\" : %s},", source.sliceId, source.numSlices)
               : "";
 
       String requestBody =
@@ -1674,8 +1659,8 @@ public class ElasticsearchIO {
      * href="https://www.elastic.co/guide/en/elasticsearch/reference/current/data-streams.html">data
      * stream</a>. Data streams only support the {@code create} operation. For more information see
      * the <a
-     * href="https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html#docs-bulk-api-desc>
-     * Elasticsearch documentation</a>
+     * href="https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html#docs-bulk-api-desc">Elasticsearch
+     * documentation</a>
      *
      * <p>Updates and deletions are not allowed, so related options will be ignored.
      *
@@ -1736,7 +1721,7 @@ public class ElasticsearchIO {
      * the batch will fail and the exception propagated. Incompatible with update operations and
      * should only be used with withUsePartialUpdate(false)
      *
-     * @param docVersionType the version type to use, one of {@value VERSION_TYPES}
+     * @param docVersionType the version type to use, one of {@link VERSION_TYPES}
      * @return the {@link DocToBulk} with the doc version type set
      */
     public DocToBulk withDocVersionType(String docVersionType) {
