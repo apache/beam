@@ -58,23 +58,22 @@ The following Python code demonstrates how to implement additional outputs for a
 
 ```python
 class SplitLinesToWordsFn(beam.DoFn):
+    # These tags will be used to tag the outputs of this DoFn.
+    OUTPUT_TAG_SHORT_WORDS = "tag_short_words"
+    OUTPUT_TAG_CHARACTER_COUNT = "tag_character_count"
 
-  # These tags will be used to tag the outputs of this DoFn.
-  OUTPUT_TAG_SHORT_WORDS = 'tag_short_words'
-  OUTPUT_TAG_CHARACTER_COUNT = 'tag_character_count'
+    def process(self, element):
+        # yield a count (integer) to the OUTPUT_TAG_CHARACTER_COUNT tagged collection.
+        yield pvalue.TaggedOutput(self.OUTPUT_TAG_CHARACTER_COUNT, len(element))
 
-  def process(self, element):
-    # yield a count (integer) to the OUTPUT_TAG_CHARACTER_COUNT tagged collection.
-    yield pvalue.TaggedOutput(self.OUTPUT_TAG_CHARACTER_COUNT, len(element))
-
-    words = re.findall(r'[A-Za-z\']+', element)
-    for word in words:
-      if len(word) <= 3:
-        # yield word as an output to the OUTPUT_TAG_SHORT_WORDS tagged collection.
-        yield pvalue.TaggedOutput(self.OUTPUT_TAG_SHORT_WORDS, word)
-      else:
-        # yield word to add it to the main collection.
-        yield word
+        words = re.findall(r"[A-Za-z\']+", element)
+        for word in words:
+            if len(word) <= 3:
+                # yield word as an output to the OUTPUT_TAG_SHORT_WORDS tagged collection.
+                yield pvalue.TaggedOutput(self.OUTPUT_TAG_SHORT_WORDS, word)
+            else:
+                # yield word to add it to the main collection.
+                yield word
 ```
 
 The method returns a `DoOutputsTuple` object, with the specified tags serving as attributes that provide `ParDo` with access to the corresponding output `PCollection` objects.
