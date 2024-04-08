@@ -12,11 +12,16 @@ Here is an example of Apache Beam pipeline code for reading data from a Kafka to
 
 ```python
 with beam.Pipeline(options=options) as p:
-    output = (p | "Read from Kafka" >> ReadFromKafka(
-                        consumer_config={'bootstrap.servers': 'localhost:9092'},
-                        topics=['my_topic'],
-                        with_metadata=False)
-                        | "Log Data" >> Map(logging.info))
+    output = (
+        p
+        | "Read from Kafka"
+        >> ReadFromKafka(
+            consumer_config={"bootstrap.servers": "localhost:9092"},
+            topics=["my_topic"],
+            with_metadata=False,
+        )
+        | "Log Data" >> Map(logging.info)
+    )
 ```
 
 This code reads data from a Kafka topic `my_topic` on `localhost:9092` and logs the data to the console.
