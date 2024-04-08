@@ -13,10 +13,11 @@ This feature lets you control the flow of your data and balance between complete
 You set the triggers for a `PCollection` by setting the `trigger` parameter of the `WindowInto` transform.
 
 ```python
-  pcollection | WindowInto(
+pcollection | WindowInto(
     FixedWindows(1 * 60),
     trigger=AfterProcessingTime(1 * 60),
-    accumulation_mode=AccumulationMode.DISCARDING)
+    accumulation_mode=AccumulationMode.DISCARDING,
+)
 ```
 
 When a trigger fires, it emits the current contents of the window as a pane. Because a trigger can fire multiple times, the accumulation mode determines whether the system accumulates the window panes as the trigger fires, or discards them. This behavior is controlled by the window accumulation mode parameter of the `WindowInto` transform.
