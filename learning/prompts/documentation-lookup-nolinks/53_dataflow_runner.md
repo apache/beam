@@ -48,13 +48,13 @@ The following example code, taken from the Cloud Dataflow quickstarts for Java a
 For the Apache Beam Java SDK, in your terminal, run the following command (from your `word-count-beam` directory):
 
 ```java
-  mvn -Pdataflow-runner compile exec:java \
-    -Dexec.mainClass=org.apache.beam.examples.WordCount \
-    -Dexec.args="--project=PROJECT_ID \
-    --gcpTempLocation=gs://BUCKET_NAME/temp/ \
-    --output=gs://BUCKET_NAME/output \
-    --runner=DataflowRunner \
-    --region=REGION
+mvn -Pdataflow-runner compile exec:java \
+  -Dexec.mainClass=org.apache.beam.examples.WordCount \
+  -Dexec.args="--project=PROJECT_ID \
+  --gcpTempLocation=gs://BUCKET_NAME/temp/ \
+  --output=gs://BUCKET_NAME/output \
+  --runner=DataflowRunner \
+  --region=REGION
    ```
 
 For the Apache Beam Python SDK, in your terminal, run the following command:
