@@ -39,7 +39,7 @@ public class StreamingInsertsMetricsTest {
 
     StreamingInsertsMetrics results =
         StreamingInsertsMetrics.NoOpStreamingInsertsMetrics.getInstance();
-    results.updateRetriedRowsWithStatus("INTERNAL", 0);
+    results.updateRetriedRowsWithStatus("INTERNAL", 10);
     Instant t1 = Instant.now();
     results.updateSuccessfulRpcMetrics(t1, t1.plus(Duration.ofMillis(10)));
     TableReference ref = new TableReference().setTableId("t").setDatasetId("d");

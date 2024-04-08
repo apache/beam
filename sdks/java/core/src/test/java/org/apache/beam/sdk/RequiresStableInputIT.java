@@ -145,7 +145,7 @@ public class RequiresStableInputIT {
             value -> {
               throw new RuntimeException(
                   "Deliberate failure: should happen only once for each application of the DoFn"
-                      + "within the transform graph.");
+                      + " within the transform graph.");
             };
 
     PCollection<String> singleton = p.apply("CreatePCollectionOfOneValue", Create.of(VALUE));

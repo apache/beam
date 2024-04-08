@@ -52,6 +52,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
+
 # [2.56.0] - Unreleased
 
 ## Highlights
@@ -62,6 +63,8 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Upgraded Avro version to 1.11.3, kafka-avro-serializer and kafka-schema-registry-client versions to 7.6.0 (Java) ([#30638](https://github.com/apache/beam/pull/30638)).
+  The newer Avro package is known to have breaking changes. If you are affected, you can keep pinned to older Avro versions which are also tested with Beam.
 
 ## New Features / Improvements
 
@@ -85,6 +88,12 @@
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
+
+# [2.55.1]
+
+## Bugfixes
+
+* Fixed issue that broke WriteToJson in languages other than Java (X-lang) ([#30776](https://github.com/apache/beam/issues/30776)).
 
 # [2.55.0] - 2024-03-25
 
@@ -131,6 +140,7 @@
 ## Known Issues
 
 * In Python pipelines, when shutting down inactive bundle processors, shutdown logic can overaggressively hold the lock, blocking acceptance of new work. Symptoms of this issue include slowness or stuckness in long-running jobs. Fixed in 2.56.0 ([#30679](https://github.com/apache/beam/pull/30679)).
+* WriteToJson broken in languages other than Java (X-lang) ([#30776](https://github.com/apache/beam/issues/30776)).
 
 # [2.54.0] - 2024-02-14
 

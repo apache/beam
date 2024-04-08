@@ -207,6 +207,74 @@ criteria. This can be accomplished with a `Filter` transform, e.g.
     keep: "col2 > 0"
 ```
 
+## Partitioning
+
+It can also be useful to send different elements to different places
+(similar to what is done with side outputs in other SDKs).
+While this can be done with a set of `Filter` operations, if every
+element has a single destination it can be more natural to use a `Partition`
+transform instead which sends every element to a unique output.
+For example, this will send all elements where `col1` is equal to `"a"` to the
+output `Partition.a`.
+
+```
+- type: Partition
+  input: input
+  config:
+    by: col1
+    outputs: ['a', 'b', 'c']
+
+- type: SomeTransform
+  input: Partition.a
+  config:
+    param: ...
+
+- type: AnotherTransform
+  input: Partition.b
+  config:
+    param: ...
+```
+
+One can also specify the destination as a function, e.g.
+
+```
+- type: Partition
+  input: input
+  config:
+    by: "'even' if col2 % 2 == 0 else 'odd'"
+    language: python
+    outputs: ['even', 'odd']
+```
+
+One can optionally provide a catch-all output which will capture all elements
+that are not in the named outputs (which would otherwise be an error):
+
+```
+- type: Partition
+  input: input
+  config:
+    by: col1
+    outputs: ['a', 'b', 'c']
+    unknown_output: 'other'
+```
+
+Sometimes one wants to split a PCollection into multiple PCollections
+that aren't necessarily disjoint.  To send elements to multiple (or no) outputs,
+one could use an iterable column and precede the `Partition` with an `Explode`.
+
+```
+- type: Explode
+  input: input
+  config:
+    fields: col1
+
+- type: Partition
+  input: Explode
+  config:
+    by: col1
+    outputs: ['a', 'b', 'c']
+```
+
 ## Types
 
 Beam will try to infer the types involved in the mappings, but sometimes this

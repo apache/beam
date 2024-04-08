@@ -184,6 +184,7 @@ include(":sdks:java:extensions:google-cloud-platform-core")
 include(":sdks:java:extensions:jackson")
 include(":sdks:java:extensions:join-library")
 include(":sdks:java:extensions:ml")
+include(":sdks:java:extensions:ordered")
 include(":sdks:java:extensions:protobuf")
 include(":sdks:java:extensions:python")
 include(":sdks:java:extensions:sbe")
@@ -352,3 +353,5 @@ include("sdks:java:io:kafka:kafka-100")
 findProject(":sdks:java:io:kafka:kafka-100")?.name = "kafka-100"
 include("sdks:java:io:kafka:kafka-01103")
 findProject(":sdks:java:io:kafka:kafka-01103")?.name = "kafka-01103"
+include("sdks:java:managed")
+findProject(":sdks:java:managed")?.name = "managed"

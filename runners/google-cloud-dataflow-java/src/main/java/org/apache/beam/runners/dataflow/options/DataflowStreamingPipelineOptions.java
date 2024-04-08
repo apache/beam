@@ -181,7 +181,7 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
   @Description(
       "If non-null, StreamingDataflowWorkerHarness will periodically snapshot it's status pages"
-          + "and thread stacks to a file in this directory. Generally only set for tests.")
+          + " and thread stacks to a file in this directory. Generally only set for tests.")
   @Default.InstanceFactory(PeriodicStatusPageDirectoryFactory.class)
   String getPeriodicStatusPageOutputDirectory();
 

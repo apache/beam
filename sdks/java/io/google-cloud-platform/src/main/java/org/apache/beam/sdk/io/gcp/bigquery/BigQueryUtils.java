@@ -497,7 +497,10 @@ public class BigQueryUtils {
             .map(
                 field -> {
                   try {
-                    return convertAvroFormat(field.getType(), record.get(field.getName()), options);
+                    org.apache.avro.Schema.Field avroField =
+                        record.getSchema().getField(field.getName());
+                    Object value = avroField != null ? record.get(avroField.pos()) : null;
+                    return convertAvroFormat(field.getType(), value, options);
                   } catch (Exception cause) {
                     throw new IllegalArgumentException(
                         "Error converting field " + field + ": " + cause.getMessage(), cause);
@@ -709,7 +712,8 @@ public class BigQueryUtils {
                 + jsonBQValue.getClass()
                 + "' to '"
                 + fieldType
-                + "' because the BigQuery type is a List, while the output type is not a collection.");
+                + "' because the BigQuery type is a List, while the output type is not a"
+                + " collection.");
       }
 
       boolean innerTypeIsMap = fieldType.getCollectionElementType().getTypeName().isMapType();
