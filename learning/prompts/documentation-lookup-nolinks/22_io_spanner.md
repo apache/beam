@@ -15,14 +15,19 @@ class ExampleRow(NamedTuple):
     id: int
     name: str
 
+
 with beam.Pipeline(options=options) as p:
-    output = (p | "Read from table" >> ReadFromSpanner(
-        project_id=options.project_id,
-        instance_id=options.instance_id,
-        database_id=options.database_id,
-        row_type=ExampleRow,
-        sql="SELECT * FROM example_row"
+    output = (
+        p
+        | "Read from table"
+        >> ReadFromSpanner(
+            project_id=options.project_id,
+            instance_id=options.instance_id,
+            database_id=options.database_id,
+            row_type=ExampleRow,
+            sql="SELECT * FROM example_row",
         )
         | "Map Data" >> Map(lambda row: f"Id = {row.id}, Name = {row.name}")
-        | "Log Data" >> Map(logging.info))
+        | "Log Data" >> Map(logging.info)
+    )
 ```
