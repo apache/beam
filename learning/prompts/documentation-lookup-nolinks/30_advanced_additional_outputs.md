@@ -38,18 +38,20 @@ The `processElement` method can emit elements to the main output or any addition
 
 ```java
 public void processElement(@Element String word, MultiOutputReceiver out) {
-       if (condition for main output) {
-         // Emit element to main output
-         out.get(mainOutputTag).output(word);
-       } else {
-         // Emit element to additional string output
-         out.get(additionalOutputTagString).output(word);
-       }
-       if (condition for additional integer output) {
-         // Emit element to additional integer output
-         out.get(additionalOutputTagIntegers).output(word.length());
-       }
-     }
+    if (condition
+        for main output) {
+        // Emit element to main output
+        out.get(mainOutputTag).output(word);
+    } else {
+        // Emit element to additional string output
+        out.get(additionalOutputTagString).output(word);
+    }
+    if (condition
+        for additional integer output) {
+        // Emit element to additional integer output
+        out.get(additionalOutputTagIntegers).output(word.length());
+    }
+}
 ```
 
 In the Apache Beam Python SDK, you can implement additional outputs by invoking the `with_outputs()` method on the `ParDo` transform and specifying the expected tags for the multiple outputs.
