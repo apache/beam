@@ -114,7 +114,7 @@ pycparser==2.21
 pydot==1.4.2
 PyHamcrest==2.1.0
 pyjsparser==2.7.1
-pymongo==4.6.2
+pymongo==4.6.3
 PyMySQL==1.1.0
 pyparsing==3.1.2
 pyproject_hooks==1.0.0
