@@ -83,7 +83,7 @@ public class BeamRuleSets {
           CoreRules.PROJECT_SET_OP_TRANSPOSE,
 
           // aggregation and projection rules
-          BeamAggregateProjectMergeRule.INSTANCE,
+          //BeamAggregateProjectMergeRule.INSTANCE,
           // push a projection past a filter or vice versa
           CoreRules.PROJECT_FILTER_TRANSPOSE,
           CoreRules.FILTER_PROJECT_TRANSPOSE,
