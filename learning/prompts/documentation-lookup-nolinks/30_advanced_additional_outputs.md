@@ -81,16 +81,14 @@ The method returns a `DoOutputsTuple` object, with the specified tags serving as
 
 ```python
 with beam.Pipeline(options=pipeline_options) as p:
-
     lines = p | ReadFromText(known_args.input)
 
     # with_outputs allows accessing the explicitly tagged outputs of a DoFn.
-    split_lines_result = (
-        lines
-        | beam.ParDo(SplitLinesToWordsFn()).with_outputs(
-            SplitLinesToWordsFn.OUTPUT_TAG_SHORT_WORDS,
-            SplitLinesToWordsFn.OUTPUT_TAG_CHARACTER_COUNT,
-            main='words'))
+    split_lines_result = lines | beam.ParDo(SplitLinesToWordsFn()).with_outputs(
+        SplitLinesToWordsFn.OUTPUT_TAG_SHORT_WORDS,
+        SplitLinesToWordsFn.OUTPUT_TAG_CHARACTER_COUNT,
+        main="words",
+    )
 
     # split_lines_result is an object of type DoOutputsTuple
     words, _, _ = split_lines_result
