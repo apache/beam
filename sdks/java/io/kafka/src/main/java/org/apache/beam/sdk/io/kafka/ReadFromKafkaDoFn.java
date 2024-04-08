@@ -527,7 +527,8 @@ abstract class ReadFromKafkaDoFn<K, V>
       elapsed = sw.elapsed();
       if (elapsed.toMillis() >= consumerPollingTimeout.toMillis()) {
         // timeout is over
-        LOG.warn("No messages retrieved with polling timeout {} seconds. Consider increasing the consumer polling timeout using withConsumerPollingTimeout method.",
+        LOG.warn(
+            "No messages retrieved with polling timeout {} seconds. Consider increasing the consumer polling timeout using withConsumerPollingTimeout method.",
             consumerPollingTimeout.getSeconds());
         return rawRecords;
       }
