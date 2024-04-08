@@ -137,8 +137,8 @@ For additional pipeline configuration options, refer to the Spark Runner documen
 In Python, you can use the `run()` method of your pipeline object to execute the pipeline:
 
 ```python
-    # Run your pipeline
-    p.run()
+# Run your pipeline
+p.run()
 ```
 
 ***4. Monitor Your Job:***
