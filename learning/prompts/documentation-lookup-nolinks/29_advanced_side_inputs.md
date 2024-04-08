@@ -21,11 +21,11 @@ PCollection<Integer> input = ...;
 PCollectionView<Integer> sideInput = ...;
 PCollection<Integer> output =
     input.apply(ParDo.of(new DoFn<Integer, Integer>() {
-      @ProcessElement
-      public void processElement(ProcessContext c) {
-        Integer sideInputValue = c.sideInput(sideInput);
-        ...
-      }
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+            Integer sideInputValue = c.sideInput(sideInput);
+            ...
+        }
     }).withSideInputs(sideInput));
 ```
 
