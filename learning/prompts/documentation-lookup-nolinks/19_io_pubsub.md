@@ -14,7 +14,10 @@ Here is an example of the Apache Beam pipeline code for reading data from a Pub/
 from apache_beam.io import ReadFromPubSub
 from apache_beam.io import WriteToPubSub
 
-  with beam.Pipeline(options=options) as p:
-    (p | "Read from Pub/Sub" >> ReadFromPubSub(topic="input_topic")
-       | "Write to Pub/Sub" >> WriteToPubSub(topic="output_topic"))
+with beam.Pipeline(options=options) as p:
+    (
+        p
+        | "Read from Pub/Sub" >> ReadFromPubSub(topic="input_topic")
+        | "Write to Pub/Sub" >> WriteToPubSub(topic="output_topic")
+    )
 ```
