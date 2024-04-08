@@ -13,17 +13,18 @@ class CsvOptions(PipelineOptions):
     @classmethod
     def _add_argparse_args(cls, parser):
         parser.add_argument(
-            '--file_path',
+            "--file_path",
             default="gs://your-bucket/your-file.csv",
-            help='Csv file path'
+            help="Csv file path",
         )
+
 
 options = CsvOptions()
 
 with beam.Pipeline(options=options) as p:
-    output = (p | "Read from Csv file" >> ReadFromCsv(
-        path=options.file_path
-        )
-        | "Log Data" >> Map(logging.info))
-
+    output = (
+        p
+        | "Read from Csv file" >> ReadFromCsv(path=options.file_path)
+        | "Log Data" >> Map(logging.info)
+    )
 ```
