@@ -16,7 +16,7 @@ python -m apache_beam.examples.wordcount \
   --runner DataflowRunner \
   --project PROJECT_ID \
   --temp_location gs://STORAGE_BUCKET/tmp/
-  ```
+```
 
 For more details about the WordCount example, see the WordCount source code in the Apache Beam GitHub repository.
 
