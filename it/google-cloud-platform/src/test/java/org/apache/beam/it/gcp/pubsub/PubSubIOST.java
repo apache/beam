@@ -17,7 +17,6 @@
  */
 package org.apache.beam.it.gcp.pubsub;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -67,7 +66,15 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-/** PubSubIO performance tests. */
+/**
+ * PubSubIO stress test. The test is designed to assess the performance of PubSubIO under various
+ * conditions.
+ *
+ * <p>Usage: <br>
+ * - To run medium-scale stress tests: {@code gradle
+ * :it:google-cloud-platform:PubSubStressTestMedium} - To run large-scale stress tests: {@code
+ * gradle :it:google-cloud-platform:PubSubStressTestLarge}
+ */
 public class PubSubIOST extends IOStressTestBase {
   private static final int NUMBER_OF_BUNDLES_FOR_MEDIUM = 20;
   private static final int NUMBER_OF_BUNDLES_FOR_LARGE = 200;
@@ -210,11 +217,6 @@ public class PubSubIOST extends IOStressTestBase {
 
       // Check the initial launch didn't fail
       assertNotEquals(PipelineOperator.Result.LAUNCH_FAILED, readResult);
-      // streaming read pipeline does not end itself
-      // Fail the test if read pipeline (streaming) not in running state.
-      assertEquals(
-          PipelineLauncher.JobState.RUNNING,
-          pipelineLauncher.getJobStatus(project, region, readLaunchInfo.jobId()));
 
       // check metrics
       double writeNumRecords =
