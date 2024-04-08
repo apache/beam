@@ -10,18 +10,12 @@ Here is an example of Apache Beam pipeline code for reading data from a Parquet 
 
 ```python
 class ReadParquetOptions(PipelineOptions):
-
     @classmethod
     def _add_argparse_args(cls, parser):
-      parser.add_argument(
-          "--path",
-          help="GCS path to parquet file")
+        parser.add_argument("--path", help="GCS path to parquet file")
 
-  options = ReadParquetOptions()
+    options = ReadParquetOptions()
 
-  with beam.Pipeline(options=options) as p:
-
-    (p | "ReadParquet" >> ReadFromParquet(options.path)
-       | Map(logging.info))
-
+    with beam.Pipeline(options=options) as p:
+        (p | "ReadParquet" >> ReadFromParquet(options.path) | Map(logging.info))
 ```
