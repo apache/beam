@@ -1,8 +1,8 @@
 Prompt:
-What are schemas in Apache Beam
-Response:
+What are schemas in Apache Beam?
 
- A [Schema in Apache Beam](https://beam.apache.org/documentation/programming-guide/#schemas) is a language-independent type definition for a `PCollection`. The schema defines elements of that `PCollection` as an ordered list of named fields.
+Response:
+A [Schema in Apache Beam](https://beam.apache.org/documentation/programming-guide/#schemas) is a language-independent type definition for a `PCollection`. The schema defines elements of that `PCollection` as an ordered list of named fields.
 
 In many cases, the element type in a `PCollection` has a structure that can be introspected. Some examples are JSON, Protocol Buffer, Avro, and database row objects. All of these formats can be converted to Beam Schemas.
 
@@ -22,4 +22,4 @@ The following list includes key capabilities provided by schema transforms:
 * type conversion
 * enhanced ParDo functionality
 
-For more information about schemas and for Beam best practices when working with structured data, see [Schema Usage Patterns](https://beam.apache.org/documentation/patterns/schema/).
+For more information about schemas and the Apache Beam best practices when working with structured data, see [Schema Usage Patterns](https://beam.apache.org/documentation/patterns/schema/).
