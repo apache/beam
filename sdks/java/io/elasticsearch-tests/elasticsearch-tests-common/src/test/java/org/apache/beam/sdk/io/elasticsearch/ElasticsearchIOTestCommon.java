@@ -235,17 +235,35 @@ class ElasticsearchIOTestCommon implements Serializable {
     pipeline.run();
   }
 
+  void testReadPIT() throws Exception {
+    if (!useAsITests) {
+      ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
+    }
+
+    PCollection<String> output =
+        pipeline.apply(
+            ElasticsearchIO.read()
+                .withConnectionConfiguration(connectionConfiguration)
+                .withPointInTimeSearch());
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(numDocs);
+    pipeline.run();
+  }
+
   void testReadWithQueryString() throws Exception {
-    testReadWithQueryInternal(Read::withQuery);
+    testReadWithQueryInternal(Read::withQuery, true);
+  }
+
+  void testReadWithQueryAndPIT() throws Exception {
+    testReadWithQueryInternal(Read::withQuery, false);
   }
 
   void testReadWithQueryValueProvider() throws Exception {
     testReadWithQueryInternal(
-        (read, query) -> read.withQuery(ValueProvider.StaticValueProvider.of(query)));
+        (read, query) -> read.withQuery(ValueProvider.StaticValueProvider.of(query)), true);
   }
 
-  private void testReadWithQueryInternal(BiFunction<Read, String, Read> queryConfigurer)
-      throws IOException {
+  private void testReadWithQueryInternal(
+      BiFunction<Read, String, Read> queryConfigurer, boolean useScrollAPI) throws IOException {
     if (!useAsITests) {
       ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
@@ -264,6 +282,8 @@ class ElasticsearchIOTestCommon implements Serializable {
     Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
 
     read = queryConfigurer.apply(read, query);
+
+    read = useScrollAPI ? read : read.withPointInTimeSearch();
 
     PCollection<String> output = pipeline.apply(read);
 
