@@ -59,7 +59,8 @@ def _validate_equalities(equalities, pcolls):
   error_prefix = f'Invalid value "{equalities}" for "equalities".'
 
   valid_cols = {}
-  for input in pcolls.keys():
+  inputs = list(pcolls.keys())
+  for input in inputs:
     fields = set()
     for field in pcolls[input].element_type._fields:
       fields.add(field[0])
@@ -71,7 +72,7 @@ def _validate_equalities(equalities, pcolls):
         raise ValueError(
             f'{error_prefix} When "equalities" is a str, '
             f'it must be a field name that exists in all the specified inputs.')
-    equality = {input: equalities for input in pcolls.keys()}
+    equality = {input: equalities for input in inputs}
     return [equality]
 
   if not isinstance(equalities, list):
@@ -88,7 +89,7 @@ def _validate_equalities(equalities, pcolls):
       raise invalid_dict_error
 
     for input, col in equality.items():
-      if input not in pcolls.keys():
+      if input not in inputs:
         raise ValueError(
             f'{error_prefix} "{input}" is not a specified alias in "input"')
       if col not in valid_cols[input]:
@@ -99,7 +100,9 @@ def _validate_equalities(equalities, pcolls):
 
   if not _is_connected(input_edge_list):
     raise ValueError(
-        f'{error_prefix} All the inputs in equalities are not connected.')
+        f'{error_prefix} '
+        f'The equalities provided does not ensure that '
+        f'all the inputs {inputs} are connected.')
 
   return equalities
 
