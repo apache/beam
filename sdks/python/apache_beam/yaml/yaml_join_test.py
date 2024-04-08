@@ -19,6 +19,8 @@ import logging
 import unittest
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.yaml.yaml_transform import YamlTransform
@@ -48,6 +50,10 @@ CATEGORIES = [
 ]
 
 
+@unittest.skipIf(
+    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
+    None,
+    'Do not run this test on precommit suites.')
 class YamlJoinTest(unittest.TestCase):
   def test_basic_join(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
