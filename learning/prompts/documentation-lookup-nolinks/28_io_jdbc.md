@@ -13,36 +13,30 @@ class ExampleRow(NamedTuple):
     id: int
     name: str
 
-class ReadJdbcOptions(PipelineOptions):
 
+class ReadJdbcOptions(PipelineOptions):
     @classmethod
     def _add_argparse_args(cls, parser):
-      parser.add_argument(
-          "--driverClassName",
-          help="JDBC driver class name")
-      parser.add_argument(
-          "--url",
-          help="JDBC URL")
-      parser.add_argument(
-          "--username",
-          help="JDBC username")
-      parser.add_argument(
-          "--password",
-          help="JDBC password")
-      parser.add_argument(
-          "--query",
-          default="SELECT * FROM users",
-          help="JDBC query")
+        parser.add_argument("--driverClassName", help="JDBC driver class name")
+        parser.add_argument("--url", help="JDBC URL")
+        parser.add_argument("--username", help="JDBC username")
+        parser.add_argument("--password", help="JDBC password")
+        parser.add_argument("--query", default="SELECT * FROM users", help="JDBC query")
+
 
 options = ReadJdbcOptions()
 
 with beam.Pipeline(options=options) as p:
-
-  (p | "Read from JDBC" >> ReadFromJdbc(
-      driverClassName=options.driverClassName,
-      url=options.url,
-      username=options.username,
-      password=options.password,
-      query=options.query)
-     | Map(logging.info))
+    (
+        p
+        | "Read from JDBC"
+        >> ReadFromJdbc(
+            driverClassName=options.driverClassName,
+            url=options.url,
+            username=options.username,
+            password=options.password,
+            query=options.query,
+        )
+        | Map(logging.info)
+    )
 ```
