@@ -12,13 +12,17 @@ Here is an example of Apache Beam pipeline code for reading data from a Bigtable
 
 ```python
 with beam.Pipeline(options=options) as p:
-output = (p | "Read from Bigtable" >> ReadFromBigtable(
-                    project_id=project_id,
-                    instance_id=instance_id,
-                    table_id=table_id,
-                 )
-                    | "Extract cells" >> beam.Map(lambda row: row._cells)
-                    | "Log Data" >> Map(logging.info))
+    output = (
+        p
+        | "Read from Bigtable"
+        >> ReadFromBigtable(
+            project_id=project_id,
+            instance_id=instance_id,
+            table_id=table_id,
+        )
+        | "Extract cells" >> beam.Map(lambda row: row._cells)
+        | "Log Data" >> Map(logging.info)
+    )
 ```
 
 For performance benchmarks of the Bigtable IO connector, see the 'Bigtable performance' section on the Apache Beam website.
