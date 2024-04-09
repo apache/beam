@@ -1146,7 +1146,7 @@ public class ElasticsearchIO {
   abstract static class BoundedElasticsearchReader extends BoundedSource.BoundedReader<String> {
     private static final Counter READ =
         Metrics.counter(BoundedElasticsearchScrollReader.class, "es-read-document-count");
-    private static final String MATCH_ALL_QUERY = "\"query\": { \"match_all\": {} }";
+    private static final String MATCH_ALL_QUERY = "{\"query\": { \"match_all\": {} }}";
 
     protected final BoundedElasticsearchSource source;
 
@@ -1169,12 +1169,10 @@ public class ElasticsearchIO {
 
     protected abstract void updateIteratorId(JsonNode searchResult);
 
-    protected abstract String matchAllQueryString();
-
     protected String createBaseQuery() {
       String query = source.spec.getQuery() != null ? source.spec.getQuery().get() : null;
       if (query == null) {
-        query = matchAllQueryString();
+        query = BoundedElasticsearchReader.MATCH_ALL_QUERY;
       }
       return query;
     }
@@ -1259,11 +1257,6 @@ public class ElasticsearchIO {
     }
 
     @Override
-    protected String matchAllQueryString() {
-      return String.format("{%s}", BoundedElasticsearchReader.MATCH_ALL_QUERY);
-    }
-
-    @Override
     protected Request createStartRequest() {
       String query = createBaseQuery();
       if ((source.backendVersion >= 5) && source.numSlices != null && source.numSlices > 1) {
@@ -1324,14 +1317,17 @@ public class ElasticsearchIO {
       super(source);
     }
 
-    @Override
-    protected String matchAllQueryString() {
-      return String.format("%s", BoundedElasticsearchReader.MATCH_ALL_QUERY);
+    private String modifyQueryForPIT(String originalQuery) {
+      String trimmed = originalQuery.trim();
+      if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+        return trimmed.substring(1, trimmed.length() - 1);
+      }
+      return originalQuery;
     }
 
     @Override
     protected String createBaseQuery() {
-      return super.createBaseQuery() + ", " + source.spec.getPITSortConfig();
+      return modifyQueryForPIT(super.createBaseQuery()) + ", " + source.spec.getPITSortConfig();
     }
 
     @Override
@@ -2370,9 +2366,7 @@ public class ElasticsearchIO {
 
       abstract Builder setUseStatefulBatches(boolean useStatefulBatches);
 
-      /**
-       * @deprecated Use {@link #setMaxParallelRequests} instead.
-       */
+      /** @deprecated Use {@link #setMaxParallelRequests} instead. */
       @Deprecated
       abstract Builder setMaxParallelRequestsPerWindow(int maxParallelRequestsPerWindow);
 

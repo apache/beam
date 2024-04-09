@@ -268,16 +268,16 @@ class ElasticsearchIOTestCommon implements Serializable {
       ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
 
-    String queryBase =
-        "  \"query\": {\n"
+    String query =
+        "{\n"
+            + "  \"query\": {\n"
             + "  \"match\" : {\n"
             + "    \"scientist\" : {\n"
             + "      \"query\" : \"Einstein\"\n"
             + "    }\n"
             + "  }\n"
-            + "  }\n";
-
-    String query = useScrollAPI ? "{\n" + queryBase + "}" : queryBase;
+            + "  }\n"
+            + "}";
 
     Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
 
