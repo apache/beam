@@ -33,22 +33,22 @@ import org.joda.time.Instant;
 public abstract class StorageApiWritePayload {
   @SuppressWarnings("mutable")
   public abstract byte[] getPayload();
+  @SuppressWarnings("mutable")
+  public abstract byte[] getFormatedTableRowPayload();
 
   @SuppressWarnings("mutable")
   public abstract @Nullable byte[] getUnknownFieldsPayload();
 
   public abstract @Nullable Instant getTimestamp();
 
-  @SuppressWarnings("mutable")
-  public abstract @Nullable byte[] getFormatedTableRowPayload();
 
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setPayload(byte[] value);
+    public abstract Builder setFormatedTableRowPayload(byte[] value);
 
     public abstract Builder setUnknownFieldsPayload(@Nullable byte[] value);
 
-    public abstract Builder setFormatedTableRowPayload(@Nullable byte[] value);
 
     public abstract Builder setTimestamp(@Nullable Instant value);
 
@@ -78,10 +78,9 @@ public abstract class StorageApiWritePayload {
     if (unknownFields != null) {
       unknownFieldsPayload = CoderUtils.encodeToByteArray(TableRowJsonCoder.of(), unknownFields);
     }
-    @Nullable byte[] formatedTableRowPayload = null;
-    if (formatedTableRow != null) {
-      formatedTableRowPayload = CoderUtils.encodeToByteArray(TableRowJsonCoder.of(), formatedTableRow);
-    }
+    byte[] formatedTableRowPayload;
+    formatedTableRowPayload = CoderUtils.encodeToByteArray(TableRowJsonCoder.of(), formatedTableRow);
+
     return new AutoValue_StorageApiWritePayload.Builder()
             .setPayload(payload)
             .setUnknownFieldsPayload(unknownFieldsPayload)

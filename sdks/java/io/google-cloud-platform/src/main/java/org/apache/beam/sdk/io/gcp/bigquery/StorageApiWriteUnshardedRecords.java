@@ -272,6 +272,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private @Nullable AppendClientInfo appendClientInfo = null;
       private long currentOffset = 0;
       private List<ByteString> pendingMessages;
+      private List<ByteString> pendingMessagesFromFormatFailureMethod;
       private List<org.joda.time.Instant> pendingTimestamps;
       private transient @Nullable WriteStreamService maybeWriteStreamService;
       private final Counter recordsAppended =
@@ -537,6 +538,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           throws Exception {
         maybeTickleCache();
         ByteString payloadBytes = ByteString.copyFrom(payload.getPayload());
+        ByteString payloadBytesFromFormatedFunction = ByteString.copyFrom(payload.getFormatedTableRowPayload());
         if (autoUpdateSchema) {
           if (appendClientInfo == null) {
             appendClientInfo = getAppendClientInfo(true, null);
@@ -549,7 +551,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                       Preconditions.checkStateNotNull(appendClientInfo)
                           .encodeUnknownFields(unknownFields, ignoreUnknownValues));
             } catch (TableRowToStorageApiProto.SchemaConversionException e) {
-              TableRow tableRow = appendClientInfo.toTableRow(payloadBytes);
               // TODO(24926, reuvenlax): We need to merge the unknown fields in! Currently we only
               // execute this
               // codepath when ignoreUnknownFields==true, so we should never hit this codepath.
@@ -557,8 +558,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               // 24926 is fixed, we need to merge the unknownFields back into the main row before
               // outputting to the
               // failed-rows consumer.
+              TableRow tableRow = appendClientInfo.toTableRow(payloadBytesFromFormatedFunction);
               org.joda.time.Instant timestamp = payload.getTimestamp();
               rowsSentToFailedRowsCollection.inc();
+              // Send the TableRow from withFormatFunctionOnFailure.
               failedRowsReceiver.outputWithTimestamp(
                   new BigQueryStorageApiInsertError(tableRow, e.toString()),
                   timestamp != null ? timestamp : elementTs);
@@ -567,6 +570,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           }
         }
         pendingMessages.add(payloadBytes);
+        pendingMessagesFromFormatFailureMethod.add(payloadBytesFromFormatedFunction);
         org.joda.time.Instant timestamp = payload.getTimestamp();
         pendingTimestamps.add(timestamp != null ? timestamp : elementTs);
       }
@@ -602,12 +606,13 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           for (int i = 0; i < inserts.getSerializedRowsCount(); ++i) {
             ByteString rowBytes = inserts.getSerializedRows(i);
             org.joda.time.Instant timestamp = insertTimestamps.get(i);
+            // get the failSafe element.
             TableRow failedRow =
                 TableRowToStorageApiProto.tableRowFromMessage(
                     DynamicMessage.parseFrom(
                         TableRowToStorageApiProto.wrapDescriptorProto(
                             getAppendClientInfo(true, null).getDescriptor()),
-                        rowBytes),
+                        pendingMessagesFromFormatFailureMethod.get(i)),
                     true);
             failedRowsReceiver.outputWithTimestamp(
                 new BigQueryStorageApiInsertError(
@@ -676,7 +681,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 Set<Integer> failedRowIndices = error.getRowIndexToErrorMessage().keySet();
                 for (int failedIndex : failedRowIndices) {
                   // Convert the message to a TableRow and send it to the failedRows collection.
-                  ByteString protoBytes = failedContext.protoRows.getSerializedRows(failedIndex);
+//                  ByteString protoBytes = failedContext.protoRows.getSerializedRows(failedIndex);
                   org.joda.time.Instant timestamp = failedContext.timestamps.get(failedIndex);
                   try {
                     TableRow failedRow =
@@ -685,7 +690,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                                 TableRowToStorageApiProto.wrapDescriptorProto(
                                     Preconditions.checkStateNotNull(appendClientInfo)
                                         .getDescriptor()),
-                                protoBytes),
+                                pendingMessagesFromFormatFailureMethod.get(failedIndex)),
                             true);
                     failedRowsReceiver.outputWithTimestamp(
                         new BigQueryStorageApiInsertError(
