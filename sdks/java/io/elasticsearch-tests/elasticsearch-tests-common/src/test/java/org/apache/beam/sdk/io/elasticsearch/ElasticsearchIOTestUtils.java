@@ -29,6 +29,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -341,7 +342,10 @@ class ElasticsearchIOTestUtils {
           && INVALID_DOCS_IDS.contains(i)) {
         data.add(String.format("{\"scientist\";\"%s\", \"id\":%s}", FAMOUS_SCIENTISTS[index], i));
       } else {
-        data.add(String.format("{\"scientist\":\"%s\", \"id\":%s}", FAMOUS_SCIENTISTS[index], i));
+        data.add(
+            String.format(
+                "{\"scientist\":\"%s\", \"id\":%s, \"@timestamp\" : \"%s\"}",
+                FAMOUS_SCIENTISTS[index], i, LocalDateTime.now().toString()));
       }
     }
     return data;

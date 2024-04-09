@@ -755,6 +755,16 @@ public class ElasticsearchIO {
   public abstract static class Read extends PTransform<PBegin, PCollection<String>> {
 
     private static final long MAX_BATCH_SIZE = 10000L;
+    private static final String SEARCH_AFTER_DEFAULT_SORT_PROPERTY = "@timestamp";
+    private static final String SEARCH_AFTER_SORT_TEMPLATE =
+        "\"sort\" : {"
+            + " \"%s\" : {"
+            + "  \"order\" : \"asc\", "
+            + "  \"format\" : \"strict_date_optional_time_nanos\""
+            + " }"
+            + "}";
+    private static final String SEARCH_AFTER_DEFAULT_SORT =
+        String.format(SEARCH_AFTER_SORT_TEMPLATE, SEARCH_AFTER_DEFAULT_SORT_PROPERTY);
 
     abstract @Nullable ConnectionConfiguration getConnectionConfiguration();
 
@@ -767,6 +777,10 @@ public class ElasticsearchIO {
     abstract long getBatchSize();
 
     abstract boolean getUsePITSearch();
+
+    abstract @Nullable String getPITSortConfig();
+
+    abstract @Nullable String getPITSortTimestampProperty();
 
     abstract Builder builder();
 
@@ -783,6 +797,10 @@ public class ElasticsearchIO {
       abstract Builder setBatchSize(long batchSize);
 
       abstract Builder setUsePITSearch(boolean usePIT);
+
+      abstract Builder setPITSortConfig(String pitConfig);
+
+      abstract Builder setPITSortTimestampProperty(String pitTimestampProperty);
 
       abstract Read build();
     }
@@ -895,7 +913,27 @@ public class ElasticsearchIO {
      * @return a {@link PTransform} reading data from Elasticsearch.
      */
     public Read withPointInTimeSearch() {
-      return builder().setUsePITSearch(true).setBatchSize(1000).build();
+      return builder()
+          .setUsePITSearch(true)
+          .setBatchSize(1000)
+          .setPITSortConfig(SEARCH_AFTER_DEFAULT_SORT)
+          .build();
+    }
+
+    public Read withPointInTimeSearchAndTimestampSortProperty(String timestampSortProperty) {
+      return builder()
+          .setUsePITSearch(true)
+          .setBatchSize(1000)
+          .setPITSortConfig(String.format(SEARCH_AFTER_SORT_TEMPLATE, timestampSortProperty))
+          .build();
+    }
+
+    public Read withPointInTimeSearchAndSortConfiguration(String sortConfiguration) {
+      return builder()
+          .setUsePITSearch(true)
+          .setBatchSize(1000)
+          .setPITSortConfig(sortConfiguration)
+          .build();
     }
 
     @Override
@@ -1262,7 +1300,6 @@ public class ElasticsearchIO {
 
   static class BoundedElasticsearchPITReader extends BoundedElasticsearchReader {
 
-    private String sortingProperty = "@timestamp";
     private String searchAfterProperty = "";
 
     public BoundedElasticsearchPITReader(BoundedElasticsearchSource source) {
@@ -1276,18 +1313,7 @@ public class ElasticsearchIO {
 
     @Override
     protected String createBaseQuery() {
-      String baseQuery = super.createBaseQuery();
-      if (sortingProperty.isEmpty()) {
-        return baseQuery;
-      }
-      String sortQuery =
-          "\"sort\" : {"
-              + " \"@timestamp\" : {"
-              + "  \"order\" : \"asc\", "
-              + "  \"format\" : \"strict_date_optional_time_nanos\""
-              + " }"
-              + "}";
-      return baseQuery + ", " + sortQuery;
+      return super.createBaseQuery() + ", " + source.spec.getPITSortConfig();
     }
 
     @Override
