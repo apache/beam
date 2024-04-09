@@ -21,6 +21,7 @@ import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.flink.translation.utils.SerdeUtils;
 import org.apache.beam.sdk.io.Source;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
@@ -67,7 +68,11 @@ public class FlinkSourceSplit<T> implements SourceSplit, Serializable {
 
   @Override
   public String toString() {
-    return String.format("[SplitIndex: %d, BeamSource: %s]", splitIndex, beamSplitSource);
+    return MoreObjects.toStringHelper(this)
+        .add("splitIndex", splitIndex)
+        .add("beamSource", beamSplitSource)
+        .add("splitState.isNull", splitState == null)
+        .toString();
   }
 
   public static <T> SimpleVersionedSerializer<FlinkSourceSplit<T>> serializer() {
