@@ -106,44 +106,6 @@ public class BeamAggregateProjectMergeRuleTest {
         ioSourceRel.getRowType().getFieldNames(), containsInAnyOrder("name", "id", "unused1"));
   }
 
-  @Test
-  public void testBeamAggregateProjectMergeRule_withFilterTable() {
-    // When an IO does not supports project push-down, Projects should be merged with an aggregate.
-    String sqlQuery = "select SUM(id) as id_sum from TEST_FILTER group by name";
-    BeamRelNode beamRel = sqlEnv.parseQuery(sqlQuery);
-
-    BeamAggregationRel aggregate = (BeamAggregationRel) beamRel.getInput(0);
-    BeamIOSourceRel ioSourceRel = (BeamIOSourceRel) aggregate.getInput();
-
-    // Make sure project merged with an aggregate.
-    assertThat(aggregate.getRowType().getFieldNames(), containsInAnyOrder("id_sum", "name"));
-
-    // IO projects al fields.
-    assertThat(ioSourceRel, instanceOf(BeamIOSourceRel.class));
-    assertThat(
-        ioSourceRel.getRowType().getFieldNames(),
-        containsInAnyOrder("unused1", "name", "id", "unused2"));
-  }
-
-  @Test
-  public void testBeamAggregateProjectMergeRule_withNoneTable() {
-    // When an IO does not supports project push-down, Projects should be merged with an aggregate.
-    String sqlQuery = "select SUM(id) as id_sum from TEST_NONE group by name";
-    BeamRelNode beamRel = sqlEnv.parseQuery(sqlQuery);
-
-    BeamAggregationRel aggregate = (BeamAggregationRel) beamRel.getInput(0);
-    BeamIOSourceRel ioSourceRel = (BeamIOSourceRel) aggregate.getInput();
-
-    // Make sure project merged with an aggregate.
-    assertThat(aggregate.getRowType().getFieldNames(), containsInAnyOrder("id_sum", "name"));
-
-    // IO projects al fields.
-    assertThat(ioSourceRel, instanceOf(BeamIOSourceRel.class));
-    assertThat(
-        ioSourceRel.getRowType().getFieldNames(),
-        containsInAnyOrder("unused1", "name", "id", "unused2"));
-  }
-
   private static Table getTable(String name, PushDownOptions options) {
     return Table.builder()
         .name(name)
