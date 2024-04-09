@@ -256,7 +256,8 @@ class MainTest(unittest.TestCase):
         config:
           fn: 'lambda x: x*x'
         input: {spec['transforms'][0]['__uuid__']}
-      output: {spec['transforms'][1]['__uuid__']}
+      output:
+        '__implicit_outputs__': {spec['transforms'][1]['__uuid__']}
     '''
     self.assertYaml(expected, result)
 
