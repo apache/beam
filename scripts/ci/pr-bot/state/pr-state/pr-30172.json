@@ -1,8 +1,8 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "java": "kennknowles",
-    "io": "chamikaramj",
+    "java": "robertwb",
+    "io": "Abacn",
     "bigtable": "igorbernstein2"
   },
   "nextAction": "Reviewers",
