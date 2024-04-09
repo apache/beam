@@ -905,10 +905,13 @@ public class ElasticsearchIO {
      * Configures the source to user Point In Time search iteration while reading data from
      * Elasticsearch. See <a
      * href="https://www.elastic.co/guide/en/elasticsearch/reference/current/point-in-time-api.html">
-     * Point in time search.</a> This iteration mode for searches does not have the same size
-     * constrains the Scroll API have (slice counts, batch size or how deep the iteration is). By
-     * default this iteration mode will use the {@code @timestamp} meta property on the indexed
-     * documents to consistently retrieve the data when failures occur on an specific read work.
+     * Point in time search</a>, using default settings. This iteration mode for searches does not
+     * have the same size constrains the Scroll API have (slice counts, batch size or how deep the
+     * iteration is). By default this iteration mode will use the {@code @timestamp} meta property
+     * on the indexed documents to consistently retrieve the data when failures occur on an specific
+     * read work.
+     *
+     * <p>When using PIT searches the provided query should not be enclosed in curly brackets.
      *
      * @return a {@link PTransform} reading data from Elasticsearch.
      */
@@ -920,6 +923,13 @@ public class ElasticsearchIO {
           .build();
     }
 
+    /**
+     * Similar to {@link #withPointInTimeSearch() the default PIT search} but setting an existing
+     * timestamp based property name which Elasticsearch will use to sort for the results.
+     *
+     * @param timestampSortProperty the property name in the contained documents.
+     * @return a {@link PTransform} reading data from Elasticsearch.
+     */
     public Read withPointInTimeSearchAndTimestampSortProperty(String timestampSortProperty) {
       return builder()
           .setUsePITSearch(true)
@@ -928,6 +938,14 @@ public class ElasticsearchIO {
           .build();
     }
 
+    /**
+     * Similar to {@link #withPointInTimeSearch() the default PIT search} but setting a specific
+     * sorting configuration which Elasticsearch will use to sort for the results.
+     *
+     * @param sortConfiguration the full sorting configuration to be sent to Elasticsearch while
+     *     iterating on the results.
+     * @return a {@link PTransform} reading data from Elasticsearch.
+     */
     public Read withPointInTimeSearchAndSortConfiguration(String sortConfiguration) {
       return builder()
           .setUsePITSearch(true)
@@ -2352,7 +2370,9 @@ public class ElasticsearchIO {
 
       abstract Builder setUseStatefulBatches(boolean useStatefulBatches);
 
-      /** @deprecated Use {@link #setMaxParallelRequests} instead. */
+      /**
+       * @deprecated Use {@link #setMaxParallelRequests} instead.
+       */
       @Deprecated
       abstract Builder setMaxParallelRequestsPerWindow(int maxParallelRequestsPerWindow);
 
