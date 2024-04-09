@@ -275,7 +275,7 @@ class ElasticsearchIOTestCommon implements Serializable {
             + "    \"scientist\" : {\n"
             + "      \"query\" : \"Einstein\"\n"
             + "    }\n"
-            + "  }\n"
+            + "   }\n"
             + "  }\n"
             + "}";
 
