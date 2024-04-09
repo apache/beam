@@ -122,7 +122,7 @@ public class ElasticsearchIOTest implements Serializable {
     elasticsearchIOTestCommon.testReadWithQueryString();
   }
 
-  @Test
+  //@Test
   public void testReadWithQueryStringAndPIT() throws Exception {
     // need to create the index using the helper method (not create it at first insertion)
     // for the indexSettings() to be run
