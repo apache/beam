@@ -46,14 +46,9 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
 public class IcebergWriteSchemaTransformProviderTest {
-
-  private static final Logger LOG =
-      LoggerFactory.getLogger(IcebergWriteSchemaTransformProviderTest.class);
 
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
@@ -98,9 +93,7 @@ public class IcebergWriteSchemaTransformProviderTest {
 
     PAssert.that(result).satisfies(new VerifyOutputs(identifier, "append"));
 
-    LOG.info("Executing pipeline");
     testPipeline.run().waitUntilFinish();
-    LOG.info("Done running pipeline");
 
     List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
 
