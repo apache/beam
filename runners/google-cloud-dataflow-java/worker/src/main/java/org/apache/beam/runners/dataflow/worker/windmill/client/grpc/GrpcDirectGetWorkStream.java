@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -39,8 +40,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
-import org.apache.beam.runners.dataflow.worker.windmill.work.ProcessWorkItemClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkProcessingContext;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
@@ -56,7 +57,7 @@ import org.slf4j.LoggerFactory;
  * Implementation of {@link GetWorkStream} that passes along a specific {@link
  * org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream} and {@link
  * org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream} to the
- * processing context {@link ProcessWorkItemClient}. During the work item processing lifecycle,
+ * processing context {@link WorkProcessingContext}. During the work item processing lifecycle,
  * these direct streams are used to facilitate these RPC calls to specific backend workers.
  */
 @Internal
@@ -81,6 +82,7 @@ public final class GrpcDirectGetWorkStream
   private final ThrottleTimer getWorkThrottleTimer;
   private final Supplier<GetDataStream> getDataStream;
   private final Supplier<WorkCommitter> workCommitter;
+
   /**
    * Map of stream IDs to their buffers. Used to aggregate streaming gRPC response chunks as they
    * come in. Once all chunks for a response has been received, the chunk is processed and the
@@ -300,13 +302,8 @@ public final class GrpcDirectGetWorkStream
       try {
         WorkItem workItem = WorkItem.parseFrom(data.newInput());
         updatePendingResponseBudget(1, workItem.getSerializedSize());
-        Preconditions.checkNotNull(metadata);
         workItemProcessorFn.processWork(
-            metadata.computationId(),
-            metadata.inputDataWatermark(),
-            metadata.synchronizedProcessingTime(),
-            ProcessWorkItemClient.create(
-                WorkItem.parseFrom(data.newInput()), getDataStream.get(), workCommitter.get()),
+            createWorkProcessingContext(workItem),
             // After the work item is successfully queued or dropped by ActiveWorkState, remove it
             // from the pendingResponseBudget.
             queuedWorkItem -> updatePendingResponseBudget(-1, -workItem.getSerializedSize()),
@@ -316,6 +313,24 @@ public final class GrpcDirectGetWorkStream
       }
       workTimingInfosTracker.reset();
       data = ByteString.EMPTY;
+    }
+
+    private WorkProcessingContext createWorkProcessingContext(WorkItem workItem) {
+      Preconditions.checkNotNull(metadata);
+      String computationId = metadata.computationId();
+      return WorkProcessingContext.builder()
+          .setWorkItem(workItem)
+          .setComputationId(computationId)
+          .setKeyedDataFetcher(
+              keyedGetDataRequest ->
+                  Optional.ofNullable(
+                      getDataStream.get().requestKeyedData(computationId, keyedGetDataRequest)))
+          .setWorkCommitter(workCommitter.get()::commit)
+          .setInputDataWatermark(metadata.inputDataWatermark())
+          .setSynchronizedProcessingTime(metadata.synchronizedProcessingTime())
+          .setOutputDataWatermark(
+              WindmillTimeUtils.windmillToHarnessWatermark(workItem.getOutputDataWatermark()))
+          .build();
     }
   }
 }

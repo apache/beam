@@ -17,13 +17,29 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
-public class StreamingApplianceWorkerHarness implements StreamingWorkerHarness {
-  @Override
-  public void start() {}
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-  @Override
-  public void stop() {}
+final class ExecutorUtils {
+  private static final Logger LOG = LoggerFactory.getLogger(ExecutorUtils.class);
 
-  @Override
-  public void startStatusPages() {}
+  static void shutdownExecutors(ExecutorService... executors) {
+    for (ExecutorService executor : executors) {
+      executor.shutdown();
+    }
+
+    for (ExecutorService executor : executors) {
+      boolean isShutdown = false;
+      try {
+        isShutdown = executor.awaitTermination(5, TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        LOG.warn("Error shutting down executor.", e);
+      }
+      if (!isShutdown) {
+        executor.shutdownNow();
+      }
+    }
+  }
 }

@@ -28,7 +28,6 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.dataflow.worker.ActiveMessageMetadata;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
@@ -38,16 +37,14 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribut
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown.ActiveElementMetadata;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown.Distribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
-import org.apache.beam.runners.dataflow.worker.windmill.work.ProcessWorkItemClient;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkProcessingContext;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 @NotThreadSafe
 public class Work implements Runnable {
-  private final @Nullable ProcessWorkItemClient processWorkItemClient;
-  private final WorkItem workItem;
+  private final WorkProcessingContext workProcessingContext;
   private final Supplier<Instant> clock;
   private final Instant startTime;
   private final Map<Windmill.LatencyAttribution.State, Duration> totalDurationPerState;
@@ -58,18 +55,17 @@ public class Work implements Runnable {
   private volatile boolean isFailed;
 
   private Work(
-      @Nullable ProcessWorkItemClient processWorkItemClient,
-      WorkItem workItem,
+      WorkProcessingContext workProcessingContext,
       Supplier<Instant> clock,
       Consumer<Work> processWorkFn) {
-    this.processWorkItemClient = processWorkItemClient;
-    this.workItem = workItem;
+    this.workProcessingContext = workProcessingContext;
     this.clock = clock;
     this.processWorkFn = processWorkFn;
     this.startTime = clock.get();
     this.totalDurationPerState = new EnumMap<>(Windmill.LatencyAttribution.State.class);
     this.currentState = TimedState.initialState(startTime);
     this.isFailed = false;
+    WorkItem workItem = workProcessingContext.workItem();
     this.id =
         WorkId.builder()
             .setCacheToken(workItem.getCacheToken())
@@ -79,34 +75,28 @@ public class Work implements Runnable {
   }
 
   public static Work create(
-      WorkItem workItem,
+      WorkProcessingContext workProcessingContext,
       Supplier<Instant> clock,
       Collection<Windmill.LatencyAttribution> getWorkStreamLatencies,
       Consumer<Work> processWorkFn) {
-    Work work = new Work(null, workItem, clock, processWorkFn);
+    Work work = new Work(workProcessingContext, clock, processWorkFn);
     work.recordGetWorkStreamLatencies(getWorkStreamLatencies);
     return work;
   }
 
-  public static Work create(
-      ProcessWorkItemClient processWorkItemClient,
+  public static Work createForAppliance(
+      WorkProcessingContext workProcessingContext,
       Supplier<Instant> clock,
-      Collection<Windmill.LatencyAttribution> getWorkStreamLatencies,
       Consumer<Work> processWorkFn) {
-    Work work =
-        new Work(
-            Preconditions.checkNotNull(processWorkItemClient),
-            processWorkItemClient.workItem(),
-            clock,
-            processWorkFn);
-    work.recordGetWorkStreamLatencies(getWorkStreamLatencies);
-    return work;
+    return new Work(workProcessingContext, clock, processWorkFn);
   }
 
   private static String buildLatencyTrackingId(WorkItem workItem) {
-    return Long.toHexString(workItem.getShardingKey())
-        + '-'
-        + Long.toHexString(workItem.getWorkToken());
+    StringBuilder workIdBuilder = new StringBuilder(33);
+    workIdBuilder.append(Long.toHexString(workItem.getShardingKey()));
+    workIdBuilder.append('-');
+    workIdBuilder.append(Long.toHexString(workItem.getWorkToken()));
+    return workIdBuilder.toString();
   }
 
   private static LatencyAttribution.Builder addActiveLatencyBreakdownToBuilder(
@@ -154,11 +144,7 @@ public class Work implements Runnable {
   }
 
   public WorkItem getWorkItem() {
-    return workItem;
-  }
-
-  public ProcessWorkItemClient getProcessWorkItemClient() {
-    return Preconditions.checkNotNull(processWorkItemClient);
+    return workProcessingContext.workItem();
   }
 
   public Instant getStartTime() {
@@ -167,6 +153,10 @@ public class Work implements Runnable {
 
   public State getState() {
     return currentState.state();
+  }
+
+  public WorkProcessingContext getProcessingContext() {
+    return workProcessingContext;
   }
 
   public void setState(State state) {

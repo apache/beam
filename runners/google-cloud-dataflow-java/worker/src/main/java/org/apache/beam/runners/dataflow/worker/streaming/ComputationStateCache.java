@@ -15,21 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.streaming.computations;
+package org.apache.beam.runners.dataflow.worker.streaming;
 
+import static java.util.stream.Collectors.toMap;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet.toImmutableSet;
 
 import java.io.PrintWriter;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,6 +80,12 @@ public final class ComputationStateCache implements StatusDataProvider {
         .collect(toImmutableList());
   }
 
+  public ImmutableSet<String> knownComputationIds() {
+    return getAllComputations().stream()
+        .map(ComputationState::getComputationId)
+        .collect(toImmutableSet());
+  }
+
   /** Returns the current active {@link GetWorkBudget} across all known computations. */
   public GetWorkBudget totalCurrentActiveGetWorkBudget() {
     return computationCache.asMap().values().stream()
@@ -84,22 +95,22 @@ public final class ComputationStateCache implements StatusDataProvider {
         .reduce(GetWorkBudget.noBudget(), GetWorkBudget::apply);
   }
 
+  @VisibleForTesting
+  public void putAll(Map<String, ComputationState> computationStates) {
+    Map<String, Optional<ComputationState>> asCacheEntries =
+        computationStates.entrySet().stream()
+            .collect(toMap(Map.Entry::getKey, entry -> Optional.ofNullable(entry.getValue())));
+    computationCache.putAll(asCacheEntries);
+  }
+
   /**
    * Close all {@link ComputationState}(s) present in the cache, then invalidate the entire cache.
    */
-  public void close() {
+  public void clearAndCloseAll() {
     computationCache.asMap().values().stream()
         .filter(Optional::isPresent)
         .map(Optional::get)
-        .forEach(
-            computationState -> {
-              try {
-                computationState.close();
-              } catch (Exception e) {
-                LOG.warn(
-                    "Exception={} while shutting down computationState={} ", e, computationState);
-              }
-            });
+        .forEach(ComputationState::close);
     computationCache.invalidateAll();
   }
 

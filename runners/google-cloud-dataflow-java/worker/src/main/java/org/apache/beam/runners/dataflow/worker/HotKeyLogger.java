@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.client.util.Clock;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -70,7 +71,7 @@ public class HotKeyLogger {
   }
 
   /** Logs a detection of the hot key every 5 minutes with the given key. */
-  public void logHotKeyDetection(String userStepName, Duration hotKeyAge, Object hotkey) {
+  public void logHotKeyDetection(String userStepName, Duration hotKeyAge, @Nullable Object hotkey) {
     if (isThrottled()) {
       return;
     }

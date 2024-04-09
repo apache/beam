@@ -118,6 +118,9 @@ public final class StreamingEngineConfigLoader
 
   @Override
   public Optional<StreamingEnginePipelineConfig> getComputationConfig(String computationId) {
+    Preconditions.checkArgument(
+        !computationId.isEmpty(),
+        "computationId is empty. Cannot fetch computation config without a computationId.");
     return getComputationConfigInternal(computationId);
   }
 

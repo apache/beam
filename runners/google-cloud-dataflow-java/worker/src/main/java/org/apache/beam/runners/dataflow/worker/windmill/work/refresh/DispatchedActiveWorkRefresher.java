@@ -25,16 +25,16 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
-import org.apache.beam.runners.dataflow.worker.streaming.computations.ComputationState;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-final class DispatchedActiveWorkRefresher extends ActiveWorkRefresher {
+public final class DispatchedActiveWorkRefresher extends ActiveWorkRefresher {
 
   private final Consumer<Map<String, List<Windmill.HeartbeatRequest>>> activeWorkRefresherFn;
 
-  DispatchedActiveWorkRefresher(
+  public DispatchedActiveWorkRefresher(
       Supplier<Instant> clock,
       int activeWorkRefreshPeriodMillis,
       int stuckCommitDurationMillis,
@@ -52,6 +52,24 @@ final class DispatchedActiveWorkRefresher extends ActiveWorkRefresher {
     this.activeWorkRefresherFn = activeWorkRefresherFn;
   }
 
+  public static DispatchedActiveWorkRefresher create(
+      Supplier<Instant> clock,
+      int activeWorkRefreshPeriodMillis,
+      int stuckCommitDurationMillis,
+      Supplier<Collection<ComputationState>> computations,
+      DataflowExecutionStateSampler sampler,
+      Consumer<Map<String, List<Windmill.HeartbeatRequest>>> activeWorkRefresherFn,
+      ScheduledExecutorService scheduledExecutorService) {
+    return new DispatchedActiveWorkRefresher(
+        clock,
+        activeWorkRefreshPeriodMillis,
+        stuckCommitDurationMillis,
+        computations,
+        sampler,
+        activeWorkRefresherFn,
+        scheduledExecutorService);
+  }
+
   @Override
   protected void refreshActiveWork() {
     Map<String, List<Windmill.HeartbeatRequest>> heartbeats = new HashMap<>();
@@ -60,7 +78,8 @@ final class DispatchedActiveWorkRefresher extends ActiveWorkRefresher {
     for (ComputationState computationState : computations.get()) {
       heartbeats.put(
           computationState.getComputationId(),
-          computationState.getKeyHeartbeats(refreshDeadline, sampler));
+          HeartbeatRequests.getRefreshableKeyHeartbeats(
+              computationState.currentActiveWorkReadOnly(), refreshDeadline, sampler));
     }
 
     activeWorkRefresherFn.accept(heartbeats);

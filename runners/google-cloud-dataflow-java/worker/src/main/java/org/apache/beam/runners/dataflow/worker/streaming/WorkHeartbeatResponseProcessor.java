@@ -21,10 +21,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import org.apache.beam.runners.dataflow.worker.streaming.computations.ComputationState;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatResponse;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 
@@ -36,11 +37,23 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multim
 public final class WorkHeartbeatResponseProcessor
     implements Consumer<List<ComputationHeartbeatResponse>> {
   /** Fetches a {@link ComputationState} for a computationId. */
-  private final Function<String, Optional<ComputationState>> computationStateFetcher;
+  private @Nullable Function<String, Optional<ComputationState>> computationStateFetcher;
 
   public WorkHeartbeatResponseProcessor(
       /* Fetches a {@link ComputationState} for a String computationId. */
       Function<String, Optional<ComputationState>> computationStateFetcher) {
+    this.computationStateFetcher = computationStateFetcher;
+  }
+
+  public WorkHeartbeatResponseProcessor() {
+    this.computationStateFetcher = null;
+  }
+
+  public void setComputationStateFetcher(
+      Function<String, Optional<ComputationState>> computationStateFetcher) {
+    Preconditions.checkState(
+        this.computationStateFetcher == null,
+        "Cannot set computationStateFetcher to a new value once it has been set.");
     this.computationStateFetcher = computationStateFetcher;
   }
 
@@ -61,7 +74,7 @@ public final class WorkHeartbeatResponseProcessor
         }
       }
 
-      computationStateFetcher
+      Preconditions.checkNotNull(computationStateFetcher)
           .apply(computationHeartbeatResponse.getComputationId())
           .ifPresent(state -> state.failWork(failedWork));
     }

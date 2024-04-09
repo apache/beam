@@ -15,21 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
+package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
-import com.google.auto.value.AutoValue;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
+public interface StreamingStatusPages {
+  void start();
 
-@AutoValue
-public abstract class DirectHeartbeatRequest {
+  void stop();
 
-  public static DirectHeartbeatRequest create(
-      GetDataStream stream, HeartbeatRequest heartbeatRequest) {
-    return new AutoValue_DirectHeartbeatRequest(stream, heartbeatRequest);
-  }
-
-  public abstract GetDataStream stream();
-
-  public abstract HeartbeatRequest heartbeatRequest();
+  void scheduleStatusPageDump(
+      String getPeriodicStatusPageOutputDirectory, String workerId, long delay);
 }

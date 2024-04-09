@@ -41,7 +41,7 @@ public class MetricsLoggerTest {
             MonitoringInfoConstants.Urns.ELEMENT_COUNT,
             Collections.singletonMap("name", "histogram"));
 
-    MetricsLogger logger = new MetricsLogger(null);
+    MetricsLogger logger = MetricsLogger.createUnboundedMetricsLogger();
     logger.getCounter(cName).inc(2L);
     // Set buckets counts to: [0,1,1,,0,0,...]
     logger.getHistogram(hName, bucketType).update(1);

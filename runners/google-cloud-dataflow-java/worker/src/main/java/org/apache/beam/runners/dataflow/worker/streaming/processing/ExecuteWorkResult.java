@@ -15,22 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.streaming.harness;
+package org.apache.beam.runners.dataflow.worker.streaming.processing;
 
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationStateCache;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import com.google.auto.value.AutoValue;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 
-public interface StreamingWorkerHarness {
+/** Value class that represents the result of executing user DoFns. */
+@AutoValue
+public abstract class ExecuteWorkResult {
+  public static ExecuteWorkResult create(
+      Windmill.WorkItemCommitRequest.Builder commitWorkRequest, long stateBytesRead) {
+    return new AutoValue_ExecuteWorkResult(commitWorkRequest, stateBytesRead);
+  }
 
-  void start();
+  public abstract Windmill.WorkItemCommitRequest.Builder commitWorkRequest();
 
-  void stop();
-
-  void startStatusPages();
-
-  @VisibleForTesting
-  void requestWorkerUpdate();
-
-  @VisibleForTesting
-  ComputationStateCache getComputationStateCache();
+  public abstract long stateBytesRead();
 }

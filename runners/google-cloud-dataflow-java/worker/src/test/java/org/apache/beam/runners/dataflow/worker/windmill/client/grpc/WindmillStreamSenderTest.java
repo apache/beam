@@ -63,12 +63,7 @@ public class WindmillStreamSenderTest {
                       .build())
               .build());
   private final WorkItemProcessor workItemProcessor =
-      (computation,
-          inputDataWatermark,
-          synchronizedProcessingTime,
-          workItem,
-          ackQueuedWorkItem,
-          getWorkStreamLatencies) -> {};
+      (workProcessingContext, ackWorkItemQueued, getWorkStreamLatencies) -> {};
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private ManagedChannel inProcessChannel;
   private CloudWindmillServiceV1Alpha1Stub stub;

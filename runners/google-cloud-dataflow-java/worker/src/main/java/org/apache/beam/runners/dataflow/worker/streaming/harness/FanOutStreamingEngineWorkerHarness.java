@@ -21,7 +21,6 @@ import static org.apache.beam.runners.dataflow.DataflowRunner.hasExperiment;
 import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.remoteChannel;
 
 import com.google.api.services.dataflow.model.MapTask;
-import com.google.auto.value.AutoValue;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -53,7 +52,6 @@ import org.apache.beam.runners.dataflow.worker.SinkRegistry;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
 import org.apache.beam.runners.dataflow.worker.WindmillComputationKey;
 import org.apache.beam.runners.dataflow.worker.WindmillKeyedWorkItem;
-import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.WorkUnitClient;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
@@ -65,18 +63,19 @@ import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationStateCache;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.streaming.KeyCommitTooLargeException;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
+import org.apache.beam.runners.dataflow.worker.streaming.StreamingEngineComputationStateCacheLoader;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
-import org.apache.beam.runners.dataflow.worker.streaming.computations.ComputationState;
-import org.apache.beam.runners.dataflow.worker.streaming.computations.ComputationStateCache;
-import org.apache.beam.runners.dataflow.worker.streaming.computations.StreamingEngineComputationStateCacheLoader;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingConfigLoader;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEngineConfigLoader;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.processing.ExecuteWorkResult;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
@@ -88,6 +87,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.CompleteCommit;
@@ -101,10 +101,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.Channe
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingRemoteStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
-import org.apache.beam.runners.dataflow.worker.windmill.state.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
-import org.apache.beam.runners.dataflow.worker.windmill.work.ProcessWorkItemClient;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkProcessingContext;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributors;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
@@ -118,6 +117,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
@@ -131,12 +131,16 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Streaming Engine worker harness that handles GetWork, GetData, and CommitWork RPC fan out from a
+ * single user worker harness to multiple backend workers on the Streaming Engine backend.
+ */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public final class StreamingEngineDirectPathWorkerHarness implements StreamingWorkerHarness {
+public final class FanOutStreamingEngineWorkerHarness implements StreamingWorkerHarness {
   private static final Logger LOG =
-      LoggerFactory.getLogger(StreamingEngineDirectPathWorkerHarness.class);
+      LoggerFactory.getLogger(FanOutStreamingEngineWorkerHarness.class);
   // Controls processing parallelism. Maximum number of threads for processing.  Currently, each
   // thread processes one key at a time.
   private static final int MAX_PROCESSING_THREADS = 300;
@@ -176,7 +180,7 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
   private final AtomicBoolean running;
   private final SideInputStateFetcher sideInputStateFetcher;
   private final DataflowWorkerHarnessOptions options;
-  private final GetDataClient getDataClient;
+  //  private final GetDataClient getDataClient;
 
   // Map from stage name to StageInfo containing metrics container registry and per stage
   // counters.
@@ -203,7 +207,7 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
   // Possibly overridden by streaming engine config.
   private final AtomicInteger maxWorkItemCommitBytes;
 
-  private StreamingEngineDirectPathWorkerHarness(
+  private FanOutStreamingEngineWorkerHarness(
       DataflowWorkerHarnessOptions options,
       AtomicBoolean running,
       JobHeader jobHeader,
@@ -238,7 +242,7 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
     this.stateNameMap = stateNameMap;
     this.workUnitExecutor = workUnitExecutor;
     this.options = options;
-    this.getDataClient = getDataClient;
+    //    this.getDataClient = getDataClient;
     this.stageInfoMap = stageInfoMap;
     this.memoryMonitor = memoryMonitor;
     this.memoryMonitorWorker =
@@ -252,7 +256,7 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
             ? Long.MAX_VALUE
             : MAX_SINK_BYTES;
     this.readerCache = readerCache;
-    this.mapTaskToNetwork = StreamingEnvironment.mapTaskToBaseNetworkFnInstance();
+    this.mapTaskToNetwork = StreamingWorkerEnvironment.mapTaskToBaseNetworkFnInstance();
     this.clock = clock;
     this.mapTaskExecutorFactory = mapTaskExecutorFactory;
     this.hotKeyLogger = hotKeyLogger;
@@ -296,9 +300,9 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
                 CHANNELZ_PATH, options, streamingEngineClient::currentWindmillEndpoints),
             stateCache,
             computationStateCache,
-            streamingEngineClient,
+            streamingEngineClient::currentActiveCommitBytes,
             windmillStreamFactory,
-            getDataClient,
+            getDataClient::printHtml,
             workUnitExecutor);
     this.workerStatusReporter =
         StreamingWorkerStatusReporter.create(
@@ -320,9 +324,9 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
     LOG.debug("directPathEnabled: {}", true);
   }
 
-  public static StreamingEngineDirectPathWorkerHarness fromOptions(
+  public static FanOutStreamingEngineWorkerHarness fromOptions(
       DataflowWorkerHarnessOptions options) {
-    long clientId = StreamingEnvironment.newClientId();
+    long clientId = StreamingWorkerEnvironment.newClientId();
     MemoryMonitor memoryMonitor = MemoryMonitor.fromOptions(options);
     ConcurrentMap<String, String> stateNameMap = new ConcurrentHashMap<>();
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
@@ -344,7 +348,7 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
     GrpcDispatcherClient grpcDispatcherClient = GrpcDispatcherClient.create(windmillStubFactory);
     Duration maxBackoff =
         options.getLocalWindmillHostport() != null
-            ? StreamingEnvironment.localHostMaxBackoff()
+            ? StreamingWorkerEnvironment.localHostMaxBackoff()
             : Duration.standardSeconds(30);
     JobHeader jobHeader = jobHeader(options, clientId);
     GrpcWindmillStreamFactory windmillStreamFactory =
@@ -398,7 +402,7 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
 
     DataflowExecutionStateSampler sampler = DataflowExecutionStateSampler.instance();
     int stuckCommitDurationMillis = Math.max(options.getStuckCommitDurationMillis(), 0);
-    return new StreamingEngineDirectPathWorkerHarness(
+    return new FanOutStreamingEngineWorkerHarness(
         options,
         isRunning,
         jobHeader,
@@ -421,7 +425,7 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
             stuckCommitDurationMillis,
             computationStateCache::getAllComputations,
             sampler,
-            getDataClient::refreshActiveWork),
+            getDataClient::refreshActiveWorkWithFanOut),
         failureTracker,
         WorkFailureProcessor.create(
             workExecutor,
@@ -613,6 +617,8 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
               + "status pages will not be periodically dumped. "
               + "If this was not intended check pipeline options.");
     }
+
+    StreamingWorkerEnvironment.enableBigQueryMetrics(options);
   }
 
   @Override
@@ -635,28 +641,23 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
         memoryMonitorWorker.awaitTermination(300, TimeUnit.SECONDS);
       }
       workUnitExecutor.shutdown();
-      computationStateCache.close();
+      computationStateCache.clearAndCloseAll();
       workerStatusReporter.stop();
     } catch (Exception e) {
       LOG.warn("Exception while shutting down: ", e);
     }
   }
 
+  @Override
+  public void requestWorkerUpdate() {
+    workerStatusReporter.reportWorkerUpdates();
+  }
+
   private void scheduleWorkItemDirectPath(
-      String computationId,
-      @Nullable Instant inputDataWatermark,
-      @Nullable Instant synchronizedProcessingTime,
-      ProcessWorkItemClient wrappedWorkItem,
+      WorkProcessingContext workProcessingContext,
       Consumer<Windmill.WorkItem> ackWorkItemQueued,
       Collection<Windmill.LatencyAttribution> getWorkStreamLatencies) {
-    Preconditions.checkNotNull(inputDataWatermark);
-    Windmill.WorkItem workItem = wrappedWorkItem.workItem();
-    // May be null if output watermark not yet known.
-    @Nullable
-    Instant outputDataWatermark =
-        WindmillTimeUtils.windmillToHarnessWatermark(workItem.getOutputDataWatermark());
-    Preconditions.checkState(
-        outputDataWatermark == null || !outputDataWatermark.isAfter(inputDataWatermark));
+    String computationId = workProcessingContext.computationId();
     ComputationState computationState =
         computationStateCache
             .getComputationState(computationId)
@@ -664,22 +665,22 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
                 () ->
                     new IllegalStateException(
                         "No matching computation state for computationId=" + computationId));
-    Work scheduledWork =
+
+    computationState.activateWork(
+        workProcessingContext.shardedKey(),
         Work.create(
-            wrappedWorkItem,
+            workProcessingContext,
             clock,
             getWorkStreamLatencies,
-            work ->
-                directPathProcessWork(
-                    computationState,
-                    inputDataWatermark,
-                    outputDataWatermark,
-                    synchronizedProcessingTime,
-                    work,
-                    wrappedWorkItem));
-    computationState.activateWork(
-        ShardedKey.create(workItem.getKey(), workItem.getShardingKey()), scheduledWork);
-    ackWorkItemQueued.accept(workItem);
+            work -> directPathProcessWork(computationState, work)));
+
+    ackWorkItemQueued.accept(workProcessingContext.workItem());
+  }
+
+  @VisibleForTesting
+  @Override
+  public ComputationStateCache getComputationStateCache() {
+    return computationStateCache;
   }
 
   /**
@@ -739,13 +740,7 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
         .setCacheToken(workItem.getCacheToken());
   }
 
-  private void directPathProcessWork(
-      final ComputationState computationState,
-      final Instant inputDataWatermark,
-      final @Nullable Instant outputDataWatermark,
-      final @Nullable Instant synchronizedProcessingTime,
-      final Work work,
-      final ProcessWorkItemClient processWorkItemClient) {
+  private void directPathProcessWork(ComputationState computationState, Work work) {
     final Windmill.WorkItem workItem = work.getWorkItem();
     final String computationId = computationState.getComputationId();
     final ByteString key = workItem.getKey();
@@ -760,7 +755,7 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
     if (isPipelineBeingDrained(
         work,
         initializeOutputBuilder(key, workItem),
-        processWorkItemClient::queueCommit,
+        work.getProcessingContext()::queueCommit,
         computationState)) {
       return;
     }
@@ -777,15 +772,7 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
         throw new WorkItemCancelledException(workItem.getShardingKey());
       }
 
-      ExecuteWorkResult executeWorkResult =
-          executeWork(
-              work,
-              stageInfo,
-              mapTask,
-              computationState,
-              inputDataWatermark,
-              outputDataWatermark,
-              synchronizedProcessingTime);
+      ExecuteWorkResult executeWorkResult = executeWork(work, stageInfo, mapTask, computationState);
 
       Windmill.WorkItemCommitRequest.Builder outputBuilder = executeWorkResult.commitWorkRequest();
 
@@ -813,7 +800,7 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
         commitRequest = buildWorkItemTruncationRequest(key, workItem, estimatedCommitSize);
       }
 
-      processWorkItemClient.queueCommit(Commit.create(commitRequest, computationState, work));
+      work.getProcessingContext().queueCommit(Commit.create(commitRequest, computationState, work));
       recordProcessingStats(outputBuilder, workItem, executeWorkResult);
       LOG.debug("Processing done for work token: {}", workItem.getWorkToken());
     } catch (Throwable t) {
@@ -864,16 +851,8 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
   }
 
   private ExecuteWorkResult executeWork(
-      Work work,
-      StageInfo stageInfo,
-      MapTask mapTask,
-      ComputationState computationState,
-      Instant inputDataWatermark,
-      @Nullable Instant outputDataWatermark,
-      @Nullable Instant synchronizedProcessingTime)
+      Work work, StageInfo stageInfo, MapTask mapTask, ComputationState computationState)
       throws Exception {
-    ProcessWorkItemClient processWorkItemClient = work.getProcessWorkItemClient();
-    String computationId = computationState.getComputationId();
     Windmill.WorkItem workItem = work.getWorkItem();
     ByteString key = workItem.getKey();
     Windmill.WorkItemCommitRequest.Builder outputBuilder = initializeOutputBuilder(key, workItem);
@@ -883,13 +862,7 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
 
     try {
       WindmillStateReader stateReader =
-          createWindmillStateReader(
-              key,
-              work,
-              (Windmill.KeyedGetDataRequest request) ->
-                  Optional.ofNullable(
-                      getDataClient.getState(
-                          processWorkItemClient.getDataStream(), computationId, request)));
+          createWindmillStateReader(key, work, work.getProcessingContext().keyedDataFetcher());
       SideInputStateFetcher localSideInputStateFetcher = sideInputStateFetcher.byteTrackingView();
 
       // If the read output KVs, then we can decode Windmill's byte key into userland
@@ -923,9 +896,9 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
           .start(
               executionKey,
               workItem,
-              inputDataWatermark,
-              outputDataWatermark,
-              synchronizedProcessingTime,
+              work.getProcessingContext().inputDataWatermark(),
+              work.getProcessingContext().outputDataWatermark(),
+              work.getProcessingContext().synchronizedProcessingTime(),
               stateReader,
               localSideInputStateFetcher,
               outputBuilder,
@@ -985,7 +958,7 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
         sinkRegistry,
         context,
         streamingCounters.pendingDeltaCounters(),
-        StreamingEnvironment.idGeneratorInstance());
+        StreamingWorkerEnvironment.idGeneratorInstance());
   }
 
   private StreamingModeExecutionContext createExecutionContext(
@@ -1029,7 +1002,7 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
       Work work,
       ComputationState computationState,
       String counterName) {
-    Optional<ExecutionState> existingExecutionState = computationState.getExecutionState();
+    Optional<ExecutionState> existingExecutionState = computationState.acquireExecutionState();
     if (existingExecutionState.isPresent()) {
       return existingExecutionState.get();
     }
@@ -1114,18 +1087,5 @@ public final class StreamingEngineDirectPathWorkerHarness implements StreamingWo
     outputBuilder.setExceedsMaxWorkItemCommitBytes(true);
     outputBuilder.setEstimatedWorkItemCommitBytes(estimatedCommitSize);
     return outputBuilder.build();
-  }
-
-  @AutoValue
-  abstract static class ExecuteWorkResult {
-    private static ExecuteWorkResult create(
-        Windmill.WorkItemCommitRequest.Builder commitWorkRequest, long stateBytesRead) {
-      return new AutoValue_StreamingEngineDirectPathWorkerHarness_ExecuteWorkResult(
-          commitWorkRequest, stateBytesRead);
-    }
-
-    abstract Windmill.WorkItemCommitRequest.Builder commitWorkRequest();
-
-    abstract long stateBytesRead();
   }
 }

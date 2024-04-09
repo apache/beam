@@ -257,3 +257,4 @@ checkstyleMain.enabled = false
 checkstyleTest.enabled = false
 //TODO(https://github.com/apache/beam/issues/19119): javadoc task should be enabled in the future.
 javadoc.enabled = false
+test.outputs.upToDateWhen {false}

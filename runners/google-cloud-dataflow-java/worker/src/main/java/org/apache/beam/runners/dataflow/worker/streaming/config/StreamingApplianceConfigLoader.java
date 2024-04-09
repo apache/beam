@@ -23,6 +23,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetConfigResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 @Internal
 public final class StreamingApplianceConfigLoader
@@ -44,6 +45,9 @@ public final class StreamingApplianceConfigLoader
 
   @Override
   public Optional<GetConfigResponse> getComputationConfig(String computationId) {
+    Preconditions.checkArgument(
+        !computationId.isEmpty(),
+        "computationId is empty. Cannot fetch computation config without a computationId.");
     GetConfigResponse getConfigResponse =
         windmillServer.getConfig(
             Windmill.GetConfigRequest.newBuilder().addComputations(computationId).build());

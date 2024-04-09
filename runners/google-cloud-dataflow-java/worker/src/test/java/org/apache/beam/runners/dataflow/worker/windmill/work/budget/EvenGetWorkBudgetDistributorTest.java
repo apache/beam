@@ -48,9 +48,8 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class EvenGetWorkBudgetDistributorTest {
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private ManagedChannel inProcessChannel;
   private CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub stub;
 
@@ -259,12 +258,7 @@ public class EvenGetWorkBudgetDistributorTest {
                     .setWorkerId("worker")
                     .build())
             .build(),
-        (computation,
-            inputDataWatermark,
-            synchronizedProcessingTime,
-            workItem,
-            ackQueuedWorkItem,
-            getWorkStreamLatencies) -> {},
+        (workProcessingContext, ackWorkItemQueued, getWorkStreamLatencies) -> {},
         ignored -> mock(WorkCommitter.class),
         ignored -> {});
   }

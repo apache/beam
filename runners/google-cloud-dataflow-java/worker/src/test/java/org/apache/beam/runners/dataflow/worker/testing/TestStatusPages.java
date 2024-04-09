@@ -15,22 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.streaming.harness;
+package org.apache.beam.runners.dataflow.worker.testing;
 
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationStateCache;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingStatusPages;
 
-public interface StreamingWorkerHarness {
+public final class TestStatusPages implements StreamingStatusPages {
+  @Override
+  public void start() {}
 
-  void start();
+  @Override
+  public void stop() {}
 
-  void stop();
-
-  void startStatusPages();
-
-  @VisibleForTesting
-  void requestWorkerUpdate();
-
-  @VisibleForTesting
-  ComputationStateCache getComputationStateCache();
+  @Override
+  public void scheduleStatusPageDump(
+      String getPeriodicStatusPageOutputDirectory, String workerId, long delay) {}
 }

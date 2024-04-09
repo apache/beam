@@ -27,20 +27,24 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
-import org.apache.beam.runners.dataflow.worker.streaming.computations.ComputationState;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
+/**
+ * {@link ActiveWorkRefresher} that will fan out heartbeat requests for possibly multiple {@link
+ * GetDataStream}(s).
+ */
 public final class DirectActiveWorkRefresher extends ActiveWorkRefresher {
   private final Consumer<Map<GetDataStream, Map<String, List<HeartbeatRequest>>>>
       refreshActiveWorkFn;
 
-  DirectActiveWorkRefresher(
+  private DirectActiveWorkRefresher(
       Supplier<Instant> clock,
       int activeWorkRefreshPeriodMillis,
       int stuckCommitDurationMillis,
@@ -73,11 +77,11 @@ public final class DirectActiveWorkRefresher extends ActiveWorkRefresher {
         sampler,
         refreshActiveWorkFn,
         Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder().setNameFormat("RefreshWork").build()));
+            new ThreadFactoryBuilder().setNameFormat("RefreshWorkWithFanOut").build()));
   }
 
   @VisibleForTesting
-  public static DirectActiveWorkRefresher forTesting(
+  static DirectActiveWorkRefresher forTesting(
       Supplier<Instant> clock,
       int activeWorkRefreshPeriodMillis,
       int stuckCommitDurationMillis,
@@ -96,23 +100,31 @@ public final class DirectActiveWorkRefresher extends ActiveWorkRefresher {
   }
 
   @Override
-  public void refreshActiveWork() {
+  protected void refreshActiveWork() {
     Instant refreshDeadline = clock.get().minus(Duration.millis(activeWorkRefreshPeriodMillis));
 
-    Map<GetDataStream, Map<String, List<HeartbeatRequest>>> heartbeatRequests = new HashMap<>();
+    Map<GetDataStream, Map<String, List<HeartbeatRequest>>> fannedOutHeartbeatRequests =
+        new HashMap<>();
     for (ComputationState computationState : computations.get()) {
       String computationId = computationState.getComputationId();
-      ImmutableList<DirectHeartbeatRequest> heartbeats =
-          computationState.getDirectKeyHeartbeats(refreshDeadline, sampler);
-      for (DirectHeartbeatRequest heartbeat : heartbeats) {
+
+      // Get heartbeat requests for computation's current active work, aggregated by GetDataStream
+      // to correctly fan-out the heartbeat requests.
+      ImmutableListMultimap<GetDataStream, HeartbeatRequest> heartbeats =
+          HeartbeatRequests.getRefreshableDirectKeyHeartbeats(
+              computationState.currentActiveWorkReadOnly(), refreshDeadline, sampler);
+      // Aggregate the heartbeats across computations by GetDataStream for correct fan out.
+      for (Map.Entry<GetDataStream, Collection<HeartbeatRequest>> heartbeatsPerStream :
+          heartbeats.asMap().entrySet()) {
         Map<String, List<HeartbeatRequest>> existingHeartbeats =
-            heartbeatRequests.computeIfAbsent(heartbeat.stream(), ignored -> new HashMap<>());
+            fannedOutHeartbeatRequests.computeIfAbsent(
+                heartbeatsPerStream.getKey(), ignored -> new HashMap<>());
         List<HeartbeatRequest> existingHeartbeatsForComputation =
             existingHeartbeats.computeIfAbsent(computationId, ignored -> new ArrayList<>());
-        existingHeartbeatsForComputation.add(heartbeat.heartbeatRequest());
+        existingHeartbeatsForComputation.addAll(heartbeatsPerStream.getValue());
       }
     }
 
-    refreshActiveWorkFn.accept(heartbeatRequests);
+    refreshActiveWorkFn.accept(fannedOutHeartbeatRequests);
   }
 }

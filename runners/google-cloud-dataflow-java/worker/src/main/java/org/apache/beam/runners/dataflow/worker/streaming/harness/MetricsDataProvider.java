@@ -19,11 +19,11 @@ package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
 import java.io.PrintWriter;
 import java.util.Collection;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
-import org.apache.beam.runners.dataflow.worker.streaming.computations.ComputationState;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
-import org.apache.beam.runners.dataflow.worker.windmill.state.GetDataClient;
 import org.apache.beam.sdk.annotations.Internal;
 
 @Internal
@@ -31,17 +31,17 @@ class MetricsDataProvider implements StatusDataProvider {
 
   private final BoundedQueueExecutor workUnitExecutor;
   private final Supplier<Long> currentActiveCommitBytes;
-  private final GetDataClient getDataClient;
+  private final Consumer<PrintWriter> getDataStatusProvider;
   private final Supplier<Collection<ComputationState>> allComputationStates;
 
   MetricsDataProvider(
       BoundedQueueExecutor workUnitExecutor,
       Supplier<Long> currentActiveCommitBytes,
-      GetDataClient getDataClient,
+      Consumer<PrintWriter> getDataStatusProvider,
       Supplier<Collection<ComputationState>> allComputationStates) {
     this.workUnitExecutor = workUnitExecutor;
     this.currentActiveCommitBytes = currentActiveCommitBytes;
-    this.getDataClient = getDataClient;
+    this.getDataStatusProvider = getDataStatusProvider;
     this.allComputationStates = allComputationStates;
   }
 
@@ -53,7 +53,7 @@ class MetricsDataProvider implements StatusDataProvider {
     appendHumanizedBytes(currentActiveCommitBytes.get(), writer);
     writer.println("<br>");
 
-    getDataClient.printHtml(writer);
+    getDataStatusProvider.accept(writer);
 
     writer.println("<br>");
 

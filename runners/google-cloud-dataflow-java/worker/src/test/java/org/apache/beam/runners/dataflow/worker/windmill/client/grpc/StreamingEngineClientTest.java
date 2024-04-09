@@ -119,12 +119,7 @@ public class StreamingEngineClientTest {
   private StreamingEngineClient streamingEngineClient;
 
   private static WorkItemProcessor noOpProcessWorkItemFn() {
-    return (computation,
-        inputDataWatermark,
-        synchronizedProcessingTime,
-        workItem,
-        ackQueuedWorkItem,
-        getWorkStreamLatencies) -> {};
+    return (workProcessingContext, ackWorkItemQueued, getWorkStreamLatencies) -> {};
   }
 
   private static GetWorkRequest getWorkRequest(long items, long bytes) {

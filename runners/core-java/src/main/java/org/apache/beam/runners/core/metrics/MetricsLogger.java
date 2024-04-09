@@ -33,8 +33,16 @@ public class MetricsLogger extends MetricsContainerImpl {
   AtomicLong lastReportedMillis = new AtomicLong(System.currentTimeMillis());
   @Nullable MetricsContainerImpl lastMetricsSnapshot = null;
 
-  public MetricsLogger(@Nullable String stepName) {
+  private MetricsLogger(@Nullable String stepName) {
     super(stepName);
+  }
+
+  public static MetricsLogger createUnboundedMetricsLogger() {
+    return new MetricsLogger(null);
+  }
+
+  public static MetricsLogger forStep(String stepName) {
+    return new MetricsLogger(stepName);
   }
 
   public String generateLogMessage(

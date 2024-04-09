@@ -15,34 +15,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.streaming.computations;
+package org.apache.beam.runners.dataflow.worker.streaming;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
-import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
-import org.apache.beam.runners.dataflow.worker.streaming.Work;
-import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
-import org.apache.beam.runners.dataflow.worker.streaming.computations.ActiveWorkState.ActivateWorkResult;
+import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.ActivateWorkResult;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkProcessingContext;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -65,11 +65,41 @@ public class ActiveWorkStateTest {
   }
 
   private static Work createWork(Windmill.WorkItem workItem) {
-    return Work.create(workItem, Instant::now, Collections.emptyList(), unused -> {});
+    WorkCommitter workCommitter = mock(WorkCommitter.class);
+    doNothing().when(workCommitter).commit(any(Commit.class));
+    WindmillStream.GetDataStream getDataStream = mock(WindmillStream.GetDataStream.class);
+    when(getDataStream.requestKeyedData(anyString(), any()))
+        .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
+    return Work.create(
+        WorkProcessingContext.builder()
+            .setWorkItem(workItem)
+            .setWorkCommitter(workCommitter::commit)
+            .setKeyedDataFetcher(
+                request ->
+                    Optional.ofNullable(getDataStream.requestKeyedData("computationId", request)))
+            .build(),
+        Instant::now,
+        Collections.emptyList(),
+        unused -> {});
   }
 
   private static Work expiredWork(Windmill.WorkItem workItem) {
-    return Work.create(workItem, () -> Instant.EPOCH, Collections.emptyList(), unused -> {});
+    WorkCommitter workCommitter = mock(WorkCommitter.class);
+    doNothing().when(workCommitter).commit(any(Commit.class));
+    WindmillStream.GetDataStream getDataStream = mock(WindmillStream.GetDataStream.class);
+    when(getDataStream.requestKeyedData(anyString(), any()))
+        .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
+    return Work.create(
+        WorkProcessingContext.builder()
+            .setWorkItem(workItem)
+            .setWorkCommitter(workCommitter::commit)
+            .setKeyedDataFetcher(
+                request ->
+                    Optional.ofNullable(getDataStream.requestKeyedData("computationId", request)))
+            .build(),
+        () -> Instant.EPOCH,
+        Collections.emptyList(),
+        unused -> {});
   }
 
   private static WorkId workId(long workToken, long cacheToken) {
@@ -422,69 +452,5 @@ public class ActiveWorkStateTest {
     assertEquals(ActivateWorkResult.STALE, activateWorkResult);
     assertFalse(readOnlyActiveWork.get(shardedKey).contains(newWork));
     assertEquals(queuedWork, readOnlyActiveWork.get(shardedKey).peek());
-  }
-
-  @Test
-  public void testGetKeyHeartbeats() {
-    Instant refreshDeadline = Instant.now();
-
-    Work freshWork = createWork(createWorkItem(3L, 3L));
-    Work refreshableWork1 = expiredWork(createWorkItem(1L, 1L));
-    refreshableWork1.setState(Work.State.COMMITTING);
-    Work refreshableWork2 = expiredWork(createWorkItem(2L, 2L));
-    refreshableWork2.setState(Work.State.COMMITTING);
-    ShardedKey shardedKey1 = shardedKey("someKey", 1L);
-    ShardedKey shardedKey2 = shardedKey("anotherKey", 2L);
-
-    activeWorkState.activateWorkForKey(shardedKey1, refreshableWork1);
-    activeWorkState.activateWorkForKey(shardedKey1, freshWork);
-    activeWorkState.activateWorkForKey(shardedKey2, refreshableWork2);
-
-    ImmutableList<HeartbeatRequest> requests =
-        activeWorkState.getKeyHeartbeats(refreshDeadline, DataflowExecutionStateSampler.instance());
-
-    ImmutableList<HeartbeatRequestShardingKeyWorkTokenAndCacheToken> expected =
-        ImmutableList.of(
-            HeartbeatRequestShardingKeyWorkTokenAndCacheToken.from(shardedKey1, refreshableWork1),
-            HeartbeatRequestShardingKeyWorkTokenAndCacheToken.from(shardedKey2, refreshableWork2));
-
-    ImmutableList<HeartbeatRequestShardingKeyWorkTokenAndCacheToken> actual =
-        requests.stream()
-            .map(HeartbeatRequestShardingKeyWorkTokenAndCacheToken::from)
-            .collect(toImmutableList());
-
-    assertThat(actual).containsExactlyElementsIn(expected);
-  }
-
-  @AutoValue
-  abstract static class HeartbeatRequestShardingKeyWorkTokenAndCacheToken {
-
-    private static HeartbeatRequestShardingKeyWorkTokenAndCacheToken create(
-        long shardingKey, long workToken, long cacheToken) {
-      return new AutoValue_ActiveWorkStateTest_HeartbeatRequestShardingKeyWorkTokenAndCacheToken(
-          shardingKey, workToken, cacheToken);
-    }
-
-    private static HeartbeatRequestShardingKeyWorkTokenAndCacheToken from(
-        HeartbeatRequest heartbeatRequest) {
-      return create(
-          heartbeatRequest.getShardingKey(),
-          heartbeatRequest.getWorkToken(),
-          heartbeatRequest.getCacheToken());
-    }
-
-    private static HeartbeatRequestShardingKeyWorkTokenAndCacheToken from(
-        ShardedKey shardedKey, Work work) {
-      return create(
-          shardedKey.shardingKey(),
-          work.getWorkItem().getWorkToken(),
-          work.getWorkItem().getCacheToken());
-    }
-
-    abstract long shardingKey();
-
-    abstract long workToken();
-
-    abstract long cacheToken();
   }
 }

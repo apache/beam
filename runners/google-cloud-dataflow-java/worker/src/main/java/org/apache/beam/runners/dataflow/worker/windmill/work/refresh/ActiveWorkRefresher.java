@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
-import org.apache.beam.runners.dataflow.worker.streaming.computations.ComputationState;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;

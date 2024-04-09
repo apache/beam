@@ -237,7 +237,7 @@ public final class StreamingWorkerStatusReporter {
           windmillHarnessUpdateReportingPeriodMillis);
       // Periodically report workers counters and other updates.
       globalWorkerUpdateReporter.scheduleWithFixedDelay(
-          this::reportPeriodicWorkerUpdates,
+          this::reportWorkerUpdates,
           0,
           windmillHarnessUpdateReportingPeriodMillis,
           TimeUnit.MILLISECONDS);
@@ -256,7 +256,7 @@ public final class StreamingWorkerStatusReporter {
     shutdownExecutor(globalWorkerUpdateReporter);
     shutdownExecutor(workerMessageReporter);
     // one last send
-    reportPeriodicWorkerUpdates();
+    reportWorkerUpdates();
     this.workerMessagesIndex.set(this.perWorkerMetricsUpdateFrequency);
     reportPeriodicWorkerMessage();
   }
@@ -450,7 +450,7 @@ public final class StreamingWorkerStatusReporter {
   }
 
   @VisibleForTesting
-  public void reportPeriodicWorkerUpdates() {
+  public void reportWorkerUpdates() {
     updateVMMetrics();
     updateThreadMetrics();
     try {

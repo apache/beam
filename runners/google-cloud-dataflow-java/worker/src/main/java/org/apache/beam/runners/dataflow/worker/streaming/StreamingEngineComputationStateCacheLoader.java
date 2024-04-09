@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.streaming.computations;
+package org.apache.beam.runners.dataflow.worker.streaming;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
 
@@ -27,7 +27,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingConfigLoader;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfig;
-import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingEnvironment;
+import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingWorkerEnvironment;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.sdk.annotations.Internal;
@@ -101,7 +101,7 @@ public final class StreamingEngineComputationStateCacheLoader
       Function<String, WindmillStateCache.ForComputation> perComputationStateCacheViewFactory) {
     String computationId = computationConfig.getComputationId();
     MapTask mapTask =
-        StreamingEnvironment.fixMapTaskMultiOutputInfoFnInstance()
+        StreamingWorkerEnvironment.fixMapTaskMultiOutputInfoFnInstance()
             .apply(
                 new MapTask()
                     .setSystemName(computationConfig.getSystemName())

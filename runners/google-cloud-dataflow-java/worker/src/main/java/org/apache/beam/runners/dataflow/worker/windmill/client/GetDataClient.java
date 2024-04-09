@@ -15,11 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.state;
+package org.apache.beam.runners.dataflow.worker.windmill.client;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
@@ -43,12 +48,16 @@ public final class GetDataClient {
   private final AtomicInteger activeStateReads;
   private final AtomicInteger activeHeartbeats;
   private final MemoryMonitor gcThrashingMonitor;
+  private final ExecutorService fanOutActiveWorkRefreshExecutor;
 
   public GetDataClient(MemoryMonitor gcThrashingMonitor) {
     this.gcThrashingMonitor = gcThrashingMonitor;
     this.activeSideInputReads = new AtomicInteger();
     this.activeStateReads = new AtomicInteger();
     this.activeHeartbeats = new AtomicInteger();
+    this.fanOutActiveWorkRefreshExecutor =
+        Executors.newCachedThreadPool(
+            new ThreadFactoryBuilder().setNameFormat("FanOutActiveWorkRefreshExecutor").build());
   }
 
   public KeyedGetDataResponse getState(
@@ -89,12 +98,14 @@ public final class GetDataClient {
     }
   }
 
-  public void refreshActiveWork(
+  /** Attempts to refresh active work, fanning out to each {@link GetDataStream}. */
+  public void refreshActiveWorkWithFanOut(
       Map<GetDataStream, Map<String, List<HeartbeatRequest>>> heartbeats) {
     if (heartbeats.isEmpty()) {
       return;
     }
     try {
+      List<CompletableFuture<Void>> fanOutRefreshActiveWork = new ArrayList<>();
       for (Map.Entry<GetDataStream, Map<String, List<HeartbeatRequest>>> heartbeat :
           heartbeats.entrySet()) {
         GetDataStream stream = heartbeat.getKey();
@@ -102,18 +113,37 @@ public final class GetDataClient {
         if (stream.isClosed()) {
           LOG.warn(
               "Trying to refresh work on stream={} after work has moved off of worker."
-                  + " computations={}",
+                  + " heartbeats={}",
               stream,
               heartbeatRequests);
         } else {
-          activeHeartbeats.set(heartbeat.getValue().size());
-          stream.refreshActiveWork(heartbeatRequests);
-          activeHeartbeats.set(0);
+          fanOutRefreshActiveWork.add(sendHeartbeatOnStreamFuture(heartbeat));
         }
       }
+
+      // Don't block until we kick off all the refresh active work RPCs.
+      @SuppressWarnings("rawtypes")
+      CompletableFuture<Void> parallelFanOutRefreshActiveWork =
+          CompletableFuture.allOf(fanOutRefreshActiveWork.toArray(new CompletableFuture[0]));
+      parallelFanOutRefreshActiveWork.join();
     } finally {
       activeHeartbeats.set(0);
     }
+  }
+
+  private CompletableFuture<Void> sendHeartbeatOnStreamFuture(
+      Map.Entry<GetDataStream, Map<String, List<HeartbeatRequest>>> heartbeat) {
+    return CompletableFuture.runAsync(
+        () -> {
+          GetDataStream stream = heartbeat.getKey();
+          Map<String, List<HeartbeatRequest>> heartbeatRequests = heartbeat.getValue();
+          activeHeartbeats.getAndUpdate(existing -> existing + heartbeat.getValue().size());
+          stream.refreshActiveWork(heartbeatRequests);
+          // Active heartbeats should never drop below 0.
+          activeHeartbeats.getAndUpdate(
+              existing -> Math.max(existing - heartbeat.getValue().size(), 0));
+        },
+        fanOutActiveWorkRefreshExecutor);
   }
 
   public void printHtml(PrintWriter writer) {

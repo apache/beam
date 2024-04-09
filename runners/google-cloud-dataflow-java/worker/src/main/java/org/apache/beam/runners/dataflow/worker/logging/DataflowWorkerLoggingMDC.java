@@ -17,15 +17,19 @@
  */
 package org.apache.beam.runners.dataflow.worker.logging;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /** Mapped diagnostic context for the Dataflow worker. */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DataflowWorkerLoggingMDC {
   private static final InheritableThreadLocal<String> jobId = new InheritableThreadLocal<>();
-  private static final InheritableThreadLocal<String> stageName = new InheritableThreadLocal<>();
+  private static final InheritableThreadLocal<@Nullable String> stageName =
+      new InheritableThreadLocal<>();
   private static final InheritableThreadLocal<String> workerId = new InheritableThreadLocal<>();
-  private static final InheritableThreadLocal<String> workId = new InheritableThreadLocal<>();
+  private static final InheritableThreadLocal<@Nullable String> workId =
+      new InheritableThreadLocal<>();
   private static final InheritableThreadLocal<String> sdkHarnessId = new InheritableThreadLocal<>();
 
   /** Sets the Job ID of the current thread, which will be inherited by child threads. */
@@ -34,7 +38,7 @@ public class DataflowWorkerLoggingMDC {
   }
 
   /** Sets the Stage Name of the current thread, which will be inherited by child threads. */
-  public static void setStageName(String newStageName) {
+  public static void setStageName(@Nullable String newStageName) {
     stageName.set(newStageName);
   }
 
@@ -44,7 +48,7 @@ public class DataflowWorkerLoggingMDC {
   }
 
   /** Sets the Work ID of the current thread, which will be inherited by child threads. */
-  public static void setWorkId(String newWorkId) {
+  public static void setWorkId(@Nullable String newWorkId) {
     workId.set(newWorkId);
   }
 
@@ -59,7 +63,7 @@ public class DataflowWorkerLoggingMDC {
   }
 
   /** Gets the Stage Name of the current thread. */
-  public static String getStageName() {
+  public static @Nullable String getStageName() {
     return stageName.get();
   }
 
@@ -69,7 +73,7 @@ public class DataflowWorkerLoggingMDC {
   }
 
   /** Gets the Work ID of the current thread. */
-  public static String getWorkId() {
+  public static @Nullable String getWorkId() {
     return workId.get();
   }
 
