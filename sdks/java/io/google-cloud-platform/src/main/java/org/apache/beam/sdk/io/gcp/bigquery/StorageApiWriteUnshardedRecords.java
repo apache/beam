@@ -253,15 +253,20 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       long offset;
       ProtoRows protoRows;
       List<org.joda.time.Instant> timestamps;
+      List<ByteString> failSafePayload;
 
       int failureCount;
 
       public AppendRowsContext(
-          long offset, ProtoRows protoRows, List<org.joda.time.Instant> timestamps) {
+              long offset, ProtoRows protoRows,
+              List<org.joda.time.Instant> timestamps,
+              List<ByteString> failSafePayload) {
         this.offset = offset;
         this.protoRows = protoRows;
         this.timestamps = timestamps;
+        this.failSafePayload = failSafePayload;
         this.failureCount = 0;
+
       }
     }
 
@@ -322,6 +327,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         this.maxRequestSize = maxRequestSize;
         this.tryCreateTable = tryCreateTable;
         this.includeCdcColumns = includeCdcColumns;
+        this.pendingMessagesFromFormatFailureMethod = Lists.newArrayList();
         if (includeCdcColumns) {
           checkState(useDefaultStream);
         }
@@ -587,6 +593,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         final ProtoRows.Builder insertsBuilder = ProtoRows.newBuilder();
         insertsBuilder.addAllSerializedRows(pendingMessages);
         pendingMessages.clear();
+        // Will the order of the List<ByteString> preserved here?
         final ProtoRows inserts = insertsBuilder.build();
         List<org.joda.time.Instant> insertTimestamps = pendingTimestamps;
         pendingTimestamps = Lists.newArrayList();
@@ -604,7 +611,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 maxRequestSize);
           }
           for (int i = 0; i < inserts.getSerializedRowsCount(); ++i) {
-            ByteString rowBytes = inserts.getSerializedRows(i);
+//            ByteString rowBytes = inserts.getSerializedRows(i);
             org.joda.time.Instant timestamp = insertTimestamps.get(i);
             // get the failSafe element.
             TableRow failedRow =
@@ -636,7 +643,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           this.currentOffset += inserts.getSerializedRowsCount();
         }
         AppendRowsContext appendRowsContext =
-            new AppendRowsContext(offset, inserts, insertTimestamps);
+            new AppendRowsContext(offset, inserts, insertTimestamps, pendingMessagesFromFormatFailureMethod);
 
         retryManager.addOperation(
             c -> {
@@ -690,7 +697,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                                 TableRowToStorageApiProto.wrapDescriptorProto(
                                     Preconditions.checkStateNotNull(appendClientInfo)
                                         .getDescriptor()),
-                                pendingMessagesFromFormatFailureMethod.get(failedIndex)),
+                                failedContext.failSafePayload.get(failedIndex)),
                             true);
                     failedRowsReceiver.outputWithTimestamp(
                         new BigQueryStorageApiInsertError(
