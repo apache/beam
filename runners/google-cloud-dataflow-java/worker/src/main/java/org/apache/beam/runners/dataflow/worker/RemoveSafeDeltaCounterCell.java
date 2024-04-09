@@ -62,6 +62,12 @@ public class RemoveSafeDeltaCounterCell implements Counter, MetricCell<Long> {
 
   @Override
   public void inc(long n) {
+    AtomicLong val = countersMap.get(metricName);
+    if (val != null) {
+      val.getAndAdd(n);
+      return;
+    }
+
     countersMap.compute(
         metricName,
         (name, value) -> {
