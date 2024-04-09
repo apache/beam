@@ -21,7 +21,7 @@ limitations under the License.
 
 Writing a Beam pipeline can be a daunting task. Learning the Beam model, downloading dependencies for the SDK language
 of choice, debugging the pipeline, and maintaining the pipeline code is a lot of overhead for users who want to write a
-simple to intermediate data processing pipeline. There have been strides in making the SDK’s entry points easier, but
+simple to intermediate data processing pipeline. There have been strides in making the SDK's entry points easier, but
 for many, it is still a long way from being a painless process.
 
 To address some of these issues and simplify the entry point to Beam, we have introduced a new way to specify Beam
@@ -67,7 +67,7 @@ low-level coding details.
 
 # Case Study: A simple business analytics use-case
 
-Let’s take the following sample transaction data for a department store:
+Let's take the following sample transaction data for a department store:
 
 <table>
   <tr>
@@ -132,7 +132,7 @@ Let’s take the following sample transaction data for a department store:
   </tr>
 </table>
 
-Now, let’s say that the business wants to get a record of transactions for all purchases made in the Electronics
+Now, let's say that the business wants to get a record of transactions for all purchases made in the Electronics
 department for audit purposes. Assuming the records are stored as a CSV file, a Beam YAML pipeline may look something
 like this:
 
@@ -203,8 +203,8 @@ This would leave us with the following data:
   </tr>
 </table>
 
-Now, let’s say the business wants to determine how much of each Electronics item is being sold to ensure that the
-correct number is being ordered from the supplier. Let’s also assume that they want to determine the total revenue for
+Now, let's say the business wants to determine how much of each Electronics item is being sold to ensure that the
+correct number is being ordered from the supplier. Let's also assume that they want to determine the total revenue for
 each item. This simple aggregation can follow the Filter from the previous example as such:
 
 Source code for this example can be found
@@ -310,7 +310,7 @@ Developers who wish to help build out and add functionalities are welcome to sta
 Beam YAML module found [here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml).
 
 There is also a list of open [bugs](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Ayaml) found
-on the GitHub repo - now marked with the ‘yaml’ tag.
+on the GitHub repo - now marked with the 'yaml' tag.
 
 While Beam YAML has been marked stable as of Beam 2.52, it is still under heavy development, with new features being
 added with each release. Those who wish to be part of the design decisions and give insights to how the framework is
