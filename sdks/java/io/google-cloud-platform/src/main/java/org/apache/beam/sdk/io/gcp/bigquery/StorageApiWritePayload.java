@@ -39,11 +39,16 @@ public abstract class StorageApiWritePayload {
 
   public abstract @Nullable Instant getTimestamp();
 
+  @SuppressWarnings("mutable")
+  public abstract @Nullable byte[] getFormatedTableRowPayload();
+
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setPayload(byte[] value);
 
     public abstract Builder setUnknownFieldsPayload(@Nullable byte[] value);
+
+    public abstract Builder setFormatedTableRowPayload(@Nullable byte[] value);
 
     public abstract Builder setTimestamp(@Nullable Instant value);
 
@@ -64,6 +69,25 @@ public abstract class StorageApiWritePayload {
         .setUnknownFieldsPayload(unknownFieldsPayload)
         .setTimestamp(null)
         .build();
+  }
+
+  @SuppressWarnings("nullness")
+  static StorageApiWritePayload of(byte[] payload, @Nullable TableRow unknownFields, @Nullable TableRow formatedTableRow)
+          throws IOException {
+    @Nullable byte[] unknownFieldsPayload = null;
+    if (unknownFields != null) {
+      unknownFieldsPayload = CoderUtils.encodeToByteArray(TableRowJsonCoder.of(), unknownFields);
+    }
+    @Nullable byte[] formatedTableRowPayload = null;
+    if (formatedTableRow != null) {
+      formatedTableRowPayload = CoderUtils.encodeToByteArray(TableRowJsonCoder.of(), formatedTableRow);
+    }
+    return new AutoValue_StorageApiWritePayload.Builder()
+            .setPayload(payload)
+            .setUnknownFieldsPayload(unknownFieldsPayload)
+            .setFormatedTableRowPayload(formatedTableRowPayload)
+            .setTimestamp(null)
+            .build();
   }
 
   public StorageApiWritePayload withTimestamp(Instant instant) {
