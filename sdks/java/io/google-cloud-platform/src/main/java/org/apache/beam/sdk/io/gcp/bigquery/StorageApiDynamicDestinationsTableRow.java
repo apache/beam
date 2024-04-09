@@ -25,6 +25,7 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -36,6 +37,7 @@ import org.joda.time.Duration;
 public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonNull Object>
     extends StorageApiDynamicDestinations<T, DestinationT> {
   private final SerializableFunction<T, TableRow> formatFunction;
+  private final SerializableFunction<T, TableRow> formatFunctionOnFailure;
 
   private final boolean usesCdc;
   private final CreateDisposition createDisposition;
@@ -49,18 +51,20 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
   }
 
   StorageApiDynamicDestinationsTableRow(
-      DynamicDestinations<T, DestinationT> inner,
-      SerializableFunction<T, TableRow> formatFunction,
-      boolean usesCdc,
-      CreateDisposition createDisposition,
-      boolean ignoreUnknownValues,
-      boolean autoSchemaUpdates) {
+          DynamicDestinations<T, DestinationT> inner,
+          SerializableFunction<T, TableRow> formatFunction,
+          SerializableFunction<T, TableRow> formatFunctionOnFailure,
+          boolean usesCdc,
+          CreateDisposition createDisposition,
+          boolean ignoreUnknownValues,
+          boolean autoSchemaUpdates) {
     super(inner);
     this.formatFunction = formatFunction;
     this.usesCdc = usesCdc;
     this.createDisposition = createDisposition;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.autoSchemaUpdates = autoSchemaUpdates;
+    this.formatFunctionOnFailure = formatFunctionOnFailure;
   }
 
   static void clearSchemaCache() throws ExecutionException, InterruptedException {
@@ -156,9 +160,15 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
     }
 
     @Override
+    public TableRow toTableRowFailed(T element) {
+      return formatFunctionOnFailure.apply(element);
+    }
+
+    @Override
     public StorageApiWritePayload toMessage(
         T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception {
       TableRow tableRow = formatFunction.apply(element);
+      TableRow failedRow = formatFunctionOnFailure.apply(element);
 
       String changeType = null;
       long changeSequenceNum = -1;
@@ -183,7 +193,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
               unknownFields,
               changeType,
               changeSequenceNum);
-      return StorageApiWritePayload.of(msg.toByteArray(), unknownFields);
+      return StorageApiWritePayload.of(msg.toByteArray(), unknownFields, failedRow);
     }
-  };
+  }
 }

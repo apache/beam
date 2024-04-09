@@ -26,6 +26,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 /** Base dynamicDestinations class used by the Storage API sink. */
 abstract class StorageApiDynamicDestinations<T, DestinationT>
     extends DynamicDestinationsHelpers.DelegatingDynamicDestinations<T, DestinationT> {
+
+
   public interface MessageConverter<T> {
     com.google.cloud.bigquery.storage.v1.TableSchema getTableSchema();
 
@@ -35,8 +37,9 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
         T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception;
 
     TableRow toTableRow(T element);
-  }
+    TableRow toTableRowFailed(T element);
 
+  }
   StorageApiDynamicDestinations(DynamicDestinations<T, DestinationT> inner) {
     super(inner);
   }

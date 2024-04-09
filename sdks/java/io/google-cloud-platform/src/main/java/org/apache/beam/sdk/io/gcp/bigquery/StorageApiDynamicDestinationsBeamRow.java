@@ -103,5 +103,10 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
     public TableRow toTableRow(T element) {
       return BigQueryUtils.toTableRow(toRow.apply(element));
     }
+
+    @Override
+    public TableRow toTableRowFailed(T element) {
+      return toTableRow(element);
+    }
   };
 }

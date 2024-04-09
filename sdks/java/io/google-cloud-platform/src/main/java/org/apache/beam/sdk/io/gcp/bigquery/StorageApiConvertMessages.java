@@ -179,15 +179,19 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
                 .withTimestamp(timestamp);
         o.get(successfulWritesTag).output(KV.of(element.getKey(), payload));
       } catch (TableRowToStorageApiProto.SchemaConversionException conversionException) {
-        TableRow tableRow;
         try {
-          tableRow = messageConverter.toTableRow(element.getValue());
-        } catch (Exception e) {
+          messageConverter.toTableRow(element.getValue());
+        } catch (Exception e)
+        {
           badRecordRouter.route(o, element, elementCoder, e, "Unable to convert value to TableRow");
           return;
         }
+        // Send formatFunction's TableRow to the Dead letter queue. If no format function is
+        // provided, identity transform is used.
+        TableRow failed;
+        failed = messageConverter.toTableRowFailed(element.getValue());
         o.get(failedWritesTag)
-            .output(new BigQueryStorageApiInsertError(tableRow, conversionException.toString()));
+            .output(new BigQueryStorageApiInsertError(failed, conversionException.toString()));
       } catch (Exception e) {
         badRecordRouter.route(
             o, element, elementCoder, e, "Unable to convert value to StorageWriteApiPayload");

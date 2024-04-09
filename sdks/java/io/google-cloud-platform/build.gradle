@@ -32,7 +32,8 @@ ext.summary = "IO library to read and write Google Cloud Platform systems from B
 
 dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-  permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+    implementation project(path: ':sdks:java:core')
+    permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(":runners:core-java")
   implementation project(path: ":sdks:java:core", configuration: "shadow")

@@ -91,6 +91,11 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
     public TableRow toTableRow(T element) {
       throw new RuntimeException("Not implemented!");
     }
+
+    @Override
+    public TableRow toTableRowFailed(T element) {
+      throw new RuntimeException("Not implemented!");
+    }
   };
 
   private static DescriptorProtos.DescriptorProto fixNestedTypes(

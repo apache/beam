@@ -2333,6 +2333,8 @@ public class BigQueryIO {
 
     abstract @Nullable SerializableFunction<T, TableRow> getFormatFunction();
 
+    abstract @Nullable SerializableFunction<T, Row> getRowFormatFunction();
+
     abstract @Nullable SerializableFunction<T, TableRow> getFormatRecordOnFailureFunction();
 
     abstract RowWriterFactory.@Nullable AvroRowWriterFactory<T, ?, ?> getAvroRowWriterFactory();
@@ -2442,6 +2444,8 @@ public class BigQueryIO {
 
       abstract Builder<T> setFormatRecordOnFailureFunction(
           SerializableFunction<T, TableRow> formatFunction);
+
+      abstract Builder<T> setRowFormatFunction(SerializableFunction<T, Row> formatFunction);
 
       abstract Builder<T> setAvroRowWriterFactory(
           RowWriterFactory.AvroRowWriterFactory<T, ?, ?> avroRowWriterFactory);
@@ -3457,7 +3461,7 @@ public class BigQueryIO {
                           new TableConstraints.PrimaryKey().setColumns(getPrimaryKey())));
         }
       }
-      return expandTyped(input, dynamicDestinations);
+        return expandTyped(input, dynamicDestinations);
     }
 
     private <DestinationT> WriteResult expandTyped(
@@ -3741,6 +3745,7 @@ public class BigQueryIO {
                   dynamicDestinations,
                   elementSchema,
                   elementToRowFunction,
+                  // GetFormatFunction is on TableRows.
                   getRowMutationInformationFn() != null);
         } else if (getWriteProtosClass() != null && getDirectWriteProtos()) {
           // We could support both of these by falling back to
@@ -3795,6 +3800,7 @@ public class BigQueryIO {
               new StorageApiDynamicDestinationsTableRow<>(
                   dynamicDestinations,
                   tableRowWriterFactory.getToRowFn(),
+                  tableRowWriterFactory.getToFailsafeRowFn(),
                   getRowMutationInformationFn() != null,
                   getCreateDisposition(),
                   getIgnoreUnknownValues(),

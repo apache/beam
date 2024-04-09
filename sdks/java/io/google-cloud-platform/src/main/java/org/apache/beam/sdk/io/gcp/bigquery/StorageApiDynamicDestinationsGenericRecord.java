@@ -107,6 +107,12 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
     }
 
     @Override
+    public TableRow toTableRowFailed(T element) {
+      return BigQueryUtils.convertGenericRecordToTableRow(
+              toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)), bqTableSchema);
+    }
+
+    @Override
     public com.google.cloud.bigquery.storage.v1.TableSchema getTableSchema() {
       return protoTableSchema;
     }
