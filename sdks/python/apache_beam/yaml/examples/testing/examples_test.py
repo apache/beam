@@ -24,7 +24,6 @@ import unittest
 from typing import Callable
 from typing import Dict
 from typing import List
-from typing import Optional
 from typing import Union
 from unittest import mock
 
@@ -49,9 +48,20 @@ def check_output(expected: List[str]):
   return _check_inner
 
 
+def products_csv():
+  return '\n'.join([
+      'transaction_id,product_name,category,price',
+      'T0012,Headphones,Electronics,59.99',
+      'T5034,Leather Jacket,Apparel,109.99',
+      'T0024,Aluminum Mug,Kitchen,29.99',
+      'T0104,Headphones,Electronics,59.99',
+      'T0302,Monitor,Electronics,249.99'
+  ])
+
+
 def create_test_method(
     pipeline_spec_file: str,
-    custom_preprocessor: Optional[Callable[..., Union[Dict, List]]] = None):
+    custom_preprocessors: List[Callable[..., Union[Dict, List]]]):
   @mock.patch('apache_beam.Pipeline', TestPipeline)
   def test_yaml_example(self):
     with open(pipeline_spec_file, encoding="utf-8") as f:
@@ -68,8 +78,8 @@ def create_test_method(
         ''.join(lines), Loader=yaml_transform.SafeLineLoader)
 
     with TestEnvironment() as env:
-      if custom_preprocessor:
-        pipeline_spec = custom_preprocessor(pipeline_spec, expected, env)
+      for fn in custom_preprocessors:
+        pipeline_spec = fn(pipeline_spec, expected, env)
       with beam.Pipeline(options=PipelineOptions(
           pickle_library='cloudpickle',
           **yaml_transform.SafeLineLoader.strip_metadata(pipeline_spec.get(
@@ -83,7 +93,7 @@ def create_test_method(
 
 
 class YamlExamplesTestSuite:
-  _test_preprocessor: Dict[str, Callable[..., Union[Dict, List]]] = {}
+  _test_preprocessor: Dict[str, List[Callable[..., Union[Dict, List]]]] = {}
 
   def __init__(self, name: str, path: str):
     self._test_suite = self.create_test_suite(name, path)
@@ -98,8 +108,8 @@ class YamlExamplesTestSuite:
       files = [path]
     for file in files:
       test_name = f'test_{file.split(os.sep)[-1].replace(".", "_")}'
-      custom_preprocessor = cls._test_preprocessor.get(test_name, None)
-      yield test_name, create_test_method(file, custom_preprocessor)
+      custom_preprocessors = cls._test_preprocessor.get(test_name, [])
+      yield test_name, create_test_method(file, custom_preprocessors)
 
   @classmethod
   def create_test_suite(cls, name: str, path: str):
@@ -112,7 +122,9 @@ class YamlExamplesTestSuite:
 
     def apply(preprocessor):
       for test_name in test_names:
-        cls._test_preprocessor[test_name] = preprocessor
+        if test_name not in cls._test_preprocessor:
+          cls._test_preprocessor[test_name] = []
+        cls._test_preprocessor[test_name].append(preprocessor)
       return preprocessor
 
     return apply
@@ -145,7 +157,7 @@ def _wordcount_test_preprocessor(
 
 @YamlExamplesTestSuite.register_test_preprocessor(
     ['test_simple_filter_yaml', 'test_simple_filter_and_combine_yaml'])
-def _file_io_test_preprocessor(
+def _file_io_write_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
 
   if pipeline := test_spec.get('pipeline', None):
@@ -160,6 +172,26 @@ def _file_io_test_preprocessor(
 
   return test_spec
 
+
+@YamlExamplesTestSuite.register_test_preprocessor(
+    ['test_simple_filter_yaml', 'test_simple_filter_and_combine_yaml'])
+def _file_io_read_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '').startswith('ReadFrom'):
+        file_name = transform['config']['path'].split('/')[-1]
+        return replace_recursive(
+            test_spec,
+            transform['type'],
+            'path',
+            env.input_file(file_name, INPUT_FILES[file_name]))
+
+  return test_spec
+
+
+INPUT_FILES = {'products.csv': products_csv()}
 
 YAML_DOCS_DIR = os.path.join(os.path.dirname(__file__))
 ExamplesTest = YamlExamplesTestSuite(
