@@ -64,7 +64,8 @@ public abstract class KafkaReadSchemaTransformConfiguration {
     final String confluentSchemaRegSubject = this.getConfluentSchemaRegistrySubject();
 
     if (confluentSchemaRegUrl != null) {
-      checkNotNull(confluentSchemaRegSubject,
+      checkNotNull(
+          confluentSchemaRegSubject,
           "To read from Kafka, a schema must be provided directly or though Confluent "
               + "Schema Registry. Make sure you are providing one of these parameters.");
     } else if (dataFormat != null && dataFormat.equals("RAW")) {
