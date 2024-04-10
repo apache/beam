@@ -145,12 +145,11 @@ def _wordcount_test_preprocessor(
 
 @YamlExamplesTestSuite.register_test_preprocessor(
     ['test_simple_filter_yaml', 'test_simple_filter_and_combine_yaml'])
-def _resources_test_preprocessor(
+def _file_io_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
 
-  resources_dir = YAML_DOCS_DIR + '/../resources/'
   if pipeline := test_spec.get('pipeline', None):
-    for i, transform in enumerate(pipeline.get('transforms', [])):
+    for transform in pipeline.get('transforms', []):
       if transform.get('type', '').startswith('WriteTo'):
         transform['type'] = 'LogForTesting'
         transform['config'] = {
@@ -158,9 +157,6 @@ def _resources_test_preprocessor(
             for k,
             v in transform.get('config', {}).items() if k.startswith('__')
         }
-      for k, v in transform.get('config', {}).items():
-        if 'resources/' in str(v):
-          pipeline['transforms'][i]['config'][k] = resources_dir
 
   return test_spec
 

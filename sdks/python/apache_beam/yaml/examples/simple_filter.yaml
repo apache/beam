@@ -22,7 +22,7 @@ pipeline:
     - type: ReadFromCsv
       name: ReadInputFile
       config:
-        path: resources/products.csv
+        path: gs://apache-beam-samples/beam-yaml-blog/products.csv
     - type: Filter
       name: FilterWithCategory
       input: ReadInputFile
