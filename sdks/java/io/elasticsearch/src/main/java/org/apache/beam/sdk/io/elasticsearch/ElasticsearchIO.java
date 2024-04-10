@@ -907,11 +907,9 @@ public class ElasticsearchIO {
      * href="https://www.elastic.co/guide/en/elasticsearch/reference/current/point-in-time-api.html">
      * Point in time search</a>, using default settings. This iteration mode for searches does not
      * have the same size constrains the Scroll API have (slice counts, batch size or how deep the
-     * iteration is). By default this iteration mode will use the {@code @timestamp} meta property
-     * on the indexed documents to consistently retrieve the data when failures occur on an specific
+     * iteration is). By default this iteration mode will use a {@code @timestamp} named property on
+     * the indexed documents to consistently retrieve the data when failures occur on an specific
      * read work.
-     *
-     * <p>When using PIT searches the provided query should not be enclosed in curly brackets.
      *
      * @return a {@link PTransform} reading data from Elasticsearch.
      */
@@ -927,7 +925,8 @@ public class ElasticsearchIO {
      * Similar to {@link #withPointInTimeSearch() the default PIT search} but setting an existing
      * timestamp based property name which Elasticsearch will use to sort for the results.
      *
-     * @param timestampSortProperty the property name in the contained documents.
+     * @param timestampSortProperty a property name found in the read documents containing a
+     *     timestamp-like value.
      * @return a {@link PTransform} reading data from Elasticsearch.
      */
     public Read withPointInTimeSearchAndTimestampSortProperty(String timestampSortProperty) {
