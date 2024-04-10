@@ -832,15 +832,14 @@ public class KafkaIO {
         // implementation.
         builder.setDynamicRead(false);
 
-        if(config.consumerPollingTimeoutSeconds != null) {
-          if(config.consumerPollingTimeoutSeconds <= 0) {
+        if (config.consumerPollingTimeoutSeconds != null) {
+          if (config.consumerPollingTimeoutSeconds <= 0) {
             throw new IllegalArgumentException("consumerPollingTimeoutSeconds should be > 0.");
           }
           builder.setConsumerPollingTimeout(
               Duration.standardSeconds(config.consumerPollingTimeoutSeconds));
         } else {
-          builder.setConsumerPollingTimeout(
-              Duration.standardSeconds(2L));
+          builder.setConsumerPollingTimeout(Duration.standardSeconds(2L));
         }
       }
 
