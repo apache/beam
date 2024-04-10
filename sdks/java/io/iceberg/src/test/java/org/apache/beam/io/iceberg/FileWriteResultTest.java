@@ -66,7 +66,9 @@ public class FileWriteResultTest implements Serializable {
     RecordWriter writer =
         new RecordWriter(table, FileFormat.PARQUET, TEMPORARY_FOLDER.newFile().toString());
     writer.write(
-        Row.withSchema(SchemaHelper.convert(TestFixtures.SCHEMA)).addValues(42L, "bizzle").build());
+        Row.withSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+            .addValues(42L, "bizzle")
+            .build());
     writer.close();
     DataFile dataFile = writer.dataFile();
     values.add(
@@ -79,7 +81,9 @@ public class FileWriteResultTest implements Serializable {
     // An avro file
     writer = new RecordWriter(table, FileFormat.AVRO, TEMPORARY_FOLDER.newFile().toString());
     writer.write(
-        Row.withSchema(SchemaHelper.convert(TestFixtures.SCHEMA)).addValues(42L, "bizzle").build());
+        Row.withSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+            .addValues(42L, "bizzle")
+            .build());
     writer.close();
     dataFile = writer.dataFile();
     values.add(
@@ -107,7 +111,7 @@ public class FileWriteResultTest implements Serializable {
     // A parquet file in this other table
     writer = new RecordWriter(table2, FileFormat.PARQUET, TEMPORARY_FOLDER.newFile().toString());
     writer.write(
-        Row.withSchema(SchemaHelper.convert(schema))
+        Row.withSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(schema))
             .addValues(
                 42L,
                 "bizzle",

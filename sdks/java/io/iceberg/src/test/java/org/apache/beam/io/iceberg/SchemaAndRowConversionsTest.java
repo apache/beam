@@ -35,7 +35,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class RowHelperTest implements Serializable {
+public class SchemaAndRowConversionsTest implements Serializable {
 
   /**
    * Checks a value that when converted to Iceberg type is the same value when interpreted in Java.
@@ -51,7 +51,7 @@ public class RowHelperTest implements Serializable {
 
     org.apache.iceberg.Schema icebergSchema =
         new org.apache.iceberg.Schema(required(0, "v", destType));
-    Record record = RowHelper.rowToRecord(icebergSchema, row);
+    Record record = SchemaAndRowConversions.rowToRecord(icebergSchema, row);
 
     assertThat(record.getField("v"), equalTo(destValue));
   }
