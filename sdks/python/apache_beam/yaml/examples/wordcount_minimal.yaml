@@ -70,9 +70,6 @@ pipeline:
 
     # Log out results
     - type: LogForTesting
-        
-options:
-  yaml_experimental_features: Combine
   
 # Expected:
 #  Row(word='king', count=311)
