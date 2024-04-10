@@ -71,7 +71,10 @@ public class Work implements Runnable {
             .setCacheToken(workItem.getCacheToken())
             .setWorkToken(workItem.getWorkToken())
             .build();
-    this.latencyTrackingId = buildLatencyTrackingId(workItem);
+    this.latencyTrackingId =
+        Long.toHexString(workItem.getShardingKey())
+            + '-'
+            + Long.toHexString(workItem.getWorkToken());
   }
 
   public static Work create(
@@ -82,21 +85,6 @@ public class Work implements Runnable {
     Work work = new Work(workProcessingContext, clock, processWorkFn);
     work.recordGetWorkStreamLatencies(getWorkStreamLatencies);
     return work;
-  }
-
-  public static Work createForAppliance(
-      WorkProcessingContext workProcessingContext,
-      Supplier<Instant> clock,
-      Consumer<Work> processWorkFn) {
-    return new Work(workProcessingContext, clock, processWorkFn);
-  }
-
-  private static String buildLatencyTrackingId(WorkItem workItem) {
-    StringBuilder workIdBuilder = new StringBuilder(33);
-    workIdBuilder.append(Long.toHexString(workItem.getShardingKey()));
-    workIdBuilder.append('-');
-    workIdBuilder.append(Long.toHexString(workItem.getWorkToken()));
-    return workIdBuilder.toString();
   }
 
   private static LatencyAttribution.Builder addActiveLatencyBreakdownToBuilder(
