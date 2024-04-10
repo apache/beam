@@ -162,7 +162,9 @@ class ReadFromKafka(ExternalTransform):
     :param timestamp_policy: The built-in timestamp policy which is used for
         extracting timestamp from KafkaRecord.
     :param consumer_polling_timeout_seconds: Kafka client polling request
-        timeout time in seconds. Default is 2 seconds.
+        timeout time in seconds. A lower timeout optimizes for latency. Increase                                   
+        the timeout if the consumer is not fetching enough (or any) records.                                                         
+        Default is 2 seconds.
     :param with_metadata: whether the returned PCollection should contain
         Kafka related metadata or not. If False (default), elements of the
         returned PCollection will be of type 'bytes' if True, elements of the
