@@ -129,7 +129,7 @@ It is also possible to store the function logic in a file and point to the funct
     language: python
     fields:
       new_col:
-        path: /path/to/some/file.py
+        path: /path/to/some/udf.py
         name: my_mapping
 ```
 
@@ -307,7 +307,7 @@ It is also possible to store the function logic in a file and point to the funct
   config:
     language: python
     keep:
-      path: /path/to/some/file.py
+      path: /path/to/some/udf.py
       name: my_filter
 ```
 
