@@ -1415,7 +1415,11 @@ public class ElasticsearchIO {
         return false;
       }
       // we already opened the PIT search and are processing the search results
-      return readNextBatchAndReturnFirstDocument(searchResult);
+      boolean wasDocumentRead = readNextBatchAndReturnFirstDocument(searchResult);
+      if (wasDocumentRead && current != null) {
+        searchAfterProperty = extractSearchAfterFromDocument(current);
+      }
+      return wasDocumentRead;
     }
 
     @Override
