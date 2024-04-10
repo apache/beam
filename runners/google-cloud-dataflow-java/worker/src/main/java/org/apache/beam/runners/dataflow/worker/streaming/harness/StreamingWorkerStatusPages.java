@@ -31,6 +31,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture;
 import org.apache.beam.runners.dataflow.worker.status.LastExceptionDataProvider;
@@ -40,6 +41,7 @@ import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.ChannelzServlet;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -52,9 +54,11 @@ import org.slf4j.LoggerFactory;
  *
  * @implNote Class member state should only be accessed, not modified.
  */
-public class StreamingWorkerStatusPages implements StreamingStatusPages {
+@Internal
+public final class StreamingWorkerStatusPages implements StreamingStatusPages {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingWorkerStatusPages.class);
   private static final String DUMP_STATUS_PAGES_EXECUTOR = "DumpStatusPages";
+  private static final long DEFAULT_STATUS_PAGE_DUMP_PERIOD_SECONDS = 60;
 
   private final Supplier<Instant> clock;
   private final long clientId;
@@ -101,7 +105,7 @@ public class StreamingWorkerStatusPages implements StreamingStatusPages {
     this.statusPageDumper = statusPageDumper;
   }
 
-  static StreamingWorkerStatusPages create(
+  static StreamingWorkerStatusPages forStreamingEngine(
       Supplier<Instant> clock,
       long clientId,
       AtomicBoolean isRunning,
@@ -159,7 +163,7 @@ public class StreamingWorkerStatusPages implements StreamingStatusPages {
   }
 
   @Override
-  public void start() {
+  public void start(DataflowWorkerHarnessOptions options) {
     statusPages.addServlet(stateCache.statusServlet());
     statusPages.addServlet(newSpecServlet());
     statusPages.addStatusDataProvider(
@@ -187,6 +191,7 @@ public class StreamingWorkerStatusPages implements StreamingStatusPages {
     }
 
     statusPages.start();
+    scheduleStatusPageDump(options);
   }
 
   private void addStreamingEngineStatusPages() {
@@ -216,15 +221,24 @@ public class StreamingWorkerStatusPages implements StreamingStatusPages {
     statusPageDumper.shutdownNow();
   }
 
-  @Override
   @SuppressWarnings("FutureReturnValueIgnored")
-  public void scheduleStatusPageDump(
-      String getPeriodicStatusPageOutputDirectory, String workerId, long delay) {
-    statusPageDumper.scheduleWithFixedDelay(
-        () -> dumpStatusPages(getPeriodicStatusPageOutputDirectory, workerId),
-        60,
-        delay,
-        TimeUnit.SECONDS);
+  private void scheduleStatusPageDump(DataflowWorkerHarnessOptions options) {
+    if (options.getPeriodicStatusPageOutputDirectory() != null) {
+      LOG.info(
+          "Scheduling status page dump every {} seconds", DEFAULT_STATUS_PAGE_DUMP_PERIOD_SECONDS);
+      statusPageDumper.scheduleWithFixedDelay(
+          () ->
+              dumpStatusPages(
+                  options.getPeriodicStatusPageOutputDirectory(), options.getWorkerId()),
+          DEFAULT_STATUS_PAGE_DUMP_PERIOD_SECONDS,
+          DEFAULT_STATUS_PAGE_DUMP_PERIOD_SECONDS,
+          TimeUnit.SECONDS);
+    } else {
+      LOG.info(
+          "Status page output directory was not set, "
+              + "status pages will not be periodically dumped. "
+              + "If this was not intended check pipeline options.");
+    }
   }
 
   private void dumpStatusPages(String getPeriodicStatusPageOutputDirectory, String workerId) {

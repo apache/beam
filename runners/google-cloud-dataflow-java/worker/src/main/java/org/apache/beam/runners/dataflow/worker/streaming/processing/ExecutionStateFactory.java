@@ -49,6 +49,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.MapTaskExecuto
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -63,6 +64,7 @@ import org.slf4j.LoggerFactory;
  * Factory class for generating {@link
  * org.apache.beam.runners.dataflow.worker.streaming.ExecutionState} instances.
  */
+@Internal
 public final class ExecutionStateFactory {
   private static final Logger LOG = LoggerFactory.getLogger(ExecutionStateFactory.class);
 
@@ -75,6 +77,9 @@ public final class ExecutionStateFactory {
   private final DataflowExecutionStateSampler sampler;
   private final CounterSet pendingDeltaCounters;
   private final Function<MapTask, MutableNetwork<Nodes.Node, Edges.Edge>> mapTaskToNetwork;
+  // Map of user state names to system state names.
+  // TODO(drieber): obsolete stateNameMap. Use transformUserNameToStateFamily in
+  // ComputationState instead.
   private final ConcurrentMap<String, String> stateNameMap;
   private final long maxSinkBytes;
 

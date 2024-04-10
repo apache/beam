@@ -17,16 +17,14 @@
  */
 package org.apache.beam.runners.dataflow.worker.testing;
 
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingStatusPages;
 
+/** Testing implementation of {@link StreamingStatusPages} that do nothing. */
 public final class TestStatusPages implements StreamingStatusPages {
   @Override
-  public void start() {}
+  public void start(DataflowWorkerHarnessOptions options) {}
 
   @Override
   public void stop() {}
-
-  @Override
-  public void scheduleStatusPageDump(
-      String getPeriodicStatusPageOutputDirectory, String workerId, long delay) {}
 }

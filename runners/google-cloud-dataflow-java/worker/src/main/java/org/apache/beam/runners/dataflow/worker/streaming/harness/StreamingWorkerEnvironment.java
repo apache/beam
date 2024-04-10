@@ -42,6 +42,7 @@ import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.ChannelzServlet;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
@@ -59,6 +60,7 @@ import org.slf4j.LoggerFactory;
  * Utilities and static factory methods for common components and environmental parameters for
  * {@link StreamingWorkerHarness}.
  */
+@Internal
 public final class StreamingWorkerEnvironment {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingWorkerEnvironment.class);
 
@@ -113,7 +115,7 @@ public final class StreamingWorkerEnvironment {
     return FIX_MULTI_OUTPUT_INFOS;
   }
 
-  static Function<MapTask, MutableNetwork<Nodes.Node, Edges.Edge>>
+  public static Function<MapTask, MutableNetwork<Nodes.Node, Edges.Edge>>
       mapTaskToBaseNetworkFnInstance() {
     return MAP_TASK_TO_BASE_NETWORK;
   }
@@ -141,7 +143,7 @@ public final class StreamingWorkerEnvironment {
     return MAX_PROCESSING_THREADS;
   }
 
-  static long getMaxSinkBytes(DataflowWorkerHarnessOptions options) {
+  public static long getMaxSinkBytes(DataflowWorkerHarnessOptions options) {
     return hasExperiment(options, DISABLE_SINK_BYTES_LIMIT_EXPERIMENT)
         ? Long.MAX_VALUE
         : MAX_SINK_BYTES;

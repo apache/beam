@@ -251,6 +251,16 @@ public class Work implements Runnable {
     }
   }
 
+  @Override
+  public String toString() {
+    return "Work{"
+        + "shardingKey="
+        + workProcessingContext.workItem().getShardingKey()
+        + ", id="
+        + id
+        + '}';
+  }
+
   /**
    * Represents the current state of an instance of {@link Work}. Contains the {@link State} and
    * {@link Instant} when it started.

@@ -71,8 +71,12 @@ public class StreamingApplianceWorkCommitterTest {
                 Windmill.WorkItem.newBuilder()
                     .setKey(ByteString.EMPTY)
                     .setWorkToken(workToken)
+                    .setCacheToken(1L)
+                    .setShardingKey(2L)
                     .build())
             .setWorkCommitter(workCommitter::commit)
+            .setComputationId("computation")
+            .setInputDataWatermark(Instant.EPOCH)
             .setKeyedDataFetcher(
                 request ->
                     Optional.ofNullable(getDataStream.requestKeyedData("computationId", request)))

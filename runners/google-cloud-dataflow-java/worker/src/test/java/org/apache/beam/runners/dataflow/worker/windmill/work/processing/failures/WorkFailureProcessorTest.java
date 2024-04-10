@@ -100,6 +100,8 @@ public class WorkFailureProcessorTest {
             .setWorkItem(
                 Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(1L).build())
             .setWorkCommitter(workCommitter::commit)
+            .setComputationId("computation")
+            .setInputDataWatermark(Instant.EPOCH)
             .setKeyedDataFetcher(
                 request ->
                     Optional.ofNullable(getDataStream.requestKeyedData("computationId", request)))

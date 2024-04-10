@@ -21,12 +21,14 @@ import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.auto.value.AutoValue;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 
 /** Pipeline configuration for jobs running w/ Streaming Engine. */
 @AutoValue
+@Internal
 public abstract class StreamingEnginePipelineConfig {
 
   private static final long DEFAULT_MAX_WORK_ITEM_COMMIT_BYTES = 180 << 20;

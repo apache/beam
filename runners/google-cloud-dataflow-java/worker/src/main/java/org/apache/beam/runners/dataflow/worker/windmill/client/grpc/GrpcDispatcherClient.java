@@ -89,7 +89,7 @@ public class GrpcDispatcherClient {
         new Random());
   }
 
-  CloudWindmillServiceV1Alpha1Stub getWindmillServiceStub() {
+  public CloudWindmillServiceV1Alpha1Stub getWindmillServiceStub() {
     ImmutableList<CloudWindmillServiceV1Alpha1Stub> windmillServiceStubs =
         dispatcherStubs.get().windmillServiceStubs();
     Preconditions.checkState(

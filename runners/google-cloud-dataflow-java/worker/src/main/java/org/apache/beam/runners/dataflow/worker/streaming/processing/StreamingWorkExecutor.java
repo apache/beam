@@ -49,6 +49,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -156,7 +157,7 @@ public final class StreamingWorkExecutor {
    *
    * @implNote This will block the calling thread during execution of user DoFns.
    */
-  public void execute(ComputationState computationState, Work work) {
+  void execute(ComputationState computationState, Work work) {
     Windmill.WorkItem workItem = work.getWorkItem();
     String computationId = computationState.getComputationId();
     ByteString key = workItem.getKey();
@@ -290,7 +291,8 @@ public final class StreamingWorkExecutor {
     try {
       WindmillStateReader stateReader =
           createWindmillStateReader(key, work, work.getProcessingContext().keyedDataFetcher());
-      SideInputStateFetcher localSideInputStateFetcher = sideInputStateFetcher.byteTrackingView();
+      SideInputStateFetcher localSideInputStateFetcher =
+          Preconditions.checkNotNull(sideInputStateFetcher).byteTrackingView();
 
       // If the read output KVs, then we can decode Windmill's byte key into userland
       // key object and provide it to the execution context for use with per-key state.

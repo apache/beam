@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -46,6 +45,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
@@ -65,6 +65,7 @@ import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
 
 @RunWith(JUnit4.class)
 public class DispatchedActiveWorkRefresherTest {
@@ -126,8 +127,11 @@ public class DispatchedActiveWorkRefresherTest {
                 Windmill.WorkItem.newBuilder()
                     .setKey(ByteString.EMPTY)
                     .setWorkToken(workIds)
+                    .setCacheToken(workIds)
                     .build())
             .setWorkCommitter(workCommitter::commit)
+            .setComputationId("computation")
+            .setInputDataWatermark(Instant.EPOCH)
             .setKeyedDataFetcher(
                 request ->
                     Optional.ofNullable(getDataStream.requestKeyedData("computationId", request)))
@@ -157,7 +161,7 @@ public class DispatchedActiveWorkRefresherTest {
     for (int i = 0; i < 5; i++) {
       ComputationState computationState = createComputationState(i);
       Work fakeWork = createOldWork(i, processWork);
-      computationState.activateWork(ShardedKey.create(ByteString.EMPTY, i), fakeWork);
+      computationState.activateWork(fakeWork);
 
       computations.add(computationState);
       List<Work> activeWorkForComputation =
@@ -253,18 +257,35 @@ public class DispatchedActiveWorkRefresherTest {
     activeWorkRefresher.start();
     fakeClock.advance(Duration.millis(stuckCommitDurationMillis));
     invalidateStuckCommitRan.await();
-    activeWorkRefresher.stop();
 
+    // Capture all invalidate and completeWork args.
+    ArgumentCaptor<ByteString> keyArgumentCaptor = ArgumentCaptor.forClass(ByteString.class);
+    ArgumentCaptor<Long> shardingKeyArgumentCaptor = ArgumentCaptor.forClass(Long.class);
+    ArgumentCaptor<ShardedKey> shardedKeyArgumentCaptor = ArgumentCaptor.forClass(ShardedKey.class);
+    ArgumentCaptor<WorkId> workIdArgumentCaptor = ArgumentCaptor.forClass(WorkId.class);
     for (Table.Cell<ComputationState, Work, WindmillStateCache.ForComputation> cell :
         computations.cellSet()) {
-      ComputationState computation = cell.getRowKey();
-      Work work = cell.getColumnKey();
+      ComputationState computationState = cell.getRowKey();
       WindmillStateCache.ForComputation perComputationStateCache = cell.getValue();
       verify(perComputationStateCache, times(1))
-          .invalidate(eq(key), eq(work.getWorkItem().getShardingKey()));
-      verify(computation, times(1))
+          .invalidate(keyArgumentCaptor.capture(), shardingKeyArgumentCaptor.capture());
+      verify(computationState, times(1))
           .completeWorkAndScheduleNextWorkForKey(
-              eq(ShardedKey.create(key, work.getWorkItem().getShardingKey())), eq(work.id()));
+              shardedKeyArgumentCaptor.capture(), workIdArgumentCaptor.capture());
+    }
+
+    activeWorkRefresher.stop();
+
+    // Assert all invalidate and completeWork args.
+    for (Table.Cell<ComputationState, Work, WindmillStateCache.ForComputation> cell :
+        computations.cellSet()) {
+      Work work = cell.getColumnKey();
+      assertThat(keyArgumentCaptor.getAllValues()).contains(key);
+      assertThat(shardingKeyArgumentCaptor.getAllValues())
+          .contains(work.getWorkItem().getShardingKey());
+      assertThat(shardedKeyArgumentCaptor.getAllValues())
+          .contains(ShardedKey.create(key, work.getWorkItem().getShardingKey()));
+      assertThat(workIdArgumentCaptor.getAllValues()).contains(work.id());
     }
   }
 

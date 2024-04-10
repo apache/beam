@@ -17,11 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
+import org.apache.beam.sdk.annotations.Internal;
+
+@Internal
 public interface StreamingStatusPages {
-  void start();
+  void start(DataflowWorkerHarnessOptions options);
 
   void stop();
-
-  void scheduleStatusPageDump(
-      String getPeriodicStatusPageOutputDirectory, String workerId, long delay);
 }

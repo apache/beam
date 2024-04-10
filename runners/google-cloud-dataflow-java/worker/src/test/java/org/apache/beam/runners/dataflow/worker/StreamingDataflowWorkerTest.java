@@ -3868,10 +3868,7 @@ public class StreamingDataflowWorkerTest {
 
   @Test
   public void testLatencyAttributionToActiveState() throws Exception {
-    if (!streamingEngine) {
-      return;
-    }
-    final int workToken = 4242; // A unique id makes it easier to search logs.
+    int workToken = 4242; // A unique id makes it easier to search logs.
 
     FakeClock clock = new FakeClock();
     // Inject processing latency on the fake clock in the worker via FakeSlowDoFn.

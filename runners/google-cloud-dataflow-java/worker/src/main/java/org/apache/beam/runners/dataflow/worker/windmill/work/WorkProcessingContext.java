@@ -51,6 +51,15 @@ public abstract class WorkProcessingContext {
         .setKeyedDataFetcher(request -> keyedDataFetcher.apply(computationId, request));
   }
 
+  public static WorkProcessingContext.Builder builder(
+      String computationId, GetDataStream getDataStream) {
+    return builder()
+        .setComputationId(computationId)
+        .setGetDataStream(getDataStream)
+        .setKeyedDataFetcher(
+            request -> Optional.ofNullable(getDataStream.requestKeyedData(computationId, request)));
+  }
+
   public abstract String computationId();
 
   public abstract Instant inputDataWatermark();

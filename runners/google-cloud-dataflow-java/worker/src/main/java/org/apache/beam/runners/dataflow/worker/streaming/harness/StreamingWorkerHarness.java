@@ -18,19 +18,28 @@
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationStateCache;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
+/** Streaming worker harness that executes processing of a pipeline. */
+@Internal
 public interface StreamingWorkerHarness {
 
   void start();
 
   void stop();
 
-  void startStatusPages();
-
   @VisibleForTesting
   void requestWorkerUpdate();
 
   @VisibleForTesting
   ComputationStateCache getComputationStateCache();
+
+  Mode mode();
+
+  enum Mode {
+    APPLIANCE,
+    DISPATCHED_STREAMING_ENGINE,
+    FAN_OUT_STREAMING_ENGINE
+  }
 }

@@ -74,6 +74,8 @@ public class ActiveWorkStateTest {
         WorkProcessingContext.builder()
             .setWorkItem(workItem)
             .setWorkCommitter(workCommitter::commit)
+            .setComputationId("computation")
+            .setInputDataWatermark(Instant.EPOCH)
             .setKeyedDataFetcher(
                 request ->
                     Optional.ofNullable(getDataStream.requestKeyedData("computationId", request)))
@@ -92,6 +94,8 @@ public class ActiveWorkStateTest {
     return Work.create(
         WorkProcessingContext.builder()
             .setWorkItem(workItem)
+            .setInputDataWatermark(Instant.EPOCH)
+            .setComputationId("computation")
             .setWorkCommitter(workCommitter::commit)
             .setKeyedDataFetcher(
                 request ->

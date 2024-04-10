@@ -86,18 +86,6 @@ public final class GetDataClient {
     }
   }
 
-  public void refreshActiveWork(
-      GetDataStream getDataStream, Map<String, List<HeartbeatRequest>> heartbeats) {
-    activeHeartbeats.set(heartbeats.size());
-    try {
-      // With streaming requests, always send the request even when it is empty, to ensure that
-      // we trigger health checks for the stream even when it is idle.
-      getDataStream.refreshActiveWork(heartbeats);
-    } finally {
-      activeHeartbeats.set(0);
-    }
-  }
-
   /** Attempts to refresh active work, fanning out to each {@link GetDataStream}. */
   public void refreshActiveWorkWithFanOut(
       Map<GetDataStream, Map<String, List<HeartbeatRequest>>> heartbeats) {

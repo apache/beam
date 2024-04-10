@@ -45,16 +45,15 @@ public final class StreamingDataflowWorker {
     DataflowWorkerHarnessHelper.configureLogging(options);
     validateWorkerOptions(options);
 
-    LOG.debug("Creating StreamingWorkerHarness from options: {}", options);
+    LOG.info("Creating StreamingWorkerHarness from options: {}", options);
     StreamingWorkerHarness worker = createStreamingWorkerHarness(options);
-    LOG.info("Created StreamingWorkerHarness={}.", worker.getClass());
 
     // Use the MetricsLogger container which is used by BigQueryIO to periodically log process-wide
     // metrics.
     MetricsEnvironment.setProcessWideContainer(MetricsLogger.createUnboundedMetricsLogger());
     JvmInitializers.runBeforeProcessing(options);
 
-    worker.startStatusPages();
+    LOG.info("Starting worker harness in mode={}.", worker.mode());
     worker.start();
   }
 

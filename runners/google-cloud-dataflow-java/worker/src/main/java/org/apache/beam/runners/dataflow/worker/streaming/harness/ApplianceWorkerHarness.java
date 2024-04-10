@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutorFactory;
@@ -68,6 +69,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.WorkFailureProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.ActiveWorkRefresher;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.DispatchedActiveWorkRefresher;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -82,8 +84,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Streaming Appliance worker harness implementation. */
-public class ApplianceWorkerHarness implements StreamingWorkerHarness {
+@Internal
+@ThreadSafe
+public final class ApplianceWorkerHarness implements StreamingWorkerHarness {
   private static final Logger LOG = LoggerFactory.getLogger(ApplianceWorkerHarness.class);
+  private static final String MEMORY_MONITOR_EXECUTOR = "MemoryMonitor";
+  private static final String GET_WORK_EXECUTOR = "GetWorkDispatcher";
+  private static final String REFRESH_WORK_EXECUTOR = "RefreshWork";
 
   private final DataflowWorkerHarnessOptions options;
   private final long clientId;
@@ -169,33 +176,13 @@ public class ApplianceWorkerHarness implements StreamingWorkerHarness {
             windmillServer::commitWork,
             completeCommit ->
                 onCompleteCommit(completeCommit, readerCache, stateCache, computationStateCache));
-    long maxSinkBytes = StreamingWorkerEnvironment.getMaxSinkBytes(options);
     AtomicInteger maxWorkItemCommitBytes = new AtomicInteger(Integer.MAX_VALUE);
     DataflowExecutionStateSampler sampler = DataflowExecutionStateSampler.instance();
-    ExecutionStateFactory executionStateFactory =
-        new ExecutionStateFactory(
-            options,
-            IntrinsicMapTaskExecutorFactory.defaultFactory(),
-            readerCache,
-            stateCache::forComputation,
-            sampler,
-            streamingCounters.pendingDeltaCounters(),
-            StreamingWorkerEnvironment.mapTaskToBaseNetworkFnInstance(),
-            stateNameMap,
-            maxSinkBytes);
-    SideInputStateFetcher sideInputStateFetcher =
-        new SideInputStateFetcher(getDataClient::getSideInputData, options);
     FailureTracker failureTracker =
         StreamingApplianceFailureTracker.create(
             StreamingWorkerEnvironment.getMaxFailuresToReportInUpdate(),
             options.getMaxStackTraceDepthToReport(),
             windmillServer::reportStats);
-    WorkFailureProcessor workFailureProcessor =
-        WorkFailureProcessor.create(
-            workExecutor,
-            failureTracker,
-            () -> Optional.ofNullable(memoryMonitor.tryToDumpHeap()),
-            clock);
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
     WorkUnitClient dataflowServiceClient = new DataflowWorkUnitClient(options, LOG);
     StreamingWorkerStatusReporter workerStatusReporter =
@@ -207,16 +194,27 @@ public class ApplianceWorkerHarness implements StreamingWorkerHarness {
             streamingCounters,
             memoryMonitor,
             workExecutor);
-    StreamingCommitFinalizer streamingCommitFinalizer =
-        StreamingCommitFinalizer.create(workExecutor);
     StreamingWorkExecutor streamingWorkExecutor =
         new StreamingWorkExecutor(
             options,
-            executionStateFactory,
-            sideInputStateFetcher,
+            new ExecutionStateFactory(
+                options,
+                IntrinsicMapTaskExecutorFactory.defaultFactory(),
+                readerCache,
+                stateCache::forComputation,
+                sampler,
+                streamingCounters.pendingDeltaCounters(),
+                StreamingWorkerEnvironment.mapTaskToBaseNetworkFnInstance(),
+                stateNameMap,
+                StreamingWorkerEnvironment.getMaxSinkBytes(options)),
+            new SideInputStateFetcher(getDataClient::getSideInputData, options),
             failureTracker,
-            workFailureProcessor,
-            streamingCommitFinalizer,
+            WorkFailureProcessor.create(
+                workExecutor,
+                failureTracker,
+                () -> Optional.ofNullable(memoryMonitor.tryToDumpHeap()),
+                clock),
+            StreamingCommitFinalizer.create(workExecutor),
             streamingCounters,
             HotKeyLogger.ofSystemClock(),
             stageInfo,
@@ -245,7 +243,7 @@ public class ApplianceWorkerHarness implements StreamingWorkerHarness {
             sampler,
             getDataClient::refreshActiveWork,
             Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat("RefreshWork").build()));
+                new ThreadFactoryBuilder().setNameFormat(REFRESH_WORK_EXECUTOR).build()));
     return new ApplianceWorkerHarness(
         options,
         clientId,
@@ -261,12 +259,12 @@ public class ApplianceWorkerHarness implements StreamingWorkerHarness {
         activeWorkRefresher,
         Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder()
-                .setNameFormat("MemoryMonitor")
+                .setNameFormat(MEMORY_MONITOR_EXECUTOR)
                 .setPriority(Thread.MIN_PRIORITY)
                 .build()),
         Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder()
-                .setNameFormat("GetWorkDispatchThread")
+                .setNameFormat(GET_WORK_EXECUTOR)
                 .setPriority(Thread.MIN_PRIORITY)
                 .setDaemon(true)
                 .build()),
@@ -366,7 +364,11 @@ public class ApplianceWorkerHarness implements StreamingWorkerHarness {
             windmillServer::commitWork,
             completeCommit ->
                 onCompleteCommit(completeCommit, readerCache, stateCache, computationStateCache));
-
+    LOG.debug("windmillServiceEnabled: {}", false);
+    LOG.debug("WindmillServiceEndpoint: {}", options.getWindmillServiceEndpoint());
+    LOG.debug("WindmillServicePort: {}", options.getWindmillServicePort());
+    LOG.debug("LocalWindmillHostport: {}", options.getLocalWindmillHostport());
+    LOG.debug("maxWorkItemCommitBytes: {}", maxWorkItemCommitBytes.get());
     return new ApplianceWorkerHarness(
         options,
         1L,
@@ -442,17 +444,7 @@ public class ApplianceWorkerHarness implements StreamingWorkerHarness {
       memoryMonitoryExecutor.submit(memoryMonitor);
       getWorkExecutor.submit(this::getWorkLoop);
       sampler.start();
-      if (options.getPeriodicStatusPageOutputDirectory() != null) {
-        long delay = 60;
-        LOG.info("Scheduling status page dump every {} seconds", delay);
-        statusPages.scheduleStatusPageDump(
-            options.getPeriodicStatusPageOutputDirectory(), options.getWorkerId(), delay);
-      } else {
-        LOG.info(
-            "Status page output directory was not set, "
-                + "status pages will not be periodically dumped. "
-                + "If this was not intended check pipeline options.");
-      }
+      statusPages.start(options);
       workCommitter.start();
       workerStatusReporter.start(options.getWindmillHarnessUpdateReportingPeriod().getMillis());
       activeWorkRefresher.start();
@@ -477,12 +469,8 @@ public class ApplianceWorkerHarness implements StreamingWorkerHarness {
     }
   }
 
-  @Override
-  public void startStatusPages() {
-    statusPages.start();
-  }
-
   private void getWorkLoop() {
+    LOG.info("Starting get work.");
     while (isRunning.get()) {
       memoryMonitor.waitForResources("GetWork");
       GetWorkResponse workResponse = getWork();
@@ -501,6 +489,8 @@ public class ApplianceWorkerHarness implements StreamingWorkerHarness {
         }
       }
     }
+
+    LOG.info("GetWork finished.");
   }
 
   @Override
@@ -562,5 +552,10 @@ public class ApplianceWorkerHarness implements StreamingWorkerHarness {
   @Override
   public ComputationStateCache getComputationStateCache() {
     return computationCache;
+  }
+
+  @Override
+  public Mode mode() {
+    return Mode.APPLIANCE;
   }
 }

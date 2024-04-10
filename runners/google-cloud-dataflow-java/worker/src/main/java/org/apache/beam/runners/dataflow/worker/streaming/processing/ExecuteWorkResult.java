@@ -22,13 +22,13 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 
 /** Value class that represents the result of executing user DoFns. */
 @AutoValue
-public abstract class ExecuteWorkResult {
-  public static ExecuteWorkResult create(
+abstract class ExecuteWorkResult {
+  static ExecuteWorkResult create(
       Windmill.WorkItemCommitRequest.Builder commitWorkRequest, long stateBytesRead) {
     return new AutoValue_ExecuteWorkResult(commitWorkRequest, stateBytesRead);
   }
 
-  public abstract Windmill.WorkItemCommitRequest.Builder commitWorkRequest();
+  abstract Windmill.WorkItemCommitRequest.Builder commitWorkRequest();
 
-  public abstract long stateBytesRead();
+  abstract long stateBytesRead();
 }

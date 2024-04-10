@@ -18,12 +18,14 @@
 package org.apache.beam.runners.dataflow.worker.streaming.config;
 
 import java.util.Optional;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * Interface for fetching and loading streaming pipeline configurations from Dataflow service.
  * Pipeline configurations are needed to execute computations and manage metadata needed for user
  * worker harness communications with the streaming backend.
  */
+@Internal
 public interface StreamingConfigLoader<ConfigTypeT> {
   void start();
 

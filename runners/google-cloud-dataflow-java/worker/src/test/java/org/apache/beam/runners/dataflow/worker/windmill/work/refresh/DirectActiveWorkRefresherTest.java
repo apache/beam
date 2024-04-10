@@ -119,6 +119,9 @@ public class DirectActiveWorkRefresherTest {
                     .setShardingKey(workIds)
                     .build())
             .setWorkCommitter(workCommitter::commit)
+            .setInputDataWatermark(Instant.EPOCH)
+            .setComputationId("computation")
+            .setGetDataStream(getDataStream)
             .setKeyedDataFetcher(
                 request ->
                     Optional.ofNullable(getDataStream.requestKeyedData("computationId", request)))
@@ -155,13 +158,13 @@ public class DirectActiveWorkRefresherTest {
           computationsAndWork.computeIfAbsent(
               computationState.getComputationId(), ignored -> new ArrayList<>());
       activeWorkForComputation.add(fakeWork);
+      when(fakeWork.getProcessingContext().getDataStream().isClosed()).thenReturn(false);
     }
 
     Map<WindmillStream.GetDataStream, Map<String, List<Windmill.HeartbeatRequest>>>
         fanoutExpectedHeartbeats = new HashMap<>();
     CountDownLatch heartbeatsSent = new CountDownLatch(1);
     TestClock fakeClock = new TestClock(Instant.now());
-
     ActiveWorkRefresher activeWorkRefresher =
         createActiveWorkRefresher(
             fakeClock::now,

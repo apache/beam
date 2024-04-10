@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.streaming.config;
 
 import java.util.Optional;
 import java.util.function.Consumer;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetConfigResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
@@ -26,6 +27,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 @Internal
+@ThreadSafe
 public final class StreamingApplianceConfigLoader
     implements StreamingConfigLoader<GetConfigResponse> {
 

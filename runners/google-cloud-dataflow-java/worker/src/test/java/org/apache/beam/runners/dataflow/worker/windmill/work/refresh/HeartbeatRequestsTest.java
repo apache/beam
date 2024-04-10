@@ -32,7 +32,6 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
@@ -93,12 +92,10 @@ public class HeartbeatRequestsTest {
       Windmill.WorkItem workItem, WindmillStream.GetDataStream getDataStream) {
     WorkCommitter workCommitter = mock(WorkCommitter.class);
     doNothing().when(workCommitter).commit(any(Commit.class));
-    return WorkProcessingContext.builder()
+    return WorkProcessingContext.builder("computationId", getDataStream)
         .setWorkItem(workItem)
         .setWorkCommitter(workCommitter::commit)
-        .setKeyedDataFetcher(
-            request ->
-                Optional.ofNullable(getDataStream.requestKeyedData("computationId", request)))
+        .setInputDataWatermark(Instant.EPOCH)
         .build();
   }
 
@@ -261,5 +258,22 @@ public class HeartbeatRequestsTest {
     abstract long cacheToken();
 
     abstract @Nullable WindmillStream.GetDataStream getDataStream();
+
+    @Override
+    public final boolean equals(Object obj) {
+      if (!(obj instanceof HeartbeatRequestShardingKeyWorkTokenAndCacheToken)) {
+        return false;
+      }
+      HeartbeatRequestShardingKeyWorkTokenAndCacheToken other =
+          (HeartbeatRequestShardingKeyWorkTokenAndCacheToken) obj;
+      return shardingKey() == other.shardingKey()
+          && workToken() == other.workToken()
+          && cacheToken() == other.cacheToken();
+    }
+
+    @Override
+    public final int hashCode() {
+      return Objects.hash(shardingKey(), workToken(), cacheToken());
+    }
   }
 }

@@ -26,10 +26,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -40,7 +42,10 @@ import org.joda.time.Instant;
  * {@link ActiveWorkRefresher} that will fan out heartbeat requests for possibly multiple {@link
  * GetDataStream}(s).
  */
+@Internal
+@ThreadSafe
 public final class DirectActiveWorkRefresher extends ActiveWorkRefresher {
+  private static final String REFRESH_ACTIVE_WORK_EXECUTOR = "RefreshWorkWithFanOut";
   private final Consumer<Map<GetDataStream, Map<String, List<HeartbeatRequest>>>>
       refreshActiveWorkFn;
 
@@ -77,7 +82,7 @@ public final class DirectActiveWorkRefresher extends ActiveWorkRefresher {
         sampler,
         refreshActiveWorkFn,
         Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder().setNameFormat("RefreshWorkWithFanOut").build()));
+            new ThreadFactoryBuilder().setNameFormat(REFRESH_ACTIVE_WORK_EXECUTOR).build()));
   }
 
   @VisibleForTesting

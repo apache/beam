@@ -182,11 +182,14 @@ public final class StreamingEngineClient {
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
       Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
-      Consumer<List<Windmill.ComputationHeartbeatResponse>> heartbeatProcessor) {
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> heartbeatProcessor,
+      AtomicReference<StreamingEngineConnectionState> streamingEngineConnectionsState) {
+    // Set the connectionState to a valid state if it is null.
+    streamingEngineConnectionsState.compareAndSet(null, StreamingEngineConnectionState.EMPTY);
     return new StreamingEngineClient(
         jobHeader,
         totalGetWorkBudget,
-        new AtomicReference<>(StreamingEngineConnectionState.EMPTY),
+        streamingEngineConnectionsState,
         streamingEngineStreamFactory,
         processWorkItem,
         channelCachingStubFactory,
@@ -251,6 +254,10 @@ public final class StreamingEngineClient {
         .collect(toImmutableSet());
   }
 
+  /**
+   * Fetches {@link GetDataStream} mapped to globalDataKey if one exists, or defaults to {@link
+   * GetDataStream} pointing to dispatcher.
+   */
   public GetDataStream getGlobalDataStream(String globalDataKey) {
     return Optional.ofNullable(connections.get().globalDataStreams().get(globalDataKey))
         .map(Supplier::get)

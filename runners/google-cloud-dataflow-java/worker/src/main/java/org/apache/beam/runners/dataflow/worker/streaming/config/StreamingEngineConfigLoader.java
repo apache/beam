@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.WorkUnitClient;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
@@ -51,6 +52,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Internal
+@ThreadSafe
 public final class StreamingEngineConfigLoader
     implements StreamingConfigLoader<StreamingEnginePipelineConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingEngineConfigLoader.class);

@@ -83,6 +83,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.WorkFailureProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.ActiveWorkRefresher;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.DispatchedActiveWorkRefresher;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -99,7 +100,8 @@ import org.slf4j.LoggerFactory;
  * in this mode will GetWork, GetData, and CommitWork to a single address on the Streaming Engine
  * backend.
  */
-public class DispatchedStreamingEngineWorkerHarness implements StreamingWorkerHarness {
+@Internal
+public final class DispatchedStreamingEngineWorkerHarness implements StreamingWorkerHarness {
   private static final Logger LOG =
       LoggerFactory.getLogger(DispatchedStreamingEngineWorkerHarness.class);
   private static final int NUM_COMMIT_STREAMS = 1;
@@ -258,7 +260,7 @@ public class DispatchedStreamingEngineWorkerHarness implements StreamingWorkerHa
     WorkerStatusPages workerStatusPages =
         StreamingWorkerEnvironment.createStatusPages(memoryMonitor);
     StreamingWorkerStatusPages statusPages =
-        StreamingWorkerStatusPages.create(
+        StreamingWorkerStatusPages.forStreamingEngine(
             clock,
             clientId,
             isRunning,
@@ -283,6 +285,12 @@ public class DispatchedStreamingEngineWorkerHarness implements StreamingWorkerHa
             getDataClient::refreshActiveWork,
             Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("RefreshWork").build()));
+    LOG.debug("windmillServiceEnabled: {}", true);
+    LOG.debug("WindmillServiceEndpoint: {}", options.getWindmillServiceEndpoint());
+    LOG.debug("WindmillServicePort: {}", options.getWindmillServicePort());
+    LOG.debug("LocalWindmillHostport: {}", options.getLocalWindmillHostport());
+    LOG.debug("maxWorkItemCommitBytes: {}", maxWorkItemCommitBytes.get());
+    LOG.debug("directPathEnabled: {}", false);
     return new DispatchedStreamingEngineWorkerHarness(
         options,
         clientId,
@@ -538,17 +546,7 @@ public class DispatchedStreamingEngineWorkerHarness implements StreamingWorkerHa
       memoryMonitorExecutor.submit(memoryMonitor);
       workCommitter.start();
       streamingGetWorkExecutor.submit(this::streamingDispatchLoop);
-      if (options.getPeriodicStatusPageOutputDirectory() != null) {
-        long delay = 60;
-        LOG.info("Scheduling status page dump every {} seconds", delay);
-        statusPages.scheduleStatusPageDump(
-            options.getPeriodicStatusPageOutputDirectory(), options.getWorkerId(), delay);
-      } else {
-        LOG.info(
-            "Status page output directory was not set, "
-                + "status pages will not be periodically dumped. "
-                + "If this was not intended check pipeline options.");
-      }
+      statusPages.start(options);
       activeWorkRefresher.start();
       StreamingWorkerEnvironment.enableBigQueryMetrics(options);
     }
@@ -564,11 +562,6 @@ public class DispatchedStreamingEngineWorkerHarness implements StreamingWorkerHa
       statusPages.stop();
       workerStatusReporter.stop();
     }
-  }
-
-  @Override
-  public void startStatusPages() {
-    statusPages.start();
   }
 
   @Override
@@ -636,5 +629,10 @@ public class DispatchedStreamingEngineWorkerHarness implements StreamingWorkerHa
   @Override
   public ComputationStateCache getComputationStateCache() {
     return computationStateCache;
+  }
+
+  @Override
+  public Mode mode() {
+    return Mode.DISPATCHED_STREAMING_ENGINE;
   }
 }
