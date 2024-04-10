@@ -324,7 +324,7 @@ public class PubSubIOST extends IOStressTestBase {
     }
 
     PipelineLauncher.LaunchConfig options =
-        PipelineLauncher.LaunchConfig.builder("write-spanner")
+        PipelineLauncher.LaunchConfig.builder("write-pubsub")
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(writePipeline)
             .addParameter("runner", configuration.runner)
