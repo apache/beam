@@ -21,12 +21,14 @@ import com.google.api.client.util.Clock;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @NotThreadSafe
+@Internal
 public class HotKeyLogger {
   private final Logger LOG = LoggerFactory.getLogger(HotKeyLogger.class);
 

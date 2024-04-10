@@ -52,6 +52,7 @@ import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkProgressUpdater;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -65,6 +66,7 @@ import org.slf4j.Logger;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Internal
 public class DataflowWorkUnitClient implements WorkUnitClient {
   private final Logger logger;
 
