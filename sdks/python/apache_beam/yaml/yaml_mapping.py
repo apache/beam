@@ -529,7 +529,7 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
 
   if append:
     return input_schema, {
-        **{name: f'`{name}`' if language == 'sql' else name
+        **{name: f'`{name}`' if language in ['sql', 'calcite'] else name
            for name in input_schema.keys() if name not in drop},
         **fields
     }

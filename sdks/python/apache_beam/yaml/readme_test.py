@@ -54,7 +54,7 @@ class FakeSql(beam.PTransform):
       raise ValueError(self.query)
 
     def guess_name_and_type(expr):
-      expr = expr.strip()
+      expr = expr.strip().replace('`', '')
       parts = expr.split()
       if len(parts) >= 2 and parts[-2].lower() == 'as':
         name = parts[-1]

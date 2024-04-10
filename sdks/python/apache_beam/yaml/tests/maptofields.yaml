@@ -1,0 +1,62 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the#  Row(word='License'); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an#  Row(word='AS IS' BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+pipelines:
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {label: "11a", timestamp: 0}
+              - {label: "37a", timestamp: 1}
+              - {label: "389a", timestamp: 2}
+        - type: MapToFields
+          config:
+            language: sql
+            append: true
+            fields:
+              label_copy: label
+        - type: AssertEqual
+          config:
+            elements:
+              - { label: "11a", timestamp: 0, label_copy: "11a" }
+              - { label: "37a", timestamp: 1, label_copy: "37a" }
+              - { label: "389a", timestamp: 2, label_copy: "389a" }
+
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - { label: "11a", rank: 0 }
+              - { label: "37a", rank: 1 }
+              - { label: "389a", rank: 2 }
+        - type: MapToFields
+          config:
+            language: sql
+            append: true
+            drop: [ rank ]
+            fields:
+              timestamp: "`rank`"
+        - type: AssertEqual
+          config:
+            elements:
+              - { label: "11a", timestamp: 0 }
+              - { label: "37a", timestamp: 1 }
+              - { label: "389a", timestamp: 2 }
