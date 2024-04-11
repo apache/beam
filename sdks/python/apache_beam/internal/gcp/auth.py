@@ -131,9 +131,9 @@ class _Credentials(object):
       # apitools use urllib with the global timeout. Set it to 60 seconds
       # to prevent network related stuckness issues.
       if not socket.getdefaulttimeout():
-        _LOGGER.info("Setting socket default timeout to 60 seconds.")
+        _LOGGER.debug("Setting socket default timeout to 60 seconds.")
         socket.setdefaulttimeout(60)
-      _LOGGER.info(
+      _LOGGER.debug(
           "socket default timeout is %s seconds.", socket.getdefaulttimeout())
 
       cls._credentials = cls._get_service_credentials(pipeline_options)
