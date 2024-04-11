@@ -19075,12 +19075,12 @@ Pydoc&lt;/a
 class="language-py playground-snippet"
 data-sdk="python"
 data-path="SDK_PYTHON_Distinct"
-data-show="distinc"
+data-show="distinct"
 >&lt;/div>
 &lt;/div>
 &lt;div
 class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_Distinct%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22distinc%22%7d%5d"
+data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_Distinct%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22distinct%22%7d%5d"
 data-width="100%"
 data-height="700px"
 >&lt;/div>

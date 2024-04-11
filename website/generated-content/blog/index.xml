@@ -51,66 +51,46 @@ low-level coding details.&lt;/p>
 &lt;h1 id="case-study-a-simple-business-analytics-use-case">Case Study: A simple business analytics use-case&lt;/h1>
 &lt;p>Let&amp;rsquo;s take the following sample transaction data for a department store:&lt;/p>
 &lt;table>
+&lt;thead>
 &lt;tr>
-&lt;td>&lt;strong>transaction_id&lt;/strong>
-&lt;/td>
-&lt;td>&lt;strong>product_name&lt;/strong>
-&lt;/td>
-&lt;td>&lt;strong>category&lt;/strong>
-&lt;/td>
-&lt;td>&lt;strong>price&lt;/strong>
-&lt;/td>
+&lt;th style="text-align:left">transaction_id&lt;/th>
+&lt;th style="text-align:left">product_name&lt;/th>
+&lt;th style="text-align:left">category&lt;/th>
+&lt;th style="text-align:left">price&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">T0012&lt;/td>
+&lt;td style="text-align:left">Headphones&lt;/td>
+&lt;td style="text-align:left">Electronics&lt;/td>
+&lt;td style="text-align:left">59.99&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td>T0012
-&lt;/td>
-&lt;td>Headphones
-&lt;/td>
-&lt;td>Electronics
-&lt;/td>
-&lt;td>59.99
-&lt;/td>
+&lt;td style="text-align:left">T5034&lt;/td>
+&lt;td style="text-align:left">Leather Jacket&lt;/td>
+&lt;td style="text-align:left">Apparel&lt;/td>
+&lt;td style="text-align:left">109.99&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td>T5034
-&lt;/td>
-&lt;td>Leather Jacket
-&lt;/td>
-&lt;td>Apparel
-&lt;/td>
-&lt;td>109.99
-&lt;/td>
+&lt;td style="text-align:left">T0024&lt;/td>
+&lt;td style="text-align:left">Aluminum Mug&lt;/td>
+&lt;td style="text-align:left">Kitchen&lt;/td>
+&lt;td style="text-align:left">29.99&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td>T0024
-&lt;/td>
-&lt;td>Aluminum Mug
-&lt;/td>
-&lt;td>Kitchen
-&lt;/td>
-&lt;td>29.99
-&lt;/td>
+&lt;td style="text-align:left">T0104&lt;/td>
+&lt;td style="text-align:left">Headphones&lt;/td>
+&lt;td style="text-align:left">Electronics&lt;/td>
+&lt;td style="text-align:left">59.99&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td>T0104
-&lt;/td>
-&lt;td>Headphones
-&lt;/td>
-&lt;td>Electronics
-&lt;/td>
-&lt;td>59.99
-&lt;/td>
+&lt;td style="text-align:left">T0302&lt;/td>
+&lt;td style="text-align:left">Monitor&lt;/td>
+&lt;td style="text-align:left">Electronics&lt;/td>
+&lt;td style="text-align:left">249.99&lt;/td>
 &lt;/tr>
-&lt;tr>
-&lt;td>T0302
-&lt;/td>
-&lt;td>Monitor
-&lt;/td>
-&lt;td>Electronics
-&lt;/td>
-&lt;td>249.99
-&lt;/td>
-&lt;/tr>
+&lt;/tbody>
 &lt;/table>
 &lt;p>Now, let&amp;rsquo;s say that the business wants to get a record of transactions for all purchases made in the Electronics
 department for audit purposes. Assuming the records are stored as a CSV file, a Beam YAML pipeline may look something
@@ -136,46 +116,34 @@ like this:&lt;/p>
 &lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">path&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">/path/to/output&lt;/span>&lt;span class="w">
 &lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This would leave us with the following data:&lt;/p>
 &lt;table>
+&lt;thead>
 &lt;tr>
-&lt;td>&lt;strong>transaction_id&lt;/strong>
-&lt;/td>
-&lt;td>&lt;strong>product_name&lt;/strong>
-&lt;/td>
-&lt;td>&lt;strong>category&lt;/strong>
-&lt;/td>
-&lt;td>&lt;strong>price&lt;/strong>
-&lt;/td>
+&lt;th style="text-align:left">transaction_id&lt;/th>
+&lt;th style="text-align:left">product_name&lt;/th>
+&lt;th style="text-align:left">category&lt;/th>
+&lt;th style="text-align:left">price&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">T0012&lt;/td>
+&lt;td style="text-align:left">Headphones&lt;/td>
+&lt;td style="text-align:left">Electronics&lt;/td>
+&lt;td style="text-align:left">59.99&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td>T0012
-&lt;/td>
-&lt;td>Headphones
-&lt;/td>
-&lt;td>Electronics
-&lt;/td>
-&lt;td>59.99
-&lt;/td>
+&lt;td style="text-align:left">T0104&lt;/td>
+&lt;td style="text-align:left">Headphones&lt;/td>
+&lt;td style="text-align:left">Electronics&lt;/td>
+&lt;td style="text-align:left">59.99&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td>T0104
-&lt;/td>
-&lt;td>Headphones
-&lt;/td>
-&lt;td>Electronics
-&lt;/td>
-&lt;td>59.99
-&lt;/td>
+&lt;td style="text-align:left">T0302&lt;/td>
+&lt;td style="text-align:left">Monitor&lt;/td>
+&lt;td style="text-align:left">Electronics&lt;/td>
+&lt;td style="text-align:left">249.99&lt;/td>
 &lt;/tr>
-&lt;tr>
-&lt;td>T0302
-&lt;/td>
-&lt;td>Monitor
-&lt;/td>
-&lt;td>Electronics
-&lt;/td>
-&lt;td>249.99
-&lt;/td>
-&lt;/tr>
+&lt;/tbody>
 &lt;/table>
 &lt;p>Now, let&amp;rsquo;s say the business wants to determine how much of each Electronics item is being sold to ensure that the
 correct number is being ordered from the supplier. Let&amp;rsquo;s also assume that they want to determine the total revenue for
@@ -213,30 +181,25 @@ each item. This simple aggregation can follow the Filter from the previous examp
 &lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">path&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">/path/to/output&lt;/span>&lt;span class="w">
 &lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This would leave us with the following data:&lt;/p>
 &lt;table>
+&lt;thead>
 &lt;tr>
-&lt;td>&lt;strong>product_name&lt;/strong>
-&lt;/td>
-&lt;td>&lt;strong>num_sold&lt;/strong>
-&lt;/td>
-&lt;td>&lt;strong>total_revenue&lt;/strong>
-&lt;/td>
+&lt;th style="text-align:left">product_name&lt;/th>
+&lt;th style="text-align:left">num_sold&lt;/th>
+&lt;th style="text-align:left">total_revenue&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">Headphones&lt;/td>
+&lt;td style="text-align:left">2&lt;/td>
+&lt;td style="text-align:left">119.98&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td>Headphones
-&lt;/td>
-&lt;td>2
-&lt;/td>
-&lt;td>119.98
-&lt;/td>
+&lt;td style="text-align:left">Monitor&lt;/td>
+&lt;td style="text-align:left">1&lt;/td>
+&lt;td style="text-align:left">249.99&lt;/td>
 &lt;/tr>
-&lt;tr>
-&lt;td>Monitor
-&lt;/td>
-&lt;td>1
-&lt;/td>
-&lt;td>249.99
-&lt;/td>
-&lt;/tr>
+&lt;/tbody>
 &lt;/table>
 &lt;p>While this was a relatively simple use-case, it shows the power of Beam YAML and how easy it is to go from business
 use-case to a prototype data pipeline in just a few lines of YAML.&lt;/p>
@@ -251,10 +214,11 @@ use-case to a prototype data pipeline in just a few lines of YAML.&lt;/p>
 runtime, containing some basic YAML pipeline examples.&lt;/p>
 &lt;h2 id="documentation">Documentation&lt;/h2>
 &lt;p>The Apache Beam website provides a set of &lt;a href="https://beam.apache.org/documentation/sdks/yaml/">docs&lt;/a> that demonstrate the
-current capabilities of the Beam YAML SDK. These &lt;a href="https://beam.apache.org/documentation/sdks/yaml/">docs&lt;/a> can be found
-on the website and offer a comprehensive overview of the SDK&amp;rsquo;s functionality.&lt;/p>
+current capabilities of the Beam YAML SDK. There is also a catalog of currently-supported turnkey transforms found
+&lt;a href="https://beam.apache.org/releases/yamldoc/current/">here&lt;/a>.&lt;/p>
 &lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>A catalog of examples can be found &lt;a href="https://beam.apache.org/releases/yamldoc/current/">here&lt;/a>. These examples showcase
+&lt;p>A catalog of examples can be found
+&lt;a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples">here&lt;/a>. These examples showcase
 all the turnkey transforms that can be utilized in Beam YAML. There are also a number of Dataflow Cookbook examples
 that can be found &lt;a href="https://github.com/GoogleCloudPlatform/dataflow-cookbook/tree/main/Python/yaml">here&lt;/a>.&lt;/p>
 &lt;h2 id="contributing">Contributing&lt;/h2>
