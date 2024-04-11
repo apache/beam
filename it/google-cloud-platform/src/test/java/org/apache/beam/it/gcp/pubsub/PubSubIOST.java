@@ -261,8 +261,6 @@ public class PubSubIOST extends IOStressTestBase {
           readMetricsConfig,
           configuration.exportMetricsToInfluxDB,
           influxDBSettings);
-    } catch (ParseException | InterruptedException e) {
-      throw new RuntimeException(e);
     } finally {
       cancelJobIfRunning(writeLaunchInfo);
       cancelJobIfRunning(readLaunchInfo);
