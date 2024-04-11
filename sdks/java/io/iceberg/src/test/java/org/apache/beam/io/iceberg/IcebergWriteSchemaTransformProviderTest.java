@@ -26,6 +26,9 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.List;
 import java.util.UUID;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -56,6 +59,28 @@ public class IcebergWriteSchemaTransformProviderTest {
   public transient TestDataWarehouse warehouse = new TestDataWarehouse(TEMPORARY_FOLDER, "default");
 
   @Rule public transient TestPipeline testPipeline = TestPipeline.create();
+
+  @Test
+  public void testBuildTransformWithRow() throws NoSuchSchemaException {
+    Row catalogConfigRow =
+        Row.withSchema(
+                SchemaRegistry.createDefault()
+                    .getSchema(IcebergWriteSchemaTransformProvider.CatalogConfig.class))
+            .withFieldValue("catalogName", "test_name")
+            .withFieldValue("catalogType", "test_type")
+            .withFieldValue("catalogImplementation", "testImplementation")
+            .withFieldValue("warehouseLocation", "test_location")
+            .build();
+    Row transformConfigRow =
+        Row.withSchema(new IcebergWriteSchemaTransformProvider().configurationSchema())
+            .withFieldValue("table", "test_table_identifier")
+            .withFieldValue("catalogConfig", catalogConfigRow)
+            .build();
+
+    SchemaTransform transform = new IcebergWriteSchemaTransformProvider().from(transformConfigRow);
+
+    System.out.println(transform.getName());
+  }
 
   @Test
   public void testSimpleAppend() {

@@ -44,11 +44,30 @@ import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * SchemaTransform implementation for {@link IcebergIO#writeToDynamicDestinations}. Writes Beam Rows
+ * to Iceberg and outputs a {@code PCollection<Row>} representing snapshots created in the process.
+ */
 @AutoService(SchemaTransformProvider.class)
 public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformProvider<Config> {
 
   static final String INPUT_TAG = "input";
   static final String OUTPUT_TAG = "output";
+
+  static final Schema OUTPUT_SCHEMA =
+      Schema.builder()
+          .addStringField("table")
+          .addStringField("operation")
+          .addMapField("summary", Schema.FieldType.STRING, Schema.FieldType.STRING)
+          .addStringField("manifestListLocation")
+          .build();
+
+  @Override
+  public String description() {
+    return "Writes Beam Rows to Iceberg.\n"
+        + "Returns a PCollection representing the snapshots produced in the process, with the following schema:\n"
+        + "{\"table\" (str), \"operation\" (str), \"summary\" (map[str, str]), \"manifestListLocation\" (str)}";
+  }
 
   @Override
   protected SchemaTransform from(Config configuration) {
@@ -181,26 +200,18 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
           result
               .getSnapshots()
               .apply(MapElements.via(new SnapshotToRow()))
-              .setRowSchema(SnapshotToRow.SNAPSHOT_SCHEMA);
+              .setRowSchema(OUTPUT_SCHEMA);
 
       return PCollectionRowTuple.of(OUTPUT_TAG, snapshots);
     }
 
     @VisibleForTesting
     static class SnapshotToRow extends SimpleFunction<KV<String, Snapshot>, Row> {
-      static final Schema SNAPSHOT_SCHEMA =
-          Schema.builder()
-              .addStringField("table")
-              .addStringField("operation")
-              .addMapField("summary", Schema.FieldType.STRING, Schema.FieldType.STRING)
-              .addStringField("manifestListLocation")
-              .build();
-
       @Override
       public Row apply(KV<String, Snapshot> input) {
         Snapshot snapshot = input.getValue();
         Row row =
-            Row.withSchema(SNAPSHOT_SCHEMA)
+            Row.withSchema(OUTPUT_SCHEMA)
                 .addValues(
                     input.getKey(),
                     snapshot.operation(),
