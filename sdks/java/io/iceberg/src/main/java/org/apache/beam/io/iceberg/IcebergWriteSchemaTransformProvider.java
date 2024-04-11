@@ -21,7 +21,9 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 import org.apache.beam.io.iceberg.IcebergWriteSchemaTransformProvider.Config;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
