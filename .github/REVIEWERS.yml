@@ -39,7 +39,6 @@ labels:
       - Abacn
       - kennknowles
       - robertwb
-      - bvolpato
       - m-trieu
       - damondouglas
     exclusionList: []
@@ -49,7 +48,6 @@ labels:
       - johnjcasey
       - Abacn
       - ahmedabu98
-      - bvolpato
       - damondouglas
       - shunping
     exclusionList: []

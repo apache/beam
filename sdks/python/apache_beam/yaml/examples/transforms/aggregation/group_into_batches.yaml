@@ -57,9 +57,6 @@ pipeline:
                 n: 3
     - type: LogForTesting
 
-options:
-  yaml_experimental_features: Combine
-
 # Expected:
 #  Row(season='spring', produce=['🥕', '🍓', '🍆'])
 #  Row(season='summer', produce=['🥕', '🍅', '🌽'])

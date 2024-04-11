@@ -29,6 +29,12 @@ from apache_beam.yaml.yaml_mapping import py_value_to_js_dict
 from apache_beam.yaml.yaml_provider import dicts_to_rows
 from apache_beam.yaml.yaml_transform import YamlTransform
 
+try:
+  import js2py
+except ImportError:
+  js2py = None
+  logging.warning('js2py is not installed; some tests will be skipped.')
+
 
 def AsRows():
   return beam.Map(
@@ -55,6 +61,7 @@ class YamlUDFMappingTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.tmpdir)
 
+  @unittest.skipIf(js2py is None, 'js2py not installed.')
   def test_map_to_fields_filter_inline_js(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle', yaml_experimental_features=['javascript'
@@ -125,6 +132,7 @@ class YamlUDFMappingTest(unittest.TestCase):
               beam.Row(label='389ax', conductor=390, sum=24),
           ]))
 
+  @unittest.skipIf(js2py is None, 'js2py not installed.')
   def test_filter_inline_js(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle', yaml_experimental_features=['javascript'
@@ -179,6 +187,7 @@ class YamlUDFMappingTest(unittest.TestCase):
                   row=beam.Row(rank=2, values=[7, 8, 9])),
           ]))
 
+  @unittest.skipIf(js2py is None, 'js2py not installed.')
   def test_filter_expression_js(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle', yaml_experimental_features=['javascript'
@@ -222,6 +231,7 @@ class YamlUDFMappingTest(unittest.TestCase):
                   row=beam.Row(rank=0, values=[1, 2, 3])),
           ]))
 
+  @unittest.skipIf(js2py is None, 'js2py not installed.')
   def test_filter_inline_js_file(self):
     data = '''
     function f(x) {

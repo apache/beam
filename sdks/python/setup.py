@@ -368,7 +368,8 @@ if __name__ == '__main__':
           'grpcio>=1.33.1,!=1.48.0,<2',
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
-          'js2py>=0.74,<1',
+          # https://github.com/PiotrDabkowski/Js2Py/issues/317
+          'js2py>=0.74,<1; python_version<"3.12"',
           'jsonschema>=4.0.0,<5.0.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
@@ -427,7 +428,7 @@ if __name__ == '__main__':
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
               'scikit-learn>=0.20.0',
-              'sqlalchemy>=1.3,<2.0',
+              'sqlalchemy>=1.3,<3.0',
               'psycopg2-binary>=2.8.5,<3.0.0',
               'testcontainers[mysql]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
