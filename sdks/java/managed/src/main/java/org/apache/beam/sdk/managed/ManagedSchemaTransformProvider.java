@@ -24,8 +24,10 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import javax.annotation.Nullable;
@@ -41,6 +43,7 @@ import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -90,8 +93,8 @@ public class ManagedSchemaTransformProvider
     @SchemaFieldDescription("URL path to the YAML config file used to build the underlying IO.")
     public abstract @Nullable String getConfigUrl();
 
-    @SchemaFieldDescription("YAML string config used to build the underlying IO.")
-    public abstract @Nullable String getConfig();
+    @SchemaFieldDescription("Row config used to build the underlying IO.")
+    public abstract @Nullable Row getConfig();
 
     @AutoValue.Builder
     public abstract static class Builder {
@@ -99,16 +102,17 @@ public class ManagedSchemaTransformProvider
 
       public abstract Builder setConfigUrl(@Nullable String configUrl);
 
-      public abstract Builder setConfig(@Nullable String config);
+      public abstract Builder setConfig(@Nullable Row config);
 
       public abstract ManagedConfig build();
     }
 
     protected void validate() {
-      boolean configExists = !Strings.isNullOrEmpty(getConfig());
+      boolean configExists = getConfig() != null;
       boolean configUrlExists = !Strings.isNullOrEmpty(getConfigUrl());
+      List<Boolean> configs = Arrays.asList(configExists, configUrlExists);
       checkArgument(
-          !(configExists && configUrlExists) && (configExists || configUrlExists),
+          1 == configs.stream().filter(Predicates.equalTo(true)).count(),
           "Please specify a config or a config URL, but not both.");
     }
   }
@@ -158,25 +162,30 @@ public class ManagedSchemaTransformProvider
 
   @VisibleForTesting
   static Row getRowConfig(ManagedConfig config, Schema transformSchema) {
-    String transformYamlConfig;
-    if (!Strings.isNullOrEmpty(config.getConfigUrl())) {
+    Row transformRowConfig = config.getConfig();
+    // Attempt to construct a Row config from a YAML file
+    if (transformRowConfig == null) {
       try {
         MatchResult.Metadata fileMetaData =
             FileSystems.matchSingleFileSpec(Preconditions.checkNotNull(config.getConfigUrl()));
         ByteBuffer buffer = ByteBuffer.allocate((int) fileMetaData.sizeBytes());
         FileSystems.open(fileMetaData.resourceId()).read(buffer);
-        transformYamlConfig = new String(buffer.array(), StandardCharsets.UTF_8);
+        String yamlConfig = new String(buffer.array(), StandardCharsets.UTF_8);
+        transformRowConfig = YamlUtils.toBeamRow(yamlConfig, transformSchema, true);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
-    } else {
-      transformYamlConfig = config.getConfig();
     }
 
-    return YamlUtils.toBeamRow(transformYamlConfig, transformSchema, true);
+    // If our config is still null (perhaps the underlying transform doesn't have any parameters),
+    // default to an empty row.
+    if (transformRowConfig == null) {
+      transformRowConfig = Row.nullRow(transformSchema);
+    }
+
+    return transformRowConfig;
   }
 
-  @VisibleForTesting
   Map<String, SchemaTransformProvider> getAllProviders() {
     return schemaTransformProviders;
   }

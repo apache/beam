@@ -18,14 +18,17 @@
 package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,7 +50,7 @@ public class YamlUtilsTest {
   public void testEmptyYamlString() {
     Schema schema = Schema.builder().build();
 
-    assertEquals(Row.nullRow(schema), YamlUtils.toBeamRow("", schema));
+    assertNull(YamlUtils.toBeamRow("", schema));
   }
 
   @Test
@@ -224,5 +227,36 @@ public class YamlUtilsTest {
             .build();
 
     assertEquals(expectedRow, YamlUtils.toBeamRow(yamlString, schema));
+  }
+
+  private static final Schema FLAT_SCHEMA_CAMEL_CASE =
+      Schema.builder()
+          .addFields(
+              FLAT_SCHEMA.getFields().stream()
+                  .map(
+                      field ->
+                          field.withName(
+                              CaseFormat.LOWER_UNDERSCORE.to(
+                                  CaseFormat.LOWER_CAMEL, field.getName())))
+                  .collect(Collectors.toList()))
+          .build();
+
+  private static final Map<String, Object> FLAT_MAP =
+      FLAT_SCHEMA.getFields().stream()
+          .collect(
+              Collectors.toMap(
+                  Schema.Field::getName,
+                  field -> Preconditions.checkArgumentNotNull(FLAT_ROW.getValue(field.getName()))));
+
+  @Test
+  public void testSnakeCaseMapToCamelCaseRow() {
+    Row expectedRow =
+        FLAT_SCHEMA.getFields().stream()
+            .map(field -> Preconditions.checkStateNotNull(FLAT_ROW.getValue(field.getName())))
+            .collect(Row.toRow(FLAT_SCHEMA_CAMEL_CASE));
+
+    Row convertedRow = YamlUtils.toBeamRow(FLAT_MAP, FLAT_SCHEMA_CAMEL_CASE, true);
+
+    assertEquals(expectedRow, convertedRow);
   }
 }
