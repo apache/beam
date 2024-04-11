@@ -130,12 +130,14 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
       binary_type = ('BINARY(10)', 'VARBINARY(10)')
 
     with self.engine.begin() as connection:
-      connection.execute(sqlalchemy.text(
-        "CREATE TABLE IF NOT EXISTS {}".format(table_name) + "(f_id INTEGER, " +
-        "f_float DOUBLE PRECISION, " + "f_char CHAR(10), " +
-        "f_varchar VARCHAR(10), " + f"f_bytes {binary_type[0]}, " +
-        f"f_varbytes {binary_type[1]}, " + "f_timestamp TIMESTAMP(3), " +
-        "f_decimal DECIMAL(10, 2), " + "f_date DATE, " + "f_time TIME(3))"))
+      connection.execute(
+          sqlalchemy.text(
+              "CREATE TABLE IF NOT EXISTS {}".format(table_name) +
+              "(f_id INTEGER, " + "f_float DOUBLE PRECISION, " +
+              "f_char CHAR(10), " + "f_varchar VARCHAR(10), " +
+              f"f_bytes {binary_type[0]}, " + f"f_varbytes {binary_type[1]}, " +
+              "f_timestamp TIMESTAMP(3), " + "f_decimal DECIMAL(10, 2), " +
+              "f_date DATE, " + "f_time TIME(3))"))
 
     inserted_rows = [
         JdbcTestRow(
