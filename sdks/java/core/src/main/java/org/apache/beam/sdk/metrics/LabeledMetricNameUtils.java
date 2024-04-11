@@ -102,7 +102,7 @@ public class LabeledMetricNameUtils {
     List<String> metricNameSplit =
         Splitter.on(METRIC_NAME_DELIMITER).limit(2).splitToList(metricName);
 
-    if (metricNameSplit.size() == 0) {
+    if (metricNameSplit.size() == 0 || metricNameSplit.get(0).isEmpty()) {
       return Optional.empty();
     }
 
@@ -116,7 +116,7 @@ public class LabeledMetricNameUtils {
       Map<String, String> labels = splitter.split(metricNameSplit.get(1));
       return Optional.of(ParsedMetricName.create(metricNameSplit.get(0), labels));
     } catch (IllegalArgumentException e) {
+      return Optional.of(ParsedMetricName.create(metricNameSplit.get(0)));
     }
-    return Optional.of(ParsedMetricName.create(metricNameSplit.get(0)));
   }
 }

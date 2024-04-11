@@ -85,4 +85,12 @@ public class LabeledMetricNameUtilsTest implements Serializable {
   public void testParseMetricName_emptyString() {
     assertThat(LabeledMetricNameUtils.parseMetricName("").isPresent(), equalTo(false));
   }
+
+  @Test
+  public void testParseMetricName_emptyMetric() {
+    LabeledMetricNameUtils.MetricNameBuilder builder =
+        LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder("");
+    String metricName = builder.build("namespace").getName();
+    assertThat(LabeledMetricNameUtils.parseMetricName(metricName).isPresent(), equalTo(false));
+  }
 }
