@@ -52,6 +52,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
+
 # [2.56.0] - Unreleased
 
 ## Highlights
@@ -72,6 +73,7 @@
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* Default consumer polling timeout for KafkaIO.Read was increased from 1 second to 2 seconds. Use KafkaIO.read().withConsumerPollingTimeout(Duration duration) to configure this timeout value when necessary ([#30870](https://github.com/apache/beam/issues/30870)).
 
 ## Deprecations
 
@@ -87,6 +89,12 @@
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
+
+# [2.55.1]
+
+## Bugfixes
+
+* Fixed issue that broke WriteToJson in languages other than Java (X-lang) ([#30776](https://github.com/apache/beam/issues/30776)).
 
 # [2.55.0] - 2024-03-25
 
@@ -133,6 +141,7 @@
 ## Known Issues
 
 * In Python pipelines, when shutting down inactive bundle processors, shutdown logic can overaggressively hold the lock, blocking acceptance of new work. Symptoms of this issue include slowness or stuckness in long-running jobs. Fixed in 2.56.0 ([#30679](https://github.com/apache/beam/pull/30679)).
+* WriteToJson broken in languages other than Java (X-lang) ([#30776](https://github.com/apache/beam/issues/30776)).
 
 # [2.54.0] - 2024-02-14
 
