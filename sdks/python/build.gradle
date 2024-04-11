@@ -107,6 +107,25 @@ tasks.register("generateYamlDocs") {
   outputs.file "${buildDir}/yaml-ref.html"
 }
 
+tasks.register("yamlIntegrationTests") {
+  description "Runs integration tests for yaml pipelines."
+
+  dependsOn installGcpTest
+  // Need to build all expansion services referenced in apache_beam/yaml/*.*
+  // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
+  dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
+  dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:expansion-service:build"
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py"
+    }
+  }
+}
+
 // Create Python wheels for given platform and Python version
 // build identifiers for cibuildwheel
 def platform_identifiers_map = [
