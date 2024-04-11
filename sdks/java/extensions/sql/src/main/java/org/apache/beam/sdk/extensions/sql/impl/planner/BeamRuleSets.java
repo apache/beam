@@ -21,7 +21,6 @@ import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregateProjectMergeRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregationRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamBasicAggregationRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcMergeRule;
@@ -83,7 +82,7 @@ public class BeamRuleSets {
           CoreRules.PROJECT_SET_OP_TRANSPOSE,
 
           // aggregation and projection rules
-          BeamAggregateProjectMergeRule.INSTANCE,
+          // BeamAggregateProjectMergeRule.INSTANCE,
           // push a projection past a filter or vice versa
           CoreRules.PROJECT_FILTER_TRANSPOSE,
           CoreRules.FILTER_PROJECT_TRANSPOSE,
