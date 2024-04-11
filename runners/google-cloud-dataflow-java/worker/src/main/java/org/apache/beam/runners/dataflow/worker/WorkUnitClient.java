@@ -23,6 +23,7 @@ import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.api.services.dataflow.model.WorkerMessage;
+import com.google.api.services.dataflow.model.WorkerMessageResponse;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -75,6 +76,7 @@ public interface WorkUnitClient {
    * perworkermetrics with this path.
    *
    * @param msg the WorkerMessages to report
+   * @return a list of {@link WorkerMessageResponse}
    */
-  void reportWorkerMessage(List<WorkerMessage> messages) throws IOException;
+  List<WorkerMessageResponse> reportWorkerMessage(List<WorkerMessage> messages) throws IOException;
 }

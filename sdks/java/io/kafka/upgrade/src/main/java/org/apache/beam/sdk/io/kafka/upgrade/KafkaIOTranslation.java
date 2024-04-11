@@ -209,7 +209,7 @@ public class KafkaIOTranslation {
       if (transform.getBadRecordErrorHandler() != null) {
         throw new RuntimeException(
             "Upgrading KafkaIO read transforms that have `withBadRecordErrorHandler` property set"
-                + "is not supported yet.");
+                + " is not supported yet.");
       }
 
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
@@ -505,7 +505,7 @@ public class KafkaIOTranslation {
               instanceof ErrorHandler.DefaultErrorHandler)) {
         throw new RuntimeException(
             "Upgrading KafkaIO write transforms that have `withBadRecordErrorHandler` property set"
-                + "is not supported yet.");
+                + " is not supported yet.");
       }
 
       return Row.withSchema(schema).withFieldValues(fieldValues).build();

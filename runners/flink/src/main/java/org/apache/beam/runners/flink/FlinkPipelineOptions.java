@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink;
 
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.FileStagingOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -228,17 +229,50 @@ public interface FlinkPipelineOptions
 
   void setRetainExternalizedCheckpointsOnCancellation(Boolean retainOnCancellation);
 
-  @Description("The maximum number of elements in a bundle.")
-  @Default.Long(1000)
+  @Description(
+      "The maximum number of elements in a bundle. Default values are 1000 for a streaming job and 1,000,000 for batch")
+  @Default.InstanceFactory(MaxBundleSizeFactory.class)
   Long getMaxBundleSize();
 
   void setMaxBundleSize(Long size);
 
-  @Description("The maximum time to wait before finalising a bundle (in milliseconds).")
-  @Default.Long(1000)
+  /**
+   * Maximum bundle size factory. For a streaming job it's desireable to keep bundle size small to
+   * optimize latency. In batch, we optimize for throughput and hence bundle size is kept large.
+   */
+  class MaxBundleSizeFactory implements DefaultValueFactory<Long> {
+    @Override
+    public Long create(PipelineOptions options) {
+      if (options.as(StreamingOptions.class).isStreaming()) {
+        return 1000L;
+      } else {
+        return 1000000L;
+      }
+    }
+  }
+
+  @Description(
+      "The maximum time to wait before finalising a bundle (in milliseconds). Default values are 1000 for streaming and 10,000 for batch.")
+  @Default.InstanceFactory(MaxBundleTimeFactory.class)
   Long getMaxBundleTimeMills();
 
   void setMaxBundleTimeMills(Long time);
+
+  /**
+   * Maximum bundle time factory. For a streaming job it's desireable to keep the value small to
+   * optimize latency. In batch, we optimize for throughput and hence bundle time size is kept
+   * larger.
+   */
+  class MaxBundleTimeFactory implements DefaultValueFactory<Long> {
+    @Override
+    public Long create(PipelineOptions options) {
+      if (options.as(StreamingOptions.class).isStreaming()) {
+        return 1000L;
+      } else {
+        return 10000L;
+      }
+    }
+  }
 
   @Description(
       "Interval in milliseconds for sending latency tracking marks from the sources to the sinks. "

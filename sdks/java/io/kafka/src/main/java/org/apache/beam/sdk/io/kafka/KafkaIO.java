@@ -587,6 +587,7 @@ public class KafkaIO {
         .setCommitOffsetsInFinalizeEnabled(false)
         .setDynamicRead(false)
         .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
+        .setConsumerPollingTimeout(Duration.standardSeconds(2L))
         .build();
   }
 
@@ -706,6 +707,9 @@ public class KafkaIO {
     @Pure
     public abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
+    @Pure
+    public abstract @Nullable Duration getConsumerPollingTimeout();
+
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
@@ -761,6 +765,8 @@ public class KafkaIO {
           @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
         return setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn));
       }
+
+      abstract Builder<K, V> setConsumerPollingTimeout(Duration consumerPollingTimeout);
 
       abstract Read<K, V> build();
 
@@ -1334,6 +1340,17 @@ public class KafkaIO {
       return toBuilder().setBadRecordErrorHandler(badRecordErrorHandler).build();
     }
 
+    /**
+     * Sets the timeout time for Kafka consumer polling request in the {@link ReadFromKafkaDoFn}.
+     * The default is 2 second.
+     */
+    public Read<K, V> withConsumerPollingTimeout(Duration duration) {
+      checkState(
+          duration == null || duration.compareTo(Duration.ZERO) > 0,
+          "Consumer polling timeout must be greater than 0.");
+      return toBuilder().setConsumerPollingTimeout(duration).build();
+    }
+
     /** Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata. */
     public PTransform<PBegin, PCollection<KV<K, V>>> withoutMetadata() {
       return new TypedWithoutMetadata<>(this);
@@ -1554,7 +1571,7 @@ public class KafkaIO {
         if (kafkaRead.getBadRecordErrorHandler() != null) {
           LOG.warn(
               "The Legacy implementation of Kafka Read does not support writing malformed"
-                  + "messages to an error handler. Use the SDF implementation instead.");
+                  + " messages to an error handler. Use the SDF implementation instead.");
         }
         // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
         Unbounded<KafkaRecord<K, V>> unbounded =
@@ -1596,7 +1613,8 @@ public class KafkaIO {
                 .withValueDeserializerProvider(kafkaRead.getValueDeserializerProvider())
                 .withManualWatermarkEstimator()
                 .withTimestampPolicyFactory(kafkaRead.getTimestampPolicyFactory())
-                .withCheckStopReadingFn(kafkaRead.getCheckStopReadingFn());
+                .withCheckStopReadingFn(kafkaRead.getCheckStopReadingFn())
+                .withConsumerPollingTimeout(kafkaRead.getConsumerPollingTimeout());
         if (kafkaRead.isCommitOffsetsInFinalizeEnabled()) {
           readTransform = readTransform.commitOffsets();
         }
@@ -2036,6 +2054,9 @@ public class KafkaIO {
     @Pure
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
+    @Pure
+    abstract @Nullable Duration getConsumerPollingTimeout();
+
     abstract boolean isBounded();
 
     abstract ReadSourceDescriptors.Builder<K, V> toBuilder();
@@ -2086,6 +2107,9 @@ public class KafkaIO {
       abstract ReadSourceDescriptors.Builder<K, V> setBadRecordErrorHandler(
           ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
+      abstract ReadSourceDescriptors.Builder<K, V> setConsumerPollingTimeout(
+          @Nullable Duration duration);
+
       abstract ReadSourceDescriptors.Builder<K, V> setBounded(boolean bounded);
 
       abstract ReadSourceDescriptors<K, V> build();
@@ -2099,6 +2123,7 @@ public class KafkaIO {
           .setBounded(false)
           .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
           .setBadRecordErrorHandler(new ErrorHandler.DefaultErrorHandler<>())
+          .setConsumerPollingTimeout(Duration.standardSeconds(2L))
           .build()
           .withProcessingTime()
           .withMonotonicallyIncreasingWatermarkEstimator();
@@ -2358,6 +2383,14 @@ public class KafkaIO {
           .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER)
           .setBadRecordErrorHandler(errorHandler)
           .build();
+    }
+
+    /**
+     * Sets the timeout time for Kafka consumer polling request in the {@link ReadFromKafkaDoFn}.
+     * The default is 2 second.
+     */
+    public ReadSourceDescriptors<K, V> withConsumerPollingTimeout(@Nullable Duration duration) {
+      return toBuilder().setConsumerPollingTimeout(duration).build();
     }
 
     ReadAllFromRow<K, V> forExternalBuild() {
