@@ -1,4 +1,271 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 25 Mar 2024 10:00:00 -0400</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.55.0</title><link>/blog/beam-2.55.0/</link><pubDate>Mon, 25 Mar 2024 10:00:00 -0400</pubDate><guid>/blog/beam-2.55.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Thu, 11 Apr 2024 10:00:00 -0400</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Introducing Beam YAML: Apache Beam's First No-code SDK</title><link>/blog/beam-yaml-release/</link><pubDate>Thu, 11 Apr 2024 10:00:00 -0400</pubDate><guid>/blog/beam-yaml-release/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>Writing a Beam pipeline can be a daunting task. Learning the Beam model, downloading dependencies for the SDK language
+of choice, debugging the pipeline, and maintaining the pipeline code is a lot of overhead for users who want to write a
+simple to intermediate data processing pipeline. There have been strides in making the SDK&amp;rsquo;s entry points easier, but
+for many, it is still a long way from being a painless process.&lt;/p>
+&lt;p>To address some of these issues and simplify the entry point to Beam, we have introduced a new way to specify Beam
+pipelines by using configuration files rather than code. This new SDK, known as
+&lt;a href="https://beam.apache.org/documentation/sdks/yaml/">Beam YAML&lt;/a>, employs a declarative approach to creating
+data processing pipelines using &lt;a href="https://yaml.org/">YAML&lt;/a>, a widely used data serialization language.&lt;/p>
+&lt;h1 id="benefits-of-using-beam-yaml">Benefits of using Beam YAML&lt;/h1>
+&lt;p>The primary goal of Beam YAML is to make the entry point to Beam as welcoming as possible. However, this should not
+come at the expense of sacrificing the rich features that Beam offers.&lt;/p>
+&lt;p>Here are some of the benefits of using Beam YAML:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>No-code development:&lt;/strong> Allows users to develop pipelines without writing any code. This makes it easier to get
+started with Beam and to develop pipelines quickly and easily.&lt;/li>
+&lt;li>&lt;strong>Maintainability&lt;/strong>: Configuration-based pipelines are easier to maintain than code-based pipelines. YAML format
+enables clear separation of concerns, simplifying changes and updates without affecting other code sections.&lt;/li>
+&lt;li>&lt;strong>Declarative language:&lt;/strong> Provides a declarative language, which means that it is based on the description of the
+desired outcome rather than expressing the intent through code. This makes it easy to understand the structure and
+flow of a pipeline. The YAML syntax is also widely used with a rich community of resources for learning and
+leveraging the YAML syntax.&lt;/li>
+&lt;li>&lt;strong>Powerful features:&lt;/strong> Supports a wide range of features, including a variety of data sources and sinks, turn-key
+transforms, and execution parameters. This makes it possible to develop complex data processing pipelines with Beam
+YAML.&lt;/li>
+&lt;li>&lt;strong>Reusability&lt;/strong>: Beam YAML promotes code reuse by providing a way to define and share common pipeline patterns. You
+can create reusable YAML snippets or blocks that can be easily shared and reused in different pipelines. This reduces
+the need to write repetitive tasks and helps maintain consistency across pipelines.&lt;/li>
+&lt;li>&lt;strong>Extensibility&lt;/strong>: Beam YAML offers a structure for integrating custom transformations into a pipeline, enabling
+organizations to contribute or leverage a pre-existing catalog of transformations that can be seamlessly accessed
+using the Beam YAML syntax across multiple pipelines. It is also possible to build third-party extensions, including
+custom parsers and other tools, that do not need to depend on Beam directly.&lt;/li>
+&lt;li>&lt;strong>Backwards Compatibility&lt;/strong>: Beam YAML is still being actively worked on, bringing exciting new features and
+capabilities, but as these features are added, backwards compatibility will be preserved. This way, once a pipeline
+is written, it will continue to work despite future released versions of the SDK.&lt;/li>
+&lt;/ul>
+&lt;p>Overall, using Beam YAML provides a number of advantages. It makes pipeline development and management more efficient
+and effective, enabling users to focus on the business logic and data processing tasks, rather than spending time on
+low-level coding details.&lt;/p>
+&lt;h1 id="case-study-a-simple-business-analytics-use-case">Case Study: A simple business analytics use-case&lt;/h1>
+&lt;p>Let&amp;rsquo;s take the following sample transaction data for a department store:&lt;/p>
+&lt;table>
+&lt;tr>
+&lt;td>&lt;strong>transaction_id&lt;/strong>
+&lt;/td>
+&lt;td>&lt;strong>product_name&lt;/strong>
+&lt;/td>
+&lt;td>&lt;strong>category&lt;/strong>
+&lt;/td>
+&lt;td>&lt;strong>price&lt;/strong>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>T0012
+&lt;/td>
+&lt;td>Headphones
+&lt;/td>
+&lt;td>Electronics
+&lt;/td>
+&lt;td>59.99
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>T5034
+&lt;/td>
+&lt;td>Leather Jacket
+&lt;/td>
+&lt;td>Apparel
+&lt;/td>
+&lt;td>109.99
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>T0024
+&lt;/td>
+&lt;td>Aluminum Mug
+&lt;/td>
+&lt;td>Kitchen
+&lt;/td>
+&lt;td>29.99
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>T0104
+&lt;/td>
+&lt;td>Headphones
+&lt;/td>
+&lt;td>Electronics
+&lt;/td>
+&lt;td>59.99
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>T0302
+&lt;/td>
+&lt;td>Monitor
+&lt;/td>
+&lt;td>Electronics
+&lt;/td>
+&lt;td>249.99
+&lt;/td>
+&lt;/tr>
+&lt;/table>
+&lt;p>Now, let&amp;rsquo;s say that the business wants to get a record of transactions for all purchases made in the Electronics
+department for audit purposes. Assuming the records are stored as a CSV file, a Beam YAML pipeline may look something
+like this:&lt;/p>
+&lt;p>Source code for this example can be found
+&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/simple_filter.yaml">here&lt;/a>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">pipeline&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">transforms&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ReadFromCsv&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ReadInputFile&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">path&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">/path/to/input.csv&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Filter&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">FilterWithCategory&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ReadInputFile&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">language&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">python&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">keep&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">category == &amp;#34;Electronics&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">WriteToCsv&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">WriteOutputFile&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">FilterWithCategory&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">path&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">/path/to/output&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This would leave us with the following data:&lt;/p>
+&lt;table>
+&lt;tr>
+&lt;td>&lt;strong>transaction_id&lt;/strong>
+&lt;/td>
+&lt;td>&lt;strong>product_name&lt;/strong>
+&lt;/td>
+&lt;td>&lt;strong>category&lt;/strong>
+&lt;/td>
+&lt;td>&lt;strong>price&lt;/strong>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>T0012
+&lt;/td>
+&lt;td>Headphones
+&lt;/td>
+&lt;td>Electronics
+&lt;/td>
+&lt;td>59.99
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>T0104
+&lt;/td>
+&lt;td>Headphones
+&lt;/td>
+&lt;td>Electronics
+&lt;/td>
+&lt;td>59.99
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>T0302
+&lt;/td>
+&lt;td>Monitor
+&lt;/td>
+&lt;td>Electronics
+&lt;/td>
+&lt;td>249.99
+&lt;/td>
+&lt;/tr>
+&lt;/table>
+&lt;p>Now, let&amp;rsquo;s say the business wants to determine how much of each Electronics item is being sold to ensure that the
+correct number is being ordered from the supplier. Let&amp;rsquo;s also assume that they want to determine the total revenue for
+each item. This simple aggregation can follow the Filter from the previous example as such:&lt;/p>
+&lt;p>Source code for this example can be found
+&lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/simple_filter_and_combine.yaml">here&lt;/a>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">pipeline&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">transforms&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ReadFromCsv&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ReadInputFile&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">path&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">/path/to/input.csv&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Filter&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">FilterWithCategory&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ReadInputFile&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">language&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">python&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">keep&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">category == &amp;#34;Electronics&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Combine&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">CountNumberSold&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">FilterWithCategory&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">group_by&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">product_name&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">combine&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">num_sold&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">value&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">product_name&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">fn&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">count&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">total_revenue&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">value&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">price&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">fn&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">sum&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">WriteToCsv&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">WriteOutputFile&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">CountNumberSold&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">path&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">/path/to/output&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This would leave us with the following data:&lt;/p>
+&lt;table>
+&lt;tr>
+&lt;td>&lt;strong>product_name&lt;/strong>
+&lt;/td>
+&lt;td>&lt;strong>num_sold&lt;/strong>
+&lt;/td>
+&lt;td>&lt;strong>total_revenue&lt;/strong>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Headphones
+&lt;/td>
+&lt;td>2
+&lt;/td>
+&lt;td>119.98
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Monitor
+&lt;/td>
+&lt;td>1
+&lt;/td>
+&lt;td>249.99
+&lt;/td>
+&lt;/tr>
+&lt;/table>
+&lt;p>While this was a relatively simple use-case, it shows the power of Beam YAML and how easy it is to go from business
+use-case to a prototype data pipeline in just a few lines of YAML.&lt;/p>
+&lt;h1 id="getting-started-with-beam-yaml">Getting started with Beam YAML&lt;/h1>
+&lt;p>There are several resources that have been compiled to help users get familiar with Beam YAML.&lt;/p>
+&lt;h2 id="day-zero-notebook">Day Zero Notebook&lt;/h2>
+&lt;a target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/get-started/try-apache-beam-yaml.ipynb">
+&lt;img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+&lt;/a>
+&lt;p>To help get started with Apache Beam, there is a Day Zero Notebook available on
+&lt;a href="https://colab.sandbox.google.com/">Google Colab&lt;/a>, an online Python notebook environment with a free attachable
+runtime, containing some basic YAML pipeline examples.&lt;/p>
+&lt;h2 id="documentation">Documentation&lt;/h2>
+&lt;p>The Apache Beam website provides a set of &lt;a href="https://beam.apache.org/documentation/sdks/yaml/">docs&lt;/a> that demonstrate the
+current capabilities of the Beam YAML SDK. These &lt;a href="https://beam.apache.org/documentation/sdks/yaml/">docs&lt;/a> can be found
+on the website and offer a comprehensive overview of the SDK&amp;rsquo;s functionality.&lt;/p>
+&lt;h2 id="examples">Examples&lt;/h2>
+&lt;p>A catalog of examples can be found &lt;a href="https://beam.apache.org/releases/yamldoc/current/">here&lt;/a>. These examples showcase
+all the turnkey transforms that can be utilized in Beam YAML. There are also a number of Dataflow Cookbook examples
+that can be found &lt;a href="https://github.com/GoogleCloudPlatform/dataflow-cookbook/tree/main/Python/yaml">here&lt;/a>.&lt;/p>
+&lt;h2 id="contributing">Contributing&lt;/h2>
+&lt;p>Developers who wish to help build out and add functionalities are welcome to start contributing to the effort in the
+Beam YAML module found &lt;a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml">here&lt;/a>.&lt;/p>
+&lt;p>There is also a list of open &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Ayaml">bugs&lt;/a> found
+on the GitHub repo - now marked with the &amp;lsquo;yaml&amp;rsquo; tag.&lt;/p>
+&lt;p>While Beam YAML has been marked stable as of Beam 2.52, it is still under heavy development, with new features being
+added with each release. Those who wish to be part of the design decisions and give insights to how the framework is
+being used are highly encouraged to join the dev mailing list as those discussions will be directed there. A link to
+the dev list can be found &lt;a href="https://beam.apache.org/community/contact-us/">here&lt;/a>.&lt;/p></description></item><item><title>Blog: Apache Beam 2.55.0</title><link>/blog/beam-2.55.0/</link><pubDate>Mon, 25 Mar 2024 10:00:00 -0400</pubDate><guid>/blog/beam-2.55.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -6171,86 +6438,4 @@ and our &lt;a href="https://2020.beamsummit.org/sessions/simpler-python-pipeline
 presentation&lt;/a>.
 From there the best way to help is to knock out some of those not implemented
 operations. We&amp;rsquo;re coordinating that work in
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-9547">BEAM-9547&lt;/a>.&lt;/p></description></item><item><title>Blog: Splittable DoFn in Apache Beam is Ready to Use</title><link>/blog/splittable-do-fn-is-available/</link><pubDate>Mon, 14 Dec 2020 00:00:01 -0800</pubDate><guid>/blog/splittable-do-fn-is-available/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are pleased to announce that Splittable DoFn (SDF) is ready for use in the Beam Python, Java,
-and Go SDKs for versions 2.25.0 and later.&lt;/p>
-&lt;p>In 2017, &lt;a href="/blog/splittable-do-fn/">Splittable DoFn Blog Post&lt;/a> proposed
-to build &lt;a href="https://s.apache.org/splittable-do-fn">Splittable DoFn&lt;/a> APIs as the new recommended way of
-building I/O connectors. Splittable DoFn is a generalization of &lt;code>DoFn&lt;/code> that gives it the core
-capabilities of &lt;code>Source&lt;/code> while retaining &lt;code>DoFn&lt;/code>&amp;rsquo;s syntax, flexibility, modularity, and ease of
-coding. Thus, it becomes much easier to develop complex I/O connectors with simpler and reusable
-code.&lt;/p>
-&lt;p>SDF has three advantages over the existing &lt;code>UnboundedSource&lt;/code> and &lt;code>BoundedSource&lt;/code>:&lt;/p>
-&lt;ul>
-&lt;li>SDF provides a unified set of APIs to handle both unbounded and bounded cases.&lt;/li>
-&lt;li>SDF enables reading from source descriptors dynamically.
-&lt;ul>
-&lt;li>Taking KafkaIO as an example, within &lt;code>UnboundedSource&lt;/code>/&lt;code>BoundedSource&lt;/code> API, you must specify
-the topic and partition you want to read from during pipeline construction time. There is no way
-for &lt;code>UnboundedSource&lt;/code>/&lt;code>BoundedSource&lt;/code> to accept topics and partitions as inputs during execution
-time. But it&amp;rsquo;s built-in to SDF.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>SDF fits in as any node on a pipeline freely with the ability of splitting.
-&lt;ul>
-&lt;li>&lt;code>UnboundedSource&lt;/code>/&lt;code>BoundedSource&lt;/code> has to be the root node of the pipeline to gain performance
-benefits from splitting strategies, which limits many real-world usages. This is no longer a limit
-for an SDF.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ul>
-&lt;p>As SDF is now ready to use with all the mentioned improvements, it is the recommended
-way to build the new I/O connectors. Try out building your own Splittable DoFn by following the
-&lt;a href="/documentation/programming-guide/#splittable-dofns">programming guide&lt;/a>. We
-have provided tonnes of common utility classes such as common types of &lt;code>RestrictionTracker&lt;/code> and
-&lt;code>WatermarkEstimator&lt;/code> in Beam SDK, which will help you onboard easily. As for the existing I/O
-connectors, we have wrapped &lt;code>UnboundedSource&lt;/code> and &lt;code>BoundedSource&lt;/code> implementations into Splittable
-DoFns, yet we still encourage developers to convert &lt;code>UnboundedSource&lt;/code>/&lt;code>BoundedSource&lt;/code> into actual
-Splittable DoFn implementation to gain more performance benefits.&lt;/p>
-&lt;p>Many thanks to every contributor who brought this highly anticipated design into the data processing
-world. We are really excited to see that users benefit from SDF.&lt;/p>
-&lt;p>Below are some real-world SDF examples for you to explore.&lt;/p>
-&lt;h2 id="real-world-splittable-dofn-examples">Real world Splittable DoFn examples&lt;/h2>
-&lt;p>&lt;strong>Java Examples&lt;/strong>&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/ReadFromKafkaDoFn.java#L118">Kafka&lt;/a>:
-An I/O connector for &lt;a href="https://kafka.apache.org/">Apache Kafka&lt;/a>
-(an open-source distributed event streaming platform).&lt;/li>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/Watch.java#L787">Watch&lt;/a>:
-Uses a polling function producing a growing set of outputs for each input until a per-input
-termination condition is met.&lt;/li>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/io/parquet/src/main/java/org/apache/beam/sdk/io/parquet/ParquetIO.java#L365">Parquet&lt;/a>:
-An I/O connector for &lt;a href="https://parquet.apache.org/">Apache Parquet&lt;/a>
-(an open-source columnar storage format).&lt;/li>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/6fdde4f4eab72b49b10a8bb1cb3be263c5c416b5/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/healthcare/HL7v2IO.java#L493">HL7v2&lt;/a>:
-An I/O connector for HL7v2 messages (a clinical messaging format that provides data about events
-that occur inside an organization) part of
-&lt;a href="https://cloud.google.com/healthcare">Google’s Cloud Healthcare API&lt;/a>.&lt;/li>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/core/src/main/java/org/apache/beam/sdk/io/Read.java#L248">BoundedSource wrapper&lt;/a>:
-A wrapper which converts an existing &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/BoundedSource.html">BoundedSource&lt;/a>
-implementation to a splittable DoFn.&lt;/li>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/core/src/main/java/org/apache/beam/sdk/io/Read.java#L432">UnboundedSource wrapper&lt;/a>:
-A wrapper which converts an existing &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/UnboundedSource.html">UnboundedSource&lt;/a>
-implementation to a splittable DoFn.&lt;/li>
-&lt;/ul>
-&lt;p>&lt;strong>Python Examples&lt;/strong>&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/python/apache_beam/io/iobase.py#L1375">BoundedSourceWrapper&lt;/a>:
-A wrapper which converts an existing &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.iobase.html#apache_beam.io.iobase.BoundedSource">BoundedSource&lt;/a>
-implementation to a splittable DoFn.&lt;/li>
-&lt;/ul>
-&lt;p>&lt;strong>Go Examples&lt;/strong>&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://github.com/apache/beam/blob/ce190e11332469ea59b6c9acf16ee7c673ccefdd/sdks/go/pkg/beam/io/textio/sdf.go#L40">textio.ReadSdf&lt;/a> implements reading from text files using a splittable DoFn.&lt;/li>
-&lt;/ul></description></item></channel></rss>
+&lt;a href="https://issues.apache.org/jira/browse/BEAM-9547">BEAM-9547&lt;/a>.&lt;/p></description></item></channel></rss>
