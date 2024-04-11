@@ -22,7 +22,6 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.cloud.Timestamp;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.SubscriptionName;
 import com.google.pubsub.v1.TopicName;
@@ -30,15 +29,11 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.text.ParseException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
@@ -55,8 +50,6 @@ import org.apache.beam.sdk.io.synthetic.SyntheticUnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -71,8 +64,15 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-/** PubSubIO performance tests. */
-public class PubSubIOLT extends IOLoadTestBase {
+/**
+ * PubsubIO load test.
+ *
+ * <p>Usage: <br>
+ * - To run medium-scale load tests: {@code gradle :it:google-cloud-platform:PubsubLoadTestMedium}
+ * <br>
+ * - To run large-scale load tests: {@code gradle :it:google-cloud-platform:PubsubLoadTestLarge}
+ */
+public class PubsubIOLT extends IOLoadTestBase {
 
   private static final int NUMBER_OF_BUNDLES_FOR_LOCAL = 10;
   private static final int NUMBER_OF_BUNDLES_FOR_MEDIUM_AND_LARGE = 20;
@@ -95,17 +95,17 @@ public class PubSubIOLT extends IOLoadTestBase {
       TEST_CONFIGS_PRESET =
           ImmutableMap.of(
               "local",
-              PubSubIOLT.Configuration.fromJsonString(
+              Configuration.fromJsonString(
                   "{\"numRecords\":200,\"valueSizeBytes\":1000,\"pipelineTimeout\":7,\"runner\":\"DirectRunner\",\"numWorkers\":1}",
-                  PubSubIOLT.Configuration.class), // 0.2 MB
+                  Configuration.class), // 0.2 MB
               "medium",
-              PubSubIOLT.Configuration.fromJsonString(
+              Configuration.fromJsonString(
                   "{\"numRecords\":10000000,\"valueSizeBytes\":1000,\"pipelineTimeout\":20,\"runner\":\"DataflowRunner\",\"numWorkers\":10}",
-                  PubSubIOLT.Configuration.class), // 10 GB
+                  Configuration.class), // 10 GB
               "large",
-              PubSubIOLT.Configuration.fromJsonString(
+              Configuration.fromJsonString(
                   "{\"numRecords\":100000000,\"valueSizeBytes\":1000,\"pipelineTimeout\":50,\"runner\":\"DataflowRunner\",\"numWorkers\":20}",
-                  PubSubIOLT.Configuration.class) // 100 GB
+                  Configuration.class) // 100 GB
               );
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -126,8 +126,7 @@ public class PubSubIOLT extends IOLoadTestBase {
     configuration = TEST_CONFIGS_PRESET.get(testConfigName);
     if (configuration == null) {
       try {
-        configuration =
-            PubSubIOLT.Configuration.fromJsonString(testConfigName, PubSubIOLT.Configuration.class);
+        configuration = Configuration.fromJsonString(testConfigName, Configuration.class);
       } catch (IOException e) {
         throw new IllegalArgumentException(
             String.format(
@@ -157,6 +156,15 @@ public class PubSubIOLT extends IOLoadTestBase {
     readPipeline.getOptions().as(PubsubOptions.class).setProject(project);
     writePipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
     readPipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
+
+    if (configuration.exportMetricsToInfluxDB) {
+      configuration.influxHost =
+          TestProperties.getProperty("influxHost", "", TestProperties.Type.PROPERTY);
+      configuration.influxDatabase =
+          TestProperties.getProperty("influxDatabase", "", TestProperties.Type.PROPERTY);
+      configuration.influxMeasurement =
+          TestProperties.getProperty("influxMeasurement", "", TestProperties.Type.PROPERTY);
+    }
   }
 
   @After
@@ -206,11 +214,11 @@ public class PubSubIOLT extends IOLoadTestBase {
     WriteAndReadFormat format = WriteAndReadFormat.valueOf(configuration.writeAndReadFormat);
     PipelineLauncher.LaunchInfo writeLaunchInfo = testWrite(format);
     PipelineLauncher.LaunchInfo readLaunchInfo = testRead(format);
-    try {
-      PipelineOperator.Result readResult =
-          pipelineOperator.waitUntilDone(
-              createConfig(readLaunchInfo, Duration.ofMinutes(configuration.pipelineTimeout)));
+    PipelineOperator.Result readResult =
+        pipelineOperator.waitUntilDone(
+            createConfig(readLaunchInfo, Duration.ofMinutes(configuration.pipelineTimeout)));
 
+    try {
       // Check the initial launch didn't fail
       assertNotEquals(PipelineOperator.Result.LAUNCH_FAILED, readResult);
       // streaming read pipeline does not end itself
@@ -218,41 +226,44 @@ public class PubSubIOLT extends IOLoadTestBase {
       assertEquals(
           PipelineLauncher.JobState.RUNNING,
           pipelineLauncher.getJobStatus(project, region, readLaunchInfo.jobId()));
-
-      // check metrics
-      double numRecords =
-          pipelineLauncher.getMetric(
-              project,
-              region,
-              readLaunchInfo.jobId(),
-              getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
-
-      // Assert that actual data equals or greater than expected data number since there might be
-      // duplicates when testing big amount of data
-      long expectedDataNum = configuration.numRecords - configuration.forceNumInitialBundles;
-      assertTrue(numRecords >= expectedDataNum);
-
-      // export metrics
-      MetricsConfiguration writeMetricsConfig =
-          MetricsConfiguration.builder()
-              .setInputPCollection("Map records.out0")
-              .setInputPCollectionV2("Map records/ParMultiDo(MapKVToV).out0")
-              .build();
-
-      MetricsConfiguration readMetricsConfig =
-          MetricsConfiguration.builder()
-              .setOutputPCollection("Counting element.out0")
-              .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
-              .build();
-
-      exportMetrics(writeLaunchInfo, writeMetricsConfig);
-      exportMetrics(readLaunchInfo, readMetricsConfig);
-    } catch (ParseException | InterruptedException e) {
-      throw new RuntimeException(e);
     } finally {
       cancelJobIfRunning(writeLaunchInfo);
       cancelJobIfRunning(readLaunchInfo);
     }
+
+    // check metrics
+    double numRecords =
+        pipelineLauncher.getMetric(
+            project,
+            region,
+            readLaunchInfo.jobId(),
+            getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
+
+    // Assert that actual data equals or greater than expected data number since there might be
+    // duplicates when testing big amount of data
+    long expectedDataNum = configuration.numRecords - configuration.forceNumInitialBundles;
+    assertTrue(numRecords >= expectedDataNum);
+
+    // export metrics
+    MetricsConfiguration writeMetricsConfig =
+        MetricsConfiguration.builder()
+            .setInputPCollection("Map records.out0")
+            .setInputPCollectionV2("Map records/ParMultiDo(MapKVToV).out0")
+            .build();
+
+    MetricsConfiguration readMetricsConfig =
+        MetricsConfiguration.builder()
+            .setOutputPCollection("Counting element.out0")
+            .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
+            .build();
+
+    exportMetrics(
+        writeLaunchInfo,
+        writeMetricsConfig,
+        configuration.exportMetricsToInfluxDB,
+        influxDBSettings);
+    exportMetrics(
+        readLaunchInfo, readMetricsConfig, configuration.exportMetricsToInfluxDB, influxDBSettings);
   }
 
   private PipelineLauncher.LaunchInfo testWrite(WriteAndReadFormat format) throws IOException {
@@ -341,27 +352,6 @@ public class PubSubIOLT extends IOLoadTestBase {
     }
   }
 
-  private void exportMetrics(
-      PipelineLauncher.LaunchInfo launchInfo, MetricsConfiguration metricsConfig)
-      throws IOException, ParseException, InterruptedException {
-
-    Map<String, Double> metrics = getMetrics(launchInfo, metricsConfig);
-    String testId = UUID.randomUUID().toString();
-    String testTimestamp = Timestamp.now().toString();
-
-    if (configuration.exportMetricsToInfluxDB) {
-      Collection<NamedTestResult> namedTestResults = new ArrayList<>();
-      for (Map.Entry<String, Double> entry : metrics.entrySet()) {
-        NamedTestResult metricResult =
-            NamedTestResult.create(testId, testTimestamp, entry.getKey(), entry.getValue());
-        namedTestResults.add(metricResult);
-      }
-      IOITMetrics.publishToInflux(testId, testTimestamp, namedTestResults, influxDBSettings);
-    } else {
-      exportMetricsToBigQuery(launchInfo, metrics);
-    }
-  }
-
   /** Mapper class to convert data from KV<byte[], byte[]> to String. */
   private static class MapKVtoString extends DoFn<KV<byte[], byte[]>, String> {
     @ProcessElement
@@ -395,7 +385,7 @@ public class PubSubIOLT extends IOLoadTestBase {
     }
   }
 
-  /** Mapper class to convert data from KV<byte[], byte[]> to PubSubMessage. */
+  /** Mapper class to convert data from KV<byte[], byte[]> to PubsubMessage. */
   private static class MapKVtoPubSubMessage extends DoFn<KV<byte[], byte[]>, PubsubMessage> {
     @ProcessElement
     public void process(ProcessContext context) {
@@ -405,7 +395,7 @@ public class PubSubIOLT extends IOLoadTestBase {
     }
   }
 
-  /** Example of Generic class to test PubSubIO.writeAvros()/readAvros methods. */
+  /** Example of Generic class to test PubsubIO.writeAvros() / readAvros() methods. */
   static class GenericClass implements Serializable {
     byte[] byteField;
 
@@ -442,7 +432,7 @@ public class PubSubIOLT extends IOLoadTestBase {
     PUBSUB_MESSAGE
   }
 
-  /** Options for PubSub IO load test. */
+  /** Options for Pubsub IO load test. */
   static class Configuration extends SyntheticSourceOptions {
     /** Pipeline timeout in minutes. Must be a positive value. */
     @JsonProperty public int pipelineTimeout = 20;
@@ -461,7 +451,7 @@ public class PubSubIOLT extends IOLoadTestBase {
      * InfluxDB and displayed using Grafana. If set to false, metrics will be exported to BigQuery
      * and displayed with Looker Studio.
      */
-    @JsonProperty public boolean exportMetricsToInfluxDB = false;
+    @JsonProperty public boolean exportMetricsToInfluxDB = true;
 
     /** InfluxDB measurement to publish results to. * */
     @JsonProperty public String influxMeasurement;
