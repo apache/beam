@@ -1,6 +1,6 @@
 ---
 title:  "Introducing Beam YAML: Apache Beam's First No-code SDK"
-date:   2024-04-09 10:00:00 -0400
+date:   2024-04-11 10:00:00 -0400
 categories:
   - blog
 authors:
