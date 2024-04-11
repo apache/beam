@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-# cython: profile=True
 # cython: overflowcheck=True
 
 cdef class Counter(object):
