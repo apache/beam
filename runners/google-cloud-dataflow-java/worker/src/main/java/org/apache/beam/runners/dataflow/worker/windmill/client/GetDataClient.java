@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +34,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataReq
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 @ThreadSafe
 public final class GetDataClient {
   private static final Logger LOG = LoggerFactory.getLogger(GetDataClient.class);
+  private static final String FAN_OUT_REFRESH_WORK_EXECUTOR = "FanOutActiveWorkRefreshExecutor";
 
   private final AtomicInteger activeSideInputReads;
   private final AtomicInteger activeStateReads;
@@ -57,7 +58,7 @@ public final class GetDataClient {
     this.activeHeartbeats = new AtomicInteger();
     this.fanOutActiveWorkRefreshExecutor =
         Executors.newCachedThreadPool(
-            new ThreadFactoryBuilder().setNameFormat("FanOutActiveWorkRefreshExecutor").build());
+            new ThreadFactoryBuilder().setNameFormat(FAN_OUT_REFRESH_WORK_EXECUTOR).build());
   }
 
   public KeyedGetDataResponse getState(
