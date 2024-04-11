@@ -66,13 +66,14 @@ jobs:
     strategy:
       matrix:
         job_name: ["IO_Iceberg"]
+        job_phrase: ["Run IcebergIO Unit Tests"]
     timeout-minutes: 60
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Java_Amqp_IO_Direct PreCommit'
+      github.event.comment.body == 'Run IcebergIO Unit Tests'
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
       - uses: actions/checkout@v4
@@ -84,7 +85,7 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
-      - name: run Amqp IO build script
+      - name: run IcebergIO build script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:iceberg:build
