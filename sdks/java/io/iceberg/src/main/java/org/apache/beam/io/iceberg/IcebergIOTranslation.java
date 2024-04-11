@@ -24,7 +24,11 @@ import static org.apache.beam.sdk.util.construction.TransformUpgrader.toByteArra
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.io.InvalidClassException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.options.PipelineOptions;
