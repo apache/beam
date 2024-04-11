@@ -83,11 +83,13 @@ public final class StreamingWorkerStatusReporter {
   private final ScheduledExecutorService globalWorkerUpdateReporter;
   private final ScheduledExecutorService workerMessageReporter;
 
+  // Reporting period for periodic status updates.
+  private final long windmillHarnessUpdateReportingPeriodMillis;
   // PerWorkerMetrics are sent on the WorkerMessages channel, and are sent one in every
   // perWorkerMetricsUpdateFrequency RPC call. If 0, PerWorkerMetrics are not reported.
-  long perWorkerMetricsUpdateFrequency = 0L;
+  private final long perWorkerMetricsUpdateFrequency;
   // Used to track the number of WorkerMessages that have been sent without PerWorkerMetrics.
-  long workerMessagesIndex = 0L;
+  private final AtomicLong workerMessagesIndex;
 
   private StreamingWorkerStatusReporter(
       boolean publishCounters,
@@ -98,7 +100,9 @@ public final class StreamingWorkerStatusReporter {
       StreamingCounters streamingCounters,
       MemoryMonitor memoryMonitor,
       BoundedQueueExecutor workExecutor,
-      Function<String, ScheduledExecutorService> executorFactory) {
+      Function<String, ScheduledExecutorService> executorFactory,
+      long windmillHarnessUpdateReportingPeriodMillis,
+      long perWorkerMetricsUpdateReportingPeriodMillis) {
     this.publishCounters = publishCounters;
     this.dataflowServiceClient = dataflowServiceClient;
     this.windmillQuotaThrottleTime = windmillQuotaThrottleTime;
@@ -110,6 +114,12 @@ public final class StreamingWorkerStatusReporter {
     this.previousTimeAtMaxThreads = new AtomicLong();
     this.globalWorkerUpdateReporter = executorFactory.apply(GLOBAL_WORKER_UPDATE_REPORTER_THREAD);
     this.workerMessageReporter = executorFactory.apply(WORKER_MESSAGE_REPORTER_THREAD);
+    this.windmillHarnessUpdateReportingPeriodMillis = windmillHarnessUpdateReportingPeriodMillis;
+    this.perWorkerMetricsUpdateFrequency =
+        getPerWorkerMetricsUpdateFrequency(
+            windmillHarnessUpdateReportingPeriodMillis,
+            perWorkerMetricsUpdateReportingPeriodMillis);
+    this.workerMessagesIndex = new AtomicLong();
   }
 
   public static StreamingWorkerStatusReporter create(
@@ -119,7 +129,9 @@ public final class StreamingWorkerStatusReporter {
       FailureTracker failureTracker,
       StreamingCounters streamingCounters,
       MemoryMonitor memoryMonitor,
-      BoundedQueueExecutor workExecutor) {
+      BoundedQueueExecutor workExecutor,
+      long windmillHarnessUpdateReportingPeriodMillis,
+      long perWorkerMetricsUpdateReportingPeriodMillis) {
     return new StreamingWorkerStatusReporter(
         /* publishCounters= */ true,
         workUnitClient,
@@ -131,7 +143,9 @@ public final class StreamingWorkerStatusReporter {
         workExecutor,
         threadName ->
             Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat(threadName).build()));
+                new ThreadFactoryBuilder().setNameFormat(threadName).build()),
+        windmillHarnessUpdateReportingPeriodMillis,
+        perWorkerMetricsUpdateReportingPeriodMillis);
   }
 
   @VisibleForTesting
@@ -144,7 +158,9 @@ public final class StreamingWorkerStatusReporter {
       StreamingCounters streamingCounters,
       MemoryMonitor memoryMonitor,
       BoundedQueueExecutor workExecutor,
-      Function<String, ScheduledExecutorService> executorFactory) {
+      Function<String, ScheduledExecutorService> executorFactory,
+      long windmillHarnessUpdateReportingPeriodMillis,
+      long perWorkerMetricsUpdateReportingPeriodMillis) {
     return new StreamingWorkerStatusReporter(
         publishCounters,
         workUnitClient,
@@ -154,7 +170,9 @@ public final class StreamingWorkerStatusReporter {
         streamingCounters,
         memoryMonitor,
         workExecutor,
-        executorFactory);
+        executorFactory,
+        windmillHarnessUpdateReportingPeriodMillis,
+        perWorkerMetricsUpdateReportingPeriodMillis);
   }
 
   /**
@@ -202,12 +220,8 @@ public final class StreamingWorkerStatusReporter {
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
-  public void start(
-      long windmillHarnessUpdateReportingPeriodMillis,
-      long perWorkerMetricsUpdateReportingPeriodMillis) {
+  public void start() {
     reportHarnessStartup();
-    setPerWorkerMetricsUpdateFrequency(
-        windmillHarnessUpdateReportingPeriodMillis, perWorkerMetricsUpdateReportingPeriodMillis);
     if (windmillHarnessUpdateReportingPeriodMillis > 0) {
       LOG.info(
           "Starting periodic worker status reporters. Reporting period is every {} millis.",
@@ -234,7 +248,7 @@ public final class StreamingWorkerStatusReporter {
     shutdownExecutor(workerMessageReporter);
     // one last send
     reportPeriodicWorkerUpdates();
-    this.workerMessagesIndex = this.perWorkerMetricsUpdateFrequency;
+    this.workerMessagesIndex.set(this.perWorkerMetricsUpdateFrequency);
     reportPeriodicWorkerMessage();
   }
 
@@ -257,18 +271,16 @@ public final class StreamingWorkerStatusReporter {
   // WorkerMessages RPC schedule. The desired reporting period
   // (perWorkerMetricsUpdateReportingPeriodMillis) is adjusted to the nearest multiple
   // of the RPC interval (windmillHarnessUpdateReportingPeriodMillis).
-  private void setPerWorkerMetricsUpdateFrequency(
+  private static long getPerWorkerMetricsUpdateFrequency(
       long windmillHarnessUpdateReportingPeriodMillis,
       long perWorkerMetricsUpdateReportingPeriodMillis) {
     if (windmillHarnessUpdateReportingPeriodMillis == 0) {
-      this.perWorkerMetricsUpdateFrequency = 0;
-      return;
+      return 0;
     }
-    this.perWorkerMetricsUpdateFrequency =
-        LongMath.divide(
-            perWorkerMetricsUpdateReportingPeriodMillis,
-            windmillHarnessUpdateReportingPeriodMillis,
-            RoundingMode.CEILING);
+    return LongMath.divide(
+        perWorkerMetricsUpdateReportingPeriodMillis,
+        windmillHarnessUpdateReportingPeriodMillis,
+        RoundingMode.CEILING);
   }
 
   /** Sends counter updates to Dataflow backend. */
@@ -366,11 +378,10 @@ public final class StreamingWorkerStatusReporter {
       return Optional.empty();
     }
 
-    workerMessagesIndex += 1;
-    if (workerMessagesIndex < perWorkerMetricsUpdateFrequency) {
+    if (workerMessagesIndex.incrementAndGet() < perWorkerMetricsUpdateFrequency) {
       return Optional.empty();
     } else {
-      workerMessagesIndex = 0;
+      workerMessagesIndex.set(0L);
     }
 
     List<PerStepNamespaceMetrics> metrics = new ArrayList<>();

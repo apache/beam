@@ -426,7 +426,9 @@ public class StreamingDataflowWorker {
             failureTracker,
             streamingCounters,
             memoryMonitor,
-            workExecutor);
+            workExecutor,
+            options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
+            options.getPerWorkerMetricsUpdateReportingPeriodMillis());
     return new StreamingDataflowWorker(
         windmillServer,
         clientId,
@@ -494,7 +496,9 @@ public class StreamingDataflowWorker {
             streamingCounters,
             memoryMonitor,
             workExecutor,
-            executorSupplier);
+            executorSupplier,
+            options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
+            options.getPerWorkerMetricsUpdateReportingPeriodMillis());
     return new StreamingDataflowWorker(
         windmillServer,
         1L,
@@ -753,9 +757,7 @@ public class StreamingDataflowWorker {
       scheduledExecutors.add(statusPageTimer);
     }
     workCommitter.start();
-    workerStatusReporter.start(
-        options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
-        options.getPerWorkerMetricsUpdateReportingPeriodMillis());
+    workerStatusReporter.start();
     activeWorkRefresher.start();
   }
 
