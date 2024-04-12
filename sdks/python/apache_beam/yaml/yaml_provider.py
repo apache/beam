@@ -876,7 +876,7 @@ def create_java_builtin_provider():
   # common transforms when doing the provider affinity analysis.
 
   def java_window_into(java_provider, windowing):
-    """Parses the config into a WindowingStrategy and invokes the Java class.
+    """Use the `windowing` WindowingStrategy and invokes the Java class.
 
     Though it would not be that difficult to implement this in Java as well,
     we prefer to implement it exactly once for consistency (especially as
