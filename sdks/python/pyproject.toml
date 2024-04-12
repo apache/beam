@@ -19,7 +19,8 @@
 # this is the minimum requirements for the build system to execute.
 [build-system]
 requires = [
-    "setuptools",
+    # TODO: remove after setuptools bug resolved. https://github.com/apache/beam/issues/30955
+    "setuptools<69.3.0",
     "wheel>=0.36.0",
     "grpcio-tools==1.62.1",
     "mypy-protobuf==3.5.0",
