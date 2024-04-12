@@ -147,3 +147,11 @@ tasks.register(
         ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
         + System.properties
 )
+tasks.register(
+        "PubSubStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'PubSubIOST',
+        ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties)
+tasks.register(
+        "PubSubStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'PubSubIOST',
+        ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties)

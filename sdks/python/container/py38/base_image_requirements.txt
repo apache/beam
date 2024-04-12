@@ -145,7 +145,7 @@ shapely==2.0.3
 six==1.16.0
 sortedcontainers==2.4.0
 soupsieve==2.5
-SQLAlchemy==1.4.52
+SQLAlchemy==2.0.29
 sqlparse==0.4.4
 tenacity==8.2.3
 testcontainers==3.7.1
