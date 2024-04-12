@@ -39,7 +39,6 @@ import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.api.services.dataflow.model.WorkerMessage;
-import com.google.api.services.dataflow.model.WorkerMessageResponse;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -313,8 +312,7 @@ class DataflowWorkUnitClient implements WorkUnitClient {
    * perworkermetrics with this path.
    */
   @Override
-  public List<WorkerMessageResponse> reportWorkerMessage(List<WorkerMessage> messages)
-      throws IOException {
+  public void reportWorkerMessage(List<WorkerMessage> messages) throws IOException {
     SendWorkerMessagesRequest request =
         new SendWorkerMessagesRequest()
             .setLocation(options.getRegion())
@@ -329,10 +327,6 @@ class DataflowWorkUnitClient implements WorkUnitClient {
       logger.warn("Worker Message response is null");
       throw new IOException("Got null Worker Message response");
     }
-    if (result.getWorkerMessageResponses() == null) {
-      logger.debug("Worker Message response is empty.");
-      return Collections.emptyList();
-    }
-    return result.getWorkerMessageResponses();
+    // Currently no response is expected
   }
 }

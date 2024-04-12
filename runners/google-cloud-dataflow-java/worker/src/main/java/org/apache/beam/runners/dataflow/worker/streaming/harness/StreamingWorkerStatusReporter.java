@@ -23,10 +23,8 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
 import com.google.api.services.dataflow.model.PerWorkerMetrics;
 import com.google.api.services.dataflow.model.StreamingScalingReport;
-import com.google.api.services.dataflow.model.StreamingScalingReportResponse;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.api.services.dataflow.model.WorkerMessage;
-import com.google.api.services.dataflow.model.WorkerMessageResponse;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -36,7 +34,6 @@ import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -73,8 +70,6 @@ public final class StreamingWorkerStatusReporter {
   private static final String GLOBAL_WORKER_UPDATE_REPORTER_THREAD = "GlobalWorkerUpdates";
 
   private final boolean publishCounters;
-  private final int initialMaxThreadCount;
-  private final int initialMaxBundlesOutstanding;
   private final WorkUnitClient dataflowServiceClient;
   private final Supplier<Long> windmillQuotaThrottleTime;
   private final Supplier<Collection<StageInfo>> allStageInfo;
@@ -83,7 +78,6 @@ public final class StreamingWorkerStatusReporter {
   private final MemoryMonitor memoryMonitor;
   private final BoundedQueueExecutor workExecutor;
   private final AtomicLong previousTimeAtMaxThreads;
-  private final AtomicInteger maxThreadCountOverride;
   private final ScheduledExecutorService globalWorkerUpdateReporter;
   private final ScheduledExecutorService workerMessageReporter;
 
@@ -105,10 +99,7 @@ public final class StreamingWorkerStatusReporter {
     this.streamingCounters = streamingCounters;
     this.memoryMonitor = memoryMonitor;
     this.workExecutor = workExecutor;
-    this.initialMaxThreadCount = workExecutor.getMaximumPoolSize();
-    this.initialMaxBundlesOutstanding = workExecutor.maximumElementsOutstanding();
     this.previousTimeAtMaxThreads = new AtomicLong();
-    this.maxThreadCountOverride = new AtomicInteger();
     this.globalWorkerUpdateReporter = executorFactory.apply(GLOBAL_WORKER_UPDATE_REPORTER_THREAD);
     this.workerMessageReporter = executorFactory.apply(WORKER_MESSAGE_REPORTER_THREAD);
   }
@@ -308,12 +299,9 @@ public final class StreamingWorkerStatusReporter {
     }
   }
 
-  @VisibleForTesting
-  public void reportPeriodicWorkerMessage() {
+  private void reportPeriodicWorkerMessage() {
     try {
-      List<WorkerMessageResponse> workerMessageResponses =
-          dataflowServiceClient.reportWorkerMessage(createWorkerMessage());
-      readAndSaveWorkerMessageResponseForStreamingScalingReportResponse(workerMessageResponses);
+      dataflowServiceClient.reportWorkerMessage(createWorkerMessage());
     } catch (IOException e) {
       LOG.warn("Failed to send worker messages", e);
     } catch (Exception e) {
@@ -356,47 +344,6 @@ public final class StreamingWorkerStatusReporter {
     PerWorkerMetrics perWorkerMetrics = new PerWorkerMetrics().setPerStepNamespaceMetrics(metrics);
     return Optional.of(
         dataflowServiceClient.createWorkerMessageFromPerWorkerMetrics(perWorkerMetrics));
-  }
-
-  private void readAndSaveWorkerMessageResponseForStreamingScalingReportResponse(
-      List<WorkerMessageResponse> responses) {
-    Optional<StreamingScalingReportResponse> streamingScalingReportResponse = Optional.empty();
-    for (WorkerMessageResponse response : responses) {
-      if (response.getStreamingScalingReportResponse() != null) {
-        streamingScalingReportResponse = Optional.of(response.getStreamingScalingReportResponse());
-      }
-    }
-    if (streamingScalingReportResponse.isPresent()) {
-      int oldMaximumThreadCount = getMaxThreads();
-      maxThreadCountOverride.set(streamingScalingReportResponse.get().getMaximumThreadCount());
-      int newMaximumThreadCount = getMaxThreads();
-      if (newMaximumThreadCount != oldMaximumThreadCount) {
-        LOG.info(
-            "Setting maximum thread count to {}, old value is {}",
-            newMaximumThreadCount,
-            oldMaximumThreadCount);
-        workExecutor.setMaximumPoolSize(newMaximumThreadCount, getMaxBundlesOutstanding());
-      }
-    }
-  }
-
-  private int getMaxThreads() {
-    int currentMaxThreadCountOverride = maxThreadCountOverride.get();
-    if (currentMaxThreadCountOverride != 0) {
-      return currentMaxThreadCountOverride;
-    }
-    return initialMaxThreadCount;
-  }
-
-  private int getMaxBundlesOutstanding() {
-    int currentMaxThreadCountOverride = maxThreadCountOverride.get();
-    if (currentMaxThreadCountOverride != 0) {
-      return currentMaxThreadCountOverride + 100;
-    }
-    if (initialMaxBundlesOutstanding > 0) {
-      return initialMaxBundlesOutstanding;
-    }
-    return getMaxThreads() + 100;
   }
 
   @VisibleForTesting

@@ -21,7 +21,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.concurrent.GuardedBy;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor.Guard;
@@ -32,26 +32,15 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
 })
 public class BoundedQueueExecutor {
   private final ThreadPoolExecutor executor;
+  private final int maximumElementsOutstanding;
   private final long maximumBytesOutstanding;
+  private final int maximumPoolSize;
 
-  // Used to guard elementsOutstanding and bytesOutstanding.
   private final Monitor monitor = new Monitor();
   private int elementsOutstanding = 0;
   private long bytesOutstanding = 0;
-
-  @GuardedBy("this")
-  private int maximumElementsOutstanding;
-
-  @GuardedBy("this")
-  private int activeCount;
-
-  @GuardedBy("this")
-  private int maximumPoolSize;
-
-  @GuardedBy("this")
+  private final AtomicInteger activeCount = new AtomicInteger();
   private long startTimeMaxActiveThreadsUsed;
-
-  @GuardedBy("this")
   private long totalTimeMaxActiveThreadsUsed;
 
   public BoundedQueueExecutor(
@@ -73,8 +62,8 @@ public class BoundedQueueExecutor {
           @Override
           protected void beforeExecute(Thread t, Runnable r) {
             super.beforeExecute(t, r);
-            synchronized (BoundedQueueExecutor.this) {
-              if (++activeCount >= maximumPoolSize && startTimeMaxActiveThreadsUsed == 0) {
+            synchronized (this) {
+              if (activeCount.getAndIncrement() >= maximumPoolSize - 1) {
                 startTimeMaxActiveThreadsUsed = System.currentTimeMillis();
               }
             }
@@ -83,8 +72,8 @@ public class BoundedQueueExecutor {
           @Override
           protected void afterExecute(Runnable r, Throwable t) {
             super.afterExecute(r, t);
-            synchronized (BoundedQueueExecutor.this) {
-              if (--activeCount < maximumPoolSize && startTimeMaxActiveThreadsUsed > 0) {
+            synchronized (this) {
+              if (activeCount.getAndDecrement() == maximumPoolSize) {
                 totalTimeMaxActiveThreadsUsed +=
                     (System.currentTimeMillis() - startTimeMaxActiveThreadsUsed);
                 startTimeMaxActiveThreadsUsed = 0;
@@ -106,31 +95,16 @@ public class BoundedQueueExecutor {
           public boolean isSatisfied() {
             return elementsOutstanding == 0
                 || (bytesAvailable() >= workBytes
-                    && elementsOutstanding < maximumElementsOutstanding());
+                    && elementsOutstanding < maximumElementsOutstanding);
           }
         });
-    executeMonitorHeld(work, workBytes);
+    executeLockHeld(work, workBytes);
   }
 
   // Forcibly add something to the queue, ignoring the length limit.
   public void forceExecute(Runnable work, long workBytes) {
     monitor.enter();
-    executeMonitorHeld(work, workBytes);
-  }
-
-  // Set the maximum/core pool size of the executor.
-  public synchronized void setMaximumPoolSize(int maximumPoolSize, int maximumElementsOutstanding) {
-    // For ThreadPoolExecutor, the maximum pool size should always greater than or equal to core
-    // pool size.
-    if (maximumPoolSize > executor.getCorePoolSize()) {
-      executor.setMaximumPoolSize(maximumPoolSize);
-      executor.setCorePoolSize(maximumPoolSize);
-    } else {
-      executor.setCorePoolSize(maximumPoolSize);
-      executor.setMaximumPoolSize(maximumPoolSize);
-    }
-    this.maximumPoolSize = maximumPoolSize;
-    this.maximumElementsOutstanding = maximumElementsOutstanding;
+    executeLockHeld(work, workBytes);
   }
 
   public void shutdown() throws InterruptedException {
@@ -144,41 +118,31 @@ public class BoundedQueueExecutor {
     return executor.getQueue().isEmpty();
   }
 
-  public synchronized long allThreadsActiveTime() {
+  public long allThreadsActiveTime() {
     return totalTimeMaxActiveThreadsUsed;
   }
 
-  public synchronized int activeCount() {
-    return activeCount;
+  public int activeCount() {
+    return activeCount.intValue();
   }
 
   public long bytesOutstanding() {
-    monitor.enter();
-    try {
-      return bytesOutstanding;
-    } finally {
-      monitor.leave();
-    }
+    return bytesOutstanding;
   }
 
   public int elementsOutstanding() {
-    monitor.enter();
-    try {
-      return elementsOutstanding;
-    } finally {
-      monitor.leave();
-    }
+    return elementsOutstanding;
   }
 
   public long maximumBytesOutstanding() {
     return maximumBytesOutstanding;
   }
 
-  public synchronized int maximumElementsOutstanding() {
+  public int maximumElementsOutstanding() {
     return maximumElementsOutstanding;
   }
 
-  public synchronized int getMaximumPoolSize() {
+  public final int getMaximumPoolSize() {
     return maximumPoolSize;
   }
 
@@ -199,7 +163,7 @@ public class BoundedQueueExecutor {
       builder.append("Work Queue Size: ");
       builder.append(elementsOutstanding);
       builder.append("/");
-      builder.append(maximumElementsOutstanding());
+      builder.append(maximumElementsOutstanding);
       builder.append("<br>/n");
 
       builder.append("Work Queue Bytes: ");
@@ -214,7 +178,7 @@ public class BoundedQueueExecutor {
     }
   }
 
-  private void executeMonitorHeld(Runnable work, long workBytes) {
+  private void executeLockHeld(Runnable work, long workBytes) {
     bytesOutstanding += workBytes;
     ++elementsOutstanding;
     monitor.leave();
