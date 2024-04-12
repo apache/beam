@@ -17,7 +17,7 @@
  */
 package org.apache.beam.io.iceberg;
 
-import static org.apache.beam.io.iceberg.RowHelper.rowToRecord;
+import static org.apache.beam.io.iceberg.SchemaAndRowConversions.rowToRecord;
 
 import java.io.IOException;
 import org.apache.beam.sdk.values.Row;
@@ -30,7 +30,6 @@ import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.OutputFile;
-import org.apache.iceberg.orc.ORC;
 import org.apache.iceberg.parquet.Parquet;
 
 class RecordWriter {
