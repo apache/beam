@@ -477,7 +477,7 @@ python -m pytest  -o log_cli=True -o log_level=Info \
 
 Option 2: If you're using the Dataflow runner, use [custom containers](https://cloud.google.com/dataflow/docs/guides/using-custom-containers).
 
-You base base the custom container on the [official Beam SDK container image](https://gcr.io/apache-beam-testing/beam-sdk).
+It is convenient to use [official Beam SDK container image](https://gcr.io/apache-beam-testing/beam-sdk) as base then apply your changes.
 
 ## Run your pipeline with modified beam code
 
