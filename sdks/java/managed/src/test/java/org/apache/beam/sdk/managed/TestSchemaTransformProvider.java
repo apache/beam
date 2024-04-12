@@ -61,10 +61,10 @@ public class TestSchemaTransformProvider
   }
 
   @Override
-  public SchemaTransform from(Config config) {
+  public SchemaTransform<Config> from(Config config) {
     String extraString = config.getExtraString();
     Integer extraInteger = config.getExtraInteger();
-    return new SchemaTransform() {
+    return new SchemaTransform<Config>(config, identifier()) {
       @Override
       public PCollectionRowTuple expand(PCollectionRowTuple input) {
         Schema schema =

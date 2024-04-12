@@ -57,13 +57,8 @@ public class JsonWriteTransformProvider
   private static final String WRITE_RESULTS = "output";
 
   @Override
-  protected Class<JsonWriteConfiguration> configurationClass() {
-    return JsonWriteConfiguration.class;
-  }
-
-  @Override
-  protected SchemaTransform from(JsonWriteConfiguration configuration) {
-    return new JsonWriteTransform(configuration);
+  protected SchemaTransform<JsonWriteConfiguration> from(JsonWriteConfiguration configuration) {
+    return new JsonWriteTransform(configuration, identifier());
   }
 
   @Override
@@ -110,11 +105,12 @@ public class JsonWriteTransformProvider
   }
 
   /** A {@link SchemaTransform} for {@link JsonIO#write}. */
-  protected static class JsonWriteTransform extends SchemaTransform {
+  protected static class JsonWriteTransform extends SchemaTransform<JsonWriteConfiguration> {
 
     private final JsonWriteConfiguration configuration;
 
-    JsonWriteTransform(JsonWriteConfiguration configuration) {
+    JsonWriteTransform(JsonWriteConfiguration configuration, String identifier) {
+      super(configuration, identifier);
       configuration.validate();
       this.configuration = configuration;
     }

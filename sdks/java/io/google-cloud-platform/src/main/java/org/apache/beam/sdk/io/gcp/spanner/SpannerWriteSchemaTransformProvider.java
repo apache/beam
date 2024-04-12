@@ -55,21 +55,19 @@ public class SpannerWriteSchemaTransformProvider
         SpannerWriteSchemaTransformProvider.SpannerWriteSchemaTransformConfiguration> {
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<SpannerWriteSchemaTransformConfiguration>
-      configurationClass() {
-    return SpannerWriteSchemaTransformConfiguration.class;
+  protected @UnknownKeyFor @NonNull @Initialized SchemaTransform<
+          SpannerWriteSchemaTransformConfiguration>
+      from(SpannerWriteSchemaTransformConfiguration configuration) {
+    return new SpannerSchemaTransformWrite(configuration, identifier());
   }
 
-  @Override
-  protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      SpannerWriteSchemaTransformConfiguration configuration) {
-    return new SpannerSchemaTransformWrite(configuration);
-  }
-
-  static class SpannerSchemaTransformWrite extends SchemaTransform implements Serializable {
+  static class SpannerSchemaTransformWrite
+      extends SchemaTransform<SpannerWriteSchemaTransformConfiguration> implements Serializable {
     private final SpannerWriteSchemaTransformConfiguration configuration;
 
-    SpannerSchemaTransformWrite(SpannerWriteSchemaTransformConfiguration configuration) {
+    SpannerSchemaTransformWrite(
+        SpannerWriteSchemaTransformConfiguration configuration, String identifier) {
+      super(configuration, identifier);
       this.configuration = configuration;
     }
 

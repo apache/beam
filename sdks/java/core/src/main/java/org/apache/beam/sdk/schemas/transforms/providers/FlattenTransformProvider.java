@@ -49,13 +49,8 @@ public class FlattenTransformProvider
   protected static final String OUTPUT_ROWS_TAG = "output";
 
   @Override
-  protected Class<Configuration> configurationClass() {
-    return Configuration.class;
-  }
-
-  @Override
-  protected SchemaTransform from(Configuration configuration) {
-    return new SchemaTransform() {
+  protected SchemaTransform<Configuration> from(Configuration configuration) {
+    return new SchemaTransform<Configuration>(configuration, identifier()) {
       @Override
       public PCollectionRowTuple expand(PCollectionRowTuple input) {
         return PCollectionRowTuple.of(

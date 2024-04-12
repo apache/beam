@@ -71,8 +71,9 @@ public class BigtableReadSchemaTransformProvider
           .build();
 
   @Override
-  protected SchemaTransform from(BigtableReadSchemaTransformConfiguration configuration) {
-    return new BigtableReadSchemaTransform(configuration);
+  protected SchemaTransform<BigtableReadSchemaTransformConfiguration> from(
+      BigtableReadSchemaTransformConfiguration configuration) {
+    return new BigtableReadSchemaTransform(configuration, identifier());
   }
 
   @Override
@@ -128,10 +129,13 @@ public class BigtableReadSchemaTransformProvider
    * BigtableReadSchemaTransformConfiguration} and instantiated by {@link
    * BigtableReadSchemaTransformProvider}.
    */
-  private static class BigtableReadSchemaTransform extends SchemaTransform {
+  private static class BigtableReadSchemaTransform
+      extends SchemaTransform<BigtableReadSchemaTransformConfiguration> {
     private final BigtableReadSchemaTransformConfiguration configuration;
 
-    BigtableReadSchemaTransform(BigtableReadSchemaTransformConfiguration configuration) {
+    BigtableReadSchemaTransform(
+        BigtableReadSchemaTransformConfiguration configuration, String identifier) {
+      super(configuration, identifier);
       configuration.validate();
       this.configuration = configuration;
     }

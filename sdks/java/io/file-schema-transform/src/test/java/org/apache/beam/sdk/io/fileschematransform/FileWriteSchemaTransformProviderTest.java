@@ -60,7 +60,7 @@ public class FileWriteSchemaTransformProviderTest {
 
   @Test
   public void receivedUnexpectedInputTagsThrowsAnError() {
-    SchemaTransform transform =
+    SchemaTransform<?> transform =
         PROVIDER.from(rowConfiguration(defaultConfiguration().setFormat(JSON).build()));
     PCollectionRowTuple empty = PCollectionRowTuple.empty(errorPipeline);
     IllegalArgumentException emptyInputError =

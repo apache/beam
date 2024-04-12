@@ -41,7 +41,7 @@ public class GenerateSequenceSchemaTransformProviderTest {
   public void testGenerateSequence() {
     GenerateSequenceConfiguration config =
         GenerateSequenceConfiguration.builder().setStart(0L).setEnd(10L).build();
-    SchemaTransform sequence = new GenerateSequenceSchemaTransformProvider().from(config);
+    SchemaTransform<?> sequence = new GenerateSequenceSchemaTransformProvider().from(config);
 
     List<Row> expected = new ArrayList<>(10);
     for (long i = 0L; i < 10L; i++) {

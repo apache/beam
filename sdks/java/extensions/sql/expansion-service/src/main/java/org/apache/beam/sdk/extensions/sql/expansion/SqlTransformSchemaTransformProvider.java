@@ -117,8 +117,8 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
   }
 
   @Override
-  public SchemaTransform from(Row configuration) {
-    return new SqlSchemaTransform(configuration);
+  public SchemaTransform<Row> from(Row configuration) {
+    return new SqlSchemaTransform(configuration, identifier());
   }
 
   @Override
@@ -153,10 +153,11 @@ public class SqlTransformSchemaTransformProvider implements SchemaTransformProvi
     }
   }
 
-  static class SqlSchemaTransform extends SchemaTransform {
+  static class SqlSchemaTransform extends SchemaTransform<Row> {
     final Row config;
 
-    public SqlSchemaTransform(Row config) {
+    public SqlSchemaTransform(Row config, String identifier) {
+      super(config, identifier);
       this.config = config;
     }
 

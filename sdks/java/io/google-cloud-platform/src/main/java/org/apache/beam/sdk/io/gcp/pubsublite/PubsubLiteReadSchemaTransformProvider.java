@@ -85,12 +85,6 @@ public class PubsubLiteReadSchemaTransformProvider
   public static final TupleTag<Row> OUTPUT_TAG = new TupleTag<Row>() {};
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
 
-  @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<PubsubLiteReadSchemaTransformConfiguration>
-      configurationClass() {
-    return PubsubLiteReadSchemaTransformConfiguration.class;
-  }
-
   public static class ErrorFn extends DoFn<SequencedMessage, Row> {
     private final SerializableFunction<byte[], Row> valueMapper;
     private final Counter errorCounter;
@@ -192,8 +186,9 @@ public class PubsubLiteReadSchemaTransformProvider
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      PubsubLiteReadSchemaTransformConfiguration configuration) {
+  public @UnknownKeyFor @NonNull @Initialized SchemaTransform<
+          PubsubLiteReadSchemaTransformConfiguration>
+      from(PubsubLiteReadSchemaTransformConfiguration configuration) {
     if (!VALID_DATA_FORMATS.contains(configuration.getFormat())) {
       throw new IllegalArgumentException(
           String.format(
@@ -242,7 +237,8 @@ public class PubsubLiteReadSchemaTransformProvider
             "To read from Pubsub Lite in JSON or AVRO format, you must provide a schema.");
       }
     }
-    return new SchemaTransform() {
+    return new SchemaTransform<PubsubLiteReadSchemaTransformConfiguration>(
+        configuration, identifier()) {
       @Override
       public PCollectionRowTuple expand(PCollectionRowTuple input) {
         String project = configuration.getProject();

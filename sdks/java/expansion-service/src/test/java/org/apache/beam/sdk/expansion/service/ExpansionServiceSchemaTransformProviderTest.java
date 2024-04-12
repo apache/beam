@@ -110,14 +110,9 @@ public class ExpansionServiceSchemaTransformProviderTest {
       extends TypedSchemaTransformProvider<TestSchemaTransformConfiguration> {
 
     @Override
-    protected Class<TestSchemaTransformConfiguration> configurationClass() {
-      return TestSchemaTransformConfiguration.class;
-    }
-
-    @Override
-    protected SchemaTransform from(TestSchemaTransformConfiguration configuration) {
-      return new TestSchemaTransform(
-          configuration.str1, configuration.str2, configuration.int1, configuration.int2);
+    protected SchemaTransform<TestSchemaTransformConfiguration> from(
+        TestSchemaTransformConfiguration configuration) {
+      return new TestSchemaTransform(configuration, identifier());
     }
 
     @Override
@@ -156,18 +151,20 @@ public class ExpansionServiceSchemaTransformProviderTest {
     }
   }
 
-  public static class TestSchemaTransform extends SchemaTransform {
+  public static class TestSchemaTransform
+      extends SchemaTransform<TestSchemaTransformConfiguration> {
 
     private String str1;
     private String str2;
     private Integer int1;
     private Integer int2;
 
-    public TestSchemaTransform(String str1, String str2, Integer int1, Integer int2) {
-      this.str1 = str1;
-      this.str2 = str2;
-      this.int1 = int1;
-      this.int2 = int2;
+    public TestSchemaTransform(TestSchemaTransformConfiguration configuration, String identifier) {
+      super(configuration, identifier);
+      this.str1 = configuration.str1;
+      this.str2 = configuration.str2;
+      this.int1 = configuration.int1;
+      this.int2 = configuration.int2;
     }
 
     @Override
@@ -208,14 +205,9 @@ public class ExpansionServiceSchemaTransformProviderTest {
       extends TypedSchemaTransformProvider<TestSchemaTransformConfiguration> {
 
     @Override
-    protected Class<TestSchemaTransformConfiguration> configurationClass() {
-      return TestSchemaTransformConfiguration.class;
-    }
-
-    @Override
-    protected SchemaTransform from(TestSchemaTransformConfiguration configuration) {
-      return new TestSchemaTransformMultiInputOutput(
-          configuration.str1, configuration.str2, configuration.int1, configuration.int2);
+    protected SchemaTransform<TestSchemaTransformConfiguration> from(
+        TestSchemaTransformConfiguration configuration) {
+      return new TestSchemaTransformMultiInputOutput(configuration, identifier());
     }
 
     @Override
@@ -234,7 +226,8 @@ public class ExpansionServiceSchemaTransformProviderTest {
     }
   }
 
-  public static class TestSchemaTransformMultiInputOutput extends SchemaTransform {
+  public static class TestSchemaTransformMultiInputOutput
+      extends SchemaTransform<TestSchemaTransformConfiguration> {
 
     private String str1;
     private String str2;
@@ -242,11 +235,12 @@ public class ExpansionServiceSchemaTransformProviderTest {
     private Integer int2;
 
     public TestSchemaTransformMultiInputOutput(
-        String str1, String str2, Integer int1, Integer int2) {
-      this.str1 = str1;
-      this.str2 = str2;
-      this.int1 = int1;
-      this.int2 = int2;
+        TestSchemaTransformConfiguration configuration, String identifier) {
+      super(configuration, identifier);
+      this.str1 = configuration.str1;
+      this.str2 = configuration.str2;
+      this.int1 = configuration.int1;
+      this.int2 = configuration.int2;
     }
 
     @Override
@@ -454,6 +448,7 @@ public class ExpansionServiceSchemaTransformProviderTest {
     assertEquals(transform.int2, equivalentTransform.int2);
     assertEquals(transform.str1, equivalentTransform.str1);
     assertEquals(transform.str2, equivalentTransform.str2);
+    assertEquals(transform.getConfigurationRow(), equivalentTransform.getConfigurationRow());
   }
 
   private RunnerApi.FunctionSpec createSpec(String identifier, Row configRow) {

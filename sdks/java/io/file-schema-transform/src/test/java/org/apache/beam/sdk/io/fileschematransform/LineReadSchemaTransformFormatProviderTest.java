@@ -98,7 +98,7 @@ public class LineReadSchemaTransformFormatProviderTest {
             .setFormat(getFormat())
             .setFilepattern(filePath + "*")
             .build();
-    SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
+    SchemaTransform<?> readTransform = new FileReadSchemaTransformProvider().from(config);
 
     PCollectionRowTuple output = PCollectionRowTuple.empty(readPipeline).apply(readTransform);
     PCollection<String> outputStrings =
@@ -130,7 +130,7 @@ public class LineReadSchemaTransformFormatProviderTest {
             .setPollIntervalMillis(100L)
             .setTerminateAfterSecondsSinceNewOutput(3L)
             .build();
-    SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
+    SchemaTransform<?> readTransform = new FileReadSchemaTransformProvider().from(config);
 
     PCollectionRowTuple output = PCollectionRowTuple.empty(readPipeline).apply(readTransform);
 
@@ -192,7 +192,7 @@ public class LineReadSchemaTransformFormatProviderTest {
     // We will get filepatterns from the input PCollection, so don't set filepattern field here
     FileReadSchemaTransformConfiguration config =
         FileReadSchemaTransformConfiguration.builder().setFormat(getFormat()).build();
-    SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
+    SchemaTransform<?> readTransform = new FileReadSchemaTransformProvider().from(config);
 
     // Create an PCollection<Row> of filepatterns and feed into the read transform
     Schema patternSchema = Schema.of(Field.of(FILEPATTERN_ROW_FIELD_NAME, FieldType.STRING));

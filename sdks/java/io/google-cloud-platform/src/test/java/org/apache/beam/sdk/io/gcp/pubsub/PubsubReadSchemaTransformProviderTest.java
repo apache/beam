@@ -182,7 +182,7 @@ public class PubsubReadSchemaTransformProviderTest {
               .setClientFactory(clientFactory)
               .setClock(CLOCK)
               .build();
-      SchemaTransform transform = new PubsubReadSchemaTransformProvider().from(config);
+      SchemaTransform<?> transform = new PubsubReadSchemaTransformProvider().from(config);
       PCollectionRowTuple reads = begin.apply(transform);
 
       PAssert.that(reads.get("output"))
@@ -229,7 +229,7 @@ public class PubsubReadSchemaTransformProviderTest {
               .setClientFactory(clientFactory)
               .setClock(CLOCK)
               .build();
-      SchemaTransform transform = new PubsubReadSchemaTransformProvider().from(config);
+      SchemaTransform<?> transform = new PubsubReadSchemaTransformProvider().from(config);
       PCollectionRowTuple reads = begin.apply(transform);
 
       PAssert.that(reads.get("output"))
@@ -260,7 +260,7 @@ public class PubsubReadSchemaTransformProviderTest {
               .setClientFactory(clientFactory)
               .setClock(CLOCK)
               .build();
-      SchemaTransform transform = new PubsubReadSchemaTransformProvider().from(config);
+      SchemaTransform<?> transform = new PubsubReadSchemaTransformProvider().from(config);
       PCollectionRowTuple reads = begin.apply(transform);
 
       PAssert.that(reads.get("output")).containsInAnyOrder(ROWS);
@@ -288,7 +288,7 @@ public class PubsubReadSchemaTransformProviderTest {
               .setClientFactory(clientFactory)
               .setClock(CLOCK)
               .build();
-      SchemaTransform transform = new PubsubReadSchemaTransformProvider().from(config);
+      SchemaTransform<?> transform = new PubsubReadSchemaTransformProvider().from(config);
       PCollectionRowTuple reads = begin.apply(transform);
 
       PAssert.that(reads.get("output")).empty();

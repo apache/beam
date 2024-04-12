@@ -89,9 +89,9 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
   protected static final String DYNAMIC_DESTINATIONS = "DYNAMIC_DESTINATIONS";
 
   @Override
-  protected SchemaTransform from(
+  protected SchemaTransform<BigQueryStorageWriteApiSchemaTransformConfiguration> from(
       BigQueryStorageWriteApiSchemaTransformConfiguration configuration) {
-    return new BigQueryStorageWriteApiSchemaTransform(configuration);
+    return new BigQueryStorageWriteApiSchemaTransform(configuration, identifier());
   }
 
   @Override
@@ -289,13 +289,15 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
    * BigQueryStorageWriteApiSchemaTransformConfiguration} and instantiated by {@link
    * BigQueryStorageWriteApiSchemaTransformProvider}.
    */
-  protected static class BigQueryStorageWriteApiSchemaTransform extends SchemaTransform {
+  protected static class BigQueryStorageWriteApiSchemaTransform
+      extends SchemaTransform<BigQueryStorageWriteApiSchemaTransformConfiguration> {
 
     private BigQueryServices testBigQueryServices = null;
     private final BigQueryStorageWriteApiSchemaTransformConfiguration configuration;
 
     BigQueryStorageWriteApiSchemaTransform(
-        BigQueryStorageWriteApiSchemaTransformConfiguration configuration) {
+        BigQueryStorageWriteApiSchemaTransformConfiguration configuration, String identifier) {
+      super(configuration, identifier);
       configuration.validate();
       this.configuration = configuration;
     }

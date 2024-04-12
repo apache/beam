@@ -64,16 +64,11 @@ public class FileWriteSchemaTransformProvider
   static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
   static final TupleTag<String> RESULT_TAG = new TupleTag<String>() {};
 
-  /** Provides the required {@link TypedSchemaTransformProvider#configurationClass()}. */
-  @Override
-  protected Class<FileWriteSchemaTransformConfiguration> configurationClass() {
-    return FileWriteSchemaTransformConfiguration.class;
-  }
-
   /** Builds a {@link SchemaTransform} from a {@link FileWriteSchemaTransformConfiguration}. */
   @Override
-  protected SchemaTransform from(FileWriteSchemaTransformConfiguration configuration) {
-    return new FileWriteSchemaTransform(configuration);
+  protected SchemaTransform<FileWriteSchemaTransformConfiguration> from(
+      FileWriteSchemaTransformConfiguration configuration) {
+    return new FileWriteSchemaTransform(configuration, identifier());
   }
 
   /** Returns the {@link TypedSchemaTransformProvider#identifier()} required for registration. */
@@ -99,11 +94,14 @@ public class FileWriteSchemaTransformProvider
    * #inputCollectionNames()} tagged {@link Row}s into a {@link PCollectionRowTuple} of {@link
    * #outputCollectionNames()} tagged {@link Row}s.
    */
-  static class FileWriteSchemaTransform extends SchemaTransform {
+  static class FileWriteSchemaTransform
+      extends SchemaTransform<FileWriteSchemaTransformConfiguration> {
 
     final FileWriteSchemaTransformConfiguration configuration;
 
-    FileWriteSchemaTransform(FileWriteSchemaTransformConfiguration configuration) {
+    FileWriteSchemaTransform(
+        FileWriteSchemaTransformConfiguration configuration, String identifier) {
+      super(configuration, identifier);
       validateConfiguration(configuration);
       this.configuration = configuration;
     }

@@ -222,7 +222,7 @@ public class BigtableReadSchemaTransformProviderIT {
             .setInstanceId(instanceId)
             .setProjectId(projectId)
             .build();
-    SchemaTransform transform = new BigtableReadSchemaTransformProvider().from(config);
+    SchemaTransform<?> transform = new BigtableReadSchemaTransformProvider().from(config);
 
     PCollection<Row> rows = PCollectionRowTuple.empty(p).apply(transform).get("output");
     PAssert.that(rows).containsInAnyOrder(expectedRows);

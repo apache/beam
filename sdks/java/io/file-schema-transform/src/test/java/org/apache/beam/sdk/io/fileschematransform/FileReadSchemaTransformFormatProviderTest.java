@@ -239,8 +239,8 @@ public abstract class FileReadSchemaTransformFormatProviderTest {
             .setSchema(getStringSchemaFromBeamSchema(schema))
             .build();
 
-    SchemaTransform writeTransform = new FileWriteSchemaTransformProvider().from(writeConfig);
-    SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(readConfig);
+    SchemaTransform<?> writeTransform = new FileWriteSchemaTransformProvider().from(writeConfig);
+    SchemaTransform<?> readTransform = new FileReadSchemaTransformProvider().from(readConfig);
 
     Schema filePatternSchema = getFilepatternSchema();
     PCollection<Row> inputRows = writePipeline.apply(Create.of(rows).withRowSchema(schema));

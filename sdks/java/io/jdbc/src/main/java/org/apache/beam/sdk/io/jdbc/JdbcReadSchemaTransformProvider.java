@@ -50,23 +50,20 @@ public class JdbcReadSchemaTransformProvider
         JdbcReadSchemaTransformProvider.JdbcReadSchemaTransformConfiguration> {
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<JdbcReadSchemaTransformConfiguration>
-      configurationClass() {
-    return JdbcReadSchemaTransformConfiguration.class;
-  }
-
-  @Override
-  protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      JdbcReadSchemaTransformConfiguration configuration) {
+  protected @UnknownKeyFor @NonNull @Initialized SchemaTransform<
+          JdbcReadSchemaTransformConfiguration>
+      from(JdbcReadSchemaTransformConfiguration configuration) {
     configuration.validate();
-    return new JdbcReadSchemaTransform(configuration);
+    return new JdbcReadSchemaTransform(configuration, identifier());
   }
 
-  static class JdbcReadSchemaTransform extends SchemaTransform implements Serializable {
+  static class JdbcReadSchemaTransform extends SchemaTransform<JdbcReadSchemaTransformConfiguration>
+      implements Serializable {
 
     JdbcReadSchemaTransformConfiguration config;
 
-    public JdbcReadSchemaTransform(JdbcReadSchemaTransformConfiguration config) {
+    public JdbcReadSchemaTransform(JdbcReadSchemaTransformConfiguration config, String identifier) {
+      super(config, identifier);
       this.config = config;
     }
 

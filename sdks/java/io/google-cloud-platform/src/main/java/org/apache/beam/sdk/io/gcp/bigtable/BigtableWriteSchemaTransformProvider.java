@@ -61,8 +61,9 @@ public class BigtableWriteSchemaTransformProvider
   private static final String INPUT_TAG = "input";
 
   @Override
-  protected SchemaTransform from(BigtableWriteSchemaTransformConfiguration configuration) {
-    return new BigtableWriteSchemaTransform(configuration);
+  protected SchemaTransform<BigtableWriteSchemaTransformConfiguration> from(
+      BigtableWriteSchemaTransformConfiguration configuration) {
+    return new BigtableWriteSchemaTransform(configuration, identifier());
   }
 
   @Override
@@ -120,10 +121,13 @@ public class BigtableWriteSchemaTransformProvider
    * BigtableWriteSchemaTransformConfiguration} and instantiated by {@link
    * BigtableWriteSchemaTransformProvider}.
    */
-  private static class BigtableWriteSchemaTransform extends SchemaTransform {
+  private static class BigtableWriteSchemaTransform
+      extends SchemaTransform<BigtableWriteSchemaTransformConfiguration> {
     private final BigtableWriteSchemaTransformConfiguration configuration;
 
-    BigtableWriteSchemaTransform(BigtableWriteSchemaTransformConfiguration configuration) {
+    BigtableWriteSchemaTransform(
+        BigtableWriteSchemaTransformConfiguration configuration, String identifier) {
+      super(configuration, identifier);
       configuration.validate();
       this.configuration = configuration;
     }

@@ -89,16 +89,12 @@ public class KafkaReadSchemaTransformProvider
     this.testTimeoutSecs = testTimeoutSecs;
   }
 
-  @Override
-  protected Class<KafkaReadSchemaTransformConfiguration> configurationClass() {
-    return KafkaReadSchemaTransformConfiguration.class;
-  }
-
   @SuppressWarnings({
     "nullness" // TODO(https://github.com/apache/beam/issues/20497)
   })
   @Override
-  protected SchemaTransform from(KafkaReadSchemaTransformConfiguration configuration) {
+  protected SchemaTransform<KafkaReadSchemaTransformConfiguration> from(
+      KafkaReadSchemaTransformConfiguration configuration) {
     configuration.validate();
 
     final String inputSchema = configuration.getSchema();
@@ -122,7 +118,8 @@ public class KafkaReadSchemaTransformProvider
 
     String confluentSchemaRegUrl = configuration.getConfluentSchemaRegistryUrl();
     if (confluentSchemaRegUrl != null) {
-      return new SchemaTransform() {
+      return new SchemaTransform<KafkaReadSchemaTransformConfiguration>(
+          configuration, identifier()) {
         @Override
         public PCollectionRowTuple expand(PCollectionRowTuple input) {
           final String confluentSchemaRegSubject =
@@ -173,7 +170,7 @@ public class KafkaReadSchemaTransformProvider
       valueMapper = AvroUtils.getAvroBytesToRowFunction(beamSchema);
     }
 
-    return new SchemaTransform() {
+    return new SchemaTransform<KafkaReadSchemaTransformConfiguration>(configuration, identifier()) {
       @Override
       public PCollectionRowTuple expand(PCollectionRowTuple input) {
         KafkaIO.Read<byte[], byte[]> kafkaRead =

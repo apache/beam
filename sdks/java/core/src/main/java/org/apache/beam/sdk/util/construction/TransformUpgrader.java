@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util.construction;
 
+import static org.apache.beam.sdk.schemas.transforms.SchemaTransformProviderTranslation.SchemaTransformRegistrar;
+
 import com.fasterxml.jackson.core.Version;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -44,6 +46,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transformservice.launcher.TransformServiceLauncher;
 import org.apache.beam.sdk.util.ReleaseInfo;
@@ -418,6 +421,26 @@ public class TransformUpgrader implements AutoCloseable {
         if (entry.getKey().equals(transform.getClass())) {
           return entry.getValue().getUrn();
         }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Like {@link #findUpgradeURN(PTransform)} but for {@link SchemaTransform}s
+   *
+   * <p>Finds a SchemaTransform by comparing the underlying URN.
+   *
+   * @param transform transform to lookup.
+   * @return a URN if discovered. Returns {@code null} otherwise.
+   */
+  @SuppressWarnings({"rawtypes"})
+  public static @Nullable String findUpgradeSchemaTransformURN(SchemaTransform<?> transform) {
+    for (Entry<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator> entry :
+        new SchemaTransformRegistrar().getTransformPayloadTranslators().entrySet()) {
+      if (entry.getValue().getUrn().equals(transform.getIdentifier())) {
+        return entry.getValue().getUrn();
       }
     }
 

@@ -56,13 +56,8 @@ public class JavaExplodeTransformProvider
   protected static final String OUTPUT_ROWS_TAG = "output";
 
   @Override
-  protected Class<Configuration> configurationClass() {
-    return Configuration.class;
-  }
-
-  @Override
-  protected SchemaTransform from(Configuration configuration) {
-    return new ExplodeTransform(configuration);
+  protected SchemaTransform<Configuration> from(Configuration configuration) {
+    return new ExplodeTransform(configuration, identifier());
   }
 
   @Override
@@ -105,11 +100,11 @@ public class JavaExplodeTransformProvider
   }
 
   /** A {@link SchemaTransform} for Explode. */
-  protected static class ExplodeTransform extends SchemaTransform {
-
+  protected static class ExplodeTransform extends SchemaTransform<Configuration> {
     private final Configuration configuration;
 
-    ExplodeTransform(Configuration configuration) {
+    ExplodeTransform(Configuration configuration, String identifier) {
+      super(configuration, identifier);
       this.configuration = configuration;
     }
 

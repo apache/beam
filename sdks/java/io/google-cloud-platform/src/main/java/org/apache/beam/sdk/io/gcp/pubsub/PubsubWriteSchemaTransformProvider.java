@@ -67,11 +67,6 @@ public class PubsubWriteSchemaTransformProvider
   public static final Set<String> VALID_DATA_FORMATS =
       Sets.newHashSet(VALID_FORMATS_STR.split(","));
 
-  @Override
-  public Class<PubsubWriteSchemaTransformConfiguration> configurationClass() {
-    return PubsubWriteSchemaTransformConfiguration.class;
-  }
-
   public static class ErrorFn extends DoFn<Row, PubsubMessage> {
     private final SerializableFunction<Row, byte[]> valueMapper;
     private final @Nullable Set<String> attributes;
@@ -137,20 +132,24 @@ public class PubsubWriteSchemaTransformProvider
   }
 
   @Override
-  public SchemaTransform from(PubsubWriteSchemaTransformConfiguration configuration) {
+  public SchemaTransform<PubsubWriteSchemaTransformConfiguration> from(
+      PubsubWriteSchemaTransformConfiguration configuration) {
     if (!VALID_DATA_FORMATS.contains(configuration.getFormat().toUpperCase())) {
       throw new IllegalArgumentException(
           String.format(
               "Format %s not supported. Only supported formats are %s",
               configuration.getFormat(), VALID_FORMATS_STR));
     }
-    return new PubsubWriteSchemaTransform(configuration);
+    return new PubsubWriteSchemaTransform(configuration, identifier());
   }
 
-  private static class PubsubWriteSchemaTransform extends SchemaTransform implements Serializable {
+  private static class PubsubWriteSchemaTransform
+      extends SchemaTransform<PubsubWriteSchemaTransformConfiguration> implements Serializable {
     final PubsubWriteSchemaTransformConfiguration configuration;
 
-    PubsubWriteSchemaTransform(PubsubWriteSchemaTransformConfiguration configuration) {
+    PubsubWriteSchemaTransform(
+        PubsubWriteSchemaTransformConfiguration configuration, String identifier) {
+      super(configuration, identifier);
       this.configuration = configuration;
     }
 

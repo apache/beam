@@ -54,16 +54,11 @@ public class BigQueryExportReadSchemaTransformProvider
       "beam:schematransform:org.apache.beam:bigquery_export_read:v1";
   private static final String OUTPUT_TAG = "OUTPUT";
 
-  /** Returns the expected class of the configuration. */
-  @Override
-  protected Class<BigQueryExportReadSchemaTransformConfiguration> configurationClass() {
-    return BigQueryExportReadSchemaTransformConfiguration.class;
-  }
-
   /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
-  protected SchemaTransform from(BigQueryExportReadSchemaTransformConfiguration configuration) {
-    return new BigQueryExportSchemaTransform(configuration);
+  protected SchemaTransform<BigQueryExportReadSchemaTransformConfiguration> from(
+      BigQueryExportReadSchemaTransformConfiguration configuration) {
+    return new BigQueryExportSchemaTransform(configuration, identifier());
   }
 
   /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
@@ -94,13 +89,16 @@ public class BigQueryExportReadSchemaTransformProvider
    * An implementation of {@link SchemaTransform} for BigQuery read jobs configured using {@link
    * BigQueryExportReadSchemaTransformConfiguration}.
    */
-  protected static class BigQueryExportSchemaTransform extends SchemaTransform {
+  protected static class BigQueryExportSchemaTransform
+      extends SchemaTransform<BigQueryExportReadSchemaTransformConfiguration> {
     /** An instance of {@link BigQueryServices} used for testing. */
     private BigQueryServices testBigQueryServices = null;
 
     private final BigQueryExportReadSchemaTransformConfiguration configuration;
 
-    BigQueryExportSchemaTransform(BigQueryExportReadSchemaTransformConfiguration configuration) {
+    BigQueryExportSchemaTransform(
+        BigQueryExportReadSchemaTransformConfiguration configuration, String identifier) {
+      super(configuration, identifier);
       this.configuration = configuration;
     }
 

@@ -55,23 +55,21 @@ public class JdbcWriteSchemaTransformProvider
         JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration> {
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<JdbcWriteSchemaTransformConfiguration>
-      configurationClass() {
-    return JdbcWriteSchemaTransformConfiguration.class;
-  }
-
-  @Override
-  protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      JdbcWriteSchemaTransformConfiguration configuration) {
+  protected @UnknownKeyFor @NonNull @Initialized SchemaTransform<
+          JdbcWriteSchemaTransformConfiguration>
+      from(JdbcWriteSchemaTransformConfiguration configuration) {
     configuration.validate();
-    return new JdbcWriteSchemaTransform(configuration);
+    return new JdbcWriteSchemaTransform(configuration, identifier());
   }
 
-  static class JdbcWriteSchemaTransform extends SchemaTransform implements Serializable {
+  static class JdbcWriteSchemaTransform
+      extends SchemaTransform<JdbcWriteSchemaTransformConfiguration> implements Serializable {
 
     JdbcWriteSchemaTransformConfiguration config;
 
-    public JdbcWriteSchemaTransform(JdbcWriteSchemaTransformConfiguration config) {
+    public JdbcWriteSchemaTransform(
+        JdbcWriteSchemaTransformConfiguration config, String identifier) {
+      super(config, identifier);
       this.config = config;
     }
 

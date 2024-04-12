@@ -53,22 +53,8 @@ public class WindowIntoTransformProvider
   protected static final String OUTPUT_ROWS_TAG = "output";
 
   @Override
-  protected Class<Configuration> configurationClass() {
-    return Configuration.class;
-  }
-
-  @Override
-  protected SchemaTransform from(Configuration configuration) {
-    try {
-      return new WindowIntoStrategy(
-          (WindowingStrategy<Row, ?>)
-              WindowingStrategyTranslation.fromProto(
-                  RunnerApi.WindowingStrategy.parseFrom(
-                      configuration.getSerializedWindowingStrategy()),
-                  null));
-    } catch (IOException exn) {
-      throw new RuntimeException(exn);
-    }
+  protected SchemaTransform<Configuration> from(Configuration configuration) {
+    return new WindowIntoStrategy(configuration, identifier());
   }
 
   @Override
@@ -106,12 +92,22 @@ public class WindowIntoTransformProvider
     }
   }
 
-  private static class WindowIntoStrategy extends SchemaTransform {
+  private static class WindowIntoStrategy extends SchemaTransform<Configuration> {
 
     private final WindowingStrategy<Row, ?> windowingStrategy;
 
-    WindowIntoStrategy(WindowingStrategy<Row, ?> windowingStrategy) {
-      this.windowingStrategy = windowingStrategy;
+    WindowIntoStrategy(Configuration configuration, String identifier) {
+      super(configuration, identifier);
+      try {
+        this.windowingStrategy =
+            (WindowingStrategy<Row, ?>)
+                WindowingStrategyTranslation.fromProto(
+                    RunnerApi.WindowingStrategy.parseFrom(
+                        configuration.getSerializedWindowingStrategy()),
+                    null);
+      } catch (IOException exn) {
+        throw new RuntimeException(exn);
+      }
     }
 
     @Override

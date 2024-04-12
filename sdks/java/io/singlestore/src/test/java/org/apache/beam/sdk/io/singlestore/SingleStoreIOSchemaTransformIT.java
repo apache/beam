@@ -136,7 +136,7 @@ public class SingleStoreIOSchemaTransformIT {
             .build();
 
     Row configurationRow = configuration.toBeamRow();
-    SchemaTransform schemaTransform = provider.from(configurationRow);
+    SchemaTransform<?> schemaTransform = provider.from(configurationRow);
 
     Schema.Builder schemaBuilder = new Schema.Builder();
     schemaBuilder.addField("id", Schema.FieldType.INT32);
@@ -190,7 +190,7 @@ public class SingleStoreIOSchemaTransformIT {
             .build();
 
     Row configurationRow = configuration.toBeamRow();
-    SchemaTransform schemaTransform = provider.from(configurationRow);
+    SchemaTransform<?> schemaTransform = provider.from(configurationRow);
 
     PCollectionRowTuple input = PCollectionRowTuple.empty(pipelineRead);
     String tag = provider.outputCollectionNames().get(0);
@@ -221,7 +221,7 @@ public class SingleStoreIOSchemaTransformIT {
             .build();
 
     Row configurationRow = configuration.toBeamRow();
-    SchemaTransform schemaTransform = provider.from(configurationRow);
+    SchemaTransform<?> schemaTransform = provider.from(configurationRow);
 
     PCollectionRowTuple input = PCollectionRowTuple.empty(pipelineReadWithPartitions);
     String tag = provider.outputCollectionNames().get(0);

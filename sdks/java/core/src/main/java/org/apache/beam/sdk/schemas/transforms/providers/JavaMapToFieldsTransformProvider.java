@@ -56,13 +56,8 @@ public class JavaMapToFieldsTransformProvider
   protected static final String OUTPUT_ROWS_TAG = "output";
 
   @Override
-  protected Class<Configuration> configurationClass() {
-    return Configuration.class;
-  }
-
-  @Override
-  protected SchemaTransform from(Configuration configuration) {
-    return new JavaMapToFieldsTransform(configuration);
+  protected SchemaTransform<Configuration> from(Configuration configuration) {
+    return new JavaMapToFieldsTransform(configuration, identifier());
   }
 
   @Override
@@ -119,11 +114,12 @@ public class JavaMapToFieldsTransformProvider
   }
 
   /** A {@link SchemaTransform} for MapToFields-java. */
-  protected static class JavaMapToFieldsTransform extends SchemaTransform {
+  protected static class JavaMapToFieldsTransform extends SchemaTransform<Configuration> {
 
     private final Configuration configuration;
 
-    JavaMapToFieldsTransform(Configuration configuration) {
+    JavaMapToFieldsTransform(Configuration configuration, String identifier) {
+      super(configuration, identifier);
       this.configuration = configuration;
     }
 

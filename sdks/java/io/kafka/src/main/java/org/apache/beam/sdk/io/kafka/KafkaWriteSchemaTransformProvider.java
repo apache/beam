@@ -73,14 +73,9 @@ public class KafkaWriteSchemaTransformProvider
       LoggerFactory.getLogger(KafkaWriteSchemaTransformProvider.class);
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<KafkaWriteSchemaTransformConfiguration>
-      configurationClass() {
-    return KafkaWriteSchemaTransformConfiguration.class;
-  }
-
-  @Override
-  protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      KafkaWriteSchemaTransformConfiguration configuration) {
+  protected @UnknownKeyFor @NonNull @Initialized SchemaTransform<
+          KafkaWriteSchemaTransformConfiguration>
+      from(KafkaWriteSchemaTransformConfiguration configuration) {
     if (!SUPPORTED_FORMATS.contains(configuration.getFormat())) {
       throw new IllegalArgumentException(
           "Format "
@@ -89,13 +84,16 @@ public class KafkaWriteSchemaTransformProvider
               + "Supported formats are: "
               + String.join(", ", SUPPORTED_FORMATS));
     }
-    return new KafkaWriteSchemaTransform(configuration);
+    return new KafkaWriteSchemaTransform(configuration, identifier());
   }
 
-  static final class KafkaWriteSchemaTransform extends SchemaTransform implements Serializable {
+  static final class KafkaWriteSchemaTransform
+      extends SchemaTransform<KafkaWriteSchemaTransformConfiguration> implements Serializable {
     final KafkaWriteSchemaTransformConfiguration configuration;
 
-    KafkaWriteSchemaTransform(KafkaWriteSchemaTransformConfiguration configuration) {
+    KafkaWriteSchemaTransform(
+        KafkaWriteSchemaTransformConfiguration configuration, String identifier) {
+      super(configuration, identifier);
       this.configuration = configuration;
     }
 

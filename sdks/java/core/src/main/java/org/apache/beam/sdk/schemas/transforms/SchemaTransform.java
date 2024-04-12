@@ -17,9 +17,17 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+
+import java.lang.reflect.ParameterizedType;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.Row;
 
 /**
  * An abstraction representing schema capable and aware transforms. The interface is intended to be
@@ -33,5 +41,38 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
  * compatibility guarantees and it should not be implemented outside of the Beam repository.
  */
 @Internal
-public abstract class SchemaTransform
-    extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {}
+public abstract class SchemaTransform<ConfigT>
+    extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
+  private final Row configurationRow;
+  private final String identifier;
+
+  @SuppressWarnings("unchecked")
+  protected SchemaTransform(ConfigT configuration, String identifier) {
+    this.identifier = identifier;
+    @Nullable
+    ParameterizedType parameterizedType = (ParameterizedType) getClass().getGenericSuperclass();
+    checkStateNotNull(parameterizedType, "Could not get the SchemaTransform's parameterized type.");
+    checkArgument(
+        parameterizedType.getActualTypeArguments().length == 1,
+        String.format(
+            "Expected one parameterized type, but got %s.",
+            parameterizedType.getActualTypeArguments().length));
+
+    Class<ConfigT> typedClass = (Class<ConfigT>) parameterizedType.getActualTypeArguments()[0];
+
+    try {
+      this.configurationRow =
+          SchemaRegistry.createDefault().getToRowFunction(typedClass).apply(configuration);
+    } catch (NoSuchSchemaException e) {
+      throw new RuntimeException("Unable to find schema for this SchemaTransform's config.", e);
+    }
+  }
+
+  public Row getConfigurationRow() {
+    return configurationRow;
+  }
+
+  public String getIdentifier() {
+    return identifier;
+  }
+}

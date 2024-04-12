@@ -75,13 +75,9 @@ public class GenerateSequenceSchemaTransformProvider
   }
 
   @Override
-  public Class<GenerateSequenceConfiguration> configurationClass() {
-    return GenerateSequenceConfiguration.class;
-  }
-
-  @Override
-  public SchemaTransform from(GenerateSequenceConfiguration configuration) {
-    return new GenerateSequenceSchemaTransform(configuration);
+  public SchemaTransform<GenerateSequenceConfiguration> from(
+      GenerateSequenceConfiguration configuration) {
+    return new GenerateSequenceSchemaTransform(configuration, identifier());
   }
 
   @DefaultSchema(AutoValueSchema.class)
@@ -163,10 +159,13 @@ public class GenerateSequenceSchemaTransformProvider
     }
   }
 
-  protected static class GenerateSequenceSchemaTransform extends SchemaTransform {
+  protected static class GenerateSequenceSchemaTransform
+      extends SchemaTransform<GenerateSequenceConfiguration> {
     private final GenerateSequenceConfiguration configuration;
 
-    GenerateSequenceSchemaTransform(GenerateSequenceConfiguration configuration) {
+    GenerateSequenceSchemaTransform(
+        GenerateSequenceConfiguration configuration, String identifier) {
+      super(configuration, identifier);
       configuration.validate();
       this.configuration = configuration;
     }

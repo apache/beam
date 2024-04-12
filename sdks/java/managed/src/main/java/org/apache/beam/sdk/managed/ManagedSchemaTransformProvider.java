@@ -79,7 +79,7 @@ public class ManagedSchemaTransformProvider
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   @VisibleForTesting
-  abstract static class ManagedConfig {
+  public abstract static class ManagedConfig {
     public static Builder builder() {
       return new AutoValue_ManagedSchemaTransformProvider_ManagedConfig.Builder();
     }
@@ -114,7 +114,7 @@ public class ManagedSchemaTransformProvider
   }
 
   @Override
-  protected SchemaTransform from(ManagedConfig managedConfig) {
+  protected SchemaTransform<ManagedConfig> from(ManagedConfig managedConfig) {
     managedConfig.validate();
     SchemaTransformProvider schemaTransformProvider =
         Preconditions.checkNotNull(
@@ -135,22 +135,27 @@ public class ManagedSchemaTransformProvider
           e);
     }
 
-    return new ManagedSchemaTransform(transformConfig, schemaTransformProvider);
+    return new ManagedSchemaTransform(
+        managedConfig, identifier(), transformConfig, schemaTransformProvider);
   }
 
-  private static class ManagedSchemaTransform extends SchemaTransform {
+  private static class ManagedSchemaTransform extends SchemaTransform<ManagedConfig> {
     private final Row transformConfig;
     private final SchemaTransformProvider underlyingTransformProvider;
 
     ManagedSchemaTransform(
-        Row transformConfig, SchemaTransformProvider underlyingTransformProvider) {
-      this.transformConfig = transformConfig;
+        ManagedConfig managedConfig,
+        String managedIdentifier,
+        Row underlyingTransformConfig,
+        SchemaTransformProvider underlyingTransformProvider) {
+      super(managedConfig, managedIdentifier);
+      this.transformConfig = underlyingTransformConfig;
       this.underlyingTransformProvider = underlyingTransformProvider;
     }
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      SchemaTransform underlyingTransform = underlyingTransformProvider.from(transformConfig);
+      SchemaTransform<?> underlyingTransform = underlyingTransformProvider.from(transformConfig);
 
       return input.apply(underlyingTransform);
     }

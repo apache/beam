@@ -62,16 +62,11 @@ public class BigQueryFileLoadsWriteSchemaTransformProvider
       "beam:schematransform:org.apache.beam:bigquery_fileloads_write:v1";
   static final String INPUT_TAG = "INPUT";
 
-  /** Returns the expected class of the configuration. */
-  @Override
-  protected Class<BigQueryFileLoadsWriteSchemaTransformConfiguration> configurationClass() {
-    return BigQueryFileLoadsWriteSchemaTransformConfiguration.class;
-  }
-
   /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
-  protected SchemaTransform from(BigQueryFileLoadsWriteSchemaTransformConfiguration configuration) {
-    return new BigQueryWriteSchemaTransform(configuration);
+  protected SchemaTransform<BigQueryFileLoadsWriteSchemaTransformConfiguration> from(
+      BigQueryFileLoadsWriteSchemaTransformConfiguration configuration) {
+    return new BigQueryWriteSchemaTransform(configuration, identifier());
   }
 
   /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
@@ -102,13 +97,16 @@ public class BigQueryFileLoadsWriteSchemaTransformProvider
    * A {@link SchemaTransform} that performs {@link BigQueryIO.Write}s based on a {@link
    * BigQueryFileLoadsWriteSchemaTransformConfiguration}.
    */
-  protected static class BigQueryWriteSchemaTransform extends SchemaTransform {
+  protected static class BigQueryWriteSchemaTransform
+      extends SchemaTransform<BigQueryFileLoadsWriteSchemaTransformConfiguration> {
     /** An instance of {@link BigQueryServices} used for testing. */
     private BigQueryServices testBigQueryServices = null;
 
     private final BigQueryFileLoadsWriteSchemaTransformConfiguration configuration;
 
-    BigQueryWriteSchemaTransform(BigQueryFileLoadsWriteSchemaTransformConfiguration configuration) {
+    BigQueryWriteSchemaTransform(
+        BigQueryFileLoadsWriteSchemaTransformConfiguration configuration, String identifier) {
+      super(configuration, identifier);
       this.configuration = configuration;
     }
 

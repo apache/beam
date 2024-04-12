@@ -66,13 +66,9 @@ public class FileReadSchemaTransformProvider
   static final String FILEPATTERN_ROW_FIELD_NAME = "filepattern";
 
   @Override
-  protected Class<FileReadSchemaTransformConfiguration> configurationClass() {
-    return FileReadSchemaTransformConfiguration.class;
-  }
-
-  @Override
-  protected SchemaTransform from(FileReadSchemaTransformConfiguration configuration) {
-    return new FileReadSchemaTransform(configuration);
+  protected SchemaTransform<FileReadSchemaTransformConfiguration> from(
+      FileReadSchemaTransformConfiguration configuration) {
+    return new FileReadSchemaTransform(configuration, identifier());
   }
 
   @Override
@@ -91,11 +87,13 @@ public class FileReadSchemaTransformProvider
   }
 
   @VisibleForTesting
-  static class FileReadSchemaTransform extends SchemaTransform {
+  static class FileReadSchemaTransform
+      extends SchemaTransform<FileReadSchemaTransformConfiguration> {
     private FileReadSchemaTransformConfiguration configuration;
     private boolean useInputPCollection;
 
-    FileReadSchemaTransform(FileReadSchemaTransformConfiguration configuration) {
+    FileReadSchemaTransform(FileReadSchemaTransformConfiguration configuration, String identifier) {
+      super(configuration, identifier);
       this.configuration = configuration;
       useInputPCollection = Strings.isNullOrEmpty(configuration.getFilepattern());
     }

@@ -39,16 +39,11 @@ public class SingleStoreSchemaTransformReadProvider
     extends TypedSchemaTransformProvider<SingleStoreSchemaTransformReadConfiguration> {
   private static final String OUTPUT_TAG = "OUTPUT";
 
-  /** Returns the expected class of the configuration. */
-  @Override
-  protected Class<SingleStoreSchemaTransformReadConfiguration> configurationClass() {
-    return SingleStoreSchemaTransformReadConfiguration.class;
-  }
-
   /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
-  protected SchemaTransform from(SingleStoreSchemaTransformReadConfiguration configuration) {
-    return new SingleStoreReadSchemaTransform(configuration);
+  protected SchemaTransform<SingleStoreSchemaTransformReadConfiguration> from(
+      SingleStoreSchemaTransformReadConfiguration configuration) {
+    return new SingleStoreReadSchemaTransform(configuration, identifier());
   }
 
   /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
@@ -79,10 +74,13 @@ public class SingleStoreSchemaTransformReadProvider
    * An implementation of {@link SchemaTransform} for SingleStoreDB read jobs configured using
    * {@link SingleStoreSchemaTransformReadConfiguration}.
    */
-  private static class SingleStoreReadSchemaTransform extends SchemaTransform {
+  private static class SingleStoreReadSchemaTransform
+      extends SchemaTransform<SingleStoreSchemaTransformReadConfiguration> {
     private final SingleStoreSchemaTransformReadConfiguration configuration;
 
-    SingleStoreReadSchemaTransform(SingleStoreSchemaTransformReadConfiguration configuration) {
+    SingleStoreReadSchemaTransform(
+        SingleStoreSchemaTransformReadConfiguration configuration, String identifier) {
+      super(configuration, identifier);
       this.configuration = configuration;
     }
 

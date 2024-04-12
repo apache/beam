@@ -188,7 +188,8 @@ public class JsonReadSchemaTransformFormatProviderTest
             .setFilepattern(filePath + "*")
             .build();
 
-    SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
+    SchemaTransform<FileReadSchemaTransformConfiguration> readTransform =
+        new FileReadSchemaTransformProvider().from(config);
     PCollectionRowTuple output = PCollectionRowTuple.empty(readPipeline).apply(readTransform);
 
     List<Row> expectedRows =
@@ -233,7 +234,7 @@ public class JsonReadSchemaTransformFormatProviderTest
             .setPollIntervalMillis(100L)
             .setTerminateAfterSecondsSinceNewOutput(3L)
             .build();
-    SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
+    SchemaTransform<?> readTransform = new FileReadSchemaTransformProvider().from(config);
 
     PCollectionRowTuple output = PCollectionRowTuple.empty(readPipeline).apply(readTransform);
 
@@ -299,7 +300,7 @@ public class JsonReadSchemaTransformFormatProviderTest
             .setFormat(getFormat())
             .setSchema(jsonStringSchema)
             .build();
-    SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
+    SchemaTransform<?> readTransform = new FileReadSchemaTransformProvider().from(config);
 
     // Create an PCollection<Row> of filepatterns and feed into the read transform
     Schema patternSchema = getFilepatternSchema();

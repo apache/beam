@@ -63,7 +63,7 @@ public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTra
    * Produce a SchemaTransform from ConfigT. Can throw a {@link InvalidConfigurationException} or a
    * {@link InvalidSchemaException}.
    */
-  protected abstract SchemaTransform from(ConfigT configuration);
+  protected abstract SchemaTransform<ConfigT> from(ConfigT configuration);
 
   /**
    * List the dependencies needed for this transform. Jars from classpath are used by default when
@@ -87,7 +87,7 @@ public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTra
   }
 
   @Override
-  public final SchemaTransform from(Row configuration) {
+  public final SchemaTransform<ConfigT> from(Row configuration) {
     return from(configFromRow(configuration));
   }
 

@@ -63,13 +63,8 @@ public class LoggingTransformProvider
   protected static final String OUTPUT_ROWS_TAG = "output";
 
   @Override
-  protected Class<Configuration> configurationClass() {
-    return Configuration.class;
-  }
-
-  @Override
-  protected SchemaTransform from(Configuration configuration) {
-    return new LoggingTransform(configuration);
+  protected SchemaTransform<Configuration> from(Configuration configuration) {
+    return new LoggingTransform(configuration, identifier());
   }
 
   @Override
@@ -134,13 +129,14 @@ public class LoggingTransformProvider
   }
 
   /** A {@link SchemaTransform} for logging. */
-  protected static class LoggingTransform extends SchemaTransform {
+  protected static class LoggingTransform extends SchemaTransform<Configuration> {
 
     private static final Logger LOG = LoggerFactory.getLogger(LoggingTransform.class);
 
     private final Configuration configuration;
 
-    LoggingTransform(Configuration configuration) {
+    LoggingTransform(Configuration configuration, String identifier) {
+      super(configuration, identifier);
       this.configuration = configuration;
     }
 

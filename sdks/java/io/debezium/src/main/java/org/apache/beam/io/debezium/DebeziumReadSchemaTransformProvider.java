@@ -75,16 +75,11 @@ public class DebeziumReadSchemaTransformProvider
   }
 
   @Override
-  protected @NonNull @Initialized Class<DebeziumReadSchemaTransformConfiguration>
-      configurationClass() {
-    return DebeziumReadSchemaTransformConfiguration.class;
-  }
-
-  @Override
-  protected @NonNull @Initialized SchemaTransform from(
+  protected @NonNull @Initialized SchemaTransform<DebeziumReadSchemaTransformConfiguration> from(
       DebeziumReadSchemaTransformConfiguration configuration) {
     // TODO(pabloem): Validate configuration parameters to ensure formatting is correct.
-    return new SchemaTransform() {
+    return new SchemaTransform<DebeziumReadSchemaTransformConfiguration>(
+        configuration, identifier()) {
       @Override
       public PCollectionRowTuple expand(PCollectionRowTuple input) {
         // TODO(pabloem): Test this behavior

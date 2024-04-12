@@ -80,12 +80,6 @@ public class PubsubLiteWriteSchemaTransformProvider
   private static final Logger LOG =
       LoggerFactory.getLogger(PubsubLiteWriteSchemaTransformProvider.class);
 
-  @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<PubsubLiteWriteSchemaTransformConfiguration>
-      configurationClass() {
-    return PubsubLiteWriteSchemaTransformConfiguration.class;
-  }
-
   public static class ErrorCounterFn extends DoFn<Row, PubSubMessage> {
     private final SerializableFunction<Row, byte[]> toBytesFn;
     private final Counter errorCounter;
@@ -172,8 +166,9 @@ public class PubsubLiteWriteSchemaTransformProvider
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      PubsubLiteWriteSchemaTransformConfiguration configuration) {
+  public @UnknownKeyFor @NonNull @Initialized SchemaTransform<
+          PubsubLiteWriteSchemaTransformConfiguration>
+      from(PubsubLiteWriteSchemaTransformConfiguration configuration) {
 
     if (!SUPPORTED_FORMATS.contains(configuration.getFormat())) {
       throw new IllegalArgumentException(
@@ -184,7 +179,8 @@ public class PubsubLiteWriteSchemaTransformProvider
               + String.join(", ", SUPPORTED_FORMATS));
     }
 
-    return new SchemaTransform() {
+    return new SchemaTransform<PubsubLiteWriteSchemaTransformConfiguration>(
+        configuration, identifier()) {
       @Override
       public PCollectionRowTuple expand(PCollectionRowTuple input) {
         List<String> attributesConfigValue = configuration.getAttributes();

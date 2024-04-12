@@ -79,11 +79,6 @@ import org.slf4j.LoggerFactory;
 public class SpannerChangestreamsReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         SpannerChangestreamsReadSchemaTransformProvider.SpannerChangestreamsReadConfiguration> {
-  @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<SpannerChangestreamsReadConfiguration>
-      configurationClass() {
-    return SpannerChangestreamsReadConfiguration.class;
-  }
 
   private static final Logger LOG =
       LoggerFactory.getLogger(SpannerChangestreamsReadSchemaTransformProvider.class);
@@ -94,10 +89,9 @@ public class SpannerChangestreamsReadSchemaTransformProvider
       Schema.builder().addStringField("error").addNullableStringField("row").build();
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      SpannerChangestreamsReadSchemaTransformProvider.SpannerChangestreamsReadConfiguration
-          configuration) {
-    return new SchemaTransform() {
+  public @UnknownKeyFor @NonNull @Initialized SchemaTransform<SpannerChangestreamsReadConfiguration>
+      from(SpannerChangestreamsReadConfiguration configuration) {
+    return new SchemaTransform<SpannerChangestreamsReadConfiguration>(configuration, identifier()) {
       @Override
       public PCollectionRowTuple expand(PCollectionRowTuple input) {
         Pipeline p = input.getPipeline();

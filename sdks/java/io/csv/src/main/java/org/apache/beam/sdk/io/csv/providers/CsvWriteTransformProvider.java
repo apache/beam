@@ -59,13 +59,8 @@ public class CsvWriteTransformProvider
   private static final String WRITE_RESULTS = "output";
 
   @Override
-  protected Class<CsvWriteConfiguration> configurationClass() {
-    return CsvWriteConfiguration.class;
-  }
-
-  @Override
-  protected SchemaTransform from(CsvWriteConfiguration configuration) {
-    return new CsvWriteTransform(configuration);
+  protected SchemaTransform<CsvWriteConfiguration> from(CsvWriteConfiguration configuration) {
+    return new CsvWriteTransform(configuration, identifier());
   }
 
   @Override
@@ -119,11 +114,12 @@ public class CsvWriteTransformProvider
   }
 
   /** A {@link SchemaTransform} for {@link CsvIO#write}. */
-  protected static class CsvWriteTransform extends SchemaTransform {
+  protected static class CsvWriteTransform extends SchemaTransform<CsvWriteConfiguration> {
 
     private final CsvWriteConfiguration configuration;
 
-    CsvWriteTransform(CsvWriteConfiguration configuration) {
+    CsvWriteTransform(CsvWriteConfiguration configuration, String identifier) {
+      super(configuration, identifier);
       configuration.validate();
       this.configuration = configuration;
     }

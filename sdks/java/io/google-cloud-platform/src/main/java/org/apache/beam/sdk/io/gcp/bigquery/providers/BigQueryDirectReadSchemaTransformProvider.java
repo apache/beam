@@ -65,13 +65,9 @@ public class BigQueryDirectReadSchemaTransformProvider
   private static final String OUTPUT_TAG = "OUTPUT_ROWS";
 
   @Override
-  protected Class<BigQueryDirectReadSchemaTransformConfiguration> configurationClass() {
-    return BigQueryDirectReadSchemaTransformConfiguration.class;
-  }
-
-  @Override
-  protected SchemaTransform from(BigQueryDirectReadSchemaTransformConfiguration configuration) {
-    return new BigQueryDirectReadSchemaTransform(configuration);
+  protected SchemaTransform<BigQueryDirectReadSchemaTransformConfiguration> from(
+      BigQueryDirectReadSchemaTransformConfiguration configuration) {
+    return new BigQueryDirectReadSchemaTransform(configuration, identifier());
   }
 
   @Override
@@ -161,13 +157,15 @@ public class BigQueryDirectReadSchemaTransformProvider
    * BigQueryDirectReadSchemaTransformConfiguration} and instantiated by {@link
    * BigQueryDirectReadSchemaTransformProvider}.
    */
-  protected static class BigQueryDirectReadSchemaTransform extends SchemaTransform {
+  protected static class BigQueryDirectReadSchemaTransform
+      extends SchemaTransform<BigQueryDirectReadSchemaTransformConfiguration> {
     private BigQueryServices testBigQueryServices = null;
     private final BigQueryDirectReadSchemaTransformConfiguration configuration;
 
     BigQueryDirectReadSchemaTransform(
-        BigQueryDirectReadSchemaTransformConfiguration configuration) {
+        BigQueryDirectReadSchemaTransformConfiguration configuration, String identifier) {
       // Validate configuration parameters before PTransform expansion
+      super(configuration, identifier);
       configuration.validate();
       this.configuration = configuration;
     }

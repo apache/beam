@@ -54,13 +54,8 @@ public class JavaFilterTransformProvider
   protected static final String OUTPUT_ROWS_TAG = "output";
 
   @Override
-  protected Class<Configuration> configurationClass() {
-    return Configuration.class;
-  }
-
-  @Override
-  protected SchemaTransform from(Configuration configuration) {
-    return new JavaFilterTransform(configuration);
+  protected SchemaTransform<Configuration> from(Configuration configuration) {
+    return new JavaFilterTransform(configuration, identifier());
   }
 
   @Override
@@ -107,11 +102,12 @@ public class JavaFilterTransformProvider
   }
 
   /** A {@link SchemaTransform} for Filter-java. */
-  protected static class JavaFilterTransform extends SchemaTransform {
+  protected static class JavaFilterTransform extends SchemaTransform<Configuration> {
 
     private final Configuration configuration;
 
-    JavaFilterTransform(Configuration configuration) {
+    JavaFilterTransform(Configuration configuration, String identifier) {
+      super(configuration, identifier);
       this.configuration = configuration;
     }
 

@@ -70,12 +70,8 @@ public class PubsubReadSchemaTransformProvider
       Schema.builder().addStringField("error").addNullableByteArrayField("row").build();
 
   @Override
-  public Class<PubsubReadSchemaTransformConfiguration> configurationClass() {
-    return PubsubReadSchemaTransformConfiguration.class;
-  }
-
-  @Override
-  public SchemaTransform from(PubsubReadSchemaTransformConfiguration configuration) {
+  public SchemaTransform<PubsubReadSchemaTransformConfiguration> from(
+      PubsubReadSchemaTransformConfiguration configuration) {
     if (configuration.getSubscription() == null && configuration.getTopic() == null) {
       throw new IllegalArgumentException(
           "To read from Pubsub, a subscription name or a topic name must be provided");
@@ -122,7 +118,7 @@ public class PubsubReadSchemaTransformProvider
     }
 
     PubsubReadSchemaTransform transform =
-        new PubsubReadSchemaTransform(configuration, payloadSchema, payloadMapper);
+        new PubsubReadSchemaTransform(identifier(), configuration, payloadSchema, payloadMapper);
 
     if (configuration.getClientFactory() != null) {
       transform.setClientFactory(configuration.getClientFactory());
@@ -134,7 +130,8 @@ public class PubsubReadSchemaTransformProvider
     return transform;
   }
 
-  private static class PubsubReadSchemaTransform extends SchemaTransform implements Serializable {
+  private static class PubsubReadSchemaTransform
+      extends SchemaTransform<PubsubReadSchemaTransformConfiguration> implements Serializable {
     final Schema beamSchema;
     final SerializableFunction<byte[], Row> valueMapper;
     final PubsubReadSchemaTransformConfiguration configuration;
@@ -142,9 +139,11 @@ public class PubsubReadSchemaTransformProvider
     @Nullable Clock clock;
 
     PubsubReadSchemaTransform(
+        String identifier,
         PubsubReadSchemaTransformConfiguration configuration,
         Schema payloadSchema,
         SerializableFunction<byte[], Row> valueMapper) {
+      super(configuration, identifier);
       this.configuration = configuration;
       Schema outputSchema;
       List<String> attributes = configuration.getAttributes();

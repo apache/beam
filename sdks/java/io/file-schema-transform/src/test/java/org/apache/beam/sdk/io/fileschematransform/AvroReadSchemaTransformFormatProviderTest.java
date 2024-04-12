@@ -90,7 +90,7 @@ public class AvroReadSchemaTransformFormatProviderTest
             .setFilepattern(filePath + "*")
             .build();
 
-    SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
+    SchemaTransform<?> readTransform = new FileReadSchemaTransformProvider().from(config);
     PCollectionRowTuple output = PCollectionRowTuple.empty(readPipeline).apply(readTransform);
 
     PAssert.that(output.get(FileReadSchemaTransformProvider.OUTPUT_TAG)).containsInAnyOrder(rows);
@@ -130,7 +130,7 @@ public class AvroReadSchemaTransformFormatProviderTest
             .setPollIntervalMillis(100L)
             .setTerminateAfterSecondsSinceNewOutput(3L)
             .build();
-    SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
+    SchemaTransform<?> readTransform = new FileReadSchemaTransformProvider().from(config);
 
     PCollectionRowTuple output = PCollectionRowTuple.empty(readPipeline).apply(readTransform);
 
@@ -186,7 +186,7 @@ public class AvroReadSchemaTransformFormatProviderTest
             .setFormat(getFormat())
             .setSchema(stringSchema)
             .build();
-    SchemaTransform readTransform = new FileReadSchemaTransformProvider().from(config);
+    SchemaTransform<?> readTransform = new FileReadSchemaTransformProvider().from(config);
 
     // Create a PCollection<Row> of filepatterns and feed into the read transform
     Schema patternSchema = getFilepatternSchema();

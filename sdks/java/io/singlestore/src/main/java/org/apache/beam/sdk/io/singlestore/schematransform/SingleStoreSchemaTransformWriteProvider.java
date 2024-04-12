@@ -43,16 +43,11 @@ public class SingleStoreSchemaTransformWriteProvider
   private static final String OUTPUT_TAG = "OUTPUT";
   public static final String INPUT_TAG = "INPUT";
 
-  /** Returns the expected class of the configuration. */
-  @Override
-  protected Class<SingleStoreSchemaTransformWriteConfiguration> configurationClass() {
-    return SingleStoreSchemaTransformWriteConfiguration.class;
-  }
-
   /** Returns the expected {@link SchemaTransform} of the configuration. */
   @Override
-  protected SchemaTransform from(SingleStoreSchemaTransformWriteConfiguration configuration) {
-    return new SingleStoreWriteSchemaTransform(configuration);
+  protected SchemaTransform<SingleStoreSchemaTransformWriteConfiguration> from(
+      SingleStoreSchemaTransformWriteConfiguration configuration) {
+    return new SingleStoreWriteSchemaTransform(configuration, identifier());
   }
 
   /** Implementation of the {@link TypedSchemaTransformProvider} identifier method. */
@@ -83,10 +78,13 @@ public class SingleStoreSchemaTransformWriteProvider
    * An implementation of {@link SchemaTransform} for SingleStoreDB write jobs configured using
    * {@link SingleStoreSchemaTransformWriteConfiguration}.
    */
-  private static class SingleStoreWriteSchemaTransform extends SchemaTransform {
+  private static class SingleStoreWriteSchemaTransform
+      extends SchemaTransform<SingleStoreSchemaTransformWriteConfiguration> {
     private final SingleStoreSchemaTransformWriteConfiguration configuration;
 
-    SingleStoreWriteSchemaTransform(SingleStoreSchemaTransformWriteConfiguration configuration) {
+    SingleStoreWriteSchemaTransform(
+        SingleStoreSchemaTransformWriteConfiguration configuration, String identifier) {
+      super(configuration, identifier);
       this.configuration = configuration;
     }
 
