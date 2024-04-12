@@ -88,7 +88,7 @@ The following are example code paths relevant for SDK development:
   * `runners/direct-java` Java direct runner
   * `runners/flink-java` Java Flink runner
   * `runners/google-cloud-dataflow-java` Dataflow runner (job submission, translation, etc)
-    * `runners/google-cloud-dataflow-java/`worker Worker on Dataflow legacy runner
+    * `runners/google-cloud-dataflow-java/worker` Worker on Dataflow legacy runner
 
 * `sdks/python` contains the setup file and scripts to trigger test-suites
   * `sdks/python/apache_beam` actual beam package
@@ -273,7 +273,7 @@ The task that runs the test needs to specify the runner. The following examples 
   * To run integration tests on the standard Dataflow runner, use `:runners:google-cloud-dataflow-java:googleCloudPlatformLegacyWorkerIntegrationTest`
   * To run integration test on Dataflow runner v2, use `:runners:google-cloud-dataflow-java:googleCloudPlatformRunnerV2IntegrationTest`
 
-To see how to run your workflow locally, refer to the Gradle command that the GHA workflow runs.
+To see how to run your workflow locally, refer to the Gradle command that the GitHub Action workflow runs.
 
 Example invocation:
 ```
