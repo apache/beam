@@ -99,6 +99,8 @@ public class KafkaReadSchemaTransformProvider
   })
   @Override
   protected SchemaTransform from(KafkaReadSchemaTransformConfiguration configuration) {
+    configuration.validate();
+
     final String inputSchema = configuration.getSchema();
     final int groupId = configuration.hashCode() % Integer.MAX_VALUE;
     final String autoOffsetReset =

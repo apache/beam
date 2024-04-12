@@ -39,26 +39,26 @@ come at the expense of sacrificing the rich features that Beam offers.
 Here are some of the benefits of using Beam YAML:
 
 *   **No-code development:** Allows users to develop pipelines without writing any code. This makes it easier to get
-started with Beam and to develop pipelines quickly and easily.
+    started with Beam and to develop pipelines quickly and easily.
 *   **Maintainability**: Configuration-based pipelines are easier to maintain than code-based pipelines. YAML format
-enables clear separation of concerns, simplifying changes and updates without affecting other code sections.
+    enables clear separation of concerns, simplifying changes and updates without affecting other code sections.
 *   **Declarative language:** Provides a declarative language, which means that it is based on the description of the
-desired outcome rather than expressing the intent through code. This makes it easy to understand the structure and
-flow of a pipeline. The YAML syntax is also widely used with a rich community of resources for learning and
-leveraging the YAML syntax.
+    desired outcome rather than expressing the intent through code. This makes it easy to understand the structure and
+    flow of a pipeline. The YAML syntax is also widely used with a rich community of resources for learning and
+    leveraging the YAML syntax.
 *   **Powerful features:** Supports a wide range of features, including a variety of data sources and sinks, turn-key
-transforms, and execution parameters. This makes it possible to develop complex data processing pipelines with Beam
-YAML.
+    transforms, and execution parameters. This makes it possible to develop complex data processing pipelines with Beam
+    YAML.
 *   **Reusability**: Beam YAML promotes code reuse by providing a way to define and share common pipeline patterns. You
-can create reusable YAML snippets or blocks that can be easily shared and reused in different pipelines. This reduces
-the need to write repetitive tasks and helps maintain consistency across pipelines.
+    can create reusable YAML snippets or blocks that can be easily shared and reused in different pipelines. This reduces
+    the need to write repetitive tasks and helps maintain consistency across pipelines.
 *   **Extensibility**: Beam YAML offers a structure for integrating custom transformations into a pipeline, enabling
-organizations to contribute or leverage a pre-existing catalog of transformations that can be seamlessly accessed
-using the Beam YAML syntax across multiple pipelines. It is also possible to build third-party extensions, including
-custom parsers and other tools, that do not need to depend on Beam directly.
+    organizations to contribute or leverage a pre-existing catalog of transformations that can be seamlessly accessed
+    using the Beam YAML syntax across multiple pipelines. It is also possible to build third-party extensions, including
+    custom parsers and other tools, that do not need to depend on Beam directly.
 *   **Backwards Compatibility**: Beam YAML is still being actively worked on, bringing exciting new features and
-capabilities, but as these features are added, backwards compatibility will be preserved. This way, once a pipeline
-is written, it will continue to work despite future released versions of the SDK.
+    capabilities, but as these features are added, backwards compatibility will be preserved. This way, once a pipeline
+    is written, it will continue to work despite future released versions of the SDK.
 
 Overall, using Beam YAML provides a number of advantages. It makes pipeline development and management more efficient
 and effective, enabling users to focus on the business logic and data processing tasks, rather than spending time on
@@ -69,68 +69,13 @@ low-level coding details.
 
 Let's take the following sample transaction data for a department store:
 
-<table>
-  <tr>
-   <td><strong>transaction_id</strong>
-   </td>
-   <td><strong>product_name</strong>
-   </td>
-   <td><strong>category</strong>
-   </td>
-   <td><strong>price</strong>
-   </td>
-  </tr>
-  <tr>
-   <td>T0012
-   </td>
-   <td>Headphones
-   </td>
-   <td>Electronics
-   </td>
-   <td>59.99
-   </td>
-  </tr>
-  <tr>
-   <td>T5034
-   </td>
-   <td>Leather Jacket
-   </td>
-   <td>Apparel
-   </td>
-   <td>109.99
-   </td>
-  </tr>
-  <tr>
-   <td>T0024
-   </td>
-   <td>Aluminum Mug
-   </td>
-   <td>Kitchen
-   </td>
-   <td>29.99
-   </td>
-  </tr>
-  <tr>
-   <td>T0104
-   </td>
-   <td>Headphones
-   </td>
-   <td>Electronics
-   </td>
-   <td>59.99
-   </td>
-  </tr>
-  <tr>
-   <td>T0302
-   </td>
-   <td>Monitor
-   </td>
-   <td>Electronics
-   </td>
-   <td>249.99
-   </td>
-  </tr>
-</table>
+| transaction_id  | product_name    | category     | price   |
+|:----------------|:----------------|:-------------|:--------|
+| T0012           | Headphones      | Electronics  | 59.99   |
+| T5034           | Leather Jacket  | Apparel      | 109.99  |
+| T0024           | Aluminum Mug    | Kitchen      | 29.99   |
+| T0104           | Headphones      | Electronics  | 59.99   |
+| T0302           | Monitor         | Electronics  | 249.99  |
 
 Now, let's say that the business wants to get a record of transactions for all purchases made in the Electronics
 department for audit purposes. Assuming the records are stored as a CSV file, a Beam YAML pipeline may look something
@@ -160,48 +105,11 @@ pipeline:
 
 This would leave us with the following data:
 
-<table>
-  <tr>
-   <td><strong>transaction_id</strong>
-   </td>
-   <td><strong>product_name</strong>
-   </td>
-   <td><strong>category</strong>
-   </td>
-   <td><strong>price</strong>
-   </td>
-  </tr>
-  <tr>
-   <td>T0012
-   </td>
-   <td>Headphones
-   </td>
-   <td>Electronics
-   </td>
-   <td>59.99
-   </td>
-  </tr>
-  <tr>
-   <td>T0104
-   </td>
-   <td>Headphones
-   </td>
-   <td>Electronics
-   </td>
-   <td>59.99
-   </td>
-  </tr>
-  <tr>
-   <td>T0302
-   </td>
-   <td>Monitor
-   </td>
-   <td>Electronics
-   </td>
-   <td>249.99
-   </td>
-  </tr>
-</table>
+| transaction_id  | product_name  | category     | price   |
+|:----------------|:--------------|:-------------|:--------|
+| T0012           | Headphones    | Electronics  | 59.99   |
+| T0104           | Headphones    | Electronics  | 59.99   |
+| T0302           | Monitor       | Electronics  | 249.99  |
 
 Now, let's say the business wants to determine how much of each Electronics item is being sold to ensure that the
 correct number is being ordered from the supplier. Let's also assume that they want to determine the total revenue for
@@ -243,32 +151,10 @@ pipeline:
 
 This would leave us with the following data:
 
-<table>
-  <tr>
-   <td><strong>product_name</strong>
-   </td>
-   <td><strong>num_sold</strong>
-   </td>
-   <td><strong>total_revenue</strong>
-   </td>
-  </tr>
-  <tr>
-   <td>Headphones
-   </td>
-   <td>2
-   </td>
-   <td>119.98
-   </td>
-  </tr>
-  <tr>
-   <td>Monitor
-   </td>
-   <td>1
-   </td>
-   <td>249.99
-   </td>
-  </tr>
-</table>
+| product_name  | num_sold  | total_revenue  |
+|:--------------|:----------|:---------------|
+| Headphones    | 2         | 119.98         |
+| Monitor       | 1         | 249.99         |
 
 While this was a relatively simple use-case, it shows the power of Beam YAML and how easy it is to go from business
 use-case to a prototype data pipeline in just a few lines of YAML.
@@ -293,13 +179,14 @@ runtime, containing some basic YAML pipeline examples.
 ## Documentation
 
 The Apache Beam website provides a set of [docs](https://beam.apache.org/documentation/sdks/yaml/) that demonstrate the
-current capabilities of the Beam YAML SDK. These [docs](https://beam.apache.org/documentation/sdks/yaml/) can be found
-on the website and offer a comprehensive overview of the SDK's functionality.
+current capabilities of the Beam YAML SDK. There is also a catalog of currently-supported turnkey transforms found
+[here](https://beam.apache.org/releases/yamldoc/current/).
 
 
 ## Examples
 
-A catalog of examples can be found [here](https://beam.apache.org/releases/yamldoc/current/). These examples showcase
+A catalog of examples can be found
+[here](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples). These examples showcase
 all the turnkey transforms that can be utilized in Beam YAML. There are also a number of Dataflow Cookbook examples
 that can be found [here](https://github.com/GoogleCloudPlatform/dataflow-cookbook/tree/main/Python/yaml).
 

@@ -13,30 +13,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PreCommit Whitespace
+name: PostCommit Python Xlang Gcp Direct
 
 on:
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', 'model/**', 'sdks/python/**']
+  issue_comment:
+    types: [created]
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ['**.md', '**.gradle', '**.kts', '.github/workflows/beam_PreCommit_Whitespace.yml']
-  pull_request_target:
-    branches: ['master', 'release-*']
-    paths: ['**.md', '**.gradle', '**.kts', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Whitespace.json']
-  issue_comment:
-    types: [created]
+    paths:
+      - "model/**"
+      - "release/**"
+      - "sdks/python/**"
+      - "sdks/java/extensions/schemaio-expansion-service/**"
+      - "sdks/java/extensions/sql/**"
+      - "sdks/java/io/expansion-service/**"
+      - "sdks/java/io/google-cloud-platform/**"
+      - ".github/workflows/beam_PreCommit_Yaml_Xlang_Direct.yml"
   schedule:
-    - cron: '15 3/6 * * *'
+    - cron: '30 5/6 * * *'
   workflow_dispatch:
 
+#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
-  pull-requests: read
-  checks: read
+  pull-requests: write
+  checks: write
   contents: read
   deployments: read
   id-token: none
-  issues: read
+  issues: write
   discussions: read
   packages: read
   pages: read
@@ -46,7 +54,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -55,20 +63,19 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_PreCommit_Whitespace:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
-    strategy:
-      matrix:
-        job_name: [beam_PreCommit_Whitespace]
-        job_phrase: [Run Whitespace PreCommit]
-    timeout-minutes: 120
+  beam_PreCommit_Yaml_Xlang_Direct:
     if: |
-      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Whitespace PreCommit'
+      github.event.comment.body == 'Run Yaml_Xlang_Direct PreCommit'
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 100
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    strategy:
+      matrix:
+        job_name: ["beam_PreCommit_Yaml_Xlang_Direct"]
+        job_phrase: ["Run Yaml_Xlang_Direct"]
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -80,9 +87,22 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 8
-          python-version: 3.8
-      - name: run whitespacePreCommit script
+          python-version: |
+            3.8
+      - name: run PostCommit Yaml Xlang Gcp Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :whitespacePreCommit
+          gradle-command: :sdks:python:yamlIntegrationTests
+      - name: Archive Python Test Results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: Python Test Results
+          path: '**/pytest*.xml'
+      - name: Publish Python Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          commit: '${{ env.prsha || env.GITHUB_SHA }}'
+          comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
+          files: '**/pytest*.xml'

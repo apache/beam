@@ -65,7 +65,7 @@ public class KafkaReadSchemaTransformProviderTest {
   @Test
   public void testValidConfigurations() {
     assertThrows(
-        AssertionError.class,
+        IllegalArgumentException.class,
         () -> {
           KafkaReadSchemaTransformConfiguration.builder()
               .setFormat("UNUSUAL_FORMAT")
@@ -274,7 +274,7 @@ public class KafkaReadSchemaTransformProviderTest {
         (KafkaReadSchemaTransformProvider) providers.get(0);
 
     assertThrows(
-        NullPointerException.class,
+        IllegalArgumentException.class,
         () ->
             kafkaProvider.from(
                 KafkaReadSchemaTransformConfiguration.builder()
