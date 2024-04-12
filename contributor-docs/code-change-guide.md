@@ -23,7 +23,7 @@ Specifically,
 
 The Apache Beam GitHub repository (Beam repo) is pretty much a "mono repo",
 containing everything of the Beam project, from the SDK itself, to test
-infrastructure, dashboards, [Beam website](https://beam.apache.org), 
+infrastructure, dashboards, [Beam website](https://beam.apache.org),
 [Beam Playground](https://play.beam.apache.org), etc.
 
 ## Gradle quick start
@@ -114,7 +114,7 @@ In your PATH, it should have
 
 * A Java environment (any supported Java version, Java8 preferably as of 2024).
   * Needed for all development as Beam is a Gradle project (which uses JVM)
-  * Recommended: Use [sdkman]((https://sdkman.io/install)) to manage Java versions 
+  * Recommended: Use [sdkman]((https://sdkman.io/install)) to manage Java versions
 * A Python environment (any supported Python version)
   * Needed for Python SDK development
   * Recommended: Use [pyenv](https://github.com/pyenv/pyenv) and
@@ -322,7 +322,7 @@ If your code change is made on dev branches (like on beam master, or a PR), inst
     repositories {
     maven { url "https://repository.apache.org/content/groups/snapshots" }
     }
-    ``` 
+    ```
   2. set the beam dependency versions to be `2.XX.0-SNAPSHOT`
 
 This config directs the build system to download Beam NIGHTLY builds from Maven Snapshot Repository other than the one built locally (the one you just made change), so you don't need to build all Beam artifacts locally (otherwise, a command running for all projects `./gradlew -Ppublishing  publishToMavenLocal` is needed)
@@ -413,7 +413,7 @@ pytest -v  apache_beam/io/textio_test.py::TextSourceTest::test_progress
 
 ```shell
 python -m pytest -o log_cli=True -o log_level=Info \
-  apache_beam/ml/inference/pytorch_inference_it_test.py::PyTorchInference \   
+  apache_beam/ml/inference/pytorch_inference_it_test.py::PyTorchInference \
   --test-pipeline-options='--runner=TestDirectRunner’
 ```
 
@@ -426,14 +426,14 @@ python -m pytest -o log_cli=True -o log_level=Info \
   pip install build && python -m build –sdist
   ```
   This will generates a tarball file in `sdks/python/sdist/`.
-  
+
   2. in `--test-pipeline-options`, specify the tarball file to `--sdk_location=dist/apache-beam-2.53.0.dev0.tar.gz`. Example full invocation command:
   ```shell
   python -m pytest -o log_cli=True -o log_level=Info \
-  apache_beam/ml/inference/pytorch_inference_it_test.py::PyTorchInference \   
-  --test-pipeline-options='--runner=TestDataflowRunner --project=<project>      
-                           --temp_location=gs://<bucket>/tmp  
-                           --sdk_location=dist/apache-beam-2.35.0.dev0.tar.gz 
+  apache_beam/ml/inference/pytorch_inference_it_test.py::PyTorchInference \
+  --test-pipeline-options='--runner=TestDataflowRunner --project=<project>
+                           --temp_location=gs://<bucket>/tmp
+                           --sdk_location=dist/apache-beam-2.35.0.dev0.tar.gz
                            --region=us-central1’
   ```
 
@@ -454,10 +454,10 @@ Example invocation command:
 
 ```shell
 python -m pytest  -o log_cli=True -o log_level=Info \
-  apache_beam/ml/inference/pytorch_inference_it_test.py::PyTorchInference \   
-  --test-pipeline-options='--runner=TestDataflowRunner --project=<project>        
-                           --temp_location=gs://<bucket>/tmp  
-                           --sdk_container_image=us.gcr.io/apache-beam-testing/beam-sdk/beam:dev 
+  apache_beam/ml/inference/pytorch_inference_it_test.py::PyTorchInference \
+  --test-pipeline-options='--runner=TestDataflowRunner --project=<project>
+                           --temp_location=gs://<bucket>/tmp
+                           --sdk_container_image=us.gcr.io/apache-beam-testing/beam-sdk/beam:dev
                            --region=us-central1’
 ```
 
@@ -467,10 +467,10 @@ Option 1: Use the --requirements_file flag, e.g.
 
 ```shell
 python -m pytest  -o log_cli=True -o log_level=Info \
-  apache_beam/ml/inference/pytorch_inference_it_test.py::PyTorchInference \   
-  --test-pipeline-options='--runner=TestDataflowRunner --project=<project>        
-                           --temp_location=gs://<bucket>/tmp  
-                           --sdk_location=us.gcr.io/apache-beam-testing/beam-sdk/beam:dev 
+  apache_beam/ml/inference/pytorch_inference_it_test.py::PyTorchInference \
+  --test-pipeline-options='--runner=TestDataflowRunner --project=<project>
+                           --temp_location=gs://<bucket>/tmp
+                           --sdk_location=us.gcr.io/apache-beam-testing/beam-sdk/beam:dev
                            --region=us-central1
                            –requirements_file=requirements.txt’
 ```
