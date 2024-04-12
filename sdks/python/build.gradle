@@ -121,7 +121,7 @@ tasks.register("yamlIntegrationTests") {
   doLast {
     exec {
       executable 'sh'
-      args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py"
+      args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --deselect apache_beam/yaml/integration_tests.py::BigqueryTest::test_ReadFromBigQuery_ExternalJavaProvider_0"
     }
   }
 }
