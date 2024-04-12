@@ -24,6 +24,7 @@ import java.lang.reflect.ParameterizedType;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -61,8 +62,14 @@ public abstract class SchemaTransform<ConfigT>
     Class<ConfigT> typedClass = (Class<ConfigT>) parameterizedType.getActualTypeArguments()[0];
 
     try {
+      // Get initial row with values
+      Row row = SchemaRegistry.createDefault().getToRowFunction(typedClass).apply(configuration);
+      // Get sorted Schema and recreate the Row
+      Schema configurationSchema = SchemaRegistry.createDefault().getSchema(typedClass).sorted();
       this.configurationRow =
-          SchemaRegistry.createDefault().getToRowFunction(typedClass).apply(configuration);
+          configurationSchema.getFields().stream()
+              .map(field -> row.getValue(field.getName()))
+              .collect(Row.toRow(configurationSchema));
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException("Unable to find schema for this SchemaTransform's config.", e);
     }
