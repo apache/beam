@@ -84,7 +84,7 @@ guppy3==3.1.4.post1
 hdfs==2.7.3
 httplib2==0.22.0
 hypothesis==6.100.1
-idna==3.6
+idna==3.7
 iniconfig==2.0.0
 joblib==1.4.0
 Js2Py==0.74
