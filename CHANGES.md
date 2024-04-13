@@ -119,6 +119,7 @@
 * Merged sdks/java/fn-execution and runners/core-construction-java into the main SDK. These artifacts were never meant for users, but noting
   that they no longer exist. These are steps to bring portability into the core SDK alongside all other core functionality.
 * Added Vertex AI Feature Store handler for Enrichment transform (Python) ([#30388](https://github.com/apache/beam/pull/30388))
+* Python Dataflow users no longer need to manually specify --streaming for pipelines using unbounded sources such as ReadFromPubSub.
 
 ## Breaking Changes
 
