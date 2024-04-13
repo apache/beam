@@ -296,10 +296,10 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     """Returns a new ModelHandler which does not require batching
     of inputs so that RunInference will skip this step.  RunInference will
     expect the input to be pre-batched and passed in as an Iterable of records.
-    This option is only recommended if you want to do custom batching yourself.
     If you skip batching, any preprocessing functions should accept a batch of
     data, not just a single record.
 
+    This option is only recommended if you want to do custom batching yourself.
     If you just want to pass in records without a batching dimension, it is
     recommended to (1) add `max_batch_size=1` to `batch_elements_kwargs` and
     (2) remove the batching dimension as part of your inference call (by
