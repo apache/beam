@@ -418,7 +418,14 @@ class DataflowRunner(PipelineRunner):
 
     if any(pcoll.is_bounded == beam_runner_api_pb2.IsBounded.UNBOUNDED
            for pcoll in self.proto_pipeline.components.pcollections.values()):
-      options.view_as(StandardOptions).streaming = True
+      if (not options.view_as(StandardOptions).streaming and
+          not options.view_as(DebugOptions).lookup_experiment(
+              'allow_unbounded_pcollections_in_batch_mode')):
+        _LOGGER.info(
+            'Automatically inferring streaming mode '
+            'due to unbounded PCollections.')
+        options.view_as(StandardOptions).streaming = True
+
     if options.view_as(StandardOptions).streaming:
       _check_and_add_missing_streaming_options(options)
 
