@@ -61,11 +61,12 @@ public abstract class SchemaTransform<ConfigT>
 
     Class<ConfigT> typedClass = (Class<ConfigT>) parameterizedType.getActualTypeArguments()[0];
 
+    SchemaRegistry registry = SchemaRegistry.createDefault();
     try {
       // Get initial row with values
-      Row row = SchemaRegistry.createDefault().getToRowFunction(typedClass).apply(configuration);
+      Row row = registry.getToRowFunction(typedClass).apply(configuration);
       // Get sorted Schema and recreate the Row
-      Schema configurationSchema = SchemaRegistry.createDefault().getSchema(typedClass).sorted();
+      Schema configurationSchema = registry.getSchema(typedClass).sorted();
       this.configurationRow =
           configurationSchema.getFields().stream()
               .map(field -> row.getValue(field.getName()))
