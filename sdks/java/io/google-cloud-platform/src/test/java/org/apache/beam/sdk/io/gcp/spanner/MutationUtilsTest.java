@@ -48,6 +48,7 @@ public class MutationUtilsTest {
   private static final Schema WRITE_ROW_SCHEMA =
       Schema.builder()
           .addNullableField("f_int64", Schema.FieldType.INT64)
+          .addNullableField("f_float32", Schema.FieldType.FLOAT)
           .addNullableField("f_float64", Schema.FieldType.DOUBLE)
           .addNullableField("f_string", Schema.FieldType.STRING)
           .addNullableField("f_bytes", Schema.FieldType.BYTES)
@@ -56,6 +57,7 @@ public class MutationUtilsTest {
           .addNullableField("f_struct", Schema.FieldType.row(EMPTY_SCHEMA))
           .addNullableField("f_struct_int64", Schema.FieldType.row(INT64_SCHEMA))
           .addNullableField("f_array", Schema.FieldType.array(Schema.FieldType.INT64))
+          .addNullableField("f_float_array", Schema.FieldType.array(Schema.FieldType.FLOAT))
           .addNullableField("f_double_array", Schema.FieldType.array(Schema.FieldType.DOUBLE))
           .addNullableField("f_decimal_array", Schema.FieldType.array(Schema.FieldType.DECIMAL))
           .addNullableField("f_boolean_array", Schema.FieldType.array(Schema.FieldType.BOOLEAN))
@@ -66,7 +68,6 @@ public class MutationUtilsTest {
               "f_struct_array", Schema.FieldType.array(Schema.FieldType.row(INT64_SCHEMA)))
           .addNullableField("f_int16", Schema.FieldType.INT16)
           .addNullableField("f_int32", Schema.FieldType.INT32)
-          .addNullableField("f_float", Schema.FieldType.FLOAT)
           .addNullableField("f_decimal", Schema.FieldType.DECIMAL)
           .addNullableField("f_byte", Schema.FieldType.BYTE)
           .addNullableField("f_iterable", Schema.FieldType.iterable(Schema.FieldType.INT64))
@@ -75,6 +76,7 @@ public class MutationUtilsTest {
   private static final Row WRITE_ROW =
       Row.withSchema(WRITE_ROW_SCHEMA)
           .withFieldValue("f_int64", 1L)
+          .withFieldValue("f_float32", 2.1f)
           .withFieldValue("f_float64", 1.1)
           .withFieldValue("f_string", "donald_duck")
           .withFieldValue("f_bytes", "some_bytes".getBytes(UTF_8))
@@ -83,6 +85,7 @@ public class MutationUtilsTest {
           .withFieldValue("f_struct", EMPTY_ROW)
           .withFieldValue("f_struct_int64", INT64_ROW)
           .withFieldValue("f_array", ImmutableList.of(2L, 3L))
+          .withFieldValue("f_float_array", ImmutableList.of(3.0f, 4.0f))
           .withFieldValue("f_double_array", ImmutableList.of(1., 2.))
           .withFieldValue(
               "f_decimal_array",
@@ -101,7 +104,6 @@ public class MutationUtilsTest {
           .withFieldValue("f_struct_array", ImmutableList.of(INT64_ROW, INT64_ROW))
           .withFieldValue("f_int16", (short) 2)
           .withFieldValue("f_int32", 0x7fffffff)
-          .withFieldValue("f_float", 0.0f)
           .withFieldValue("f_decimal", BigDecimal.valueOf(Long.MIN_VALUE))
           .withFieldValue("f_byte", Byte.parseByte("127"))
           .withFieldValue("f_iterable", ImmutableList.of(2L, 3L))
@@ -110,6 +112,7 @@ public class MutationUtilsTest {
   private static final Schema WRITE_ROW_SCHEMA_NULLS =
       Schema.builder()
           .addNullableField("f_int64", Schema.FieldType.INT64)
+          .addNullableField("f_float32", Schema.FieldType.FLOAT)
           .addNullableField("f_float64", Schema.FieldType.DOUBLE)
           .addNullableField("f_string", Schema.FieldType.STRING)
           .addNullableField("f_bytes", Schema.FieldType.BYTES)
@@ -134,11 +137,13 @@ public class MutationUtilsTest {
           .addValue(null)
           .addValue(null)
           .addValue(null)
+          .addValue(null)
           .build();
 
   private static final Schema KEY_SCHEMA =
       Schema.builder()
           .addNullableField("f_int64", Schema.FieldType.INT64)
+          .addNullableField("f_float32", Schema.FieldType.FLOAT)
           .addNullableField("f_float64", Schema.FieldType.DOUBLE)
           .addNullableField("f_string", Schema.FieldType.STRING)
           .addNullableField("f_bytes", Schema.FieldType.BYTES)
@@ -146,7 +151,6 @@ public class MutationUtilsTest {
           .addNullableField("f_bool", Schema.FieldType.BOOLEAN)
           .addNullableField("f_int16", Schema.FieldType.INT16)
           .addNullableField("f_int32", Schema.FieldType.INT32)
-          .addNullableField("f_float", Schema.FieldType.FLOAT)
           .addNullableField("f_decimal", Schema.FieldType.DECIMAL)
           .addNullableField("f_byte", Schema.FieldType.BYTE)
           .build();
@@ -154,6 +158,7 @@ public class MutationUtilsTest {
   private static final Row KEY_ROW =
       Row.withSchema(KEY_SCHEMA)
           .withFieldValue("f_int64", 1L)
+          .withFieldValue("f_float32", 2.1f)
           .withFieldValue("f_float64", 1.1)
           .withFieldValue("f_string", "donald_duck")
           .withFieldValue("f_bytes", "some_bytes".getBytes(UTF_8))
@@ -161,7 +166,6 @@ public class MutationUtilsTest {
           .withFieldValue("f_bool", false)
           .withFieldValue("f_int16", (short) 2)
           .withFieldValue("f_int32", 0x7fffffff)
-          .withFieldValue("f_float", 0.0f)
           .withFieldValue("f_decimal", BigDecimal.valueOf(Long.MIN_VALUE))
           .withFieldValue("f_byte", Byte.parseByte("127"))
           .build();
@@ -263,6 +267,7 @@ public class MutationUtilsTest {
     Key key =
         Key.newBuilder()
             .append(1L)
+            .append(2.1f)
             .append(1.1)
             .append("donald_duck")
             .append(ByteArray.copyFrom("some_bytes".getBytes(UTF_8)))
@@ -270,7 +275,6 @@ public class MutationUtilsTest {
             .append(false)
             .append((short) 2)
             .append(0x7fffffff)
-            .append(0.0f)
             .append(BigDecimal.valueOf(Long.MIN_VALUE))
             .append(Byte.parseByte("127"))
             .build();
@@ -295,6 +299,8 @@ public class MutationUtilsTest {
     return builder
         .set("f_int64")
         .to(1L)
+        .set("f_float32")
+        .to(2.1f)
         .set("f_float64")
         .to(1.1)
         .set("f_string")
@@ -311,6 +317,8 @@ public class MutationUtilsTest {
         .to(Struct.newBuilder().set("int64").to(3L).build())
         .set("f_array")
         .toInt64Array(ImmutableList.of(2L, 3L))
+        .set("f_float_array")
+        .toFloat32Array(ImmutableList.of(3.0f, 4.0f))
         .set("f_double_array")
         .toFloat64Array(ImmutableList.of(1., 2.))
         .set("f_decimal_array")
@@ -339,8 +347,6 @@ public class MutationUtilsTest {
         .to((short) 2)
         .set("f_int32")
         .to(0x7fffffff)
-        .set("f_float")
-        .to(0.0f)
         .set("f_decimal")
         .to(BigDecimal.valueOf(Long.MIN_VALUE))
         .set("f_byte")
@@ -355,6 +361,8 @@ public class MutationUtilsTest {
     return builder
         .set("f_int64")
         .to((Long) null)
+        .set("f_float32")
+        .to((Float) null)
         .set("f_float64")
         .to((Double) null)
         .set("f_string")

@@ -150,7 +150,6 @@ class PyJsYamlCombine(beam.PTransform):
 
       # TODO(yaml): See if this logic can be pushed into GroupBy itself.
       expr_type = extract_return_type(expr)
-      print('expr', expr, 'expr_type', expr_type)
       if isinstance(fn, beam.CombineFn):
         # TODO(yaml): Better inference on CombineFns whose outputs types are
         # functions of their input types

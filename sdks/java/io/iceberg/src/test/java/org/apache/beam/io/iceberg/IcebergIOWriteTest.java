@@ -17,7 +17,7 @@
  */
 package org.apache.beam.io.iceberg;
 
-import static org.apache.beam.io.iceberg.RowHelper.rowToRecord;
+import static org.apache.beam.io.iceberg.SchemaAndRowConversions.rowToRecord;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.Serializable;
@@ -86,7 +86,7 @@ public class IcebergIOWriteTest implements Serializable {
 
     testPipeline
         .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
-        .setRowSchema(SchemaHelper.convert(TestFixtures.SCHEMA))
+        .setRowSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
         .apply("Append To Table", IcebergIO.writeToDynamicDestinations(catalog, destination));
 
     LOG.info("Executing pipeline");
@@ -153,7 +153,7 @@ public class IcebergIOWriteTest implements Serializable {
                         TestFixtures.FILE1SNAPSHOT1,
                         TestFixtures.FILE1SNAPSHOT2,
                         TestFixtures.FILE1SNAPSHOT3))))
-        .setRowSchema(SchemaHelper.convert(TestFixtures.SCHEMA))
+        .setRowSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
         .apply("Append To Table", IcebergIO.writeToDynamicDestinations(catalog, destination));
 
     LOG.info("Executing pipeline");
@@ -236,7 +236,7 @@ public class IcebergIOWriteTest implements Serializable {
 
     testPipeline
         .apply("Records To Add", Create.of(TestFixtures.asRows(elements)))
-        .setRowSchema(SchemaHelper.convert(TestFixtures.SCHEMA))
+        .setRowSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
         .apply("Append To Table", IcebergIO.writeToDynamicDestinations(catalog, destination));
 
     LOG.info("Executing pipeline");
@@ -265,7 +265,7 @@ public class IcebergIOWriteTest implements Serializable {
     Record record =
         rowToRecord(
             table.schema(),
-            Row.withSchema(SchemaHelper.convert(TestFixtures.SCHEMA))
+            Row.withSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
                 .addValues(42L, "bizzle")
                 .build());
 
