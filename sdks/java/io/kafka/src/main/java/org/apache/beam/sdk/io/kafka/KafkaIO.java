@@ -832,12 +832,12 @@ public class KafkaIO {
         // implementation.
         builder.setDynamicRead(false);
 
-        if (config.consumerPollingTimeoutSeconds != null) {
-          if (config.consumerPollingTimeoutSeconds <= 0) {
-            throw new IllegalArgumentException("consumerPollingTimeoutSeconds should be > 0.");
+        if (config.consumerPollingTimeout != null) {
+          if (config.consumerPollingTimeout <= 0) {
+            throw new IllegalArgumentException("consumerPollingTimeout should be > 0.");
           }
           builder.setConsumerPollingTimeout(
-              Duration.standardSeconds(config.consumerPollingTimeoutSeconds));
+              Duration.standardSeconds(config.consumerPollingTimeout));
         } else {
           builder.setConsumerPollingTimeout(Duration.standardSeconds(2L));
         }
@@ -903,7 +903,7 @@ public class KafkaIO {
         private Long maxNumRecords;
         private Long maxReadTime;
         private Boolean commitOffsetInFinalize;
-        private Long consumerPollingTimeoutSeconds;
+        private Long consumerPollingTimeout;
         private String timestampPolicy;
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
@@ -946,8 +946,8 @@ public class KafkaIO {
           this.timestampPolicy = timestampPolicy;
         }
 
-        public void setConsumerPollingTimeoutSeconds(Long consumerPollingTimeoutSeconds) {
-          this.consumerPollingTimeoutSeconds = consumerPollingTimeoutSeconds;
+        public void setConsumerPollingTimeout(Long consumerPollingTimeout) {
+          this.consumerPollingTimeout = consumerPollingTimeout;
         }
       }
     }
