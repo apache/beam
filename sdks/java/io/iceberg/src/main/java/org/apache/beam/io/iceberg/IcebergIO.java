@@ -17,15 +17,26 @@
  */
 package org.apache.beam.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class IcebergIO {
 
   public static WriteRows writeToDynamicDestinations(
       IcebergCatalogConfig catalog, DynamicDestinations dynamicDestinations) {
     return new WriteRows(catalog, dynamicDestinations);
+  }
+
+  public static ReadTable readTable(IcebergCatalogConfig catalogConfig, TableIdentifier tableId) {
+    return new ReadTable(catalogConfig, tableId);
   }
 
   static class WriteRows extends PTransform<PCollection<Row>, IcebergWriteResult> {
@@ -45,6 +56,38 @@ public class IcebergIO {
           .apply("Set Destination Metadata", new AssignDestinations(dynamicDestinations))
           .apply(
               "Write Rows to Destinations", new WriteToDestinations(catalog, dynamicDestinations));
+    }
+  }
+
+  public static class ReadTable extends PTransform<PBegin, PCollection<Row>> {
+
+    private final IcebergCatalogConfig catalogConfig;
+    private final transient @Nullable TableIdentifier tableId;
+
+    private TableIdentifier getTableId() {
+      return checkStateNotNull(
+          tableId, "Transient field tableId null; it should not be accessed after serialization");
+    }
+
+    private ReadTable(IcebergCatalogConfig catalogConfig, TableIdentifier tableId) {
+      this.catalogConfig = catalogConfig;
+      this.tableId = tableId;
+    }
+
+    @Override
+    public PCollection<Row> expand(PBegin input) {
+
+      Table table = catalogConfig.catalog().loadTable(getTableId());
+
+      return input.apply(
+          Read.from(
+              new ScanSource(
+                  IcebergScanConfig.builder()
+                      .setCatalogConfig(catalogConfig)
+                      .setScanType(IcebergScanConfig.ScanType.TABLE)
+                      .setTableIdentifier(getTableId())
+                      .setSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(table.schema()))
+                      .build())));
     }
   }
 }
