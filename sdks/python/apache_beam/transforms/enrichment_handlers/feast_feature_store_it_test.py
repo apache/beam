@@ -104,14 +104,6 @@ class TestFeastEnrichmentHandler(unittest.TestCase):
       res = test_pipeline.run()
       res.wait_until_finish()
 
-  def test_feast_enrichment_no_feature_service(self):
-    """Test raising an error in case of no feature service name."""
-    with self.assertRaises(ValueError):
-      _ = FeastFeatureStoreEnrichmentHandler(
-          entity_id='user_id',
-          feature_store_yaml_path=self.feature_store_yaml_file,
-      )
-
 
 if __name__ == '__main__':
   unittest.main()

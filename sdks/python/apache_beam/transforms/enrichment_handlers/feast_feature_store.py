@@ -18,13 +18,13 @@ import logging
 import tempfile
 from pathlib import Path
 from typing import List
-
-from feast import FeatureStore
+from typing import Optional
 
 import apache_beam as beam
 from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 from apache_beam.transforms.enrichment_handlers.utils import ExceptionLevel
+from feast import FeatureStore
 
 __all__ = [
     'FeastFeatureStoreEnrichmentHandler',
@@ -59,6 +59,14 @@ def _validate_feature_names(feature_names, feature_service_name):
         'online store!')
 
 
+def _validate_feature_store_yaml_path_exists(fs_yaml_file):
+  """Check if the feature store yaml path exists."""
+  fs = GCSFileSystem(pipeline_options={})
+  if not fs.exists(fs_yaml_file):
+    raise ValueError(
+        'The feature store yaml path (%s) does not exist.' % fs_yaml_file)
+
+
 class FeastFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
                                                                  beam.Row]):
   """Enrichment handler to interact with the Feast feature store.
@@ -73,9 +81,9 @@ class FeastFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
       self,
       entity_id: str,
       feature_store_yaml_path: str,
-      feature_names: List[str] = None,
-      feature_service_name: str = "",
-      full_feature_names: bool = False,
+      feature_names: Optional[List[str]] = None,
+      feature_service_name: Optional[str] = "",
+      full_feature_names: Optional[bool] = False,
       *,
       exception_level: ExceptionLevel = ExceptionLevel.WARN,
   ):
@@ -103,6 +111,7 @@ class FeastFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
     self.feature_service_name = feature_service_name
     self.full_feature_names = full_feature_names
     self._exception_level = exception_level
+    _validate_feature_store_yaml_path_exists(self.feature_store_yaml_path)
     _validate_feature_names(self.feature_names, self.feature_service_name)
 
   def __enter__(self):

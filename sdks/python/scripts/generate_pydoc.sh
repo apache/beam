@@ -134,7 +134,7 @@ autodoc_member_order = 'bysource'
 autodoc_mock_imports = ["tensorrt", "cuda", "torch",
     "onnxruntime", "onnx", "tensorflow", "tensorflow_hub",
     "tensorflow_transform", "tensorflow_metadata", "transformers", "xgboost", "datatable", "transformers",
-    "sentence_transformers", "redis", "tensorflow_text",
+    "sentence_transformers", "redis", "tensorflow_text", "feast",
     ]
 
 # Allow a special section for documenting DataFrame API
