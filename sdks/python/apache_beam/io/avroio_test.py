@@ -37,13 +37,15 @@ from apache_beam.io import avroio
 from apache_beam.io import filebasedsource
 from apache_beam.io import iobase
 from apache_beam.io import source_test_utils
-from apache_beam.io.avroio import _FastAvroSource, avro_schema_to_beam_schema, \
-  beam_schema_to_avro_schema  # For testing
+from apache_beam.io.avroio import _FastAvroSource  # For testing
+from apache_beam.io.avroio import avro_schema_to_beam_schema  # For testing
+from apache_beam.io.avroio import beam_schema_to_avro_schema  # For testing
 from apache_beam.io.avroio import avro_atomic_value_to_beam_atomic_value  # For testing
 from apache_beam.io.avroio import avro_union_type_to_beam_type  # For testing
 from apache_beam.io.avroio import beam_atomic_value_to_avro_atomic_value  # For testing
 from apache_beam.io.avroio import _create_avro_sink  # For testing
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -169,6 +171,10 @@ class AvroBase(object):
         assert_that(readback, equal_to([stable_repr(r) for r in rows]))
 
   @pytest.mark.xlang_sql_expansion_service
+  @unittest.skipIf(
+    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
+    None,
+    "Must be run with a runner that supports staging java artifacts.")
   def test_avro_schema_to_beam_schema_with_nullable_atomic_fields(self):
     records = []
     records.extend(self.RECORDS)
