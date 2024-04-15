@@ -1356,10 +1356,9 @@ public class KafkaIO {
     }
 
     /**
-     * Sets the timeout time for Kafka consumer polling request in the {@link ReadFromKafkaDoFn}.
-     * A lower timeout optimizes for latency.
-     * Increase the timeout if the consumer is not fetching enough (or any) records. 
-     * The default is 2 seconds.
+     * Sets the timeout time for Kafka consumer polling request in the {@link ReadFromKafkaDoFn}. A
+     * lower timeout optimizes for latency. Increase the timeout if the consumer is not fetching
+     * enough (or any) records. The default is 2 seconds.
      */
     public Read<K, V> withConsumerPollingTimeout(Duration duration) {
       checkState(
@@ -2403,10 +2402,9 @@ public class KafkaIO {
     }
 
     /**
-     * Sets the timeout time for Kafka consumer polling request in the {@link ReadFromKafkaDoFn}.
-     * A lower timeout optimizes for latency.
-     * Increase the timeout if the consumer is not fetching enough (or any) records. 
-     * The default is 2 seconds.
+     * Sets the timeout time for Kafka consumer polling request in the {@link ReadFromKafkaDoFn}. A
+     * lower timeout optimizes for latency. Increase the timeout if the consumer is not fetching
+     * enough (or any) records. The default is 2 seconds.
      */
     public ReadSourceDescriptors<K, V> withConsumerPollingTimeout(@Nullable Duration duration) {
       return toBuilder().setConsumerPollingTimeout(duration).build();
