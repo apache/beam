@@ -73,7 +73,12 @@ public class FlinkUnboundedSourceReaderTest
         reader = createReader()) {
       pollAndValidate(reader, splits, validatingOutput, numSplits * numRecordsPerSplit / 2);
       snapshot = reader.snapshotState(0L);
+      // use higher checkpoint number to verify that we finalize everything that was created
+      // up to that checkpoint
+      reader.notifyCheckpointComplete(1L);
     }
+
+    assertEquals(numSplits, DummySource.numFinalizeCalled.size());
 
     // Create another reader, add the snapshot splits back.
     try (SourceReader<
@@ -297,6 +302,12 @@ public class FlinkUnboundedSourceReaderTest
   // --------------- private helper classes -----------------
   /** A source whose advance() method only returns true occasionally. */
   private static class DummySource extends TestCountingSource {
+
+    static List<Integer> numFinalizeCalled = new ArrayList<>();
+
+    static {
+      TestCountingSource.setFinalizeTracker(numFinalizeCalled);
+    }
 
     public DummySource(int numMessagesPerShard) {
       super(numMessagesPerShard);
