@@ -123,7 +123,8 @@ jobs:
         run: tar -xzvf dist/$(ls dist | grep .tar.gz | head -n 1)
       - name: Rename source directory
         working-directory: ./sdks/python
-        run: mv $(ls | grep apache-beam) apache-beam-source
+        # https://github.com/pypa/setuptools/issues/4300 changed naming. Match both old and new names.
+        run: mv $(ls | grep "apache-beam-\|apache_beam-") apache-beam-source
       - name: Upload source as artifact
         # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
         uses: actions/upload-artifact@v3
@@ -166,7 +167,8 @@ jobs:
       - name: Rename RC source directory
         if: steps.is_rc.outputs.is_rc == 1
         working-directory: ./sdks/python
-        run: mv $(ls | grep apache-beam) apache-beam-source-rc
+        # https://github.com/pypa/setuptools/issues/4300 changed naming. Match both old and new names.
+        run: mv $(ls | grep "apache-beam-\|apache_beam-") apache-beam-source-rc
       - name: Upload RC source as artifact
         if: steps.is_rc.outputs.is_rc == 1
         # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
