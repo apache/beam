@@ -26,6 +26,7 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -36,8 +37,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  *
  * <h3>Available transforms</h3>
  *
- * <p>This API currently supports two operations: {@link Read} and {@link Write}. Each one
- * enumerates the available transforms in a {@code TRANSFORMS} map.
+ * <p>This API currently supports two operations: {@link Managed#read} and {@link Managed#write}.
+ * Each one enumerates the available transforms in a {@code TRANSFORMS} map.
  *
  * <h3>Building a Managed turnkey transform</h3>
  *
@@ -48,7 +49,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * <pre>{@code
  * PCollectionRowTuple output = PCollectionRowTuple.empty(pipeline).apply(
  *       Managed.read(ICEBERG)
- *           .withConfig(ImmutableMap.<String, Map>.builder()
+ *           .withConfig(ImmutableMap.<String, Object>.builder()
  *               .put("foo", "abc")
  *               .put("bar", 123)
  *               .build()));
@@ -87,15 +88,14 @@ public class Managed {
           .build();
 
   /**
-   * Instantiates a {@link Managed.Read} transform for the specified source. The supported managed
-   * sources are:
+   * Instantiates a {@link Managed.ManagedTransform} transform for the specified source. The
+   * supported managed sources are:
    *
    * <ul>
    *   <li>{@link Managed#ICEBERG} : Read from Apache Iceberg
    * </ul>
    */
   public static ManagedTransform read(String source) {
-
     return new AutoValue_Managed_ManagedTransform.Builder()
         .setIdentifier(
             Preconditions.checkNotNull(
@@ -108,8 +108,8 @@ public class Managed {
   }
 
   /**
-   * Instantiates a {@link Managed.Write} transform for the specified sink. The supported managed
-   * sinks are:
+   * Instantiates a {@link Managed.ManagedTransform} transform for the specified sink. The supported
+   * managed sinks are:
    *
    * <ul>
    *   <li>{@link Managed#ICEBERG} : Write to Apache Iceberg
@@ -131,7 +131,7 @@ public class Managed {
   public abstract static class ManagedTransform extends SchemaTransform {
     abstract String getIdentifier();
 
-    abstract @Nullable String getConfig();
+    abstract @Nullable Map<String, Object> getConfig();
 
     abstract @Nullable String getConfigUrl();
 
@@ -144,7 +144,7 @@ public class Managed {
     abstract static class Builder {
       abstract Builder setIdentifier(String identifier);
 
-      abstract Builder setConfig(@Nullable String config);
+      abstract Builder setConfig(@Nullable Map<String, Object> config);
 
       abstract Builder setConfigUrl(@Nullable String configUrl);
 
@@ -161,7 +161,7 @@ public class Managed {
      * SchemaTransformProvider#configurationSchema()}) to see which parameters are available.
      */
     public ManagedTransform withConfig(Map<String, Object> config) {
-      return toBuilder().setConfig(YamlUtils.yamlStringFromMap(config)).build();
+      return toBuilder().setConfig(config).build();
     }
 
     /**
@@ -179,15 +179,32 @@ public class Managed {
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      ManagedSchemaTransformProvider provider =
+          new ManagedSchemaTransformProvider(getSupportedIdentifiers());
+
+      SchemaTransformProvider underlyingTransformProvider =
+          provider.getAllProviders().get(getIdentifier());
+      if (underlyingTransformProvider == null) {
+        throw new RuntimeException(
+            String.format(
+                "Could not find transform with identifier %s, or it may not be supported.",
+                getIdentifier()));
+      }
+
+      Row transformConfigRow =
+          getConfig() != null
+              ? YamlUtils.toBeamRow(
+                  getConfig(), underlyingTransformProvider.configurationSchema(), true)
+              : null;
+
       ManagedSchemaTransformProvider.ManagedConfig managedConfig =
           ManagedSchemaTransformProvider.ManagedConfig.builder()
               .setTransformIdentifier(getIdentifier())
-              .setConfig(getConfig())
+              .setConfig(transformConfigRow)
               .setConfigUrl(getConfigUrl())
               .build();
 
-      SchemaTransform underlyingTransform =
-          new ManagedSchemaTransformProvider(getSupportedIdentifiers()).from(managedConfig);
+      SchemaTransform underlyingTransform = provider.from(managedConfig);
 
       return input.apply(underlyingTransform);
     }
