@@ -193,8 +193,7 @@ class ReadFromKafka(ExternalTransform):
                 start_read_time=start_read_time,
                 commit_offset_in_finalize=commit_offset_in_finalize,
                 timestamp_policy=timestamp_policy,
-                consumer_polling_timeout=consumer_polling_timeout
-            )),
+                consumer_polling_timeout=consumer_polling_timeout)),
         expansion_service or default_io_expansion_service())
 
 
