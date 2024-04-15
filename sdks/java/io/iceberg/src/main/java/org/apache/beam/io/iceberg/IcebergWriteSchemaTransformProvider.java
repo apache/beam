@@ -101,13 +101,13 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
 
     public abstract String getTable();
 
-    public abstract CatalogConfig getCatalogConfig();
+    public abstract SchemaTransformCatalogConfig getCatalogConfig();
 
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTable(String tables);
 
-      public abstract Builder setCatalogConfig(CatalogConfig catalogConfig);
+      public abstract Builder setCatalogConfig(SchemaTransformCatalogConfig catalogConfig);
 
       public abstract Config build();
     }
@@ -117,53 +117,9 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
     }
   }
 
-  @DefaultSchema(AutoValueSchema.class)
-  @AutoValue
-  public abstract static class CatalogConfig {
-    public static Builder builder() {
-      return new AutoValue_IcebergWriteSchemaTransformProvider_CatalogConfig.Builder();
-    }
-
-    public abstract String getCatalogName();
-
-    public abstract @Nullable String getCatalogType();
-
-    public abstract @Nullable String getCatalogImplementation();
-
-    public abstract @Nullable String getWarehouseLocation();
-
-    @AutoValue.Builder
-    public abstract static class Builder {
-
-      public abstract Builder setCatalogName(String catalogName);
-
-      public abstract Builder setCatalogType(String catalogType);
-
-      public abstract Builder setCatalogImplementation(String catalogImplementation);
-
-      public abstract Builder setWarehouseLocation(String warehouseLocation);
-
-      public abstract CatalogConfig build();
-    }
-
-    Set<String> validTypes =
-        Sets.newHashSet(
-            CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP,
-            CatalogUtil.ICEBERG_CATALOG_TYPE_HIVE,
-            CatalogUtil.ICEBERG_CATALOG_TYPE_REST);
-
-    public void validate() {
-      if (Strings.isNullOrEmpty(getCatalogType())) {
-        checkArgument(
-            validTypes.contains(Preconditions.checkArgumentNotNull(getCatalogType())),
-            "Invalid catalog type. Please pick one of %s",
-            validTypes);
-      }
-    }
-  }
 
   @VisibleForTesting
-  static class IcebergWriteSchemaTransform extends SchemaTransform {
+  private static class IcebergWriteSchemaTransform extends SchemaTransform {
     private final Config configuration;
 
     IcebergWriteSchemaTransform(Config configuration) {
@@ -175,13 +131,11 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
 
       PCollection<Row> rows = input.get(INPUT_TAG);
 
-      CatalogConfig catalogConfig = configuration.getCatalogConfig();
+      SchemaTransformCatalogConfig catalogConfig = configuration.getCatalogConfig();
 
       IcebergCatalogConfig.Builder catalogBuilder =
           IcebergCatalogConfig.builder()
-              .setName(catalogConfig.getCatalogName())
-              .setIcebergCatalogType(catalogConfig.getCatalogType())
-              .setWarehouseLocation(catalogConfig.getWarehouseLocation());
+              .setName(catalogConfig.getCatalogName());
 
       if (!Strings.isNullOrEmpty(catalogConfig.getCatalogType())) {
         catalogBuilder = catalogBuilder.setIcebergCatalogType(catalogConfig.getCatalogType());
@@ -212,17 +166,13 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
       @Override
       public Row apply(KV<String, Snapshot> input) {
         Snapshot snapshot = input.getValue();
-        Row row =
-            Row.withSchema(OUTPUT_SCHEMA)
-                .addValues(
-                    input.getKey(),
-                    snapshot.operation(),
-                    snapshot.summary(),
-                    snapshot.manifestListLocation())
-                .build();
-        System.out.println("SNAPSHOT: " + snapshot);
-        System.out.println("ROW: " + row);
-        return row;
+        return Row.withSchema(OUTPUT_SCHEMA)
+            .addValues(
+                input.getKey(),
+                snapshot.operation(),
+                snapshot.summary(),
+                snapshot.manifestListLocation())
+            .build();
       }
     }
   }

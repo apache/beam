@@ -17,7 +17,6 @@
  */
 package org.apache.beam.io.iceberg;
 
-import static org.apache.beam.io.iceberg.IcebergWriteSchemaTransformProvider.CatalogConfig;
 import static org.apache.beam.io.iceberg.IcebergWriteSchemaTransformProvider.Config;
 import static org.apache.beam.io.iceberg.IcebergWriteSchemaTransformProvider.INPUT_TAG;
 import static org.apache.beam.io.iceberg.IcebergWriteSchemaTransformProvider.OUTPUT_TAG;
@@ -65,7 +64,7 @@ public class IcebergWriteSchemaTransformProviderTest {
     Row catalogConfigRow =
         Row.withSchema(
                 SchemaRegistry.createDefault()
-                    .getSchema(IcebergWriteSchemaTransformProvider.CatalogConfig.class))
+                    .getSchema(SchemaTransformCatalogConfig.class))
             .withFieldValue("catalogName", "test_name")
             .withFieldValue("catalogType", "test_type")
             .withFieldValue("catalogImplementation", "testImplementation")
@@ -87,7 +86,6 @@ public class IcebergWriteSchemaTransformProviderTest {
     String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
 
     TableIdentifier tableId = TableIdentifier.parse(identifier);
-    System.out.println(tableId);
 
     // Create a table and add records to it.
     Table table = warehouse.createTable(tableId, TestFixtures.SCHEMA);
@@ -96,7 +94,7 @@ public class IcebergWriteSchemaTransformProviderTest {
         Config.builder()
             .setTable(identifier)
             .setCatalogConfig(
-                CatalogConfig.builder()
+                SchemaTransformCatalogConfig.builder()
                     .setCatalogName("hadoop")
                     .setCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
                     .setWarehouseLocation(warehouse.location)
@@ -109,7 +107,7 @@ public class IcebergWriteSchemaTransformProviderTest {
             testPipeline
                 .apply(
                     "Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
-                .setRowSchema(SchemaHelper.convert(TestFixtures.SCHEMA)));
+                .setRowSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA)));
 
     PCollection<Row> result =
         input
