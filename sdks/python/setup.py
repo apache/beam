@@ -498,7 +498,7 @@ if __name__ == '__main__':
           ],
           'yaml': [
               'docstring-parser>=0.15,<1.0',
-              'jinja2>=3.0,<3.1',
+              'jinja2>=3.1,<4.0',
               'pyyaml>=3.12,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
           ] + dataframe_dependency

@@ -16,7 +16,9 @@
 #
 
 import argparse
+import json
 
+import jinja2
 import yaml
 
 import apache_beam as beam
@@ -45,7 +47,43 @@ def _configure_parser(argv):
       help='none: do no pipeline validation against the schema; '
       'generic: validate the pipeline shape, but not individual transforms; '
       'per_transform: also validate the config of known transforms')
+  parser.add_argument(
+      '--jinja_variables',
+      default=None,
+      type=json.loads,
+      help='A json dict of variables used to invoke the jinja preprocessor '
+      'on the provided yaml pipeline.')
+  parser.add_argument(
+      '--flags_as_jinja_variables',
+      default=False,
+      action='store_true',
+      help='Whether to treat all unknown `--flag=value` arguments as jinja '
+      'variables.')
   return parser.parse_known_args(argv)
+
+
+def _extract_jinja_variables(known_args, other_args):
+  jinja_variables = known_args.jinja_variables or {}
+  # This is best-effort and may catch pipeline options not intended for
+  # templating, but jinja2 doesn't care if there are extra variables defined.
+  if known_args.flags_as_jinja_variables:
+    skip = False
+    for ix, arg in enumerate(other_args):
+      if skip:
+        skip = False
+        continue
+      if arg.startswith('--'):
+        if '=' in arg:
+          key, value = arg[2:].split('=', 1)
+        elif len(other_args) > ix + 1:
+          key = arg[2:]
+          value = other_args[ix + 1]
+          skip = True
+        else:
+          continue
+        jinja_variables[key] = value
+
+  return jinja_variables
 
 
 def _pipeline_spec_from_args(known_args):
@@ -67,6 +105,12 @@ def _pipeline_spec_from_args(known_args):
 def run(argv=None):
   known_args, pipeline_args = _configure_parser(argv)
   pipeline_yaml = _pipeline_spec_from_args(known_args)
+  jinja_variables = _extract_jinja_variables(known_args, pipeline_args)
+  if (known_args.jinja_variables is not None or
+      known_args.flags_as_jinja_variables):
+    pipeline_yaml = jinja2.Environment(
+        undefined=jinja2.StrictUndefined).from_string(pipeline_yaml).render(
+            **jinja_variables)
   pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
 
   with beam.Pipeline(  # linebreak for better yapf formatting
