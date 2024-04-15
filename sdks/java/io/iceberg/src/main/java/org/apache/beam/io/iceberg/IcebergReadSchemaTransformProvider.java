@@ -19,98 +19,99 @@ package org.apache.beam.io.iceberg;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import java.util.Collections;
+import java.util.List;
+import org.apache.beam.io.iceberg.IcebergReadSchemaTransformProvider.Config;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
-import org.apache.beam.io.iceberg.IcebergReadSchemaTransformProvider.Config;
-
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.iceberg.catalog.TableIdentifier;
 
-import java.util.Collections;
-import java.util.List;
-
 /**
- * SchemaTransform implementation for {@link IcebergIO#readTable}. Reads records from Iceberg and outputs a
- * {@link org.apache.beam.sdk.values.PCollection} of Beam {@link org.apache.beam.sdk.values.Row}s.
+ * SchemaTransform implementation for {@link IcebergIO#readRows}. Reads records from Iceberg and
+ * outputs a {@link org.apache.beam.sdk.values.PCollection} of Beam {@link
+ * org.apache.beam.sdk.values.Row}s.
  */
 @AutoService(SchemaTransformProvider.class)
 public class IcebergReadSchemaTransformProvider extends TypedSchemaTransformProvider<Config> {
-    static final String OUTPUT_TAG = "output";
+  static final String OUTPUT_TAG = "output";
 
-    @Override
-    protected SchemaTransform from(Config configuration) {
-        configuration.validate();
-        return new IcebergReadSchemaTransform(configuration);
+  @Override
+  protected SchemaTransform from(Config configuration) {
+    configuration.validate();
+    return new IcebergReadSchemaTransform(configuration);
+  }
+
+  @Override
+  public List<String> outputCollectionNames() {
+    return Collections.singletonList(OUTPUT_TAG);
+  }
+
+  @Override
+  public String identifier() {
+    return "beam:schematransform:org.apache.beam:iceberg_read:v1";
+  }
+
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  public abstract static class Config {
+    public static Builder builder() {
+      return new AutoValue_IcebergReadSchemaTransformProvider_Config.Builder();
+    }
+
+    public abstract String getTable();
+
+    public abstract SchemaTransformCatalogConfig getCatalogConfig();
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setTable(String tables);
+
+      public abstract Builder setCatalogConfig(SchemaTransformCatalogConfig catalogConfig);
+
+      public abstract Config build();
+    }
+
+    public void validate() {
+      getCatalogConfig().validate();
+    }
+  }
+
+  private static class IcebergReadSchemaTransform extends SchemaTransform {
+    private final Config configuration;
+
+    IcebergReadSchemaTransform(Config configuration) {
+      this.configuration = configuration;
     }
 
     @Override
-    public List<String> outputCollectionNames() {
-        return Collections.singletonList(OUTPUT_TAG);
+    public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      SchemaTransformCatalogConfig catalogConfig = configuration.getCatalogConfig();
+
+      IcebergCatalogConfig.Builder catalogBuilder =
+          IcebergCatalogConfig.builder().setName(catalogConfig.getCatalogName());
+
+      if (!Strings.isNullOrEmpty(catalogConfig.getCatalogType())) {
+        catalogBuilder = catalogBuilder.setIcebergCatalogType(catalogConfig.getCatalogType());
+      }
+      if (!Strings.isNullOrEmpty(catalogConfig.getWarehouseLocation())) {
+        catalogBuilder = catalogBuilder.setWarehouseLocation(catalogConfig.getWarehouseLocation());
+      }
+
+      PCollection<Row> output =
+          input
+              .getPipeline()
+              .apply(
+                  IcebergIO.readRows(catalogBuilder.build())
+                      .from(TableIdentifier.parse(configuration.getTable())));
+
+      return PCollectionRowTuple.of(OUTPUT_TAG, output);
     }
-
-    @Override
-    public String identifier() {
-        return "beam:schematransform:org.apache.beam:iceberg_read:v1";
-    }
-
-    @DefaultSchema(AutoValueSchema.class)
-    @AutoValue
-    public abstract static class Config {
-        public static Builder builder() {
-            return new AutoValue_IcebergReadSchemaTransformProvider_Config.Builder();
-        }
-
-        public abstract String getTable();
-
-        public abstract SchemaTransformCatalogConfig getCatalogConfig();
-
-        @AutoValue.Builder
-        public abstract static class Builder {
-            public abstract Builder setTable(String tables);
-
-            public abstract Builder setCatalogConfig(SchemaTransformCatalogConfig catalogConfig);
-
-            public abstract Config build();
-        }
-
-        public void validate() {
-            getCatalogConfig().validate();
-        }
-    }
-
-
-
-    private static class IcebergReadSchemaTransform extends SchemaTransform {
-        private final Config configuration;
-
-        IcebergReadSchemaTransform(Config configuration) {
-            this.configuration = configuration;
-        }
-
-        @Override
-        public PCollectionRowTuple expand(PCollectionRowTuple input) {
-            SchemaTransformCatalogConfig catalogConfig = configuration.getCatalogConfig();
-
-            IcebergCatalogConfig.Builder catalogBuilder =
-                    IcebergCatalogConfig.builder()
-                            .setName(catalogConfig.getCatalogName());
-
-            if (!Strings.isNullOrEmpty(catalogConfig.getCatalogType())) {
-                catalogBuilder = catalogBuilder.setIcebergCatalogType(catalogConfig.getCatalogType());
-            }
-            if (!Strings.isNullOrEmpty(catalogConfig.getWarehouseLocation())) {
-                catalogBuilder = catalogBuilder.setWarehouseLocation(catalogConfig.getWarehouseLocation());
-            }
-
-            PCollection<Row> output = input.getPipeline().apply(IcebergIO.readTable(catalogBuilder.build(), TableIdentifier.parse(configuration.getTable())));
-
-            return PCollectionRowTuple.of(OUTPUT_TAG, output);
-        }
-    }
+  }
 }

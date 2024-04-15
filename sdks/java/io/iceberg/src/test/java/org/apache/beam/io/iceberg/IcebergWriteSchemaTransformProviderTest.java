@@ -62,9 +62,7 @@ public class IcebergWriteSchemaTransformProviderTest {
   @Test
   public void testBuildTransformWithRow() throws NoSuchSchemaException {
     Row catalogConfigRow =
-        Row.withSchema(
-                SchemaRegistry.createDefault()
-                    .getSchema(SchemaTransformCatalogConfig.class))
+        Row.withSchema(SchemaRegistry.createDefault().getSchema(SchemaTransformCatalogConfig.class))
             .withFieldValue("catalogName", "test_name")
             .withFieldValue("catalogType", "test_type")
             .withFieldValue("catalogImplementation", "testImplementation")
@@ -76,9 +74,7 @@ public class IcebergWriteSchemaTransformProviderTest {
             .withFieldValue("catalogConfig", catalogConfigRow)
             .build();
 
-    SchemaTransform transform = new IcebergWriteSchemaTransformProvider().from(transformConfigRow);
-
-    System.out.println(transform.getName());
+    new IcebergWriteSchemaTransformProvider().from(transformConfigRow);
   }
 
   @Test
@@ -107,7 +103,8 @@ public class IcebergWriteSchemaTransformProviderTest {
             testPipeline
                 .apply(
                     "Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
-                .setRowSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA)));
+                .setRowSchema(
+                    SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA)));
 
     PCollection<Row> result =
         input

@@ -17,13 +17,10 @@
  */
 package org.apache.beam.io.iceberg;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import org.apache.beam.io.iceberg.IcebergWriteSchemaTransformProvider.Config;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -33,22 +30,18 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
-import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * SchemaTransform implementation for {@link IcebergIO#writeToDynamicDestinations}. Writes Beam Rows
- * to Iceberg and outputs a {@code PCollection<Row>} representing snapshots created in the process.
+ * SchemaTransform implementation for {@link IcebergIO#writeRows}. Writes Beam Rows to Iceberg and
+ * outputs a {@code PCollection<Row>} representing snapshots created in the process.
  */
 @AutoService(SchemaTransformProvider.class)
 public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformProvider<Config> {
@@ -117,7 +110,6 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
     }
   }
 
-
   @VisibleForTesting
   private static class IcebergWriteSchemaTransform extends SchemaTransform {
     private final Config configuration;
@@ -134,8 +126,7 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
       SchemaTransformCatalogConfig catalogConfig = configuration.getCatalogConfig();
 
       IcebergCatalogConfig.Builder catalogBuilder =
-          IcebergCatalogConfig.builder()
-              .setName(catalogConfig.getCatalogName());
+          IcebergCatalogConfig.builder().setName(catalogConfig.getCatalogName());
 
       if (!Strings.isNullOrEmpty(catalogConfig.getCatalogType())) {
         catalogBuilder = catalogBuilder.setIcebergCatalogType(catalogConfig.getCatalogType());
@@ -149,8 +140,7 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
           DynamicDestinations.singleTable(TableIdentifier.parse(configuration.getTable()));
 
       IcebergWriteResult result =
-          rows.apply(
-              IcebergIO.writeToDynamicDestinations(catalogBuilder.build(), dynamicDestinations));
+          rows.apply(IcebergIO.writeRows(catalogBuilder.build()).to(dynamicDestinations));
 
       PCollection<Row> snapshots =
           result
