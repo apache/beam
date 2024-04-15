@@ -22,7 +22,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NavigableMap;
 import java.util.Optional;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
@@ -75,6 +78,8 @@ public class FlinkUnboundedSourceReader<T>
   private final List<ReaderAndOutput> readers = new ArrayList<>();
   private int currentReaderIndex = 0;
   private volatile boolean shouldEmitWatermark;
+  private final NavigableMap<Long, List<FlinkSourceSplit<T>>> unfinishedCheckpoints =
+      new TreeMap<>();
 
   public FlinkUnboundedSourceReader(
       String stepName,
@@ -92,6 +97,28 @@ public class FlinkUnboundedSourceReader<T>
       ScheduledExecutorService executor,
       @Nullable Function<WindowedValue<ValueWithRecordId<T>>, Long> timestampExtractor) {
     super(stepName, executor, context, pipelineOptions, timestampExtractor);
+  }
+
+  @Override
+  protected void addSplitsToUnfinishedForCheckpoint(
+      long checkpointId, List<FlinkSourceSplit<T>> flinkSourceSplits) {
+
+    unfinishedCheckpoints.put(checkpointId, flinkSourceSplits);
+  }
+
+  @Override
+  public void notifyCheckpointComplete(long checkpointId) throws Exception {
+    super.notifyCheckpointComplete(checkpointId);
+    SortedMap<Long, List<FlinkSourceSplit<T>>> headMap =
+        unfinishedCheckpoints.headMap(checkpointId + 1);
+    for (List<FlinkSourceSplit<T>> splits : headMap.values()) {
+      for (FlinkSourceSplit<T> s : splits) {
+        finalizeSourceSplit(s.getCheckpointMark());
+      }
+    }
+    for (long checkpoint : new ArrayList<>(headMap.keySet())) {
+      unfinishedCheckpoints.remove(checkpoint);
+    }
   }
 
   @Override
@@ -199,10 +226,16 @@ public class FlinkUnboundedSourceReader<T>
   @Override
   protected FlinkSourceSplit<T> getReaderCheckpoint(int splitId, ReaderAndOutput readerAndOutput) {
     // The checkpoint for unbounded sources is fine granular.
-    byte[] checkpointState =
-        getAndEncodeCheckpointMark((UnboundedSource.UnboundedReader<T>) readerAndOutput.reader);
+    UnboundedSource.UnboundedReader<T> reader =
+        (UnboundedSource.UnboundedReader<T>) readerAndOutput.reader;
+    UnboundedSource.CheckpointMark checkpointMark = reader.getCheckpointMark();
+    @SuppressWarnings("unchecked")
+    Coder<UnboundedSource.CheckpointMark> coder =
+        (Coder<UnboundedSource.CheckpointMark>) reader.getCurrentSource().getCheckpointMarkCoder();
+    byte[] checkpointState = encodeCheckpointMark(coder, checkpointMark);
+
     return new FlinkSourceSplit<>(
-        splitId, readerAndOutput.reader.getCurrentSource(), checkpointState);
+        splitId, readerAndOutput.reader.getCurrentSource(), checkpointState, checkpointMark);
   }
 
   @Override
@@ -308,13 +341,9 @@ public class FlinkUnboundedSourceReader<T>
             });
   }
 
-  @SuppressWarnings("unchecked")
-  private <CheckpointMarkT extends UnboundedSource.CheckpointMark>
-      byte[] getAndEncodeCheckpointMark(UnboundedSource.UnboundedReader<T> reader) {
-    UnboundedSource<T, CheckpointMarkT> source =
-        (UnboundedSource<T, CheckpointMarkT>) reader.getCurrentSource();
-    CheckpointMarkT checkpointMark = (CheckpointMarkT) reader.getCheckpointMark();
-    Coder<CheckpointMarkT> coder = source.getCheckpointMarkCoder();
+  private <CheckpointMarkT extends UnboundedSource.CheckpointMark> byte[] encodeCheckpointMark(
+      Coder<CheckpointMarkT> coder, CheckpointMarkT checkpointMark) {
+
     try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
       coder.encode(checkpointMark, baos);
       return baos.toByteArray();
@@ -335,6 +364,13 @@ public class FlinkUnboundedSourceReader<T>
       try (ByteArrayInputStream bais = new ByteArrayInputStream(splitState)) {
         return unboundedSource.createReader(pipelineOptions, coder.decode(bais));
       }
+    }
+  }
+
+  private void finalizeSourceSplit(UnboundedSource.@Nullable CheckpointMark mark)
+      throws IOException {
+    if (mark != null) {
+      mark.finalizeCheckpoint();
     }
   }
 }

@@ -152,6 +152,7 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
                 String.format("Failed to get checkpoint for split %d", splitId), e);
           }
         });
+    addSplitsToUnfinishedForCheckpoint(checkpointId, splitsState);
     return splitsState;
   }
 
@@ -225,6 +226,16 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
   /** Create {@link Source.Reader} for given {@link FlinkSourceSplit}. */
   protected abstract Source.Reader<T> createReader(@Nonnull FlinkSourceSplit<T> sourceSplit)
       throws IOException;
+
+  /**
+   * To be overridden in unbounded reader. Notify the reader of created splits that will be part of
+   * checkpoint. Will be processed during notifyCheckpointComplete to finalize the associated
+   * CheckpointMarks.
+   */
+  protected void addSplitsToUnfinishedForCheckpoint(
+      long checkpointId, List<FlinkSourceSplit<T>> splits) {
+    // nop
+  }
 
   // ----------------- protected helper methods for subclasses --------------------
 
