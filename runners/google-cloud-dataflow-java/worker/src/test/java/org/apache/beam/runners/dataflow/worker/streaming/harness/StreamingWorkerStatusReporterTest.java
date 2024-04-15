@@ -40,6 +40,8 @@ import org.mockito.Mockito;
 @RunWith(JUnit4.class)
 public class StreamingWorkerStatusReporterTest {
   private final long DEFAULT_WINDMILL_QUOTA_THROTTLE_TIME = 1000;
+  private final long DEFAULT_HARNESS_REPORTING_PERIOD = 10000;
+  private final long DEFAULT_PER_WORKER_METRICS_PERIOD = 30000;
 
   private BoundedQueueExecutor mockExecutor;
   private WorkUnitClient mockWorkUnitClient;
@@ -66,7 +68,9 @@ public class StreamingWorkerStatusReporterTest {
             StreamingCounters.create(),
             mockMemoryMonitor,
             mockExecutor,
-            (threadName) -> Executors.newSingleThreadScheduledExecutor());
+            (threadName) -> Executors.newSingleThreadScheduledExecutor(),
+            DEFAULT_HARNESS_REPORTING_PERIOD,
+            DEFAULT_PER_WORKER_METRICS_PERIOD);
     StreamingScalingReportResponse streamingScalingReportResponse =
         new StreamingScalingReportResponse().setMaximumThreadCount(10);
     WorkerMessageResponse workerMessageResponse =
@@ -90,7 +94,9 @@ public class StreamingWorkerStatusReporterTest {
             StreamingCounters.create(),
             mockMemoryMonitor,
             mockExecutor,
-            (threadName) -> Executors.newSingleThreadScheduledExecutor());
+            (threadName) -> Executors.newSingleThreadScheduledExecutor(),
+            DEFAULT_HARNESS_REPORTING_PERIOD,
+            DEFAULT_PER_WORKER_METRICS_PERIOD);
     WorkerMessageResponse workerMessageResponse = new WorkerMessageResponse();
     when(mockWorkUnitClient.reportWorkerMessage(any()))
         .thenReturn(Collections.singletonList(workerMessageResponse));
