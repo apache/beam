@@ -551,6 +551,12 @@ def avro_union_type_to_beam_type(union_type: List) -> schema_pb2.FieldType:
   if the union type is a nullable, and it is a nullable union of an avro
   primitive with a corresponding beam primitive then create a nullable beam
   field of the corresponding beam type, otherwise return an Any type.
+
+  Args:
+    union_type: the avro union type to convert.
+
+  Returns:
+    the beam type of the avro union.
   """
   if len(union_type) == 2 and "null" in union_type:
     for avro_type in union_type:
@@ -629,6 +635,13 @@ def avro_atomic_value_to_beam_atomic_value(avro_type: str, value):
   if the avro type is an int or long, convert the value into from signed to
   unsigned because VarInt.java expects the number to be unsigned when
   decoding the number.
+
+  Args:
+    avro_type: the avro type of the corresponding value.
+    value: the avro atomic value.
+
+  Returns:
+    the converted beam atomic value.
   """
   if value is None:
     return value
@@ -740,6 +753,13 @@ def beam_atomic_value_to_avro_atomic_value(avro_type: str, value):
   since numeric values are converted to unsigned in
   avro_atomic_value_to_beam_atomic_value we need to convert
   back to a signed number.
+
+  Args:
+    avro_type: avro type of the corresponding value.
+    value: the beam atomic value.
+
+  Returns:
+    the converted avro atomic value.
   """
   if value is None:
     return value
