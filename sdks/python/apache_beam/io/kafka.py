@@ -163,8 +163,8 @@ class ReadFromKafka(ExternalTransform):
         extracting timestamp from KafkaRecord.
     :param consumer_polling_timeout_seconds: Kafka client polling request
         timeout time in seconds. A lower timeout optimizes for latency. Increase                                   
-        the timeout if the consumer is not fetching enough (or any) records.                                                         
-        Default is 2 seconds.
+        the timeout if the consumer is not fetching any records. Default is 2
+        seconds.
     :param with_metadata: whether the returned PCollection should contain
         Kafka related metadata or not. If False (default), elements of the
         returned PCollection will be of type 'bytes' if True, elements of the
@@ -193,7 +193,8 @@ class ReadFromKafka(ExternalTransform):
                 start_read_time=start_read_time,
                 commit_offset_in_finalize=commit_offset_in_finalize,
                 timestamp_policy=timestamp_policy,
-                consumer_polling_timeout_seconds=consumer_polling_timeout_seconds
+                consumer_polling_timeout_seconds=
+                consumer_polling_timeout_seconds
             )),
         expansion_service or default_io_expansion_service())
 
