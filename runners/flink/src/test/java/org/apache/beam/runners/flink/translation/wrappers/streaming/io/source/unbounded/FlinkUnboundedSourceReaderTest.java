@@ -256,6 +256,18 @@ public class FlinkUnboundedSourceReaderTest
   }
 
   @Test
+  public void testWatermarkOnNoSplits() throws Exception {
+    ManuallyTriggeredScheduledExecutorService executor =
+        new ManuallyTriggeredScheduledExecutorService();
+    try (FlinkUnboundedSourceReader<KV<Integer, Integer>> reader =
+        (FlinkUnboundedSourceReader<KV<Integer, Integer>>) createReader(executor, -1L)) {
+      reader.start();
+      reader.notifyNoMoreSplits();
+      assertEquals(InputStatus.END_OF_INPUT, reader.pollNext(null));
+    }
+  }
+
+  @Test
   public void testPendingBytesMetric() throws Exception {
     ManuallyTriggeredScheduledExecutorService executor =
         new ManuallyTriggeredScheduledExecutorService();
