@@ -108,8 +108,14 @@ def run(argv=None):
   jinja_variables = _extract_jinja_variables(known_args, pipeline_args)
   if (known_args.jinja_variables is not None or
       known_args.flags_as_jinja_variables):
+    class FileIOLoader(jinja2.BaseLoader):
+      def get_source(self, environment, path):
+        source = FileSystems.open(path).read().decode()
+        return source, path, lambda: True
+          
     pipeline_yaml = jinja2.Environment(
-        undefined=jinja2.StrictUndefined).from_string(pipeline_yaml).render(
+        undefined=jinja2.StrictUndefined, 
+        loader=FileIOLoader()).from_string(pipeline_yaml).render(
             **jinja_variables)
   pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
 
