@@ -431,6 +431,7 @@ class WriteToAvro(beam.transforms.PTransform):
             "An explicit schema is required to write non-schema'd PCollections."
         ) from exn
       avro_schema = beam_schema_to_avro_schema(beam_schema)
+      print("HERE: ", avro_schema)
       records = pcoll | beam.Map(
           beam_row_to_avro_dict(avro_schema, beam_schema))
     self._sink = self._sink_provider(avro_schema)
@@ -700,10 +701,9 @@ def beam_type_to_avro_type(beam_type: schema_pb2.FieldType) -> _AvroSchemaType:
   type_info = beam_type.WhichOneof("type_info")
   if type_info == "atomic_type":
     avro_primitive = BEAM_PRIMITIVES_TO_AVRO_PRIMITIVES[beam_type.atomic_type]
-    if beam_type.nullable:
-      return [avro_primitive, 'null']
-    else:
-      return avro_primitive
+    return [avro_primitive, 'null'] if beam_type.nullable else {
+        'type': avro_primitive
+    }
   elif type_info == "array_type":
     return {
         'type': 'array',
