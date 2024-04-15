@@ -19,73 +19,116 @@ package org.apache.beam.io.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import com.google.auto.value.AutoValue;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class IcebergIO {
 
-  public static WriteRows writeToDynamicDestinations(
-      IcebergCatalogConfig catalog, DynamicDestinations dynamicDestinations) {
-    return new WriteRows(catalog, dynamicDestinations);
+  public static WriteRows writeRows(IcebergCatalogConfig catalog) {
+    return new AutoValue_IcebergIO_WriteRows.Builder().setCatalogConfig(catalog).build();
   }
 
-  public static ReadTable readTable(IcebergCatalogConfig catalogConfig, TableIdentifier tableId) {
-    return new ReadTable(catalogConfig, tableId);
-  }
+  @AutoValue
+  public abstract static class WriteRows extends PTransform<PCollection<Row>, IcebergWriteResult> {
 
-  static class WriteRows extends PTransform<PCollection<Row>, IcebergWriteResult> {
+    abstract IcebergCatalogConfig getCatalogConfig();
 
-    private final IcebergCatalogConfig catalog;
-    private final DynamicDestinations dynamicDestinations;
+    abstract @Nullable TableIdentifier getTableIdentifier();
 
-    private WriteRows(IcebergCatalogConfig catalog, DynamicDestinations dynamicDestinations) {
-      this.catalog = catalog;
-      this.dynamicDestinations = dynamicDestinations;
+    abstract @Nullable DynamicDestinations getDynamicDestinations();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setCatalogConfig(IcebergCatalogConfig config);
+
+      abstract Builder setTableIdentifier(TableIdentifier identifier);
+
+      abstract Builder setDynamicDestinations(DynamicDestinations destinations);
+
+      abstract WriteRows build();
+    }
+
+    public WriteRows to(TableIdentifier identifier) {
+      return toBuilder().setTableIdentifier(identifier).build();
+    }
+
+    public WriteRows to(DynamicDestinations destinations) {
+      return toBuilder().setDynamicDestinations(destinations).build();
     }
 
     @Override
     public IcebergWriteResult expand(PCollection<Row> input) {
+      List<?> allToArgs = Arrays.asList(getTableIdentifier(), getDynamicDestinations());
+      Preconditions.checkArgument(
+          1 == allToArgs.stream().filter(Predicates.notNull()).count(),
+          "Must set exactly one of table identifier or dynamic destinations object.");
 
+      DynamicDestinations destinations = getDynamicDestinations();
+      if (destinations == null) {
+        destinations =
+            DynamicDestinations.singleTable(Preconditions.checkNotNull(getTableIdentifier()));
+      }
       return input
-          .apply("Set Destination Metadata", new AssignDestinations(dynamicDestinations))
+          .apply("Set Destination Metadata", new AssignDestinations(destinations))
           .apply(
-              "Write Rows to Destinations", new WriteToDestinations(catalog, dynamicDestinations));
+              "Write Rows to Destinations",
+              new WriteToDestinations(getCatalogConfig(), destinations));
     }
   }
 
-  public static class ReadTable extends PTransform<PBegin, PCollection<Row>> {
+  public static ReadRows readRows(IcebergCatalogConfig catalogConfig) {
+    return new AutoValue_IcebergIO_ReadRows.Builder().setCatalogConfig(catalogConfig).build();
+  }
 
-    private final IcebergCatalogConfig catalogConfig;
-    private final transient @Nullable TableIdentifier tableId;
+  @AutoValue
+  public abstract static class ReadRows extends PTransform<PBegin, PCollection<Row>> {
 
-    private TableIdentifier getTableId() {
-      return checkStateNotNull(
-          tableId, "Transient field tableId null; it should not be accessed after serialization");
+    abstract IcebergCatalogConfig getCatalogConfig();
+
+    abstract @Nullable TableIdentifier getTableIdentifier();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setCatalogConfig(IcebergCatalogConfig config);
+
+      abstract Builder setTableIdentifier(TableIdentifier identifier);
+
+      abstract ReadRows build();
     }
 
-    private ReadTable(IcebergCatalogConfig catalogConfig, TableIdentifier tableId) {
-      this.catalogConfig = catalogConfig;
-      this.tableId = tableId;
+    public ReadRows from(TableIdentifier tableIdentifier) {
+      return toBuilder().setTableIdentifier(tableIdentifier).build();
     }
 
     @Override
     public PCollection<Row> expand(PBegin input) {
+      TableIdentifier tableId =
+          checkStateNotNull(getTableIdentifier(), "Must set a table to read from.");
 
-      Table table = catalogConfig.catalog().loadTable(getTableId());
+      Table table = getCatalogConfig().catalog().loadTable(tableId);
 
       return input.apply(
           Read.from(
               new ScanSource(
                   IcebergScanConfig.builder()
-                      .setCatalogConfig(catalogConfig)
+                      .setCatalogConfig(getCatalogConfig())
                       .setScanType(IcebergScanConfig.ScanType.TABLE)
-                      .setTableIdentifier(getTableId())
+                      .setTableIdentifier(tableId)
                       .setSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(table.schema()))
                       .build())));
     }

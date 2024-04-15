@@ -102,7 +102,7 @@ public class IcebergIOReadTest {
 
     PCollection<Row> output =
         testPipeline
-            .apply(IcebergIO.readTable(catalogConfig, tableId))
+            .apply(IcebergIO.readRows(catalogConfig).from(tableId))
             .apply(ParDo.of(new PrintRow()))
             .setCoder(
                 RowCoder.of(

@@ -82,12 +82,10 @@ public class IcebergIOWriteTest implements Serializable {
             .setWarehouseLocation(warehouse.location)
             .build();
 
-    DynamicDestinations destination = DynamicDestinations.singleTable(tableId);
-
     testPipeline
         .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
         .setRowSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
-        .apply("Append To Table", IcebergIO.writeToDynamicDestinations(catalog, destination));
+        .apply("Append To Table", IcebergIO.writeRows(catalog).to(tableId));
 
     LOG.info("Executing pipeline");
     testPipeline.run().waitUntilFinish();
@@ -118,7 +116,7 @@ public class IcebergIOWriteTest implements Serializable {
             .setWarehouseLocation(warehouse.location)
             .build();
 
-    DynamicDestinations destination =
+    DynamicDestinations dynamicDestinations =
         new DynamicDestinations() {
           private final Schema schema = Schema.builder().addInt64Field("tableNumber").build();
 
@@ -154,7 +152,7 @@ public class IcebergIOWriteTest implements Serializable {
                         TestFixtures.FILE1SNAPSHOT2,
                         TestFixtures.FILE1SNAPSHOT3))))
         .setRowSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
-        .apply("Append To Table", IcebergIO.writeToDynamicDestinations(catalog, destination));
+        .apply("Append To Table", IcebergIO.writeRows(catalog).to(dynamicDestinations));
 
     LOG.info("Executing pipeline");
     testPipeline.run().waitUntilFinish();
@@ -208,7 +206,7 @@ public class IcebergIOWriteTest implements Serializable {
             .setWarehouseLocation(warehouse.location)
             .build();
 
-    DynamicDestinations destination =
+    DynamicDestinations dynamicDestinations =
         new DynamicDestinations() {
           private final Schema schema = Schema.builder().addInt64Field("tableNumber").build();
 
@@ -237,7 +235,7 @@ public class IcebergIOWriteTest implements Serializable {
     testPipeline
         .apply("Records To Add", Create.of(TestFixtures.asRows(elements)))
         .setRowSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
-        .apply("Append To Table", IcebergIO.writeToDynamicDestinations(catalog, destination));
+        .apply("Append To Table", IcebergIO.writeRows(catalog).to(dynamicDestinations));
 
     LOG.info("Executing pipeline");
     testPipeline.run().waitUntilFinish();
