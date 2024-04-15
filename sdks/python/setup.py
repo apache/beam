@@ -406,6 +406,7 @@ if __name__ == '__main__':
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
           'docs': [
+              'jinja2>=3.1,<4.0',
               'Sphinx>=1.5.2,<2.0',
               'docstring-parser>=0.15,<1.0',
               # Pinning docutils as a workaround for Sphinx issue:
