@@ -17,14 +17,19 @@
  */
 package org.apache.beam.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import com.google.auto.value.AutoValue;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -32,14 +37,6 @@ public class IcebergIO {
 
   public static WriteRows writeRows(IcebergCatalogConfig catalog) {
     return new AutoValue_IcebergIO_WriteRows.Builder().setCatalogConfig(catalog).build();
-  }
-
-  public static WriteRows writeToDynamicDestinations(
-      IcebergCatalogConfig catalog, DynamicDestinations dynamicDestinations) {
-    return new AutoValue_IcebergIO_WriteRows.Builder()
-        .setCatalogConfig(catalog)
-        .setDynamicDestinations(dynamicDestinations)
-        .build();
   }
 
   @AutoValue
@@ -89,6 +86,51 @@ public class IcebergIO {
           .apply(
               "Write Rows to Destinations",
               new WriteToDestinations(getCatalogConfig(), destinations));
+    }
+  }
+
+  public static ReadRows readRows(IcebergCatalogConfig catalogConfig) {
+    return new AutoValue_IcebergIO_ReadRows.Builder().setCatalogConfig(catalogConfig).build();
+  }
+
+  @AutoValue
+  public abstract static class ReadRows extends PTransform<PBegin, PCollection<Row>> {
+
+    abstract IcebergCatalogConfig getCatalogConfig();
+
+    abstract @Nullable TableIdentifier getTableIdentifier();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setCatalogConfig(IcebergCatalogConfig config);
+
+      abstract Builder setTableIdentifier(TableIdentifier identifier);
+
+      abstract ReadRows build();
+    }
+
+    public ReadRows from(TableIdentifier tableIdentifier) {
+      return toBuilder().setTableIdentifier(tableIdentifier).build();
+    }
+
+    @Override
+    public PCollection<Row> expand(PBegin input) {
+      TableIdentifier tableId =
+          checkStateNotNull(getTableIdentifier(), "Must set a table to read from.");
+
+      Table table = getCatalogConfig().catalog().loadTable(tableId);
+
+      return input.apply(
+          Read.from(
+              new ScanSource(
+                  IcebergScanConfig.builder()
+                      .setCatalogConfig(getCatalogConfig())
+                      .setScanType(IcebergScanConfig.ScanType.TABLE)
+                      .setTableIdentifier(tableId)
+                      .setSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(table.schema()))
+                      .build())));
     }
   }
 }

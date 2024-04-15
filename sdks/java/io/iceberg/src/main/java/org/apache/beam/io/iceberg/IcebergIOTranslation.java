@@ -17,6 +17,7 @@
  */
 package org.apache.beam.io.iceberg;
 
+import static org.apache.beam.io.iceberg.IcebergIO.ReadRows;
 import static org.apache.beam.io.iceberg.IcebergIO.WriteRows;
 import static org.apache.beam.sdk.util.construction.TransformUpgrader.fromByteArray;
 import static org.apache.beam.sdk.util.construction.TransformUpgrader.toByteArray;
@@ -47,6 +48,86 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({"rawtypes", "nullness"})
 public class IcebergIOTranslation {
+  static class IcebergIOReadTranslator implements TransformPayloadTranslator<ReadRows> {
+
+    static Schema schema =
+        Schema.builder()
+            .addByteArrayField("catalog_config")
+            .addNullableArrayField("table_identifier", FieldType.STRING)
+            .build();
+
+    public static final String ICEBERG_READ_TRANSFORM_URN =
+        "beam:transform:org.apache.beam:iceberg_read:v1";
+
+    @Override
+    public String getUrn() {
+      return ICEBERG_READ_TRANSFORM_URN;
+    }
+
+    @Override
+    public @Nullable FunctionSpec translate(
+        AppliedPTransform<?, ?, ReadRows> application, SdkComponents components)
+        throws IOException {
+      // Setting an empty payload since Iceberg transform payload is not actually used by runners
+      // currently.
+      return FunctionSpec.newBuilder().setUrn(getUrn()).setPayload(ByteString.empty()).build();
+    }
+
+    @Override
+    public Row toConfigRow(ReadRows transform) {
+
+      Map<String, Object> fieldValues = new HashMap<>();
+
+      if (transform.getCatalogConfig() != null) {
+        fieldValues.put("catalog_config", toByteArray(transform.getCatalogConfig()));
+      }
+      if (transform.getTableIdentifier() != null) {
+        TableIdentifier identifier = transform.getTableIdentifier();
+        List<String> identifierParts =
+            Arrays.stream(identifier.namespace().levels()).collect(Collectors.toList());
+        identifierParts.add(identifier.name());
+        fieldValues.put("table_identifier", identifierParts);
+      }
+
+      return Row.withSchema(schema).withFieldValues(fieldValues).build();
+    }
+
+    @Override
+    public ReadRows fromConfigRow(Row configRow, PipelineOptions options) {
+      try {
+        ReadRows.Builder builder = new AutoValue_IcebergIO_ReadRows.Builder();
+
+        byte[] catalogBytes = configRow.getBytes("catalog_config");
+        if (catalogBytes != null) {
+          builder = builder.setCatalogConfig((IcebergCatalogConfig) fromByteArray(catalogBytes));
+        }
+        Collection<String> tableIdentifierParts = configRow.getArray("table_identifier");
+        if (tableIdentifierParts != null) {
+          builder =
+              builder.setTableIdentifier(
+                  TableIdentifier.parse(String.join(".", tableIdentifierParts)));
+        }
+        return builder.build();
+      } catch (InvalidClassException e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
+  @AutoService(TransformPayloadTranslatorRegistrar.class)
+  public static class ReadRegistrar implements TransformPayloadTranslatorRegistrar {
+    @Override
+    @SuppressWarnings({
+      "rawtypes",
+    })
+    public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+        getTransformPayloadTranslators() {
+      return ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder()
+          .put(AutoValue_IcebergIO_ReadRows.class, new IcebergIOReadTranslator())
+          .build();
+    }
+  }
+
   static class IcebergIOWriteTranslator implements TransformPayloadTranslator<WriteRows> {
 
     static Schema schema =
@@ -125,7 +206,6 @@ public class IcebergIOTranslation {
 
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class WriteRegistrar implements TransformPayloadTranslatorRegistrar {
-
     @Override
     @SuppressWarnings({
       "rawtypes",

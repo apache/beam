@@ -35,14 +35,22 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-public class IcebergIoTranslationTest {
-  // A mapping from Read transform builder methods to the corresponding schema fields in
-  // BigQueryIOTranslation.
+public class IcebergIOTranslationTest {
+  // A mapping from WriteRows transform builder methods to the corresponding schema fields in
+  // IcebergIOTranslation.
   static final Map<String, String> WRITE_TRANSFORM_SCHEMA_MAPPING =
       ImmutableMap.<String, String>builder()
           .put("getCatalogConfig", "catalog_config")
           .put("getTableIdentifier", "table_identifier")
           .put("getDynamicDestinations", "dynamic_destinations")
+          .build();
+
+  // A mapping from ReadRows transform builder methods to the corresponding schema fields in
+  // IcebergIOTranslation.
+  static final Map<String, String> READ_TRANSFORM_SCHEMA_MAPPING =
+      ImmutableMap.<String, String>builder()
+          .put("getCatalogConfig", "catalog_config")
+          .put("getTableIdentifier", "table_identifier")
           .build();
 
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
@@ -82,7 +90,6 @@ public class IcebergIoTranslationTest {
 
   @Test
   public void testWriteTransformRowIncludesAllFields() {
-    // These fields do not represent properties of the transform.
     List<String> getMethodNames =
         Arrays.stream(IcebergIO.WriteRows.class.getDeclaredMethods())
             .map(method -> method.getName())
@@ -113,6 +120,73 @@ public class IcebergIoTranslationTest {
                       + " was not found in the transform schema defined in "
                       + "IcebergIOTranslation.IcebergIOWriteTranslator.",
                   IcebergIOTranslation.IcebergIOWriteTranslator.schema
+                      .getFieldNames()
+                      .contains(fieldName));
+            });
+  }
+
+  @Test
+  public void testReCreateReadTransformFromRowTable() {
+    // setting a subset of fields here.
+    IcebergCatalogConfig config =
+        IcebergCatalogConfig.builder()
+            .setName("test_catalog")
+            .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .setWarehouseLocation(warehouse.location)
+            .build();
+    IcebergIO.ReadRows readTransform =
+        IcebergIO.readRows(config).from(TableIdentifier.of("test_namespace", "test_table"));
+
+    IcebergIOTranslation.IcebergIOReadTranslator translator =
+        new IcebergIOTranslation.IcebergIOReadTranslator();
+    Row row = translator.toConfigRow(readTransform);
+
+    IcebergIO.ReadRows readTransformFromRow =
+        translator.fromConfigRow(row, PipelineOptionsFactory.create());
+    assertNotNull(readTransformFromRow.getTableIdentifier());
+    assertEquals(
+        "test_namespace", readTransformFromRow.getTableIdentifier().namespace().levels()[0]);
+    assertEquals("test_table", readTransformFromRow.getTableIdentifier().name());
+    assertEquals("test_catalog", readTransformFromRow.getCatalogConfig().getName());
+    assertEquals(
+        CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP,
+        readTransformFromRow.getCatalogConfig().getIcebergCatalogType());
+    assertEquals(
+        warehouse.location, readTransformFromRow.getCatalogConfig().getWarehouseLocation());
+  }
+
+  @Test
+  public void testReadTransformRowIncludesAllFields() {
+    List<String> getMethodNames =
+        Arrays.stream(IcebergIO.ReadRows.class.getDeclaredMethods())
+            .map(method -> method.getName())
+            .filter(methodName -> methodName.startsWith("get"))
+            .collect(Collectors.toList());
+
+    // Just to make sure that this does not pass trivially.
+    assertTrue(getMethodNames.size() > 0);
+
+    for (String getMethodName : getMethodNames) {
+      assertTrue(
+          "Method "
+              + getMethodName
+              + " will not be tracked when upgrading the 'IcebergIO.ReadRows' transform. Please update"
+              + "'IcebergIOTranslation.IcebergIOReadTranslator' to track the new method "
+              + "and update this test.",
+          READ_TRANSFORM_SCHEMA_MAPPING.keySet().contains(getMethodName));
+    }
+
+    // Confirming that all fields mentioned in `WRITE_TRANSFORM_SCHEMA_MAPPING` are
+    // actually available in the schema.
+    READ_TRANSFORM_SCHEMA_MAPPING.values().stream()
+        .forEach(
+            fieldName -> {
+              assertTrue(
+                  "Field name "
+                      + fieldName
+                      + " was not found in the transform schema defined in "
+                      + "IcebergIOTranslation.IcebergIOReadTranslator.",
+                  IcebergIOTranslation.IcebergIOReadTranslator.schema
                       .getFieldNames()
                       .contains(fieldName));
             });

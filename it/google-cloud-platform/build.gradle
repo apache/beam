@@ -82,7 +82,6 @@ dependencies {
     testRuntimeOnly library.java.slf4j_simple
 }
 
-
 tasks.register(
         "GCSPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'FileBasedIOLT',
         ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
@@ -149,10 +148,10 @@ tasks.register(
         + System.properties
 )
 tasks.register(
-        "PubSubStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'PubSubIOST', 
-        ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']  
+        "PubSubStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'PubSubIOST',
+        ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
         + System.properties)
 tasks.register(
-        "PubSubStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'PubSubIOST', 
-        ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']  
+        "PubSubStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'PubSubIOST',
+        ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
         + System.properties)
