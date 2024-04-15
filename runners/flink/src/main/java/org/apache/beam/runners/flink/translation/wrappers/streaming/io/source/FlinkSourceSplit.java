@@ -18,12 +18,12 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io.source;
 
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.flink.translation.utils.SerdeUtils;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A Flink {@link SourceSplit} implementation that encapsulates a Beam {@link Source}. This class
@@ -37,13 +37,13 @@ public class FlinkSourceSplit<T> implements SourceSplit, Serializable {
   // The index of the split.
   private final int splitIndex;
   private final Source<T> beamSplitSource;
-  private final @Nullable byte[] splitState;
+  private final byte @Nullable [] splitState;
 
   public FlinkSourceSplit(int splitIndex, Source<T> beamSplitSource) {
     this(splitIndex, beamSplitSource, null);
   }
 
-  public FlinkSourceSplit(int splitIndex, Source<T> beamSplitSource, @Nullable byte[] splitState) {
+  public FlinkSourceSplit(int splitIndex, Source<T> beamSplitSource, byte @Nullable [] splitState) {
     this.splitIndex = splitIndex;
     this.beamSplitSource = beamSplitSource;
     this.splitState = splitState;
@@ -53,7 +53,7 @@ public class FlinkSourceSplit<T> implements SourceSplit, Serializable {
     return splitIndex;
   }
 
-  public @Nullable byte[] getSplitState() {
+  public byte @Nullable [] getSplitState() {
     return splitState;
   }
 
