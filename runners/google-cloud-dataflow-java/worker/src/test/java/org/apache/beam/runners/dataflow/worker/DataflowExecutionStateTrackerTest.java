@@ -181,51 +181,20 @@ public class DataflowExecutionStateTrackerTest {
     when(mockThread.getStackTrace()).thenReturn(doFnStackTrace);
     FixedClock clock = new FixedClock(Clock.SYSTEM.currentTimeMillis());
     DataflowExecutionStateTracker tracker = createTracker(clock);
-    // Adding test for the full thread dump, but since we can't mock
-    // Thread.getAllStackTraces(), we are starting a background thread
-    // to verify the full thread dump.
-    Thread backgroundThread =
-        new Thread("backgroundThread") {
-          @Override
-          public void run() {
-            try {
-              Thread.sleep(Long.MAX_VALUE);
-            } catch (InterruptedException e) {
-              // exiting the thread
-            }
-          }
-        };
+    tracker.reportBundleLull(mockThread, 30 * 60 * 1000);
+    verifyLullLog();
 
-    backgroundThread.start();
-    try {
-      // Full thread dump should be performed, because we never performed
-      // a full thread dump before, and the lull duration is more than 20
-      // minutes.
-      tracker.reportBundleLull(mockThread, 30 * 60 * 1000);
-      verifyLullLog();
+    clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(5L).getMillis());
+    tracker.reportBundleLull(mockThread, 30 * 60 * 1000);
+    verifyLullLog();
 
-      // Full thread dump should not be performed because the last dump
-      // was only 5 minutes ago.
-      clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(5L).getMillis());
-      tracker.reportBundleLull(mockThread, 30 * 60 * 1000);
-      verifyLullLog();
+    clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(16L).getMillis());
+    tracker.reportBundleLull(mockThread, 6 * 60 * 1000);
+    verifyLullLog();
 
-      // Full thread dump should not be performed because the lull duration
-      // is only 6 minutes.
-      clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(16L).getMillis());
-      tracker.reportBundleLull(mockThread, 6 * 60 * 1000);
-      verifyLullLog();
-
-      // Full thread dump should be performed, because it has been 21 minutes
-      // since the last dump, and the lull duration is more than 20 minutes.
-      clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(16L).getMillis());
-      tracker.reportBundleLull(mockThread, 30 * 60 * 1000);
-      verifyLullLog();
-    } finally {
-      // Cleaning up the background thread.
-      backgroundThread.interrupt();
-      backgroundThread.join();
-    }
+    clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(16L).getMillis());
+    tracker.reportBundleLull(mockThread, 30 * 60 * 1000);
+    verifyLullLog();
   }
 
   private void verifyLullLog() throws IOException {
