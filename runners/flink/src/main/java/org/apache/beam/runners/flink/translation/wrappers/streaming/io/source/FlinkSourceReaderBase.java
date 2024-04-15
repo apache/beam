@@ -147,7 +147,8 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
     beamSourceReaders.forEach(
         (splitId, readerAndOutput) -> {
           try {
-            splitsState.add(getReaderCheckpoint(splitId, readerAndOutput));
+            FlinkSourceSplit<T> checkpoint = getReaderCheckpoint(splitId, readerAndOutput);
+            splitsState.add(checkpoint);
           } catch (IOException e) {
             throw new IllegalStateException(
                 String.format("Failed to get checkpoint for split %d", splitId), e);
@@ -176,7 +177,8 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
       checkIdleTimeoutAndMaybeStartCountdown();
       return idleTimeoutFuture;
     } else {
-      // There is no live readers, waiting for new split assignments or no more splits notification.
+      // There are no live readers, waiting for new split assignments or no more splits
+      // notification.
       if (waitingForSplitChangeFuture.isDone()) {
         waitingForSplitChangeFuture = new CompletableFuture<>();
       }

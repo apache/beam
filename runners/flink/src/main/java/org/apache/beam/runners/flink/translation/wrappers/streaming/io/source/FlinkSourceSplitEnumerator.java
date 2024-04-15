@@ -76,6 +76,7 @@ public class FlinkSourceSplitEnumerator<T>
     context.callAsync(
         () -> {
           try {
+            LOG.info("Starting source {}", beamSource);
             List<? extends Source<T>> beamSplitSourceList = splitBeamSource();
             Map<Integer, List<FlinkSourceSplit<T>>> flinkSourceSplitsList = new HashMap<>();
             int i = 0;
