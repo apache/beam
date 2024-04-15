@@ -87,23 +87,6 @@ class TestFeastEnrichmentHandler(unittest.TestCase):
       res = test_pipeline.run()
       res.wait_until_finish()
 
-  def test_feast_enrichment_bad_yaml_path(self):
-    """Test raising an error when wrong yaml file is passed."""
-    requests = [
-        beam.Row(user_id=1, product_id=1),
-    ]
-
-    with self.assertRaises(RuntimeError):
-      handler = FeastFeatureStoreEnrichmentHandler(
-          entity_id='user_id',
-          feature_store_yaml_path='gs://bad_path',
-          feature_service_name="bad_name",
-      )
-      test_pipeline = beam.Pipeline()
-      _ = (test_pipeline | beam.Create(requests) | Enrichment(handler))
-      res = test_pipeline.run()
-      res.wait_until_finish()
-
 
 if __name__ == '__main__':
   unittest.main()

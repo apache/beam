@@ -91,6 +91,7 @@ class FeastFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
 
     Args:
       entity_id (str): entity name for the entity associated with the features.
+        The `entity_id` is used to extract the entity value from the input row.
       feature_store_yaml_path (str): The path to a YAML configuration file for
         the Feast feature store.
       feature_names: A list of feature names to be retrieved from the online
