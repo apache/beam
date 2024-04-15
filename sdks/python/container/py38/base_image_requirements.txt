@@ -86,13 +86,9 @@ hdfs==2.7.3
 httplib2==0.22.0
 hypothesis==6.100.1
 idna==3.7
-idna==3.7
-idna==3.7
 iniconfig==2.0.0
 joblib==1.4.0
 Js2Py==0.74
-jsonpickle==3.0.4
-jsonpickle==3.0.4
 jsonpickle==3.0.4
 mmh3==4.1.0
 mock==5.1.0
@@ -116,8 +112,6 @@ pyarrow-hotfix==0.6
 pyasn1==0.6.0
 pyasn1_modules==0.4.0
 pycparser==2.22
-pydantic==2.7.0
-pydantic==2.7.0
 pydantic==2.7.0
 pydantic_core==2.18.1
 pyjsparser==2.7.1
@@ -146,8 +140,6 @@ six==1.16.0
 sortedcontainers==2.4.0
 soupsieve==2.5
 SQLAlchemy==2.0.29
-sqlparse==0.5.0
-sqlparse==0.5.0
 sqlparse==0.5.0
 threadpoolctl==3.4.0
 tomli==2.0.1
