@@ -69,6 +69,8 @@
 
 * Added Feast feature store handler for enrichment transform (Python) ([#30957](https://github.com/apache/beam/issues/30964)).
 * BigQuery per-worker metrics are reported by default for Streaming Dataflow Jobs (Java) ([#31015](https://github.com/apache/beam/pull/31015))
+* Beam YAML now supports the jinja templating syntax.
+  Template variables can be passed with the (json-formatted) `--jinja_variables` flag.
 
 ## Breaking Changes
 

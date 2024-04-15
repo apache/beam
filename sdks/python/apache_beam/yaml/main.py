@@ -51,7 +51,7 @@ def _configure_parser(argv):
       '--jinja_variables',
       default=None,
       type=json.loads,
-      help='A json dict of variables used to invoke the jinja preprocessor '
+      help='A json dict of variables used when invoking the jinja preprocessor '
       'on the provided yaml pipeline.')
   parser.add_argument(
       '--flags_as_jinja_variables',
@@ -102,22 +102,20 @@ def _pipeline_spec_from_args(known_args):
   return pipeline_yaml
 
 
+class _BeamFileIOLoader(jinja2.BaseLoader):
+  def get_source(self, environment, path):
+    with FileSystems.open(path) as fin:
+      source = fin.read().decode()
+    return source, path, lambda: True
+
+
 def run(argv=None):
   known_args, pipeline_args = _configure_parser(argv)
-  pipeline_yaml = _pipeline_spec_from_args(known_args)
-  jinja_variables = _extract_jinja_variables(known_args, pipeline_args)
-  if (known_args.jinja_variables is not None or
-      known_args.flags_as_jinja_variables):
-
-    class FileIOLoader(jinja2.BaseLoader):
-      def get_source(self, environment, path):
-        source = FileSystems.open(path).read().decode()
-        return source, path, lambda: True
-
-    pipeline_yaml = jinja2.Environment(
-        undefined=jinja2.StrictUndefined,
-        loader=FileIOLoader()).from_string(pipeline_yaml).render(
-            **jinja_variables)
+  pipeline_yaml = (  # keep formatting
+      jinja2.Environment(
+          undefined=jinja2.StrictUndefined, loader=_BeamFileIOLoader())
+      .from_string(_pipeline_spec_from_args(known_args))
+      .render(**_extract_jinja_variables(known_args, pipeline_args)))
   pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
 
   with beam.Pipeline(  # linebreak for better yapf formatting
