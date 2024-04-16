@@ -625,12 +625,6 @@ public class CoGbkResult {
     Reiterator<RawUnionValue> tail;
     boolean finished;
 
-    private Counter smallIterablesCount =
-        Metrics.counter(CoGbkResult.class, "cogbk-small-iterables");
-
-    private Counter largeIterablesCount =
-        Metrics.counter(CoGbkResult.class, "cogbk-large-iterables");
-
     public TagIterable(
         List<T> head, int tag, int cacheSize, ObservingReiterator<RawUnionValue> tip) {
       this.tag = tag;
