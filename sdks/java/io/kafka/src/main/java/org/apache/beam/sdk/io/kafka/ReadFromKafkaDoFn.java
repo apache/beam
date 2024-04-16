@@ -191,12 +191,6 @@ abstract class ReadFromKafkaDoFn<K, V>
     this.checkStopReadingFn = transform.getCheckStopReadingFn();
     this.badRecordRouter = transform.getBadRecordRouter();
     this.recordTag = recordTag;
-    if (transform.getConsumerPollingTimeout() != null) {
-      this.consumerPollingTimeout =
-          java.time.Duration.ofMillis(transform.getConsumerPollingTimeout().getMillis());
-    } else {
-      this.consumerPollingTimeout = KAFKA_POLL_TIMEOUT;
-    }
   }
 
   private static final Logger LOG = LoggerFactory.getLogger(ReadFromKafkaDoFn.class);
@@ -223,9 +217,8 @@ abstract class ReadFromKafkaDoFn<K, V>
 
   private transient @Nullable LoadingCache<TopicPartition, AverageRecordSize> avgRecordSize;
 
-  private static final java.time.Duration KAFKA_POLL_TIMEOUT = java.time.Duration.ofSeconds(2);
+  private static final java.time.Duration KAFKA_POLL_TIMEOUT = java.time.Duration.ofSeconds(1);
 
-  @VisibleForTesting final java.time.Duration consumerPollingTimeout;
   @VisibleForTesting final DeserializerProvider<K> keyDeserializerProvider;
   @VisibleForTesting final DeserializerProvider<V> valueDeserializerProvider;
   @VisibleForTesting final Map<String, Object> consumerConfig;
@@ -515,7 +508,7 @@ abstract class ReadFromKafkaDoFn<K, V>
     java.time.Duration elapsed = java.time.Duration.ZERO;
     while (true) {
       final ConsumerRecords<byte[], byte[]> rawRecords =
-          consumer.poll(consumerPollingTimeout.minus(elapsed));
+          consumer.poll(KAFKA_POLL_TIMEOUT.minus(elapsed));
       if (!rawRecords.isEmpty()) {
         // return as we have found some entries
         return rawRecords;
@@ -525,11 +518,8 @@ abstract class ReadFromKafkaDoFn<K, V>
         return rawRecords;
       }
       elapsed = sw.elapsed();
-      if (elapsed.toMillis() >= consumerPollingTimeout.toMillis()) {
+      if (elapsed.toMillis() >= KAFKA_POLL_TIMEOUT.toMillis()) {
         // timeout is over
-        LOG.warn(
-            "No messages retrieved with polling timeout {} seconds. Consider increasing the consumer polling timeout using withConsumerPollingTimeout method.",
-            consumerPollingTimeout.getSeconds());
         return rawRecords;
       }
     }

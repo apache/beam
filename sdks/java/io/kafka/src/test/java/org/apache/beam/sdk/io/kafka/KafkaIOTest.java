@@ -2121,18 +2121,6 @@ public class KafkaIOTest {
     }
   }
 
-  @Test(expected = IllegalStateException.class)
-  public void testWithInvalidConsumerPollingTimeout() {
-    KafkaIO.<Integer, Long>read().withConsumerPollingTimeout(Duration.standardSeconds(-5));
-  }
-
-  @Test
-  public void testWithValidConsumerPollingTimeout() {
-    KafkaIO.Read<Integer, Long> reader =
-        KafkaIO.<Integer, Long>read().withConsumerPollingTimeout(Duration.standardSeconds(15));
-    assertEquals(15, reader.getConsumerPollingTimeout().getStandardSeconds());
-  }
-
   private static void verifyProducerRecords(
       MockProducer<Integer, Long> mockProducer,
       String topic,
