@@ -19,23 +19,11 @@
 
 terraform {
    backend "gcs" {
-    prefix = "beam-utility"
    }
-
-  required_providers {
-    google = {
-      source = "hashicorp/google"
-      version = "~> 5.22.0"
-    }
-  }
 }
 
 provider "helm" {
   kubernetes {
-    host                    = "https://${module.gke.kubernetes_api_endpoint}"
-    token                   = data.google_client_config.provider.access_token
-    cluster_ca_certificate  = base64decode(module.gke.cluster_ca_certificate)
+    config_path = var.kubeconfig_path
   }
 }
-
-data "google_client_config" "provider" {}

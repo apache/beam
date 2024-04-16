@@ -16,14 +16,20 @@
  * limitations under the License.
  */
 
-module "gke" {
-  source = "../google-kubernetes-engine"
-  project    = "apache-beam-testing"
-  network    = "default"
-  subnetwork = "default-f91f013bcf8bd369"
-  region     = "us-central1"
-  cluster_name_prefix = "beam-utility"
-  service_account_id = "beam-github-actions@apache-beam-testing.iam.gserviceaccount.com"
-  cluster_name_override = "beam-utility"
+resource "helm_release" "strimzi-helm-release" {
+  name       = "strimzi"
+  namespace  = "strimzi"
+  create_namespace = true
+  repository = "https://strimzi.io/charts/"
+  chart      = "strimzi-kafka-operator"
+  version = "0.40.0"
+  
+  atomic = "true"
+  timeout = 500
 
+  set {
+    name  = "watchAnyNamespace"
+    value = "true"
+  }
 }
+

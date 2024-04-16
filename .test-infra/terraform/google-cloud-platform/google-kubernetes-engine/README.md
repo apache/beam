@@ -61,9 +61,9 @@ Set the region:
 REGION=us-central1
 ```
 
-Apply the module:
+Apply the module. Make sure you used proper buckets and prefixes with the `backend-confg` for the purpose of managing state:
 ```
-terraform init
+terraform init -backend-config="bucket=somebucket" -backend-config="prefix=clustername"
 terraform apply -var-file=$REGION.apache-beam-testing.tfvars
 ```
 

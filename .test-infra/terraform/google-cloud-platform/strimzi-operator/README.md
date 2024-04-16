@@ -19,25 +19,24 @@
 
 # Overview
 
-This module will provision a utility cluster which is used to run infrastructure needed for tests running in beam CI.
-
-The purpose of this cluster is to run the necessary tooling that the tests in CI require. Right now it will run Kafka clusters but in the future plan is to have hadoop, flink and any other utility that the test might need which was historically the purpose of `datastores-io` cluster. Unlike `datastores-io` this cluster will be managed by code with Terraform.
+This module will provision a strimzi operator that will allow to deploy kafka clusters as defined by the strmizi kafka clustom resource. 
 
 # Deployment
 
 # Step 1. Initialize and apply the terraform module.
 
-Make sure you have set the prefix in terraform block in the provider.tf file. Change it if trying to deploy another cluster.
 
-For initialization make sure you use the `beam-infra-terraform-state`
+For initialization make sure you use the `beam-infra-terraform-state` and `clustername-strimzi` prefix.
 ```
-terraform init -backend-config="bucket=beam-infra-terraform-state"
+terraform init -backend-config="bucket=beam-infra-terraform-state" -backend-config="prefix=cluastername-strimzi"
 ```
 ## Step 2. Plan the module. Make sure that terraform is not replacing or deleting resrouces unless expected:
+Also note that by default it will try to use teh default kubeconfig location `~/.kube/config` unless provided by the `kubeconfig_path` variable
+
 ```
-terraform plan
+terraform plan -var="kubeconfig_path=$KUBECONFIG"
 ```
 ## Step 3. Apply the module.
 ```
-terraform apply
+terraform apply -var="kubeconfig_path=$KUBECONFIG"
 ```

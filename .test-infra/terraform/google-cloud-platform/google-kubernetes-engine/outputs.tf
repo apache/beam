@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-output kubernetes_api_endpoint {
-  value = google_container_cluster.default.endpoint
+output get_kubeconfig_command {
+  value = "gcloud container clusters get-credentials ${google_container_cluster.default.name} --zone=${google_container_cluster.default.location} --project ${var.project}"
 }
 
-output cluster_ca_certificate {
-  value = google_container_cluster.default.master_auth[0].cluster_ca_certificate
-  sensitive = true
-}
