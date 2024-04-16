@@ -19,7 +19,10 @@ package org.apache.beam.io.iceberg;
 
 import static org.apache.beam.io.iceberg.IcebergIOTranslation.IcebergIOReadTranslator.READ_SCHEMA;
 import static org.apache.beam.io.iceberg.IcebergIOTranslation.IcebergIOWriteTranslator.WRITE_SCHEMA;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.List;
