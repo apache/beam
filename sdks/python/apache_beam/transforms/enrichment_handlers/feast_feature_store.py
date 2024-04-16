@@ -47,16 +47,17 @@ def download_fs_yaml_file(gcs_fs_yaml_file: str):
   except Exception:
     raise RuntimeError(
         'error downloading the file %s locally to load the '
-        'Feast feature store.')
+        'Feast feature store.' % gcs_fs_yaml_file)
 
 
 def _validate_feature_names(feature_names, feature_service_name):
-  """Validate either `feature_names` or `feature_service_name` is provided."""
-  if not bool(feature_names or feature_service_name):
+  """Check if one of `feature_names` or `feature_service_name` is provided."""
+  if ((not feature_names and not feature_service_name) or
+      bool(feature_names and feature_service_name)):
     raise ValueError(
         'Please provide either a list of feature names to fetch '
         'from online store or a feature service name for the '
-        'online store!')
+        'Feast online feature store!')
 
 
 def _validate_feature_store_yaml_path_exists(fs_yaml_file):
@@ -71,10 +72,11 @@ class FeastFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
                                                                  beam.Row]):
   """Enrichment handler to interact with the Feast feature store.
 
-  Use this handler with :class:`apache_beam.transforms.enrichment.Enrichment`
-  transform.
+  To specify the features to fetch from Feast online store,
+  please specify exactly one of `feature_names` or `feature_service_name`.
 
-  To filter the features to enrich, use the `join_fn` param in
+  Use this handler with :class:`apache_beam.transforms.enrichment.Enrichment`
+  transform. To filter the features to enrich, use the `join_fn` param in
   :class:`apache_beam.transforms.enrichment.Enrichment`.
   """
   def __init__(
@@ -95,8 +97,7 @@ class FeastFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
       feature_store_yaml_path (str): The path to a YAML configuration file for
         the Feast feature store.
       feature_names: A list of feature names to be retrieved from the online
-        Feast feature store. The `feature_names` will be ignored if
-        `feature_service_name` is also provided.
+        Feast feature store.
       feature_service_name (str): The name of the feature service containing
         the features to fetch from the online Feast feature store.
       full_feature_names (bool): Whether to use full feature names
@@ -116,23 +117,24 @@ class FeastFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
     _validate_feature_names(self.feature_names, self.feature_service_name)
 
   def __enter__(self):
-    """Connect with the Feast Feature Store."""
+    """Connect with the Feast feature store."""
     local_repo_path = download_fs_yaml_file(self.feature_store_yaml_path)
     try:
       self.store = FeatureStore(fs_yaml_file=local_repo_path)
     except Exception:
       raise RuntimeError(
           'Invalid feature store yaml file provided. Make sure '
-          'the `feature_store_yaml_path` contains the valid '
-          'configuration for Feast feature store.')
+          'the %s contains the valid configuration for Feast feature store.' %
+          self.feature_store_yaml_path)
     if self.feature_service_name:
       try:
         self.features = self.store.get_feature_service(
             self.feature_service_name)
       except Exception:
         raise RuntimeError(
-            'Could find the feature service %s for the feature '
-            'store configured in `feature_store_yaml_path`.')
+            'Could not find the feature service %s for the feature '
+            'store configured in %s.' %
+            (self.feature_service_name, self.feature_store_yaml_path))
     else:
       self.features = self.feature_names
 
