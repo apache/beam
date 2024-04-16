@@ -105,6 +105,9 @@ public class DataflowExecutionStateSamplerTest {
     assertThat(sampler.getActiveMessageMetadataForWorkId(workId).get(), equalTo(testMetadata));
     assertThat(
         sampler.getProcessingDistributionsForWorkId(workId), equalTo(testCompletedProcessingTimes));
+    // Repeated calls should not modify the result.
+    assertThat(
+        sampler.getProcessingDistributionsForWorkId(workId), equalTo(testCompletedProcessingTimes));
   }
 
   @Test
