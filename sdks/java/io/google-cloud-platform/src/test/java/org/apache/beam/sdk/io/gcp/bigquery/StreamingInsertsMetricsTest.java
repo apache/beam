@@ -134,7 +134,7 @@ public class StreamingInsertsMetricsTest {
     // Validate RPC latency metric.
     MetricName histogramName =
         MetricName.named("BigQuerySink", "RpcLatency*rpc_method:STREAMING_INSERTS;");
-    HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 34);
+    HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(0, 17);
     testContainer.assertPerWorkerHistogramValues(histogramName, bucketType, 10.0, 20.0, 30.0, 40.0);
 
     // Validate RPC Status metric.
