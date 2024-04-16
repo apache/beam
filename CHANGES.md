@@ -69,6 +69,7 @@
 ## New Features / Improvements
 
 * Added Feast feature store handler for enrichment transform (Python) ([#30957](https://github.com/apache/beam/issues/30964)).
+* Bigtable enrichment handler now accepts a custom function to build a composite row key. (Python) ([#30974](https://github.com/apache/beam/issues/30975)).
 
 ## Breaking Changes
 
