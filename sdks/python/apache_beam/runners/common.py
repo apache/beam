@@ -761,10 +761,6 @@ class PerWindowInvoker(DoFnInvoker):
       self.current_window_index = None
       self.stop_window_index = None
 
-    # Flag to cache additional arguments on the first element if all
-    # inputs are within the global window.
-    self.cache_globally_windowed_args = not self.has_windowed_inputs
-
     # Try to prepare all the arguments that can just be filled in
     # without any additional work. in the process function.
     # Also cache all the placeholders needed in the process function.
@@ -925,31 +921,16 @@ class PerWindowInvoker(DoFnInvoker):
                                  additional_kwargs,
                                 ):
     # type: (...) -> Optional[SplitResultResidual]
-
     if self.has_windowed_inputs:
       assert len(windowed_value.windows) <= 1
       window, = windowed_value.windows
-      side_inputs = [si[window] for si in self.side_inputs]
-      side_inputs.extend(additional_args)
-      args_for_process, kwargs_for_process = util.insert_values_in_args(
-          self.args_for_process, self.kwargs_for_process,
-          side_inputs)
-    elif self.cache_globally_windowed_args:
-      # Attempt to cache additional args if all inputs are globally
-      # windowed inputs when processing the first element.
-      self.cache_globally_windowed_args = False
-
-      # Fill in sideInputs if they are globally windowed
-      global_window = GlobalWindow()
-      self.args_for_process, self.kwargs_for_process = (
-          util.insert_values_in_args(
-              self.args_for_process, self.kwargs_for_process,
-              [si[global_window] for si in self.side_inputs]))
-      args_for_process, kwargs_for_process = (
-          self.args_for_process, self.kwargs_for_process)
     else:
-      args_for_process, kwargs_for_process = (
-          self.args_for_process, self.kwargs_for_process)
+      window = GlobalWindow()
+    side_inputs = [si[window] for si in self.side_inputs]
+    side_inputs.extend(additional_args)
+    args_for_process, kwargs_for_process = util.insert_values_in_args(
+        self.args_for_process, self.kwargs_for_process,
+        side_inputs)
 
     # Extract key in the case of a stateful DoFn. Note that in the case of a
     # stateful DoFn, we set during __init__ self.has_windowed_inputs to be
@@ -1034,39 +1015,25 @@ class PerWindowInvoker(DoFnInvoker):
     if self.has_windowed_inputs:
       assert isinstance(windowed_batch, HomogeneousWindowedBatch)
       assert len(windowed_batch.windows) <= 1
-
       window, = windowed_batch.windows
-      side_inputs = [si[window] for si in self.side_inputs]
-      side_inputs.extend(additional_args)
-      (args_for_process_batch,
-       kwargs_for_process_batch) = util.insert_values_in_args(
-           self.args_for_process_batch,
-           self.kwargs_for_process_batch,
-           side_inputs)
-    elif self.cache_globally_windowed_args:
-      # Attempt to cache additional args if all inputs are globally
-      # windowed inputs when processing the first element.
-      self.cache_globally_windowed_args = False
-
-      # Fill in sideInputs if they are globally windowed
-      global_window = GlobalWindow()
-      self.args_for_process_batch, self.kwargs_for_process_batch = (
-          util.insert_values_in_args(
-              self.args_for_process_batch, self.kwargs_for_process_batch,
-              [si[global_window] for si in self.side_inputs]))
-      args_for_process_batch, kwargs_for_process_batch = (
-          self.args_for_process_batch, self.kwargs_for_process_batch)
     else:
-      args_for_process_batch, kwargs_for_process_batch = (
-          self.args_for_process_batch, self.kwargs_for_process_batch)
+      window = GlobalWindow()
+    side_inputs = [si[window] for si in self.side_inputs]
+    side_inputs.extend(additional_args)
+    (args_for_process_batch, kwargs_for_process_batch) = (
+        util.insert_values_in_args(
+            self.args_for_process_batch,
+            self.kwargs_for_process_batch,
+            side_inputs,
+        ))
 
     for i, p in self.placeholders_for_process_batch:
       if core.DoFn.ElementParam == p:
         args_for_process_batch[i] = windowed_batch.values
       elif core.DoFn.KeyParam == p:
         raise NotImplementedError(
-            "https://github.com/apache/beam/issues/21653: "
-            "Per-key process_batch")
+            'https://github.com/apache/beam/issues/21653: Per-key process_batch'
+        )
       elif core.DoFn.WindowParam == p:
         args_for_process_batch[i] = window
       elif core.DoFn.TimestampParam == p:
@@ -1084,6 +1051,9 @@ class PerWindowInvoker(DoFnInvoker):
             "Per-key process_batch")
 
     kwargs_for_process_batch = kwargs_for_process_batch or {}
+
+    if additional_kwargs:
+      kwargs_for_process_batch.update(additional_kwargs)
 
     self.output_handler.handle_process_batch_outputs(
         windowed_batch,

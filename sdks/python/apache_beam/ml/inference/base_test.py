@@ -506,6 +506,14 @@ class RunInferenceBaseTest(unittest.TestCase):
           FakeModelHandler().with_preprocess_fn(mult_two))
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
+  def test_run_inference_prebatched(self):
+    with TestPipeline() as pipeline:
+      examples = [[1, 5], [3, 10]]
+      expected = [int(example) + 1 for batch in examples for example in batch]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(FakeModelHandler().with_no_batching())
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
   def test_run_inference_preprocessing_multiple_fns(self):
     def add_one(example: str) -> int:
       return int(example) + 1

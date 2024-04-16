@@ -16,7 +16,14 @@ limitations under the License.
 -->
 # ApproximateUnique
 
+{{< localstorage language language-py >}}
+
+{{< button-pydoc path="apache_beam.transforms.stat" class="ApproximateUnique" >}}
+
 ## Examples
-See [Issue 19547](https://github.com/apache/beam/issues/19547) for updates.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_ApproximateUnique" show="approximateunique" >}}
+{{< /playground >}}
 
 ## Related transforms
