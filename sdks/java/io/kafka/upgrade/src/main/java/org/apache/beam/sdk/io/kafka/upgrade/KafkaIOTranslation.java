@@ -40,6 +40,7 @@ import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecords;
 import org.apache.beam.sdk.io.kafka.KafkaIOUtils;
 import org.apache.beam.sdk.io.kafka.TimestampPolicyFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -51,6 +52,7 @@ import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.sdk.util.construction.TransformUpgrader;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -221,6 +223,13 @@ public class KafkaIOTranslation {
 
     @Override
     public Read<?, ?> fromConfigRow(Row configRow, PipelineOptions options) {
+      String updateCompatibilityBeamVersion =
+          options.as(StreamingOptions.class).getUpdateCompatibilityVersion();
+      // We need to set a default 'updateCompatibilityBeamVersion' here since this PipelineOption
+      // is not correctly passed in for pipelines that use Beam 2.55.0.
+      // This is fixed for Beam 2.56.0 and later.
+      updateCompatibilityBeamVersion =
+          (updateCompatibilityBeamVersion != null) ? updateCompatibilityBeamVersion : "2.55.0";
       try {
         Read<?, ?> transform = KafkaIO.read();
 
@@ -325,8 +334,9 @@ public class KafkaIOTranslation {
               transform.withMaxReadTime(org.joda.time.Duration.millis(maxReadTime.toMillis()));
         }
         if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.56.0") < 0) {
+          // set to current default
           transform =
-              transform.withConsumerPollingTimeout(Duration.standardSeconds(2L)); // Current default.
+              transform.withConsumerPollingTimeout(org.joda.time.Duration.standardSeconds(2L));
         } else {
           Duration consumerPollingTimeout = configRow.getValue("consumer_polling_timeout");
           if (consumerPollingTimeout != null) {
