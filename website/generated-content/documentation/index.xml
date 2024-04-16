@@ -4292,8 +4292,43 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="approximatequantiles">ApproximateQuantiles&lt;/h1>
+&lt;script type="text/javascript">
+localStorage.setItem("language", "language-py")
+&lt;/script>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.stat.html#apache_beam.transforms.stat.ApproximateQuantile"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
 &lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>See &lt;a href="https://github.com/apache/beam/issues/19547">Issue 19547&lt;/a> for updates.&lt;/p>
+&lt;div class="playground-wrapper">
+&lt;div class="playground-snippets">
+&lt;div
+class="language-py playground-snippet"
+data-sdk="python"
+data-path="SDK_PYTHON_ApproximateQuantiles"
+data-show="approximatequantiles"
+>&lt;/div>
+&lt;/div>
+&lt;div
+class="code-snippet code-snippet-playground"
+data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_ApproximateQuantiles%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22approximatequantiles%22%7d%5d"
+data-width="100%"
+data-height="700px"
+>&lt;/div>
+&lt;/div>
 &lt;h2 id="related-transforms">Related transforms&lt;/h2></description></item><item><title>Documentation: ApproximateUnique</title><link>/documentation/transforms/java/aggregation/approximateunique/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/approximateunique/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -4341,8 +4376,43 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="approximateunique">ApproximateUnique&lt;/h1>
+&lt;script type="text/javascript">
+localStorage.setItem("language", "language-py")
+&lt;/script>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.stat.html#apache_beam.transforms.stat.ApproximateUnique"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
 &lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>See &lt;a href="https://github.com/apache/beam/issues/19547">Issue 19547&lt;/a> for updates.&lt;/p>
+&lt;div class="playground-wrapper">
+&lt;div class="playground-snippets">
+&lt;div
+class="language-py playground-snippet"
+data-sdk="python"
+data-path="SDK_PYTHON_ApproximateUnique"
+data-show="approximateunique"
+>&lt;/div>
+&lt;/div>
+&lt;div
+class="code-snippet code-snippet-playground"
+data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_ApproximateUnique%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22approximateunique%22%7d%5d"
+data-width="100%"
+data-height="700px"
+>&lt;/div>
+&lt;/div>
 &lt;h2 id="related-transforms">Related transforms&lt;/h2></description></item><item><title>Documentation: Auto Update ML models using WatchFilePattern</title><link>/documentation/ml/side-input-updates/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/ml/side-input-updates/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -4977,7 +5047,109 @@ directory and give it additional resources.&lt;/p>
 &lt;h2 id="whats-next">What&amp;rsquo;s next&lt;/h2>
 &lt;p>Take a look at our &lt;a href="/documentation/">other documentation&lt;/a> such as the Beam
 programming guide, pipeline execution information, and transform reference
-catalogs.&lt;/p></description></item><item><title>Documentation: Beam glossary</title><link>/documentation/glossary/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/glossary/</guid><description>
+catalogs.&lt;/p></description></item><item><title>Documentation: BatchElements</title><link>/documentation/transforms/python/aggregation/batchelements/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/aggregation/batchelements/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="batchelements">BatchElements&lt;/h1>
+&lt;script type="text/javascript">
+localStorage.setItem("language", "language-py")
+&lt;/script>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.stat.html#apache_beam.transforms.stat.BatchElements"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;h2 id="examples">Examples&lt;/h2>
+&lt;div class="playground-wrapper">
+&lt;div class="playground-snippets">
+&lt;div
+class="language-py playground-snippet"
+data-sdk="python"
+data-path="SDK_PYTHON_BatchElements"
+data-show="batchelements"
+>&lt;/div>
+&lt;/div>
+&lt;div
+class="code-snippet code-snippet-playground"
+data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_BatchElements%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22batchelements%22%7d%5d"
+data-width="100%"
+data-height="700px"
+>&lt;/div>
+&lt;/div>
+&lt;h2 id="related-transforms">Related transforms&lt;/h2>
+&lt;ul>
+&lt;li>&lt;a href="/documentation/transforms/python/aggregation/groupintobatches">GroupIntoBatches&lt;/a> batches elements by key&lt;/li>
+&lt;/ul></description></item><item><title>Documentation: BatchElements</title><link>/documentation/transforms/python/aggregation/tolist/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/aggregation/tolist/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="batchelements">BatchElements&lt;/h1>
+&lt;script type="text/javascript">
+localStorage.setItem("language", "language-py")
+&lt;/script>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.combiners.html#apache_beam.transforms.combiners.ToList"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;h2 id="examples">Examples&lt;/h2>
+&lt;div class="playground-wrapper">
+&lt;div class="playground-snippets">
+&lt;div
+class="language-py playground-snippet"
+data-sdk="python"
+data-path="SDK_PYTHON_ToList"
+data-show="tolist"
+>&lt;/div>
+&lt;/div>
+&lt;div
+class="code-snippet code-snippet-playground"
+data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_ToList%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22tolist%22%7d%5d"
+data-width="100%"
+data-height="700px"
+>&lt;/div>
+&lt;/div></description></item><item><title>Documentation: Beam glossary</title><link>/documentation/glossary/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/glossary/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19947,453 +20119,4 @@ data-height="700px"
 each input it might produce zero or more outputs.&lt;/li>
 &lt;li>&lt;a href="/documentation/transforms/java/elementwise/pardo">ParDo&lt;/a> is the most general element-wise mapping
 operation, and includes other abilities such as multiple output collections and side-inputs.&lt;/li>
-&lt;/ul></description></item><item><title>Documentation: Filter</title><link>/documentation/transforms/python/elementwise/filter/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/elementwise/filter/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="filter">Filter&lt;/h1>
-&lt;script type="text/javascript">
-localStorage.setItem("language", "language-py")
-&lt;/script>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
-&lt;p>Given a predicate, filter out all elements that don&amp;rsquo;t satisfy that predicate.
-May also be used to filter based on an inequality with a given value based
-on the comparison ordering of the element.&lt;/p>
-&lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>In the following examples, we create a pipeline with a &lt;code>PCollection&lt;/code> of produce with their icon, name, and duration.
-Then, we apply &lt;code>Filter&lt;/code> in multiple ways to filter out produce by their duration value.&lt;/p>
-&lt;p>&lt;code>Filter&lt;/code> accepts a function that keeps elements that return &lt;code>True&lt;/code>, and filters out the remaining elements.&lt;/p>
-&lt;h3 id="example-1-filtering-with-a-function">Example 1: Filtering with a function&lt;/h3>
-&lt;p>We define a function &lt;code>is_perennial&lt;/code> which returns &lt;code>True&lt;/code> if the element&amp;rsquo;s duration equals &lt;code>'perennial'&lt;/code>, and &lt;code>False&lt;/code> otherwise.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FilterFunction"
-data-show="filter_function"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FilterFunction%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22filter_function%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h3 id="example-2-filtering-with-a-lambda-function">Example 2: Filtering with a lambda function&lt;/h3>
-&lt;p>We can also use lambda functions to simplify &lt;strong>Example 1&lt;/strong>.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FilterLambda"
-data-show="filter_lambda"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FilterLambda%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22filter_lambda%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h3 id="example-3-filtering-with-multiple-arguments">Example 3: Filtering with multiple arguments&lt;/h3>
-&lt;p>You can pass functions with multiple arguments to &lt;code>Filter&lt;/code>.
-They are passed as additional positional arguments or keyword arguments to the function.&lt;/p>
-&lt;p>In this example, &lt;code>has_duration&lt;/code> takes &lt;code>plant&lt;/code> and &lt;code>duration&lt;/code> as arguments.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FilterMultipleArguments"
-data-show="filter_multiple_arguments"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FilterMultipleArguments%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22filter_multiple_arguments%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h3 id="example-4-filtering-with-side-inputs-as-singletons">Example 4: Filtering with side inputs as singletons&lt;/h3>
-&lt;p>If the &lt;code>PCollection&lt;/code> has a single value, such as the average from another computation,
-passing the &lt;code>PCollection&lt;/code> as a &lt;em>singleton&lt;/em> accesses that value.&lt;/p>
-&lt;p>In this example, we pass a &lt;code>PCollection&lt;/code> the value &lt;code>'perennial'&lt;/code> as a singleton.
-We then use that value to filter out perennials.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FilterSideInputsSingleton"
-data-show="filter_side_inputs_singleton"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FilterSideInputsSingleton%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22filter_side_inputs_singleton%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h3 id="example-5-filtering-with-side-inputs-as-iterators">Example 5: Filtering with side inputs as iterators&lt;/h3>
-&lt;p>If the &lt;code>PCollection&lt;/code> has multiple values, pass the &lt;code>PCollection&lt;/code> as an &lt;em>iterator&lt;/em>.
-This accesses elements lazily as they are needed,
-so it is possible to iterate over large &lt;code>PCollection&lt;/code>s that won&amp;rsquo;t fit into memory.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FilterSideInputsIter"
-data-show="filter_side_inputs_iter"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FilterSideInputsIter%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22filter_side_inputs_iter%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;blockquote>
-&lt;p>&lt;strong>Note&lt;/strong>: You can pass the &lt;code>PCollection&lt;/code> as a &lt;em>list&lt;/em> with &lt;code>beam.pvalue.AsList(pcollection)&lt;/code>,
-but this requires that all the elements fit into memory.&lt;/p>
-&lt;/blockquote>
-&lt;h3 id="example-6-filtering-with-side-inputs-as-dictionaries">Example 6: Filtering with side inputs as dictionaries&lt;/h3>
-&lt;p>If a &lt;code>PCollection&lt;/code> is small enough to fit into memory, then that &lt;code>PCollection&lt;/code> can be passed as a &lt;em>dictionary&lt;/em>.
-Each element must be a &lt;code>(key, value)&lt;/code> pair.
-Note that all the elements of the &lt;code>PCollection&lt;/code> must fit into memory for this.
-If the &lt;code>PCollection&lt;/code> won&amp;rsquo;t fit into memory, use &lt;code>beam.pvalue.AsIter(pcollection)&lt;/code> instead.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FilterSideInputsDict"
-data-show="filter_side_inputs_dict"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FilterSideInputsDict%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22filter_side_inputs_dict%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="/documentation/transforms/python/elementwise/flatmap">FlatMap&lt;/a> behaves the same as &lt;code>Map&lt;/code>, but for
-each input it might produce zero or more outputs.&lt;/li>
-&lt;li>&lt;a href="/documentation/transforms/python/elementwise/pardo">ParDo&lt;/a> is the most general elementwise mapping
-operation, and includes other abilities such as multiple output collections and side-inputs.&lt;/li>
-&lt;/ul>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item><item><title>Documentation: FlatMap</title><link>/documentation/transforms/python/elementwise/flatmap/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/elementwise/flatmap/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="flatmap">FlatMap&lt;/h1>
-&lt;script type="text/javascript">
-localStorage.setItem("language", "language-py")
-&lt;/script>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.FlatMap"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
-&lt;p>Applies a simple 1-to-many mapping function over each element in the collection.
-The many elements are flattened into the resulting collection.&lt;/p>
-&lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>In the following examples, we create a pipeline with a &lt;code>PCollection&lt;/code> of produce with their icon, name, and duration.
-Then, we apply &lt;code>FlatMap&lt;/code> in multiple ways to yield zero or more elements per each input element into the resulting &lt;code>PCollection&lt;/code>.&lt;/p>
-&lt;p>&lt;code>FlatMap&lt;/code> accepts a function that returns an &lt;code>iterable&lt;/code>,
-where each of the output &lt;code>iterable&lt;/code>&amp;rsquo;s elements is an element of the resulting &lt;code>PCollection&lt;/code>.&lt;/p>
-&lt;h3 id="example-1-flatmap-with-a-predefined-function">Example 1: FlatMap with a predefined function&lt;/h3>
-&lt;p>We use the function &lt;code>str.split&lt;/code> which takes a single &lt;code>str&lt;/code> element and outputs a &lt;code>list&lt;/code> of &lt;code>str&lt;/code>s.
-This pipeline splits the input element using whitespaces, creating a list of zero or more elements.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FlatMapSimple"
-data-show="flatmap_simple"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FlatMapSimple%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22flatmap_simple%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h3 id="example-2-flatmap-with-a-function">Example 2: FlatMap with a function&lt;/h3>
-&lt;p>We define a function &lt;code>split_words&lt;/code> which splits an input &lt;code>str&lt;/code> element using the delimiter &lt;code>','&lt;/code> and outputs a &lt;code>list&lt;/code> of &lt;code>str&lt;/code>s.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FlatMapFunction"
-data-show="flatmap_function"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FlatMapFunction%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22flatmap_function%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h3 id="example-3-flatmap-without-a-function">Example 3: FlatMap without a function&lt;/h3>
-&lt;p>A common use case of &lt;code>FlatMap&lt;/code> is to flatten a &lt;code>PCollection&lt;/code> of iterables into a &lt;code>PCollection&lt;/code> of elements. To do that, don&amp;rsquo;t specify the function argument to &lt;code>FlatMap&lt;/code>, which uses the identity mapping function.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FlatMapNoFunction"
-data-show="flatmap_no_function"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FlatMapNoFunction%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22flatmap_no_function%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h3 id="example-4-flatmap-with-a-lambda-function">Example 4: FlatMap with a lambda function&lt;/h3>
-&lt;p>For this example, we want to flatten a &lt;code>PCollection&lt;/code> of lists of &lt;code>str&lt;/code>s into a &lt;code>PCollection&lt;/code> of &lt;code>str&lt;/code>s.
-Each input element is already an &lt;code>iterable&lt;/code>, where each element is what we want in the resulting &lt;code>PCollection&lt;/code>.
-We use a lambda function that returns the same input element it received.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FlatMapLambda"
-data-show="flatmap_lambda"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FlatMapLambda%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22flatmap_lambda%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h3 id="example-5-flatmap-with-a-generator">Example 5: FlatMap with a generator&lt;/h3>
-&lt;p>For this example, we want to flatten a &lt;code>PCollection&lt;/code> of lists of &lt;code>str&lt;/code>s into a &lt;code>PCollection&lt;/code> of &lt;code>str&lt;/code>s.
-We use a generator to iterate over the input list and yield each of the elements.
-Each yielded result in the generator is an element in the resulting &lt;code>PCollection&lt;/code>.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FlatMapGenerator"
-data-show="flatmap_generator"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FlatMapGenerator%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22flatmap_generator%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h3 id="example-6-flatmaptuple-for-key-value-pairs">Example 6: FlatMapTuple for key-value pairs&lt;/h3>
-&lt;p>If your &lt;code>PCollection&lt;/code> consists of &lt;code>(key, value)&lt;/code> pairs,
-you can use &lt;code>FlatMapTuple&lt;/code> to unpack them into different function arguments.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FlatMapTuple"
-data-show="flatmap_tuple"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FlatMapTuple%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22flatmap_tuple%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h3 id="example-7-flatmap-with-multiple-arguments">Example 7: FlatMap with multiple arguments&lt;/h3>
-&lt;p>You can pass functions with multiple arguments to &lt;code>FlatMap&lt;/code>.
-They are passed as additional positional arguments or keyword arguments to the function.&lt;/p>
-&lt;p>In this example, &lt;code>split_words&lt;/code> takes &lt;code>text&lt;/code> and &lt;code>delimiter&lt;/code> as arguments.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FlatMapMultipleArguments"
-data-show="flatmap_multiple_arguments"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FlatMapMultipleArguments%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22flatmap_multiple_arguments%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h3 id="example-8-flatmap-with-side-inputs-as-singletons">Example 8: FlatMap with side inputs as singletons&lt;/h3>
-&lt;p>If the &lt;code>PCollection&lt;/code> has a single value, such as the average from another computation,
-passing the &lt;code>PCollection&lt;/code> as a &lt;em>singleton&lt;/em> accesses that value.&lt;/p>
-&lt;p>In this example, we pass a &lt;code>PCollection&lt;/code> the value &lt;code>','&lt;/code> as a singleton.
-We then use that value as the delimiter for the &lt;code>str.split&lt;/code> method.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FlatMapSideInputSingleton"
-data-show="flatmap_side_inputs_singleton"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FlatMapSideInputSingleton%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22flatmap_side_inputs_singleton%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h3 id="example-9-flatmap-with-side-inputs-as-iterators">Example 9: FlatMap with side inputs as iterators&lt;/h3>
-&lt;p>If the &lt;code>PCollection&lt;/code> has multiple values, pass the &lt;code>PCollection&lt;/code> as an &lt;em>iterator&lt;/em>.
-This accesses elements lazily as they are needed,
-so it is possible to iterate over large &lt;code>PCollection&lt;/code>s that won&amp;rsquo;t fit into memory.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FlatMapSideInputsIter"
-data-show="flatmap_side_inputs_iter"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FlatMapSideInputsIter%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22flatmap_side_inputs_iter%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;blockquote>
-&lt;p>&lt;strong>Note&lt;/strong>: You can pass the &lt;code>PCollection&lt;/code> as a &lt;em>list&lt;/em> with &lt;code>beam.pvalue.AsList(pcollection)&lt;/code>,
-but this requires that all the elements fit into memory.&lt;/p>
-&lt;/blockquote>
-&lt;h3 id="example-10-flatmap-with-side-inputs-as-dictionaries">Example 10: FlatMap with side inputs as dictionaries&lt;/h3>
-&lt;p>If a &lt;code>PCollection&lt;/code> is small enough to fit into memory, then that &lt;code>PCollection&lt;/code> can be passed as a &lt;em>dictionary&lt;/em>.
-Each element must be a &lt;code>(key, value)&lt;/code> pair.
-Note that all the elements of the &lt;code>PCollection&lt;/code> must fit into memory for this.
-If the &lt;code>PCollection&lt;/code> won&amp;rsquo;t fit into memory, use &lt;code>beam.pvalue.AsIter(pcollection)&lt;/code> instead.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FlatMapSideInputsDict"
-data-show="flatmap_side_inputs_dict"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FlatMapSideInputsDict%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22flatmap_side_inputs_dict%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="/documentation/transforms/python/elementwise/filter">Filter&lt;/a> is useful if the function is just
-deciding whether to output an element or not.&lt;/li>
-&lt;li>&lt;a href="/documentation/transforms/python/elementwise/pardo">ParDo&lt;/a> is the most general elementwise mapping
-operation, and includes other abilities such as multiple output collections and side-inputs.&lt;/li>
-&lt;li>&lt;a href="/documentation/transforms/python/elementwise/map">Map&lt;/a> behaves the same, but produces exactly one output for each input.&lt;/li>
-&lt;/ul>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.FlatMap"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item></channel></rss>
+&lt;/ul></description></item></channel></rss>
