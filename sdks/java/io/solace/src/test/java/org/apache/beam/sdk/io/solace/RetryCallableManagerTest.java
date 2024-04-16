@@ -1,0 +1,175 @@
+/*
+ * Copyright 2024 Google.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.io.solace.io.solace;
+
+import static org.junit.Assert.assertTrue;
+
+import com.google.api.gax.retrying.RetrySettings;
+import com.google.cloud.RetryHelper.RetryHelperException;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.beam.sdk.io.solace.RetryCallableManager;
+import org.junit.Before;
+import org.junit.Test;
+
+public class RetryCallableManagerTest {
+
+    private RetryCallableManager retryCallableManager;
+
+    @Before
+    public void setUp() throws Exception {
+        int NUMBER_OF_RETRIES = 4;
+        int RETRY_INTERVAL_SECONDS = 0;
+        int RETRY_MULTIPLIER = 2;
+        int MAX_DELAY = 0;
+
+        retryCallableManager =
+                RetryCallableManager.builder()
+                        .setRetrySettings(
+                                RetrySettings.newBuilder()
+                                        .setInitialRetryDelay(
+                                                org.threeten.bp.Duration.ofSeconds(
+                                                        RETRY_INTERVAL_SECONDS))
+                                        .setMaxAttempts(NUMBER_OF_RETRIES)
+                                        .setMaxRetryDelay(
+                                                org.threeten.bp.Duration.ofSeconds(MAX_DELAY))
+                                        .setRetryDelayMultiplier(RETRY_MULTIPLIER)
+                                        .build())
+                        .build();
+    }
+
+    @Test
+    public void testRetryCallable_ReturnsExpected() {
+        AtomicInteger executeCounter = new AtomicInteger(0);
+        Callable<Integer> incrementingFunction =
+                () -> {
+                    executeCounter.incrementAndGet();
+                    if (executeCounter.get() < 2) {
+                        throw new MyException();
+                    }
+                    return executeCounter.get();
+                };
+        Integer result =
+                retryCallableManager.retryCallable(incrementingFunction, Set.of(MyException.class));
+        assertTrue(String.format("Should return 2, instead returned %d.", result), result == 2);
+    }
+
+    @Test
+    public void testRetryCallable_RetriesExpectedNumberOfTimes() {
+        AtomicInteger executeCounter = new AtomicInteger(0);
+        Callable<Integer> incrementingFunction =
+                () -> {
+                    executeCounter.incrementAndGet();
+                    if (executeCounter.get() < 2) {
+                        throw new MyException();
+                    }
+                    return executeCounter.get();
+                };
+        retryCallableManager.retryCallable(incrementingFunction, Set.of(MyException.class));
+        assertTrue(
+                String.format("Should run 2 times, instead ran %d times.", executeCounter.get()),
+                executeCounter.get() == 2);
+    }
+
+    @Test(expected = RetryHelperException.class)
+    public void testRetryCallable_ThrowsRetryHelperException() {
+        Callable<Integer> incrementingFunction =
+                () -> {
+                    {
+                        throw new MyException();
+                    }
+                };
+        retryCallableManager.retryCallable(incrementingFunction, Set.of(MyException.class));
+    }
+
+    @Test
+    public void testRetryCallable_ExecutionCountIsCorrectAfterMultipleExceptions() {
+        AtomicInteger executeCounter = new AtomicInteger(0);
+        Callable<Integer> incrementingFunction =
+                () -> {
+                    executeCounter.incrementAndGet();
+                    if (true) {
+                        throw new MyException();
+                    }
+                    return 0;
+                };
+        try {
+            retryCallableManager.retryCallable(incrementingFunction, Set.of(MyException.class));
+        } catch (RetryHelperException e) {
+            // ignore exception to check the executeCounter
+        }
+        assertTrue(
+                String.format(
+                        "Should execute 4 times, instead executed %d times", executeCounter.get()),
+                executeCounter.get() == 4);
+    }
+
+    @Test(expected = RetryHelperException.class)
+    public void testRetryCallable_ThrowsRetryHelperExceptionOnUnspecifiedException() {
+        Callable<Integer> incrementingFunction =
+                () -> {
+                    if (true) {
+                        throw new DoNotIgnoreException();
+                    }
+                    return 0;
+                };
+        retryCallableManager.retryCallable(incrementingFunction, Set.of(MyException.class));
+    }
+
+    @Test
+    public void testRetryCallable_ChecksForAllDefinedExceptions() {
+        AtomicInteger executeCounter = new AtomicInteger(0);
+        Callable<Integer> incrementingFunction =
+                () -> {
+                    executeCounter.incrementAndGet();
+                    if (executeCounter.get() % 2 == 0) {
+                        throw new MyException();
+                    } else if (executeCounter.get() % 2 == 1) {
+                        throw new AnotherException();
+                    }
+                    return 0;
+                };
+        try {
+            retryCallableManager.retryCallable(
+                    incrementingFunction, Set.of(MyException.class, AnotherException.class));
+        } catch (RetryHelperException e) {
+            // ignore exception to check the executeCounter
+        }
+        assertTrue(
+                String.format(
+                        "Should execute 4 times, instead executed %d times", executeCounter.get()),
+                executeCounter.get() == 4);
+    }
+
+    private static class MyException extends Exception {
+        public MyException() {
+            super();
+        }
+    }
+
+    private static class AnotherException extends Exception {
+        public AnotherException() {
+            super();
+        }
+    }
+
+    private static class DoNotIgnoreException extends Exception {
+        public DoNotIgnoreException() {
+            super();
+        }
+    }
+}
