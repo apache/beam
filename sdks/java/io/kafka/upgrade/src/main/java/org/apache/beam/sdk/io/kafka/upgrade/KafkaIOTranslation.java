@@ -174,6 +174,9 @@ public class KafkaIOTranslation {
       if (transform.getStopReadTime() != null) {
         fieldValues.put("stop_read_time", transform.getStopReadTime());
       }
+      if (transform.getConsumerPollingTimeout() != null) {
+        fieldValues.put("consumer_polling_timeout", transform.getConsumerPollingTimeout());
+      }
 
       fieldValues.put(
           "is_commit_offset_finalize_enabled", transform.isCommitOffsetsInFinalizeEnabled());
@@ -320,6 +323,12 @@ public class KafkaIOTranslation {
         if (maxReadTime != null) {
           transform =
               transform.withMaxReadTime(org.joda.time.Duration.millis(maxReadTime.toMillis()));
+        }
+        Duration consumerPollingTimeout = configRow.getValue("consumer_polling_timeout");
+        if (consumerPollingTimeout != null) {
+          transform =
+              transform.withConsumerPollingTimeout(
+                  org.joda.time.Duration.millis(consumerPollingTimeout.toMillis()));
         }
         Instant startReadTime = configRow.getValue("start_read_time");
         if (startReadTime != null) {
