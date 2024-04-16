@@ -1,11 +1,13 @@
 /*
- * Copyright 2024 Google.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,9 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.dce.io.solace.data;
+package org.apache.beam.sdk.io.solace.data;
 
-import com.google.cloud.dataflow.dce.io.solace.data.Solace.Record;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -28,6 +29,7 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.io.solace.data.Solace.Record;
 
 /**
  * Custom coder for the default Solace {@link Record}
@@ -36,58 +38,57 @@ import org.apache.beam.sdk.coders.VarLongCoder;
  * `@DefaultSchema` annotation doesn't create an update-compatible coders.
  */
 public class SolaceRecordCoder extends CustomCoder<Record> {
-    private static final Coder<byte[]> BYTE_CODER = ByteArrayCoder.of();
+  private static final Coder<byte[]> BYTE_CODER = ByteArrayCoder.of();
 
-    private static final NullableCoder<Long> LONG_CODER = NullableCoder.of(VarLongCoder.of());
-    private static final NullableCoder<Integer> INTEGER_CODER = NullableCoder.of(VarIntCoder.of());
-    private static final NullableCoder<String> STRING_CODER =
-            NullableCoder.of(StringUtf8Coder.of());
-    private static final NullableCoder<Boolean> BOOLEAN_CODER = NullableCoder.of(BooleanCoder.of());
+  private static final NullableCoder<Long> LONG_CODER = NullableCoder.of(VarLongCoder.of());
+  private static final NullableCoder<Integer> INTEGER_CODER = NullableCoder.of(VarIntCoder.of());
+  private static final NullableCoder<String> STRING_CODER = NullableCoder.of(StringUtf8Coder.of());
+  private static final NullableCoder<Boolean> BOOLEAN_CODER = NullableCoder.of(BooleanCoder.of());
 
-    public static SolaceRecordCoder of() {
-        return new SolaceRecordCoder();
-    }
+  public static SolaceRecordCoder of() {
+    return new SolaceRecordCoder();
+  }
 
-    @Override
-    public void encode(Record value, OutputStream outStream) throws IOException {
-        // Check if the destination is a topic or a queue, and encode that info
-        STRING_CODER.encode(value.getMessageId(), outStream);
-        STRING_CODER.encode(value.getReplicationGroupMessageId(), outStream);
-        BYTE_CODER.encode(value.getPayload(), outStream);
-        STRING_CODER.encode(value.getDestination().getName(), outStream);
-        STRING_CODER.encode(value.getDestination().getType().toString(), outStream);
-        LONG_CODER.encode(value.getExpiration(), outStream);
-        INTEGER_CODER.encode(value.getPriority(), outStream);
-        BOOLEAN_CODER.encode(value.getRedelivered(), outStream);
-        STRING_CODER.encode(value.getReplyTo(), outStream);
-        LONG_CODER.encode(value.getReceiveTimestamp(), outStream);
-        LONG_CODER.encode(value.getSenderTimestamp(), outStream);
-        LONG_CODER.encode(value.getSequenceNumber(), outStream);
-        LONG_CODER.encode(value.getTimeToLive(), outStream);
-    }
+  @Override
+  public void encode(Record value, OutputStream outStream) throws IOException {
+    // Check if the destination is a topic or a queue, and encode that info
+    STRING_CODER.encode(value.getMessageId(), outStream);
+    STRING_CODER.encode(value.getReplicationGroupMessageId(), outStream);
+    BYTE_CODER.encode(value.getPayload(), outStream);
+    STRING_CODER.encode(value.getDestination().getName(), outStream);
+    STRING_CODER.encode(value.getDestination().getType().toString(), outStream);
+    LONG_CODER.encode(value.getExpiration(), outStream);
+    INTEGER_CODER.encode(value.getPriority(), outStream);
+    BOOLEAN_CODER.encode(value.getRedelivered(), outStream);
+    STRING_CODER.encode(value.getReplyTo(), outStream);
+    LONG_CODER.encode(value.getReceiveTimestamp(), outStream);
+    LONG_CODER.encode(value.getSenderTimestamp(), outStream);
+    LONG_CODER.encode(value.getSequenceNumber(), outStream);
+    LONG_CODER.encode(value.getTimeToLive(), outStream);
+  }
 
-    @Override
-    public Record decode(InputStream inStream) throws IOException {
-        return Record.builder()
-                .setMessageId(STRING_CODER.decode(inStream))
-                .setReplicationGroupMessageId(STRING_CODER.decode(inStream))
-                .setPayload(BYTE_CODER.decode(inStream))
-                .setDestination(
-                        Solace.Destination.builder()
-                                .setName(STRING_CODER.decode(inStream))
-                                .setType(
-                                        Objects.equals(STRING_CODER.decode(inStream), "QUEUE")
-                                                ? Solace.DestinationType.QUEUE
-                                                : Solace.DestinationType.TOPIC)
-                                .build())
-                .setExpiration(LONG_CODER.decode(inStream))
-                .setPriority(INTEGER_CODER.decode(inStream))
-                .setRedelivered(BOOLEAN_CODER.decode(inStream))
-                .setReplyTo(STRING_CODER.decode(inStream))
-                .setReceiveTimestamp(LONG_CODER.decode(inStream))
-                .setSenderTimestamp(LONG_CODER.decode(inStream))
-                .setSequenceNumber(LONG_CODER.decode(inStream))
-                .setTimeToLive(LONG_CODER.decode(inStream))
-                .build();
-    }
+  @Override
+  public Record decode(InputStream inStream) throws IOException {
+    return Record.builder()
+        .setMessageId(STRING_CODER.decode(inStream))
+        .setReplicationGroupMessageId(STRING_CODER.decode(inStream))
+        .setPayload(BYTE_CODER.decode(inStream))
+        .setDestination(
+            Solace.Destination.builder()
+                .setName(STRING_CODER.decode(inStream))
+                .setType(
+                    Objects.equals(STRING_CODER.decode(inStream), "QUEUE")
+                        ? Solace.DestinationType.QUEUE
+                        : Solace.DestinationType.TOPIC)
+                .build())
+        .setExpiration(LONG_CODER.decode(inStream))
+        .setPriority(INTEGER_CODER.decode(inStream))
+        .setRedelivered(BOOLEAN_CODER.decode(inStream))
+        .setReplyTo(STRING_CODER.decode(inStream))
+        .setReceiveTimestamp(LONG_CODER.decode(inStream))
+        .setSenderTimestamp(LONG_CODER.decode(inStream))
+        .setSequenceNumber(LONG_CODER.decode(inStream))
+        .setTimeToLive(LONG_CODER.decode(inStream))
+        .build();
+  }
 }

@@ -27,10 +27,20 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Solace"
 ext.summary = """IO to read and write to Solace destinations (queues and topics)."""
 
 dependencies {
+    implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
     implementation library.java.vendored_guava_32_1_2_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.slf4j_api
     implementation library.java.joda_time
+    implementation library.java.solace
+    implementation library.java.google_cloud_core
+    implementation library.java.vendored_guava_32_1_2_jre
+    implementation library.java.gax
+    implementation library.java.google_http_client
+    implementation 'com.google.cloud:google-cloud-secretmanager'
+    implementation project(":sdks:java:extensions:avro")
+    implementation library.java.avro
+
     testImplementation library.java.activemq_amqp
     testImplementation library.java.activemq_broker
     testImplementation library.java.activemq_jaas
@@ -42,4 +52,5 @@ dependencies {
     testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    testImplementation library.java.testcontainers_solace
 }

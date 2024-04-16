@@ -635,10 +635,11 @@ class BeamModulePlugin implements Plugin<Project> {
     def sbe_tool_version = "1.25.1"
     def singlestore_jdbc_version = "1.1.4"
     def slf4j_version = "1.7.30"
+    def solace_version = "10.21.0"
     def spark2_version = "2.4.8"
     def spark3_version = "3.2.2"
     def spotbugs_version = "4.0.6"
-    def testcontainers_version = "1.17.3"
+    def testcontainers_version = "1.18.3"
     // [bomupgrader] determined by: org.apache.arrow:arrow-memory-core, consistent with: google_cloud_platform_libraries_bom
     def arrow_version = "15.0.1"
     def jmh_version = "1.34"
@@ -873,6 +874,7 @@ class BeamModulePlugin implements Plugin<Project> {
         slf4j_log4j12                               : "org.slf4j:slf4j-log4j12:$slf4j_version",
         slf4j_jcl                                   : "org.slf4j:slf4j-jcl:$slf4j_version",
         snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.10.4",
+        solace                                      : "com.solacesystems:sol-jcsmp:$solace_version",
         spark_core                                  : "org.apache.spark:spark-core_2.11:$spark2_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark2_version",
         spark3_core                                 : "org.apache.spark:spark-core_2.12:$spark3_version",
@@ -897,6 +899,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_oracle                       : "org.testcontainers:oracle-xe:$testcontainers_version",
         testcontainers_postgresql                   : "org.testcontainers:postgresql:$testcontainers_version",
         testcontainers_rabbitmq                     : "org.testcontainers:rabbitmq:$testcontainers_version",
+        testcontainers_solace                       : "org.testcontainers:solace:$testcontainers_version",
         truth                                       : "com.google.truth:truth:1.1.5",
         threetenbp                                  : "org.threeten:threetenbp:1.6.8",
         vendored_grpc_1_60_1                        : "org.apache.beam:beam-vendor-grpc-1_60_1:0.2",

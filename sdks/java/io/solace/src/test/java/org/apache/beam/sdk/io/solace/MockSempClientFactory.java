@@ -1,11 +1,13 @@
 /*
- * Copyright 2024 Google.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,21 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.solace.io.solace;
+package org.apache.beam.sdk.io.solace;
 
 import org.apache.beam.sdk.io.solace.broker.SempClient;
 import org.apache.beam.sdk.io.solace.broker.SempClientFactory;
 
 public class MockSempClientFactory implements SempClientFactory {
-    MockSempClient sempClient;
+  MockSempClient sempClient;
 
-    public MockSempClientFactory(MockSempClient sempClient) {
-        this.sempClient = sempClient;
-    }
+  public MockSempClientFactory(MockSempClient sempClient) {
+    this.sempClient = sempClient;
+  }
 
-    @Override
-    public SempClient create() {
-        // todo new or existing instance?
-        return sempClient;
-    }
+  @Override
+  public SempClient create() {
+    return sempClient;
+  }
 }
