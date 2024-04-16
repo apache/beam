@@ -701,9 +701,10 @@ def beam_type_to_avro_type(beam_type: schema_pb2.FieldType) -> _AvroSchemaType:
   type_info = beam_type.WhichOneof("type_info")
   if type_info == "atomic_type":
     avro_primitive = BEAM_PRIMITIVES_TO_AVRO_PRIMITIVES[beam_type.atomic_type]
-    return [avro_primitive, 'null'] if beam_type.nullable else {
-        'type': avro_primitive
-    }
+    avro_type = [
+        avro_primitive, 'null'
+    ] if beam_type.nullable else avro_primitive
+    return {'type': avro_type}
   elif type_info == "array_type":
     return {
         'type': 'array',
@@ -724,12 +725,19 @@ def beam_type_to_avro_type(beam_type: schema_pb2.FieldType) -> _AvroSchemaType:
         'values': beam_type_to_avro_type(beam_type.map_type.element_type)
     }
   elif type_info == "row_type":
+    fields = []
+    for field in beam_type.row_type.schema.fields:
+      avro_type = beam_type_to_avro_type(field.type)
+      # if mapping to a avro primitive or a union, don't nest the field type
+      # for complex types, like arrays, we need to nest the type
+      field_type = avro_type['type'] if field.type.WhichOneof(
+          "type_info") == "atomic_type" else avro_type
+      avro_field = {'name': field.name, 'type': field_type}
+      fields.append(avro_field)
     return {
         'type': 'record',
         'name': beam_type.row_type.schema.id,
-        'fields': [{
-            'name': field.name, 'type': beam_type_to_avro_type(field.type)
-        } for field in beam_type.row_type.schema.fields],
+        'fields': fields,
     }
   else:
     raise ValueError(f"Unconvertable type: {beam_type}")

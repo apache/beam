@@ -90,7 +90,7 @@ class AvroBase(object):
            "type": "record",
            "name": "User",
            "fields": [
-               {"name": "name", "type": {"type": "string"}},
+               {"name": "name", "type": "string"},
                {"name": "favorite_number",  "type": ["int", "null"]},
                {"name": "favorite_color", "type": ["string", "null"]}
            ]
