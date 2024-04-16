@@ -324,11 +324,16 @@ public class KafkaIOTranslation {
           transform =
               transform.withMaxReadTime(org.joda.time.Duration.millis(maxReadTime.toMillis()));
         }
-        Duration consumerPollingTimeout = configRow.getValue("consumer_polling_timeout");
-        if (consumerPollingTimeout != null) {
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.56.0") < 0) {
           transform =
-              transform.withConsumerPollingTimeout(
-                  org.joda.time.Duration.millis(consumerPollingTimeout.toMillis()));
+              transform.withConsumerPollingTimeout(Duration.standardSeconds(2L)); // Current default.
+        } else {
+          Duration consumerPollingTimeout = configRow.getValue("consumer_polling_timeout");
+          if (consumerPollingTimeout != null) {
+            transform =
+                transform.withConsumerPollingTimeout(
+                    org.joda.time.Duration.millis(consumerPollingTimeout.toMillis()));
+          }
         }
         Instant startReadTime = configRow.getValue("start_read_time");
         if (startReadTime != null) {
