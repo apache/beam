@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
+import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
 
@@ -52,7 +53,7 @@ public class MetricsToPerStepNamespaceMetricsConverter {
       return Optional.empty();
     }
 
-    return BigQuerySinkMetrics.parseMetricName(metricName.getName())
+    return LabeledMetricNameUtils.parseMetricName(metricName.getName())
         .filter(labeledName -> !labeledName.getBaseName().isEmpty())
         .map(
             labeledName ->
@@ -104,8 +105,8 @@ public class MetricsToPerStepNamespaceMetricsConverter {
       return Optional.empty();
     }
 
-    Optional<BigQuerySinkMetrics.ParsedMetricName> labeledName =
-        BigQuerySinkMetrics.parseMetricName(metricName.getName());
+    Optional<LabeledMetricNameUtils.ParsedMetricName> labeledName =
+        LabeledMetricNameUtils.parseMetricName(metricName.getName());
     if (!labeledName.isPresent() || labeledName.get().getBaseName().isEmpty()) {
       return Optional.empty();
     }

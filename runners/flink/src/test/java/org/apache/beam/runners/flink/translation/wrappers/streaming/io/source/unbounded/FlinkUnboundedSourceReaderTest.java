@@ -73,7 +73,12 @@ public class FlinkUnboundedSourceReaderTest
         reader = createReader()) {
       pollAndValidate(reader, splits, validatingOutput, numSplits * numRecordsPerSplit / 2);
       snapshot = reader.snapshotState(0L);
+      // use higher checkpoint number to verify that we finalize everything that was created
+      // up to that checkpoint
+      reader.notifyCheckpointComplete(1L);
     }
+
+    assertEquals(numSplits, DummySource.numFinalizeCalled.size());
 
     // Create another reader, add the snapshot splits back.
     try (SourceReader<
@@ -256,6 +261,18 @@ public class FlinkUnboundedSourceReaderTest
   }
 
   @Test
+  public void testWatermarkOnNoSplits() throws Exception {
+    ManuallyTriggeredScheduledExecutorService executor =
+        new ManuallyTriggeredScheduledExecutorService();
+    try (FlinkUnboundedSourceReader<KV<Integer, Integer>> reader =
+        (FlinkUnboundedSourceReader<KV<Integer, Integer>>) createReader(executor, -1L)) {
+      reader.start();
+      reader.notifyNoMoreSplits();
+      assertEquals(InputStatus.END_OF_INPUT, reader.pollNext(null));
+    }
+  }
+
+  @Test
   public void testPendingBytesMetric() throws Exception {
     ManuallyTriggeredScheduledExecutorService executor =
         new ManuallyTriggeredScheduledExecutorService();
@@ -285,6 +302,12 @@ public class FlinkUnboundedSourceReaderTest
   // --------------- private helper classes -----------------
   /** A source whose advance() method only returns true occasionally. */
   private static class DummySource extends TestCountingSource {
+
+    static List<Integer> numFinalizeCalled = new ArrayList<>();
+
+    static {
+      TestCountingSource.setFinalizeTracker(numFinalizeCalled);
+    }
 
     public DummySource(int numMessagesPerShard) {
       super(numMessagesPerShard);

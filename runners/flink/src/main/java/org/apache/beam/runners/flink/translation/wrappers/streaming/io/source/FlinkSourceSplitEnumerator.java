@@ -76,6 +76,7 @@ public class FlinkSourceSplitEnumerator<T>
     context.callAsync(
         () -> {
           try {
+            LOG.info("Starting source {}", beamSource);
             List<? extends Source<T>> beamSplitSourceList = splitBeamSource();
             Map<Integer, List<FlinkSourceSplit<T>>> flinkSourceSplitsList = new HashMap<>();
             int i = 0;
@@ -152,7 +153,10 @@ public class FlinkSourceSplitEnumerator<T>
       long desiredSizeBytes = boundedSource.getEstimatedSizeBytes(pipelineOptions) / numSplits;
       return boundedSource.split(desiredSizeBytes, pipelineOptions);
     } else if (beamSource instanceof UnboundedSource) {
-      return ((UnboundedSource<T, ?>) beamSource).split(numSplits, pipelineOptions);
+      List<? extends UnboundedSource<T, ?>> splits =
+          ((UnboundedSource<T, ?>) beamSource).split(numSplits, pipelineOptions);
+      LOG.info("Split source {} to {} splits", beamSource, splits);
+      return splits;
     } else {
       throw new IllegalStateException("Unknown source type " + beamSource.getClass());
     }

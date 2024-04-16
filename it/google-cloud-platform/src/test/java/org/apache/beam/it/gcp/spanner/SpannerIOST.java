@@ -18,8 +18,8 @@
 package org.apache.beam.it.gcp.spanner;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.cloud.ByteArray;
@@ -191,7 +191,9 @@ public class SpannerIOST extends IOStressTestBase {
               readInfo.jobId(),
               getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
 
-      assertEquals(writeNumRecords, readNumRecords, 0);
+      // Assert that writeNumRecords equals or greater than readNumRecords since there might be
+      // duplicates when testing big amount of data
+      assertTrue(writeNumRecords >= readNumRecords);
     } finally {
       // clean up write streaming pipeline
       if (pipelineLauncher.getJobStatus(project, region, writeInfo.jobId())
