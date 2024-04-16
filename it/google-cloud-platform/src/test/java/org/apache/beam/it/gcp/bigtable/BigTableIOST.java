@@ -49,7 +49,6 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.PeriodicImpulse;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -197,11 +196,9 @@ public final class BigTableIOST extends IOStressTestBase {
               readInfo.jobId(),
               getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
 
-      // Assert that writeNumRecords equals or greater than readNumRecords since there might be
+      // Assert that readNumRecords equals or greater than writeNumRecords since there might be
       // duplicates when testing big amount of data
       assertTrue(readNumRecords >= writeNumRecords);
-      System.out.println(writeNumRecords);
-      System.out.println(readNumRecords);
     } finally {
       // clean up write streaming pipeline
       if (pipelineLauncher.getJobStatus(project, region, writeInfo.jobId())
@@ -241,7 +238,7 @@ public final class BigTableIOST extends IOStressTestBase {
         getLoadPeriods(configuration.minutes, DEFAULT_LOAD_INCREASE_ARRAY);
 
     PCollection<KV<byte[], byte[]>> source =
-            writePipeline.apply(Read.from(new SyntheticUnboundedSource(configuration)));
+        writePipeline.apply(Read.from(new SyntheticUnboundedSource(configuration)));
 
     if (startMultiplier > 1) {
       source =
@@ -350,8 +347,7 @@ public final class BigTableIOST extends IOStressTestBase {
 
   /** Maps Instant to the BigTable format record. */
   private static class MapToBigTableFormat
-      extends DoFn<KV<byte[], byte[]>, KV<ByteString, Iterable<Mutation>>>
-      implements Serializable {
+      extends DoFn<KV<byte[], byte[]>, KV<ByteString, Iterable<Mutation>>> implements Serializable {
 
     private final int valueSizeBytes;
 
