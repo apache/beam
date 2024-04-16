@@ -73,12 +73,7 @@ public class FlinkUnboundedSourceReaderTest
         reader = createReader()) {
       pollAndValidate(reader, splits, validatingOutput, numSplits * numRecordsPerSplit / 2);
       snapshot = reader.snapshotState(0L);
-      // use higher checkpoint number to verify that we finalize everything that was created
-      // up to that checkpoint
-      reader.notifyCheckpointComplete(1L);
     }
-
-    assertEquals(numSplits, DummySource.numFinalizeCalled.size());
 
     // Create another reader, add the snapshot splits back.
     try (SourceReader<
@@ -299,15 +294,43 @@ public class FlinkUnboundedSourceReaderTest
     }
   }
 
+  @Test
+  public void testCheckMarksFinalized() throws Exception {
+
+    final int numSplits = 2;
+    final int numRecordsPerSplit = 10;
+
+    List<FlinkSourceSplit<KV<Integer, Integer>>> splits =
+        createSplits(numSplits, numRecordsPerSplit, 0);
+    RecordsValidatingOutput validatingOutput = new RecordsValidatingOutput(splits);
+    // Create a reader, take a snapshot.
+    try (SourceReader<
+            WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
+            FlinkSourceSplit<KV<Integer, Integer>>>
+        reader = createReader()) {
+      List<Integer> finalizeTracker = new ArrayList<>();
+      TestCountingSource.setFinalizeTracker(finalizeTracker);
+      pollAndValidate(reader, splits, validatingOutput, numSplits * numRecordsPerSplit / 2);
+      assertTrue(finalizeTracker.isEmpty());
+      reader.snapshotState(0L);
+      // notifyCheckpointComplete is normally called by the SourceOperator
+      reader.notifyCheckpointComplete(0L);
+      // every split should be finalized
+      assertEquals(numSplits, finalizeTracker.size());
+      pollAndValidate(reader, splits, validatingOutput, numSplits);
+      // no notifyCheckpointComplete here, assume the checkpoint failed
+      reader.snapshotState(1L);
+      pollAndValidate(reader, splits, validatingOutput, numSplits);
+      reader.snapshotState(2L);
+      reader.notifyCheckpointComplete(2L);
+      // 2 * numSplits more should be finalized
+      assertEquals(3 * numSplits, finalizeTracker.size());
+    }
+  }
+
   // --------------- private helper classes -----------------
   /** A source whose advance() method only returns true occasionally. */
   private static class DummySource extends TestCountingSource {
-
-    static List<Integer> numFinalizeCalled = new ArrayList<>();
-
-    static {
-      TestCountingSource.setFinalizeTracker(numFinalizeCalled);
-    }
 
     public DummySource(int numMessagesPerShard) {
       super(numMessagesPerShard);
