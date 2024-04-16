@@ -53,7 +53,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class IcebergIOTranslation {
   static class IcebergIOReadTranslator implements TransformPayloadTranslator<ReadRows> {
 
-    static Schema READ_SCHEMA =
+    static final Schema READ_SCHEMA =
         Schema.builder()
             .addByteArrayField("catalog_config")
             .addNullableStringField("table_identifier")

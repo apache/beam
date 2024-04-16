@@ -25,15 +25,14 @@ import static org.apache.beam.sdk.util.construction.PTransformTranslation.Transf
 import com.google.auto.service.AutoService;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.model.pipeline.v1.SchemaAwareTransforms.ManagedTransformPayload;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.construction.SdkComponents;
@@ -47,15 +46,12 @@ public class ManagedSchemaTransformTranslation {
   static class ManagedSchemaTransformTranslator
       implements TransformPayloadTranslator<ManagedSchemaTransform> {
     private final ManagedSchemaTransformProvider provider;
-    static final Schema SCHEMA;
-
-    static {
-      try {
-        SCHEMA = SchemaRegistry.createDefault().getSchema(ManagedConfig.class);
-      } catch (NoSuchSchemaException e) {
-        throw new RuntimeException(e);
-      }
-    }
+    static final Schema SCHEMA =
+        Schema.builder()
+            .addStringField("transform_identifier")
+            .addNullableStringField("config")
+            .addNullableStringField("config_url")
+            .build();
 
     public ManagedSchemaTransformTranslator() {
       provider = new ManagedSchemaTransformProvider(null);
@@ -91,19 +87,43 @@ public class ManagedSchemaTransformTranslation {
     }
 
     @Override
-    @SuppressWarnings("nullable")
     public Row toConfigRow(ManagedSchemaTransform transform) {
-      ManagedConfig config = transform.getManagedConfig();
-      try {
-        return SchemaRegistry.createDefault().getToRowFunction(ManagedConfig.class).apply(config);
-      } catch (NoSuchSchemaException e) {
-        throw new RuntimeException("Encountered error when finding schema for ManagedConfig");
+      ManagedConfig managedConfig = transform.getManagedConfig();
+      Map<String, Object> fieldValues = new HashMap<>();
+
+      if (managedConfig.getTransformIdentifier() != null) {
+        fieldValues.put("transform_identifier", managedConfig.getTransformIdentifier());
       }
+      String config = managedConfig.getConfig();
+      if (config != null) {
+        fieldValues.put("config", config);
+      }
+      String configUrl = managedConfig.getConfigUrl();
+      if (configUrl != null) {
+        fieldValues.put("config_url", configUrl);
+      }
+
+      return Row.withSchema(SCHEMA).withFieldValues(fieldValues).build();
     }
 
     @Override
     public ManagedSchemaTransform fromConfigRow(Row configRow, PipelineOptions options) {
-      return (ManagedSchemaTransform) provider.from(configRow);
+      ManagedConfig.Builder configBuilder = ManagedConfig.builder();
+
+      String transformIdentifier = configRow.getValue("transform_identifier");
+      if (transformIdentifier != null) {
+        configBuilder = configBuilder.setTransformIdentifier(transformIdentifier);
+      }
+      String config = configRow.getValue("config");
+      if (config != null) {
+        configBuilder = configBuilder.setConfig(config);
+      }
+      String configUrl = configRow.getValue("config_url");
+      if (configUrl != null) {
+        configBuilder = configBuilder.setConfigUrl(configUrl);
+      }
+
+      return (ManagedSchemaTransform) provider.from(configBuilder.build());
     }
   }
 

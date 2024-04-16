@@ -53,8 +53,8 @@ public class ManagedSchemaTransformTranslationTest {
   // ManagedSchemaTransformTranslation.
   static final Map<String, String> MANAGED_TRANSFORM_SCHEMA_MAPPING =
       ImmutableMap.<String, String>builder()
-          .put("getTransformIdentifier", "transformIdentifier")
-          .put("getConfigUrl", "configUrl")
+          .put("getTransformIdentifier", "transform_identifier")
+          .put("getConfigUrl", "config_url")
           .put("getConfig", "config")
           .build();
 
@@ -197,8 +197,8 @@ public class ManagedSchemaTransformTranslationTest {
     Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getExpansionPayload().newInput());
     Row expectedRow =
         Row.withSchema(ManagedSchemaTransformTranslator.SCHEMA)
-            .withFieldValue("transformIdentifier", TestSchemaTransformProvider.IDENTIFIER)
-            .withFieldValue("configUrl", null)
+            .withFieldValue("transform_identifier", TestSchemaTransformProvider.IDENTIFIER)
+            .withFieldValue("config_url", null)
             .withFieldValue("config", yamlStringConfig)
             .build();
     assertEquals(expectedRow, rowFromSpec);
