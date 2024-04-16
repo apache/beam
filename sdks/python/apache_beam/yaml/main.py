@@ -53,37 +53,7 @@ def _configure_parser(argv):
       type=json.loads,
       help='A json dict of variables used when invoking the jinja preprocessor '
       'on the provided yaml pipeline.')
-  parser.add_argument(
-      '--flags_as_jinja_variables',
-      default=False,
-      action='store_true',
-      help='Whether to treat all unknown `--flag=value` arguments as jinja '
-      'variables.')
   return parser.parse_known_args(argv)
-
-
-def _extract_jinja_variables(known_args, other_args):
-  jinja_variables = known_args.jinja_variables or {}
-  # This is best-effort and may catch pipeline options not intended for
-  # templating, but jinja2 doesn't care if there are extra variables defined.
-  if known_args.flags_as_jinja_variables:
-    skip = False
-    for ix, arg in enumerate(other_args):
-      if skip:
-        skip = False
-        continue
-      if arg.startswith('--'):
-        if '=' in arg:
-          key, value = arg[2:].split('=', 1)
-        elif len(other_args) > ix + 1:
-          key = arg[2:]
-          value = other_args[ix + 1]
-          skip = True
-        else:
-          continue
-        jinja_variables[key] = value
-
-  return jinja_variables
 
 
 def _pipeline_spec_from_args(known_args):
@@ -115,7 +85,7 @@ def run(argv=None):
       jinja2.Environment(
           undefined=jinja2.StrictUndefined, loader=_BeamFileIOLoader())
       .from_string(_pipeline_spec_from_args(known_args))
-      .render(**_extract_jinja_variables(known_args, pipeline_args)))
+      .render(**known_args.jinja_variables or {}))
   pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
 
   with beam.Pipeline(  # linebreak for better yapf formatting
