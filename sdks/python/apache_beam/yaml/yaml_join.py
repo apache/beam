@@ -35,44 +35,45 @@ def _validate_input(pcolls):
         f'{error_prefix} There should be at least 2 inputs to join.')
 
 
-def _validate_type(type):
-  error_prefix = f'Invalid value "{type}" for "type". It should be'
+def _validate_type(type, pcolls):
+  error_prefix = f'Invalid value "{type}" for "type".'
   if not isinstance(type, dict) and not isinstance(type, str):
-    raise ValueError(f'{error_prefix} a dict or a str.')
+    raise ValueError(f'{error_prefix} It must be a dict or a str.')
   if isinstance(type, dict):
     error = ValueError(
-        f'{error_prefix} a dictionary of type [str, list[str]] '
-        f'and have only one element with the key "outer".')
-    if len(type) != 1:
+        f'{error_prefix} When specifying a dict for type, '
+        f'it must follow this format: '
+        f'{{"outer": [list of inputs to outer join]}}. '
+        f'Example: {{"outer": ["input1", "input2"]}}')
+    if (len(type) != 1 or next(iter(type)) != 'outer' or
+        not isinstance(type['outer'], list)):
       raise error
-    if next(iter(type)) != 'outer':
-      raise error
-    if not isinstance(type['outer'], list):
-      raise error
+    for input in type['outer']:
+      if input not in list(pcolls.keys()):
+        raise ValueError(
+            f'{error_prefix} An invalid input "{input}" was specified.')
   if isinstance(type, str) and type not in ('inner', 'outer', 'left', 'right'):
     raise ValueError(
-        f'{error_prefix} '
-        f'one of the following: "inner", "outer", "left", "right"')
+        f'{error_prefix} When specifying the value for type as a str, '
+        f'it must be one of the following: "inner", "outer", "left", "right"')
 
 
 def _validate_equalities(equalities, pcolls):
   error_prefix = f'Invalid value "{equalities}" for "equalities".'
 
-  valid_cols = {}
-  inputs = list(pcolls.keys())
-  for input in inputs:
-    fields = set()
-    for field in pcolls[input].element_type._fields:
-      fields.add(field[0])
-    valid_cols[input] = fields
+  valid_cols = {
+      name: set(dict(pcoll.element_type._fields).keys())
+      for name,
+      pcoll in pcolls.items()
+  }
 
   if isinstance(equalities, str):
-    for input in valid_cols.keys():
-      if equalities not in valid_cols[input]:
+    for cols in valid_cols.values():
+      if equalities not in cols:
         raise ValueError(
             f'{error_prefix} When "equalities" is a str, '
             f'it must be a field name that exists in all the specified inputs.')
-    equality = {input: equalities for input in inputs}
+    equality = {pcoll_tag: equalities for pcoll_tag in pcolls}
     return [equality]
 
   if not isinstance(equalities, list):
@@ -88,50 +89,58 @@ def _validate_equalities(equalities, pcolls):
     if len(equality) < 2:
       raise invalid_dict_error
 
-    for input, col in equality.items():
-      if input not in inputs:
+    for pcoll_tag, col in equality.items():
+      if pcoll_tag not in pcolls:
         raise ValueError(
-            f'{error_prefix} "{input}" is not a specified alias in "input"')
-      if col not in valid_cols[input]:
+            f'{error_prefix} "{pcoll_tag}" is not a specified alias in "input"')
+      if col not in valid_cols[pcoll_tag]:
         raise ValueError(
-            f'{error_prefix} "{col}" is not a valid field in "{input}"')
+            f'{error_prefix} "{col}" is not a valid field in "{pcoll_tag}".')
 
     input_edge_list.append(tuple(equality.keys()))
 
   if not _is_connected(input_edge_list):
     raise ValueError(
         f'{error_prefix} '
-        f'The equalities provided does not ensure that '
-        f'all the inputs {inputs} are connected.')
+        f'The provided equalities do not connect all of {list(pcolls.keys())}.')
 
   return equalities
 
 
 def _parse_fields(tables, fields):
+  error_prefix = f'Invalid value "{fields}" for "fields".'
+  if not isinstance(fields, dict):
+    raise ValueError(f'{error_prefix} Fields must be a dict.')
   output_fields = []
   named_columns = set()
   for input, cols in fields.items():
-    error_prefix = f'Invalid input "{input}" for fields.'
     if input not in tables:
-      raise ValueError(error_prefix)
+      raise ValueError('An invalid input "{input}" was specified in "fields".')
     if isinstance(cols, list):
       for col in cols:
+        if not isinstance(col, str):
+          raise ValueError(
+              f'Invalid column "{col}" in "fields". Column name must be a str.')
         if col in named_columns:
           raise ValueError(
-              f'{error_prefix} ',
-              f'Same field name "{col}" was specified more than once.')
+              f'The field name "{col}" was specified more than once.')
         output_fields.append(f'{input}.{col} AS {col}')
         named_columns.add(col)
     elif isinstance(cols, dict):
       for k, v in cols.items():
         if k in named_columns:
           raise ValueError(
-              f'{error_prefix} ',
-              f'Same field name "{k}" was specified more than once.')
+              f'The field name "{k}" was specified more than once.')
+        if not isinstance(v, str):
+          raise ValueError(
+              f'Invalid column "{v}" in "fields". Column name must be a str.')
         output_fields.append(f'{input}.{v} AS {k}')
         named_columns.add(k)
     else:
-      raise ValueError(error_prefix)
+      raise ValueError(
+          f'{error_prefix} '
+          f'For every input key in fields, '
+          f'the value must either be a list or dict.')
   for table in tables:
     if table not in fields.keys():
       output_fields.append(f'{table}.*')
@@ -140,14 +149,13 @@ def _parse_fields(tables, fields):
 
 def _is_connected(edge_list):
   graph = {}
-  for edge in edge_list:
-    u, v = edge
-    if u not in graph:
-      graph[u] = []
-    if v not in graph:
-      graph[v] = []
-    graph[u].append(v)
-    graph[v].append(u)
+  for edge_set in edge_list:
+    for u in edge_set:
+      if u not in graph:
+        graph[u] = set()
+      for v in edge_set:
+        if u != v:
+          graph[u].add(v)
 
   visited = set()
   stack = [next(iter(graph))]
@@ -168,7 +176,7 @@ def _SqlJoinTransform(
     type: Union[str, Dict[str, List]],
     equalities: Union[str, List[Dict[str, str]]],
     fields: Optional[Dict[str, Any]] = None):
-  """Joins two or more inputs using a specfied condition.
+  """Joins two or more inputs using a specified condition.
 
   Args:
     type: The type of join. Could be a string value in 
@@ -193,11 +201,10 @@ def _SqlJoinTransform(
   """
 
   _validate_input(pcolls)
-  _validate_type(type)
+  _validate_type(type, pcolls)
   validate_equalities = _validate_equalities(equalities, pcolls)
 
   equalities_in_pairs = []
-  tables_edge_list = []
   for equality in validate_equalities:
     inputs = list(equality.keys())
     first_input = inputs[0]
@@ -205,7 +212,6 @@ def _SqlJoinTransform(
       equalities_in_pairs.append({
           first_input: equality[first_input], input: equality[input]
       })
-      tables_edge_list.append([first_input, input])
 
   tables = list(pcolls.keys())
   if isinstance(type, dict):
