@@ -29,7 +29,6 @@ import io.grpc.Status;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
@@ -40,7 +39,6 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Test;
@@ -330,52 +328,6 @@ public class BigQuerySinkMetricsTest {
     assertThat(
         testContainer.perWorkerHistograms.get(KV.of(histogramName, bucketType)).values,
         containsInAnyOrder(Double.valueOf(15.0)));
-  }
-
-  @Test
-  public void testParseMetricName_noLabels() {
-    String baseMetricName = "baseMetricName";
-    BigQuerySinkMetrics.ParsedMetricName expectedName =
-        BigQuerySinkMetrics.ParsedMetricName.create(baseMetricName);
-
-    Optional<BigQuerySinkMetrics.ParsedMetricName> parsedMetricName =
-        BigQuerySinkMetrics.parseMetricName(baseMetricName);
-    assertThat(parsedMetricName.isPresent(), equalTo(true));
-    assertThat(parsedMetricName.get(), equalTo(expectedName));
-  }
-
-  @Test
-  public void testParseMetricName_successfulLabels() {
-    String metricName = "baseLabel*key1:val1;key2:val2;key3:val3;";
-    ImmutableMap<String, String> metricLabels =
-        ImmutableMap.of("key1", "val1", "key2", "val2", "key3", "val3");
-    BigQuerySinkMetrics.ParsedMetricName expectedName =
-        BigQuerySinkMetrics.ParsedMetricName.create("baseLabel", metricLabels);
-
-    Optional<BigQuerySinkMetrics.ParsedMetricName> parsedMetricName =
-        BigQuerySinkMetrics.parseMetricName(metricName);
-
-    assertThat(parsedMetricName.isPresent(), equalTo(true));
-    assertThat(parsedMetricName.get(), equalTo(expectedName));
-  }
-
-  @Test
-  public void testParseMetricName_malformedMetricLabels() {
-    String metricName = "baseLabel*malformed_kv_pair;key2:val2;";
-    ImmutableMap<String, String> metricLabels = ImmutableMap.of("key2", "val2");
-    BigQuerySinkMetrics.ParsedMetricName expectedName =
-        BigQuerySinkMetrics.ParsedMetricName.create("baseLabel", metricLabels);
-
-    Optional<BigQuerySinkMetrics.ParsedMetricName> parsedMetricName =
-        BigQuerySinkMetrics.parseMetricName(metricName);
-
-    assertThat(parsedMetricName.isPresent(), equalTo(true));
-    assertThat(parsedMetricName.get(), equalTo(expectedName));
-  }
-
-  @Test
-  public void testParseMetricName_emptyString() {
-    assertThat(BigQuerySinkMetrics.parseMetricName("").isPresent(), equalTo(false));
   }
 
   @Test

@@ -80,6 +80,7 @@ excluded_patterns=(
     'apache_beam/utils/counters.*'
     'apache_beam/utils/windowed_value.*'
     'apache_beam/version.py'
+    'apache_beam/yaml/integration_tests.py'
     '**/internal/*'
     '*_it.py'
     '*_pb2.py'
