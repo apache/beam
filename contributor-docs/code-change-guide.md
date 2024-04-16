@@ -80,7 +80,7 @@ Relevant usage of `BeamModulePlugin` includes:
 
 The following are example code paths relevant for SDK development:
 
-Java code paths are mainly found two directories:
+Java code paths are mainly found in two directories:
 
 * `sdks/java` Java SDK
   * `sdks/java/core` Java core
