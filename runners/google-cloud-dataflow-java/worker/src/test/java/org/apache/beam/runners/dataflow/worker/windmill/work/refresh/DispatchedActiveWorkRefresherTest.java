@@ -20,12 +20,8 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.MapTask;
@@ -43,9 +39,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
-import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
-import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
@@ -54,18 +48,14 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkProcessingContext;
-import org.apache.beam.runners.direct.Clock;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.ArgumentCaptor;
 
 @RunWith(JUnit4.class)
 public class DispatchedActiveWorkRefresherTest {
@@ -172,7 +162,7 @@ public class DispatchedActiveWorkRefresherTest {
 
     Map<String, List<HeartbeatRequest>> expectedHeartbeats = new HashMap<>();
     CountDownLatch heartbeatsSent = new CountDownLatch(1);
-    TestClock fakeClock = new TestClock(Instant.now());
+    WorkRefreshTestClock fakeClock = new WorkRefreshTestClock(Instant.now());
 
     ActiveWorkRefresher activeWorkRefresher =
         createActiveWorkRefresher(
@@ -212,97 +202,5 @@ public class DispatchedActiveWorkRefresherTest {
     activeWorkRefresher.stop();
     // Free the work processing threads.
     workIsProcessed.countDown();
-  }
-
-  @Test
-  public void testInvalidateStuckCommits() throws InterruptedException {
-    int stuckCommitDurationMillis = 100;
-    Table<ComputationState, Work, WindmillStateCache.ForComputation> computations =
-        HashBasedTable.create();
-    WindmillStateCache stateCache = WindmillStateCache.ofSizeMbs(100);
-    ByteString key = ByteString.EMPTY;
-    for (int i = 0; i < 5; i++) {
-      WindmillStateCache.ForComputation perComputationStateCache =
-          spy(stateCache.forComputation(COMPUTATION_ID_PREFIX + i));
-      ComputationState computationState = spy(createComputationState(i, perComputationStateCache));
-      Work fakeWork = createOldWork(i, ignored -> {});
-      fakeWork.setState(Work.State.COMMITTING);
-      computationState.activateWork(ShardedKey.create(key, i), fakeWork);
-      computations.put(computationState, fakeWork, perComputationStateCache);
-    }
-
-    TestClock fakeClock = new TestClock(Instant.now());
-    CountDownLatch invalidateStuckCommitRan = new CountDownLatch(computations.size());
-
-    // Count down the latch every time to avoid waiting/sleeping arbitrarily.
-    for (ComputationState computation : computations.rowKeySet()) {
-      doAnswer(
-              invocation -> {
-                invocation.callRealMethod();
-                invalidateStuckCommitRan.countDown();
-                return null;
-              })
-          .when(computation)
-          .invalidateStuckCommits(any(Instant.class));
-    }
-
-    ActiveWorkRefresher activeWorkRefresher =
-        createActiveWorkRefresher(
-            fakeClock::now,
-            0,
-            stuckCommitDurationMillis,
-            computations.rowMap()::keySet,
-            ignored -> {});
-
-    activeWorkRefresher.start();
-    fakeClock.advance(Duration.millis(stuckCommitDurationMillis));
-    invalidateStuckCommitRan.await();
-
-    // Capture all invalidate and completeWork args.
-    ArgumentCaptor<ByteString> keyArgumentCaptor = ArgumentCaptor.forClass(ByteString.class);
-    ArgumentCaptor<Long> shardingKeyArgumentCaptor = ArgumentCaptor.forClass(Long.class);
-    ArgumentCaptor<ShardedKey> shardedKeyArgumentCaptor = ArgumentCaptor.forClass(ShardedKey.class);
-    ArgumentCaptor<WorkId> workIdArgumentCaptor = ArgumentCaptor.forClass(WorkId.class);
-    for (Table.Cell<ComputationState, Work, WindmillStateCache.ForComputation> cell :
-        computations.cellSet()) {
-      ComputationState computationState = cell.getRowKey();
-      WindmillStateCache.ForComputation perComputationStateCache = cell.getValue();
-      verify(perComputationStateCache, times(1))
-          .invalidate(keyArgumentCaptor.capture(), shardingKeyArgumentCaptor.capture());
-      verify(computationState, times(1))
-          .completeWorkAndScheduleNextWorkForKey(
-              shardedKeyArgumentCaptor.capture(), workIdArgumentCaptor.capture());
-    }
-
-    activeWorkRefresher.stop();
-
-    // Assert all invalidate and completeWork args.
-    for (Table.Cell<ComputationState, Work, WindmillStateCache.ForComputation> cell :
-        computations.cellSet()) {
-      Work work = cell.getColumnKey();
-      assertThat(keyArgumentCaptor.getAllValues()).contains(key);
-      assertThat(shardingKeyArgumentCaptor.getAllValues())
-          .contains(work.getWorkItem().getShardingKey());
-      assertThat(shardedKeyArgumentCaptor.getAllValues())
-          .contains(ShardedKey.create(key, work.getWorkItem().getShardingKey()));
-      assertThat(workIdArgumentCaptor.getAllValues()).contains(work.id());
-    }
-  }
-
-  static class TestClock implements Clock {
-    private Instant time;
-
-    private TestClock(Instant startTime) {
-      this.time = startTime;
-    }
-
-    private synchronized void advance(Duration amount) {
-      time = time.plus(amount);
-    }
-
-    @Override
-    public synchronized Instant now() {
-      return time;
-    }
   }
 }

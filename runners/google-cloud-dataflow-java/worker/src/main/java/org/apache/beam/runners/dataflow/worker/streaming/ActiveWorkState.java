@@ -20,14 +20,13 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
@@ -84,7 +83,7 @@ public final class ActiveWorkState {
   }
 
   static ActiveWorkState create(WindmillStateCache.ForComputation computationStateCache) {
-    return new ActiveWorkState(new HashMap<>(), computationStateCache);
+    return new ActiveWorkState(new ConcurrentHashMap<>(), computationStateCache);
   }
 
   @VisibleForTesting
@@ -292,8 +291,8 @@ public final class ActiveWorkState {
     return stuckCommits.build();
   }
 
-  synchronized Map<ShardedKey, Deque<Work>> getReadOnlyActiveWork() {
-    return Collections.unmodifiableMap(activeWork);
+  synchronized ImmutableMap<ShardedKey, Deque<Work>> getReadOnlyActiveWork() {
+    return ImmutableMap.copyOf(activeWork);
   }
 
   /**

@@ -52,8 +52,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEngineC
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.processing.ExecutionStateFactory;
 import org.apache.beam.runners.dataflow.worker.streaming.processing.StreamingCommitFinalizer;
-import org.apache.beam.runners.dataflow.worker.streaming.processing.StreamingWorkExecutor;
-import org.apache.beam.runners.dataflow.worker.streaming.processing.StreamingWorkItemScheduler;
+import org.apache.beam.runners.dataflow.worker.streaming.processing.StreamingWorkScheduler;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
@@ -115,7 +114,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   private final StreamingWorkerStatusReporter workerStatusReporter;
   private final StreamingWorkerStatusPages statusPages;
 
-  public FanOutStreamingEngineWorkerHarness(
+  private FanOutStreamingEngineWorkerHarness(
       DataflowWorkerHarnessOptions options,
       AtomicBoolean isRunning,
       StreamingEngineClient streamingEngineClient,
@@ -296,8 +295,8 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
         new AtomicReference<>(StreamingEngineConnectionState.initialState());
     WorkHeartbeatResponseProcessor workHeartbeatResponseProcessor =
         new WorkHeartbeatResponseProcessor(computationStateCache::getComputationState);
-    StreamingWorkItemScheduler workItemScheduler =
-        createWorkItemScheduler(
+    StreamingWorkScheduler streamingWorkScheduler =
+        createStreamingWorkExecutor(
             options,
             clock,
             getDataClient,
@@ -327,7 +326,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
           Optional<ComputationState> computationState =
               computationStateCache.getComputationState(workProcessingContext.computationId());
           if (computationState.isPresent()) {
-            workItemScheduler.scheduleWork(
+            streamingWorkScheduler.scheduleWork(
                 computationState.get(), workProcessingContext, getWorkSteamLatencies);
             onWorkItemQueued.accept(workProcessingContext.workItem());
           } else {
@@ -352,7 +351,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
         connectionsState);
   }
 
-  private static StreamingWorkItemScheduler createWorkItemScheduler(
+  private static StreamingWorkScheduler createStreamingWorkExecutor(
       DataflowWorkerHarnessOptions options,
       Supplier<Instant> clock,
       GetDataClient getDataClient,
@@ -381,30 +380,29 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             StreamingWorkerEnvironment.mapTaskToBaseNetworkFnInstance(),
             stateNameMap,
             StreamingWorkerEnvironment.getMaxSinkBytes(options));
-    StreamingWorkExecutor streamingWorkExecutor =
-        new StreamingWorkExecutor(
+    return new StreamingWorkScheduler(
+        options,
+        clock,
+        executionStateFactory,
+        createSideInputStateFetcher(
             options,
-            executionStateFactory,
-            createSideInputStateFetcher(
-                options,
-                connectionsState,
-                dispatcherClient,
-                getDataClient,
-                windmillStreamFactory,
-                workHeartbeatResponseProcessor),
+            connectionsState,
+            dispatcherClient,
+            getDataClient,
+            windmillStreamFactory,
+            workHeartbeatResponseProcessor),
+        failureTracker,
+        WorkFailureProcessor.create(
+            workExecutor,
             failureTracker,
-            WorkFailureProcessor.create(
-                workExecutor,
-                failureTracker,
-                () -> Optional.ofNullable(memoryMonitor.tryToDumpHeap()),
-                clock),
-            StreamingCommitFinalizer.create(workExecutor),
-            streamingCounters,
-            HotKeyLogger.ofSystemClock(),
-            stageInfo,
-            sampler,
-            maxWorkItemCommitBytes);
-    return new StreamingWorkItemScheduler(clock, streamingWorkExecutor);
+            () -> Optional.ofNullable(memoryMonitor.tryToDumpHeap()),
+            clock),
+        StreamingCommitFinalizer.create(workExecutor),
+        streamingCounters,
+        HotKeyLogger.ofSystemClock(),
+        stageInfo,
+        sampler,
+        maxWorkItemCommitBytes);
   }
 
   private static SideInputStateFetcher createSideInputStateFetcher(

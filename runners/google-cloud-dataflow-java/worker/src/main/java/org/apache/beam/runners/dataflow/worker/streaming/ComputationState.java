@@ -152,7 +152,7 @@ public class ComputationState {
     executor.forceExecute(work, work.getWorkItem().getSerializedSize());
   }
 
-  public Map<ShardedKey, Deque<Work>> currentActiveWorkReadOnly() {
+  public ImmutableMap<ShardedKey, Deque<Work>> currentActiveWorkReadOnly() {
     return activeWorkState.getReadOnlyActiveWork();
   }
 

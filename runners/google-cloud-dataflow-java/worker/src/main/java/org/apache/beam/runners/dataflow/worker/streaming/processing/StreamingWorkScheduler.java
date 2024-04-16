@@ -18,12 +18,14 @@
 package org.apache.beam.runners.dataflow.worker.streaming.processing;
 
 import com.google.api.services.dataflow.model.MapTask;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
@@ -44,6 +46,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAn
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkProcessingContext;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.WorkFailureProcessor;
 import org.apache.beam.sdk.annotations.Internal;
@@ -52,20 +55,22 @@ import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Executes user code to process a {@link
+ * Schedules execution of user code to process a {@link
  * org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem} then commits the work item
  * back to streaming execution backend.
  */
 @Internal
 @ThreadSafe
-public final class StreamingWorkExecutor {
-  private static final Logger LOG = LoggerFactory.getLogger(StreamingWorkExecutor.class);
+public final class StreamingWorkScheduler {
+  private static final Logger LOG = LoggerFactory.getLogger(StreamingWorkScheduler.class);
 
   private final DataflowWorkerHarnessOptions options;
+  private final Supplier<Instant> clock;
   private final ExecutionStateFactory executionStateFactory;
   private final SideInputStateFetcher sideInputStateFetcher;
   private final FailureTracker failureTracker;
@@ -77,8 +82,9 @@ public final class StreamingWorkExecutor {
   private final DataflowExecutionStateSampler sampler;
   private final AtomicInteger maxWorkItemCommitBytes;
 
-  public StreamingWorkExecutor(
+  public StreamingWorkScheduler(
       DataflowWorkerHarnessOptions options,
+      Supplier<Instant> clock,
       ExecutionStateFactory executionStateFactory,
       SideInputStateFetcher sideInputStateFetcher,
       FailureTracker failureTracker,
@@ -90,6 +96,7 @@ public final class StreamingWorkExecutor {
       DataflowExecutionStateSampler sampler,
       AtomicInteger maxWorkItemCommitBytes) {
     this.options = options;
+    this.clock = clock;
     this.executionStateFactory = executionStateFactory;
     this.sideInputStateFetcher = sideInputStateFetcher;
     this.failureTracker = failureTracker;
@@ -151,13 +158,30 @@ public final class StreamingWorkExecutor {
   }
 
   /**
+   * Schedule work for execution. Work may be executed immediately, or queued and executed in the
+   * future. Only one work may be "active" (currently executing) per key at a time.
+   */
+  public void scheduleWork(
+      ComputationState computationState,
+      WorkProcessingContext workProcessingContext,
+      Collection<Windmill.LatencyAttribution> getWorkStreamLatencies) {
+    Work scheduledWork =
+        Work.create(
+            workProcessingContext,
+            clock,
+            getWorkStreamLatencies,
+            work -> execute(computationState, work));
+    computationState.activateWork(scheduledWork);
+  }
+
+  /**
    * Executes the user DoFns processing {@link Work} then queues the {@link Commit}(s) to be sent to
    * backing persistent store to mark that the {@link Work} has finished processing. May retry
    * internally if processing fails due to uncaught {@link Exception}(s).
    *
    * @implNote This will block the calling thread during execution of user DoFns.
    */
-  void execute(ComputationState computationState, Work work) {
+  private void execute(ComputationState computationState, Work work) {
     Windmill.WorkItem workItem = work.getWorkItem();
     String computationId = computationState.getComputationId();
     ByteString key = workItem.getKey();

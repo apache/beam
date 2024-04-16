@@ -44,6 +44,7 @@ import org.apache.beam.runners.dataflow.worker.IntrinsicMapTaskExecutorFactory;
 import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.ReaderCache;
 import org.apache.beam.runners.dataflow.worker.WindmillComputationKey;
+import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.WorkUnitClient;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
@@ -57,8 +58,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEngineC
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.processing.ExecutionStateFactory;
 import org.apache.beam.runners.dataflow.worker.streaming.processing.StreamingCommitFinalizer;
-import org.apache.beam.runners.dataflow.worker.streaming.processing.StreamingWorkExecutor;
-import org.apache.beam.runners.dataflow.worker.streaming.processing.StreamingWorkItemScheduler;
+import org.apache.beam.runners.dataflow.worker.streaming.processing.StreamingWorkScheduler;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
@@ -78,6 +78,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.Channe
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkProcessingContext;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.StreamingEngineFailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.WorkFailureProcessor;
@@ -116,7 +117,7 @@ public final class DispatchedStreamingEngineWorkerHarness implements StreamingWo
   private final WindmillServerStub windmillServer;
   private final WorkCommitter workCommitter;
   private final MetricTrackingWindmillServerStub getDataClient;
-  private final StreamingWorkItemScheduler workItemScheduler;
+  private final StreamingWorkScheduler streamingWorkScheduler;
   private final MemoryMonitor memoryMonitor;
   private final StreamingWorkerStatusReporter workerStatusReporter;
   private final StreamingStatusPages statusPages;
@@ -133,7 +134,7 @@ public final class DispatchedStreamingEngineWorkerHarness implements StreamingWo
       WindmillServerStub windmillServer,
       WorkCommitter workCommitter,
       MetricTrackingWindmillServerStub getDataClient,
-      StreamingWorkItemScheduler workItemScheduler,
+      StreamingWorkScheduler streamingWorkScheduler,
       MemoryMonitor memoryMonitor,
       StreamingWorkerStatusReporter workerStatusReporter,
       StreamingStatusPages statusPages,
@@ -148,7 +149,7 @@ public final class DispatchedStreamingEngineWorkerHarness implements StreamingWo
     this.windmillServer = windmillServer;
     this.workCommitter = workCommitter;
     this.getDataClient = getDataClient;
-    this.workItemScheduler = workItemScheduler;
+    this.streamingWorkScheduler = streamingWorkScheduler;
     this.memoryMonitor = memoryMonitor;
     this.workerStatusReporter = workerStatusReporter;
     this.statusPages = statusPages;
@@ -243,9 +244,10 @@ public final class DispatchedStreamingEngineWorkerHarness implements StreamingWo
             StreamingWorkerEnvironment.mapTaskToBaseNetworkFnInstance(),
             stateNameMap,
             StreamingWorkerEnvironment.getMaxSinkBytes(options));
-    StreamingWorkExecutor streamingWorkExecutor =
-        new StreamingWorkExecutor(
+    StreamingWorkScheduler streamingWorkScheduler =
+        new StreamingWorkScheduler(
             options,
+            clock,
             executionStateFactory,
             new SideInputStateFetcher(getDataClient::getSideInputData, options),
             failureTracker,
@@ -300,7 +302,7 @@ public final class DispatchedStreamingEngineWorkerHarness implements StreamingWo
         windmillServer,
         workCommitter,
         getDataClient,
-        new StreamingWorkItemScheduler(clock, streamingWorkExecutor),
+        streamingWorkScheduler,
         memoryMonitor,
         workerStatusReporter,
         statusPages,
@@ -411,9 +413,10 @@ public final class DispatchedStreamingEngineWorkerHarness implements StreamingWo
             StreamingWorkerEnvironment.mapTaskToBaseNetworkFnInstance(),
             stateNameMap,
             StreamingWorkerEnvironment.getMaxSinkBytes(options));
-    StreamingWorkExecutor streamingWorkExecutor =
-        new StreamingWorkExecutor(
+    StreamingWorkScheduler streamingWorkScheduler =
+        new StreamingWorkScheduler(
             options,
+            clock,
             executionStateFactory,
             new SideInputStateFetcher(getDataClient::getSideInputData, options),
             failureTracker,
@@ -443,7 +446,7 @@ public final class DispatchedStreamingEngineWorkerHarness implements StreamingWo
         windmillServer,
         workCommitter,
         getDataClient,
-        new StreamingWorkItemScheduler(clock, streamingWorkExecutor),
+        streamingWorkScheduler,
         memoryMonitor,
         workerStatusReporter,
         testStatusPages,
@@ -591,14 +594,22 @@ public final class DispatchedStreamingEngineWorkerHarness implements StreamingWo
                 Optional<ComputationState> computationState =
                     computationStateCache.getComputationState(computationId);
                 if (computationState.isPresent()) {
-                  workItemScheduler.scheduleWork(
-                      computationState.get(),
-                      Preconditions.checkNotNull(inputDataWatermark),
-                      synchronizedProcessingTime,
-                      workItem,
-                      workCommitter::commit,
-                      getDataClient::getStateData,
-                      getWorkStreamLatencies);
+                  WorkProcessingContext workProcessingContext =
+                      WorkProcessingContext.builder(
+                              computationId,
+                              (id, request) ->
+                                  Optional.ofNullable(
+                                      getDataClient.getStateData(computationId, request)))
+                          .setInputDataWatermark(Preconditions.checkNotNull(inputDataWatermark))
+                          .setSynchronizedProcessingTime(synchronizedProcessingTime)
+                          .setWorkItem(workItem)
+                          .setWorkCommitter(workCommitter::commit)
+                          .setOutputDataWatermark(
+                              WindmillTimeUtils.windmillToHarnessWatermark(
+                                  workItem.getOutputDataWatermark()))
+                          .build();
+                  streamingWorkScheduler.scheduleWork(
+                      computationState.get(), workProcessingContext, getWorkStreamLatencies);
                 } else {
                   LOG.warn(
                       "Computation computationId={} is unknown. Known computations:{}",
