@@ -121,14 +121,6 @@ include(":runners:core-java")
 include(":runners:direct-java")
 include(":runners:extensions-java:metrics")
 /* Begin Flink Runner related settings */
-// Flink 1.12
-include(":runners:flink:1.12")
-include(":runners:flink:1.12:job-server")
-include(":runners:flink:1.12:job-server-container")
-// Flink 1.13
-include(":runners:flink:1.13")
-include(":runners:flink:1.13:job-server")
-include(":runners:flink:1.13:job-server-container")
 // Flink 1.14
 include(":runners:flink:1.14")
 include(":runners:flink:1.14:job-server")
