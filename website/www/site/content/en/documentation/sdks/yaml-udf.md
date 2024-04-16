@@ -186,7 +186,7 @@ look like:
 
 keeping in mind that any fields not intended to be included in the output should be added to the `drop` field.
 
-If one wanted to select a field that collides with a[reserved SQL keyword](https://calcite.apache.org/docs/reference.html#keywords), the field(s) must be surrounded in backticks. For example, say the incoming PCollection has a field "timestamp", one would have to write:
+If one wanted to select a field that collides with a [reserved SQL keyword](https://calcite.apache.org/docs/reference.html#keywords), the field(s) must be surrounded in backticks. For example, say the incoming PCollection has a field "timestamp", one would have to write:
 
 ```
 - type: MapToFields
