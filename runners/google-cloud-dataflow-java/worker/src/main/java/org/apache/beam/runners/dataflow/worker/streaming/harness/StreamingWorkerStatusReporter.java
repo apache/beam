@@ -23,9 +23,12 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
 import com.google.api.services.dataflow.model.PerWorkerMetrics;
 import com.google.api.services.dataflow.model.StreamingScalingReport;
+import com.google.api.services.dataflow.model.StreamingScalingReportResponse;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.api.services.dataflow.model.WorkerMessage;
+import com.google.api.services.dataflow.model.WorkerMessageResponse;
 import java.io.IOException;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -34,6 +37,7 @@ import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -52,6 +56,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.MultimapBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.LongMath;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,6 +75,8 @@ public final class StreamingWorkerStatusReporter {
   private static final String GLOBAL_WORKER_UPDATE_REPORTER_THREAD = "GlobalWorkerUpdates";
 
   private final boolean publishCounters;
+  private final int initialMaxThreadCount;
+  private final int initialMaxBundlesOutstanding;
   private final WorkUnitClient dataflowServiceClient;
   private final Supplier<Long> windmillQuotaThrottleTime;
   private final Supplier<Collection<StageInfo>> allStageInfo;
@@ -78,8 +85,17 @@ public final class StreamingWorkerStatusReporter {
   private final MemoryMonitor memoryMonitor;
   private final BoundedQueueExecutor workExecutor;
   private final AtomicLong previousTimeAtMaxThreads;
+  private final AtomicInteger maxThreadCountOverride;
   private final ScheduledExecutorService globalWorkerUpdateReporter;
   private final ScheduledExecutorService workerMessageReporter;
+
+  // Reporting period for periodic status updates.
+  private final long windmillHarnessUpdateReportingPeriodMillis;
+  // PerWorkerMetrics are sent on the WorkerMessages channel, and are sent one in every
+  // perWorkerMetricsUpdateFrequency RPC call. If 0, PerWorkerMetrics are not reported.
+  private final long perWorkerMetricsUpdateFrequency;
+  // Used to track the number of WorkerMessages that have been sent without PerWorkerMetrics.
+  private final AtomicLong workerMessagesIndex;
 
   private StreamingWorkerStatusReporter(
       boolean publishCounters,
@@ -90,7 +106,9 @@ public final class StreamingWorkerStatusReporter {
       StreamingCounters streamingCounters,
       MemoryMonitor memoryMonitor,
       BoundedQueueExecutor workExecutor,
-      Function<String, ScheduledExecutorService> executorFactory) {
+      Function<String, ScheduledExecutorService> executorFactory,
+      long windmillHarnessUpdateReportingPeriodMillis,
+      long perWorkerMetricsUpdateReportingPeriodMillis) {
     this.publishCounters = publishCounters;
     this.dataflowServiceClient = dataflowServiceClient;
     this.windmillQuotaThrottleTime = windmillQuotaThrottleTime;
@@ -99,9 +117,18 @@ public final class StreamingWorkerStatusReporter {
     this.streamingCounters = streamingCounters;
     this.memoryMonitor = memoryMonitor;
     this.workExecutor = workExecutor;
+    this.initialMaxThreadCount = workExecutor.getMaximumPoolSize();
+    this.initialMaxBundlesOutstanding = workExecutor.maximumElementsOutstanding();
     this.previousTimeAtMaxThreads = new AtomicLong();
+    this.maxThreadCountOverride = new AtomicInteger();
     this.globalWorkerUpdateReporter = executorFactory.apply(GLOBAL_WORKER_UPDATE_REPORTER_THREAD);
     this.workerMessageReporter = executorFactory.apply(WORKER_MESSAGE_REPORTER_THREAD);
+    this.windmillHarnessUpdateReportingPeriodMillis = windmillHarnessUpdateReportingPeriodMillis;
+    this.perWorkerMetricsUpdateFrequency =
+        getPerWorkerMetricsUpdateFrequency(
+            windmillHarnessUpdateReportingPeriodMillis,
+            perWorkerMetricsUpdateReportingPeriodMillis);
+    this.workerMessagesIndex = new AtomicLong();
   }
 
   public static StreamingWorkerStatusReporter create(
@@ -111,7 +138,9 @@ public final class StreamingWorkerStatusReporter {
       FailureTracker failureTracker,
       StreamingCounters streamingCounters,
       MemoryMonitor memoryMonitor,
-      BoundedQueueExecutor workExecutor) {
+      BoundedQueueExecutor workExecutor,
+      long windmillHarnessUpdateReportingPeriodMillis,
+      long perWorkerMetricsUpdateReportingPeriodMillis) {
     return new StreamingWorkerStatusReporter(
         /* publishCounters= */ true,
         workUnitClient,
@@ -123,7 +152,9 @@ public final class StreamingWorkerStatusReporter {
         workExecutor,
         threadName ->
             Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat(threadName).build()));
+                new ThreadFactoryBuilder().setNameFormat(threadName).build()),
+        windmillHarnessUpdateReportingPeriodMillis,
+        perWorkerMetricsUpdateReportingPeriodMillis);
   }
 
   @VisibleForTesting
@@ -136,7 +167,9 @@ public final class StreamingWorkerStatusReporter {
       StreamingCounters streamingCounters,
       MemoryMonitor memoryMonitor,
       BoundedQueueExecutor workExecutor,
-      Function<String, ScheduledExecutorService> executorFactory) {
+      Function<String, ScheduledExecutorService> executorFactory,
+      long windmillHarnessUpdateReportingPeriodMillis,
+      long perWorkerMetricsUpdateReportingPeriodMillis) {
     return new StreamingWorkerStatusReporter(
         publishCounters,
         workUnitClient,
@@ -146,7 +179,9 @@ public final class StreamingWorkerStatusReporter {
         streamingCounters,
         memoryMonitor,
         workExecutor,
-        executorFactory);
+        executorFactory,
+        windmillHarnessUpdateReportingPeriodMillis,
+        perWorkerMetricsUpdateReportingPeriodMillis);
   }
 
   /**
@@ -194,7 +229,7 @@ public final class StreamingWorkerStatusReporter {
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
-  public void start(long windmillHarnessUpdateReportingPeriodMillis) {
+  public void start() {
     reportHarnessStartup();
     if (windmillHarnessUpdateReportingPeriodMillis > 0) {
       LOG.info(
@@ -222,6 +257,7 @@ public final class StreamingWorkerStatusReporter {
     shutdownExecutor(workerMessageReporter);
     // one last send
     reportPeriodicWorkerUpdates();
+    this.workerMessagesIndex.set(this.perWorkerMetricsUpdateFrequency);
     reportPeriodicWorkerMessage();
   }
 
@@ -238,6 +274,22 @@ public final class StreamingWorkerStatusReporter {
     } catch (IOException e) {
       LOG.warn("Failed to send harness startup counter", e);
     }
+  }
+
+  // Calculates the PerWorkerMetrics reporting frequency, ensuring alignment with the
+  // WorkerMessages RPC schedule. The desired reporting period
+  // (perWorkerMetricsUpdateReportingPeriodMillis) is adjusted to the nearest multiple
+  // of the RPC interval (windmillHarnessUpdateReportingPeriodMillis).
+  private static long getPerWorkerMetricsUpdateFrequency(
+      long windmillHarnessUpdateReportingPeriodMillis,
+      long perWorkerMetricsUpdateReportingPeriodMillis) {
+    if (windmillHarnessUpdateReportingPeriodMillis == 0) {
+      return 0;
+    }
+    return LongMath.divide(
+        perWorkerMetricsUpdateReportingPeriodMillis,
+        windmillHarnessUpdateReportingPeriodMillis,
+        RoundingMode.CEILING);
   }
 
   /** Sends counter updates to Dataflow backend. */
@@ -299,9 +351,12 @@ public final class StreamingWorkerStatusReporter {
     }
   }
 
-  private void reportPeriodicWorkerMessage() {
+  @VisibleForTesting
+  public void reportPeriodicWorkerMessage() {
     try {
-      dataflowServiceClient.reportWorkerMessage(createWorkerMessage());
+      List<WorkerMessageResponse> workerMessageResponses =
+          dataflowServiceClient.reportWorkerMessage(createWorkerMessage());
+      readAndSaveWorkerMessageResponseForStreamingScalingReportResponse(workerMessageResponses);
     } catch (IOException e) {
       LOG.warn("Failed to send worker messages", e);
     } catch (Exception e) {
@@ -313,11 +368,7 @@ public final class StreamingWorkerStatusReporter {
     List<WorkerMessage> workerMessages = new ArrayList<>(2);
     workerMessages.add(createWorkerMessageForStreamingScalingReport());
 
-    if (StreamingStepMetricsContainer.getEnablePerWorkerMetrics()) {
-      Optional<WorkerMessage> metricsMsg = createWorkerMessageForPerWorkerMetrics();
-      metricsMsg.ifPresent(workerMessages::add);
-    }
-
+    createWorkerMessageForPerWorkerMetrics().ifPresent(metrics -> workerMessages.add(metrics));
     return workerMessages;
   }
 
@@ -334,6 +385,17 @@ public final class StreamingWorkerStatusReporter {
   }
 
   private Optional<WorkerMessage> createWorkerMessageForPerWorkerMetrics() {
+    if (!StreamingStepMetricsContainer.getEnablePerWorkerMetrics()
+        || perWorkerMetricsUpdateFrequency == 0) {
+      return Optional.empty();
+    }
+
+    if (workerMessagesIndex.incrementAndGet() < perWorkerMetricsUpdateFrequency) {
+      return Optional.empty();
+    } else {
+      workerMessagesIndex.set(0L);
+    }
+
     List<PerStepNamespaceMetrics> metrics = new ArrayList<>();
     allStageInfo.get().forEach(s -> metrics.addAll(s.extractPerWorkerMetricValues()));
 
@@ -344,6 +406,47 @@ public final class StreamingWorkerStatusReporter {
     PerWorkerMetrics perWorkerMetrics = new PerWorkerMetrics().setPerStepNamespaceMetrics(metrics);
     return Optional.of(
         dataflowServiceClient.createWorkerMessageFromPerWorkerMetrics(perWorkerMetrics));
+  }
+
+  private void readAndSaveWorkerMessageResponseForStreamingScalingReportResponse(
+      List<WorkerMessageResponse> responses) {
+    Optional<StreamingScalingReportResponse> streamingScalingReportResponse = Optional.empty();
+    for (WorkerMessageResponse response : responses) {
+      if (response.getStreamingScalingReportResponse() != null) {
+        streamingScalingReportResponse = Optional.of(response.getStreamingScalingReportResponse());
+      }
+    }
+    if (streamingScalingReportResponse.isPresent()) {
+      int oldMaximumThreadCount = getMaxThreads();
+      maxThreadCountOverride.set(streamingScalingReportResponse.get().getMaximumThreadCount());
+      int newMaximumThreadCount = getMaxThreads();
+      if (newMaximumThreadCount != oldMaximumThreadCount) {
+        LOG.info(
+            "Setting maximum thread count to {}, old value is {}",
+            newMaximumThreadCount,
+            oldMaximumThreadCount);
+        workExecutor.setMaximumPoolSize(newMaximumThreadCount, getMaxBundlesOutstanding());
+      }
+    }
+  }
+
+  private int getMaxThreads() {
+    int currentMaxThreadCountOverride = maxThreadCountOverride.get();
+    if (currentMaxThreadCountOverride != 0) {
+      return currentMaxThreadCountOverride;
+    }
+    return initialMaxThreadCount;
+  }
+
+  private int getMaxBundlesOutstanding() {
+    int currentMaxThreadCountOverride = maxThreadCountOverride.get();
+    if (currentMaxThreadCountOverride != 0) {
+      return currentMaxThreadCountOverride + 100;
+    }
+    if (initialMaxBundlesOutstanding > 0) {
+      return initialMaxBundlesOutstanding;
+    }
+    return getMaxThreads() + 100;
   }
 
   @VisibleForTesting

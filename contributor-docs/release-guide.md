@@ -1390,3 +1390,23 @@ Perhaps parts of this guide can be clarified.
 
 If we have specific ideas, please start a discussion on the dev@ mailing list and/or propose a pull request to update this guide.
 Thanks!
+
+# Patch Releases
+
+The above document assumes a minor version bump cut off of the master branch. If you want to do a patch release cut off of a previous release branch, use the following steps:
+
+- Create a new release branch:
+
+```
+git clone https://github.com/apache/beam
+cd beam
+git fetch origin release-2.XX.0
+git checkout release-2.XX.0
+git checkout -b release-2.XX.1
+git push origin release-2.XX.1
+```
+
+- Add a PR to add the new release branch to the set of protected branches in .asf.yml - [example PR](https://github.com/apache/beam/pull/30832)
+- Add a PR to bump the Dataflow containers versions - [example PR](https://github.com/apache/beam/pull/30827)
+- Create PRs to cherry-pick any desired commits to the release branch
+- Follow the normal steps to build/vote/validate/finalize the release candidate that are listed above.

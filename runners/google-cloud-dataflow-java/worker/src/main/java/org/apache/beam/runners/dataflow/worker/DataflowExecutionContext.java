@@ -55,6 +55,7 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closer;
@@ -425,7 +426,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
             synchronized (this) {
               this.activeMessageMetadata =
                   ActiveMessageMetadata.create(
-                      newDFState.getStepName().userName(), clock.currentTimeMillis());
+                      newDFState.getStepName().userName(), Stopwatch.createStarted());
             }
           }
         }
@@ -474,8 +475,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       if (this.activeMessageMetadata == null) {
         return;
       }
-      int processingTime =
-          (int) (System.currentTimeMillis() - this.activeMessageMetadata.startTime());
+      int processingTime = (int) (this.activeMessageMetadata.stopwatch().elapsed().toMillis());
       this.processingTimesByStep.compute(
           this.activeMessageMetadata.userStepName(),
           (k, v) -> {

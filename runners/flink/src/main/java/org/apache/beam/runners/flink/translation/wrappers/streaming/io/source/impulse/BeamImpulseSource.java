@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -46,38 +48,33 @@ public class BeamImpulseSource extends BoundedSource<byte[]> {
     return new ImpulseReader(this);
   }
 
+  @Override
+  public Coder<byte[]> getOutputCoder() {
+    return ByteArrayCoder.of();
+  }
+
   private static class ImpulseReader extends BoundedSource.BoundedReader<byte[]> {
     private final BeamImpulseSource source;
-    private boolean started;
     private int index;
 
     private ImpulseReader(BeamImpulseSource source) {
       this.source = source;
-      this.started = false;
       this.index = 0;
     }
 
     @Override
-    public boolean start() throws IOException {
-      started = true;
-      return true;
+    public boolean start() {
+      return advance();
     }
 
     @Override
-    public boolean advance() throws IOException {
-      if (!started) {
-        throw new IllegalStateException("start() should be called before calling advance()");
-      }
-      index++;
-      return false;
+    public boolean advance() {
+      return index++ == 0;
     }
 
     @Override
     public byte[] getCurrent() throws NoSuchElementException {
-      if (!started) {
-        throw new IllegalStateException("The reader hasn't started.");
-      }
-      if (index == 0) {
+      if (index == 1) {
         return new byte[0];
       } else {
         throw new NoSuchElementException("No element is available.");
@@ -91,10 +88,7 @@ public class BeamImpulseSource extends BoundedSource<byte[]> {
 
     @Override
     public Instant getCurrentTimestamp() throws NoSuchElementException {
-      if (!started) {
-        throw new IllegalStateException("The reader hasn't started.");
-      }
-      if (index == 0) {
+      if (index == 1) {
         return BoundedWindow.TIMESTAMP_MIN_VALUE;
       } else {
         throw new NoSuchElementException("No element is available.");
@@ -102,6 +96,6 @@ public class BeamImpulseSource extends BoundedSource<byte[]> {
     }
 
     @Override
-    public void close() throws IOException {}
+    public void close() {}
   }
 }

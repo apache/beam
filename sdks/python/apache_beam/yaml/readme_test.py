@@ -226,10 +226,7 @@ def create_test_method(test_type, test_name, test_yaml):
         if write in test_yaml:
           spec = replace_recursive(spec, write, 'path', env.output_file())
       modified_yaml = yaml.dump(spec)
-      options = {
-          'pickle_library': 'cloudpickle',
-          'yaml_experimental_features': ['Combine']
-      }
+      options = {'pickle_library': 'cloudpickle'}
       if RENDER_DIR is not None:
         options['runner'] = 'apache_beam.runners.render.RenderRunner'
         options['render_output'] = [
