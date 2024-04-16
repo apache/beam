@@ -1079,6 +1079,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
       }
       StreamingInsertsMetrics streamingInsertsResults =
           BigQuerySinkMetrics.streamingInsertsMetrics();
+      int numFailedRows = 0;
       final Set<Integer> failedIndices = new HashSet<>();
       long retTotalDataSize = 0;
       List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
@@ -1135,7 +1136,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                           + " pipeline, and the row will be output as a failed insert.",
                       nextRowSize));
             } else {
-              streamingInsertsResults.incrementFailedRows();
+              numFailedRows += 1;
               errorContainer.add(failedInserts, error, ref, rowsToPublish.get(rowIndex));
               failedIndices.add(rowIndex);
               rowIndex++;
@@ -1223,7 +1224,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                   retryIds.add(idsToPublish.get(errorIndex));
                 }
               } else {
-                streamingInsertsResults.incrementFailedRows();
+                numFailedRows += 1;
                 errorContainer.add(failedInserts, error, ref, rowsToPublish.get(errorIndex));
               }
             }
@@ -1234,7 +1235,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
           Thread.currentThread().interrupt();
           throw new IOException("Interrupted while inserting " + rowsToPublish);
         } catch (ExecutionException e) {
-          streamingInsertsResults.updateStreamingInsertsMetrics(ref);
+          streamingInsertsResults.updateStreamingInsertsMetrics(
+              ref, rowList.size(), rowList.size());
           throw new RuntimeException(e.getCause());
         }
 
@@ -1276,8 +1278,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
           }
         }
       }
-      streamingInsertsResults.updateSuccessfulAndFailedRows(rowList.size(), allErrors.size());
-      streamingInsertsResults.updateStreamingInsertsMetrics(ref);
+      numFailedRows += allErrors.size();
+      streamingInsertsResults.updateStreamingInsertsMetrics(ref, rowList.size(), numFailedRows);
       if (!allErrors.isEmpty()) {
         throw new IOException("Insert failed: " + allErrors);
       } else {
