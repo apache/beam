@@ -94,8 +94,9 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     if ((not self._row_key_fn and not self._row_key) or
         bool(self._row_key_fn and self._row_key)):
       raise ValueError(
-          "Please specify either `row_key` or a lambda function "
-          "with `row_key_fn` to extract row key from input row.")
+          "Please specify exactly one of `row_key` or a lambda "
+          "function with `row_key_fn` to extract the row key "
+          "from the input row.")
 
   def __enter__(self):
     """connect to the Google BigTable cluster."""
