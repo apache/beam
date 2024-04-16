@@ -1,0 +1,73 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+// Protocol Buffers describing available Schema-Aware transforms.
+// These are transforms that can be configured using Beam Schema-compatible parameters.
+// Runners can override these transforms with a native implementation.
+
+syntax = "proto3";
+
+package org.apache.beam.model.pipeline.v1;
+
+option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1;pipeline_v1";
+option java_package = "org.apache.beam.model.pipeline.v1";
+option java_outer_classname = "SchemaAwareTransforms";
+
+import "org/apache/beam/model/pipeline/v1/beam_runner_api.proto";
+import "org/apache/beam/model/pipeline/v1/schema.proto";
+
+
+message StandardSchemaAwareTransforms {
+    // Payload for all of these: SchemaAwareTransformPayload
+    enum IOs {
+        ICEBERG_READ = 0 [(beam_urn) = "beam:transform:iceberg_read:v1"];
+        ICEBERG_WRITE = 1 [(beam_urn) = "beam:transform:iceberg_write:v1"];
+    }
+    enum Managed {
+        // Payload: ManagedTransformPayload
+        MANAGED = 0 [(beam_urn) = "beam:transform:managed:v1"];
+    }
+}
+
+
+// Payload for a Schema-aware PTransform.
+// This is a transform that is aware of its input and output PCollection schemas
+// and is configured using Beam Schema-compatible parameters.
+message SchemaAwareTransformPayload {
+    // The transform's configuration schema
+    Schema expansion_schema = 1;
+    // The configuration used to build this transform.
+    // Must be compatible with the configuration schema, and decodable via beam:coder:row:v1.
+    bytes expansion_payload = 2;
+}
+
+// Payload for a Managed transform
+// This can be used by runners that wish to override an underlying transform
+// with a different implementation.
+message ManagedTransformPayload {
+    // The underlying transform's URN.
+    string underlying_transform_urn = 1;
+    // The underlying transform's configuration Schema.
+    Schema expansion_schema = 2;
+    // The configuration used to build the underlying transform.
+    // Must be compatible with the configuration schema, and decodable via beam:coder:row:v1.
+    bytes expansion_payload = 3;
+    // The underlying transform's configuration, represented as a YAML string.
+    string yaml_config = 4;
+}

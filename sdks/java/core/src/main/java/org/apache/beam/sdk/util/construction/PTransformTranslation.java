@@ -35,6 +35,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.CombineComponents;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.SplittableParDoComponents;
+import org.apache.beam.model.pipeline.v1.SchemaAwareTransforms.StandardSchemaAwareTransforms;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -92,6 +93,7 @@ public class PTransformTranslation {
   public static final String MAP_WINDOWS_TRANSFORM_URN = "beam:transform:map_windows:v1";
   public static final String MERGE_WINDOWS_TRANSFORM_URN = "beam:transform:merge_windows:v1";
   public static final String TO_STRING_TRANSFORM_URN = "beam:transform:to_string:v1";
+  public static final String MANAGED_TRANSFORM_URN = "beam:transform:managed:v1";
 
   // Required runner implemented transforms. These transforms should never specify an environment.
   public static final ImmutableSet<String> RUNNER_IMPLEMENTED_TRANSFORMS =
@@ -182,6 +184,7 @@ public class PTransformTranslation {
         MAP_WINDOWS_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Primitives.MAP_WINDOWS)));
     checkState(
         MERGE_WINDOWS_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Primitives.MERGE_WINDOWS)));
+    checkState(MANAGED_TRANSFORM_URN.equals(getUrn(StandardSchemaAwareTransforms.Managed.MANAGED)));
 
     // DeprecatedPrimitives
     checkState(READ_TRANSFORM_URN.equals(getUrn(StandardPTransforms.DeprecatedPrimitives.READ)));
@@ -276,7 +279,7 @@ public class PTransformTranslation {
    *
    * <p>Does not register the {@code appliedPTransform} within the provided {@link SdkComponents}.
    */
-  static RunnerApi.PTransform toProto(
+  public static RunnerApi.PTransform toProto(
       AppliedPTransform<?, ?, ?> appliedPTransform, SdkComponents components) throws IOException {
     return toProto(appliedPTransform, Collections.emptyList(), components);
   }

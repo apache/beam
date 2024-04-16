@@ -26,7 +26,6 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -179,32 +178,15 @@ public class Managed {
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      ManagedSchemaTransformProvider provider =
-          new ManagedSchemaTransformProvider(getSupportedIdentifiers());
-
-      SchemaTransformProvider underlyingTransformProvider =
-          provider.getAllProviders().get(getIdentifier());
-      if (underlyingTransformProvider == null) {
-        throw new RuntimeException(
-            String.format(
-                "Could not find transform with identifier %s, or it may not be supported.",
-                getIdentifier()));
-      }
-
-      Row transformConfigRow =
-          getConfig() != null
-              ? YamlUtils.toBeamRow(
-                  getConfig(), underlyingTransformProvider.configurationSchema(), true)
-              : null;
-
       ManagedSchemaTransformProvider.ManagedConfig managedConfig =
           ManagedSchemaTransformProvider.ManagedConfig.builder()
               .setTransformIdentifier(getIdentifier())
-              .setConfig(transformConfigRow)
+              .setConfig(YamlUtils.yamlStringFromMap(getConfig()))
               .setConfigUrl(getConfigUrl())
               .build();
 
-      SchemaTransform underlyingTransform = provider.from(managedConfig);
+      SchemaTransform underlyingTransform =
+          new ManagedSchemaTransformProvider(getSupportedIdentifiers()).from(managedConfig);
 
       return input.apply(underlyingTransform);
     }

@@ -49,23 +49,24 @@ public class ManagedSchemaTransformProviderTest {
   }
 
   @Test
-  public void testGetConfigRow() {
-    Schema underlyingTransformSchema = new TestSchemaTransformProvider().configurationSchema();
-    Row configRow =
-        Row.withSchema(underlyingTransformSchema)
-            .withFieldValue("extraString", "abc")
-            .withFieldValue("extraInteger", 123)
-            .build();
+  public void testGetConfigRowFromYamlString() {
+    String yamlString = "extra_string: abc\n" + "extra_integer: 123";
     ManagedConfig config =
         ManagedConfig.builder()
             .setTransformIdentifier(TestSchemaTransformProvider.IDENTIFIER)
-            .setConfig(configRow)
+            .setConfig(yamlString)
+            .build();
+
+    Row expectedRow =
+        Row.withSchema(TestSchemaTransformProvider.SCHEMA)
+            .withFieldValue("extraString", "abc")
+            .withFieldValue("extraInteger", 123)
             .build();
 
     Row returnedRow =
-        ManagedSchemaTransformProvider.getRowConfig(config, underlyingTransformSchema);
+        ManagedSchemaTransformProvider.getRowConfig(config, TestSchemaTransformProvider.SCHEMA);
 
-    assertEquals(configRow, returnedRow);
+    assertEquals(expectedRow, returnedRow);
   }
 
   @Test
@@ -90,6 +91,35 @@ public class ManagedSchemaTransformProviderTest {
             config, new TestSchemaTransformProvider().configurationSchema());
 
     assertEquals(expectedRow, configRow);
+  }
+
+  @Test
+  public void testBuildWithYamlString() {
+    String yamlString = "extra_string: abc\n" + "extra_integer: 123";
+
+    ManagedConfig config =
+        ManagedConfig.builder()
+            .setTransformIdentifier(TestSchemaTransformProvider.IDENTIFIER)
+            .setConfig(yamlString)
+            .build();
+
+    new ManagedSchemaTransformProvider(null).from(config);
+  }
+
+  @Test
+  public void testBuildWithYamlFile() throws URISyntaxException {
+    String yamlConfigPath =
+        Paths.get(getClass().getClassLoader().getResource("test_config.yaml").toURI())
+            .toFile()
+            .getAbsolutePath();
+
+    ManagedConfig config =
+        ManagedConfig.builder()
+            .setTransformIdentifier(TestSchemaTransformProvider.IDENTIFIER)
+            .setConfigUrl(yamlConfigPath)
+            .build();
+
+    new ManagedSchemaTransformProvider(null).from(config);
   }
 
   @Test

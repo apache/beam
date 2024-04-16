@@ -20,7 +20,9 @@ package org.apache.beam.sdk.managed;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -36,6 +38,15 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 public class TestSchemaTransformProvider
     extends TypedSchemaTransformProvider<TestSchemaTransformProvider.Config> {
   static final String IDENTIFIER = "beam:schematransform:org.apache.beam:test_transform:v1";
+  static final Schema SCHEMA;
+
+  static {
+    try {
+      SCHEMA = SchemaRegistry.createDefault().getSchema(Config.class);
+    } catch (NoSuchSchemaException e) {
+      throw new RuntimeException(e);
+    }
+  }
 
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
