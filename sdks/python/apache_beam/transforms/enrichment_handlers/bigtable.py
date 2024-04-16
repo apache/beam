@@ -48,8 +48,7 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     instance_id (str): GCP instance-id of the BigTable cluster.
     table_id (str): GCP table-id of the BigTable.
     row_key (str): unique row-key field name from the input `beam.Row` object
-      to use as `row_key` for BigTable querying. This parameter will be ignored
-      if a lambda function is specified with `row_key_fn`.
+      to use as `row_key` for BigTable querying.
     row_filter: a ``:class:`google.cloud.bigtable.row_filters.RowFilter``` to
       filter data read with ``read_row()``.
       Defaults to `CellsColumnLimitFilter(1)`.
@@ -92,7 +91,8 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     self._row_key_fn = row_key_fn
     self._exception_level = exception_level
     self._include_timestamp = include_timestamp
-    if not bool(self._row_key_fn or self._row_key):
+    if ((not self._row_key_fn and not self._row_key) or
+        bool(self._row_key_fn and self._row_key)):
       raise ValueError(
           "Please specify either `row_key` or a lambda function "
           "with `row_key_fn` to extract row key from input row.")
@@ -164,5 +164,5 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     """Returns a string formatted with row key since it is unique to
     a request made to `Bigtable`."""
     if self._row_key_fn:
-      return "row_key: %s" % self._row_key_fn(request)
+      return "row_key: %s" % str(self._row_key_fn(request))
     return "%s: %s" % (self._row_key, request._asdict()[self._row_key])
