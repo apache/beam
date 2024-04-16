@@ -102,7 +102,7 @@ public class KafkaIOTranslation {
             .addNullableByteArrayField("key_deserializer_provider")
             .addNullableByteArrayField("value_deserializer_provider")
             .addNullableByteArrayField("check_stop_reading_fn")
-            .addNullableInt64Field("consumer_polling_timeout")
+            .addNullableLogicalTypeField("consumer_polling_timeout", new NanosDuration())
             .build();
 
     @Override
