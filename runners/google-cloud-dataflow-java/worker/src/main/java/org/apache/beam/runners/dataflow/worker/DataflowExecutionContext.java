@@ -55,8 +55,8 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closer;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -364,7 +364,8 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
               "Current user step name: " + getActiveMessageMetadata().get().userStepName() + "\n");
           message.append(
               "Time spent in this step(millis): "
-                  + (clock.currentTimeMillis() - getActiveMessageMetadata().get().startTime())
+                  + (clock.currentTimeMillis()
+                      - getActiveMessageMetadata().get().stopwatch().elapsed().toMillis())
                   + "\n");
         }
         message.append("Processing times in each step(millis)\n");
