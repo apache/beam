@@ -358,7 +358,6 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   // Override this to implement bundle level lull reporting.
   protected void reportBundleLull(Thread trackedThread, long millisSinceBundleStart) {}
 
-
   // This suppression doesn't cause any race condition because it is updated by only one thread
   // which is currently tracked.
   @SuppressWarnings("NonAtomicVolatileUpdate")
