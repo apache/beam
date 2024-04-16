@@ -171,10 +171,10 @@ class AvroBase(object):
         assert_that(readback, equal_to([stable_repr(r) for r in rows]))
 
   @pytest.mark.xlang_sql_expansion_service
-  # @unittest.skipIf(
-  #     TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
-  #     None,
-  #     "Must be run with a runner that supports staging java artifacts.")
+  @unittest.skipIf(
+      TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
+      None,
+      "Must be run with a runner that supports staging java artifacts.")
   def test_avro_schema_to_beam_schema_with_nullable_atomic_fields(self):
     records = []
     records.extend(self.RECORDS)
