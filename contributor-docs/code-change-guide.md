@@ -80,15 +80,19 @@ Relevant usage of `BeamModulePlugin` includes:
 
 The following are example code paths relevant for SDK development:
 
+Java code paths are mainly found two directories:
+
 * `sdks/java` Java SDK
   * `sdks/java/core` Java core
   * `sdks/java/harness` SDK harness (entrypoint of SDK container)
 
-* `runners` runner supports, written in Java. For example,
+* `runners` Java runner supports. For example,
   * `runners/direct-java` Java direct runner
   * `runners/flink-java` Java Flink runner
   * `runners/google-cloud-dataflow-java` Dataflow runner (job submission, translation, etc)
     * `runners/google-cloud-dataflow-java/worker` Worker on Dataflow legacy runner
+
+For SDKS in other language, all relevant files are in `sdks/LANG`, for example,
 
 * `sdks/python` contains the setup file and scripts to trigger test-suites
   * `sdks/python/apache_beam` actual beam package
@@ -112,7 +116,7 @@ If you plan to use Dataflow, see the [Google Cloud documentation](https://cloud.
 
 To check if your environment is set up, follow these steps:
 
-Your `PATH` needs to have the following elements configured.
+Depending on the languages involved, your `PATH` needs to have the following elements configured.
 
 * A Java environment (any supported Java version, Java8 preferably as of 2024).
   * This environment is needed for all development, because Beam is a Gradle project that uses JVM.
@@ -126,7 +130,7 @@ Your `PATH` needs to have the following elements configured.
   the container entrypoint scripts are written in Go.
 * A Docker environment.
   * Needed for SDK container changes, some cross-language functionality (if you run a
-    SDK container image), portable runners (using job server), etc.
+    SDK container image; not required since Beam 2.53.0), portable runners (using job server), etc.
 
 For example:
 - When you test the code change in `sdks/java/io/google-cloud-platform`, you need a Java environment.
