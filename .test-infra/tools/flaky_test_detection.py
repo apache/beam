@@ -26,15 +26,16 @@ GIT_ORG = "apache"
 GRAFANA_URL = "http://metrics.beam.apache.org"
 GRAFANA_PANEL_IDS = {
     "core_infra": 1,
-    "core_java": 2,
-    "dataflow_java": 3,
-    "runners_java": 4,
-    "load_perf_java": 5,
-    "core_python": 6,
-    "runners_python": 7,
-    "load_perf_python": 8,
-    "go": 9,
-    "misc": 10,
+    "important_signals": 2,
+    "core_java": 3,
+    "dataflow_java": 4,
+    "runners_java": 5,
+    "load_perf_java": 6,
+    "core_python": 7,
+    "runners_python": 8,
+    "load_perf_python": 9,
+    "go": 10,
+    "misc": 11,
 }
 READ_ONLY = os.environ.get("READ_ONLY", "true")
 
