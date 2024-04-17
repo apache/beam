@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PreCommit Yaml Xlang Direct
+name: PreCommit YAML Xlang Direct
 
 on:
   pull_request_target:
@@ -75,7 +75,7 @@ jobs:
     strategy:
       matrix:
         job_name: ["beam_PreCommit_Yaml_Xlang_Direct"]
-        job_phrase: ["Run Yaml_Xlang_Direct"]
+        job_phrase: ["Run Yaml_Xlang_Direct PreCommit"]
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
