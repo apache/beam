@@ -575,7 +575,7 @@ class BagOfWords(TFTOperation):
     self.split_string_by_delimiter = split_string_by_delimiter
     self.key_vocab_filename = key_vocab_filename
     if compute_word_count:
-      self.compute_word_count_fn = count_unqiue_words
+      self.compute_word_count_fn = count_unique_words
     else:
       self.compute_word_count_fn = lambda *args, **kwargs: None
 
@@ -597,6 +597,6 @@ class BagOfWords(TFTOperation):
     return {output_col_name: output}
 
 
-def count_unqiue_words(
+def count_unique_words(
     data: tf.SparseTensor, output_vocab_name: Optional[str]) -> None:
   tft.count_per_key(data, key_vocabulary_filename=output_vocab_name)
