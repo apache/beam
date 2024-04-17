@@ -205,7 +205,9 @@ public final class DispatchedStreamingEngineWorkerHarness implements StreamingWo
             failureTracker,
             streamingCounters,
             memoryMonitor,
-            workExecutor);
+            workExecutor,
+            options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
+            options.getPerWorkerMetricsUpdateReportingPeriodMillis());
     AtomicInteger maxWorkItemCommitBytes = new AtomicInteger(Integer.MAX_VALUE);
     ConcurrentMap<String, String> stateNameMap = new ConcurrentHashMap<>();
     StreamingEngineConfigLoader streamingConfigLoader =
@@ -363,7 +365,9 @@ public final class DispatchedStreamingEngineWorkerHarness implements StreamingWo
             streamingCounters,
             memoryMonitor,
             workExecutor,
-            executorSupplier);
+            executorSupplier,
+            options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
+            options.getPerWorkerMetricsUpdateReportingPeriodMillis());
     StreamingEngineConfigLoader streamingConfigLoader =
         StreamingEngineConfigLoader.forTesting(
             true,
@@ -544,7 +548,7 @@ public final class DispatchedStreamingEngineWorkerHarness implements StreamingWo
   @SuppressWarnings("FutureReturnValueIgnored")
   public void start() {
     if (isRunning.compareAndSet(false, true)) {
-      workerStatusReporter.start(options.getWindmillHarnessUpdateReportingPeriod().getMillis());
+      workerStatusReporter.start();
       streamingConfigLoader.start();
       memoryMonitorExecutor.submit(memoryMonitor);
       workCommitter.start();

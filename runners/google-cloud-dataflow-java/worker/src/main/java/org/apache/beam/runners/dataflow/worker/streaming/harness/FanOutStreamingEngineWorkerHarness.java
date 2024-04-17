@@ -255,7 +255,9 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             failureTracker,
             streamingCounters,
             memoryMonitor,
-            workExecutor),
+            workExecutor,
+            options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
+            options.getPerWorkerMetricsUpdateReportingPeriodMillis()),
         StreamingWorkerStatusPages.forStreamingEngine(
             clock,
             jobHeader.getClientId(),

@@ -193,7 +193,9 @@ public final class ApplianceWorkerHarness implements StreamingWorkerHarness {
             failureTracker,
             streamingCounters,
             memoryMonitor,
-            workExecutor);
+            workExecutor,
+            options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
+            options.getPerWorkerMetricsUpdateReportingPeriodMillis());
     StreamingWorkScheduler streamingWorkScheduler =
         new StreamingWorkScheduler(
             options,
@@ -314,7 +316,9 @@ public final class ApplianceWorkerHarness implements StreamingWorkerHarness {
             streamingCounters,
             memoryMonitor,
             workExecutor,
-            executorSupplier);
+            executorSupplier,
+            options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
+            options.getPerWorkerMetricsUpdateReportingPeriodMillis());
     StreamingApplianceConfigLoader streamingConfigLoader =
         new StreamingApplianceConfigLoader(
             windmillServer, response -> onConfigResponse(response, stateNameMap));
@@ -446,7 +450,7 @@ public final class ApplianceWorkerHarness implements StreamingWorkerHarness {
       sampler.start();
       statusPages.start(options);
       workCommitter.start();
-      workerStatusReporter.start(options.getWindmillHarnessUpdateReportingPeriod().getMillis());
+      workerStatusReporter.start();
       activeWorkRefresher.start();
     }
   }
