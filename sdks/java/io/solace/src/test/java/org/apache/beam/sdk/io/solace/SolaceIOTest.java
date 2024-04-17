@@ -561,7 +561,7 @@ public class SolaceIOTest {
                 .withSessionServiceFactory(fakeSessionServiceFactory)
                 .withMaxNumConnections(2));
 
-    // Run the pipelin
+    // Run the pipeline
     PCollection<Boolean> destAreTopics =
         events.apply(
             MapElements.into(TypeDescriptors.booleans())

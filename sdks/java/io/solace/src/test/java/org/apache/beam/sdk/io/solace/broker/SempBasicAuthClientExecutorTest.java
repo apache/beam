@@ -66,6 +66,35 @@ public class SempBasicAuthClientExecutorTest {
     assertThrows(HttpResponseException.class, () -> client.getQueueResponse("queue"));
   }
 
+  @Test
+  public void testExecuteStatus3xx() {
+    MockHttpTransport transport =
+        new MockHttpTransport() {
+          @Override
+          public LowLevelHttpRequest buildRequest(String method, String url) {
+            return new MockLowLevelHttpRequest() {
+              @Override
+              public LowLevelHttpResponse execute() {
+                MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
+                response.setStatusCode(301);
+                response.setContentType(Json.MEDIA_TYPE);
+                response.setContent(
+                    "{\"meta\":{\"error\":{\"code\":301,\"description\":\"some"
+                        + " error\",\"status\":\"xx\"}}}");
+                return response;
+              }
+            };
+          }
+        };
+
+    HttpRequestFactory requestFactory = transport.createRequestFactory();
+    SempBasicAuthClientExecutor client =
+        new SempBasicAuthClientExecutor(
+            "http://host", "username", "password", "vpnName", requestFactory);
+
+    assertThrows(HttpResponseException.class, () -> client.getQueueResponse("queue"));
+  }
+
   /**
    * In this test case, we test a situation when a session that we used to authenticate to Semp
    * expires.

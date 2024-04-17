@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.solace.broker;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -54,72 +55,44 @@ public class BasicAuthSempClient implements SempClient {
   public boolean isQueueNonExclusive(String queueName) throws IOException {
     LOG.info("SolaceIO.Read: SempOperations: query SEMP if queue {} is nonExclusive", queueName);
     BrokerResponse response = sempBasicAuthClientExecutor.getQueueResponse(queueName);
-    try {
-      Queue q = getSuccessResponseOrThrowException(response, Queue.class);
-      return q.data().accessType().equals("non-exclusive");
-    } catch (SolaceSempException e) {
-      throw new IOException("SolaceIO.Read: Exception when querying for Queue metadata.", e);
+    if (response.content == null) {
+      throw new IOException("SolaceIO: response from SEMP is empty!");
     }
+    Queue q = mapJsonToClass(response.content, Queue.class);
+    return q.data().accessType().equals("non-exclusive");
   }
 
   @Override
   public com.solacesystems.jcsmp.Queue createQueueForTopic(String queueName, String topicName)
       throws IOException {
-    try {
-      createQueue(queueName);
-      createSubscription(queueName, topicName);
-    } catch (SolaceSempException e) {
-      throw new IOException("SolaceIO.Read: Exception when creating a Queue for a Topic.", e);
-    }
+    createQueue(queueName);
+    createSubscription(queueName, topicName);
     return JCSMPFactory.onlyInstance().createQueue(queueName);
   }
 
   @Override
   public long getBacklogBytes(String queueName) throws IOException {
     BrokerResponse response = sempBasicAuthClientExecutor.getQueueResponse(queueName);
-    try {
-      Queue q = getSuccessResponseOrThrowException(response, Queue.class);
-      return q.data().msgSpoolUsage();
-    } catch (SolaceSempException e) {
-      throw new IOException("SolaceIO.Read: Exception when querying for backlog bytes.", e);
+    if (response.content == null) {
+      throw new IOException("SolaceIO: response from SEMP is empty!");
     }
+    Queue q = mapJsonToClass(response.content, Queue.class);
+    return q.data().msgSpoolUsage();
   }
 
-  private void createQueue(String queueName) throws SolaceSempException, IOException {
+  private void createQueue(String queueName) throws IOException {
     LOG.info("SolaceIO.Read: Creating new queue {}.", queueName);
-    BrokerResponse response = sempBasicAuthClientExecutor.createQueueResponse(queueName);
-    checkIfError(response);
+    sempBasicAuthClientExecutor.createQueueResponse(queueName);
   }
 
-  private void createSubscription(String queueName, String topicName)
-      throws SolaceSempException, IOException {
+  private void createSubscription(String queueName, String topicName) throws IOException {
     LOG.info("SolaceIO.Read: Creating new subscription {} for topic {}.", queueName, topicName);
-    BrokerResponse response =
-        sempBasicAuthClientExecutor.createSubscriptionResponse(queueName, topicName);
-    checkIfError(response);
+    sempBasicAuthClientExecutor.createSubscriptionResponse(queueName, topicName);
   }
 
-  private <T> T getSuccessResponseOrThrowException(
-      BrokerResponse response, Class<T> mapSuccessToClass) throws IOException, SolaceSempException {
-    checkIfError(response);
-    return objectMapper.readValue(response.content, mapSuccessToClass);
-  }
-
-  private void checkIfError(BrokerResponse response)
-      throws SolaceSempException, IOException { // todo do we still need this?
-    if (response.code < 200 || response.code > 299) {
-      ErrorMessage error = objectMapper.readValue(response.content, ErrorMessage.class);
-      throw new SolaceSempException(error);
-    }
-  }
-
-  static class SolaceSempException extends Exception {
-    public final ErrorMessage errorMessage;
-
-    SolaceSempException(ErrorMessage errorMessage) {
-      super(errorMessage.meta().error().description());
-      this.errorMessage = errorMessage;
-    }
+  private <T> T mapJsonToClass(String content, Class<T> mapSuccessToClass)
+      throws JsonProcessingException {
+    return objectMapper.readValue(content, mapSuccessToClass);
   }
 
   @AutoValue

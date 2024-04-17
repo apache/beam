@@ -17,61 +17,51 @@
  */
 package org.apache.beam.sdk.io.solace.broker;
 
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
-public class BasicAuthJcsmpSessionServiceFactory extends SessionServiceFactory {
-  private final String host;
-  private final String username;
-  private final String password;
-  private final String vpnName;
+import com.google.auto.value.AutoValue;
 
-  private BasicAuthJcsmpSessionServiceFactory(
-      String host, String username, String password, String vpnName) {
-    this.host = host;
-    this.username = username;
-    this.password = password;
-    this.vpnName = vpnName;
+@AutoValue
+public abstract class BasicAuthJcsmpSessionServiceFactory extends SessionServiceFactory {
+  public abstract String host();
+
+  public abstract String username();
+
+  public abstract String password();
+
+  public abstract String vpnName();
+
+  public static Builder builder() {
+    return new AutoValue_BasicAuthJcsmpSessionServiceFactory.Builder();
   }
 
-  public static BasicAuthJcsmpSessionServiceFactoryBuilder builder() {
-    return new BasicAuthJcsmpSessionServiceFactoryBuilder();
+  @AutoValue.Builder
+  public abstract static class Builder {
+
+    /** Set Solace host, format: Protocol://Host[:Port] */
+    public abstract Builder host(String host);
+
+    /** Set Solace username */
+    public abstract Builder username(String username);
+    /** Set Solace password */
+    public abstract Builder password(String password);
+
+    /** Set Solace vpn name */
+    public abstract Builder vpnName(String vpnName);
+
+    public abstract BasicAuthJcsmpSessionServiceFactory build();
   }
 
   @Override
   public SessionService create() {
-    Preconditions.checkState(queue != null, "SolaceIO.Read: Queue is not set.");
-    return new BasicAuthJcsmpSessionService(queue.getName(), host, username, password, vpnName);
+    checkNotNull(queue, "SolaceIO.Read: Queue is not set.");
+    return createBasicAuthJcsmpSessionService(
+        queue.getName(), host(), username(), password(), vpnName());
   }
 
-  public static class BasicAuthJcsmpSessionServiceFactoryBuilder {
-
-    private String host;
-    private String username;
-    private String password;
-    private String vpnName;
-
-    public BasicAuthJcsmpSessionServiceFactoryBuilder withHost(String host) {
-      this.host = host;
-      return this;
-    }
-
-    public BasicAuthJcsmpSessionServiceFactoryBuilder withUsername(String username) {
-      this.username = username;
-      return this;
-    }
-
-    public BasicAuthJcsmpSessionServiceFactoryBuilder withPassword(String password) {
-      this.password = password;
-      return this;
-    }
-
-    public BasicAuthJcsmpSessionServiceFactoryBuilder withVpnName(String vpnName) {
-      this.vpnName = vpnName;
-      return this;
-    }
-
-    public BasicAuthJcsmpSessionServiceFactory build() {
-      return new BasicAuthJcsmpSessionServiceFactory(host, username, password, vpnName);
-    }
+  @SuppressWarnings("dereference")
+  private BasicAuthJcsmpSessionService createBasicAuthJcsmpSessionService(
+      String queueName, String host, String username, String password, String vpnName) {
+    return new BasicAuthJcsmpSessionService(queueName, host, username, password, vpnName);
   }
 }

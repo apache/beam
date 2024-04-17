@@ -19,105 +19,59 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import com.google.api.client.http.HttpRequestFactory;
 import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.io.solace.SerializableSupplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class BasicAuthSempClientFactory implements SempClientFactory {
+@AutoValue
+public abstract class BasicAuthSempClientFactory implements SempClientFactory {
 
-  private final String host;
-  private final String username;
-  private final String password;
-  private final String vpnName;
-  private final SerializableSupplier<HttpRequestFactory> httpRequestFactorySupplier;
+  public abstract String host();
 
-  private BasicAuthSempClientFactory(
-      String host,
-      String username,
-      String password,
-      String vpnName,
-      SerializableSupplier<HttpRequestFactory> httpRequestFactorySupplier) {
-    this.host = host;
-    this.username = username;
-    this.password = password;
-    this.vpnName = vpnName;
-    this.httpRequestFactorySupplier = httpRequestFactorySupplier;
+  public abstract String username();
+
+  public abstract String password();
+
+  public abstract String vpnName();
+
+  public abstract @Nullable SerializableSupplier<HttpRequestFactory> httpRequestFactorySupplier();
+
+  public static Builder builder() {
+    return new AutoValue_BasicAuthSempClientFactory.Builder();
   }
 
-  public static BasicAuthSempAuthenticationFactoryBuilder builder() {
-    return new BasicAuthSempAuthenticationFactoryBuilder()
-        .withHttpRequestFactorySupplier(() -> new NetHttpTransport().createRequestFactory());
+  @AutoValue.Builder
+  public abstract static class Builder {
+    /** Set Solace host, format: Protocol://Host[:Port] */
+    public abstract Builder host(String host);
+
+    /** Set Solace username */
+    public abstract Builder username(String username);
+    /** Set Solace password */
+    public abstract Builder password(String password);
+
+    /** Set Solace vpn name */
+    public abstract Builder vpnName(String vpnName);
+
+    @VisibleForTesting
+    abstract Builder httpRequestFactorySupplier(
+        SerializableSupplier<HttpRequestFactory> httpRequestFactorySupplier);
+
+    public abstract BasicAuthSempClientFactory build();
   }
 
   @Override
   public SempClient create() {
-    return new BasicAuthSempClient(host, username, password, vpnName, httpRequestFactorySupplier);
+    return new BasicAuthSempClient(
+        host(), username(), password(), vpnName(), getHttpRequestFactorySupplier());
   }
 
-  public static class BasicAuthSempAuthenticationFactoryBuilder {
-
-    private String host;
-    private String username;
-    private String password;
-    private String vpnName;
-    private SerializableSupplier<HttpRequestFactory> httpRequestFactorySupplier;
-
-    /** Set Solace host, format: Protocol://Host[:Port] */
-    public BasicAuthSempAuthenticationFactoryBuilder withHost(String host) {
-      this.host = host;
-      return this;
-    }
-
-    /** Set Solace username */
-    public BasicAuthSempAuthenticationFactoryBuilder withUsername(String username) {
-      this.username = username;
-      return this;
-    }
-
-    /** Set Solace password */
-    public BasicAuthSempAuthenticationFactoryBuilder withPassword(String password) {
-      this.password = password;
-      return this;
-    }
-
-    /** Set Solace vpn name */
-    public BasicAuthSempAuthenticationFactoryBuilder withVpnName(String vpnName) {
-      this.vpnName = vpnName;
-      return this;
-    }
-
-    @VisibleForTesting
-    BasicAuthSempAuthenticationFactoryBuilder withHttpRequestFactorySupplier(
-        SerializableSupplier<HttpRequestFactory> httpRequestFactorySupplier) {
-      this.httpRequestFactorySupplier = httpRequestFactorySupplier;
-      return this;
-    }
-
-    public BasicAuthSempClientFactory build() {
-      // todo update name in the error string
-      Preconditions.checkState(
-          host != null,
-          "SolaceIO: host in BasicAuthSempAuthenticationFactory can't be null. Set it"
-              + " with `withHost()` method.");
-      Preconditions.checkState(
-          username != null,
-          "SolaceIO: username in BasicAuthSempAuthenticationFactory can't be null. Set it"
-              + " with `withUsername()` method.");
-      Preconditions.checkState(
-          password != null,
-          "SolaceIO: password in BasicAuthSempAuthenticationFactory can't be null. Set it"
-              + " with `withPassword()` method.");
-      Preconditions.checkState(
-          vpnName != null,
-          "SolaceIO: vpnName in BasicAuthSempAuthenticationFactory can't be null. Set it"
-              + " with `withVpnName()` method.");
-      Preconditions.checkState(
-          httpRequestFactorySupplier != null,
-          "SolaceIO: httpRequestFactorySupplier in BasicAuthSempAuthenticationFactory"
-              + " can't be null. Set it with `withHttpRequestFactorySupplier()` method.");
-
-      return new BasicAuthSempClientFactory(
-          host, username, password, vpnName, httpRequestFactorySupplier);
-    }
+  @SuppressWarnings("return")
+  private @NonNull SerializableSupplier<HttpRequestFactory> getHttpRequestFactorySupplier() {
+    return httpRequestFactorySupplier() != null
+        ? httpRequestFactorySupplier()
+        : () -> new NetHttpTransport().createRequestFactory();
   }
 }

@@ -19,9 +19,10 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import com.solacesystems.jcsmp.Queue;
 import java.io.Serializable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public abstract class SessionServiceFactory implements Serializable {
-  Queue queue;
+  @Nullable Queue queue;
 
   public abstract SessionService create();
 

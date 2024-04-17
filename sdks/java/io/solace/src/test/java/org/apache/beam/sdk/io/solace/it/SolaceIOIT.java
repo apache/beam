@@ -100,17 +100,17 @@ public class SolaceIOIT {
                 .withMaxNumConnections(1)
                 .withSempClientFactory(
                     BasicAuthSempClientFactory.builder()
-                        .withHost("http://localhost:8080")
-                        .withUsername("admin")
-                        .withPassword("admin")
-                        .withVpnName(SolaceContainerManager.VPN_NAME)
+                        .host("http://localhost:8080")
+                        .username("admin")
+                        .password("admin")
+                        .vpnName(SolaceContainerManager.VPN_NAME)
                         .build())
                 .withSessionServiceFactory(
                     BasicAuthJcsmpSessionServiceFactory.builder()
-                        .withHost("localhost")
-                        .withUsername(SolaceContainerManager.USERNAME)
-                        .withPassword(SolaceContainerManager.PASSWORD)
-                        .withVpnName(SolaceContainerManager.VPN_NAME)
+                        .host("localhost")
+                        .username(SolaceContainerManager.USERNAME)
+                        .password(SolaceContainerManager.PASSWORD)
+                        .vpnName(SolaceContainerManager.VPN_NAME)
                         .build()));
     // PCollection<Long> count =
     PCollection<Record> records =

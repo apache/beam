@@ -21,9 +21,9 @@ import org.apache.beam.sdk.io.solace.broker.SempClient;
 import org.apache.beam.sdk.io.solace.broker.SempClientFactory;
 
 public class MockSempClientFactory implements SempClientFactory {
-  MockSempClient sempClient;
+  SempClient sempClient;
 
-  public MockSempClientFactory(MockSempClient sempClient) {
+  public MockSempClientFactory(SempClient sempClient) {
     this.sempClient = sempClient;
   }
 

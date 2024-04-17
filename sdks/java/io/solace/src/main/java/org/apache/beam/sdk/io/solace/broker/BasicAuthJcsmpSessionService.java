@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import com.solacesystems.jcsmp.ConsumerFlowProperties;
 import com.solacesystems.jcsmp.EndpointProperties;
+import com.solacesystems.jcsmp.FlowReceiver;
 import com.solacesystems.jcsmp.InvalidPropertiesException;
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPFactory;
@@ -93,11 +94,22 @@ public class BasicAuthJcsmpSessionService implements SessionService {
     endpointProperties.setAccessType(EndpointProperties.ACCESSTYPE_NONEXCLUSIVE);
     if (jcsmpSession != null) {
       return new SolaceMessageReceiver(
-          jcsmpSession.createFlow(null, flowProperties, endpointProperties));
+          createFlowReceiver(jcsmpSession, flowProperties, endpointProperties));
     } else {
       throw new IOException(
-          "SolaceIO.Read: Could not create a receiver from the Jcsmp session: session is null.");
+          "SolaceIO.Read: Could not create a receiver from the Jcsmp session: session object is null.");
     }
+  }
+  // The `@SuppressWarning` is needed here, because the checkerframework reports an error for the
+  // first argument of the `createFlow` being null, even though the documentation allows it:
+  // https://docs.solace.com/API-Developer-Online-Ref-Documentation/java/com/solacesystems/jcsmp/JCSMPSession.html#createFlow-com.solacesystems.jcsmp.XMLMessageListener-com.solacesystems.jcsmp.ConsumerFlowProperties-com.solacesystems.jcsmp.EndpointProperties-
+  @SuppressWarnings("nullness")
+  private static FlowReceiver createFlowReceiver(
+      JCSMPSession jcsmpSession,
+      ConsumerFlowProperties flowProperties,
+      EndpointProperties endpointProperties)
+      throws JCSMPException {
+    return jcsmpSession.createFlow(null, flowProperties, endpointProperties);
   }
 
   private int connectSession() throws JCSMPException {
