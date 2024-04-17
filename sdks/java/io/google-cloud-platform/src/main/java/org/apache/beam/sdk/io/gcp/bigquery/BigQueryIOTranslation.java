@@ -657,9 +657,14 @@ public class BigQueryIOTranslation {
         if (jsonTimePartitioning != null) {
           builder = builder.setJsonTimePartitioning(StaticValueProvider.of(jsonTimePartitioning));
         }
-        String jsonClustering = configRow.getString("clustering");
-        if (jsonClustering != null) {
-          builder = builder.setJsonClustering(StaticValueProvider.of(jsonClustering));
+        // Translation with Clustering is broken before 2.56.0, where we used to attempt to
+        // serialize a non-serializable Clustering object to bytes.
+        // In 2.56.0 onwards, we translate using the json string representation instead.
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.56.0") >= 0) {
+          String jsonClustering = configRow.getString("clustering");
+          if (jsonClustering != null) {
+            builder = builder.setJsonClustering(StaticValueProvider.of(jsonClustering));
+          }
         }
         byte[] createDispositionBytes = configRow.getBytes("create_disposition");
         if (createDispositionBytes != null) {
