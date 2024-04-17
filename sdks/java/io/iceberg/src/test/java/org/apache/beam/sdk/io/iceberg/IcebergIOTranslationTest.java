@@ -153,7 +153,10 @@ public class IcebergIOTranslationTest {
     Row expectedRow =
         Row.withSchema(WRITE_SCHEMA)
             .withFieldValue("table_identifier", identifier)
-            .withFieldValue("catalog_config", TransformUpgrader.toByteArray(catalogConfig))
+            .withFieldValue(
+                "catalog_config",
+                TransformUpgrader.toByteArray(
+                    new ExternalizableIcebergCatalogConfig(catalogConfig)))
             .withFieldValue("dynamic_destinations", null)
             .build();
     assertEquals(expectedRow, rowFromSpec);
@@ -278,7 +281,10 @@ public class IcebergIOTranslationTest {
     Row expectedRow =
         Row.withSchema(READ_SCHEMA)
             .withFieldValue("table_identifier", identifier)
-            .withFieldValue("catalog_config", TransformUpgrader.toByteArray(catalogConfig))
+            .withFieldValue(
+                "catalog_config",
+                TransformUpgrader.toByteArray(
+                    new ExternalizableIcebergCatalogConfig(catalogConfig)))
             .build();
     assertEquals(expectedRow, rowFromSpec);
 

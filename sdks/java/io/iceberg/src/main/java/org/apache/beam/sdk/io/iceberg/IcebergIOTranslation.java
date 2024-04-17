@@ -93,7 +93,9 @@ public class IcebergIOTranslation {
       Map<String, Object> fieldValues = new HashMap<>();
 
       if (transform.getCatalogConfig() != null) {
-        fieldValues.put("catalog_config", toByteArray(transform.getCatalogConfig()));
+        fieldValues.put(
+            "catalog_config",
+            toByteArray(new ExternalizableIcebergCatalogConfig(transform.getCatalogConfig())));
       }
       if (transform.getTableIdentifier() != null) {
         TableIdentifier identifier = transform.getTableIdentifier();
@@ -113,7 +115,9 @@ public class IcebergIOTranslation {
 
         byte[] catalogBytes = configRow.getBytes("catalog_config");
         if (catalogBytes != null) {
-          builder = builder.setCatalogConfig((IcebergCatalogConfig) fromByteArray(catalogBytes));
+          builder =
+              builder.setCatalogConfig(
+                  ((ExternalizableIcebergCatalogConfig) fromByteArray(catalogBytes)).get());
         }
         String tableIdentifier = configRow.getString("table_identifier");
         if (tableIdentifier != null) {
@@ -183,7 +187,9 @@ public class IcebergIOTranslation {
       Map<String, Object> fieldValues = new HashMap<>();
 
       if (transform.getCatalogConfig() != null) {
-        fieldValues.put("catalog_config", toByteArray(transform.getCatalogConfig()));
+        fieldValues.put(
+            "catalog_config",
+            toByteArray(new ExternalizableIcebergCatalogConfig(transform.getCatalogConfig())));
       }
       if (transform.getTableIdentifier() != null) {
         TableIdentifier identifier = transform.getTableIdentifier();
@@ -206,7 +212,9 @@ public class IcebergIOTranslation {
 
         byte[] catalogBytes = configRow.getBytes("catalog_config");
         if (catalogBytes != null) {
-          builder = builder.setCatalogConfig((IcebergCatalogConfig) fromByteArray(catalogBytes));
+          builder =
+              builder.setCatalogConfig(
+                  ((ExternalizableIcebergCatalogConfig) fromByteArray(catalogBytes)).get());
         }
         String tableIdentifier = configRow.getString("table_identifier");
         if (tableIdentifier != null) {
