@@ -436,7 +436,9 @@ if __name__ == '__main__':
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',
-              'google-api-core>=2.0.0,<3',
+              # Temporary workaround until grpcio releases a fix for
+              # https://github.com/grpc/grpc/issues/36265
+              'google-api-core>=2.0.0,!=2.17.*,!=2.18.*,<3',
               'google-apitools>=0.5.31,<0.5.32',
               # NOTE: Maintainers, please do not require google-auth>=2.x.x
               # Until this issue is closed
