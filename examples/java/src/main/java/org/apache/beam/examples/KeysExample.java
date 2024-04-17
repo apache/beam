@@ -51,12 +51,12 @@ public class KeysExample {
     PCollection<KV<String, Integer>> pairs =
         pipeline.apply(
             Create.of(KV.of("one", 1), KV.of("two", 2), KV.of("three", 3), KV.of("four", 4)));
-    // Returns only the values of the collection: PCollection<KV<K,V>> ->
+    // Returns only the keys of the collection: PCollection<KV<K,V>> ->
     // PCollection<V>
-    PCollection<String> valuesOnly = pairs.apply(Keys.create());
+    PCollection<String> keysOnly = pairs.apply(Keys.create());
     // [END main_section]
     pairs.apply(ParDo.of(new LogOutput<>("PCollection element before Values.create transform: ")));
-    valuesOnly.apply(
+    keysOnly.apply(
         ParDo.of(new LogOutput<>("PCollection element after Values.create transform: ")));
     pipeline.run();
   }
