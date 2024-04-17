@@ -503,7 +503,7 @@ public class SolaceIOTest {
 
   @Test
   public void testCheckpointMarkDefaultCoder() throws Exception {
-    SolaceCheckpointMark checkpointMark = new SolaceCheckpointMark(null, null);
+    SolaceCheckpointMark checkpointMark = new SolaceCheckpointMark(null, new ArrayList<>());
     Coder<SolaceCheckpointMark> coder =
         new UnboundedSolaceSource<>(null, null, null, 0, false, null, null, null)
             .getCheckpointMarkCoder();

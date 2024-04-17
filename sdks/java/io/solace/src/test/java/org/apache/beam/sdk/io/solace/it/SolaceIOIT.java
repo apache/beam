@@ -17,55 +17,46 @@
  */
 package org.apache.beam.sdk.io.solace.it;
 
-import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertEquals;
 
-import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.solace.SolaceIO;
 import org.apache.beam.sdk.io.solace.broker.BasicAuthJcsmpSessionServiceFactory;
 import org.apache.beam.sdk.io.solace.broker.BasicAuthSempClientFactory;
 import org.apache.beam.sdk.io.solace.data.Solace.Queue;
-import org.apache.beam.sdk.io.solace.data.Solace.Record;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.testutils.metrics.MetricsReader;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testcontainers.shaded.org.apache.commons.lang3.builder.EqualsBuilder;
 
 public class SolaceIOIT {
-  private static final Logger LOG = LoggerFactory.getLogger(SolaceIOIT.class);
+  private static final String NAMESPACE = SolaceIOIT.class.getName();
+  private static final String READ_COUNT = "read_count";
   private static SolaceContainerManager solaceContainerManager;
-  private static final TestPipelineOptions testOptions;
+  private static final TestPipelineOptions readPipelineOptions;
 
   static {
-    testOptions = PipelineOptionsFactory.create().as(TestPipelineOptions.class);
-    testOptions.setBlockOnRun(false);
+    readPipelineOptions = PipelineOptionsFactory.create().as(TestPipelineOptions.class);
+    readPipelineOptions.setBlockOnRun(false);
+    readPipelineOptions.as(TestPipelineOptions.class).setBlockOnRun(false);
+    readPipelineOptions.as(StreamingOptions.class).setStreaming(false);
   }
 
-  @Rule public final transient TestPipeline pipeline = TestPipeline.fromOptions(testOptions);
+  @Rule public final TestPipeline readPipeline = TestPipeline.fromOptions(readPipelineOptions);
 
   @BeforeClass
   public static void setup() {
-    System.out.println("START");
     solaceContainerManager = new SolaceContainerManager();
     solaceContainerManager.start();
   }
@@ -78,22 +69,20 @@ public class SolaceIOIT {
   }
 
   @Test
-  public void test() {
-    // Similar approach to
-    // https://github.com/apache/beam/blob/812e98fac243bab2a88f6ea5fad6147ff8e54a97/sdks/java/io/kafka/src/test/java/org/apache/beam/sdk/io/kafka/KafkaIOIT.java#L216
+  public void testRead() {
     String queueName = "test_queue";
     solaceContainerManager.createQueueWithSubscriptionTopic(queueName);
 
-    solaceContainerManager.getQueueDetails(queueName);
-    String payload = "{\"field_str\":\"value\",\"field_int\":123}";
-    solaceContainerManager.sendToTopic(payload, ImmutableList.of("Solace-Message-ID:m1"));
-    solaceContainerManager.sendToTopic(payload, ImmutableList.of("Solace-Message-ID:m2"));
-    solaceContainerManager.getQueueDetails(queueName);
+    // todo this is very slow, needs to be replaced with the SolaceIO.write connector.
+    int publishMessagesCount = 20;
+    for (int i = 0; i < publishMessagesCount; i++) {
+      solaceContainerManager.sendToTopic(
+          "{\"field_str\":\"value\",\"field_int\":123}",
+          ImmutableList.of("Solace-Message-ID:m" + i));
+    }
 
-    pipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
-
-    PCollection<Record> events =
-        pipeline.apply(
+    readPipeline
+        .apply(
             "Read from Solace",
             SolaceIO.read()
                 .from(Queue.fromName(queueName))
@@ -111,164 +100,31 @@ public class SolaceIOIT {
                         .username(SolaceContainerManager.USERNAME)
                         .password(SolaceContainerManager.PASSWORD)
                         .vpnName(SolaceContainerManager.VPN_NAME)
-                        .build()));
-    // PCollection<Long> count =
-    PCollection<Record> records =
-        events
-            .apply(
-                "PassThrough",
-                MapElements.via(
-                    new SimpleFunction<Record, Record>() {
-                      @Override
-                      public Record apply(Record s) {
-                        System.out.println("passthrough rec: " + s);
-                        return s;
-                      }
-                      // })).apply("Window",
-                      // Window.into(CalendarWindows.years(1)));
-                    }))
-            .apply("Window", Window.into(FixedWindows.of(Duration.standardSeconds(5))));
+                        .build()))
+        .apply("Count", ParDo.of(new CountingFn<>(NAMESPACE, READ_COUNT)));
 
-    System.out.println("xxxxx");
+    PipelineResult pipelineResult = readPipeline.run();
+    // todo this needs to be parametrized when moved to the official repo and used with the
+    // :integrationTest plugin
+    pipelineResult.waitUntilFinish(Duration.standardSeconds(15));
 
-    PAssert.thatSingleton(
-            records.apply(
-                "Counting element", Combine.globally(Count.<Record>combineFn()).withoutDefaults()))
-        .isEqualTo(1L);
-
-    PAssert.that(records)
-        .containsInAnyOrder(
-            partialMatch(
-                Record.builder()
-                    .setMessageId("m1")
-                    .setPayload(payload.getBytes(StandardCharsets.UTF_8))
-                    .build()));
-
-    PipelineResult writeResult = pipeline.run();
-    // removing this line causes the pipeline not ingest any data
-    PipelineResult.State writeState = writeResult.waitUntilFinish(Duration.standardSeconds(10));
-    assertNotEquals(PipelineResult.State.FAILED, writeState);
-
-    System.out.println("queue after pipeline");
-    solaceContainerManager.getQueueDetails(queueName);
+    MetricsReader metricsReader = new MetricsReader(pipelineResult, NAMESPACE);
+    long actualRecordsCount = metricsReader.getCounterMetric(READ_COUNT);
+    assertEquals(publishMessagesCount, actualRecordsCount);
   }
 
-  private static SerializableMatcher<Record> partialMatch(Record expected) {
-    class Matcher extends BaseMatcher<Record> implements SerializableMatcher<Record> {
-      @Override
-      public boolean matches(Object item) {
-        LOG.info("matches!!!");
-        System.out.println("matches");
-        if (!(item instanceof Record)) {
-          return false;
-        }
+  private static class CountingFn<T> extends DoFn<T, T> {
 
-        Record actual = (Record) item;
-        boolean partiallyEqual =
-            EqualsBuilder.reflectionEquals(actual, expected, "replicationGroupMessageId");
-        System.out.println("expected.equals(actual): " + expected.equals(actual));
-        System.out.println("partiallyEqual: " + partiallyEqual);
-        System.out.println("expected: " + expected);
-        System.out.println("actual:   " + actual);
+    private final Counter elementCounter;
 
-        return true;
-
-        // for (Record needle : needles) {
-        //     if (!haystack.contains(needle)) {
-        //         return false;
-        //     }
-        // }
-        // return true;
-      }
-
-      @Override
-      public void describeTo(Description description) {
-        description.appendText("Contains all of: ");
-        description.appendText(expected.toString());
-      }
+    CountingFn(String namespace, String name) {
+      elementCounter = Metrics.counter(namespace, name);
     }
-    System.out.println("new matcher");
-    return new Matcher();
-  }
-  // @Test
-  // public void testWrite() {
-  //     TestStream<String> createEvents =
-  //             TestStream.create(StringUtf8Coder.of())
-  //                     .addElements("r1", "r2")
-  //                     .advanceWatermarkTo(
-  //                             Instant.ofEpochMilli(0L).plus(Duration.standardSeconds(10)))
-  //                     .addElements("r3", "r4")
-  //                     .advanceWatermarkToInfinity();
-  //
-  //     PCollection<String> records = pipeline.apply(createEvents);
-  //
-  //     SolacePublishResult results =
-  //             records.apply(
-  //                             "map",
-  //                             ParDo.of(
-  //                                     new DoFn<String, Record>() {
-  //                                         @ProcessElement
-  //                                         public void processElement(ProcessContext c) {
-  //                                             // System.out.println("Failed: " + c.element());
-  //                                             c.output(
-  //                                                     buildRecord(
-  //                                                             c.element(),
-  //                                                             "payload_" + c.element()));
-  //                                         }
-  //                                     }))
-  //                     .apply(
-  //                             SolaceIO.writeSolaceRecords()
-  //                                     .to(Topic.fromName("test_topic"))
-  //                                     .withSessionPropertiesProvider(
-  //                                             BasicAuthenticationProvider.builder()
-  //                                                     .username("xx")
-  //                                                     .password("xx")
-  //                                                     .host("localhost")
-  //                                                     .vpnName(solaceContainer.getVpn())
-  //                                                     .build())
-  //                                     .withDeliveryMode(DeliveryMode.PERSISTENT)
-  //                                     .withSubmissionMode(SubmissionMode.HIGHER_THROUGHPUT)
-  //                                     .withWriterType(WriterType.BATCHED)
-  //                                     .withMaxNumOfUsedWorkers(1)
-  //                                     .withNumberOfClientsPerWorker(1));
-  //
-  //     results.getSuccessfulPublish()
-  //             .apply(
-  //                     "Successful records",
-  //                     ParDo.of(
-  //                             new DoFn<PublishResult, Integer>() {
-  //                                 @ProcessElement
-  //                                 public void processElement(ProcessContext c) {
-  //                                     System.out.println("OK: " + c.element());
-  //                                     c.output(1);
-  //                                 }
-  //                             }));
-  //
-  //     results.getFailedPublish()
-  //             .apply(
-  //                     "Failed records",
-  //                     ParDo.of(
-  //                             new DoFn<PublishResult, Integer>() {
-  //                                 @ProcessElement
-  //                                 public void processElement(ProcessContext c) {
-  //                                     System.out.println("Failed: " + c.element());
-  //                                     c.output(1);
-  //                                 }
-  //                             }));
-  //
-  //     pipeline.run().waitUntilFinish();
-  // }
 
-  // private static Record buildRecord(String id, String payload) {
-  //     return Record.builder()
-  //             .setMessageId(id)
-  //             .setPayload(payload.getBytes(StandardCharsets.UTF_8))
-  //             .setSenderTimestamp(1712224703L)
-  //             .setDestination(
-  //                     Destination.builder()
-  //                             .setName("test_topic")
-  //                             .setType(DestinationType.TOPIC)
-  //                             .build())
-  //             .build();
-  // }
+    @ProcessElement
+    public void processElement(@Element T record, OutputReceiver<T> c) {
+      elementCounter.inc(1L);
+      c.output(record);
+    }
+  }
 }

@@ -90,7 +90,7 @@ public class Solace {
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class Destination {
     @SchemaFieldNumber("0")
-    public abstract String getName();
+    public abstract @Nullable String getName();
 
     @SchemaFieldNumber("1")
     public abstract DestinationType getType();
@@ -101,7 +101,7 @@ public class Solace {
 
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setName(String name);
+      public abstract Builder setName(@Nullable String name);
 
       public abstract Builder setType(DestinationType type);
 
@@ -162,121 +162,39 @@ public class Solace {
 
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setMessageId(String messageId);
+      public abstract Builder setMessageId(@Nullable String messageId);
 
       public abstract Builder setPayload(byte[] payload);
 
       public abstract Builder setDestination(Destination destination);
 
-      public abstract Builder setExpiration(Long expiration);
+      public abstract Builder setExpiration(@Nullable Long expiration);
 
-      public abstract Builder setPriority(Integer priority);
+      public abstract Builder setPriority(@Nullable Integer priority);
 
-      public abstract Builder setRedelivered(Boolean redelivered);
+      public abstract Builder setRedelivered(@Nullable Boolean redelivered);
 
-      public abstract Builder setReplyTo(String replyTo);
+      public abstract Builder setReplyTo(@Nullable String replyTo);
 
-      public abstract Builder setReceiveTimestamp(Long receiveTimestamp);
+      public abstract Builder setReceiveTimestamp(@Nullable Long receiveTimestamp);
 
-      public abstract Builder setSenderTimestamp(Long senderTimestamp);
+      public abstract Builder setSenderTimestamp(@Nullable Long senderTimestamp);
 
-      public abstract Builder setSequenceNumber(Long sequenceNumber);
+      public abstract Builder setSequenceNumber(@Nullable Long sequenceNumber);
 
-      public abstract Builder setTimeToLive(Long timeToLive);
+      public abstract Builder setTimeToLive(@Nullable Long timeToLive);
 
-      public abstract Builder setReplicationGroupMessageId(String replicationGroupMessageId);
+      public abstract Builder setReplicationGroupMessageId(
+          @Nullable String replicationGroupMessageId);
 
       public abstract Record build();
     }
   }
 
-  /**
-   * The result of writing a message to Solace. This will be returned by the {@link
-   * org.apache.beam.sdk.io.solace.SolaceIO.Write} connector.
-   *
-   * <p>This class provides a builder to create instances, but you will probably not need it. The
-   * write connector will create and return instances of {@link PublishResult}.
-   *
-   * <p>If the message has been published, {@link PublishResult#getPublished()} will be true. If it
-   * is false, it means that the message could not be published, and {@link
-   * PublishResult#getError()} will contain more details about why the message could not be
-   * published.
-   */
-  @AutoValue
-  @DefaultSchema(AutoValueSchema.class)
-  public abstract static class PublishResult {
-    /** The message id of the message that was published. */
-    @SchemaFieldNumber("0")
-    public abstract String getMessageId();
-
-    /** Whether the message was published or not. */
-    @SchemaFieldNumber("1")
-    public abstract Boolean getPublished();
-
-    /**
-     * The publishing latency in milliseconds. This is the difference between the time the message
-     * was created, and the time the message was published. It is only available if the {@link
-     * CorrelationKey} class is used as correlation key of the messages.
-     */
-    @SchemaFieldNumber("2")
-    public abstract @Nullable Long getLatencyMilliseconds();
-
-    /** The error details if the message could not be published. */
-    @SchemaFieldNumber("3")
-    public abstract @Nullable String getError();
-
-    public static Builder builder() {
-      return new AutoValue_Solace_PublishResult.Builder();
-    }
-
-    @AutoValue.Builder
-    public abstract static class Builder {
-      public abstract Builder setMessageId(String messageId);
-
-      public abstract Builder setPublished(Boolean published);
-
-      public abstract Builder setLatencyMilliseconds(Long latencyMs);
-
-      public abstract Builder setError(String error);
-
-      public abstract PublishResult build();
-    }
-  }
-
-  /**
-   * The correlation key is an object that is passed back to the client during the event broker ack
-   * or nack.
-   *
-   * <p>In the streaming writer is optionally used to calculate publish latencies, by calculating
-   * the time difference between the creation of the correlation key, and the time of the ack.
-   */
-  @AutoValue
-  @DefaultSchema(AutoValueSchema.class)
-  public abstract static class CorrelationKey {
-    @SchemaFieldNumber("0")
-    public abstract String getMessageId();
-
-    @SchemaFieldNumber("1")
-    public abstract long getPublishMonotonicMillis();
-
-    public static Builder builder() {
-      return new AutoValue_Solace_CorrelationKey.Builder();
-    }
-
-    @AutoValue.Builder
-    public abstract static class Builder {
-      public abstract Builder setMessageId(String messageId);
-
-      public abstract Builder setPublishMonotonicMillis(long millis);
-
-      public abstract CorrelationKey build();
-    }
-  }
-
   public static class SolaceRecordMapper {
-    public static final Logger LOG = LoggerFactory.getLogger(SolaceRecordMapper.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SolaceRecordMapper.class);
 
-    public static Record map(@Nullable BytesXMLMessage msg) {
+    public static @Nullable Record map(@Nullable BytesXMLMessage msg) {
       if (msg == null) {
         return null;
       }
@@ -304,9 +222,9 @@ public class Solace {
       com.solacesystems.jcsmp.Destination originalDestination = msg.getDestination();
       Destination.Builder destBuilder =
           Destination.builder().setName(originalDestination.getName());
-      if (originalDestination instanceof Topic) {
+      if (originalDestination instanceof com.solacesystems.jcsmp.Topic) {
         destBuilder.setType(DestinationType.TOPIC);
-      } else if (originalDestination instanceof Queue) {
+      } else if (originalDestination instanceof com.solacesystems.jcsmp.Queue) {
         destBuilder.setType(DestinationType.QUEUE);
       } else {
         LOG.error(

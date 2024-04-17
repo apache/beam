@@ -22,7 +22,6 @@ import com.solacesystems.jcsmp.Queue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
@@ -31,6 +30,7 @@ import org.apache.beam.sdk.io.solace.broker.SempClientFactory;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,13 +40,13 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
   private static final long serialVersionUID = 42L;
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSolaceSource.class);
   private final Queue queue;
-  private final Integer maxNumConnections;
+  private final @Nullable Integer maxNumConnections;
   private final Coder<T> coder;
   private final boolean enableDeduplication;
   private final SempClientFactory sempClientFactory;
   private final SessionServiceFactory sessionServiceFactory;
   private final SerializableFunction<T, Instant> timestampFn;
-  private final SerializableFunction<BytesXMLMessage, T> parseFn;
+  private final SerializableFunction<BytesXMLMessage, @Nullable T> parseFn;
 
   public Queue getQueue() {
     return queue;
@@ -64,7 +64,7 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
     return timestampFn;
   }
 
-  public SerializableFunction<BytesXMLMessage, T> getParseFn() {
+  public SerializableFunction<BytesXMLMessage, @Nullable T> getParseFn() {
     return parseFn;
   }
 
@@ -72,11 +72,11 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
       Queue queue,
       SempClientFactory sempClientFactory,
       SessionServiceFactory sessionServiceFactory,
-      Integer maxNumConnections,
+      @Nullable Integer maxNumConnections,
       boolean enableDeduplication,
       Coder<T> coder,
       SerializableFunction<T, Instant> timestampFn,
-      SerializableFunction<BytesXMLMessage, T> parseFn) {
+      SerializableFunction<BytesXMLMessage, @Nullable T> parseFn) {
     this.queue = queue;
     this.sempClientFactory = sempClientFactory;
     this.sessionServiceFactory = sessionServiceFactory;
@@ -108,7 +108,7 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
   }
 
   private List<UnboundedSolaceSource<T>> getSolaceSources(
-      int desiredNumSplits, Integer maxNumConnections) {
+      int desiredNumSplits, @Nullable Integer maxNumConnections) {
     List<UnboundedSolaceSource<T>> sourceList = new ArrayList<>();
     int numSplits =
         maxNumConnections != null

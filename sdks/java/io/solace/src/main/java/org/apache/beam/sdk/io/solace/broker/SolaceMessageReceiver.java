@@ -28,7 +28,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 public class SolaceMessageReceiver implements MessageReceiver, Serializable {
 
   public static final int DEFAULT_ADVANCE_TIMEOUT_IN_MILLIS = 100;
-  private final FlowReceiver flowReceiver;
+  private final transient FlowReceiver flowReceiver;
   private final RetryCallableManager retryCallableManager = RetryCallableManager.create();
 
   public SolaceMessageReceiver(FlowReceiver flowReceiver) {

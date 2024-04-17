@@ -21,22 +21,22 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.RetryHelper.RetryHelperException;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Before;
 import org.junit.Test;
 
 public class RetryCallableManagerTest {
+  private static final int NUMBER_OF_RETRIES = 4;
+  private static final int RETRY_INTERVAL_SECONDS = 0;
+  private static final int RETRY_MULTIPLIER = 2;
+  private static final int MAX_DELAY = 0;
 
   private RetryCallableManager retryCallableManager;
 
   @Before
   public void setUp() throws Exception {
-    int NUMBER_OF_RETRIES = 4;
-    int RETRY_INTERVAL_SECONDS = 0;
-    int RETRY_MULTIPLIER = 2;
-    int MAX_DELAY = 0;
 
     retryCallableManager =
         RetryCallableManager.builder()
@@ -63,7 +63,8 @@ public class RetryCallableManagerTest {
           return executeCounter.get();
         };
     Integer result =
-        retryCallableManager.retryCallable(incrementingFunction, Set.of(MyException.class));
+        retryCallableManager.retryCallable(
+            incrementingFunction, ImmutableSet.of(MyException.class));
     assertTrue(String.format("Should return 2, instead returned %d.", result), result == 2);
   }
 
@@ -78,7 +79,7 @@ public class RetryCallableManagerTest {
           }
           return executeCounter.get();
         };
-    retryCallableManager.retryCallable(incrementingFunction, Set.of(MyException.class));
+    retryCallableManager.retryCallable(incrementingFunction, ImmutableSet.of(MyException.class));
     assertTrue(
         String.format("Should run 2 times, instead ran %d times.", executeCounter.get()),
         executeCounter.get() == 2);
@@ -92,7 +93,7 @@ public class RetryCallableManagerTest {
             throw new MyException();
           }
         };
-    retryCallableManager.retryCallable(incrementingFunction, Set.of(MyException.class));
+    retryCallableManager.retryCallable(incrementingFunction, ImmutableSet.of(MyException.class));
   }
 
   @Test
@@ -107,7 +108,7 @@ public class RetryCallableManagerTest {
           return 0;
         };
     try {
-      retryCallableManager.retryCallable(incrementingFunction, Set.of(MyException.class));
+      retryCallableManager.retryCallable(incrementingFunction, ImmutableSet.of(MyException.class));
     } catch (RetryHelperException e) {
       // ignore exception to check the executeCounter
     }
@@ -125,7 +126,7 @@ public class RetryCallableManagerTest {
           }
           return 0;
         };
-    retryCallableManager.retryCallable(incrementingFunction, Set.of(MyException.class));
+    retryCallableManager.retryCallable(incrementingFunction, ImmutableSet.of(MyException.class));
   }
 
   @Test
@@ -143,7 +144,7 @@ public class RetryCallableManagerTest {
         };
     try {
       retryCallableManager.retryCallable(
-          incrementingFunction, Set.of(MyException.class, AnotherException.class));
+          incrementingFunction, ImmutableSet.of(MyException.class, AnotherException.class));
     } catch (RetryHelperException e) {
       // ignore exception to check the executeCounter
     }

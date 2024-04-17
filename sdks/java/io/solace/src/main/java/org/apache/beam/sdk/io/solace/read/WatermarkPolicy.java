@@ -17,15 +17,13 @@
  */
 package org.apache.beam.sdk.io.solace.read;
 
-import com.google.common.collect.Ordering;
 import java.io.Serializable;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Ordering;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class WatermarkPolicy<T> implements Serializable {
-  public static final Logger LOG = LoggerFactory.getLogger(WatermarkPolicy.class);
   private WatermarkParameters<T> watermarkParameters;
 
   public static <T> WatermarkPolicy<T> create(SerializableFunction<T, Instant> timestampFunction) {
@@ -53,7 +51,10 @@ public class WatermarkPolicy<T> implements Serializable {
     return watermarkParameters.getCurrentWatermark();
   }
 
-  public void update(T record) {
+  public void update(@Nullable T record) {
+    if (record == null) {
+      return;
+    }
     watermarkParameters =
         watermarkParameters
             .toBuilder()

@@ -29,7 +29,9 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.io.solace.data.Solace.Destination;
 import org.apache.beam.sdk.io.solace.data.Solace.Record;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * Custom coder for the default Solace {@link Record}
@@ -50,13 +52,15 @@ public class SolaceRecordCoder extends CustomCoder<Record> {
   }
 
   @Override
-  public void encode(Record value, OutputStream outStream) throws IOException {
-    // Check if the destination is a topic or a queue, and encode that info
+  public void encode(Record value, @NonNull OutputStream outStream) throws IOException {
     STRING_CODER.encode(value.getMessageId(), outStream);
     STRING_CODER.encode(value.getReplicationGroupMessageId(), outStream);
     BYTE_CODER.encode(value.getPayload(), outStream);
-    STRING_CODER.encode(value.getDestination().getName(), outStream);
-    STRING_CODER.encode(value.getDestination().getType().toString(), outStream);
+    Destination destination = value.getDestination();
+    String destinationName = destination == null ? null : destination.getName();
+    String typeName = destination == null ? null : destination.getType().toString();
+    STRING_CODER.encode(destinationName, outStream);
+    STRING_CODER.encode(typeName, outStream);
     LONG_CODER.encode(value.getExpiration(), outStream);
     INTEGER_CODER.encode(value.getPriority(), outStream);
     BOOLEAN_CODER.encode(value.getRedelivered(), outStream);

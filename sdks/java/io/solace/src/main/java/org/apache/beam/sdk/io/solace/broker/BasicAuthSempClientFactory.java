@@ -44,15 +44,15 @@ public abstract class BasicAuthSempClientFactory implements SempClientFactory {
 
   @AutoValue.Builder
   public abstract static class Builder {
-    /** Set Solace host, format: Protocol://Host[:Port] */
+    /** Set Solace host, format: Protocol://Host[:Port]. */
     public abstract Builder host(String host);
 
-    /** Set Solace username */
+    /** Set Solace username. */
     public abstract Builder username(String username);
-    /** Set Solace password */
+    /** Set Solace password. */
     public abstract Builder password(String password);
 
-    /** Set Solace vpn name */
+    /** Set Solace vpn name. */
     public abstract Builder vpnName(String vpnName);
 
     @VisibleForTesting

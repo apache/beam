@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.io.solace.read;
 
-import com.google.common.annotations.VisibleForTesting;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -32,6 +33,8 @@ import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
 import org.apache.beam.sdk.io.solace.broker.SempClient;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,12 +46,12 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSolaceReader.class);
   private final UnboundedSolaceSource<T> currentSource;
   private final WatermarkPolicy<T> watermarkPolicy;
-  AtomicBoolean active = new AtomicBoolean(true);
-  private BytesXMLMessage solaceOriginalRecord;
-  private T solaceMappedRecord;
-  private MessageReceiver messageReceiver;
-  private SessionService sessionService;
   private final SempClient sempClient;
+  private @Nullable BytesXMLMessage solaceOriginalRecord;
+  private @Nullable T solaceMappedRecord;
+  private @Nullable MessageReceiver messageReceiver;
+  private @Nullable SessionService sessionService;
+  AtomicBoolean active = new AtomicBoolean(true);
 
   /**
    * Queue to place advanced messages before {@link #getCheckpointMark()} be called non-concurrent
@@ -76,17 +79,18 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
       sessionService = getCurrentSource().getSessionServiceFactory().create();
     }
     if (sessionService.isClosed()) {
-      sessionService.connect();
+      checkNotNull(sessionService).connect();
     }
   }
 
   private void populateMessageConsumer() {
     if (messageReceiver == null) {
-      messageReceiver = sessionService.createReceiver();
+      messageReceiver = checkNotNull(sessionService).createReceiver();
       messageReceiver.start();
     }
-    if (messageReceiver.isClosed()) {
-      messageReceiver.start();
+    MessageReceiver receiver = checkNotNull(messageReceiver);
+    if (receiver.isClosed()) {
+      receiver.start();
     }
   }
 
@@ -94,7 +98,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   public boolean advance() {
     BytesXMLMessage receivedXmlMessage;
     try {
-      receivedXmlMessage = messageReceiver.receive();
+      receivedXmlMessage = checkNotNull(messageReceiver).receive();
     } catch (IOException e) {
       LOG.warn("SolaceIO.Read: Exception when pulling messages from the broker.", e);
       return false;
@@ -113,13 +117,13 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   @Override
   public void close() {
     active.set(false);
-    sessionService.close();
+    checkNotNull(sessionService).close();
   }
 
   @Override
   public Instant getWatermark() {
     // should be only used by a test receiver
-    if (messageReceiver.isEOF()) {
+    if (checkNotNull(messageReceiver).isEOF()) {
       return BoundedWindow.TIMESTAMP_MAX_VALUE;
     }
     return watermarkPolicy.getWatermark();
@@ -130,7 +134,9 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     List<BytesXMLMessage> ackQueue = new ArrayList<>();
     while (!elementsToCheckpoint.isEmpty()) {
       BytesXMLMessage msg = elementsToCheckpoint.poll();
-      ackQueue.add(msg);
+      if (msg != null) {
+        ackQueue.add(msg);
+      }
     }
     return new SolaceCheckpointMark(active, ackQueue);
   }
@@ -149,9 +155,11 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
       throw new NoSuchElementException();
     }
     if (solaceOriginalRecord.getApplicationMessageId() != null) {
-      return solaceOriginalRecord.getApplicationMessageId().getBytes(StandardCharsets.UTF_8);
+      return checkNotNull(solaceOriginalRecord)
+          .getApplicationMessageId()
+          .getBytes(StandardCharsets.UTF_8);
     } else {
-      return solaceOriginalRecord
+      return checkNotNull(solaceOriginalRecord)
           .getReplicationGroupMessageId()
           .toString()
           .getBytes(StandardCharsets.UTF_8);

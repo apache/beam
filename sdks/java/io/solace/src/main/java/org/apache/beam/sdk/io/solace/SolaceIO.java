@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.solace;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
 import com.google.auto.value.AutoValue;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.Destination;
@@ -24,7 +27,6 @@ import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.Queue;
 import com.solacesystems.jcsmp.Topic;
 import java.io.IOException;
-import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -42,7 +44,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -61,9 +63,15 @@ import org.slf4j.LoggerFactory;
  */
 public class SolaceIO {
 
-  public static final Logger LOG = LoggerFactory.getLogger(SolaceIO.class);
   public static final SerializableFunction<Solace.Record, Instant> SENDER_TIMESTAMP_FUNCTION =
-      (record) -> new Instant(record.getSenderTimestamp());
+      (record) -> {
+        Long senderTimestamp = record != null ? record.getSenderTimestamp() : null;
+        if (senderTimestamp != null) {
+          return Instant.ofEpochMilli(senderTimestamp);
+        } else {
+          return Instant.now();
+        }
+      };
   private static final boolean DEFAULT_DEDUPLICATE_RECORDS = true;
 
   /** Get a {@link Topic} object from the topic name. */
@@ -85,9 +93,9 @@ public class SolaceIO {
    */
   public static Destination convertToJcsmpDestination(Solace.Destination destination) {
     if (destination.getType().equals(Solace.DestinationType.TOPIC)) {
-      return topicFromName(destination.getName());
+      return topicFromName(checkNotNull(destination.getName()));
     } else if (destination.getType().equals(Solace.DestinationType.QUEUE)) {
-      return queueFromName(destination.getName());
+      return queueFromName(checkNotNull(destination.getName()));
     } else {
       throw new IllegalArgumentException(
           "SolaceIO.Write: Unknown destination type: " + destination.getType());
@@ -106,22 +114,25 @@ public class SolaceIO {
         .build();
   }
   /**
-   * Create a {@link Read} transform, to read from Solace. Specify a {@link SerializableFunction}
-   * to map incoming {@link BytesXMLMessage} records, to the object of your choice. You also need
-   * to specify a {@link TypeDescriptor} for your class and the timestamp function which returns
-   * an {@link Instant} from the record.
+   * Create a {@link Read} transform, to read from Solace. Specify a {@link SerializableFunction} to
+   * map incoming {@link BytesXMLMessage} records, to the object of your choice. You also need to
+   * specify a {@link TypeDescriptor} for your class and the timestamp function which returns an
+   * {@link Instant} from the record.
    *
-   * <p> The type descriptor will be used to infer a coder from CoderRegistry or Schema Registry.
-   * You can initialize a new TypeDescriptor in the following manner:
+   * <p>The type descriptor will be used to infer a coder from CoderRegistry or Schema Registry. You
+   * can initialize a new TypeDescriptor in the following manner:
    *
    * <pre>{@code
-   *   TypeDescriptor<T> typeDescriptor = TypeDescriptor.of(YourOutputType.class);
-   * }
+   * TypeDescriptor<T> typeDescriptor = TypeDescriptor.of(YourOutputType.class);
+   * }</pre>
    */
   public static <T> Read<T> read(
       TypeDescriptor<T> typeDescriptor,
-      SerializableFunction<BytesXMLMessage, T> parseFn,
+      SerializableFunction<BytesXMLMessage, @Nullable T> parseFn,
       SerializableFunction<T, Instant> timestampFn) {
+    checkState(typeDescriptor != null, "SolaceIO.Read: typeDescriptor must not be null");
+    checkState(parseFn != null, "SolaceIO.Read: parseFn must not be null");
+    checkState(timestampFn != null, "SolaceIO.Read: timestampFn must not be null");
     return Read.<T>builder()
         .setTypeDescriptor(typeDescriptor)
         .setParseFn(parseFn)
@@ -148,6 +159,10 @@ public class SolaceIO {
      * used to calculate watermark and define record's timestamp.
      */
     public Read<T> withTimestampFn(SerializableFunction<T, Instant> timestampFn) {
+      checkState(
+          timestampFn != null,
+          "SolaceIO.Read: timestamp function must be set or use the"
+              + " `Read.readSolaceRecords()` method");
       return toBuilder().setTimestampFn(timestampFn).build();
     }
 
@@ -182,6 +197,7 @@ public class SolaceIO {
      * </ul>
      */
     public Read<T> withSempClientFactory(SempClientFactory sempClientFactory) {
+      checkState(sempClientFactory != null, "SolaceIO.Read: sempClientFactory must not be null.");
       return toBuilder().setSempClientFactory(sempClientFactory).build();
     }
 
@@ -200,6 +216,8 @@ public class SolaceIO {
      * </ul>
      */
     public Read<T> withSessionServiceFactory(SessionServiceFactory sessionServiceFactory) {
+      checkState(
+          sessionServiceFactory != null, "SolaceIO.Read: sessionServiceFactory must not be null.");
       return toBuilder().setSessionServiceFactory(sessionServiceFactory).build();
     }
 
@@ -213,7 +231,7 @@ public class SolaceIO {
 
     abstract boolean getDeduplicateRecords();
 
-    abstract SerializableFunction<BytesXMLMessage, T> getParseFn();
+    abstract SerializableFunction<BytesXMLMessage, @Nullable T> getParseFn();
 
     abstract @Nullable SempClientFactory getSempClientFactory();
 
@@ -242,7 +260,7 @@ public class SolaceIO {
 
       abstract Builder<T> setDeduplicateRecords(boolean deduplicateRecords);
 
-      abstract Builder<T> setParseFn(SerializableFunction<BytesXMLMessage, T> parseFn);
+      abstract Builder<T> setParseFn(SerializableFunction<BytesXMLMessage, @Nullable T> parseFn);
 
       abstract Builder<T> setSempClientFactory(SempClientFactory brokerServiceFactory);
 
@@ -253,16 +271,23 @@ public class SolaceIO {
       abstract Read<T> build();
     }
 
+    private static <T> T castIfNull(@Nullable T arg0, @NonNull T arg1) {
+      return arg0 != null ? arg0 : arg1;
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
-      validate();
+      checkState(
+          (getQueue() == null ^ getTopic() == null),
+          "SolaceIO.Read: One of the Solace {Queue, Topic} must be set.");
 
-      SempClientFactory sempClientFactory = getSempClientFactory();
+      SempClientFactory sempClientFactory =
+          checkNotNull(getSempClientFactory(), "SolaceIO: sempClientFactory is null.");
       String jobName = input.getPipeline().getOptions().getJobName();
-      Queue queue =
-          getQueue() != null ? getQueue() : initializeQueueForTopic(jobName, sempClientFactory);
+      Queue queue = castIfNull(getQueue(), initializeQueueForTopic(jobName, sempClientFactory));
 
-      SessionServiceFactory sessionServiceFactory = getSessionServiceFactory();
+      SessionServiceFactory sessionServiceFactory =
+          checkNotNull(getSessionServiceFactory(), "SolaceIO: sessionServiceFactory is null.");
       sessionServiceFactory.setQueue(queue);
 
       registerDefaultCoder(input.getPipeline());
@@ -278,8 +303,8 @@ public class SolaceIO {
                   getMaxNumConnections(),
                   getDeduplicateRecords(),
                   coder,
-                  getTimestampFn(),
-                  getParseFn())));
+                  checkNotNull(getTimestampFn()),
+                  checkNotNull(getParseFn()))));
     }
 
     private static void registerDefaultCoder(Pipeline pipeline) {
@@ -301,12 +326,12 @@ public class SolaceIO {
       }
 
       throw new RuntimeException(
-          "SolaceIO.Read: Cannot infer a coder for the TypeDescriptor. Annotate you"
+          "SolaceIO.Read: Cannot infer a coder for the TypeDescriptor. Annotate your"
               + " output class with @DefaultSchema annotation or create a coder manually"
               + " and register it in the CoderRegistry.");
     }
 
-    private Coder<T> getFromSchemaRegistry(Pipeline pipeline) {
+    private @Nullable Coder<T> getFromSchemaRegistry(Pipeline pipeline) {
       try {
         return pipeline.getSchemaRegistry().getSchemaCoder(getTypeDescriptor());
       } catch (NoSuchSchemaException e) {
@@ -314,7 +339,7 @@ public class SolaceIO {
       }
     }
 
-    private Coder<T> getFromCoderRegistry(Pipeline pipeline) {
+    private @Nullable Coder<T> getFromCoderRegistry(Pipeline pipeline) {
       try {
         return pipeline.getCoderRegistry().getCoder(getTypeDescriptor());
       } catch (CannotProvideCoderException e) {
@@ -325,42 +350,25 @@ public class SolaceIO {
     // FIXME: this is public only for the sake of testing, TODO: redesign test so this is
     // private
     public Queue initializeQueueForTopic(String jobName, SempClientFactory sempClientFactory) {
-      Queue q;
-      if (getQueue() != null) {
-        q = getQueue();
+      Queue initializedQueue;
+      Queue solaceQueue = getQueue();
+      if (solaceQueue != null) {
+        return solaceQueue;
       } else {
         String queueName = String.format("queue-%s-%s", getTopic(), jobName);
         try {
-          String topicName = Objects.requireNonNull(getTopic()).getName();
-          q = sempClientFactory.create().createQueueForTopic(queueName, topicName);
+          String topicName = checkNotNull(getTopic()).getName();
+          initializedQueue = sempClientFactory.create().createQueueForTopic(queueName, topicName);
           LOG.info(
               "SolaceIO.Read: A new queue {} was created. The Queue will not be"
                   + " deleted when this job finishes. Make sure to remove it yourself"
                   + " when not needed.",
-              q.getName());
+              initializedQueue.getName());
+          return initializedQueue;
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
       }
-      return q;
-    }
-
-    private void validate() {
-      Preconditions.checkState(
-          getSempClientFactory() != null, "SolaceIO.Read: brokerServiceFactory must not be null.");
-      Preconditions.checkState(
-          getSessionServiceFactory() != null,
-          "SolaceIO.Read: SessionServiceFactory must not be null.");
-      Preconditions.checkState(
-          getParseFn() != null,
-          "SolaceIO.Read: parseFn must be set or use the `Read.readSolaceRecords()`" + " method");
-      Preconditions.checkState(
-          getTimestampFn() != null,
-          "SolaceIO.Read: timestamp function must be set or use the"
-              + " `Read.readSolaceRecords()` method");
-      Preconditions.checkState(
-          (getQueue() == null ^ getTopic() == null),
-          "SolaceIO.Read: One of the Solace {Queue, Topic} must be set.");
     }
   }
 }

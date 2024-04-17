@@ -51,7 +51,7 @@ class SempBasicAuthClientExecutor implements Serializable {
   private final String messageVpn;
   private final String baseUrl;
   private final String password;
-  private final HttpRequestFactory requestFactory;
+  private final transient HttpRequestFactory requestFactory;
 
   SempBasicAuthClientExecutor(
       String host,

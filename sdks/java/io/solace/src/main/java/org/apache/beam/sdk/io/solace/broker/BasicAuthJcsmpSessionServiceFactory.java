@@ -38,15 +38,15 @@ public abstract class BasicAuthJcsmpSessionServiceFactory extends SessionService
   @AutoValue.Builder
   public abstract static class Builder {
 
-    /** Set Solace host, format: Protocol://Host[:Port] */
+    /** Set Solace host, format: Protocol://Host[:Port]. */
     public abstract Builder host(String host);
 
-    /** Set Solace username */
+    /** Set Solace username. */
     public abstract Builder username(String username);
-    /** Set Solace password */
+    /** Set Solace password. */
     public abstract Builder password(String password);
 
-    /** Set Solace vpn name */
+    /** Set Solace vpn name. */
     public abstract Builder vpnName(String vpnName);
 
     public abstract BasicAuthJcsmpSessionServiceFactory build();
@@ -54,14 +54,11 @@ public abstract class BasicAuthJcsmpSessionServiceFactory extends SessionService
 
   @Override
   public SessionService create() {
-    checkNotNull(queue, "SolaceIO.Read: Queue is not set.");
-    return createBasicAuthJcsmpSessionService(
-        queue.getName(), host(), username(), password(), vpnName());
-  }
-
-  @SuppressWarnings("dereference")
-  private BasicAuthJcsmpSessionService createBasicAuthJcsmpSessionService(
-      String queueName, String host, String username, String password, String vpnName) {
-    return new BasicAuthJcsmpSessionService(queueName, host, username, password, vpnName);
+    return new BasicAuthJcsmpSessionService(
+        checkNotNull(queue, "SolaceIO.Read: Queue is not set.").getName(),
+        host(),
+        username(),
+        password(),
+        vpnName());
   }
 }
