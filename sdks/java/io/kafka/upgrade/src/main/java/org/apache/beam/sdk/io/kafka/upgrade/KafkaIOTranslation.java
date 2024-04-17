@@ -104,7 +104,7 @@ public class KafkaIOTranslation {
             .addNullableByteArrayField("key_deserializer_provider")
             .addNullableByteArrayField("value_deserializer_provider")
             .addNullableByteArrayField("check_stop_reading_fn")
-            .addNullableLogicalTypeField("consumer_polling_timeout", new NanosDuration())
+            .addNullableInt64Field("consumer_polling_timeout")
             .build();
 
     @Override
@@ -176,10 +176,7 @@ public class KafkaIOTranslation {
       if (transform.getStopReadTime() != null) {
         fieldValues.put("stop_read_time", transform.getStopReadTime());
       }
-      if (transform.getConsumerPollingTimeout() != null) {
-        fieldValues.put("consumer_polling_timeout", transform.getConsumerPollingTimeout());
-      }
-
+      fieldValues.put("consumer_polling_timeout", transform.getConsumerPollingTimeout());
       fieldValues.put(
           "is_commit_offset_finalize_enabled", transform.isCommitOffsetsInFinalizeEnabled());
       fieldValues.put("is_dynamic_read", transform.isDynamicRead());
@@ -336,13 +333,12 @@ public class KafkaIOTranslation {
         if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.56.0") < 0) {
           // set to current default
           transform =
-              transform.withConsumerPollingTimeout(org.joda.time.Duration.standardSeconds(2L));
+              transform.withConsumerPollingTimeout(2L);
         } else {
-          Duration consumerPollingTimeout = configRow.getValue("consumer_polling_timeout");
+          Long consumerPollingTimeout = configRow.getInt64("consumer_polling_timeout");
           if (consumerPollingTimeout != null) {
             transform =
-                transform.withConsumerPollingTimeout(
-                    org.joda.time.Duration.millis(consumerPollingTimeout.toMillis()));
+                transform.withConsumerPollingTimeout(consumerPollingTimeout);
           }
         }
         Instant startReadTime = configRow.getValue("start_read_time");
