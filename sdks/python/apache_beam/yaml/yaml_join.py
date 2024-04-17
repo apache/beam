@@ -99,7 +99,7 @@ def _validate_equalities(equalities, pcolls):
 
     input_edge_list.append(tuple(equality.keys()))
 
-  if not _is_connected(input_edge_list):
+  if not _is_connected(input_edge_list, len(pcolls)):
     raise ValueError(
         f'{error_prefix} '
         f'The provided equalities do not connect all of {list(pcolls.keys())}.')
@@ -115,7 +115,7 @@ def _parse_fields(tables, fields):
   named_columns = set()
   for input, cols in fields.items():
     if input not in tables:
-      raise ValueError('An invalid input "{input}" was specified in "fields".')
+      raise ValueError(f'An invalid input "{input}" was specified in "fields".')
     if isinstance(cols, list):
       for col in cols:
         if not isinstance(col, str):
@@ -147,7 +147,7 @@ def _parse_fields(tables, fields):
   return output_fields
 
 
-def _is_connected(edge_list):
+def _is_connected(edge_list, expected_node_count):
   graph = {}
   for edge_set in edge_list:
     for u in edge_set:
@@ -166,7 +166,7 @@ def _is_connected(edge_list):
       if neighbor not in visited:
         stack.append(neighbor)
 
-  return len(visited) == len(graph)
+  return len(visited) == len(graph) == expected_node_count
 
 
 @beam.ptransform.ptransform_fn
@@ -179,24 +179,24 @@ def _SqlJoinTransform(
   """Joins two or more inputs using a specified condition.
 
   Args:
-    type: The type of join. Could be a string value in 
-        ["inner", "left", "right", "outer"] that specifies the type of join to 
+    type: The type of join. Could be a string value in
+        ["inner", "left", "right", "outer"] that specifies the type of join to
         be performed. For scenarios with multiple inputs to join where different
-        join types are desired, specify the inputs to be outer joined. For 
-        example, {outer: [input1, input2]} means that input1 & input2 will be 
-        outer joined using the conditions specified, while other inputs will be 
+        join types are desired, specify the inputs to be outer joined. For
+        example, {outer: [input1, input2]} means that input1 & input2 will be
+        outer joined using the conditions specified, while other inputs will be
         inner joined.
-    equalities: The condition to join on. A list of sets of columns that should 
-        be equal to fulfill the join condition. For the simple scenario to join 
-        on the same column across all inputs and the column name is the same, 
+    equalities: The condition to join on. A list of sets of columns that should
+        be equal to fulfill the join condition. For the simple scenario to join
+        on the same column across all inputs and the column name is the same,
         specify the column name as a str.
-    fields: The fields to be outputted. A mapping with the input alias as the 
-        key and the fields in the input to be outputted. The value in the map 
-        can either be a dictionary with the new field name as the key and the 
-        original field name as the value (e.g new_field_name: field_name), or a 
-        list of the fields to be outputted with their original names 
+    fields: The fields to be outputted. A mapping with the input alias as the
+        key and the fields in the input to be outputted. The value in the map
+        can either be a dictionary with the new field name as the key and the
+        original field name as the value (e.g new_field_name: field_name), or a
+        list of the fields to be outputted with their original names
         (e.g [col1, col2, col3]), or an '*' indicating all fields in the input
-        will be outputted. If not specified, all fields from all inputs will be 
+        will be outputted. If not specified, all fields from all inputs will be
         outputted.
   """
 
@@ -216,6 +216,8 @@ def _SqlJoinTransform(
   tables = list(pcolls.keys())
   if isinstance(type, dict):
     outer = type['outer']
+  elif type == 'outer':
+    outer = tables
   else:
     outer = []
   first_table = tables[0]
