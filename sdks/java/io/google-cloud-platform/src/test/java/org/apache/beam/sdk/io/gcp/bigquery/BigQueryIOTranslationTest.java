@@ -90,7 +90,7 @@ public class BigQueryIOTranslationTest {
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getDynamicDestinations", "dynamic_destinations");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getJsonSchema", "json_schema");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getJsonTimePartitioning", "json_time_partitioning");
-    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getClustering", "clustering");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getJsonClustering", "clustering");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getCreateDisposition", "create_disposition");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getWriteDisposition", "write_disposition");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getSchemaUpdateOptions", "schema_update_options");
@@ -265,7 +265,8 @@ public class BigQueryIOTranslationTest {
     assertEquals(CreateDisposition.CREATE_NEVER, writeTransformFromRow.getCreateDisposition());
     assertEquals("dummykmskey", writeTransformFromRow.getKmsKey());
     assertEquals(
-        BigQueryHelpers.toJsonString(testClustering), writeTransformFromRow.getJsonClustering().get());
+        BigQueryHelpers.toJsonString(testClustering),
+        writeTransformFromRow.getJsonClustering().get());
   }
 
   @Test
