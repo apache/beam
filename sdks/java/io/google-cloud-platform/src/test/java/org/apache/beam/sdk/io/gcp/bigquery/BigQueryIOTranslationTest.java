@@ -254,7 +254,7 @@ public class BigQueryIOTranslationTest {
     Row row = translator.toConfigRow(writeTransform);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.54.0");
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.56.0");
     BigQueryIO.Write<?> writeTransformFromRow =
         (BigQueryIO.Write<?>) translator.fromConfigRow(row, options);
     assertNotNull(writeTransformFromRow.getTable());
