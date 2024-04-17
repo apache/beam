@@ -34,6 +34,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatRequest;
@@ -58,7 +59,7 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class GrpcGetDataStream
+final class GrpcGetDataStream
     extends AbstractWindmillStream<StreamingGetDataRequest, StreamingGetDataResponse>
     implements GetDataStream {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcGetDataStream.class);
@@ -72,7 +73,7 @@ public final class GrpcGetDataStream
   // If true, then active work refreshes will be sent as KeyedGetDataRequests. Otherwise, use the
   // newer ComputationHeartbeatRequests.
   private final boolean sendKeyedGetDataRequests;
-  private Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
+  private final Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
 
   private GrpcGetDataStream(
       Function<StreamObserver<StreamingGetDataResponse>, StreamObserver<StreamingGetDataRequest>>
@@ -99,7 +100,7 @@ public final class GrpcGetDataStream
     this.processHeartbeatResponses = processHeartbeatResponses;
   }
 
-  public static GrpcGetDataStream create(
+  static GrpcGetDataStream create(
       Function<StreamObserver<StreamingGetDataResponse>, StreamObserver<StreamingGetDataRequest>>
           startGetDataRpcFn,
       BackOff backoff,
@@ -131,6 +132,11 @@ public final class GrpcGetDataStream
 
   @Override
   protected synchronized void onNewStream() {
+    // Stream has been explicitly closed.
+    if (isClosed()) {
+      return;
+    }
+
     send(StreamingGetDataRequest.newBuilder().setHeader(jobHeader).build());
     if (clientClosed.get()) {
       // We rely on close only occurring after all methods on the stream have returned.
@@ -186,6 +192,17 @@ public final class GrpcGetDataStream
   @Override
   public GlobalData requestGlobalData(GlobalDataRequest request) {
     return issueRequest(QueuedRequest.global(uniqueId(), request), GlobalData::parseFrom);
+  }
+
+  @Override
+  public synchronized void close() {
+    super.close();
+    for (AppendableInputStream responseStream : pending.values()) {
+      responseStream.cancel();
+    }
+    // Stream has been explicitly closed.
+    pending.clear();
+    batches.clear();
   }
 
   @Override
@@ -288,17 +305,15 @@ public final class GrpcGetDataStream
   }
 
   private <ResponseT> ResponseT issueRequest(QueuedRequest request, ParseFn<ResponseT> parseFn) {
-    while (true) {
+    while (!isClosed()) {
       request.resetResponseStream();
       try {
         queueRequestAndWait(request);
         return parseFn.parse(request.getResponseStream());
       } catch (CancellationException e) {
         // Retry issuing the request since the response stream was cancelled.
-        continue;
       } catch (IOException e) {
         LOG.error("Parsing GetData response failed: ", e);
-        continue;
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
@@ -306,6 +321,7 @@ public final class GrpcGetDataStream
         pending.remove(request.id());
       }
     }
+    throw new WorkItemCancelledException(request.id());
   }
 
   private void queueRequestAndWait(QueuedRequest request) throws InterruptedException {

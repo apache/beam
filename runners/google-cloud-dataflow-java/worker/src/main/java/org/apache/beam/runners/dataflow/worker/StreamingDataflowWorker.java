@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import java.util.Optional;
 import org.apache.beam.runners.core.metrics.MetricsLogger;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
@@ -60,7 +61,9 @@ public final class StreamingDataflowWorker {
   private static boolean isDirectPathPipeline(DataflowWorkerHarnessOptions options) {
     return options.isEnableStreamingEngine()
         && options.getIsWindmillServiceDirectPathEnabled()
-        && options.getDataflowServiceOptions().contains(ENABLE_IPV6_EXPERIMENT);
+        && Optional.ofNullable(options.getDataflowServiceOptions())
+            .map(dataflowServiceOptions -> dataflowServiceOptions.contains(ENABLE_IPV6_EXPERIMENT))
+            .orElse(false);
   }
 
   private static StreamingWorkerHarness createStreamingWorkerHarness(

@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -43,7 +42,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.Thrott
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkProcessingContext;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
@@ -60,8 +58,7 @@ import org.slf4j.LoggerFactory;
  * processing context {@link WorkProcessingContext}. During the work item processing lifecycle,
  * these direct streams are used to facilitate these RPC calls to specific backend workers.
  */
-@Internal
-public final class GrpcDirectGetWorkStream
+final class GrpcDirectGetWorkStream
     extends AbstractWindmillStream<StreamingGetWorkRequest, StreamingGetWorkResponseChunk>
     implements GetWorkStream {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDirectGetWorkStream.class);
@@ -119,7 +116,7 @@ public final class GrpcDirectGetWorkStream
     this.pendingResponseBudget = new AtomicReference<>(GetWorkBudget.noBudget());
   }
 
-  public static GrpcDirectGetWorkStream create(
+  static GrpcDirectGetWorkStream create(
       Function<
               StreamObserver<StreamingGetWorkResponseChunk>,
               StreamObserver<StreamingGetWorkRequest>>
@@ -317,14 +314,8 @@ public final class GrpcDirectGetWorkStream
 
     private WorkProcessingContext createWorkProcessingContext(WorkItem workItem) {
       Preconditions.checkNotNull(metadata);
-      String computationId = metadata.computationId();
-      return WorkProcessingContext.builder()
+      return WorkProcessingContext.builder(metadata.computationId(), getDataStream.get())
           .setWorkItem(workItem)
-          .setComputationId(computationId)
-          .setKeyedDataFetcher(
-              keyedGetDataRequest ->
-                  Optional.ofNullable(
-                      getDataStream.get().requestKeyedData(computationId, keyedGetDataRequest)))
           .setWorkCommitter(workCommitter.get()::commit)
           .setInputDataWatermark(metadata.inputDataWatermark())
           .setSynchronizedProcessingTime(metadata.synchronizedProcessingTime())
