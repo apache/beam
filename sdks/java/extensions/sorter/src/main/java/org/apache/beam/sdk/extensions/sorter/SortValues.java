@@ -171,8 +171,8 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
     }
 
     @FunctionalInterface
-    private interface ThrowingFunction<T, U> {
-      U apply(T t) throws IOException, CoderException;
+    private interface ThrowingFunction<FromT, ToT> {
+      ToT apply(FromT t) throws IOException, CoderException;
     }
 
     private class KvByteTranslator {
