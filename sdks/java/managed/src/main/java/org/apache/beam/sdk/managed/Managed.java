@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -127,7 +128,8 @@ public class Managed {
   }
 
   @AutoValue
-  public abstract static class ManagedTransform extends SchemaTransform {
+  public abstract static class ManagedTransform
+      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
     abstract String getIdentifier();
 
     abstract @Nullable Map<String, Object> getConfig();
