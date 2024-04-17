@@ -82,7 +82,7 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
 
   @Override
   public String identifier() {
-    return "beam:schematransform:org.apache.beam:iceberg_write:v1";
+    return "beam:transform:iceberg_write:v1";
   }
 
   @DefaultSchema(AutoValueSchema.class)

@@ -28,7 +28,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
-import org.apache.beam.model.pipeline.v1.SchemaAwareTransforms.ManagedTransformPayload;
+import org.apache.beam.model.pipeline.v1.SchemaAwareTransforms.ManagedSchemaTransformPayload;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -76,7 +76,7 @@ public class ManagedSchemaTransformTranslation {
       return FunctionSpec.newBuilder()
           .setUrn(getUrn())
           .setPayload(
-              ManagedTransformPayload.newBuilder()
+              ManagedSchemaTransformPayload.newBuilder()
                   .setUnderlyingTransformUrn(managedConfig.getTransformIdentifier())
                   .setYamlConfig(managedConfig.resolveUnderlyingConfig())
                   .setExpansionSchema(expansionSchema)

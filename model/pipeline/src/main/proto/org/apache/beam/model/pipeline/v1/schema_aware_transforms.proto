@@ -40,7 +40,7 @@ message StandardSchemaAwareTransforms {
         ICEBERG_WRITE = 1 [(beam_urn) = "beam:transform:iceberg_write:v1"];
     }
     enum Managed {
-        // Payload: ManagedTransformPayload
+        // Payload: ManagedSchemaTransformPayload
         MANAGED = 0 [(beam_urn) = "beam:transform:managed:v1"];
     }
 }
@@ -49,6 +49,7 @@ message StandardSchemaAwareTransforms {
 // Payload for a Schema-aware PTransform.
 // This is a transform that is aware of its input and output PCollection schemas
 // and is configured using Beam Schema-compatible parameters.
+// The information available in the payload can be used by runners to override the schema-aware transform.
 message SchemaAwareTransformPayload {
     // The schema of the configuration row used to upgrade the transform
     Schema expansion_schema = 1;
@@ -57,15 +58,14 @@ message SchemaAwareTransformPayload {
     bytes expansion_payload = 2;
 }
 
-// Payload for a Managed transform
-// This can be used by runners that wish to override an underlying transform
-// with a different implementation.
-message ManagedTransformPayload {
+// Payload for a ManagedSchemaTransform.
+// The information available in the payload can be used by runners to override the ManagedSchemaTransform.
+message ManagedSchemaTransformPayload {
     // The underlying transform's URN.
     string underlying_transform_urn = 1;
     // The managed transform configuration Schema.
     Schema expansion_schema = 2;
-    // The configuration used to build the managed transform.
+    // The configuration used to upgrade the managed transform.
     // Must be compatible with the expansion schema, and decodable via beam:coder:row:v1.
     bytes expansion_payload = 3;
     // The underlying transform's configuration, represented as a YAML string.

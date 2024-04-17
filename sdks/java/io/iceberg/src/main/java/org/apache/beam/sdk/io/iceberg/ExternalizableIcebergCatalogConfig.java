@@ -17,60 +17,25 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import com.google.common.base.Preconditions;
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.CatalogProperties;
-import org.apache.iceberg.CatalogUtil;
+import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * A wrapper to more precisely serialize a {@link IcebergCatalogConfig}.
- *
- * <p>Only includes properties used in {@link IcebergCatalogConfig#catalog()} to generate a {@link
- * org.apache.iceberg.catalog.Catalog}:
- *
- * <ul>
- *   <li>{@link IcebergCatalogConfig#getName()}
- *   <li>{@link IcebergCatalogConfig#getIcebergCatalogType()}
- *   <li>{@link IcebergCatalogConfig#getCatalogImplementation()}
- *   <li>{@link IcebergCatalogConfig#getFileIOImplementation()}
- *   <li>{@link IcebergCatalogConfig#getWarehouseLocation()}
- *   <li>{@link IcebergCatalogConfig#getMetricsReporterImplementation()}
- *   <li>{@link IcebergCatalogConfig#getCacheEnabled()}
- *   <li>{@link IcebergCatalogConfig#getCacheCaseSensitive()} ()}
- *   <li>{@link IcebergCatalogConfig#getCacheExpirationIntervalMillis()}
- *   <li>{@link IcebergCatalogConfig#getConfiguration()}
- * </ul>
- *
- * *
+ * A wrapper to more precisely serialize a {@link IcebergCatalogConfig} object. {@link
+ * IcebergCatalogConfig} is an AutoValue class, which raises some complications when trying to have
+ * it directly implement {@link Externalizable}. Hence, this class is used to wrap around the {@link
+ * IcebergCatalogConfig} object when serializing and deserializing. *
  */
 public class ExternalizableIcebergCatalogConfig implements Externalizable {
   private static final long serialVersionUID = 0L;
 
   private @Nullable IcebergCatalogConfig catalogConfig;
-
-  // Keep this in sync with IcebergCatalogConfig properties map
-  static List<String> PROPERTY_KEYS =
-      ImmutableList.<String>builder()
-          .add("name")
-          .add(CatalogUtil.ICEBERG_CATALOG_TYPE)
-          .add(CatalogProperties.CATALOG_IMPL)
-          .add(CatalogProperties.FILE_IO_IMPL)
-          .add(CatalogProperties.WAREHOUSE_LOCATION)
-          .add(CatalogProperties.METRICS_REPORTER_IMPL)
-          .add(CatalogProperties.CACHE_ENABLED)
-          .add(CatalogProperties.CACHE_CASE_SENSITIVE)
-          .add(CatalogProperties.CACHE_EXPIRATION_INTERVAL_MS)
-          .build();
 
   public ExternalizableIcebergCatalogConfig() {}
 
@@ -86,43 +51,89 @@ public class ExternalizableIcebergCatalogConfig implements Externalizable {
   }
 
   @Override
+  @SuppressWarnings("nullness")
   public void writeExternal(ObjectOutput out) throws IOException {
-    if (catalogConfig == null) {
-      return;
-    }
-    Map<String, String> properties = new HashMap<>(PROPERTY_KEYS.size());
+    Map<String, Object> properties = new HashMap<>();
     properties.put("name", catalogConfig.getName());
-    properties.putAll(Preconditions.checkNotNull(catalogConfig).properties());
-    for (String prop : PROPERTY_KEYS) {
-      out.writeUTF(properties.getOrDefault(prop, ""));
-    }
-    if (catalogConfig != null && catalogConfig.getConfiguration() != null) {
-      catalogConfig.getConfiguration().write(out);
-    }
-  }
+    properties.put("icebergCatalogType", catalogConfig.getIcebergCatalogType());
+    properties.put("catalogImplementation", catalogConfig.getCatalogImplementation());
+    properties.put("fileIOImplementation", catalogConfig.getFileIOImplementation());
+    properties.put("warehouseLocation", catalogConfig.getWarehouseLocation());
+    properties.put(
+        "metricsReporterImplementation", catalogConfig.getMetricsReporterImplementation());
+    properties.put("cacheEnabled", catalogConfig.getCacheEnabled());
+    properties.put("cacheCaseSensitive", catalogConfig.getCacheCaseSensitive());
+    properties.put(
+        "cacheExpirationIntervalMillis", catalogConfig.getCacheExpirationIntervalMillis());
+    properties.put("ioManifestCacheEnabled", catalogConfig.getIOManifestCacheEnabled());
+    properties.put(
+        "ioManifestCacheExpirationIntervalMillis",
+        catalogConfig.getIOManifestCacheExpirationIntervalMillis());
+    properties.put("ioManifestCacheMaxTotalBytes", catalogConfig.getIOManifestCacheMaxTotalBytes());
+    properties.put(
+        "ioManifestCacheMaxContentLength", catalogConfig.getIOManifestCacheMaxContentLength());
+    properties.put("uri", catalogConfig.getUri());
+    properties.put("clientPoolSize", catalogConfig.getClientPoolSize());
+    properties.put("clientPoolEvictionIntervalMs", catalogConfig.getClientPoolEvictionIntervalMs());
+    properties.put("clientPoolCacheKeys", catalogConfig.getClientPoolCacheKeys());
+    properties.put("lockImplementation", catalogConfig.getLockImplementation());
+    properties.put("lockHeartbeatIntervalMillis", catalogConfig.getLockHeartbeatIntervalMillis());
+    properties.put("lockHeartbeatTimeoutMillis", catalogConfig.getLockHeartbeatTimeoutMillis());
+    properties.put("lockHeartbeatThreads", catalogConfig.getLockHeartbeatThreads());
+    properties.put("lockAcquireIntervalMillis", catalogConfig.getLockAcquireIntervalMillis());
+    properties.put("lockAcquireTimeoutMillis", catalogConfig.getLockAcquireTimeoutMillis());
+    properties.put("appIdentifier", catalogConfig.getAppIdentifier());
+    properties.put("user", catalogConfig.getUser());
+    properties.put("authSessionTimeoutMillis", catalogConfig.getAuthSessionTimeoutMillis());
+    properties.put(
+        "configuration",
+        catalogConfig.getConfiguration() == null
+            ? null
+            : new SerializableConfiguration(catalogConfig.getConfiguration()));
 
-  private @Nullable String orNull(String value) {
-    return Strings.isNullOrEmpty(value) ? null : value;
+    out.writeObject(properties);
   }
 
   @Override
-  public void readExternal(ObjectInput in) throws IOException {
-    IcebergCatalogConfig.Builder builder =
+  @SuppressWarnings("nullness")
+  public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    Map<String, Object> properties = (Map<String, Object>) in.readObject();
+    catalogConfig =
         IcebergCatalogConfig.builder()
-            .setName(in.readUTF())
-            .setIcebergCatalogType(orNull(in.readUTF()))
-            .setCatalogImplementation(orNull(in.readUTF()))
-            .setFileIOImplementation(orNull(in.readUTF()))
-            .setWarehouseLocation(orNull(in.readUTF()))
-            .setMetricsReporterImplementation(orNull(in.readUTF()))
-            .setCacheEnabled(Boolean.parseBoolean(in.readUTF()))
-            .setCacheCaseSensitive(Boolean.parseBoolean(in.readUTF()))
-            .setCacheExpirationIntervalMillis(Long.parseLong(in.readUTF()));
-    if (in.available() > 0) {
-      Configuration hadoopConf = new Configuration();
-      hadoopConf.readFields(in);
-      builder = builder.setConfiguration(hadoopConf);
-    }
-    catalogConfig = builder.build();
+            .setName((String) properties.get("name"))
+            .setIcebergCatalogType((String) properties.get("icebergCatalogType"))
+            .setCatalogImplementation((String) properties.get("catalogImplementation"))
+            .setFileIOImplementation((String) properties.get("fileIOImplementation"))
+            .setWarehouseLocation((String) properties.get("warehouseLocation"))
+            .setMetricsReporterImplementation(
+                (String) properties.get("metricsReporterImplementation"))
+            .setCacheEnabled((Boolean) properties.get("cacheEnabled"))
+            .setCacheCaseSensitive((Boolean) properties.get("cacheCaseSensitive"))
+            .setCacheExpirationIntervalMillis(
+                (Long) properties.get("cacheExpirationIntervalMillis"))
+            .setIOManifestCacheEnabled((Boolean) properties.get("ioManifestCacheEnabled"))
+            .setIOManifestCacheExpirationIntervalMillis(
+                (Long) properties.get("ioManifestCacheExpirationIntervalMillis"))
+            .setIOManifestCacheMaxTotalBytes((Long) properties.get("ioManifestCacheMaxTotalBytes"))
+            .setIOManifestCacheMaxContentLength(
+                (Long) properties.get("ioManifestCacheMaxContentLength"))
+            .setUri((String) properties.get("uri"))
+            .setClientPoolSize((Integer) properties.get("clientPoolSize"))
+            .setClientPoolEvictionIntervalMs((Long) properties.get("clientPoolEvictionIntervalMs"))
+            .setClientPoolCacheKeys((String) properties.get("clientPoolCacheKeys"))
+            .setLockImplementation((String) properties.get("lockImplementation"))
+            .setLockHeartbeatIntervalMillis((Long) properties.get("lockHeartbeatIntervalMillis"))
+            .setLockHeartbeatTimeoutMillis((Long) properties.get("lockHeartbeatTimeoutMillis"))
+            .setLockHeartbeatThreads((Integer) properties.get("lockHeartbeatThreads"))
+            .setLockAcquireIntervalMillis((Long) properties.get("lockAcquireIntervalMillis"))
+            .setLockAcquireTimeoutMillis((Long) properties.get("lockAcquireTimeoutMillis"))
+            .setAppIdentifier((String) properties.get("appIdentifier"))
+            .setUser((String) properties.get("user"))
+            .setAuthSessionTimeoutMillis((Long) properties.get("authSessionTimeoutMillis"))
+            .setConfiguration(
+                properties.get("configuration") == null
+                    ? null
+                    : ((SerializableConfiguration) properties.get("configuration")).get())
+            .build();
   }
 }

@@ -78,13 +78,12 @@ public class Managed {
   // TODO: Dynamically generate a list of supported transforms
   public static final String ICEBERG = "iceberg";
 
+  // Supported SchemaTransforms
   public static final Map<String, String> READ_TRANSFORMS =
-      ImmutableMap.<String, String>builder()
-          .put(ICEBERG, "beam:schematransform:org.apache.beam:iceberg_read:v1")
-          .build();
+      ImmutableMap.<String, String>builder().put(ICEBERG, "beam:transform:iceberg_read:v1").build();
   public static final Map<String, String> WRITE_TRANSFORMS =
       ImmutableMap.<String, String>builder()
-          .put(ICEBERG, "beam:schematransform:org.apache.beam:iceberg_write:v1")
+          .put(ICEBERG, "beam:transform:iceberg_write:v1")
           .build();
 
   /**
