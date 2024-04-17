@@ -506,7 +506,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
       sampler.start();
 
       streamingEngineClient.start();
-      workerStatusReporter.start(options.getWindmillHarnessUpdateReportingPeriod().getMillis());
+      workerStatusReporter.start();
       activeWorkRefresher.start();
       statusPages.start(options);
 
