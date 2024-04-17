@@ -32,11 +32,13 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.ImmutableLongArray;
+import org.hamcrest.collection.IsMapContaining;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -85,6 +87,8 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     String step = "testStepName";
     Map<MetricName, LockFreeHistogram.Snapshot> emptyHistograms = new HashMap<>();
     Map<MetricName, Long> counters = new HashMap<MetricName, Long>();
+    Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedMetricNames = new HashMap<>();
+
     MetricName bigQueryMetric1 = MetricName.named("BigQuerySink", "metric1");
     MetricName bigQueryMetric2 =
         MetricName.named("BigQuerySink", "metric2*label1:val1;label2:val2;");
@@ -95,7 +99,8 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     counters.put(bigQueryMetric3, 0L);
 
     Collection<PerStepNamespaceMetrics> conversionResult =
-        MetricsToPerStepNamespaceMetricsConverter.convert(step, counters, emptyHistograms);
+        MetricsToPerStepNamespaceMetricsConverter.convert(
+            step, counters, emptyHistograms, parsedMetricNames);
 
     MetricValue expectedVal1 =
         new MetricValue().setMetric("metric1").setValueInt64(5L).setMetricLabels(new HashMap<>());
@@ -113,10 +118,21 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     assertThat(perStepNamespaceMetrics.getMetricValues().size(), equalTo(2));
     assertThat(
         perStepNamespaceMetrics.getMetricValues(), containsInAnyOrder(expectedVal1, expectedVal2));
+
+    LabeledMetricNameUtils.ParsedMetricName parsedBigQueryMetric1 =
+        LabeledMetricNameUtils.parseMetricName(bigQueryMetric1.getName()).get();
+    LabeledMetricNameUtils.ParsedMetricName parsedBigQueryMetric2 =
+        LabeledMetricNameUtils.parseMetricName(bigQueryMetric2.getName()).get();
+
+    assertThat(parsedMetricNames.size(), equalTo(2));
+    assertThat(parsedMetricNames, IsMapContaining.hasEntry(bigQueryMetric1, parsedBigQueryMetric1));
+    assertThat(parsedMetricNames, IsMapContaining.hasEntry(bigQueryMetric2, parsedBigQueryMetric2));
   }
 
   @Test
   public void testConvert_skipInvalidMetricNames() {
+    Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedMetricNames = new HashMap<>();
+
     Map<MetricName, Long> counters = new HashMap<>();
     MetricName invalidName1 = MetricName.named("BigQuerySink", "**");
     counters.put(invalidName1, 5L);
@@ -129,12 +145,16 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     histograms.put(invalidName2, nonEmptyLinearHistogram.getSnapshotAndReset().get());
 
     Collection<PerStepNamespaceMetrics> conversionResult =
-        MetricsToPerStepNamespaceMetricsConverter.convert("testStep", counters, histograms);
+        MetricsToPerStepNamespaceMetricsConverter.convert(
+            "testStep", counters, histograms, parsedMetricNames);
     assertThat(conversionResult.size(), equalTo(0));
+    assertThat(parsedMetricNames.size(), equalTo(0));
   }
 
   @Test
   public void testConvert_successfulConvertHistograms() {
+    Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedMetricNames = new HashMap<>();
+
     Map<MetricName, LockFreeHistogram.Snapshot> histograms = new HashMap<>();
     MetricName bigQueryMetric1 = MetricName.named("BigQuerySink", "baseLabel");
     MetricName bigQueryMetric2 =
@@ -162,7 +182,8 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     String step = "testStep";
     Map<MetricName, Long> emptyCounters = new HashMap<>();
     Collection<PerStepNamespaceMetrics> conversionResult =
-        MetricsToPerStepNamespaceMetricsConverter.convert(step, emptyCounters, histograms);
+        MetricsToPerStepNamespaceMetricsConverter.convert(
+            step, emptyCounters, histograms, parsedMetricNames);
 
     // Expected value 1
     List<Long> bucketCounts1 = ImmutableList.of(0L, 1L, 1L, 1L);
@@ -225,10 +246,22 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     assertThat(perStepNamespaceMetrics.getMetricValues().size(), equalTo(2));
     assertThat(
         perStepNamespaceMetrics.getMetricValues(), containsInAnyOrder(expectedVal1, expectedVal2));
+
+    // Verify that parsedMetricNames have been cached.
+    LabeledMetricNameUtils.ParsedMetricName parsedBigQueryMetric1 =
+        LabeledMetricNameUtils.parseMetricName(bigQueryMetric1.getName()).get();
+    LabeledMetricNameUtils.ParsedMetricName parsedBigQueryMetric2 =
+        LabeledMetricNameUtils.parseMetricName(bigQueryMetric2.getName()).get();
+
+    assertThat(parsedMetricNames.size(), equalTo(2));
+    assertThat(parsedMetricNames, IsMapContaining.hasEntry(bigQueryMetric1, parsedBigQueryMetric1));
+    assertThat(parsedMetricNames, IsMapContaining.hasEntry(bigQueryMetric2, parsedBigQueryMetric2));
   }
 
   @Test
   public void testConvert_skipUnknownHistogramBucketType() {
+    Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedMetricNames = new HashMap<>();
+
     String step = "testStep";
     Map<MetricName, Long> emptyCounters = new HashMap<>();
     Map<MetricName, LockFreeHistogram.Snapshot> histograms = new HashMap<>();
@@ -240,8 +273,10 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     histograms.put(bigQueryMetric1, histogram.getSnapshotAndReset().get());
 
     Collection<PerStepNamespaceMetrics> conversionResult =
-        MetricsToPerStepNamespaceMetricsConverter.convert(step, emptyCounters, histograms);
+        MetricsToPerStepNamespaceMetricsConverter.convert(
+            step, emptyCounters, histograms, parsedMetricNames);
     assertThat(conversionResult.size(), equalTo(0));
+    assertThat(parsedMetricNames.size(), equalTo(0));
   }
 
   @Test
@@ -249,6 +284,7 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     String step = "testStep";
     Map<MetricName, Long> counters = new HashMap<>();
     Map<MetricName, LockFreeHistogram.Snapshot> histograms = new HashMap<>();
+    Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedMetricNames = new HashMap<>();
 
     MetricName counterMetricName = MetricName.named("BigQuerySink", "counter*label1:val1;");
     counters.put(counterMetricName, 3L);
@@ -260,7 +296,8 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     histograms.put(histogramMetricName, linearHistogram.getSnapshotAndReset().get());
 
     Collection<PerStepNamespaceMetrics> conversionResult =
-        MetricsToPerStepNamespaceMetricsConverter.convert(step, counters, histograms);
+        MetricsToPerStepNamespaceMetricsConverter.convert(
+            step, counters, histograms, parsedMetricNames);
 
     // Expected counter MetricValue
     Map<String, String> counterLabelMap = new HashMap<>();
@@ -298,5 +335,18 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     assertThat(
         perStepNamespaceMetrics.getMetricValues(),
         containsInAnyOrder(expectedCounter, expectedHistogram));
+
+    // Verify that parsedMetricNames have been cached.
+    LabeledMetricNameUtils.ParsedMetricName parsedCounterMetricName =
+        LabeledMetricNameUtils.parseMetricName(counterMetricName.getName()).get();
+    LabeledMetricNameUtils.ParsedMetricName parsedHistogramMetricName =
+        LabeledMetricNameUtils.parseMetricName(histogramMetricName.getName()).get();
+
+    assertThat(parsedMetricNames.size(), equalTo(2));
+    assertThat(
+        parsedMetricNames, IsMapContaining.hasEntry(counterMetricName, parsedCounterMetricName));
+    assertThat(
+        parsedMetricNames,
+        IsMapContaining.hasEntry(histogramMetricName, parsedHistogramMetricName));
   }
 }
