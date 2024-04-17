@@ -332,13 +332,11 @@ public class KafkaIOTranslation {
         }
         if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.56.0") < 0) {
           // set to current default
-          transform =
-              transform.withConsumerPollingTimeout(2L);
+          transform = transform.withConsumerPollingTimeout(2L);
         } else {
           Long consumerPollingTimeout = configRow.getInt64("consumer_polling_timeout");
           if (consumerPollingTimeout != null) {
-            transform =
-                transform.withConsumerPollingTimeout(consumerPollingTimeout);
+            transform = transform.withConsumerPollingTimeout(consumerPollingTimeout);
           }
         }
         Instant startReadTime = configRow.getValue("start_read_time");
