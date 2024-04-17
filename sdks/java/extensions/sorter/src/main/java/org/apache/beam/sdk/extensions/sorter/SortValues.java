@@ -20,7 +20,9 @@ package org.apache.beam.sdk.extensions.sorter;
 import java.io.IOException;
 import java.util.Iterator;
 import javax.annotation.Nonnull;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -154,16 +156,66 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
 
       try {
         Sorter sorter = BufferedExternalSorter.create(sorterOptions);
+
+        final ThrowingFunction<KV<SecondaryKeyT, ValueT>, KV<byte[], byte[]>> toBytesKvFn =
+            new KvByteTranslator().toBytesKvFn;
+
         for (KV<SecondaryKeyT, ValueT> record : records) {
-          sorter.add(
-              KV.of(
-                  CoderUtils.encodeToByteArray(keyCoder, record.getKey()),
-                  CoderUtils.encodeToByteArray(valueCoder, record.getValue())));
+          sorter.add(toBytesKvFn.apply(record));
         }
 
         c.output(KV.of(c.element().getKey(), new DecodingIterable(sorter.sort())));
       } catch (IOException e) {
         throw new RuntimeException(e);
+      }
+    }
+
+    @FunctionalInterface
+    private interface ThrowingFunction<T, U> {
+      U apply(T t) throws IOException, CoderException;
+    }
+
+    private class KvByteTranslator {
+      final ThrowingFunction<KV<SecondaryKeyT, ValueT>, KV<byte[], byte[]>> toBytesKvFn;
+      final ThrowingFunction<KV<byte[], byte[]>, KV<SecondaryKeyT, ValueT>> fromBytesKvFn;
+
+      KvByteTranslator() {
+        if (keyCoder instanceof ByteArrayCoder && valueCoder instanceof ByteArrayCoder) {
+          toBytesKvFn = (kv) -> (KV<byte[], byte[]>) kv;
+          fromBytesKvFn = (kv) -> (KV<SecondaryKeyT, ValueT>) kv;
+        } else if (keyCoder instanceof ByteArrayCoder) {
+          toBytesKvFn =
+              (kv) ->
+                  KV.of(
+                      (byte[]) kv.getKey(),
+                      CoderUtils.encodeToByteArray(valueCoder, kv.getValue()));
+          fromBytesKvFn =
+              (kv) ->
+                  KV.of(
+                      (SecondaryKeyT) kv.getKey(),
+                      CoderUtils.decodeFromByteArray(valueCoder, kv.getValue()));
+        } else if (valueCoder instanceof ByteArrayCoder) {
+          toBytesKvFn =
+              (kv) ->
+                  KV.of(
+                      CoderUtils.encodeToByteArray(keyCoder, kv.getKey()), (byte[]) kv.getValue());
+          fromBytesKvFn =
+              (kv) ->
+                  KV.of(
+                      CoderUtils.decodeFromByteArray(keyCoder, kv.getKey()),
+                      (ValueT) kv.getValue());
+        } else {
+          toBytesKvFn =
+              (kv) ->
+                  KV.of(
+                      CoderUtils.encodeToByteArray(keyCoder, kv.getKey()),
+                      CoderUtils.encodeToByteArray(valueCoder, kv.getValue()));
+          fromBytesKvFn =
+              (kv) ->
+                  KV.of(
+                      CoderUtils.decodeFromByteArray(keyCoder, kv.getKey()),
+                      CoderUtils.decodeFromByteArray(valueCoder, kv.getValue()));
+        }
       }
     }
 
@@ -183,9 +235,11 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
 
     private class DecodingIterator implements Iterator<KV<SecondaryKeyT, ValueT>> {
       final Iterator<KV<byte[], byte[]>> iterator;
+      final ThrowingFunction<KV<byte[], byte[]>, KV<SecondaryKeyT, ValueT>> fromBytesKvFn;
 
       DecodingIterator(Iterator<KV<byte[], byte[]>> iterator) {
         this.iterator = iterator;
+        this.fromBytesKvFn = new KvByteTranslator().fromBytesKvFn;
       }
 
       @Override
@@ -197,9 +251,7 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
       public KV<SecondaryKeyT, ValueT> next() {
         KV<byte[], byte[]> next = iterator.next();
         try {
-          return KV.of(
-              CoderUtils.decodeFromByteArray(keyCoder, next.getKey()),
-              CoderUtils.decodeFromByteArray(valueCoder, next.getValue()));
+          return fromBytesKvFn.apply(next);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
