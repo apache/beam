@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PostCommit Python Xlang Gcp Direct
+name: PreCommit Yaml Xlang Direct
 
 on:
   pull_request_target:
@@ -89,7 +89,7 @@ jobs:
         with:
           python-version: |
             3.8
-      - name: run PostCommit Yaml Xlang Gcp Direct script
+      - name: run PreCommit Yaml Xlang Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:yamlIntegrationTests

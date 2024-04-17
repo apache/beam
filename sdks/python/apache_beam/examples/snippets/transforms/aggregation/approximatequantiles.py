@@ -1,3 +1,4 @@
+# coding=utf-8
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -15,16 +16,36 @@
 # limitations under the License.
 #
 
-# cython: overflowcheck=True
+# pytype: skip-file
+# pylint:disable=line-too-long
 
-cdef class Counter(object):
-  cdef readonly object name
-  cdef readonly object combine_fn
-  cdef readonly object accumulator
-  cdef readonly object _add_input
-  cpdef bint update(self, value) except -1
+# beam-playground:
+#   name: AppromximateQuantiles
+#   description: Demonstration of ApproximateQuantiles transform usage.
+#   multifile: false
+#   default_example: false
+#   context_line: 37
+#   categories:
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - integers
 
 
-cdef class AccumulatorCombineFnCounter(Counter):
-  cdef readonly object _fast_add_input
-  cdef readonly object _fast_add_input_n
+def approximatequantiles(test=None):
+  # [START quantiles]
+  import apache_beam as beam
+
+  with beam.Pipeline() as pipeline:
+    quantiles = (
+        pipeline
+        | 'Create data' >> beam.Create(list(range(1001)))
+        | 'Compute quantiles' >> beam.ApproximateQuantiles.Globally(5)
+        | beam.Map(print))
+    # [END approximatequantiles]
+    if test:
+      test(quantiles)
+
+
+if __name__ == '__main__':
+  approximatequantiles()

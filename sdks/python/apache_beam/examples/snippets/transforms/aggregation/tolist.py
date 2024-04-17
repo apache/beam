@@ -1,3 +1,4 @@
+# coding=utf-8
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -15,16 +16,36 @@
 # limitations under the License.
 #
 
-# cython: overflowcheck=True
+# pytype: skip-file
+# pylint:disable=line-too-long
 
-cdef class Counter(object):
-  cdef readonly object name
-  cdef readonly object combine_fn
-  cdef readonly object accumulator
-  cdef readonly object _add_input
-  cpdef bint update(self, value) except -1
+# beam-playground:
+#   name: ToList
+#   description: Demonstration of ToList transform usage.
+#   multifile: false
+#   default_example: false
+#   context_line: 37
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
 
 
-cdef class AccumulatorCombineFnCounter(Counter):
-  cdef readonly object _fast_add_input
-  cdef readonly object _fast_add_input_n
+def tolist(test=None):
+  # [START tolist]
+  import apache_beam as beam
+
+  with beam.Pipeline() as pipeline:
+    listed_produce = (
+        pipeline
+        | 'Create produce' >> beam.Create(['🍓', '🥕', '🍆', '🍅'])
+        | beam.combiners.ToList()
+        | beam.Map(print))
+    # [END tolist]
+    if test:
+      test(listed_produce)
+
+
+if __name__ == '__main__':
+  tolist()

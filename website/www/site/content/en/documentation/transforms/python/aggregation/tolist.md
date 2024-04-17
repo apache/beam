@@ -1,5 +1,5 @@
 ---
-title: "ApproximateQuantiles"
+title: "BatchElements"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,16 +15,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# ApproximateQuantiles
+# BatchElements
 
 {{< localstorage language language-py >}}
 
-{{< button-pydoc path="apache_beam.transforms.stat" class="ApproximateQuantile" >}}
+{{< button-pydoc path="apache_beam.transforms.combiners" class="ToList" >}}
 
 ## Examples
 
 {{< playground height="700px" >}}
-{{< playground_snippet language="py" path="SDK_PYTHON_ApproximateQuantiles" show="approximatequantiles" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_ToList" show="tolist" >}}
 {{< /playground >}}
-
-## Related transforms

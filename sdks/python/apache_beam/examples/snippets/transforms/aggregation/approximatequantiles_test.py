@@ -1,3 +1,4 @@
+# coding=utf-8
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -15,16 +16,31 @@
 # limitations under the License.
 #
 
-# cython: overflowcheck=True
+# pytype: skip-file
 
-cdef class Counter(object):
-  cdef readonly object name
-  cdef readonly object combine_fn
-  cdef readonly object accumulator
-  cdef readonly object _add_input
-  cpdef bint update(self, value) except -1
+import unittest
+
+import mock
+
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+
+from . import approximatequantiles
 
 
-cdef class AccumulatorCombineFnCounter(Counter):
-  cdef readonly object _fast_add_input
-  cdef readonly object _fast_add_input_n
+@mock.patch('apache_beam.Pipeline', TestPipeline)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.'
+    'approximatequantiles.print',
+    lambda x: x)
+class ApproximateQuantilesTest(unittest.TestCase):
+  def test_approximatequantiles(self):
+    def check_result(quantiles):
+      assert_that(quantiles, equal_to([[0, 250, 500, 750, 1000]]))
+
+    approximatequantiles.approximatequantiles(test=check_result)
+
+
+if __name__ == '__main__':
+  unittest.main()
