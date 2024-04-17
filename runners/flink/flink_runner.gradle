@@ -25,11 +25,29 @@
 
 import groovy.json.JsonOutput
 
+def base_path = ".."
+
+def overrides(versions, type, base_path) {
+  versions.collect { "${base_path}/${it}/src/${type}/java" } + ["./src/${type}/java"]
+}
+
+def all_versions = ['1.12', '1.13', '1.14', '1.15', '1.16', '1.17']
+
+def previous_versions = all_versions.findAll { it < flink_major }
+
+// Version specific code overrides.
+def main_source_overrides = overrides(previous_versions, "main", base_path)
+def test_source_overrides = overrides(previous_versions, "test", base_path)
+def main_resources_overrides = []
+def test_resources_overrides = []
+
+def archivesBaseName = "beam-runners-flink-${flink_major}"
+
 apply plugin: 'org.apache.beam.module'
 applyJavaNature(
     enableStrictDependencies:true,
     automaticModuleName: 'org.apache.beam.runners.flink',
-    archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName),
+    archivesBaseName: archivesBaseName,
 )
 
 description = "Apache Beam :: Runners :: Flink $flink_version"

@@ -28,10 +28,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -45,6 +42,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class CoderTypeSerializer<T> extends TypeSerializer<T> {
+
+  private static final long serialVersionUID = 7247319138941746449L;
 
   private final Coder<T> coder;
 
@@ -155,31 +154,7 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
   @Override
   public TypeSerializerSnapshot<T> snapshotConfiguration() {
-    return new LegacySnapshot<>(this);
-  }
-
-  /** A legacy snapshot which does not care about schema compatibility. */
-  public static class LegacySnapshot<T> extends TypeSerializerConfigSnapshot<T> {
-
-    /** Needs to be public to work with {@link VersionedIOReadableWritable}. */
-    public LegacySnapshot() {}
-
-    public LegacySnapshot(CoderTypeSerializer<T> serializer) {
-      setPriorSerializer(serializer);
-    }
-
-    @Override
-    public int getVersion() {
-      // We always return the same version
-      return 1;
-    }
-
-    @Override
-    public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-        TypeSerializer<T> newSerializer) {
-      // We assume compatibility because we don't have a way of checking schema compatibility
-      return TypeSerializerSchemaCompatibility.compatibleAsIs();
-    }
+    return new UnversionedTypeSerializerSnapshot<>(this);
   }
 
   @Override

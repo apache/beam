@@ -71,7 +71,7 @@ public class CoderTypeSerializerTest implements Serializable {
     ComparatorTestBase.TestOutputView outView = new ComparatorTestBase.TestOutputView();
     writtenSnapshot.writeSnapshot(outView);
 
-    TypeSerializerSnapshot readSnapshot = new CoderTypeSerializer.LegacySnapshot();
+    TypeSerializerSnapshot readSnapshot = new UnversionedTypeSerializerSnapshot();
     readSnapshot.readSnapshot(
         writtenSnapshot.getCurrentVersion(), outView.getInputView(), getClass().getClassLoader());
 
