@@ -170,36 +170,34 @@ func TestServer(t *testing.T) {
 			},
 		},
 		{
-			name: "Canceling",
-			noJobsCheck: func(ctx context.Context, t *testing.T, undertest *Server) {
-				resp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{JobId: "job-001"})
-				if resp != nil {
-					t.Errorf("Canceling(\"job-001\") = %s, want nil", resp)
-				}
-				if err != nil {
-					t.Errorf("Canceling(\"job-001\") = %v, want nil", err)
-				}
-			},
+			name:        "Canceling",
+			noJobsCheck: func(ctx context.Context, t *testing.T, undertest *Server) {},
 			postPrepCheck: func(ctx context.Context, t *testing.T, undertest *Server) {
-				resp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{JobId: "job-001"})
+				id := "job-001"
+				job, ok := undertest.jobs[id]
+				if !ok {
+					t.Fatalf("job not found in undertest.jobs: %s", id)
+				}
+				job.state.Store(jobpb.JobState_RUNNING)
+				resp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{JobId: id})
 				if err != nil {
-					t.Errorf("Canceling(\"job-001\") = %v, want nil", err)
+					t.Errorf("Canceling(\"%s\") = %v, want nil", id, err)
 				}
 				if diff := cmp.Diff(&jobpb.CancelJobResponse{
 					State: jobpb.JobState_CANCELLING,
 				}, resp, cmpOpts...); diff != "" {
-					t.Errorf("Canceling(\"job-001\") (-want, +got):\n%v", diff)
+					t.Errorf("Canceling(\"%s\") (-want, +got):\n%v", id, diff)
 				}
 			},
 			postRunCheck: func(ctx context.Context, t *testing.T, undertest *Server, jobID string) {
-				resp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{JobId: jobID})
+				resp, err := undertest.GetState(ctx, &jobpb.GetJobStateRequest{JobId: jobID})
 				if err != nil {
-					t.Errorf("Canceling(\"%s\") = %v, want nil", jobID, err)
+					t.Errorf("GetState(\"%s\") = %v, want nil", jobID, err)
 				}
-				if diff := cmp.Diff(&jobpb.CancelJobResponse{
-					State: jobpb.JobState_DONE,
-				}, resp, cmpOpts...); diff != "" {
-					t.Errorf("Canceling(\"%s\") (-want, +got):\n%v", jobID, diff)
+				want := jobpb.JobState_CANCELLED
+				got := resp.State
+				if got != want {
+					t.Errorf("Canceling(\"%s\") = %s, want %s", jobID, got, want)
 				}
 			},
 		},
@@ -230,7 +228,11 @@ func TestServer(t *testing.T) {
 					shortIDSize:  sizeData,
 				},
 			})
-			j.state.Store(jobpb.JobState_DONE)
+			state := jobpb.JobState_DONE
+			if j.state.Load() == jobpb.JobState_CANCELLED {
+				state = jobpb.JobState_CANCELLED
+			}
+			j.state.Store(state)
 			called.Done()
 		})
 

@@ -17,7 +17,6 @@ package jobservices
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"testing"
 
@@ -84,10 +83,8 @@ func TestServer_RunThenCancel(t *testing.T) {
 	var called sync.WaitGroup
 	called.Add(1)
 	undertest := NewServer(0, func(j *Job) {
-		if errors.Is(context.Cause(j.RootCtx), ErrCancel) {
-			j.state.Store(jobpb.JobState_CANCELLED)
-			called.Done()
-		}
+		j.state.Store(jobpb.JobState_RUNNING)
+		called.Done()
 	})
 	ctx := context.Background()
 
@@ -118,6 +115,8 @@ func TestServer_RunThenCancel(t *testing.T) {
 		t.Fatalf("server.Run() = returned empty preparation ID, want non-empty")
 	}
 
+	called.Wait()
+
 	cancelResp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{
 		JobId: runResp.GetJobId(),
 	})
@@ -127,8 +126,6 @@ func TestServer_RunThenCancel(t *testing.T) {
 	if cancelResp.State != jobpb.JobState_CANCELLING {
 		t.Fatalf("server.Canceling() = %v, want %v", cancelResp.State, jobpb.JobState_CANCELLING)
 	}
-
-	called.Wait()
 
 	stateResp, err := undertest.GetState(ctx, &jobpb.GetJobStateRequest{JobId: runResp.GetJobId()})
 	if err != nil {
