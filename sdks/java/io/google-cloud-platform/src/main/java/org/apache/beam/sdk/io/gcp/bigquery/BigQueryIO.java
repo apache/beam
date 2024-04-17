@@ -2350,7 +2350,7 @@ public class BigQueryIO {
 
     abstract @Nullable ValueProvider<String> getJsonTimePartitioning();
 
-    abstract @Nullable ValueProvider<Clustering> getClustering();
+    abstract @Nullable ValueProvider<String> getJsonClustering();
 
     abstract CreateDisposition getCreateDisposition();
 
@@ -2459,7 +2459,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setJsonTimePartitioning(ValueProvider<String> jsonTimePartitioning);
 
-      abstract Builder<T> setClustering(ValueProvider<Clustering> clustering);
+      abstract Builder<T> setJsonClustering(ValueProvider<String> clustering);
 
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
 
@@ -2827,22 +2827,17 @@ public class BigQueryIO {
      */
     public Write<T> withClustering(Clustering clustering) {
       checkArgument(clustering != null, "clustering cannot be null");
-      return withClustering(StaticValueProvider.of(clustering));
-    }
-
-    /** Like {@link #withClustering(Clustering)} but using a deferred {@link ValueProvider}. */
-    public Write<T> withClustering(ValueProvider<Clustering> clustering) {
-      return toBuilder().setClustering(clustering).build();
+      return withJsonClustering(StaticValueProvider.of(BigQueryHelpers.toJsonString(clustering)));
     }
 
     /**
-     * The same as {@link #withClustering(Clustering)}, but takes a JSON-serialized array of
-     * strings. For example: `"["column1", "column2", "column3"]"`
+     * The same as {@link #withClustering(Clustering)}, but takes a JSON-serialized Clustering
+     * object in a deferred {@link ValueProvider}. For example: `"{"fields": ["column1", "column2",
+     * "column3"]}"`
      */
     public Write<T> withJsonClustering(ValueProvider<String> jsonClustering) {
-      checkArgument(jsonClustering != null, "clustering can not be null");
-      return withClustering(
-          NestedValueProvider.of(jsonClustering, BigQueryHelpers::clusteringFromJsonFields));
+      checkArgument(jsonClustering != null, "clustering cannot be null");
+      return toBuilder().setJsonClustering(jsonClustering).build();
     }
 
     /**
@@ -2859,7 +2854,7 @@ public class BigQueryIO {
      * read state written with a previous version.
      */
     public Write<T> withClustering() {
-      return toBuilder().setClustering(StaticValueProvider.of(new Clustering())).build();
+      return withClustering(new Clustering());
     }
 
     /** Specifies whether the table should be created if it does not exist. */
@@ -3435,10 +3430,10 @@ public class BigQueryIO {
         if (getJsonTableRef() != null) {
           dynamicDestinations =
               DynamicDestinationsHelpers.ConstantTableDestinations.fromJsonTableRef(
-                  getJsonTableRef(), getTableDescription(), getClustering() != null);
+                  getJsonTableRef(), getTableDescription(), getJsonClustering() != null);
         } else if (getTableFunction() != null) {
           dynamicDestinations =
-              new TableFunctionDestinations<>(getTableFunction(), getClustering() != null);
+              new TableFunctionDestinations<>(getTableFunction(), getJsonClustering() != null);
         }
 
         // Wrap with a DynamicDestinations class that will provide a schema. There might be no
@@ -3455,12 +3450,12 @@ public class BigQueryIO {
         }
 
         // Wrap with a DynamicDestinations class that will provide the proper TimePartitioning.
-        if (getJsonTimePartitioning() != null || (getClustering() != null)) {
+        if (getJsonTimePartitioning() != null || (getJsonClustering() != null)) {
           dynamicDestinations =
               new ConstantTimePartitioningClusteringDestinations<>(
                   (DynamicDestinations<T, TableDestination>) dynamicDestinations,
                   getJsonTimePartitioning(),
-                  NestedValueProvider.of(getClustering(), BigQueryHelpers::toJsonString));
+                  getJsonClustering());
         }
         if (getPrimaryKey() != null) {
           dynamicDestinations =
@@ -3713,7 +3708,7 @@ public class BigQueryIO {
                 elementCoder,
                 rowWriterFactory,
                 getKmsKey(),
-                getClustering() != null,
+                getJsonClustering() != null,
                 getUseAvroLogicalTypes(),
                 getWriteTempDataset(),
                 getBadRecordRouter(),
