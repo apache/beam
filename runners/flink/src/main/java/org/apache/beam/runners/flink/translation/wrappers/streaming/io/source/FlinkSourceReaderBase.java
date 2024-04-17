@@ -124,8 +124,6 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
         pipelineOptions.as(FlinkPipelineOptions.class).getShutdownSourcesAfterIdleMs();
     this.idleTimeoutFuture = new CompletableFuture<>();
     this.idleTimeoutCountingDown = false;
-    // TODO: Remove the casting and use SourceReaderMetricGroup after minimum FLink version is
-    // upgraded to 1.14 and above.
     this.numRecordsInCounter = FlinkSourceCompat.getNumRecordsInCounter(context);
     FlinkMetricContainerWithoutAccumulator metricsContainer =
         new FlinkMetricContainerWithoutAccumulator(context.metricGroup());
