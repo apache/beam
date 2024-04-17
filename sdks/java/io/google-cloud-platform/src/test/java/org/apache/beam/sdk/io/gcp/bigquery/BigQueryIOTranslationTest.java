@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -237,6 +238,7 @@ public class BigQueryIOTranslationTest {
   @Test
   public void testReCreateWriteTransformFromRowTable() {
     // setting a subset of fields here.
+    Clustering testClustering = new Clustering().setFields(Arrays.asList("a", "b", "c"));
     BigQueryIO.Write<?> writeTransform =
         BigQueryIO.write()
             .to("dummyproject:dummydataset.dummytable")
@@ -244,6 +246,7 @@ public class BigQueryIOTranslationTest {
             .withTriggeringFrequency(org.joda.time.Duration.millis(10000))
             .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE)
             .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+            .withClustering(testClustering)
             .withKmsKey("dummykmskey");
 
     BigQueryIOTranslation.BigQueryIOWriteTranslator translator =
@@ -261,6 +264,8 @@ public class BigQueryIOTranslationTest {
     assertEquals(WriteDisposition.WRITE_TRUNCATE, writeTransformFromRow.getWriteDisposition());
     assertEquals(CreateDisposition.CREATE_NEVER, writeTransformFromRow.getCreateDisposition());
     assertEquals("dummykmskey", writeTransformFromRow.getKmsKey());
+    assertEquals(
+        BigQueryHelpers.toJsonString(testClustering), writeTransformFromRow.getJsonClustering().get());
   }
 
   @Test
