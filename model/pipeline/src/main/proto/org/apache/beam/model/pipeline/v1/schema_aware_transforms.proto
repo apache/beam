@@ -50,7 +50,7 @@ message StandardSchemaAwareTransforms {
 // This is a transform that is aware of its input and output PCollection schemas
 // and is configured using Beam Schema-compatible parameters.
 message SchemaAwareTransformPayload {
-    // The transform's configuration schema
+    // The schema of the configuration row used to upgrade the transform
     Schema expansion_schema = 1;
     // The configuration used to build this transform.
     // Must be compatible with the configuration schema, and decodable via beam:coder:row:v1.
@@ -63,10 +63,10 @@ message SchemaAwareTransformPayload {
 message ManagedTransformPayload {
     // The underlying transform's URN.
     string underlying_transform_urn = 1;
-    // The underlying transform's configuration Schema.
+    // The managed transform configuration Schema.
     Schema expansion_schema = 2;
-    // The configuration used to build the underlying transform.
-    // Must be compatible with the configuration schema, and decodable via beam:coder:row:v1.
+    // The configuration used to build the managed transform.
+    // Must be compatible with the expansion schema, and decodable via beam:coder:row:v1.
     bytes expansion_payload = 3;
     // The underlying transform's configuration, represented as a YAML string.
     string yaml_config = 4;
