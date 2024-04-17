@@ -92,12 +92,19 @@ def provider_sets(spec, require_available=False):
   """For transforms that are vended by multiple providers, yields all possible
   combinations of providers to use.
   """
-  all_transform_types = set.union(
-      *(
-          set(
-              transform_types(
-                  yaml_transform.preprocess(copy.deepcopy(p['pipeline']))))
-          for p in spec['pipelines']))
+  try:
+    for p in spec['pipelines']:
+      _ = yaml_transform.preprocess(copy.deepcopy(p['pipeline']))
+  except Exception as exn:
+    print(exn)
+    all_transform_types = []
+  else:
+    all_transform_types = set.union(
+        *(
+            set(
+                transform_types(
+                    yaml_transform.preprocess(copy.deepcopy(p['pipeline']))))
+            for p in spec['pipelines']))
 
   def filter_to_available(t, providers):
     if require_available:
@@ -115,7 +122,7 @@ def provider_sets(spec, require_available=False):
       if len(filter_to_available(t, standard_providers[t])) > 1
   }
   if not multiple_providers:
-    return 'only', standard_providers
+    yield 'only', standard_providers
   else:
     names, provider_lists = zip(*sorted(multiple_providers.items()))
     for ix, c in enumerate(itertools.product(*provider_lists)):
