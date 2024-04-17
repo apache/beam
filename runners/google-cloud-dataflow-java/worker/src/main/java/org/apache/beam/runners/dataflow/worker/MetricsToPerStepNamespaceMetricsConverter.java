@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
+import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
 
@@ -52,7 +53,7 @@ public class MetricsToPerStepNamespaceMetricsConverter {
       return Optional.empty();
     }
 
-    return BigQuerySinkMetrics.parseMetricName(metricName.getName())
+    return LabeledMetricNameUtils.parseMetricName(metricName.getName())
         .filter(labeledName -> !labeledName.getBaseName().isEmpty())
         .map(
             labeledName ->
@@ -70,9 +71,9 @@ public class MetricsToPerStepNamespaceMetricsConverter {
    * @param outputHistogram
    */
   private static void addOutlierStatsToHistogram(
-      HistogramData inputHistogram, DataflowHistogramValue outputHistogram) {
-    long overflowCount = inputHistogram.getTopBucketCount();
-    long underflowCount = inputHistogram.getBottomBucketCount();
+      LockFreeHistogram.Snapshot inputHistogram, DataflowHistogramValue outputHistogram) {
+    long overflowCount = inputHistogram.overflowStatistic().count();
+    long underflowCount = inputHistogram.underflowStatistic().count();
     if (underflowCount == 0 && overflowCount == 0) {
       return;
     }
@@ -81,12 +82,12 @@ public class MetricsToPerStepNamespaceMetricsConverter {
     if (underflowCount > 0) {
       outlierStats
           .setUnderflowCount(underflowCount)
-          .setUnderflowMean(inputHistogram.getBottomBucketMean());
+          .setUnderflowMean(inputHistogram.underflowStatistic().mean());
     }
     if (overflowCount > 0) {
       outlierStats
           .setOverflowCount(overflowCount)
-          .setOverflowMean(inputHistogram.getTopBucketMean());
+          .setOverflowMean(inputHistogram.overflowStatistic().mean());
     }
     outputHistogram.setOutlierStats(outlierStats);
   }
@@ -99,32 +100,32 @@ public class MetricsToPerStepNamespaceMetricsConverter {
    *     Otherwise returns an empty optional.
    */
   private static Optional<MetricValue> convertHistogramToMetricValue(
-      MetricName metricName, HistogramData inputHistogram) {
-    if (inputHistogram.getTotalCount() == 0L) {
+      MetricName metricName, LockFreeHistogram.Snapshot inputHistogram) {
+    if (inputHistogram.totalCount() == 0L) {
       return Optional.empty();
     }
 
-    Optional<BigQuerySinkMetrics.ParsedMetricName> labeledName =
-        BigQuerySinkMetrics.parseMetricName(metricName.getName());
+    Optional<LabeledMetricNameUtils.ParsedMetricName> labeledName =
+        LabeledMetricNameUtils.parseMetricName(metricName.getName());
     if (!labeledName.isPresent() || labeledName.get().getBaseName().isEmpty()) {
       return Optional.empty();
     }
 
     DataflowHistogramValue outputHistogram = new DataflowHistogramValue();
-    int numberOfBuckets = inputHistogram.getBucketType().getNumBuckets();
+    int numberOfBuckets = inputHistogram.bucketType().getNumBuckets();
 
-    if (inputHistogram.getBucketType() instanceof HistogramData.LinearBuckets) {
+    if (inputHistogram.bucketType() instanceof HistogramData.LinearBuckets) {
       HistogramData.LinearBuckets buckets =
-          (HistogramData.LinearBuckets) inputHistogram.getBucketType();
+          (HistogramData.LinearBuckets) inputHistogram.bucketType();
       Linear linearOptions =
           new Linear()
               .setNumberOfBuckets(numberOfBuckets)
               .setWidth(buckets.getWidth())
               .setStart(buckets.getStart());
       outputHistogram.setBucketOptions(new BucketOptions().setLinear(linearOptions));
-    } else if (inputHistogram.getBucketType() instanceof HistogramData.ExponentialBuckets) {
+    } else if (inputHistogram.bucketType() instanceof HistogramData.ExponentialBuckets) {
       HistogramData.ExponentialBuckets buckets =
-          (HistogramData.ExponentialBuckets) inputHistogram.getBucketType();
+          (HistogramData.ExponentialBuckets) inputHistogram.bucketType();
       Base2Exponent expoenntialOptions =
           new Base2Exponent().setNumberOfBuckets(numberOfBuckets).setScale(buckets.getScale());
       outputHistogram.setBucketOptions(new BucketOptions().setExponential(expoenntialOptions));
@@ -132,12 +133,10 @@ public class MetricsToPerStepNamespaceMetricsConverter {
       return Optional.empty();
     }
 
-    outputHistogram.setCount(inputHistogram.getTotalCount());
-    List<Long> bucketCounts = new ArrayList<>(inputHistogram.getBucketType().getNumBuckets());
+    outputHistogram.setCount(inputHistogram.totalCount());
+    List<Long> bucketCounts = new ArrayList<>(inputHistogram.buckets().length());
 
-    for (int i = 0; i < inputHistogram.getBucketType().getNumBuckets(); i++) {
-      bucketCounts.add(inputHistogram.getCount(i));
-    }
+    inputHistogram.buckets().forEach(val -> bucketCounts.add(val));
 
     // Remove trailing 0 buckets.
     for (int i = bucketCounts.size() - 1; i >= 0; i--) {
@@ -167,7 +166,9 @@ public class MetricsToPerStepNamespaceMetricsConverter {
    *     stage, metrics namespace} pair.
    */
   public static Collection<PerStepNamespaceMetrics> convert(
-      String stepName, Map<MetricName, Long> counters, Map<MetricName, HistogramData> histograms) {
+      String stepName,
+      Map<MetricName, Long> counters,
+      Map<MetricName, LockFreeHistogram.Snapshot> histograms) {
 
     Map<String, PerStepNamespaceMetrics> metricsByNamespace = new HashMap<>();
     for (Entry<MetricName, Long> entry : counters.entrySet()) {
@@ -192,7 +193,7 @@ public class MetricsToPerStepNamespaceMetricsConverter {
       stepNamespaceMetrics.getMetricValues().add(metricValue.get());
     }
 
-    for (Entry<MetricName, HistogramData> entry : histograms.entrySet()) {
+    for (Entry<MetricName, LockFreeHistogram.Snapshot> entry : histograms.entrySet()) {
       MetricName metricName = entry.getKey();
       Optional<MetricValue> metricValue =
           convertHistogramToMetricValue(metricName, entry.getValue());

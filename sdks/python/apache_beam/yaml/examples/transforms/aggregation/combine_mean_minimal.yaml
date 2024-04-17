@@ -44,9 +44,6 @@ pipeline:
           amount: mean
     - type: LogForTesting
 
-options:
-  yaml_experimental_features: Combine
-
 # Expected:
 #  Row(produce='🥕', amount=2.5)
 #  Row(produce='🍆', amount=1.0)

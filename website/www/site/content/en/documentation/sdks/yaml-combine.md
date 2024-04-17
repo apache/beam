@@ -25,8 +25,6 @@ title: "Apache Beam YAML Aggregations"
 
 Beam YAML has EXPERIMENTAL ability to do aggregations to group and combine
 values across records. The is accomplished via the `Combine` transform type.
-Currently `Combine` needs to be in the `yaml_experimental_features`
-option to use this transform.
 
 For example, one can write
 

@@ -52,6 +52,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
+
 # [2.56.0] - Unreleased
 
 ## Highlights
@@ -67,11 +68,14 @@
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Profiling of Cythonized code has been disabled by default. This might improve performance for some Python pipelines ([#30938](https://github.com/apache/beam/pull/30938)).
+* Bigtable enrichment handler now accepts a custom function to build a composite row key. (Python) ([#30974](https://github.com/apache/beam/issues/30975)).
 
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* Default consumer polling timeout for KafkaIO.Read was increased from 1 second to 2 seconds. Use KafkaIO.read().withConsumerPollingTimeout(Duration duration) to configure this timeout value when necessary ([#30870](https://github.com/apache/beam/issues/30870)).
+* Python Dataflow users no longer need to manually specify --streaming for pipelines using unbounded sources such as ReadFromPubSub.
 
 ## Deprecations
 
@@ -80,6 +84,7 @@
 ## Bugfixes
 
 * Fixed locking issue when shutting down inactive bundle processors. Symptoms of this issue include slowness or stuckness in long-running jobs (Python) ([#30679](https://github.com/apache/beam/pull/30679)).
+* Fixed logging issue that caused silecing the pip output when installing of dependencies provided in `--requirements_file` (Python).
 
 ## Security Fixes
 * Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
@@ -87,6 +92,12 @@
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
+
+# [2.55.1]
+
+## Bugfixes
+
+* Fixed issue that broke WriteToJson in languages other than Java (X-lang) ([#30776](https://github.com/apache/beam/issues/30776)).
 
 # [2.55.0] - 2024-03-25
 
@@ -133,6 +144,7 @@
 ## Known Issues
 
 * In Python pipelines, when shutting down inactive bundle processors, shutdown logic can overaggressively hold the lock, blocking acceptance of new work. Symptoms of this issue include slowness or stuckness in long-running jobs. Fixed in 2.56.0 ([#30679](https://github.com/apache/beam/pull/30679)).
+* WriteToJson broken in languages other than Java (X-lang) ([#30776](https://github.com/apache/beam/issues/30776)).
 
 # [2.54.0] - 2024-02-14
 
