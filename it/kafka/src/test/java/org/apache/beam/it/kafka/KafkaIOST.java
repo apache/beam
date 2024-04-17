@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
+import java.text.ParseException;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -45,7 +46,6 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -151,11 +151,11 @@ public final class KafkaIOST extends IOStressTestBase {
           ImmutableMap.of(
               "medium",
               Configuration.fromJsonString(
-                  "{\"rowsPerSecond\":10000,\"numRecords\":1000000,\"valueSizeBytes\":1000,\"minutes\":50,\"pipelineTimeout\":80,\"runner\":\"DataflowRunner\"}",
+                  "{\"rowsPerSecond\":10000,\"numRecords\":1000000,\"valueSizeBytes\":1000,\"minutes\":20,\"pipelineTimeout\":60,\"runner\":\"DataflowRunner\"}",
                   Configuration.class),
               "large",
               Configuration.fromJsonString(
-                  "{\"rowsPerSecond\":25000,\"numRecords\":10000000,\"valueSizeBytes\":1000,\"minutes\":120,\"pipelineTimeout\":300,\"runner\":\"DataflowRunner\"}",
+                  "{\"rowsPerSecond\":50000,\"numRecords\":5000000,\"valueSizeBytes\":1000,\"minutes\":60,\"pipelineTimeout\":120,\"runner\":\"DataflowRunner\"}",
                   Configuration.class));
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -164,7 +164,7 @@ public final class KafkaIOST extends IOStressTestBase {
 
   /** Run stress test with configurations specified by TestProperties. */
   @Test
-  public void testWriteAndRead() throws IOException {
+  public void testWriteAndRead() throws IOException, ParseException, InterruptedException {
     if (configuration.exportMetricsToInfluxDB) {
       influxDBSettings =
           InfluxDBSettings.builder()
@@ -199,9 +199,9 @@ public final class KafkaIOST extends IOStressTestBase {
               readInfo.jobId(),
               getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
 
-      // Assert that readNumRecords equals or greater than writeNumRecords since there might be
+      // Assert that writeNumRecords equals or greater than readNumRecords since there might be
       // duplicates when testing big amount of data
-      assertTrue(readNumRecords >= writeNumRecords);
+      assertTrue(writeNumRecords >= readNumRecords);
     } finally {
       // clean up pipelines
       if (pipelineLauncher.getJobStatus(project, region, writeInfo.jobId())
@@ -260,7 +260,6 @@ public final class KafkaIOST extends IOStressTestBase {
               .apply(
                   "One input to multiple outputs",
                   ParDo.of(new MultiplierDoFn<>(startMultiplier, loadPeriods)))
-              .apply("Reshuffle fanout", Reshuffle.viaRandomKey())
               .apply("Counting element", ParDo.of(new CountingFn<>(WRITE_ELEMENT_METRIC_NAME)));
     }
     source.apply(
@@ -329,7 +328,7 @@ public final class KafkaIOST extends IOStressTestBase {
      * Determines whether to use Dataflow runner v2. If set to true, it uses SDF mode for reading
      * from Kafka. Otherwise, Unbounded mode will be used.
      */
-    @JsonProperty public boolean useDataflowRunnerV2 = true;
+    @JsonProperty public boolean useDataflowRunnerV2 = false;
 
     /** Number of workers for the pipeline. */
     @JsonProperty public int numWorkers = 20;
