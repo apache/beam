@@ -768,8 +768,7 @@ class PerWindowInvoker(DoFnInvoker):
     # self.args_for_process,have been updated and should be reused directly.
     self.recalculate_window_args = (
         self.has_windowed_inputs or 'disable_global_windowed_args_caching' in
-        RuntimeValueProvider.experiments
-    )
+        RuntimeValueProvider.experiments)
     self.has_cached_window_args = False
     self.has_cached_window_batch_args = False
 
