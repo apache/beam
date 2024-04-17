@@ -272,8 +272,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
     perWorkerCountersByFirstStaleTime.keySet().removeAll(deletedMetricNames);
 
     // Remove potentially deleted metric names from the cache. If these metrics are non-zero valued
-    // in the future,
-    // they will automatically be added back to the cache.
+    // in the future, they will automatically be added back to the cache.
     parsedPerWorkerMetricsCache.keySet().removeAll(deletedMetricNames);
   }
 
