@@ -226,7 +226,7 @@ func TestTestStream(t *testing.T) {
 // TestProcessingTime is the suite for validating behaviors around ProcessingTime.
 // Separate from the TestStream, Timers, and Triggers tests due to the unique nature
 // of the time domain.
-func FOOTestProcessingTime(t *testing.T) {
+func TestProcessingTime(t *testing.T) {
 	initRunner(t)
 
 	tests := []struct {

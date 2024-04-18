@@ -315,10 +315,10 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 		for {
 			em.refreshCond.L.Lock()
 			// Check if processing time has advanced before the wait loop.
-			// emNow := em.ProcessingTimeNow()
-			// em.watermarkRefreshes.merge(em.processTimeEvents.AdvanceTo(emNow))
+			emNow := em.ProcessingTimeNow()
+			em.watermarkRefreshes.merge(em.processTimeEvents.AdvanceTo(emNow))
 			// If there are no watermark refreshes available, we wait until there are.
-			for len(em.watermarkRefreshes) == 0 {
+			for len(em.watermarkRefreshes) == 0 { // TODO Add processing time event condition instead of piggybacking on watermarks?
 				// Check to see if we must exit
 				select {
 				case <-ctx.Done():
@@ -329,8 +329,8 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 				em.refreshCond.Wait() // until watermarks may have changed.
 
 				// Check if processing time has advanced while we waited, and add refreshes here. (TODO waking on real time here for prod mode)
-				// emNow := em.ProcessingTimeNow()
-				// em.watermarkRefreshes.merge(em.processTimeEvents.AdvanceTo(emNow))
+				emNow := em.ProcessingTimeNow()
+				em.watermarkRefreshes.merge(em.processTimeEvents.AdvanceTo(emNow))
 			}
 
 			// We know there is some work we can do that may advance the watermarks,
@@ -1053,7 +1053,7 @@ func (ss *stageState) AddPending(newPending []element) int {
 				if ss.processingTimeTimers[e.family] {
 					// override the firing timestamp with the current output watermark
 					// TODO sort out bypassing event time timer behavior for processing time timers.
-					e.timestamp = ss.output
+					e.timestamp = mtime.MinTimestamp //ss.output
 					// TODO adjust the count
 					fmt.Println("XXXXXX Pending Adjusted Processing Time", e)
 				}
@@ -1117,9 +1117,11 @@ func (ss *stageState) AdvanceProcessingTimeTo(now mtime.Time) {
 	ss.mu.Lock()
 	events := ss.processTimeEvents.AdvanceTo(now)
 	ss.mu.Unlock()
+	var count int
 	for _, es := range events {
-		ss.AddPending(es)
+		count += ss.AddPending(es)
 	}
+	fmt.Println("AAAAAAA AdvanceProcessingTimeTo", ss.ID, count, "added")
 }
 
 // GetSideData returns side input data for the provided transform+input pair, valid to the watermark.

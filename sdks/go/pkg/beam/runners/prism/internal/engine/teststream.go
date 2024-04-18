@@ -238,8 +238,8 @@ func (ev tsProcessingTimeEvent) Execute(em *ElementManager) {
 	em.testStreamHandler.processingTime = em.testStreamHandler.processingTime.Add(ev.AdvanceBy)
 
 	// // Add the refreshes now so our block prevention logic works.
-	// emNow := em.ProcessingTimeNow()
-	// em.watermarkRefreshes.merge(em.processTimeEvents.AdvanceTo(emNow))
+	emNow := em.ProcessingTimeNow()
+	em.watermarkRefreshes.merge(em.processTimeEvents.AdvanceTo(emNow))
 }
 
 // tsFinalEvent is the "last" event we perform after all preceeding events.
