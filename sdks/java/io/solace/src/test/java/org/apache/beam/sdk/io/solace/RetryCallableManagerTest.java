@@ -36,7 +36,7 @@ public class RetryCallableManagerTest {
   private RetryCallableManager retryCallableManager;
 
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
 
     retryCallableManager =
         RetryCallableManager.builder()
@@ -102,10 +102,7 @@ public class RetryCallableManagerTest {
     Callable<Integer> incrementingFunction =
         () -> {
           executeCounter.incrementAndGet();
-          if (true) {
-            throw new MyException();
-          }
-          return 0;
+          throw new MyException();
         };
     try {
       retryCallableManager.retryCallable(incrementingFunction, ImmutableSet.of(MyException.class));
@@ -121,10 +118,7 @@ public class RetryCallableManagerTest {
   public void testRetryCallable_ThrowsRetryHelperExceptionOnUnspecifiedException() {
     Callable<Integer> incrementingFunction =
         () -> {
-          if (true) {
-            throw new DoNotIgnoreException();
-          }
-          return 0;
+          throw new DoNotIgnoreException();
         };
     retryCallableManager.retryCallable(incrementingFunction, ImmutableSet.of(MyException.class));
   }

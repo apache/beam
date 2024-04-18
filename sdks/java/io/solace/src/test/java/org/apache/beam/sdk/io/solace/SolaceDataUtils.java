@@ -25,6 +25,7 @@ import com.solacesystems.jcsmp.MessageType;
 import com.solacesystems.jcsmp.ReplicationGroupMessageId;
 import com.solacesystems.jcsmp.SDTMap;
 import com.solacesystems.jcsmp.User_Cos;
+import com.solacesystems.jcsmp.impl.ReplicationGroupMessageIdImpl;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.BufferUnderflowException;
@@ -37,8 +38,11 @@ import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class SolaceDataUtils {
+  public static final ReplicationGroupMessageId DEFAULT_REPLICATION_GROUP_ID =
+      new ReplicationGroupMessageIdImpl(1L, 136L);
 
   @DefaultSchema(JavaBeanSchema.class)
   public static class SimpleRecord {
@@ -83,6 +87,17 @@ public class SolaceDataUtils {
   }
 
   public static Solace.Record getSolaceRecord(String payload, String messageId) {
+    return getSolaceRecord(payload, messageId, null);
+  }
+
+  public static Solace.Record getSolaceRecord(
+      String payload,
+      String messageId,
+      @Nullable ReplicationGroupMessageId replicationGroupMessageId) {
+    String replicationGroupMessageIdString =
+        replicationGroupMessageId != null
+            ? replicationGroupMessageId.toString()
+            : DEFAULT_REPLICATION_GROUP_ID.toString();
     return Solace.Record.builder()
         .setPayload(payload.getBytes(StandardCharsets.UTF_8))
         .setMessageId(messageId)
@@ -99,6 +114,7 @@ public class SolaceDataUtils {
         .setSequenceNumber(null)
         .setTimeToLive(1000L)
         .setSenderTimestamp(null)
+        .setReplicationGroupMessageId(replicationGroupMessageIdString)
         .build();
   }
 
@@ -107,16 +123,29 @@ public class SolaceDataUtils {
   }
 
   public static BytesXMLMessage getBytesXmlMessage(String payload, String messageId) {
-    return getBytesXmlMessage(payload, messageId, null);
+    return getBytesXmlMessage(payload, messageId, null, null);
   }
 
   public static BytesXMLMessage getBytesXmlMessage(
       String payload, String messageId, SerializableFunction<Integer, Integer> ackMessageFn) {
+
+    return getBytesXmlMessage(payload, messageId, ackMessageFn, null);
+  }
+
+  public static BytesXMLMessage getBytesXmlMessage(
+      String payload,
+      String messageId,
+      SerializableFunction<Integer, Integer> ackMessageFn,
+      ReplicationGroupMessageId replicationGroupMessageId) {
     long receiverTimestamp = 1708100477067L;
     long expiration = 1000L;
     long timeToLive = 1000L;
     String destination = "destination-topic";
 
+    ReplicationGroupMessageId useReplicationGroupId =
+        replicationGroupMessageId != null
+            ? replicationGroupMessageId
+            : DEFAULT_REPLICATION_GROUP_ID;
     return new BytesXMLMessage() {
 
       @Override
@@ -358,7 +387,8 @@ public class SolaceDataUtils {
 
       @Override
       public ReplicationGroupMessageId getReplicationGroupMessageId() {
-        return null;
+        // this is always set by Solace
+        return useReplicationGroupId;
       }
 
       @Override

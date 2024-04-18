@@ -26,6 +26,7 @@ import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.Destination;
 import com.solacesystems.jcsmp.Queue;
 import com.solacesystems.jcsmp.Topic;
+import com.solacesystems.jcsmp.impl.ReplicationGroupMessageIdImpl;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -101,10 +102,10 @@ public class SolaceIOTest {
         new MockSessionServiceFactory(mockClientService);
 
     // Expected data
-    List<Solace.Record> inputs = new ArrayList<>();
-    inputs.add(SolaceDataUtils.getSolaceRecord("payload_test0", "450"));
-    inputs.add(SolaceDataUtils.getSolaceRecord("payload_test1", "451"));
-    inputs.add(SolaceDataUtils.getSolaceRecord("payload_test2", "452"));
+    List<Solace.Record> expected = new ArrayList<>();
+    expected.add(SolaceDataUtils.getSolaceRecord("payload_test0", "450"));
+    expected.add(SolaceDataUtils.getSolaceRecord("payload_test1", "451"));
+    expected.add(SolaceDataUtils.getSolaceRecord("payload_test2", "452"));
 
     // Run the pipeline
     PCollection<Solace.Record> events =
@@ -117,7 +118,7 @@ public class SolaceIOTest {
                 .withMaxNumConnections(2));
 
     // Assert results
-    PAssert.that(events).containsInAnyOrder(inputs);
+    PAssert.that(events).containsInAnyOrder(expected);
     pipeline.run();
   }
 
@@ -140,9 +141,9 @@ public class SolaceIOTest {
         new MockSessionServiceFactory(mockClientService);
 
     // Expected data
-    List<Solace.Record> inputs = new ArrayList<>();
-    inputs.add(SolaceDataUtils.getSolaceRecord("payload_test0", "450"));
-    inputs.add(SolaceDataUtils.getSolaceRecord("payload_test1", "451"));
+    List<Solace.Record> expected = new ArrayList<>();
+    expected.add(SolaceDataUtils.getSolaceRecord("payload_test0", "450"));
+    expected.add(SolaceDataUtils.getSolaceRecord("payload_test1", "451"));
 
     // Run the pipeline
     PCollection<Solace.Record> events =
@@ -154,7 +155,7 @@ public class SolaceIOTest {
                 .withSessionServiceFactory(fakeSessionServiceFactory)
                 .withMaxNumConnections(2));
     // Assert results
-    PAssert.that(events).containsInAnyOrder(inputs);
+    PAssert.that(events).containsInAnyOrder(expected);
     pipeline.run();
   }
 
@@ -176,10 +177,10 @@ public class SolaceIOTest {
         new MockSessionServiceFactory(mockClientService);
 
     // Expected data
-    List<Solace.Record> inputs = new ArrayList<>();
-    inputs.add(SolaceDataUtils.getSolaceRecord("payload_test0", "450"));
-    inputs.add(SolaceDataUtils.getSolaceRecord("payload_test1", "451"));
-    inputs.add(SolaceDataUtils.getSolaceRecord("payload_test2", "451"));
+    List<Solace.Record> expected = new ArrayList<>();
+    expected.add(SolaceDataUtils.getSolaceRecord("payload_test0", "450"));
+    expected.add(SolaceDataUtils.getSolaceRecord("payload_test1", "451"));
+    expected.add(SolaceDataUtils.getSolaceRecord("payload_test2", "451"));
 
     // Run the pipeline
     PCollection<Solace.Record> events =
@@ -193,7 +194,51 @@ public class SolaceIOTest {
                 .withDeduplicateRecords(false));
 
     // Assert results
-    PAssert.that(events).containsInAnyOrder(inputs);
+    PAssert.that(events).containsInAnyOrder(expected);
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadMessagesWithDeduplicationOnReplicationGroupMessageId() {
+    // Broker that creates input data
+    MockSessionService mockClientService =
+        new MockSessionService(
+            index -> {
+              List<BytesXMLMessage> messages =
+                  ImmutableList.of(
+                      SolaceDataUtils.getBytesXmlMessage(
+                          "payload_test0", null, null, new ReplicationGroupMessageIdImpl(2L, 1L)),
+                      SolaceDataUtils.getBytesXmlMessage(
+                          "payload_test1", null, null, new ReplicationGroupMessageIdImpl(2L, 2L)),
+                      SolaceDataUtils.getBytesXmlMessage(
+                          "payload_test2", null, null, new ReplicationGroupMessageIdImpl(2L, 2L)));
+              return getOrNull(index, messages);
+            },
+            3);
+
+    SessionServiceFactory fakeSessionServiceFactory =
+        new MockSessionServiceFactory(mockClientService);
+
+    // Expected data
+    List<Solace.Record> expected = new ArrayList<>();
+    expected.add(
+        SolaceDataUtils.getSolaceRecord(
+            "payload_test0", null, new ReplicationGroupMessageIdImpl(2L, 1L)));
+    expected.add(
+        SolaceDataUtils.getSolaceRecord(
+            "payload_test1", null, new ReplicationGroupMessageIdImpl(2L, 2L)));
+
+    // Run the pipeline
+    PCollection<Solace.Record> events =
+        pipeline.apply(
+            "Read from Solace",
+            SolaceIO.read()
+                .from(Solace.Queue.fromName("queue"))
+                .withSempClientFactory(getMockSempClientFactory())
+                .withSessionServiceFactory(fakeSessionServiceFactory)
+                .withMaxNumConnections(2));
+    // Assert results
+    PAssert.that(events).containsInAnyOrder(expected);
     pipeline.run();
   }
 
@@ -215,10 +260,10 @@ public class SolaceIOTest {
         new MockSessionServiceFactory(mockClientService);
 
     // Expected data
-    List<SimpleRecord> inputs = new ArrayList<>();
-    inputs.add(new SimpleRecord("payload_test0", "450"));
-    inputs.add(new SimpleRecord("payload_test1", "451"));
-    inputs.add(new SimpleRecord("payload_test2", "452"));
+    List<SimpleRecord> expected = new ArrayList<>();
+    expected.add(new SimpleRecord("payload_test0", "450"));
+    expected.add(new SimpleRecord("payload_test1", "451"));
+    expected.add(new SimpleRecord("payload_test2", "452"));
 
     // Run the pipeline
     PCollection<SimpleRecord> events =
@@ -237,7 +282,7 @@ public class SolaceIOTest {
                 .withMaxNumConnections(2));
 
     // Assert results
-    PAssert.that(events).containsInAnyOrder(inputs);
+    PAssert.that(events).containsInAnyOrder(expected);
     pipeline.run();
   }
 
@@ -571,10 +616,10 @@ public class SolaceIOTest {
                       return dest instanceof Topic;
                     }));
 
-    List<Boolean> inputs = ImmutableList.of(true, true, true);
+    List<Boolean> expected = ImmutableList.of(true, true, true);
 
     // Assert results
-    PAssert.that(destAreTopics).containsInAnyOrder(inputs);
+    PAssert.that(destAreTopics).containsInAnyOrder(expected);
     pipeline.run();
   }
 }

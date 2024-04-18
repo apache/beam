@@ -70,8 +70,9 @@ public abstract class BasicAuthSempClientFactory implements SempClientFactory {
 
   @SuppressWarnings("return")
   private @NonNull SerializableSupplier<HttpRequestFactory> getHttpRequestFactorySupplier() {
-    return httpRequestFactorySupplier() != null
-        ? httpRequestFactorySupplier()
+    SerializableSupplier<HttpRequestFactory> httpRequestSupplier = httpRequestFactorySupplier();
+    return httpRequestSupplier != null
+        ? httpRequestSupplier
         : () -> new NetHttpTransport().createRequestFactory();
   }
 }
