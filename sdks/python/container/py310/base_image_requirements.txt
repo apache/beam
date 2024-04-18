@@ -50,7 +50,7 @@ fastavro==1.9.4
 fasteners==0.19
 freezegun==1.4.0
 future==1.0.0
-google-api-core==2.16.2
+google-api-core==2.18.0
 google-api-python-client==2.126.0
 google-apitools==0.5.31
 google-auth==2.29.0
@@ -78,8 +78,8 @@ googleapis-common-protos==1.63.0
 greenlet==3.0.3
 grpc-google-iam-v1==0.13.0
 grpc-interceptor==0.15.4
-grpcio==1.62.1
-grpcio-status==1.62.1
+grpcio==1.62.2
+grpcio-status==1.62.2
 guppy3==3.1.4.post1
 hdfs==2.7.3
 httplib2==0.22.0
@@ -137,7 +137,7 @@ rpds-py==0.18.0
 rsa==4.9
 scikit-learn==1.4.2
 scipy==1.13.0
-shapely==2.0.3
+shapely==2.0.4
 six==1.16.0
 sortedcontainers==2.4.0
 soupsieve==2.5
