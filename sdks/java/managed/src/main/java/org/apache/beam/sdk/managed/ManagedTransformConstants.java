@@ -17,9 +17,13 @@
  */
 package org.apache.beam.sdk.managed;
 
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
+
+import org.apache.beam.model.pipeline.v1.SchemaAwareTransforms.StandardSchemaAwareTransforms;
+
 /** This class contains constants for supported managed transform identifiers. */
 public class ManagedTransformConstants {
-  public static final String ICEBERG_READ = "beam:schematransform:org.apache.beam:iceberg_read:v1";
+  public static final String ICEBERG_READ = getUrn(StandardSchemaAwareTransforms.IOs.ICEBERG_READ);
   public static final String ICEBERG_WRITE =
-      "beam:schematransform:org.apache.beam:iceberg_write:v1";
+      getUrn(StandardSchemaAwareTransforms.IOs.ICEBERG_WRITE);
 }
