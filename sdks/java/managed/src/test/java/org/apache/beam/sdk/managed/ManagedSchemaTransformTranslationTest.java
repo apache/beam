@@ -190,7 +190,8 @@ public class ManagedSchemaTransformTranslationTest {
     // Check that the proto contains correct values
     SchemaAwareTransforms.ManagedSchemaTransformPayload payload =
         SchemaAwareTransforms.ManagedSchemaTransformPayload.parseFrom(spec.getPayload());
-    assertEquals(TestSchemaTransformProvider.IDENTIFIER, payload.getUnderlyingTransformUrn());
+    assertEquals(
+        TestSchemaTransformProvider.IDENTIFIER, payload.getUnderlyingTransformIdentifier());
     assertEquals(yamlStringConfig, payload.getYamlConfig());
     Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getExpansionSchema());
     assertEquals(ManagedSchemaTransformTranslator.SCHEMA, schemaFromSpec);

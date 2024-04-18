@@ -36,8 +36,8 @@ import "org/apache/beam/model/pipeline/v1/schema.proto";
 message StandardSchemaAwareTransforms {
     // Payload for all of these: SchemaAwareTransformPayload
     enum IOs {
-        ICEBERG_READ = 0 [(beam_urn) = "beam:transform:iceberg_read:v1"];
-        ICEBERG_WRITE = 1 [(beam_urn) = "beam:transform:iceberg_write:v1"];
+        ICEBERG_READ = 0 [(beam_urn) = "beam:schematransform:org.apache.beam:iceberg_read:v1"];
+        ICEBERG_WRITE = 1 [(beam_urn) = "beam:schematransform:org.apache.beam:iceberg_write:v1"];
     }
     enum Managed {
         // Payload: ManagedSchemaTransformPayload
@@ -61,9 +61,9 @@ message SchemaAwareTransformPayload {
 // Payload for a ManagedSchemaTransform.
 // The information available in the payload can be used by runners to override the ManagedSchemaTransform.
 message ManagedSchemaTransformPayload {
-    // The underlying transform's URN.
-    string underlying_transform_urn = 1;
-    // The managed transform configuration Schema.
+    // The underlying schema-aware transform's identifier.
+    string underlying_transform_identifier = 1;
+    // The managed transform's configuration Schema.
     Schema expansion_schema = 2;
     // The configuration used to upgrade the managed transform.
     // Must be compatible with the expansion schema, and decodable via beam:coder:row:v1.

@@ -59,7 +59,8 @@ public class IcebergIOTranslation {
             .addNullableStringField("table_identifier")
             .build();
 
-    public static final String ICEBERG_READ_TRANSFORM_URN = "beam:transform:iceberg_read:v1";
+    public static final String ICEBERG_READ_TRANSFORM_URN =
+        "beam:schematransform:org.apache.beam:iceberg_read:v1";
 
     @Override
     public String getUrn() {
@@ -152,7 +153,8 @@ public class IcebergIOTranslation {
             .addNullableByteArrayField("dynamic_destinations")
             .build();
 
-    public static final String ICEBERG_WRITE_TRANSFORM_URN = "beam:transform:iceberg_write:v1";
+    public static final String ICEBERG_WRITE_TRANSFORM_URN =
+        "beam:schematransform:org.apache.beam:iceberg_write:v1";
 
     @Override
     public String getUrn() {

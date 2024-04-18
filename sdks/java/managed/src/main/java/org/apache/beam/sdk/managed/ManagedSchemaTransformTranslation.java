@@ -77,7 +77,7 @@ public class ManagedSchemaTransformTranslation {
           .setUrn(getUrn())
           .setPayload(
               ManagedSchemaTransformPayload.newBuilder()
-                  .setUnderlyingTransformUrn(managedConfig.getTransformIdentifier())
+                  .setUnderlyingTransformIdentifier(managedConfig.getTransformIdentifier())
                   .setYamlConfig(managedConfig.resolveUnderlyingConfig())
                   .setExpansionSchema(expansionSchema)
                   .setExpansionPayload(ByteString.copyFrom(os.toByteArray()))

@@ -55,7 +55,7 @@ public class IcebergReadSchemaTransformProvider extends TypedSchemaTransformProv
 
   @Override
   public String identifier() {
-    return "beam:transform:iceberg_read:v1";
+    return "beam:schematransform:org.apache.beam:iceberg_read:v1";
   }
 
   @DefaultSchema(AutoValueSchema.class)

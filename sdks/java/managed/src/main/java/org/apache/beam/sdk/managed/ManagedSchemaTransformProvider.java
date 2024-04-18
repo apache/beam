@@ -89,13 +89,15 @@ public class ManagedSchemaTransformProvider
       return new AutoValue_ManagedSchemaTransformProvider_ManagedConfig.Builder();
     }
 
-    @SchemaFieldDescription("Identifier of the underlying IO to instantiate.")
+    @SchemaFieldDescription(
+        "Identifier of the underlying SchemaTransform to discover and instantiate.")
     public abstract String getTransformIdentifier();
 
-    @SchemaFieldDescription("URL path to the YAML config file used to build the underlying IO.")
+    @SchemaFieldDescription(
+        "URL path to the YAML config file used to build the underlying SchemaTransform.")
     public abstract @Nullable String getConfigUrl();
 
-    @SchemaFieldDescription("YAML string config used to build the underlying IO.")
+    @SchemaFieldDescription("YAML string config used to build the underlying SchemaTransform.")
     public abstract @Nullable String getConfig();
 
     @AutoValue.Builder
