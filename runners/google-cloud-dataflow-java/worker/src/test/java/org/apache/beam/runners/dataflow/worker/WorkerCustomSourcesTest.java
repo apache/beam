@@ -645,7 +645,9 @@ public class WorkerCustomSourcesTest {
         numReadOnThisIteration++;
       }
       Instant afterReading = Instant.now();
-      long maxReadMillis = debugOptions.getUnboundedReaderMaxReadTimeSec()*1000+debugOptions.getUnboundedReaderMaxReadTimeMs();
+      long maxReadMillis =
+          debugOptions.getUnboundedReaderMaxReadTimeSec() * 1000
+              + debugOptions.getUnboundedReaderMaxReadTimeMs();
       assertThat(
           new Duration(beforeReading, afterReading).millis(),
           lessThanOrEqualTo(maxReadMillis + 1000));
