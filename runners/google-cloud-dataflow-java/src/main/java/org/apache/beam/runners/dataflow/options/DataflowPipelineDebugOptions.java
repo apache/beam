@@ -220,7 +220,7 @@ public interface DataflowPipelineDebugOptions
   @Description(
       "The max amount of time before an UnboundedReader is consumed before checkpointing, in seconds.")
   @Default.Double(10.0)
-  Double getUnboundedReaderMaxReadTimeSec();
+  double getUnboundedReaderMaxReadTimeSec();
 
   void setUnboundedReaderMaxReadTimeSec(double value);
 
