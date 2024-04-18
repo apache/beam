@@ -64,7 +64,8 @@ public class IcebergWriteSchemaTransformProviderTest {
   @Test
   public void testBuildTransformWithRow() throws NoSuchSchemaException {
     Row catalogConfigRow =
-        Row.withSchema(SchemaRegistry.createDefault().getSchema(IcebergSchemaTransformCatalogConfig.class))
+        Row.withSchema(
+                SchemaRegistry.createDefault().getSchema(IcebergSchemaTransformCatalogConfig.class))
             .withFieldValue("catalogName", "test_name")
             .withFieldValue("catalogType", "test_type")
             .withFieldValue("catalogImplementation", "testImplementation")

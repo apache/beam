@@ -19,7 +19,6 @@ package org.apache.beam.sdk.managed.testing;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.managed.testing.AutoValue_TestSchemaTransformProvider_Config;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
