@@ -16,4 +16,5 @@
  * limitations under the License.
  */
 
+/** Test transform for Managed API. */
 package org.apache.beam.sdk.managed.testing;
