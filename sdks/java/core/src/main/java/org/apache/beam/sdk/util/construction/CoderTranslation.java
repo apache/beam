@@ -209,12 +209,13 @@ public class CoderTranslation {
    * not satisfied.
    */
   public static void verifyModelCodersRegistered() {
-    for (String urn : new ModelCoderRegistrar().getCoderURNs().values())
+    for (String urn : new ModelCoderRegistrar().getCoderURNs().values()) {
       if (!getKnownCoderUrns().inverse().containsKey(urn)) {
         throw new IllegalStateException(
             "Model coder not registered for "
                 + urn
                 + ". Perhaps this is a fat jar built with missing ServiceLoader entries?");
       }
+    }
   }
 }
