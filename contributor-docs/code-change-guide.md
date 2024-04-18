@@ -12,6 +12,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
+Last Updated: Apr 18, 2024
+
 This guide is for Beam users and developers changing and testing Beam code.
 Specifically, this guide provides information about:
 
